@@ -7,6 +7,5 @@ setup(
     description=('fast image augmentation library and easy to use wrapper '
                  'around other libraries'),
     packages=find_packages(),
-    install_requires=['numpy', 'scipy', 'opencv-python', 'torch',
-                      'torchvision', 'imgaug'],
+    install_requires=['numpy', 'scipy', 'opencv-python', 'imgaug'],
 )

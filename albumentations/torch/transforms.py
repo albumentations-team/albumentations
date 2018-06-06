@@ -2,8 +2,7 @@ import numpy as np
 import torch
 from torchvision.transforms import functional as F
 
-
-from ..transforms_interface import BasicTransform
+from ..core.transforms_interface import BasicTransform
 
 
 __all__ = ['ToTensor']

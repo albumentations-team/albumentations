@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 
-from ..transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
+from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 from . import functional as F
 
 

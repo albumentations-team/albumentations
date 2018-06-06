@@ -1,7 +1,7 @@
 import random
 
-from ..transforms_interface import BasicTransform
-from ..base import functional as F
+from ..core.transforms_interface import BasicTransform
+from ..augmentations import functional as F
 from .functional import vflip_bbox, hflip_bbox
 
 

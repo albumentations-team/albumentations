@@ -1,7 +1,7 @@
 from imgaug import augmenters as iaa
 
 
-from ..transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
+from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
 
 
 __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform',
