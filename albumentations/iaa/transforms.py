@@ -1,5 +1,12 @@
-from .transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
 from imgaug import augmenters as iaa
+
+
+from ..transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
+
+
+__all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform',
+           'IAAEmboss', 'IAASuperpixels', 'IAASharpen',
+           'IAAAdditiveGaussianNoise', 'IAAPiecewiseAffine', 'IAAPerspective']
 
 
 class BasicIAATransform(BasicTransform):

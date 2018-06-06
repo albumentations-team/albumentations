@@ -1,6 +1,11 @@
-from transforms_interface import BasicTransform
-from . import functional as F
 import random
+
+from ..transforms_interface import BasicTransform
+from ..base import functional as F
+from .functional import vflip_bbox, hflip_bbox
+
+
+__all__ = ['DetectionTransform', 'VFlipWithBbox', 'HFlipWithBbox']
 
 
 class DetectionTransform(BasicTransform):
@@ -28,14 +33,6 @@ class DetectionTransform(BasicTransform):
         :param bbox: tuple
         """
         raise NotImplementedError
-
-
-def vflip_bbox(bbox, cols, rows):
-    return (cols - bbox[0] - bbox[2], *bbox[1:])
-
-
-def hflip_bbox(bbox, cols, rows):
-    return (bbox[0], rows - bbox[1] - bbox[3], *bbox[2:])
 
 
 class VFlipWithBbox(DetectionTransform):

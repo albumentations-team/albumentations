@@ -1,6 +1,12 @@
 import numpy as np
 import torch
-import torchvision.transforms.functional as F
+from torchvision.transforms import functional as F
+
+
+from ..transforms_interface import BasicTransform
+
+
+__all__ = ['ToTensor']
 
 
 def img_to_tensor(im, normalize=None):
@@ -11,6 +17,7 @@ def img_to_tensor(im, normalize=None):
 
 
 def mask_to_tensor(mask, num_classes, sigmoid):
+    # todo
     if num_classes > 1:
         if not sigmoid:
             # softmax
@@ -27,3 +34,21 @@ def mask_to_tensor(mask, num_classes, sigmoid):
     else:
         mask = np.expand_dims(mask / (255. if mask.dtype == np.uint8 else 1), 0).astype(np.float32)
     return torch.from_numpy(mask)
+
+
+class ToTensor(BasicTransform):
+    def __init__(self, num_classes=1, sigmoid=True, normalize=None):
+        super().__init__(1.)
+        self.num_classes = num_classes
+        self.sigmoid = sigmoid
+        self.normalize = normalize
+
+    def __call__(self, **kwargs):
+        kwargs.update({'image': img_to_tensor(kwargs['image'], self.normalize)})
+        if 'mask' in kwargs.keys():
+            kwargs.update({'mask': mask_to_tensor(kwargs['mask'], self.num_classes, sigmoid=self.sigmoid)})
+        return kwargs
+
+    @property
+    def targets(self):
+        raise NotImplementedError

@@ -1,5 +1,9 @@
 import random
+
 import numpy as np
+
+
+__all__ = ['Compose', 'OneOf', 'OneOrOther']
 
 
 class Compose:

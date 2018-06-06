@@ -1,11 +1,11 @@
-import cv2
+from functools import wraps
+import math
 
+import cv2
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 import numpy as np
-import math
 from scipy.ndimage.filters import gaussian_filter
-from functools import wraps
 
 
 def vflip(img):
