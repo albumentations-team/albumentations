@@ -49,17 +49,3 @@ class HFlipWithBbox(DetectionTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return hflip_bbox(bbox, **params)
-
-
-if __name__ == "__main__":
-    trans = VFlipWithBbox(1.)
-    import numpy as np
-
-    data = {"image": np.ones((100, 200)), 'bboxes': [(1, 2, 5, 5), (45, 67, 35, 24)]}
-    data = trans(**data)
-    assert (data['bboxes'] == [(194, 2, 5, 5), (120, 67, 35, 24)])
-
-    trans = HFlipWithBbox(1.)
-    data = {"image": np.ones((100, 200)), 'bboxes': [(1, 2, 5, 5), (45, 67, 35, 24)]}
-    data = trans(**data)
-    assert (data['bboxes'] == [(1, 93, 5, 5), (45, 100 - 67 - 24, 35, 24)])
