@@ -137,21 +137,15 @@ def motion_blur(img, ksize):
 
 
 def distort1(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
-    """"
-    ## unconverntional augmnet ################################################################################3
-    ## https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
-
-    ## https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
-    ## https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
-    ## http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
-
-    ## barrel\pincushion distortion
+    """
+    unconventional augment
+    https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
+    https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
+    https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
+    http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
+    barrel\pincushion distortion
     """
     height, width = img.shape[:2]
-    #  map_x, map_y =
-    # cv2.initUndistortRectifyMap(intrinsics, dist_coeffs, None, None, (width,height),cv2.CV_32FC1)
-    # https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
-    # https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
     k = k * 0.00001
     dx = dx * width
     dy = dy * height
@@ -171,8 +165,8 @@ def distort1(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=c
 def distort2(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
              border_mode=cv2.BORDER_REFLECT_101):
     """
-    #http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
-    ## grid distortion
+    http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
+    grid distortion
     """
     height, width = img.shape[:2]
 
