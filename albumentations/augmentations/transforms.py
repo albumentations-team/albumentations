@@ -93,7 +93,6 @@ class Distort1(DualTransform):
         super().__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
-        self.shift_limit = to_tuple(shift_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
 
@@ -112,7 +111,6 @@ class Distort2(DualTransform):
         super().__init__(p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
-        self.p = p
         self.interpolation = interpolation
         self.border_mode = border_mode
 
