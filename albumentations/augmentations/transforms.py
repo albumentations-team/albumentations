@@ -246,16 +246,16 @@ class GaussNoise(ImageOnlyTransform):
 
 
 class CLAHE(ImageOnlyTransform):
-    def __init__(self, clipLimit=4.0, tileGridSize=(8, 8), p=0.5):
+    def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), p=0.5):
         super().__init__(p)
-        self.clipLimit = to_tuple(clipLimit, 1)
-        self.tileGridSize = tileGridSize
+        self.clip_limit = to_tuple(clip_limit, 1)
+        self.tile_grid_size = tile_grid_size
 
-    def apply(self, img, clipLimit=2):
-        return F.clahe(img, clipLimit, self.tileGridSize)
+    def apply(self, img, clip_limit=2):
+        return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
-        return {"clipLimit": np.random.uniform(self.clipLimit[0], self.clipLimit[1])}
+        return {"clip_limit": np.random.uniform(self.clip_limit[0], self.clip_limit[1])}
 
 
 class ChannelShuffle(ImageOnlyTransform):
