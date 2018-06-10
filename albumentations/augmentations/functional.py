@@ -92,14 +92,14 @@ def clipped(func):
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.int32)
-    h, s, v = cv2.split(img)
-    h = cv2.add(h, hue_shift)
-    h = np.where(h < 0, 255 - h, h)
-    h = np.where(h > 255, h - 255, h)
-    h = h.astype(dtype)
-    s = clip(cv2.add(s, sat_shift), dtype, 255 if dtype == np.uint8 else 1.)
-    v = clip(cv2.add(v, val_shift), dtype, 255 if dtype == np.uint8 else 1.)
-    img = cv2.merge((h, s, v)).astype(dtype)
+    hue, sat, val = cv2.split(img)
+    hue = cv2.add(hue, hue_shift)
+    hue = np.where(hue < 0, 255 - hue, hue)
+    hue = np.where(hue > 255, hue - 255, hue)
+    hue = hue.astype(dtype)
+    sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.)
+    val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.)
+    img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
 
