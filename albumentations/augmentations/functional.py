@@ -30,7 +30,7 @@ def rot90(img, factor):
 
 
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
-    height, width = img.shape[0:2]
+    height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
     img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode)
     return img

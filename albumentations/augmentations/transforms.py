@@ -6,13 +6,10 @@ import numpy as np
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 from . import functional as F
 
-
-__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomRotate90',
-       'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'Distort1', 'Distort2',
-       'ElasticTransform', 'ElasticTransform', 'HueSaturationValue',
-       'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur',
-       'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
-       'ToGray']
+__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomRotate90', 'Rotate', 'ShiftScaleRotate',
+           'CenterCrop', 'Distort1', 'Distort2', 'ElasticTransform', 'ElasticTransform', 'HueSaturationValue',
+           'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE',
+           'ChannelShuffle', 'InvertImg', 'ToGray']
 
 
 class VerticalFlip(DualTransform):
@@ -151,7 +148,6 @@ class ElasticTransform(DualTransform):
 
 class HueSaturationValue(ImageOnlyTransform):
     def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5):
-        # def __init__(self, hue_shift_limit=100, sat_shift_limit=50, val_shift_limit=10, p=0.5, targets=('image')):
         super().__init__(p)
         self.hue_shift_limit = to_tuple(hue_shift_limit)
         self.sat_shift_limit = to_tuple(sat_shift_limit)
@@ -192,7 +188,7 @@ class RandomBrightness(ImageOnlyTransform):
         return F.random_brightness(img, alpha)
 
     def get_params(self):
-        return {"alpha": 1.0 + np.random.uniform(self.limit[0], self.limit[1])}
+        return {'alpha': 1.0 + np.random.uniform(self.limit[0], self.limit[1])}
 
 
 class RandomContrast(ImageOnlyTransform):
@@ -204,7 +200,7 @@ class RandomContrast(ImageOnlyTransform):
         return F.random_contrast(img, alpha)
 
     def get_params(self):
-        return {"alpha": 1.0 + np.random.uniform(self.limit[0], self.limit[1])}
+        return {'alpha': 1.0 + np.random.uniform(self.limit[0], self.limit[1])}
 
 
 class Blur(ImageOnlyTransform):
@@ -255,7 +251,7 @@ class CLAHE(ImageOnlyTransform):
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
-        return {"clip_limit": np.random.uniform(self.clip_limit[0], self.clip_limit[1])}
+        return {'clip_limit': np.random.uniform(self.clip_limit[0], self.clip_limit[1])}
 
 
 class ChannelShuffle(ImageOnlyTransform):

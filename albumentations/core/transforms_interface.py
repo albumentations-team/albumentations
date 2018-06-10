@@ -37,7 +37,7 @@ class BasicTransform:
 
 class DualTransform(BasicTransform):
     """
-    transfrom for segmentation task
+    transform for segmentation task
     """
 
     @property
