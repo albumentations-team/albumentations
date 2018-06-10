@@ -292,12 +292,9 @@ def channel_shuffle(img):
 
 @clipped
 def gauss_noise(image, var):
-    row, col, ch = image.shape
     mean = var
-    # var = 30
     sigma = var ** 0.5
-    gauss = np.random.normal(mean, sigma, (row, col, ch))
-    gauss = gauss.reshape(row, col, ch)
+    gauss = np.random.normal(mean, sigma, image.shape)
     gauss = (gauss - np.min(gauss)).astype(np.uint8)
     return image.astype(np.int32) + gauss
 
