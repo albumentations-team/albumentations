@@ -220,12 +220,11 @@ def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.
     if random_state is None:
         random_state = np.random.RandomState(1234)
 
-    shape = image.shape
-    shape_size = shape[:2]
+    height, width = image.shape[:2]
 
     # Random affine
-    center_square = np.float32(shape_size) // 2
-    square_size = min(shape_size) // 3
+    center_square = np.float32((height, width)) // 2
+    square_size = min((height, width)) // 3
     alpha = float(alpha)
     sigma = float(sigma)
     alpha_affine = float(alpha_affine)
@@ -235,12 +234,12 @@ def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, shape_size[::-1], borderMode=border_mode)
+    image = cv2.warpAffine(image, matrix, (width, height), borderMode=border_mode)
 
-    dx = np.float32(gaussian_filter((random_state.rand(*shape_size) * 2 - 1), sigma) * alpha)
-    dy = np.float32(gaussian_filter((random_state.rand(*shape_size) * 2 - 1), sigma) * alpha)
+    dx = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
+    dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
 
-    x, y = np.meshgrid(np.arange(shape[1]), np.arange(shape[0]))
+    x, y = np.meshgrid(np.arange(width), np.arange(height))
 
     mapx = np.float32(x + dx)
     mapy = np.float32(y + dy)
