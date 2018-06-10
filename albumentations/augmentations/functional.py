@@ -31,8 +31,8 @@ def rot90(img, factor):
 
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[0:2]
-    mat = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
-    img = cv2.warpAffine(img, mat, (width, height), flags=interpolation, borderMode=border_mode)
+    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
+    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode)
     return img
 
 
@@ -49,8 +49,8 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
 
     box0 = box0.astype(np.float32)
     box1 = box1.astype(np.float32)
-    mat = cv2.getPerspectiveTransform(box0, box1)
-    img = cv2.warpPerspective(img, mat, (width, height), flags=interpolation, borderMode=border_mode)
+    matrix = cv2.getPerspectiveTransform(box0, box1)
+    img = cv2.warpPerspective(img, matrix, (width, height), flags=interpolation, borderMode=border_mode)
 
     return img
 
@@ -239,9 +239,9 @@ def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.
     pts1 = np.float32([center_square + square_size, [center_square[0] + square_size, center_square[1] - square_size],
                        center_square - square_size])
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
-    M = cv2.getAffineTransform(pts1, pts2)
+    matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, M, shape_size[::-1], borderMode=border_mode)
+    image = cv2.warpAffine(image, matrix, shape_size[::-1], borderMode=border_mode)
 
     dx = np.float32(gaussian_filter((random_state.rand(*shape_size) * 2 - 1), sigma) * alpha)
     dy = np.float32(gaussian_filter((random_state.rand(*shape_size) * 2 - 1), sigma) * alpha)
