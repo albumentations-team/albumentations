@@ -55,14 +55,23 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     return img
 
 
-def center_crop(img, height, width):
-    h, w, c = img.shape
-    dy = (h - height) // 2
-    dx = (w - width) // 2
-    y1 = dy
-    y2 = y1 + height
-    x1 = dx
-    x2 = x1 + width
+def center_crop(img, crop_height, crop_width):
+    height, width = img.shape[:2]
+
+    if height < crop_height:
+        y1 = 0
+        y2 = height
+    else:
+        y1 = (height - crop_height) // 2
+        y2 = y1 + crop_height
+
+    if width < crop_width:
+        x1 = 0
+        x2 = width
+    else:
+        x1 = (width - crop_width) // 2
+        x2 = x1 + crop_width
+
     img = img[y1:y2, x1:x2, :]
     return img
 
