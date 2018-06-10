@@ -1,3 +1,4 @@
+import cv2
 import random
 
 import numpy as np
@@ -46,26 +47,31 @@ class RandomRotate90(DualTransform):
 
 
 class Rotate(DualTransform):
-    def __init__(self, limit=90, p=.5):
+    def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, p=.5):
         super().__init__(p)
         self.limit = to_tuple(limit)
+        self.interpolation = interpolation
+        self.border_mode = border_mode
 
     def apply(self, img, angle=0):
-        return F.rotate(img, angle)
+        return F.rotate(img, angle, self.interpolation, self.border_mode)
 
     def get_params(self):
         return {'angle': random.uniform(self.limit[0], self.limit[1])}
 
 
 class ShiftScaleRotate(DualTransform):
-    def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, p=0.5):
+    def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.scale_limit = to_tuple(scale_limit)
         self.rotate_limit = to_tuple(rotate_limit)
+        self.interpolation = interpolation
+        self.border_mode = border_mode
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0):
-        return F.shift_scale_rotate(img, angle, scale, dx, dy)
+        return F.shift_scale_rotate(img, angle, scale, dx, dy, self.interpolation, self.border_mode)
 
     def get_params(self):
         return {'angle': random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
@@ -85,14 +91,17 @@ class CenterCrop(DualTransform):
 
 
 class Distort1(DualTransform):
-    def __init__(self, distort_limit=0.05, shift_limit=0.05, p=0.5):
+    def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.shift_limit = to_tuple(shift_limit)
+        self.interpolation = interpolation
+        self.border_mode = border_mode
 
     def apply(self, img, k=0, dx=0, dy=0):
-        return F.distort1(img, k, dx, dy)
+        return F.distort1(img, k, dx, dy, self.interpolation, self.border_mode)
 
     def get_params(self):
         return {'k': random.uniform(self.distort_limit[0], self.distort_limit[1]),
@@ -101,14 +110,17 @@ class Distort1(DualTransform):
 
 
 class Distort2(DualTransform):
-    def __init__(self, num_steps=5, distort_limit=0.3, p=0.5):
+    def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.p = p
+        self.interpolation = interpolation
+        self.border_mode = border_mode
 
     def apply(self, img, stepsx=[], stepsy=[]):
-        return F.distort2(img, self.num_steps, stepsx, stepsy)
+        return F.distort2(img, self.num_steps, stepsx, stepsy, self.interpolation, self.border_mode)
 
     def get_params(self):
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
@@ -120,15 +132,18 @@ class Distort2(DualTransform):
 
 
 class ElasticTransform(DualTransform):
-    def __init__(self, alpha=1, sigma=50, alpha_affine=50, p=0.5):
+    def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
+                 border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
+        self.interpolation = interpolation
+        self.border_mode = border_mode
 
     def apply(self, img, random_state=None):
-        return F.elastic_transform_fast(img, self.alpha, self.sigma, self.alpha_affine,
-                                        np.random.RandomState(random_state))
+        return F.elastic_transform_fast(img, self.alpha, self.sigma, self.alpha_affine, self.interpolation,
+                                        self.border_mode, np.random.RandomState(random_state))
 
     def get_params(self):
         return {'random_state': np.random.randint(0, 10000)}

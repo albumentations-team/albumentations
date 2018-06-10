@@ -29,16 +29,14 @@ def rot90(img, factor):
     return np.ascontiguousarray(img)
 
 
-def rotate(img, angle):
+def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[0:2]
     mat = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
-    img = cv2.warpAffine(img, mat, (width, height),
-                         flags=cv2.INTER_LINEAR,
-                         borderMode=cv2.BORDER_REFLECT_101)
+    img = cv2.warpAffine(img, mat, (width, height), flags=interpolation, borderMode=border_mode)
     return img
 
 
-def shift_scale_rotate(img, angle, scale, dx, dy):
+def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[:2]
 
     cc = math.cos(angle / 180 * math.pi) * scale
@@ -52,9 +50,7 @@ def shift_scale_rotate(img, angle, scale, dx, dy):
     box0 = box0.astype(np.float32)
     box1 = box1.astype(np.float32)
     mat = cv2.getPerspectiveTransform(box0, box1)
-    img = cv2.warpPerspective(img, mat, (width, height),
-                              flags=cv2.INTER_LINEAR,
-                              borderMode=cv2.BORDER_REFLECT_101)
+    img = cv2.warpPerspective(img, mat, (width, height), flags=interpolation, borderMode=border_mode)
 
     return img
 
@@ -131,7 +127,7 @@ def motion_blur(img, ksize):
     return cv2.filter2D(img, -1, kernel / np.sum(kernel))
 
 
-def distort1(img, k=0, dx=0, dy=0):
+def distort1(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     """"
     ## unconverntional augmnet ################################################################################3
     ## https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
@@ -159,11 +155,12 @@ def distort1(img, k=0, dx=0, dy=0):
     map_x = r * np.cos(theta) + width / 2 + dx
     map_y = r * np.sin(theta) + height / 2 + dy
 
-    img = cv2.remap(img, map_x, map_y, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101)
+    img = cv2.remap(img, map_x, map_y, interpolation=interpolation, borderMode=border_mode)
     return img
 
 
-def distort2(img, num_steps=10, xsteps=[], ysteps=[]):
+def distort2(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
+             border_mode=cv2.BORDER_REFLECT_101):
     """
     #http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
     ## grid distortion
@@ -203,13 +200,12 @@ def distort2(img, num_steps=10, xsteps=[], ysteps=[]):
     map_x, map_y = np.meshgrid(xx, yy)
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
-    img = cv2.remap(img, map_x, map_y,
-                    interpolation=cv2.INTER_LINEAR,
-                    borderMode=cv2.BORDER_REFLECT_101)
+    img = cv2.remap(img, map_x, map_y, interpolation=interpolation, borderMode=border_mode)
     return img
 
 
-def elastic_transform_fast(image, alpha, sigma, alpha_affine, random_state=None):
+def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
+                           border_mode=cv2.BORDER_REFLECT_101, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -236,7 +232,7 @@ def elastic_transform_fast(image, alpha, sigma, alpha_affine, random_state=None)
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     M = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, M, shape_size[::-1], borderMode=cv2.BORDER_REFLECT_101)
+    image = cv2.warpAffine(image, M, shape_size[::-1], borderMode=border_mode)
 
     dx = np.float32(gaussian_filter((random_state.rand(*shape_size) * 2 - 1), sigma) * alpha)
     dy = np.float32(gaussian_filter((random_state.rand(*shape_size) * 2 - 1), sigma) * alpha)
@@ -246,7 +242,7 @@ def elastic_transform_fast(image, alpha, sigma, alpha_affine, random_state=None)
     mapx = np.float32(x + dx)
     mapy = np.float32(y + dy)
 
-    return cv2.remap(image, mapx, mapy, interpolation=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101)
+    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode)
 
 
 def remap_color(img, bg, center, max):
