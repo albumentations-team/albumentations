@@ -113,11 +113,11 @@ def shift_rgb(img, r_shift, g_shift, b_shift):
 
 
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
-    img_yuv = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
-    img_yuv[:, :, 0] = clahe.apply(img_yuv[:, :, 0])
-    img_output = cv2.cvtColor(img_yuv, cv2.COLOR_LAB2RGB)
-    return img_output
+    img[:, :, 0] = clahe.apply(img[:, :, 0])
+    img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
+    return img
 
 
 def blur(img, ksize):
