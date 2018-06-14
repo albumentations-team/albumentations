@@ -136,7 +136,7 @@ def motion_blur(img, ksize):
     return cv2.filter2D(img, -1, kernel / np.sum(kernel))
 
 
-def distort1(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
+def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     """
     unconventional augment
     https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
@@ -162,8 +162,8 @@ def distort1(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=c
     return img
 
 
-def distort2(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
-             border_mode=cv2.BORDER_REFLECT_101):
+def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
+                    border_mode=cv2.BORDER_REFLECT_101):
     """
     http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
     grid distortion

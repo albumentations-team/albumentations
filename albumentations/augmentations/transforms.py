@@ -7,9 +7,9 @@ from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransf
 from . import functional as F
 
 __all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomRotate90', 'Rotate', 'ShiftScaleRotate',
-           'CenterCrop', 'Distort1', 'Distort2', 'ElasticTransform', 'ElasticTransform', 'HueSaturationValue',
-           'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE',
-           'ChannelShuffle', 'InvertImg', 'ToGray']
+           'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform', 'ElasticTransform',
+           'HueSaturationValue','RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur', 'MedianBlur',
+           'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
 
 
 class VerticalFlip(DualTransform):
@@ -87,7 +87,7 @@ class CenterCrop(DualTransform):
         return F.center_crop(img, self.height, self.width)
 
 
-class Distort1(DualTransform):
+class OpticalDistortion(DualTransform):
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
@@ -97,7 +97,7 @@ class Distort1(DualTransform):
         self.border_mode = border_mode
 
     def apply(self, img, k=0, dx=0, dy=0):
-        return F.distort1(img, k, dx, dy, self.interpolation, self.border_mode)
+        return F.optical_distortion(img, k, dx, dy, self.interpolation, self.border_mode)
 
     def get_params(self):
         return {'k': random.uniform(self.distort_limit[0], self.distort_limit[1]),
@@ -105,7 +105,7 @@ class Distort1(DualTransform):
                 'dy': round(random.uniform(self.shift_limit[0], self.shift_limit[1]))}
 
 
-class Distort2(DualTransform):
+class GridDistortion(DualTransform):
     def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
@@ -115,7 +115,7 @@ class Distort2(DualTransform):
         self.border_mode = border_mode
 
     def apply(self, img, stepsx=[], stepsy=[]):
-        return F.distort2(img, self.num_steps, stepsx, stepsy, self.interpolation, self.border_mode)
+        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, self.interpolation, self.border_mode)
 
     def get_params(self):
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
