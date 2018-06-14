@@ -247,31 +247,6 @@ def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.
     return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode)
 
 
-def remap_color(img, bg, center, max):
-    def get_lut(img, bg, center, max):
-        ma = np.max(img)
-        # me = np.mean(img)
-        # th = np.mean([ma, me]) * 1.5
-        th = ma / 2
-        gap = 10
-        channels = [[], [], []]
-        range2 = ma - int(th)
-        for i in range(3):
-            channels[i].append(np.linspace(bg[i] - gap, center[i] - gap, int(th)).astype(np.uint8))
-            channels[i].append(np.linspace(center[i] - gap, max[i] + gap, range2).astype(np.uint8))
-            channels[i].append([max[i] + gap] * (256 - sum(map(len, channels[i]))))
-            channels[i] = np.hstack(channels[i])
-        return np.dstack(channels)
-
-    # img = adjust_gamma(img, 5.)
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    if np.mean(gray) > 100:
-        return img
-    lut = get_lut(img, bg, center, max)
-    res = cv2.LUT(img, lut).astype(np.uint8)
-    return res
-
-
 def invert(img):
     return 255 - img
 
