@@ -1,4 +1,4 @@
-import random
+import numpy as np
 
 
 __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform']
@@ -16,7 +16,7 @@ class BasicTransform:
         self.p = p
 
     def __call__(self, **kwargs):
-        if random.random() < self.p:
+        if np.random.random() < self.p:
             params = self.get_params()
             return {k: self.apply(a, **params) if k in self.targets else a for k, a in kwargs.items()}
         return kwargs

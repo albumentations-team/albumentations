@@ -1,6 +1,4 @@
 import cv2
-import random
-
 import numpy as np
 
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
@@ -27,7 +25,8 @@ class Flip(DualTransform):
         return F.random_flip(img, d)
 
     def get_params(self):
-        return {'d': random.randint(-1, 1)}
+        # Random int in range [-1, 2)
+        return {'d': np.random.randint(-1, 2)}
 
 
 class Transpose(DualTransform):
@@ -40,7 +39,8 @@ class RandomRotate90(DualTransform):
         return np.ascontiguousarray(np.rot90(img, factor))
 
     def get_params(self):
-        return {'factor': random.randint(0, 4)}
+        # Random int in range [0, 5)
+        return {'factor': np.random.randint(0, 5)}
 
 
 class Rotate(DualTransform):
@@ -54,7 +54,7 @@ class Rotate(DualTransform):
         return F.rotate(img, angle, self.interpolation, self.border_mode)
 
     def get_params(self):
-        return {'angle': random.uniform(self.limit[0], self.limit[1])}
+        return {'angle': np.random.uniform(self.limit[0], self.limit[1])}
 
 
 class ShiftScaleRotate(DualTransform):
@@ -71,10 +71,10 @@ class ShiftScaleRotate(DualTransform):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, self.interpolation, self.border_mode)
 
     def get_params(self):
-        return {'angle': random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
-                'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
-                'dx': round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-                'dy': round(random.uniform(self.shift_limit[0], self.shift_limit[1]))}
+        return {'angle': np.random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
+                'scale': np.random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
+                'dx': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1])),
+                'dy': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1]))}
 
 
 class CenterCrop(DualTransform):
@@ -100,9 +100,9 @@ class OpticalDistortion(DualTransform):
         return F.optical_distortion(img, k, dx, dy, self.interpolation, self.border_mode)
 
     def get_params(self):
-        return {'k': random.uniform(self.distort_limit[0], self.distort_limit[1]),
-                'dx': round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-                'dy': round(random.uniform(self.shift_limit[0], self.shift_limit[1]))}
+        return {'k': np.random.uniform(self.distort_limit[0], self.distort_limit[1]),
+                'dx': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1])),
+                'dy': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1]))}
 
 
 class GridDistortion(DualTransform):
@@ -118,8 +118,8 @@ class GridDistortion(DualTransform):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, self.interpolation, self.border_mode)
 
     def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+        stepsx = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+        stepsy = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
         return {
             'stepsx': stepsx,
             'stepsy': stepsy

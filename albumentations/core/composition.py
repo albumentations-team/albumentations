@@ -1,5 +1,3 @@
-import random
-
 import numpy as np
 
 
@@ -12,7 +10,7 @@ class Compose:
         self.p = p
 
     def __call__(self, **data):
-        if random.random() < self.p:
+        if np.random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
         return data
@@ -27,7 +25,7 @@ class OneOf:
         self.transforms_ps = [t / s for t in transforms_ps]
 
     def __call__(self, **data):
-        if random.random() < self.p:
+        if np.random.random() < self.p:
             t = np.random.choice(self.transforms, p=self.transforms_ps)
             t.p = 1.
             data = t(**data)
@@ -43,4 +41,4 @@ class OneOrOther:
         self.p = p
 
     def __call__(self, **data):
-        return self.first(**data) if random.random() < self.p else self.second(**data)
+        return self.first(**data) if np.random.random() < self.p else self.second(**data)

@@ -1,4 +1,4 @@
-import random
+import numpy as np
 
 from ..core.transforms_interface import BasicTransform
 from ..augmentations import functional as F
@@ -21,7 +21,7 @@ class DetectionTransform(BasicTransform):
         return 'image', 'bboxes'
 
     def __call__(self, **kwargs):
-        if random.random() < self.p:
+        if  np.random.random() < self.p:
             params = self.get_params()
             kwargs.update({'image': self.apply(kwargs['image'], **params)})
             params.update({'cols': kwargs['image'].shape[1], 'rows': kwargs['image'].shape[0]})
