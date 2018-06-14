@@ -93,8 +93,8 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.int32)
     hue, sat, val = cv2.split(img)
     hue = cv2.add(hue, hue_shift)
-    hue = np.where(hue < 0, 255 - hue, hue)
-    hue = np.where(hue > 255, hue - 255, hue)
+    hue = np.where(hue < 0, 180 - hue, hue)
+    hue = np.where(hue > 180, hue - 180, hue)
     hue = hue.astype(dtype)
     sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.)
     val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.)
@@ -283,3 +283,11 @@ def to_gray(img):
     if np.mean(gray) > 127:
         gray = 255 - gray
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+
+def bbox_vflip(bbox, cols, rows):
+    return (cols - bbox[0] - bbox[2], *bbox[1:])
+
+
+def bbox_hflip(bbox, cols, rows):
+    return (bbox[0], rows - bbox[1] - bbox[3], *bbox[2:])

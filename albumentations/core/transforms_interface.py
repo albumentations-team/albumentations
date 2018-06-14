@@ -18,7 +18,8 @@ class BasicTransform:
     def __call__(self, **kwargs):
         if np.random.random() < self.p:
             params = self.get_params()
-            return {k: self.apply(a, **params) if k in self.targets else a for k, a in kwargs.items()}
+            params = self.update_params(params, **kwargs)
+            return {key: self.targets.get(key, lambda x, **p: x)(arg, **params) for key, arg in kwargs.items()}
         return kwargs
 
     def apply(self, img, **params):
@@ -34,6 +35,10 @@ class BasicTransform:
         #              ('image', 'boxes')
         raise NotImplementedError
 
+    def update_params(self, params, **kwargs):
+        params.update({'cols': kwargs['image'].shape[1], 'rows': kwargs['image'].shape[0]})
+        return params
+
 
 class DualTransform(BasicTransform):
     """
@@ -42,7 +47,10 @@ class DualTransform(BasicTransform):
 
     @property
     def targets(self):
-        return 'image', 'mask'
+        return {'image': self.apply, 'mask': self.apply, 'bboxes': self.apply_to_bbox}
+
+    def apply_to_bbox(self, bbox, **params):
+        raise NotImplementedError
 
 
 class ImageOnlyTransform(BasicTransform):
@@ -52,4 +60,5 @@ class ImageOnlyTransform(BasicTransform):
 
     @property
     def targets(self):
-        return 'image'
+        return {'image': self.apply}
+

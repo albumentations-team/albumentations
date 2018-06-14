@@ -14,10 +14,16 @@ class VerticalFlip(DualTransform):
     def apply(self, img, **params):
         return F.vflip(img)
 
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_vflip(bbox, **params)
+
 
 class HorizontalFlip(DualTransform):
     def apply(self, img, **params):
         return F.hflip(img)
+
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_hflip(bbox, **params)
 
 
 class Flip(DualTransform):
@@ -73,8 +79,8 @@ class ShiftScaleRotate(DualTransform):
     def get_params(self):
         return {'angle': np.random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
                 'scale': np.random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
-                'dx': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1])),
-                'dy': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1]))}
+                'dx': np.random.uniform(self.shift_limit[0], self.shift_limit[1]),
+                'dy': np.random.uniform(self.shift_limit[0], self.shift_limit[1])}
 
 
 class CenterCrop(DualTransform):
