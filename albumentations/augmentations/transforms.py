@@ -45,8 +45,8 @@ class RandomRotate90(DualTransform):
         return np.ascontiguousarray(np.rot90(img, factor))
 
     def get_params(self):
-        # Random int in range [0, 5)
-        return {'factor': np.random.randint(0, 5)}
+        # Random int in range [0, 4)
+        return {'factor': np.random.randint(0, 4)}
 
 
 class Rotate(DualTransform):
