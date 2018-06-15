@@ -11,6 +11,13 @@ __all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomCrop', 
 
 
 class VerticalFlip(DualTransform):
+    """Flips the input vertically around the x-axis.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask, bboxes.
+    """
     def apply(self, img, **params):
         return F.vflip(img)
 
@@ -19,6 +26,13 @@ class VerticalFlip(DualTransform):
 
 
 class HorizontalFlip(DualTransform):
+    """Flips the input horizontally around the y-axis.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask, bboxes.
+    """
     def apply(self, img, **params):
         return F.hflip(img)
 
@@ -27,7 +41,20 @@ class HorizontalFlip(DualTransform):
 
 
 class Flip(DualTransform):
+    """Flips the input either horizontally, vertically or both horizontally and vertically.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask.
+    """
     def apply(self, img, d=0, **params):
+        """
+        Args:
+            d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
+                -1 for both vertical and horizontal flipping (which is also could be seen as rotating the input by
+                180 degrees).
+        """
         return F.random_flip(img, d)
 
     def get_params(self):
@@ -36,12 +63,30 @@ class Flip(DualTransform):
 
 
 class Transpose(DualTransform):
+    """Transposes the input by swapping rows and columns.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask.
+    """
     def apply(self, img, **params):
         return F.transpose(img)
 
 
 class RandomRotate90(DualTransform):
+    """Randomly rotates the input by 90 degrees zero or more times.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask.
+    """
     def apply(self, img, factor=0, **params):
+        """
+        Args:
+            factor (int): number of times the input will be rotated by 90 degrees.
+        """
         return np.ascontiguousarray(np.rot90(img, factor))
 
     def get_params(self):
@@ -50,6 +95,21 @@ class RandomRotate90(DualTransform):
 
 
 class Rotate(DualTransform):
+    """Rotates the input by an angle selected randomly from the uniform distribution.
+
+    Args:
+        limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
+            an angle is picked from (-limit, limit). Default: 90
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask.
+    """
     def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, p=.5):
         super().__init__(p)
         self.limit = to_tuple(limit)
@@ -64,6 +124,26 @@ class Rotate(DualTransform):
 
 
 class ShiftScaleRotate(DualTransform):
+    """Randomly applies affine transforms: translates, scales and rotates the input.
+
+    Args:
+        shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
+            is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
+            upper bounds should lie in range [0, 1]. Default: 0.0625.
+        scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
+            range will be (-scale_limit, scale_limit). Default: 0.1.
+        rotate_limit ((int, int) or int): rotation range. If rotate_limit is a single int value, the
+            range will be (-rotate_limit, rotate_limit). Default: 45.
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask.
+    """
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
@@ -84,6 +164,16 @@ class ShiftScaleRotate(DualTransform):
 
 
 class CenterCrop(DualTransform):
+    """Crops the central part of the input.
+
+    Args:
+        height (int): height of the crop.
+        width (int): width of the crop.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image, mask.
+    """
+
     def __init__(self, height, width, p=0.5):
         super().__init__(p)
         self.height = height
@@ -167,6 +257,19 @@ class ElasticTransform(DualTransform):
 
 
 class HueSaturationValue(ImageOnlyTransform):
+    """Randomly changes hue, saturation and value of the input image.
+
+    Args:
+        hue_shift_limit ((int, int) or int): range for changing hue. If hue_shift_limit is a single int, the range
+            will be (-hue_shift_limit, hue_shift_limit). Default: 20.
+        sat_shift_limit ((int, int) or int): range for changing saturation. If sat_shift_limit is a single int,
+            the range will be (-sat_shift_limit, sat_shift_limit). Default: 30.
+        val_shift_limit ((int, int) or int): range for changing value. If val_shift_limit is a single int, the range
+            will be (-val_shift_limit, val_shift_limit). Default: 20.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5):
         super().__init__(p)
         self.hue_shift_limit = to_tuple(hue_shift_limit)
@@ -184,6 +287,19 @@ class HueSaturationValue(ImageOnlyTransform):
 
 
 class RGBShift(ImageOnlyTransform):
+    """"Randomly shifts values for each channel of the input RGB image.
+
+     Args:
+        r_shift_limit ((int, int) or int): range for changing values for the red channel. If r_shift_limit is a single
+            int, the range will be (-r_shift_limit, r_shift_limit). Default: 20.
+        g_shift_limit ((int, int) or int): range for changing values for the green channel. If g_shift_limit is a
+            single int, the range  will be (-g_shift_limit, g_shift_limit). Default: 20.
+        b_shift_limit ((int, int) or int): range for changing values for the blue channel. If b_shift_limit is a single
+            int, the range will be (-b_shift_limit, b_shift_limit). Default: 20.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def __init__(self, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, p=0.5):
         super().__init__(p)
         self.r_shift_limit = to_tuple(r_shift_limit)
@@ -200,6 +316,16 @@ class RGBShift(ImageOnlyTransform):
 
 
 class RandomBrightness(ImageOnlyTransform):
+    """Randomly changes brightness of the input image.
+
+     Args:
+        limit ((float, float) or int): factor range for changing brightness. If limit is a single float, the range
+            will be (-limit, limit). Default: 0.2.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
+
     def __init__(self, limit=0.2, p=0.5):
         super().__init__(p)
         self.limit = to_tuple(limit)
@@ -212,6 +338,16 @@ class RandomBrightness(ImageOnlyTransform):
 
 
 class RandomContrast(ImageOnlyTransform):
+    """Randomly changes contrast of the input image.
+
+     Args:
+        limit ((float, float) or int): factor range for changing contrast. If limit is a single float, the range
+            will be (-limit, limit). Default: 0.2.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
+
     def __init__(self, limit=.2, p=.5):
         super().__init__(p)
         self.limit = to_tuple(limit)
