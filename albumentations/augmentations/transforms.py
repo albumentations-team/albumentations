@@ -18,6 +18,7 @@ class VerticalFlip(DualTransform):
 
     Targets: image, mask, bboxes.
     """
+
     def apply(self, img, **params):
         return F.vflip(img)
 
@@ -33,6 +34,7 @@ class HorizontalFlip(DualTransform):
 
     Targets: image, mask, bboxes.
     """
+
     def apply(self, img, **params):
         return F.hflip(img)
 
@@ -48,6 +50,7 @@ class Flip(DualTransform):
 
     Targets: image, mask.
     """
+
     def apply(self, img, d=0, **params):
         """
         Args:
@@ -55,6 +58,7 @@ class Flip(DualTransform):
                 -1 for both vertical and horizontal flipping (which is also could be seen as rotating the input by
                 180 degrees).
         """
+
         return F.random_flip(img, d)
 
     def get_params(self):
@@ -70,6 +74,7 @@ class Transpose(DualTransform):
 
     Targets: image, mask.
     """
+
     def apply(self, img, **params):
         return F.transpose(img)
 
@@ -82,11 +87,13 @@ class RandomRotate90(DualTransform):
 
     Targets: image, mask.
     """
+
     def apply(self, img, factor=0, **params):
         """
         Args:
             factor (int): number of times the input will be rotated by 90 degrees.
         """
+
         return np.ascontiguousarray(np.rot90(img, factor))
 
     def get_params(self):
@@ -110,6 +117,7 @@ class Rotate(DualTransform):
 
     Targets: image, mask.
     """
+
     def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, p=.5):
         super().__init__(p)
         self.limit = to_tuple(limit)
@@ -144,6 +152,7 @@ class ShiftScaleRotate(DualTransform):
 
     Targets: image, mask.
     """
+
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super().__init__(p)
@@ -270,6 +279,7 @@ class HueSaturationValue(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5):
         super().__init__(p)
         self.hue_shift_limit = to_tuple(hue_shift_limit)
@@ -300,6 +310,7 @@ class RGBShift(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def __init__(self, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, p=0.5):
         super().__init__(p)
         self.r_shift_limit = to_tuple(r_shift_limit)
@@ -368,6 +379,7 @@ class Blur(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def __init__(self, blur_limit=7, p=.5):
         super().__init__(p)
         self.blur_limit = to_tuple(blur_limit, 3)
@@ -390,6 +402,7 @@ class MotionBlur(Blur):
 
     Targets: image.
     """
+
     def apply(self, img, ksize=9, **params):
         return F.motion_blur(img, ksize=ksize)
 
@@ -418,6 +431,7 @@ class GaussNoise(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def __init__(self, var_limit=(10, 50), p=.5):
         super().__init__(p)
         self.var_limit = to_tuple(var_limit)
@@ -441,6 +455,7 @@ class CLAHE(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), p=0.5):
         super().__init__(p)
         self.clip_limit = to_tuple(clip_limit, 1)
@@ -461,6 +476,7 @@ class ChannelShuffle(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def apply(self, img, **params):
         return F.channel_shuffle(img)
 
@@ -473,6 +489,7 @@ class InvertImg(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def apply(self, img, **params):
         return F.invert(img)
 
@@ -486,5 +503,6 @@ class ToGray(ImageOnlyTransform):
 
     Targets: image.
     """
+
     def apply(self, img, **params):
         return F.to_gray(img)

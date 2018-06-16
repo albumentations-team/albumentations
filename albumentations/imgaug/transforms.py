@@ -39,6 +39,7 @@ class IAAEmboss(ImageOnlyIAATransform):
 
     Targets: image.
     """
+
     def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), p=0.5):
         super().__init__(p)
         self.processor = iaa.Emboss(alpha, strength)
@@ -56,6 +57,7 @@ class IAASuperpixels(ImageOnlyIAATransform):
 
     Targets: image.
     """
+
     def __init__(self, p_replace=0.1, n_segments=100, p=0.5):
         super().__init__(p)
         self.processor = iaa.Superpixels(p_replace=p_replace, n_segments=n_segments)
@@ -89,6 +91,7 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
 
     Targets: image.
     """
+
     def __init__(self, loc=0, scale=(0.01 * 255, 0.05 * 255), p=0.5):
         super().__init__(p)
         self.processor = iaa.AdditiveGaussianNoise(loc, scale)
@@ -106,6 +109,7 @@ class IAAPiecewiseAffine(DualIAATransform):
 
     Targets: image, mask.
     """
+
     def __init__(self, scale=(0.03, 0.05), nb_rows=4, nb_cols=4, p=.5):
         super().__init__(p)
         self.processor = iaa.PiecewiseAffine(scale, nb_rows, nb_cols)
@@ -121,6 +125,7 @@ class IAAPerspective(DualIAATransform):
 
     Targets: image, mask.
     """
+
     def __init__(self, scale=(0.05, 0.1), p=.5):
         super().__init__(p)
         self.processor = iaa.PerspectiveTransform(scale)
