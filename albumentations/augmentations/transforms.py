@@ -27,7 +27,7 @@ class HorizontalFlip(DualTransform):
 
 
 class Flip(DualTransform):
-    def apply(self, img, d=0):
+    def apply(self, img, d=0, **params):
         return F.random_flip(img, d)
 
     def get_params(self):
@@ -41,7 +41,7 @@ class Transpose(DualTransform):
 
 
 class RandomRotate90(DualTransform):
-    def apply(self, img, factor=0):
+    def apply(self, img, factor=0, **params):
         return np.ascontiguousarray(np.rot90(img, factor))
 
     def get_params(self):
@@ -56,7 +56,7 @@ class Rotate(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, angle=0):
+    def apply(self, img, angle=0, **params):
         return F.rotate(img, angle, self.interpolation, self.border_mode)
 
     def get_params(self):
@@ -73,7 +73,7 @@ class ShiftScaleRotate(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, angle=0, scale=0, dx=0, dy=0):
+    def apply(self, img, angle=0, scale=0, dx=0, dy=0, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, self.interpolation, self.border_mode)
 
     def get_params(self):
@@ -102,7 +102,7 @@ class OpticalDistortion(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, k=0, dx=0, dy=0):
+    def apply(self, img, k=0, dx=0, dy=0, **params):
         return F.optical_distortion(img, k, dx, dy, self.interpolation, self.border_mode)
 
     def get_params(self):
@@ -120,7 +120,7 @@ class GridDistortion(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, stepsx=[], stepsy=[]):
+    def apply(self, img, stepsx=[], stepsy=[], **params):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, self.interpolation, self.border_mode)
 
     def get_params(self):
@@ -142,7 +142,7 @@ class ElasticTransform(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, random_state=None):
+    def apply(self, img, random_state=None, **params):
         return F.elastic_transform_fast(img, self.alpha, self.sigma, self.alpha_affine, self.interpolation,
                                         self.border_mode, np.random.RandomState(random_state))
 
@@ -157,7 +157,7 @@ class HueSaturationValue(ImageOnlyTransform):
         self.sat_shift_limit = to_tuple(sat_shift_limit)
         self.val_shift_limit = to_tuple(val_shift_limit)
 
-    def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0):
+    def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
         assert image.dtype == np.uint8 or self.hue_shift_limit < 1.
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
 
@@ -174,7 +174,7 @@ class RGBShift(ImageOnlyTransform):
         self.g_shift_limit = to_tuple(g_shift_limit)
         self.b_shift_limit = to_tuple(b_shift_limit)
 
-    def apply(self, image, r_shift=0, g_shift=0, b_shift=0):
+    def apply(self, image, r_shift=0, g_shift=0, b_shift=0, **params):
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
     def get_params(self):
@@ -188,7 +188,7 @@ class RandomBrightness(ImageOnlyTransform):
         super().__init__(p)
         self.limit = to_tuple(limit)
 
-    def apply(self, img, alpha=0.2):
+    def apply(self, img, alpha=0.2, **params):
         return F.random_brightness(img, alpha)
 
     def get_params(self):
@@ -200,7 +200,7 @@ class RandomContrast(ImageOnlyTransform):
         super().__init__(p)
         self.limit = to_tuple(limit)
 
-    def apply(self, img, alpha=0.2):
+    def apply(self, img, alpha=0.2, **params):
         return F.random_contrast(img, alpha)
 
     def get_params(self):
@@ -212,7 +212,7 @@ class Blur(ImageOnlyTransform):
         super().__init__(p)
         self.blur_limit = to_tuple(blur_limit, 3)
 
-    def apply(self, image, ksize=3):
+    def apply(self, image, ksize=3, **params):
         return F.blur(image, ksize)
 
     def get_params(self):
@@ -222,12 +222,12 @@ class Blur(ImageOnlyTransform):
 
 
 class MotionBlur(Blur):
-    def apply(self, img, ksize=9):
+    def apply(self, img, ksize=9, **params):
         return F.motion_blur(img, ksize=ksize)
 
 
 class MedianBlur(Blur):
-    def apply(self, image, ksize=3):
+    def apply(self, image, ksize=3, **params):
         return F.median_blur(image, ksize)
 
 
@@ -236,7 +236,7 @@ class GaussNoise(ImageOnlyTransform):
         super().__init__(p)
         self.var_limit = to_tuple(var_limit)
 
-    def apply(self, img, var=30):
+    def apply(self, img, var=30, **params):
         return F.gauss_noise(img, var=var)
 
     def get_params(self):
@@ -251,7 +251,7 @@ class CLAHE(ImageOnlyTransform):
         self.clip_limit = to_tuple(clip_limit, 1)
         self.tile_grid_size = tile_grid_size
 
-    def apply(self, img, clip_limit=2):
+    def apply(self, img, clip_limit=2, **params):
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
