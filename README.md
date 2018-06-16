@@ -14,6 +14,7 @@ from albumentations import (
     IAAAdditiveGaussianNoise, GaussNoise, MotionBlur, MedianBlur, IAAPiecewiseAffine,
     IAASharpen, IAAEmboss, RandomContrast, RandomBrightness, Flip, OneOf, Compose
 )
+import numpy as np
 
 def strong_aug(p=.5):
     return Compose([
@@ -49,8 +50,9 @@ image = np.ones((300, 300))
 mask = np.ones((300, 300))
 whatever_data = "my name"
 augmentation = strong_aug(p=0.9)
-augmented = augmentation(image=image, mask=mask, whatever_data=whatever_data, additional="hello")
-image, mask, whatever_data, additional = augmented["image"], augmented["mask"], augmented["whatever_data"], additional["additional"]
+data = {"image": image, "mask": mask, "whatever_data": whatever_data, "additional": "hello"}
+augmented = augmentation(**data)
+image, mask, whatever_data, additional = augmented["image"], augmented["mask"], augmented["whatever_data"], augmented["additional"]
 ```
 
 See `example.ipynb`
