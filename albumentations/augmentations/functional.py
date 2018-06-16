@@ -2,6 +2,7 @@ from functools import wraps
 import math
 
 import cv2
+
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 import numpy as np
@@ -60,7 +61,7 @@ def center_crop(img, crop_height, crop_width):
     if height < crop_height or width < crop_width:
         raise ValueError(
             'Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})'
-            .format(
+                .format(
                 crop_height=crop_height,
                 crop_width=crop_width,
                 height=height,
@@ -72,6 +73,27 @@ def center_crop(img, crop_height, crop_width):
     x1 = (width - crop_width) // 2
     x2 = x1 + crop_width
     img = img[y1:y2, x1:x2, :]
+    return img
+
+
+def random_crop(img, crop_height, crop_width, h_start, w_start):
+    height, width = img.shape[:2]
+    if height < crop_height or width < crop_width:
+        raise ValueError(
+            'Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})'
+                .format(
+                crop_height=crop_height,
+                crop_width=crop_width,
+                height=height,
+                width=width,
+            )
+        )
+
+    y1 = int((height - crop_height) * h_start)
+    y2 = y1 + crop_height
+    x1 = int((width - crop_width) * w_start)
+    x2 = x1 + crop_width
+    img = img[y1:y2, x1:x2]
     return img
 
 
