@@ -1,5 +1,5 @@
 import numpy as np
-
+import cv2
 
 __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform']
 
@@ -47,11 +47,15 @@ class DualTransform(BasicTransform):
 
     @property
     def targets(self):
-        return {'image': self.apply, 'mask': self.apply, 'bboxes': self.apply_to_bbox}
+        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bbox}
 
     def apply_to_bbox(self, bbox, **params):
         raise NotImplementedError
 
+    def apply_to_mask(self, img, **params):
+        if 'interpolation' in params:
+            params['interpolation'] = cv2.INTER_NEAREST
+        return self.apply(img, **params)
 
 class ImageOnlyTransform(BasicTransform):
     """
