@@ -4,10 +4,10 @@ import numpy as np
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 from . import functional as F
 
-__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomRotate90', 'Rotate', 'ShiftScaleRotate',
-           'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform', 'ElasticTransform',
-           'HueSaturationValue','RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur', 'MedianBlur',
-           'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
+__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomCrop', 'RandomRotate90', 'Rotate',
+           'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform',
+           'ElasticTransform', 'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur',
+           'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
 
 
 class VerticalFlip(DualTransform):
@@ -93,6 +93,20 @@ class CenterCrop(DualTransform):
         return F.center_crop(img, self.height, self.width)
 
 
+class RandomCrop(DualTransform):
+    def __init__(self, height, width, p=0.5):
+        super().__init__(p)
+        self.height = height
+        self.width = width
+
+    def apply(self, img, h_start=0, w_start=0, **params):
+        return F.random_crop(img, self.height, self.width, h_start, w_start)
+
+    def get_params(self):
+        return {'h_start': np.random.random(),
+                'w_start': np.random.random()}
+
+
 class OpticalDistortion(DualTransform):
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
@@ -124,8 +138,10 @@ class GridDistortion(DualTransform):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, self.interpolation, self.border_mode)
 
     def get_params(self):
-        stepsx = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+        stepsx = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
+                  range(self.num_steps + 1)]
+        stepsy = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
+                  range(self.num_steps + 1)]
         return {
             'stepsx': stepsx,
             'stepsy': stepsy
@@ -271,5 +287,3 @@ class InvertImg(ImageOnlyTransform):
 class ToGray(ImageOnlyTransform):
     def apply(self, img, **params):
         return F.to_gray(img)
-
-
