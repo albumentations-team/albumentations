@@ -319,7 +319,7 @@ class RandomBrightness(ImageOnlyTransform):
     """Randomly changes brightness of the input image.
 
      Args:
-        limit ((float, float) or int): factor range for changing brightness. If limit is a single float, the range
+        limit ((float, float) or float): factor range for changing brightness. If limit is a single float, the range
             will be (-limit, limit). Default: 0.2.
         p (float): probability of applying the transform. Default: 0.5.
 
@@ -341,7 +341,7 @@ class RandomContrast(ImageOnlyTransform):
     """Randomly changes contrast of the input image.
 
      Args:
-        limit ((float, float) or int): factor range for changing contrast. If limit is a single float, the range
+        limit ((float, float) or float): factor range for changing contrast. If limit is a single float, the range
             will be (-limit, limit). Default: 0.2.
         p (float): probability of applying the transform. Default: 0.5.
 
@@ -360,6 +360,14 @@ class RandomContrast(ImageOnlyTransform):
 
 
 class Blur(ImageOnlyTransform):
+    """Blurs the input image using a random-sized kernel.
+
+     Args:
+        blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def __init__(self, blur_limit=7, p=.5):
         super().__init__(p)
         self.blur_limit = to_tuple(blur_limit, 3)
@@ -374,16 +382,42 @@ class Blur(ImageOnlyTransform):
 
 
 class MotionBlur(Blur):
+    """Applies motion blur to the input image using a random-sized kernel.
+
+     Args:
+        blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def apply(self, img, ksize=9, **params):
         return F.motion_blur(img, ksize=ksize)
 
 
 class MedianBlur(Blur):
+    """Blurs the input image using using a median filter with a random aperture linear size.
+
+     Args:
+        blur_limit (int): maximum aperture linear size for blurring the input image. Default: 7.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
+
     def apply(self, image, ksize=3, **params):
         return F.median_blur(image, ksize)
 
 
 class GaussNoise(ImageOnlyTransform):
+    """Applies gaussian noise to the input image.
+
+    Args:
+        var_limit ((int, int) or int): variance range for noise. If var_limit is a single int, the range
+            will be (-var_limit, var_limit). Default: (10, 50).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def __init__(self, var_limit=(10, 50), p=.5):
         super().__init__(p)
         self.var_limit = to_tuple(var_limit)
@@ -398,6 +432,15 @@ class GaussNoise(ImageOnlyTransform):
 
 
 class CLAHE(ImageOnlyTransform):
+    """Applies Contrast Limited Adaptive Histogram Equalization to the input image.
+
+    Args:
+        clip_limit (float): upper threshold value for contrast limiting. Default: 4.0.
+        tile_grid_size ((int, int)): size of grid for histogram equalization. Default: (8, 8).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), p=0.5):
         super().__init__(p)
         self.clip_limit = to_tuple(clip_limit, 1)
@@ -411,15 +454,37 @@ class CLAHE(ImageOnlyTransform):
 
 
 class ChannelShuffle(ImageOnlyTransform):
+    """Randomly rearranges channels of the input RGB image.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def apply(self, img, **params):
         return F.channel_shuffle(img)
 
 
 class InvertImg(ImageOnlyTransform):
+    """Inverts the input image by subtracting pixel values from 255.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def apply(self, img, **params):
         return F.invert(img)
 
 
 class ToGray(ImageOnlyTransform):
+    """Converts the input RGB image to grayscale. If the mean pixel value for the resulting image is greater
+    than 127, inverts the resulting grayscale image.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets: image.
+    """
     def apply(self, img, **params):
         return F.to_gray(img)
