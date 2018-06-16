@@ -89,8 +89,6 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
             )
         )
 
-    print(height, width, crop_height, crop_width, h_start, w_start)
-
     y1 = int((height - crop_height) * h_start)
     y2 = y1 + crop_height
     x1 = int((width - crop_width) * w_start)
