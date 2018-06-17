@@ -14,6 +14,7 @@ setup(
     name='albumentations',
     version=get_version(),
     description='fast image augmentation library and easy to use wrapper around other libraries',
-    packages=find_packages(),
+    packages=find_packages(exclude=['tests']),
     install_requires=['numpy', 'scipy', 'opencv-python', 'imgaug'],
+    extras_require={'tests': ['pytest']},
 )
