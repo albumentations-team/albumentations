@@ -4,8 +4,8 @@ import numpy as np
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 from . import functional as F
 
-__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomCrop', 'RandomRotate90', 'Rotate',
-           'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform',
+__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomCrop', 'RandomGamma', 'RandomRotate90',
+           'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform',
            'ElasticTransform', 'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
 
@@ -432,7 +432,7 @@ class GaussNoise(ImageOnlyTransform):
     Targets: image.
     """
 
-    def __init__(self, var_limit=(10, 50), p=.5):
+    def __init__(self, var_limit=(10, 50), p=0.5):
         super().__init__(p)
         self.var_limit = to_tuple(var_limit)
 
@@ -492,6 +492,20 @@ class InvertImg(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.invert(img)
+
+
+class RandomGamma(ImageOnlyTransform):
+    def __init__(self, gamma_limit=(80, 120), p=0.5):
+        super().__init__(p)
+        self.gamma_limit = gamma_limit
+
+    def apply(self, img, gamma=1, **params):
+        return F.gamma_transform(img, gamma=gamma)
+
+    def get_params(self):
+        return {
+            'gamma': np.random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0
+        }
 
 
 class ToGray(ImageOnlyTransform):
