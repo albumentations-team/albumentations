@@ -72,7 +72,7 @@ def center_crop(img, crop_height, crop_width):
     y2 = y1 + crop_height
     x1 = (width - crop_width) // 2
     x2 = x1 + crop_width
-    img = img[y1:y2, x1:x2, :]
+    img = img[y1:y2, x1:x2]
     return img
 
 
