@@ -57,6 +57,29 @@ image, mask, whatever_data, additional = augmented["image"], augmented["mask"], 
 
 See `example.ipynb`
 
+## Installation
+You can use pip to install the latest version from GitHub:
+```
+pip install -U git+https://github.com/albu/albumentations
+```
+
+
+## Contributing
+1. Clone the repository:
+```
+git clone git@github.com:albu/albumentations.git
+cd albumentations
+```
+2. Install the library in development mode:
+```
+pip install -e .[tests]
+```
+3. Run tests:
+```
+pytest
+```
+
+
 ### Roadmap:
  - [ ] add tests
  - [ ] benchmark 
