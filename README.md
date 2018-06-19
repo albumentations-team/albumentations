@@ -79,6 +79,24 @@ pip install -e .[tests]
 pytest
 ```
 
+## Building the documentation
+1. Go to `docs/` directory
+```
+cd docs
+```
+2. Install required libraries
+```
+pip install -r requirements.txt
+```
+3. Build html files
+```
+make html
+```
+4. Open `_build/html/index.html` in browser.
+
+Alternatively, you can start a web server that rebuilds the documentation
+automatically when a change is detected by running `make livehtml`
+
 
 ### Roadmap:
  - [ ] add tests
