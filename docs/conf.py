@@ -7,7 +7,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../'))
 
 
-MOCK_MODULES = ['numpy', 'scipy']
+MOCK_MODULES = ['numpy', 'scipy', 'cv2', 'imgaug']
 for module_name in MOCK_MODULES:
     sys.modules[module_name] = mock.Mock()
 
