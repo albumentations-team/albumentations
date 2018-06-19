@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import mock
 import re
 import os
 import sys
 sys.path.insert(0, os.path.abspath('../'))
+
+
+MOCK_MODULES = ['numpy', 'scipy']
+for module_name in MOCK_MODULES:
+    sys.modules[module_name] = mock.Mock()
 
 
 def get_version():
