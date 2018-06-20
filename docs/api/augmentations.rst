@@ -1,5 +1,5 @@
-Augmentations
-=============
+Augmentations (albumentations.augmentations)
+============================================
 
 Transforms
 ----------

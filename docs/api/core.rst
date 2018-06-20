@@ -1,5 +1,5 @@
-Core API
-========
+Core API (albumentations.core)
+==============================
 
 Composition
 -----------
@@ -7,6 +7,6 @@ Composition
     :members:
 
 Transforms interface
-----------------------------------------
+--------------------
 .. automodule:: albumentations.core.transforms_interface
     :members:

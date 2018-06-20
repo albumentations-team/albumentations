@@ -1,5 +1,5 @@
-imgaug helpers
-==============
+imgaug helpers (albumentations.imgaug)
+======================================
 
 Transforms
 ----------

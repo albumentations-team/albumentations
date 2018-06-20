@@ -1,5 +1,5 @@
-PyTorch helpers
-===============
+PyTorch helpers (albumentations.torch)
+======================================
 
 Transforms
 ----------
