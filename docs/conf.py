@@ -7,8 +7,7 @@ import sys
 sys.path.insert(0, os.path.abspath('../'))
 
 
-MOCK_MODULES = ['numpy', 'scipy', 'cv2', 'imgaug', 'scipy.ndimage', 'scipy.ndimage.filters', 'torch',
-                'torchvision.transforms', 'torchvision.transforms.functional']
+MOCK_MODULES = ['torch', 'torchvision.transforms', 'torchvision.transforms.functional']
 for module_name in MOCK_MODULES:
     sys.modules[module_name] = mock.Mock()
 
