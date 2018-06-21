@@ -63,6 +63,9 @@ You can use pip to install the latest version from GitHub:
 pip install -U git+https://github.com/albu/albumentations
 ```
 
+## Documentation
+The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
+
 
 ## Contributing
 1. Clone the repository:
@@ -78,6 +81,24 @@ pip install -e .[tests]
 ```
 pytest
 ```
+
+## Building the documentation
+1. Go to `docs/` directory
+```
+cd docs
+```
+2. Install required libraries
+```
+pip install -r requirements.txt
+```
+3. Build html files
+```
+make html
+```
+4. Open `_build/html/index.html` in browser.
+
+Alternatively, you can start a web server that rebuilds the documentation
+automatically when a change is detected by running `make livehtml`
 
 
 ### Roadmap:

@@ -6,8 +6,8 @@ from . import functional as F
 
 __all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomCrop', 'RandomGamma', 'RandomRotate90',
            'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform',
-           'ElasticTransform', 'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur',
-           'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
+           'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur', 'MedianBlur',
+           'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
 
 
 class VerticalFlip(DualTransform):
@@ -16,7 +16,8 @@ class VerticalFlip(DualTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask, bboxes.
+    Targets:
+        image, mask, bboxes
     """
 
     def apply(self, img, **params):
@@ -32,7 +33,8 @@ class HorizontalFlip(DualTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask, bboxes.
+    Targets:
+        image, mask, bboxes
     """
 
     def apply(self, img, **params):
@@ -48,7 +50,8 @@ class Flip(DualTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def apply(self, img, d=0, **params):
@@ -72,7 +75,8 @@ class Transpose(DualTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def apply(self, img, **params):
@@ -85,7 +89,8 @@ class RandomRotate90(DualTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def apply(self, img, factor=0, **params):
@@ -115,7 +120,8 @@ class Rotate(DualTransform):
             Default: cv2.BORDER_REFLECT_101
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, p=.5):
@@ -150,7 +156,8 @@ class ShiftScaleRotate(DualTransform):
             Default: cv2.BORDER_REFLECT_101
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
@@ -180,7 +187,8 @@ class CenterCrop(DualTransform):
         width (int): width of the crop.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def __init__(self, height, width, p=0.5):
@@ -277,7 +285,8 @@ class HueSaturationValue(ImageOnlyTransform):
             will be (-val_shift_limit, val_shift_limit). Default: 20.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5):
@@ -297,9 +306,9 @@ class HueSaturationValue(ImageOnlyTransform):
 
 
 class RGBShift(ImageOnlyTransform):
-    """"Randomly shifts values for each channel of the input RGB image.
+    """Randomly shifts values for each channel of the input RGB image.
 
-     Args:
+    Args:
         r_shift_limit ((int, int) or int): range for changing values for the red channel. If r_shift_limit is a single
             int, the range will be (-r_shift_limit, r_shift_limit). Default: 20.
         g_shift_limit ((int, int) or int): range for changing values for the green channel. If g_shift_limit is a
@@ -308,7 +317,8 @@ class RGBShift(ImageOnlyTransform):
             int, the range will be (-b_shift_limit, b_shift_limit). Default: 20.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, p=0.5):
@@ -329,12 +339,13 @@ class RGBShift(ImageOnlyTransform):
 class RandomBrightness(ImageOnlyTransform):
     """Randomly changes brightness of the input image.
 
-     Args:
+    Args:
         limit ((float, float) or float): factor range for changing brightness. If limit is a single float, the range
             will be (-limit, limit). Default: 0.2.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, limit=0.2, p=0.5):
@@ -351,12 +362,13 @@ class RandomBrightness(ImageOnlyTransform):
 class RandomContrast(ImageOnlyTransform):
     """Randomly changes contrast of the input image.
 
-     Args:
+    Args:
         limit ((float, float) or float): factor range for changing contrast. If limit is a single float, the range
             will be (-limit, limit). Default: 0.2.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, limit=.2, p=.5):
@@ -373,11 +385,12 @@ class RandomContrast(ImageOnlyTransform):
 class Blur(ImageOnlyTransform):
     """Blurs the input image using a random-sized kernel.
 
-     Args:
+    Args:
         blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, blur_limit=7, p=.5):
@@ -396,11 +409,12 @@ class Blur(ImageOnlyTransform):
 class MotionBlur(Blur):
     """Applies motion blur to the input image using a random-sized kernel.
 
-     Args:
+    Args:
         blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def apply(self, img, ksize=9, **params):
@@ -410,11 +424,12 @@ class MotionBlur(Blur):
 class MedianBlur(Blur):
     """Blurs the input image using using a median filter with a random aperture linear size.
 
-     Args:
+    Args:
         blur_limit (int): maximum aperture linear size for blurring the input image. Default: 7.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def apply(self, image, ksize=3, **params):
@@ -429,7 +444,8 @@ class GaussNoise(ImageOnlyTransform):
             will be (-var_limit, var_limit). Default: (10, 50).
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, var_limit=(10, 50), p=0.5):
@@ -450,10 +466,11 @@ class CLAHE(ImageOnlyTransform):
 
     Args:
         clip_limit (float): upper threshold value for contrast limiting. Default: 4.0.
-        tile_grid_size ((int, int)): size of grid for histogram equalization. Default: (8, 8).
+            tile_grid_size ((int, int)): size of grid for histogram equalization. Default: (8, 8).
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), p=0.5):
@@ -474,7 +491,8 @@ class ChannelShuffle(ImageOnlyTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def apply(self, img, **params):
@@ -487,7 +505,8 @@ class InvertImg(ImageOnlyTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def apply(self, img, **params):
@@ -515,7 +534,8 @@ class ToGray(ImageOnlyTransform):
     Args:
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def apply(self, img, **params):

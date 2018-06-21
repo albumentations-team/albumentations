@@ -158,13 +158,13 @@ def motion_blur(img, ksize):
 
 
 def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
-    """
-    unconventional augment
-    https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
-    https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
-    https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
-    http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
-    barrel\pincushion distortion
+    """Barrel / pincushion distortion. Unconventional augment.
+
+    Reference:
+        |  https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
+        |  https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
+        |  https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
+        |  http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
     """
     height, width = img.shape[:2]
     k = k * 0.00001
@@ -186,8 +186,8 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
 def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
                     border_mode=cv2.BORDER_REFLECT_101):
     """
-    http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
-    grid distortion
+    Reference:
+        http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
     """
     height, width = img.shape[:2]
 
@@ -231,12 +231,12 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
 def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
                            border_mode=cv2.BORDER_REFLECT_101, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
+    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
          Proc. of the International Conference on Document Analysis and
          Recognition, 2003.
-
-     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
     """
     if random_state is None:
         random_state = np.random.RandomState(1234)

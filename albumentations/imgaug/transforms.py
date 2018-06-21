@@ -37,7 +37,8 @@ class IAAEmboss(ImageOnlyIAATransform):
         strength ((float, float)): strength range of the embossing. Default: (0.2, 0.7).
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), p=0.5):
@@ -55,7 +56,8 @@ class IAASuperpixels(ImageOnlyIAATransform):
         n_segments (int): target number of superpixels to generate. Default: 100.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, p_replace=0.1, n_segments=100, p=0.5):
@@ -72,7 +74,8 @@ class IAASharpen(ImageOnlyIAATransform):
         lightness ((float, float)): range to choose the lightness of the sharpened image. Default: (0.5, 1.0).
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.), p=0.5):
@@ -89,7 +92,8 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
             Default: (0.01 * 255, 0.05 * 255).
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image.
+    Targets:
+        image
     """
 
     def __init__(self, loc=0, scale=(0.01 * 255, 0.05 * 255), p=0.5):
@@ -107,7 +111,8 @@ class IAAPiecewiseAffine(DualIAATransform):
         nb_columns (int): number of columns of points that the regular grid should have. Default: 4.
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def __init__(self, scale=(0.03, 0.05), nb_rows=4, nb_cols=4, p=.5):
@@ -123,7 +128,8 @@ class IAAPerspective(DualIAATransform):
             the random distances of the subimage's corners from the full image's corners. Default: (0.05, 0.1).
         p (float): probability of applying the transform. Default: 0.5.
 
-    Targets: image, mask.
+    Targets:
+        image, mask
     """
 
     def __init__(self, scale=(0.05, 0.1), p=.5):
