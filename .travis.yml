@@ -1,0 +1,24 @@
+language: python
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+
+matrix:
+  include:
+    - python: 2.7
+    - python: 3.5
+    - python: 3.6
+    - python: 3.6
+      env: TEST_MODE=PEP8
+
+install:
+  - pip install .[tests]
+  - pip install pycodestyle
+
+script:
+  - if [[ "$TEST_MODE" == "PEP8" ]]; then
+      pycodestyle . --max-line-length 119 --ignore=E402;
+    else
+      pytest;
+    fi

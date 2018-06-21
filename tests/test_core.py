@@ -1,8 +1,7 @@
-from unittest.mock import MagicMock
-
 import numpy as np
 
 from albumentations import OneOrOther
+from .compat import MagicMock
 
 
 def test_one_or_other():
