@@ -63,6 +63,9 @@ You can use pip to install the latest version from GitHub:
 pip install -U git+https://github.com/albu/albumentations
 ```
 
+## Documentation
+The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
+
 
 ## Contributing
 1. Clone the repository:
