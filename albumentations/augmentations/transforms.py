@@ -6,8 +6,8 @@ from . import functional as F
 
 __all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomCrop', 'RandomGamma', 'RandomRotate90',
            'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform',
-           'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur',
-	   'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
+           'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur', 'MedianBlur',
+           'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
 
 
 class VerticalFlip(DualTransform):
