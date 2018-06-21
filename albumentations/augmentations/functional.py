@@ -279,6 +279,13 @@ def channel_shuffle(img):
     return img
 
 
+def gamma_transform(img, gamma):
+    img = img.astype('float32') / 255.0
+    img = np.power(img, gamma)
+    img = (img * 255).astype(np.uint8)
+    return img
+
+
 @clipped
 def gauss_noise(image, var):
     mean = var
