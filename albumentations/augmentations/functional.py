@@ -315,8 +315,8 @@ def to_gray(img):
 
 
 def bbox_vflip(bbox, cols, rows):
-    return (cols - bbox[0] - bbox[2], *bbox[1:])
+    return (cols - bbox[0] - bbox[2],) + tuple(bbox[1:])
 
 
 def bbox_hflip(bbox, cols, rows):
-    return (bbox[0], rows - bbox[1] - bbox[3], *bbox[2:])
+    return (bbox[0], rows - bbox[1] - bbox[3],) + tuple(bbox[2:])
