@@ -57,6 +57,7 @@ class DualTransform(BasicTransform):
             params['interpolation'] = cv2.INTER_NEAREST
         return self.apply(img, **params)
 
+
 class ImageOnlyTransform(BasicTransform):
     """
     transforms applied to image only
@@ -65,4 +66,3 @@ class ImageOnlyTransform(BasicTransform):
     @property
     def targets(self):
         return {'image': self.apply}
-
