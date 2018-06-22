@@ -167,4 +167,3 @@ texinfo_documents = [
      author, 'albumentations', 'One line description of project.',
      'Miscellaneous'),
 ]
-
