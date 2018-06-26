@@ -39,20 +39,11 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 
 def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[:2]
-
-    cc = math.cos(angle / 180 * math.pi) * scale
-    ss = math.sin(angle / 180 * math.pi) * scale
-    rotate_matrix = np.array([[cc, -ss], [ss, cc]])
-
-    box0 = np.array([[0, 0], [width, 0], [width, height], [0, height], ])
-    box1 = box0 - np.array([width / 2, height / 2])
-    box1 = np.dot(box1, rotate_matrix.T) + np.array([width / 2 + dx * width, height / 2 + dy * height])
-
-    box0 = box0.astype(np.float32)
-    box1 = box1.astype(np.float32)
-    matrix = cv2.getPerspectiveTransform(box0, box1)
-    img = cv2.warpPerspective(img, matrix, (width, height), flags=interpolation, borderMode=border_mode)
-
+    center = (width / 2, height / 2)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix[0, 2] += dx * width
+    matrix[1, 2] += dy * height
+    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode)
     return img
 
 

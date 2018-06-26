@@ -1,3 +1,4 @@
+import cv2
 import numpy as np
 import pytest
 
@@ -84,3 +85,43 @@ def test_bbox_hflip(bbox, expected_output, input_type):
     flipped_bbox = F.bbox_hflip(bbox, cols=200, rows=100)
     assert isinstance(flipped_bbox, tuple)
     assert np.array_equal(flipped_bbox, expected_output)
+
+
+def test_shift_scale_rotate():
+    img = np.array([
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]], dtype=np.uint8)
+
+    rotated_img = F.shift_scale_rotate(img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST,
+                                       border_mode=cv2.BORDER_CONSTANT)
+    assert np.array_equal(rotated_img, np.array([
+        [0, 0, 0, 0],
+        [4, 8, 12, 16],
+        [3, 7, 11, 15],
+        [2, 6, 10, 14]], dtype=np.uint8))
+
+    scaled_img = F.shift_scale_rotate(img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST,
+                                      border_mode=cv2.BORDER_CONSTANT)
+    assert np.array_equal(scaled_img, np.array([
+        [6, 7, 7, 8],
+        [10, 11, 11, 12],
+        [10, 11, 11, 12],
+        [14, 15, 15, 16]], dtype=np.uint8))
+
+    shifted_along_x_img = F.shift_scale_rotate(img, angle=0, scale=1, dx=0.5, dy=0, interpolation=cv2.INTER_NEAREST,
+                                               border_mode=cv2.BORDER_CONSTANT)
+    assert np.array_equal(shifted_along_x_img, np.array([
+        [0, 0, 1, 2],
+        [0, 0, 5, 6],
+        [0, 0, 9, 10],
+        [0, 0, 13, 14]], dtype=np.uint8))
+
+    shifted_along_y_img = F.shift_scale_rotate(img, angle=0, scale=1, dx=0, dy=0.5, interpolation=cv2.INTER_NEAREST,
+                                               border_mode=cv2.BORDER_CONSTANT)
+    assert np.array_equal(shifted_along_y_img, np.array([
+        [0, 0, 0, 0],
+        [0, 0, 0, 0],
+        [1, 2, 3, 4],
+        [5, 6, 7, 8]], dtype=np.uint8))
