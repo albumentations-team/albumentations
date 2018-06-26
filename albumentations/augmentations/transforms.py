@@ -185,13 +185,13 @@ class CenterCrop(DualTransform):
     Args:
         height (int): height of the crop.
         width (int): width of the crop.
-        p (float): probability of applying the transform. Default: 0.5.
+        p (float): probability of applying the transform. Default: 1.
 
     Targets:
         image, mask
     """
 
-    def __init__(self, height, width, p=0.5):
+    def __init__(self, height, width, p=1.0):
         super().__init__(p)
         self.height = height
         self.width = width
@@ -201,7 +201,18 @@ class CenterCrop(DualTransform):
 
 
 class RandomCrop(DualTransform):
-    def __init__(self, height, width, p=0.5):
+    """Crops random part of the input.
+
+        Args:
+            height (int): height of the crop.
+            width (int): width of the crop.
+            p (float): probability of applying the transform. Default: 1.
+
+        Targets:
+            image, mask
+        """
+
+    def __init__(self, height, width, p=1.0):
         super().__init__(p)
         self.height = height
         self.width = width
