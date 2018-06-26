@@ -4,10 +4,34 @@ import numpy as np
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 from . import functional as F
 
-__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
+__all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
-           'ElasticTransform', 'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur',
+           'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
+
+
+class PadIfNeeded(DualTransform):
+    """Pads side of the image / max if side is less than desired number.
+
+    Args:
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask
+
+    TODO: add application to boxes
+    """
+
+    def __init__(self, min_height=1024, min_width=1024, p=1.0):
+        super().__init__(p)
+        self.min_height = min_height
+        self.min_width = min_width
+
+    def apply(self, img, **params):
+        return F.pad(img, min_height=self.min_height, min_width=self.min_width)
+
+    def apply_to_bbox(self, bbox, **params):
+        pass
 
 
 class VerticalFlip(DualTransform):
