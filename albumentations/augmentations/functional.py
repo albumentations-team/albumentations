@@ -140,6 +140,31 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     return img
 
 
+def pad(img, min_height, min_width):
+    height, width = img.shape[:2]
+
+    if height < min_height:
+        h_pad_top = int((min_height - height) / 2.0)
+        h_pad_bottom = min_height - height - h_pad_top
+    else:
+        h_pad_top = 0
+        h_pad_bottom = 0
+
+    if width < min_width:
+        w_pad_left = int((min_width - width) / 2.0)
+        w_pad_right = min_width - width - w_pad_left
+    else:
+        w_pad_left = 0
+        w_pad_right = 0
+
+    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, cv2.BORDER_REFLECT_101)
+
+    assert img.shape[0] == max(min_height, height)
+    assert img.shape[1] == max(min_width, width)
+
+    return img
+
+
 def blur(img, ksize):
     return cv2.blur(img, (ksize, ksize))
 
