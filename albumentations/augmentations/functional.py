@@ -69,11 +69,11 @@ def center_crop(img, crop_height, crop_width):
     if height < crop_height or width < crop_width:
         raise ValueError(
             'Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})'
-                .format(
-                crop_height=crop_height,
-                crop_width=crop_width,
-                height=height,
-                width=width,
+            .format(
+            crop_height=crop_height,
+            crop_width=crop_width,
+            height=height,
+            width=width,
             )
         )
     y1 = (height - crop_height) // 2
@@ -89,11 +89,11 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
     if height < crop_height or width < crop_width:
         raise ValueError(
             'Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})'
-                .format(
-                crop_height=crop_height,
-                crop_width=crop_width,
-                height=height,
-                width=width,
+            .format(
+            crop_height=crop_height,
+            crop_width=crop_width,
+            height=height,
+            width=width,
             )
         )
 
