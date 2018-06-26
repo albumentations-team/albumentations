@@ -1,4 +1,6 @@
 # Albumentations
+[![Build Status](https://travis-ci.org/albu/albumentations.svg?branch=master)](https://travis-ci.org/albu/albumentations)
+[![Documentation Status](https://readthedocs.org/projects/albumentations/badge/?version=latest)](https://albumentations.readthedocs.io/en/latest/?badge=latest)
 
 * Great fast augmentations based on highly-optimized OpenCV library
 * Super simple yet powerful interface for different tasks like (segmentation, detection, etc.)
