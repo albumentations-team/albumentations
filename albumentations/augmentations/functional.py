@@ -30,6 +30,14 @@ def rot90(img, factor):
     return np.ascontiguousarray(img)
 
 
+def normalize(img, mean, std, max_pixel_value=255.0):
+    img = img.astype(np.float32) / max_pixel_value
+
+    img -= np.ones(img.shape) * mean
+    img /= np.ones(img.shape) * std
+    return img
+
+
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
@@ -61,7 +69,7 @@ def center_crop(img, crop_height, crop_width):
     if height < crop_height or width < crop_width:
         raise ValueError(
             'Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})'
-            .format(
+                .format(
                 crop_height=crop_height,
                 crop_width=crop_width,
                 height=height,
@@ -81,7 +89,7 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
     if height < crop_height or width < crop_width:
         raise ValueError(
             'Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})'
-            .format(
+                .format(
                 crop_height=crop_height,
                 crop_width=crop_width,
                 height=height,

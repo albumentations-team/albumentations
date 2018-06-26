@@ -4,10 +4,10 @@ import numpy as np
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 from . import functional as F
 
-__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Transpose', 'RandomCrop', 'RandomGamma', 'RandomRotate90',
-           'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion', 'ElasticTransform',
-           'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur', 'MotionBlur', 'MedianBlur',
-           'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
+__all__ = ['VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
+           'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
+           'ElasticTransform', 'HueSaturationValue', 'RGBShift', 'RandomBrightness', 'RandomContrast', 'Blur',
+           'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
 
 
 class VerticalFlip(DualTransform):
@@ -282,6 +282,26 @@ class ElasticTransform(DualTransform):
 
     def get_params(self):
         return {'random_state': np.random.randint(0, 10000)}
+
+
+class Normalize(ImageOnlyTransform):
+    """Divides pixel values by 255 = 2**8 - 1, subtracts mean per channel and divides by std per channel
+
+        Args:
+            mean (float, float, float) - mean values
+            std  (float, float, float) - std values
+
+        Targets:
+            image
+        """
+
+    def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0):
+        super().__init__(p)
+        self.mean = mean
+        self.std = std
+
+    def apply(self, image, **params):
+        return F.normalize(image, self.mean, self.std)
 
 
 class HueSaturationValue(ImageOnlyTransform):
