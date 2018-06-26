@@ -1,5 +1,9 @@
 language: python
 
+notifications:
+  email:
+    on_success: never
+
 cache:
   directories:
     - $HOME/.cache/pip
