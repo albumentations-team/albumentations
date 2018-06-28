@@ -36,6 +36,8 @@ class BasicTransform:
         raise NotImplementedError
 
     def update_params(self, params, **kwargs):
+        if hasattr(self, 'interpolation'):
+            params['interpolation'] = self.interpolation
         params.update({'cols': kwargs['image'].shape[1], 'rows': kwargs['image'].shape[0]})
         return params
 

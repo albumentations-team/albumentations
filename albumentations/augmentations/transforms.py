@@ -154,11 +154,11 @@ class Rotate(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, angle=0, **params):
-        return F.rotate(img, angle, self.interpolation, self.border_mode)
+    def apply(self, img, angle=0, interpolation=cv2.INTER_LINEAR, **params):
+        return F.rotate(img, angle, interpolation, self.border_mode)
 
     def get_params(self):
-        return {'angle': np.random.uniform(self.limit[0], self.limit[1])}
+        return {'angle': np.random.uniform(self.limit[0], self.limit[1]), 'interpolation': self.interpolation}
 
 
 class ShiftScaleRotate(DualTransform):
