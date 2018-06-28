@@ -11,7 +11,7 @@ def to_tuple(param, low=None):
         return (-param if low is None else low, param)
 
 
-class BasicTransform:
+class BasicTransform(object):
     def __init__(self, p=0.5):
         self.p = p
 
@@ -36,6 +36,8 @@ class BasicTransform:
         raise NotImplementedError
 
     def update_params(self, params, **kwargs):
+        if hasattr(self, 'interpolation'):
+            params['interpolation'] = self.interpolation
         params.update({'cols': kwargs['image'].shape[1], 'rows': kwargs['image'].shape[0]})
         return params
 
