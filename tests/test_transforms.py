@@ -51,7 +51,7 @@ def test_optical_distortion_interpolation(interpolation):
     expected_image = F.optical_distortion(image, k=0.05, dx=0, dy=0, interpolation=interpolation,
                                           border_mode=cv2.BORDER_REFLECT_101)
     expected_mask = F.optical_distortion(mask, k=0.05, dx=0, dy=0, interpolation=cv2.INTER_NEAREST,
-                                          border_mode=cv2.BORDER_REFLECT_101)
+                                         border_mode=cv2.BORDER_REFLECT_101)
     assert np.array_equal(data['image'], expected_image)
     assert np.array_equal(data['mask'], expected_mask)
 
@@ -63,8 +63,8 @@ def test_grid_distortion_interpolation(interpolation):
     aug = GridDistortion(num_steps=1, distort_limit=(0.3, 0.3), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
     expected_image = F.grid_distortion(image, num_steps=1, xsteps=[1.3], ysteps=[1.3], interpolation=interpolation,
-                                          border_mode=cv2.BORDER_REFLECT_101)
+                                       border_mode=cv2.BORDER_REFLECT_101)
     expected_mask = F.grid_distortion(mask, num_steps=1, xsteps=[1.3], ysteps=[1.3], interpolation=cv2.INTER_NEAREST,
-                                          border_mode=cv2.BORDER_REFLECT_101)
+                                      border_mode=cv2.BORDER_REFLECT_101)
     assert np.array_equal(data['image'], expected_image)
     assert np.array_equal(data['mask'], expected_mask)
