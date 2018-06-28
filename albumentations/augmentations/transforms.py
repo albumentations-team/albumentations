@@ -1,4 +1,8 @@
 import cv2
+
+cv2.setNumThreads(0)
+cv2.ocl.setUseOpenCL(False)
+
 import numpy as np
 
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
