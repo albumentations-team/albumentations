@@ -125,3 +125,34 @@ def test_shift_scale_rotate():
         [0, 0, 0, 0],
         [1, 2, 3, 4],
         [5, 6, 7, 8]], dtype=np.uint8))
+
+
+@pytest.mark.parametrize(['shift_params', 'expected'], [
+    [(-10, 0, 10), (117, 127, 137)],
+    [(-200, 0, 200), (0, 127, 255)],
+])
+def test_shift_rgb(shift_params, expected):
+    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
+    r_shift, g_shift, b_shift = shift_params
+    img = F.shift_rgb(img, r_shift=r_shift, g_shift=g_shift, b_shift=b_shift)
+    expected_r, expected_g, expected_b = expected
+    assert img.dtype == np.dtype('uint8')
+    assert (img[:, :, 0] == expected_r).all()
+    assert (img[:, :, 1] == expected_g).all()
+    assert (img[:, :, 2] == expected_b).all()
+
+
+@pytest.mark.parametrize(['alpha', 'expected'], [(1.5, 190), (3, 255)])
+def test_random_brigtness(alpha, expected):
+    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
+    img = F.random_brightness(img, alpha)
+    assert img.dtype == np.dtype('uint8')
+    assert (img == expected).all()
+
+
+@pytest.mark.parametrize(['alpha', 'expected'], [(1.2, 76), (0.1, 255), (10, 0)])
+def test_random_contrast(alpha, expected):
+    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
+    img = F.random_contrast(img, alpha)
+    assert img.dtype == np.dtype('uint8')
+    assert (img == expected).all()

@@ -9,6 +9,11 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
 
+MAX_CLIPPING_VALUES = {
+    np.dtype('uint8'): 255,
+}
+
+
 def vflip(img):
     return cv2.flip(img, 0)
 
@@ -103,7 +108,8 @@ def clip(img, dtype, maxval):
 def clipped(func):
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
-        dtype, maxval = img.dtype, np.max(img)
+        dtype = img.dtype
+        maxval = MAX_CLIPPING_VALUES.get(dtype, 1.0)
         return clip(func(img, *args, **kwargs), dtype, maxval)
 
     return wrapped_function
@@ -126,6 +132,7 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
 
 @clipped
 def shift_rgb(img, r_shift, g_shift, b_shift):
+    img = img.astype('float32')
     img[..., 0] = img[..., 0] + r_shift
     img[..., 1] = img[..., 1] + g_shift
     img[..., 2] = img[..., 2] + b_shift
@@ -321,6 +328,7 @@ def gauss_noise(image, var):
 
 @clipped
 def random_brightness(img, alpha):
+    img = img.astype('float32')
     return alpha * img
 
 
