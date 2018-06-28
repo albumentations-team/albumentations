@@ -186,7 +186,7 @@ class ShiftScaleRotate(DualTransform):
 
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
-        super().__init__(p)
+        super(ShiftScaleRotate, self).__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.scale_limit = to_tuple(scale_limit)
         self.rotate_limit = to_tuple(rotate_limit)
@@ -252,7 +252,7 @@ class RandomCrop(DualTransform):
 class OpticalDistortion(DualTransform):
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
-        super().__init__(p)
+        super(OpticalDistortion, self).__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -270,7 +270,7 @@ class OpticalDistortion(DualTransform):
 class GridDistortion(DualTransform):
     def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
-        super().__init__(p)
+        super(GridDistortion, self).__init__(p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
