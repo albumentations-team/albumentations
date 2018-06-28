@@ -11,7 +11,7 @@ def to_tuple(param, low=None):
         return (-param if low is None else low, param)
 
 
-class BasicTransform:
+class BasicTransform(object):
     def __init__(self, p=0.5):
         self.p = p
 
