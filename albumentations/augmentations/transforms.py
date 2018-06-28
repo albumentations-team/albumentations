@@ -158,7 +158,7 @@ class Rotate(DualTransform):
         return F.rotate(img, angle, interpolation, self.border_mode)
 
     def get_params(self):
-        return {'angle': np.random.uniform(self.limit[0], self.limit[1]), 'interpolation': self.interpolation}
+        return {'angle': np.random.uniform(self.limit[0], self.limit[1])}
 
 
 class ShiftScaleRotate(DualTransform):
@@ -186,15 +186,15 @@ class ShiftScaleRotate(DualTransform):
 
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
-        super().__init__(p)
+        super(ShiftScaleRotate, self).__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.scale_limit = to_tuple(scale_limit)
         self.rotate_limit = to_tuple(rotate_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, angle=0, scale=0, dx=0, dy=0, **params):
-        return F.shift_scale_rotate(img, angle, scale, dx, dy, self.interpolation, self.border_mode)
+    def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+        return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
 
     def get_params(self):
         return {'angle': np.random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
@@ -252,14 +252,14 @@ class RandomCrop(DualTransform):
 class OpticalDistortion(DualTransform):
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
-        super().__init__(p)
+        super(OpticalDistortion, self).__init__(p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, k=0, dx=0, dy=0, **params):
-        return F.optical_distortion(img, k, dx, dy, self.interpolation, self.border_mode)
+    def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+        return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode)
 
     def get_params(self):
         return {'k': np.random.uniform(self.distort_limit[0], self.distort_limit[1]),
@@ -270,14 +270,14 @@ class OpticalDistortion(DualTransform):
 class GridDistortion(DualTransform):
     def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
-        super().__init__(p)
+        super(GridDistortion, self).__init__(p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, stepsx=[], stepsy=[], **params):
-        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, self.interpolation, self.border_mode)
+    def apply(self, img, stepsx=[], stepsy=[], interpolation=cv2.INTER_LINEAR, **params):
+        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode)
 
     def get_params(self):
         stepsx = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
@@ -300,8 +300,8 @@ class ElasticTransform(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, random_state=None, **params):
-        return F.elastic_transform_fast(img, self.alpha, self.sigma, self.alpha_affine, self.interpolation,
+    def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
+        return F.elastic_transform_fast(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
                                         self.border_mode, np.random.RandomState(random_state))
 
     def get_params(self):
