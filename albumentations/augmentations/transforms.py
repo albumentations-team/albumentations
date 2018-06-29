@@ -297,7 +297,7 @@ class GridDistortion(DualTransform):
 class ElasticTransform(DualTransform):
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
-        super().__init__(p)
+        super(ElasticTransform, self).__init__(p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
