@@ -309,9 +309,13 @@ def channel_shuffle(img):
 
 
 def gamma_transform(img, gamma):
-    img = img.astype('float32') / 255.0
-    img = np.power(img, gamma)
-    img = (img * 255).astype(np.uint8)
+    if img.dtype == np.uint8:
+        invGamma = 1.0 / gamma
+        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
+        img = cv2.LUT(img, table)
+    else:
+        img = np.power(img, gamma)
+
     return img
 
 

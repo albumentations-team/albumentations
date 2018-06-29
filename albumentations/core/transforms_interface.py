@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import copy
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 
@@ -57,9 +58,7 @@ class DualTransform(BasicTransform):
         raise NotImplementedError
 
     def apply_to_mask(self, img, **params):
-        if 'interpolation' in params:
-            params['interpolation'] = cv2.INTER_NEAREST
-        return self.apply(img, **params)
+        return self.apply(img, **{k: cv2.INTER_NEAREST if k == 'interpolation' else v for k, v in params.items()})
 
 
 class ImageOnlyTransform(BasicTransform):
