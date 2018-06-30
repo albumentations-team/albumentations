@@ -17,7 +17,7 @@ import albumentations.augmentations.functional as albumentations
 
 
 def parse_args():
-    parser = argparse.ArgumentParser( description='Augmentation libraries performance benchmark')
+    parser = argparse.ArgumentParser(description='Augmentation libraries performance benchmark')
     parser.add_argument('-d', '--data-dir', required=True, metavar='DIR', help='path to a directory with images')
     parser.add_argument('-i', '--images', default=2000, type=int, metavar='N',
                         help='number of images for benchmarking (default: 2000)')
