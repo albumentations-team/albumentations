@@ -69,6 +69,26 @@ pip install -U git+https://github.com/albu/albumentations
 The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
 
 
+## Benchmarking results
+To run the benchmark yourself follow the instructions in [benchmark/README.md](benchmark/README.md)
+
+Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Core i7-7800X CPU. All times are in seconds, lower is better.
+
+|                   | albumentations  |  imgaug  | torchvision<br> (Pillow backend)| torchvision<br> (Pillow-SIMD backend) |  Keras   |
+|-------------------|:---------------:|:--------:|:-------------------------------:|:-------------------------------------:|:--------:|
+| RandomCrop64      |    **0.0017**   |    -     |             0.0182              |               0.0182                  |    -     |
+| PadToSize512      |    **0.2413**   |    -     |             2.493               |               2.3682                  |    -     |
+| HorizontalFlip    |     0.7765      |  2.2299  |           **0.3031**            |               0.3054                  |  2.0508  |
+| VerticalFlip      |    **0.178**    |  0.3899  |             0.2326              |               0.2308                  |  0.1799  |
+| Rotate            |    **3.8538**   |  4.0581  |             16.16               |               9.5011                  | 50.8632  |
+| ShiftScaleRotate  |    **2.0605**   |  2.4478  |            18.5401              |              10.6062                  | 47.0568  |
+| Brightness        |     2.5301      |**2.3607**|             4.6854              |               3.4814                  |  9.9237  |
+| ShiftHSV          |    **10.3925**  | 14.2255  |            34.7778              |              27.0215                  |    -     |
+| ShiftRGB          |     4.3094      |**2.1989**|               -                 |                 -                     |  3.0598  |
+| Gamma             |     1.4832      |    -     |            **1.1397**           |               1.1447                  |    -     |
+| Grayscale         |    **1.2048**   |  5.3895  |             1.6826              |               1.2721                  |    -     |
+
+
 ## Contributing
 1. Clone the repository:
 ```
