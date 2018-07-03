@@ -123,8 +123,5 @@ Alternatively, you can start a web server that rebuilds the documentation
 automatically when a change is detected by running `make livehtml`
 
 
-### Roadmap:
- - [ ] add tests
- - [ ] benchmark 
- - [ ] add comments and dockstrings
- - [ ] add LICENSE
+### Thanks:
+Special thanks to [@creafz](https://github.com/creafz) for refactoring, documentation, tests, CI and benchmarks. Awesome work!
