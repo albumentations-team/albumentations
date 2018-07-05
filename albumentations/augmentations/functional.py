@@ -186,6 +186,12 @@ def motion_blur(img, ksize):
     return cv2.filter2D(img, -1, kernel / np.sum(kernel))
 
 
+def jpeg_compression(img, quality):
+    _, encoded_img = cv2.imencode('.jpg', img, (cv2.IMWRITE_JPEG_QUALITY, quality))
+    img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
+    return img
+
+
 def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     """Barrel / pincushion distortion. Unconventional augment.
 
