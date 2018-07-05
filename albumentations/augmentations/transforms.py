@@ -11,7 +11,8 @@ from . import functional as F
 __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
-           'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray']
+           'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
+           'JpegCompression']
 
 
 class PadIfNeeded(DualTransform):
@@ -330,6 +331,36 @@ class Normalize(ImageOnlyTransform):
 
     def apply(self, image, **params):
         return F.normalize(image, self.mean, self.std)
+
+
+class JpegCompression(ImageOnlyTransform):
+    """Decreases Jpeg compression of an image.
+        Was essential part of the [IEEE's Signal Processing Society - Camera Model Identification Challenge]
+            (https://www.kaggle.com/c/sp-society-camera-model-identification)
+
+
+        Args:
+            quality_lower (float) - lower bound on the jpeg quality. Should be in [0, 100] range
+            quality_upper (float) - lower bound on the jpeg quality. Should be in [0, 100] range
+
+        Targets:
+            image
+        """
+
+    def __init__(self, quality_lower=100, quality_upper=100, p=0.5):
+        super().__init__(p)
+
+        assert 0 <= quality_lower <= 100
+        assert 0 <= quality_upper <= 100
+
+        self.quality_lower = quality_lower
+        self.quality_upper = quality_upper
+
+    def apply(self, image, quality=100, **params):
+        return F.jpeg_compression(image, quality)
+
+    def get_params(self):
+        return {'quality': np.random.randint(self.quality_lower, self.quality_upper)}
 
 
 class HueSaturationValue(ImageOnlyTransform):
