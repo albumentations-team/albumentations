@@ -336,9 +336,8 @@ class Normalize(ImageOnlyTransform):
 class JpegCompression(ImageOnlyTransform):
     """Decreases Jpeg compression of an image.
         Was essential part of the [IEEE's Signal Processing Society - Camera Model Identification Challenge]
+            (https://www.kaggle.com/c/sp-society-camera-model-identification)
 
-
-        .. [IEEE's Signal Processing Society - Camera Model Identification Challenge] https://www.kaggle.com/c/sp-society-camera-model-identification
 
         Args:
             quality_lower (float) - lower bound on the jpeg quality. Should be in [0, 100] range
