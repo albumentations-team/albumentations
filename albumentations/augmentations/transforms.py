@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import cv2
 
 cv2.setNumThreads(0)

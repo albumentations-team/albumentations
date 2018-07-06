@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import numpy as np
 import torch
 from torchvision.transforms import functional as F
