@@ -37,7 +37,7 @@ def mask_to_tensor(mask, num_classes, sigmoid):
 
 class ToTensor(BasicTransform):
     def __init__(self, num_classes=1, sigmoid=True, normalize=None):
-        super().__init__(1.)
+        super(ToTensor, self).__init__(1.)
         self.num_classes = num_classes
         self.sigmoid = sigmoid
         self.normalize = normalize
