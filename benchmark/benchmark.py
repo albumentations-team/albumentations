@@ -49,7 +49,7 @@ def format_results(run_times_for_aug, show_std=False):
     return result
 
 
-class BenchmarkTest:
+class BenchmarkTest(object):
 
     def __str__(self):
         return self.__class__.__name__
