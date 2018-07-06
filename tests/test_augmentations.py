@@ -77,4 +77,3 @@ def test_imgaug_dual_augmentations(augmentation_cls, params, image, mask):
     data = aug(image=image, mask=mask)
     assert data['image'].dtype == np.uint8
     assert data['mask'].dtype == np.uint8
-
