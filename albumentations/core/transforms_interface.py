@@ -1,6 +1,5 @@
 import numpy as np
 import cv2
-import copy
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 

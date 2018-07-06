@@ -349,7 +349,7 @@ class JpegCompression(ImageOnlyTransform):
             image
         """
 
-    def __init__(self, quality_lower=100, quality_upper=100, p=0.5):
+    def __init__(self, quality_lower=99, quality_upper=100, p=0.5):
         super(JpegCompression, self).__init__(p)
 
         assert 0 <= quality_lower <= 100
