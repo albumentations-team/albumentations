@@ -84,7 +84,7 @@ Results for running the benchmark on first 2000 images from the ImageNet validat
 | ShiftScaleRotate  |    **2.0605**   |  2.4478  |            18.5401              |              10.6062                  | 47.0568  |
 | Brightness        |     2.5301      |**2.3607**|             4.6854              |               3.4814                  |  9.9237  |
 | ShiftHSV          |    **10.3925**  | 14.2255  |            34.7778              |              27.0215                  |    -     |
-| ShiftRGB          |     4.3094      |**2.1989**|               -                 |                 -                     |  3.0598  |
+| ShiftRGB          |     2.6159      |**2.1989**|               -                 |                 -                     |  3.0598  |
 | Gamma             |     1.4832      |    -     |            **1.1397**           |               1.1447                  |    -     |
 | Grayscale         |    **1.2048**   |  5.3895  |             1.6826              |               1.2721                  |    -     |
 

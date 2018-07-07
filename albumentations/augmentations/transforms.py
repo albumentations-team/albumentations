@@ -421,9 +421,9 @@ class RGBShift(ImageOnlyTransform):
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
     def get_params(self):
-        return {'r_shift': np.random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-                'g_shift': np.random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-                'b_shift': np.random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
+        return {'r_shift': np.random.randint(self.r_shift_limit[0], self.r_shift_limit[1]),
+                'g_shift': np.random.randint(self.g_shift_limit[0], self.g_shift_limit[1]),
+                'b_shift': np.random.randint(self.b_shift_limit[0], self.b_shift_limit[1])}
 
 
 class RandomBrightness(ImageOnlyTransform):
