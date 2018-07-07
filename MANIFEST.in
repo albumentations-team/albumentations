@@ -1,0 +1,9 @@
+include LICENSE
+include README.md
+
+graft benchmark
+graft tests
+graft docs
+prune docs/_build
+
+global-exclude *.py[co] .DS_Store
