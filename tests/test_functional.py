@@ -197,44 +197,84 @@ def test_pad(target):
     assert np.array_equal(padded, expected)
 
 
-def test_shift_scale_rotate():
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_rotate_from_shift_scale_rotate(target):
     img = np.array([
         [1, 2, 3, 4],
         [5, 6, 7, 8],
         [9, 10, 11, 12],
         [13, 14, 15, 16]], dtype=np.uint8)
-
-    rotated_img = F.shift_scale_rotate(img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST,
-                                       border_mode=cv2.BORDER_CONSTANT)
-    assert np.array_equal(rotated_img, np.array([
+    expected = np.array([
         [0, 0, 0, 0],
         [4, 8, 12, 16],
         [3, 7, 11, 15],
-        [2, 6, 10, 14]], dtype=np.uint8))
+        [2, 6, 10, 14]], dtype=np.uint8)
+    if target == 'image':
+        img = convert_2d_to_3d(img)
+        expected = convert_2d_to_3d(expected)
+    rotated_img = F.shift_scale_rotate(img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST,
+                                       border_mode=cv2.BORDER_CONSTANT)
+    assert np.array_equal(rotated_img, expected)
 
-    scaled_img = F.shift_scale_rotate(img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST,
-                                      border_mode=cv2.BORDER_CONSTANT)
-    assert np.array_equal(scaled_img, np.array([
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_scale_from_shift_scale_rotate(target):
+    img = np.array([
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]], dtype=np.uint8)
+    expected = np.array([
         [6, 7, 7, 8],
         [10, 11, 11, 12],
         [10, 11, 11, 12],
-        [14, 15, 15, 16]], dtype=np.uint8))
+        [14, 15, 15, 16]], dtype=np.uint8)
+    if target == 'image':
+        img = convert_2d_to_3d(img)
+        expected = convert_2d_to_3d(expected)
+    scaled_img = F.shift_scale_rotate(img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST,
+                                      border_mode=cv2.BORDER_CONSTANT)
+    assert np.array_equal(scaled_img, expected)
 
-    shifted_along_x_img = F.shift_scale_rotate(img, angle=0, scale=1, dx=0.5, dy=0, interpolation=cv2.INTER_NEAREST,
-                                               border_mode=cv2.BORDER_CONSTANT)
-    assert np.array_equal(shifted_along_x_img, np.array([
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_shift_x_from_shift_scale_rotate(target):
+    img = np.array([
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]], dtype=np.uint8)
+    expected = np.array([
         [0, 0, 1, 2],
         [0, 0, 5, 6],
         [0, 0, 9, 10],
-        [0, 0, 13, 14]], dtype=np.uint8))
-
-    shifted_along_y_img = F.shift_scale_rotate(img, angle=0, scale=1, dx=0, dy=0.5, interpolation=cv2.INTER_NEAREST,
+        [0, 0, 13, 14]], dtype=np.uint8)
+    if target == 'image':
+        img = convert_2d_to_3d(img)
+        expected = convert_2d_to_3d(expected)
+    shifted_along_x_img = F.shift_scale_rotate(img, angle=0, scale=1, dx=0.5, dy=0, interpolation=cv2.INTER_NEAREST,
                                                border_mode=cv2.BORDER_CONSTANT)
-    assert np.array_equal(shifted_along_y_img, np.array([
+    assert np.array_equal(shifted_along_x_img, expected)
+
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_shift_y_from_shift_scale_rotate(target):
+    img = np.array([
+        [1, 2, 3, 4],
+        [5, 6, 7, 8],
+        [9, 10, 11, 12],
+        [13, 14, 15, 16]], dtype=np.uint8)
+    expected = np.array([
         [0, 0, 0, 0],
         [0, 0, 0, 0],
         [1, 2, 3, 4],
-        [5, 6, 7, 8]], dtype=np.uint8))
+        [5, 6, 7, 8]], dtype=np.uint8)
+    if target == 'image':
+        img = convert_2d_to_3d(img)
+        expected = convert_2d_to_3d(expected)
+    shifted_along_y_img = F.shift_scale_rotate(img, angle=0, scale=1, dx=0, dy=0.5, interpolation=cv2.INTER_NEAREST,
+                                               border_mode=cv2.BORDER_CONSTANT)
+    assert np.array_equal(shifted_along_y_img, expected)
 
 
 @pytest.mark.parametrize(['shift_params', 'expected'], [
@@ -264,5 +304,13 @@ def test_random_brigtness(alpha, expected):
 def test_random_contrast(alpha, expected):
     img = np.ones((100, 100, 3), dtype=np.uint8) * 127
     img = F.random_contrast(img, alpha)
+    assert img.dtype == np.dtype('uint8')
+    assert (img == expected).all()
+
+
+@pytest.mark.parametrize(['gamma', 'expected'], [(1, 1), (10, 146)])
+def test_gamma_transform(gamma, expected):
+    img = np.ones((100, 100, 3), dtype=np.uint8)
+    img = F.gamma_transform(img, gamma=gamma)
     assert img.dtype == np.dtype('uint8')
     assert (img == expected).all()

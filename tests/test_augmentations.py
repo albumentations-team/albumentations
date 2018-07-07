@@ -1,6 +1,18 @@
 import pytest
 import numpy as np
 
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    import torchvision
+except ImportError:
+    torchvision = None
+
+from albumentations.torch import ToTensor
+
 from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose, RandomRotate90, \
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
     JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
@@ -54,26 +66,26 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     assert data['mask'].dtype == np.uint8
 
 
-@pytest.mark.parametrize(['augmentation_cls', 'params'], [
-    [IAAEmboss, {}],
-    [IAASuperpixels, {}],
-    [IAASharpen, {}],
-    [IAAAdditiveGaussianNoise, {}],
-])
-def test_imgaug_image_only_augmentations(augmentation_cls, params, image, mask):
-    aug = augmentation_cls(p=1, **params)
+@pytest.mark.parametrize('augmentation_cls', [IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
+def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
+    aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
     assert data['image'].dtype == np.uint8
     assert data['mask'].dtype == np.uint8
     assert np.array_equal(data['mask'], mask)
 
 
-@pytest.mark.parametrize(['augmentation_cls', 'params'], [
-    [IAAPiecewiseAffine, {}],
-    [IAAPerspective, {}],
-])
-def test_imgaug_dual_augmentations(augmentation_cls, params, image, mask):
-    aug = augmentation_cls(p=1, **params)
+@pytest.mark.parametrize('augmentation_cls', [IAAPiecewiseAffine, IAAPerspective])
+def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
+    aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
     assert data['image'].dtype == np.uint8
     assert data['mask'].dtype == np.uint8
+
+
+@pytest.mark.skipif(torch is None or torchvision is None, reason='PyTorch and torchvision are not available')
+def test_torch_to_tensor_augmentations(image, mask):
+    aug = ToTensor()
+    data = aug(image=image, mask=mask)
+    assert data['image'].dtype == torch.float32
+    assert data['mask'].dtype == torch.float32
