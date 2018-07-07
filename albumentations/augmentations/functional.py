@@ -337,7 +337,8 @@ def gauss_noise(image, var):
 @clipped
 def random_brightness(img, alpha):
     img = img.astype('float32')
-    return alpha * img
+    img *= alpha
+    return img
 
 
 @clipped
