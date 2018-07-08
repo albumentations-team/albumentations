@@ -11,7 +11,6 @@
 ![elastic](images/elastic.jpg?raw=true "ELASTIC")
 ![scr](images/scr.jpg?raw=true "SCR")
 ![rgb](images/rgb.jpg?raw=true "RGB")
-![gamma](images/gamma.jpg?raw=true "GAMMA")
 ![hsv](images/hsv.jpg?raw=true "HSV")
 ![contrast](images/contrast.jpg?raw=true "CONTRAST")
 ![blur](images/blur.jpg?raw=true "BLUR")
