@@ -10,13 +10,11 @@
 ![D4](images/d4.jpg?raw=true "D4")
 ![elastic](images/elastic.jpg?raw=true "ELASTIC")
 ![scr](images/scr.jpg?raw=true "SCR")
-![grid](images/grid.jpg?raw=true "GRID")
 ![rgb](images/rgb.jpg?raw=true "RGB")
 ![gamma](images/gamma.jpg?raw=true "GAMMA")
 ![hsv](images/hsv.jpg?raw=true "HSV")
 ![contrast](images/contrast.jpg?raw=true "CONTRAST")
 ![blur](images/blur.jpg?raw=true "BLUR")
-![motion](images/motion_blur.jpg?raw=true "MOTION_BLUR")
 
 ## Example usage:
 
