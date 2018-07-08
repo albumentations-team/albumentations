@@ -1,3 +1,5 @@
+from __future__ import absolute_import, division
+
 import cv2
 
 cv2.setNumThreads(0)
@@ -28,7 +30,7 @@ class PadIfNeeded(DualTransform):
     """
 
     def __init__(self, min_height=1024, min_width=1024, p=1.0):
-        super().__init__(p)
+        super(PadIfNeeded, self).__init__(p)
         self.min_height = min_height
         self.min_width = min_width
 
@@ -221,7 +223,7 @@ class CenterCrop(DualTransform):
     """
 
     def __init__(self, height, width, p=1.0):
-        super().__init__(p)
+        super(CenterCrop, self).__init__(p)
         self.height = height
         self.width = width
 
@@ -242,7 +244,7 @@ class RandomCrop(DualTransform):
         """
 
     def __init__(self, height, width, p=1.0):
-        super().__init__(p)
+        super(RandomCrop, self).__init__(p)
         self.height = height
         self.width = width
 
@@ -325,7 +327,7 @@ class Normalize(ImageOnlyTransform):
         """
 
     def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), p=1.0):
-        super().__init__(p)
+        super(Normalize, self).__init__(p)
         self.mean = mean
         self.std = std
 
@@ -347,8 +349,8 @@ class JpegCompression(ImageOnlyTransform):
             image
         """
 
-    def __init__(self, quality_lower=100, quality_upper=100, p=0.5):
-        super().__init__(p)
+    def __init__(self, quality_lower=99, quality_upper=100, p=0.5):
+        super(JpegCompression, self).__init__(p)
 
         assert 0 <= quality_lower <= 100
         assert 0 <= quality_upper <= 100
@@ -380,7 +382,7 @@ class HueSaturationValue(ImageOnlyTransform):
     """
 
     def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, p=0.5):
-        super().__init__(p)
+        super(HueSaturationValue, self).__init__(p)
         self.hue_shift_limit = to_tuple(hue_shift_limit)
         self.sat_shift_limit = to_tuple(sat_shift_limit)
         self.val_shift_limit = to_tuple(val_shift_limit)
@@ -412,7 +414,7 @@ class RGBShift(ImageOnlyTransform):
     """
 
     def __init__(self, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, p=0.5):
-        super().__init__(p)
+        super(RGBShift, self).__init__(p)
         self.r_shift_limit = to_tuple(r_shift_limit)
         self.g_shift_limit = to_tuple(g_shift_limit)
         self.b_shift_limit = to_tuple(b_shift_limit)
@@ -421,9 +423,9 @@ class RGBShift(ImageOnlyTransform):
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
     def get_params(self):
-        return {'r_shift': np.random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-                'g_shift': np.random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-                'b_shift': np.random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
+        return {'r_shift': np.random.randint(self.r_shift_limit[0], self.r_shift_limit[1]),
+                'g_shift': np.random.randint(self.g_shift_limit[0], self.g_shift_limit[1]),
+                'b_shift': np.random.randint(self.b_shift_limit[0], self.b_shift_limit[1])}
 
 
 class RandomBrightness(ImageOnlyTransform):
@@ -439,7 +441,7 @@ class RandomBrightness(ImageOnlyTransform):
     """
 
     def __init__(self, limit=0.2, p=0.5):
-        super().__init__(p)
+        super(RandomBrightness, self).__init__(p)
         self.limit = to_tuple(limit)
 
     def apply(self, img, alpha=0.2, **params):
@@ -462,7 +464,7 @@ class RandomContrast(ImageOnlyTransform):
     """
 
     def __init__(self, limit=.2, p=.5):
-        super().__init__(p)
+        super(RandomContrast, self).__init__(p)
         self.limit = to_tuple(limit)
 
     def apply(self, img, alpha=0.2, **params):
@@ -484,7 +486,7 @@ class Blur(ImageOnlyTransform):
     """
 
     def __init__(self, blur_limit=7, p=.5):
-        super().__init__(p)
+        super(Blur, self).__init__(p)
         self.blur_limit = to_tuple(blur_limit, 3)
 
     def apply(self, image, ksize=3, **params):
@@ -539,7 +541,7 @@ class GaussNoise(ImageOnlyTransform):
     """
 
     def __init__(self, var_limit=(10, 50), p=0.5):
-        super().__init__(p)
+        super(GaussNoise, self).__init__(p)
         self.var_limit = to_tuple(var_limit)
 
     def apply(self, img, var=30, **params):
@@ -564,7 +566,7 @@ class CLAHE(ImageOnlyTransform):
     """
 
     def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), p=0.5):
-        super().__init__(p)
+        super(CLAHE, self).__init__(p)
         self.clip_limit = to_tuple(clip_limit, 1)
         self.tile_grid_size = tile_grid_size
 
@@ -605,7 +607,7 @@ class InvertImg(ImageOnlyTransform):
 
 class RandomGamma(ImageOnlyTransform):
     def __init__(self, gamma_limit=(80, 120), p=0.5):
-        super().__init__(p)
+        super(RandomGamma, self).__init__(p)
         self.gamma_limit = gamma_limit
 
     def apply(self, img, gamma=1, **params):

@@ -1,10 +1,12 @@
+from __future__ import division
+
 import numpy as np
 
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
 
-class Compose:
+class Compose(object):
     def __init__(self, transforms, p=1.):
         self.transforms = [t for t in transforms if t is not None]
         self.p = p
@@ -16,7 +18,7 @@ class Compose:
         return data
 
 
-class OneOf:
+class OneOf(object):
     def __init__(self, transforms, p=.5):
         self.transforms = transforms
         self.p = p
@@ -32,7 +34,7 @@ class OneOf:
         return data
 
 
-class OneOrOther:
+class OneOrOther(object):
     def __init__(self, first, second, p=.5):
         self.first = first
         first.p = 1.
