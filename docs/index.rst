@@ -17,7 +17,13 @@ Project info
 
 Installation
 ------------
-You can use **pip** to install the latest version from GitHub:
+You can use pip to install albumentations:
+
+::
+
+    pip install albumentations
+
+If you want to get the latest version of the code before it is released on PyPI you can install the library from GitHub:
 
 ::
 
