@@ -132,10 +132,10 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
 
 @clipped
 def shift_rgb(img, r_shift, g_shift, b_shift):
-    img = img.astype('float32')
-    img[..., 0] = img[..., 0] + r_shift
-    img[..., 1] = img[..., 1] + g_shift
-    img[..., 2] = img[..., 2] + b_shift
+    img = img.astype('int32')
+    img[..., 0] += r_shift
+    img[..., 1] += g_shift
+    img[..., 2] += b_shift
     return img
 
 
@@ -339,7 +339,8 @@ def gauss_noise(image, var):
 @clipped
 def random_brightness(img, alpha):
     img = img.astype('float32')
-    return alpha * img
+    img *= alpha
+    return img
 
 
 @clipped
