@@ -60,10 +60,16 @@ image, mask, whatever_data, additional = augmented["image"], augmented["mask"], 
 See `example.ipynb`
 
 ## Installation
-You can use pip to install the latest version from GitHub:
+You can use pip to install albumentations:
+```
+pip install albumentations
+```
+
+If you want to get the latest version of the code before it is released on PyPI you can install the library from GitHub:
 ```
 pip install -U git+https://github.com/albu/albumentations
 ```
+
 
 ## Documentation
 The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
