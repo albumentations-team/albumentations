@@ -1,4 +1,6 @@
+from __future__ import division
 from functools import wraps
+
 import cv2
 
 cv2.setNumThreads(0)
