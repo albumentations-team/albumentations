@@ -1,7 +1,5 @@
 import numpy as np
 import cv2
-cv2.setNumThreads(0)
-cv2.ocl.setUseOpenCL(False)
 
 __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform']
 
