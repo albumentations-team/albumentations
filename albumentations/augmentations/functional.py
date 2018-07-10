@@ -3,9 +3,6 @@ from functools import wraps
 
 import cv2
 
-cv2.setNumThreads(0)
-cv2.ocl.setUseOpenCL(False)
-
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
