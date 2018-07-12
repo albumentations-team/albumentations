@@ -40,6 +40,22 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     return img
 
 
+def cutout(img, num_holes, max_h_size, max_w_size):
+    height, width = img.shape[:2]
+
+    for n in range(num_holes):
+        y = np.random.randint(height)
+        x = np.random.randint(width)
+
+        y1 = np.clip(y - max_h_size // 2, 0, height)
+        y2 = np.clip(y + max_h_size // 2, 0, height)
+        x1 = np.clip(x - max_w_size // 2, 0, width)
+        x2 = np.clip(x + max_w_size // 2, 0, width)
+
+        img[y1: y2, x1: x2] = 0
+    return img
+
+
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
