@@ -75,6 +75,11 @@ pip install -U git+https://github.com/albu/albumentations
 The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
 
 
+## Demo
+You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
+to adjust image augmentation parameters and see the resulting images.
+
+
 ## Benchmarking results
 To run the benchmark yourself follow the instructions in [benchmark/README.md](benchmark/README.md)
 
@@ -131,8 +136,6 @@ automatically when a change is detected by running `make livehtml`
 
 ## Comments
 In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355) 
-
-
 
 ```python
 cv2.setNumThreads(0)	
