@@ -11,7 +11,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression']
+           'JpegCompression', 'Cutout']
 
 
 class PadIfNeeded(DualTransform):
@@ -316,8 +316,8 @@ class Normalize(ImageOnlyTransform):
     """Divides pixel values by 255 = 2**8 - 1, subtracts mean per channel and divides by std per channel
 
         Args:
-            mean (float, float, float) - mean values
-            std  (float, float, float) - std values
+            mean (float, float, float): mean values
+            std  (float, float, float): std values
 
         Targets:
             image
@@ -332,15 +332,41 @@ class Normalize(ImageOnlyTransform):
         return F.normalize(image, self.mean, self.std)
 
 
-class JpegCompression(ImageOnlyTransform):
-    """Decreases Jpeg compression of an image.
-        Was essential part of the [IEEE's Signal Processing Society - Camera Model Identification Challenge]
-            (https://www.kaggle.com/c/sp-society-camera-model-identification)
-
+class Cutout(ImageOnlyTransform):
+    """CoarseDropout of the square regions in the image
 
         Args:
-            quality_lower (float) - lower bound on the jpeg quality. Should be in [0, 100] range
-            quality_upper (float) - lower bound on the jpeg quality. Should be in [0, 100] range
+            num_holes (int): number of regions to zero out
+            max_h_size (int): maximum height of the hole
+            max_w_size (int): maximum width of the hole
+
+        Targets:
+            image
+
+        Reference:
+        |  https://arxiv.org/abs/1708.04552
+        |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
+        |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+
+
+        """
+
+    def __init__(self, num_holes=0, max_h_size=0, max_w_size=0, p=1.0):
+        super(Cutout, self).__init__(p)
+        self.num_holes = num_holes
+        self.max_h_size = max_h_size
+        self.max_w_size = max_w_size
+
+    def apply(self, image, **params):
+        return F.cutout(image, self.num_holes, self.max_h_size, self.max_w_size)
+
+
+class JpegCompression(ImageOnlyTransform):
+    """Decreases Jpeg compression of an image.
+
+        Args:
+            quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
+            quality_upper (float): lower bound on the jpeg quality. Should be in [0, 100] range
 
         Targets:
             image
