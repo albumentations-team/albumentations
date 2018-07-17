@@ -44,8 +44,8 @@ Examples
            HueSaturationValue(p=0.3),
        ], p=p)
 
-   image = np.ones((300, 300))
-   mask = np.ones((300, 300))
+   image = np.ones((300, 300, 3), dtype=np.uint8)
+   mask = np.ones((300, 300), dtype=np.uint8)
    whatever_data = "my name"
    augmentation = strong_aug(p=0.9)
    data = {"image": image, "mask": mask, "whatever_data": whatever_data, "additional": "hello"}
