@@ -54,6 +54,9 @@ class VerticalFlip(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_vflip(bbox, **params)
 
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_vflip(keypoint, **params)
+
 
 class HorizontalFlip(DualTransform):
     """Flips the input horizontally around the y-axis.

@@ -376,3 +376,8 @@ def bbox_vflip(bbox, cols, rows):
 
 def bbox_hflip(bbox, cols, rows):
     return (bbox[0], rows - bbox[1] - bbox[3],) + tuple(bbox[2:])
+
+
+def keypoint_vflip(keypoint, cols, rows):
+    x, y = keypoint
+    return x, cols - y

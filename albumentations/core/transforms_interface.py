@@ -49,13 +49,20 @@ class DualTransform(BasicTransform):
 
     @property
     def targets(self):
-        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bbox}
+        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bbox,
+                'keypoints': self.apply_to_keypoints}
 
     def apply_to_bbox(self, bbox, **params):
         raise NotImplementedError
 
     def apply_to_mask(self, img, **params):
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == 'interpolation' else v for k, v in params.items()})
+
+    def apply_to_keypoint(self, keypoint, **params):
+        raise NotImplementedError
+
+    def apply_to_keypoints(self, keypoints, **params):
+        return [self.apply_to_keypoint(keypoint, **params) for keypoint in keypoints]
 
 
 class ImageOnlyTransform(BasicTransform):
