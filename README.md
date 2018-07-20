@@ -57,7 +57,8 @@ augmented = augmentation(**data)
 image, mask, whatever_data, additional = augmented["image"], augmented["mask"], augmented["whatever_data"], augmented["additional"]
 ```
 
-See `example.ipynb`
+See [`example.ipynb`](notebooks/example.ipynb)
+
 
 ## Installation
 You can use pip to install albumentations:
@@ -78,6 +79,10 @@ The full documentation is available at [albumentations.readthedocs.io](https://a
 ## Demo
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.
+
+
+## Working with non-8-bit images
+[`example_16_bit_tiff.ipynb`](notebooks/example_16_bit_tiff.ipynb) shows how albumentations can be used to work with non-8-bit images (such as 16-bit and 32-bit TIFF images).
 
 
 ## Benchmarking results

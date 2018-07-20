@@ -160,6 +160,8 @@ def shift_rgb(img, r_shift, g_shift, b_shift):
 
 
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
+    if img.dtype != np.uint8:
+        raise TypeError('clahe supports only uint8 inputs')
     img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     img[:, :, 0] = clahe.apply(img[:, :, 0])
@@ -197,6 +199,9 @@ def blur(img, ksize):
 
 
 def median_blur(img, ksize):
+    if img.dtype == np.float32 and ksize not in {3, 5}:
+        raise ValueError(
+            'Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5'.format(ksize))
     return cv2.medianBlur(img, ksize)
 
 
@@ -209,6 +214,8 @@ def motion_blur(img, ksize):
 
 
 def jpeg_compression(img, quality):
+    if img.dtype != np.uint8:
+        raise TypeError('jpeg_compression supports only uint8 inputs')
     _, encoded_img = cv2.imencode('.jpg', img, (cv2.IMWRITE_JPEG_QUALITY, quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
     return img
@@ -377,26 +384,26 @@ def to_gray(img):
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
 
-def to_float(img, max_value):
+def to_float(img, max_value=None):
     if max_value is None:
         try:
             max_value = MAX_VALUES_BY_DTYPE[img.dtype]
         except KeyError:
             raise RuntimeError(
-                'Couldn\'t infer the maximum value for dtype {}. You need to specify the maximum value manually by '
+                'Can\'t infer the maximum value for dtype {}. You need to specify the maximum value manually by '
                 'passing the max_value argument'.format(img.dtype)
             )
     return img.astype('float32') / max_value
 
 
-def from_float(img, dtype, max_value):
+def from_float(img, dtype, max_value=None):
     if max_value is None:
         try:
-            max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
         except KeyError:
             raise RuntimeError(
-                'Couldn\'t infer the maximum value for dtype {}. You need to specify the maximum value manually by '
-                'passing the max_value argument'.format(img.dtype)
+                'Can\'t infer the maximum value for dtype {}. You need to specify the maximum value manually by '
+                'passing the max_value argument'.format(dtype)
             )
     return (img * max_value).astype(dtype)
 
