@@ -13,7 +13,7 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
     JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
     GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise, \
-    IAAPiecewiseAffine, IAAPerspective
+    IAAPiecewiseAffine, IAAPerspective, Cutout
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -31,11 +31,35 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     [InvertImg, {}],
     [RandomGamma, {}],
     [ToGray, {}],
+    [Cutout, {}],
 ])
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
     assert data['image'].dtype == np.uint8
+    assert data['mask'].dtype == np.uint8
+    assert np.array_equal(data['mask'], mask)
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [HueSaturationValue, {}],
+    [RGBShift, {}],
+    [RandomBrightness, {}],
+    [RandomContrast, {}],
+    [Blur, {}],
+    [MotionBlur, {}],
+    [MedianBlur, {'blur_limit': (3, 5)}],
+    [GaussNoise, {}],
+    [ChannelShuffle, {}],
+    [InvertImg, {}],
+    [RandomGamma, {}],
+    [ToGray, {}],
+    [Cutout, {}],
+])
+def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image=float_image, mask=mask)
+    assert data['image'].dtype == np.float32
     assert data['mask'].dtype == np.uint8
     assert np.array_equal(data['mask'], mask)
 
@@ -59,6 +83,28 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
     assert data['image'].dtype == np.uint8
+    assert data['mask'].dtype == np.uint8
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [PadIfNeeded, {}],
+    [VerticalFlip, {}],
+    [HorizontalFlip, {}],
+    [Flip, {}],
+    [Transpose, {}],
+    [RandomRotate90, {}],
+    [Rotate, {}],
+    [ShiftScaleRotate, {}],
+    [OpticalDistortion, {}],
+    [GridDistortion, {}],
+    [ElasticTransform, {}],
+    [CenterCrop, {'height': 10, 'width': 10}],
+    [RandomCrop, {'height': 10, 'width': 10}],
+])
+def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image=float_image, mask=mask)
+    assert data['image'].dtype == np.float32
     assert data['mask'].dtype == np.uint8
 
 

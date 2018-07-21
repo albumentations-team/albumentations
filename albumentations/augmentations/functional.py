@@ -6,8 +6,11 @@ import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
-MAX_CLIPPING_VALUES = {
+MAX_VALUES_BY_DTYPE = {
     np.dtype('uint8'): 255,
+    np.dtype('uint16'): 65535,
+    np.dtype('uint32'): 4294967295,
+    np.dtype('float32'): 1.0,
 }
 
 
@@ -122,7 +125,7 @@ def clipped(func):
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         dtype = img.dtype
-        maxval = MAX_CLIPPING_VALUES.get(dtype, 1.0)
+        maxval = MAX_VALUES_BY_DTYPE.get(dtype, 1.0)
         return clip(func(img, *args, **kwargs), dtype, maxval)
 
     return wrapped_function
@@ -130,14 +133,16 @@ def clipped(func):
 
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
     dtype = img.dtype
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV).astype(np.int32)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    if dtype == np.uint8:
+        img = img.astype(np.int32)
     hue, sat, val = cv2.split(img)
     hue = cv2.add(hue, hue_shift)
     hue = np.where(hue < 0, 180 - hue, hue)
     hue = np.where(hue > 180, hue - 180, hue)
     hue = hue.astype(dtype)
-    sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.)
-    val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.)
+    sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+    val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
@@ -145,7 +150,9 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
 
 @clipped
 def shift_rgb(img, r_shift, g_shift, b_shift):
-    img = img.astype('int32')
+    if img.dtype == np.uint8:
+        img = img.astype('int32')
+        r_shift, g_shift, b_shift = np.int32(r_shift), np.int32(g_shift), np.int32(b_shift)
     img[..., 0] += r_shift
     img[..., 1] += g_shift
     img[..., 2] += b_shift
@@ -153,6 +160,8 @@ def shift_rgb(img, r_shift, g_shift, b_shift):
 
 
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
+    if img.dtype != np.uint8:
+        raise TypeError('clahe supports only uint8 inputs')
     img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     img[:, :, 0] = clahe.apply(img[:, :, 0])
@@ -190,6 +199,9 @@ def blur(img, ksize):
 
 
 def median_blur(img, ksize):
+    if img.dtype == np.float32 and ksize not in {3, 5}:
+        raise ValueError(
+            'Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5'.format(ksize))
     return cv2.medianBlur(img, ksize)
 
 
@@ -202,6 +214,8 @@ def motion_blur(img, ksize):
 
 
 def jpeg_compression(img, quality):
+    if img.dtype != np.uint8:
+        raise TypeError('jpeg_compression supports only uint8 inputs')
     _, encoded_img = cv2.imencode('.jpg', img, (cv2.IMWRITE_JPEG_QUALITY, quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
     return img
@@ -368,6 +382,30 @@ def to_gray(img):
     if np.mean(gray) > 127:
         gray = 255 - gray
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+
+def to_float(img, max_value=None):
+    if max_value is None:
+        try:
+            max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+        except KeyError:
+            raise RuntimeError(
+                'Can\'t infer the maximum value for dtype {}. You need to specify the maximum value manually by '
+                'passing the max_value argument'.format(img.dtype)
+            )
+    return img.astype('float32') / max_value
+
+
+def from_float(img, dtype, max_value=None):
+    if max_value is None:
+        try:
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
+        except KeyError:
+            raise RuntimeError(
+                'Can\'t infer the maximum value for dtype {}. You need to specify the maximum value manually by '
+                'passing the max_value argument'.format(dtype)
+            )
+    return (img * max_value).astype(dtype)
 
 
 def bbox_vflip(bbox, cols, rows):
