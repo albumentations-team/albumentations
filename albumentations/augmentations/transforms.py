@@ -351,7 +351,7 @@ class Cutout(ImageOnlyTransform):
 
         """
 
-    def __init__(self, num_holes=0, max_h_size=0, max_w_size=0, p=1.0):
+    def __init__(self, num_holes=0, max_h_size=0, max_w_size=0, p=0.5):
         super(Cutout, self).__init__(p)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
