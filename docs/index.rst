@@ -48,3 +48,4 @@ to adjust image augmentation parameters and see the resulting images.
    examples
    contributing
    api/index
+   probabilities
