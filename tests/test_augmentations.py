@@ -53,6 +53,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [ChannelShuffle, {}],
     [InvertImg, {}],
     [RandomGamma, {}],
+    [JpegCompression, {}],
     [ToGray, {}],
     [Cutout, {}],
 ])
