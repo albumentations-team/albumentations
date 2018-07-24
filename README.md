@@ -7,7 +7,14 @@
 * Easy to customize
 * Easy to add other frameworks
 
-## Example usage:
+## Authors
+[Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/)
+
+[Alex Parinov](https://www.linkedin.com/in/alex-parinov/)
+
+[Vladimir Iglovikov](https://www.linkedin.com/in/iglovikov/)
+
+## Example usage
 
 ```python
 from albumentations import (
