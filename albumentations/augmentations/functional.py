@@ -1,8 +1,9 @@
 from __future__ import division
+
 from functools import wraps
+from warnings import warn
 
 import cv2
-
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
@@ -214,10 +215,24 @@ def motion_blur(img, ksize):
 
 
 def jpeg_compression(img, quality):
-    if img.dtype != np.uint8:
-        raise TypeError('jpeg_compression supports only uint8 inputs')
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        warn('Jpeg compression augmentation '
+             'is most effective with uint8 inputs, '
+             '{} is used as input.'.format(input_dtype),
+             UserWarning)
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for Jpeg augmentation'.format(input_dtype))
+
     _, encoded_img = cv2.imencode('.jpg', img, (cv2.IMWRITE_JPEG_QUALITY, quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
+
+    if needs_float:
+        img = to_float(img, max_value=255)
     return img
 
 

@@ -244,6 +244,11 @@ class CenterCrop(DualTransform):
 
     Image types:
         uint8, float32
+
+    Note:
+        It is recommended to use uint8 images as input.
+        Otherwise the operation will require internal conversion
+        float32 -> uint8 -> float32 that causes worse performance.
     """
 
     def __init__(self, height, width, p=1.0):
@@ -431,7 +436,7 @@ class JpegCompression(ImageOnlyTransform):
             image
 
         Image types:
-            uint8
+            uint8, float32
         """
 
     def __init__(self, quality_lower=99, quality_upper=100, p=0.5):
