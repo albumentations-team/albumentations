@@ -187,7 +187,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [RandomContrast, {}],
     [Blur, {}],
     [MotionBlur, {}],
-    [MedianBlur, {}],
+    [MedianBlur, {'blur_limit': (3, 5)}],
     [GaussNoise, {}],
     [ChannelShuffle, {}],
     [InvertImg, {}],
