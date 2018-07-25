@@ -431,7 +431,7 @@ class JpegCompression(ImageOnlyTransform):
             image
 
         Image types:
-            uint8
+            uint8, float32
         """
 
     def __init__(self, quality_lower=99, quality_upper=100, p=0.5):
