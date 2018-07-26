@@ -45,6 +45,8 @@ def normalize(img, mean, std, max_pixel_value=255.0):
 
 
 def cutout(img, num_holes, max_h_size, max_w_size):
+    # Make a copy of the input image since we don't want to modify it directly
+    img = img.copy()
     height, width = img.shape[:2]
 
     for n in range(num_holes):
@@ -154,6 +156,9 @@ def shift_rgb(img, r_shift, g_shift, b_shift):
     if img.dtype == np.uint8:
         img = img.astype('int32')
         r_shift, g_shift, b_shift = np.int32(r_shift), np.int32(g_shift), np.int32(b_shift)
+    else:
+        # Make a copy of the input image since we don't want to modify it directly
+        img = img.copy()
     img[..., 0] += r_shift
     img[..., 1] += g_shift
     img[..., 2] += b_shift
