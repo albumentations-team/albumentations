@@ -57,7 +57,7 @@ class Crop(DualTransform):
     """
 
     def __init__(self, x_min=0, y_min=0, x_max=1024, y_max=1024, p=1.0):
-        super(Crop, self).__init__(x_min, y_min, x_max, y_max, p)
+        super(Crop, self).__init__(p)
         self.x_min = x_min
         self.y_min = y_min
         self.x_max = x_max
