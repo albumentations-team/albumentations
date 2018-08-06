@@ -11,7 +11,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop']
+           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale']
 
 
 class PadIfNeeded(DualTransform):
@@ -210,6 +210,36 @@ class Rotate(DualTransform):
 
     def get_params(self):
         return {'angle': np.random.uniform(self.limit[0], self.limit[1])}
+
+
+class RandomScale(DualTransform):
+    """Randomly resizes. Output image size is different from the input image size.
+
+    Args:
+        scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
+            range will be (-scale_limit, scale_limit). Default: 0.1.
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, scale_limit=0.1, p=0.5, interpolation=cv2.INTER_LINEAR):
+        super(RandomScale, self).__init__(p)
+        self.scale_limit = to_tuple(scale_limit)
+        self.interpolation = interpolation
+
+    def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
+        return F.scale(img, scale, interpolation)
+
+    def get_params(self):
+        return {'scale': np.random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1])}
 
 
 class ShiftScaleRotate(DualTransform):
