@@ -11,7 +11,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat']
+           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop']
 
 
 class PadIfNeeded(DualTransform):
@@ -26,7 +26,6 @@ class PadIfNeeded(DualTransform):
     Image types:
         uint8, float32
 
-    TODO: add application to boxes
     """
 
     def __init__(self, min_height=1024, min_width=1024, p=1.0):
@@ -39,6 +38,33 @@ class PadIfNeeded(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         pass
+
+
+class Crop(DualTransform):
+    """Crops region from image
+
+    Args:
+        x_min (int): minimum upper left x coordinate
+        y_min (int): minimum upper left y coordinate
+        x_max (int): maximum lower right x coordinate
+        y_max (int): maximum lower right y coordinate
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, x_min=0, y_min=0, x_max=1024, y_max=1024, p=1.0):
+        super(Crop, self).__init__(p)
+        self.x_min = x_min
+        self.y_min = y_min
+        self.x_max = x_max
+        self.y_max = y_max
+
+    def apply(self, img, **params):
+        return F.crop(img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max)
 
 
 class VerticalFlip(DualTransform):
@@ -296,6 +322,7 @@ class OpticalDistortion(DualTransform):
     Image types:
         uint8, float32
     """
+
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super(OpticalDistortion, self).__init__(p)
@@ -321,6 +348,7 @@ class GridDistortion(DualTransform):
     Image types:
         uint8, float32
     """
+
     def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super(GridDistortion, self).__init__(p)
@@ -351,6 +379,7 @@ class ElasticTransform(DualTransform):
     Image types:
         uint8, float32
     """
+
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
                  border_mode=cv2.BORDER_REFLECT_101, p=0.5):
         super(ElasticTransform, self).__init__(p)
@@ -633,6 +662,7 @@ class MedianBlur(Blur):
     Image types:
         uint8, float32
     """
+
     def __init__(self, blur_limit=7, p=0.5):
         super(MedianBlur, self).__init__(p)
         self.blur_limit = to_tuple(blur_limit, 3)

@@ -8,7 +8,7 @@ About probabilities.
 Default probability values
 ******************************
 
-**Compose**, **PadIfNeeded**, **CenterCrop**, **RandomCrop**, **Normalize**, **ToFloat**, **FromFloat**, **ToTensor** have default
+**Compose**, **PadIfNeeded**, **CenterCrop**, **RandomCrop**, **Crop**, **Normalize**, **ToFloat**, **FromFloat**, **ToTensor** have default
 probability values equal to **1**. All other are equal to **0.5**
 
 

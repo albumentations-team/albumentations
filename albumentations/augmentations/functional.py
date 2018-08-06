@@ -79,6 +79,36 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     return img
 
 
+def crop(img, x_min, y_min, x_max, y_max):
+    height, width = img.shape[:2]
+    if x_max <= x_min or y_max <= y_min:
+        raise ValueError(
+            'We should have x_min < x_max and y_min < y_max. But we got'
+            ' (x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max})'.format(
+                x_min=x_min,
+                x_max=x_max,
+                y_min=y_min,
+                y_max=y_max
+            )
+        )
+
+    if x_min < 0 or x_max >= width or y_min < 0 or y_max >= height:
+        raise ValueError(
+            'Values for crop should be non negative and smaller than image sizes'
+            '(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}'
+            'height = {height}, width = {width})'.format(
+                x_min=x_min,
+                x_max=x_max,
+                y_min=y_min,
+                y_max=y_max,
+                height=height,
+                width=width
+            )
+        )
+
+    return img[y_min:y_max, x_min:x_max]
+
+
 def center_crop(img, crop_height, crop_width):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
