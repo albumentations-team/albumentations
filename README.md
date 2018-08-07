@@ -7,6 +7,8 @@
 * Easy to customize
 * Easy to add other frameworks
 
+![Vladimir_Iglovikov](https://habrastorage.org/webt/_e/xe/8a/_exe8adren79a0ctavaiq4jf2jo.jpeg)
+
 ## Authors
 [Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/)
 
@@ -35,7 +37,7 @@ def strong_aug(p=0.5):
             GaussNoise(),
         ], p=0.2),
         OneOf([
-            MotionBlur(p=.2),
+            MotionBlur(p=0.2),
             MedianBlur(blur_limit=3, p=0.1),
             Blur(blur_limit=3, p=0.1),
         ], p=0.2),
