@@ -597,21 +597,23 @@ def test_from_float_with_max_value_specified(max_value):
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
-def test_scale_rotate(target):
+def test_scale(target):
     img = np.array([
-        [1, 2, 3, 4],
-        [5, 6, 7, 8],
-        [9, 10, 11, 12],
-        [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[1, 1, 2, 3, 3, 4],
-                         [3, 4, 4, 5, 6, 6],
-                         [5, 6, 7, 7, 8, 8],
-                         [8, 9, 9, 10, 11, 11],
-                         [11, 12, 12, 13, 14, 14],
-                         [13, 13, 14, 15, 15, 16]], dtype=np.uint8)
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+        [10, 11, 12]], dtype=np.uint8)
+    expected = np.array([[1, 1, 2, 2, 3, 3],
+                         [2, 2, 2, 3, 3, 4],
+                         [3, 3, 4, 4, 5, 5],
+                         [5, 5, 5, 6, 6, 7],
+                         [6, 6, 7, 7, 8, 8],
+                         [8, 8, 8, 9, 9, 10],
+                         [9, 9, 10, 10, 11, 11],
+                         [10, 10, 11, 11, 12, 12]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = F.scale(img, scale=1.5, interpolation=cv2.INTER_LINEAR)
+    scaled = F.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 

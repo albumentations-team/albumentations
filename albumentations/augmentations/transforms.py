@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 import cv2
 
 import numpy as np
+import random
 
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 from . import functional as F
@@ -239,7 +240,7 @@ class RandomScale(DualTransform):
         return F.scale(img, scale, interpolation)
 
     def get_params(self):
-        return {'scale': np.random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1])}
+        return {'scale': random.uniform(self.scale_limit[0], self.scale_limit[1])}
 
 
 class ShiftScaleRotate(DualTransform):
