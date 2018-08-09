@@ -5,6 +5,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
+import random
 from scipy.ndimage.filters import gaussian_filter
 
 MAX_VALUES_BY_DTYPE = {
@@ -50,8 +51,8 @@ def cutout(img, num_holes, max_h_size, max_w_size):
     height, width = img.shape[:2]
 
     for n in range(num_holes):
-        y = np.random.randint(height)
-        x = np.random.randint(width)
+        y = random.randint(0, height)
+        x = random.randint(0, width)
 
         y1 = np.clip(y - max_h_size // 2, 0, height)
         y2 = np.clip(y + max_h_size // 2, 0, height)
@@ -250,8 +251,8 @@ def median_blur(img, ksize):
 
 def motion_blur(img, ksize):
     kernel = np.zeros((ksize, ksize))
-    xs, ys = np.random.randint(0, ksize), np.random.randint(0, ksize)
-    xe, ye = np.random.randint(0, ksize), np.random.randint(0, ksize)
+    xs, ys = random.randint(0, ksize), random.randint(0, ksize)
+    xe, ye = random.randint(0, ksize), random.randint(0, ksize)
     cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
     return cv2.filter2D(img, -1, kernel / np.sum(kernel))
 
@@ -395,7 +396,7 @@ def invert(img):
 
 def channel_shuffle(img):
     ch_arr = [0, 1, 2]
-    np.random.shuffle(ch_arr)
+    random.shuffle(ch_arr)
     img = img[..., ch_arr]
     return img
 
