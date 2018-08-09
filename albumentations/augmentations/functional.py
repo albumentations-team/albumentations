@@ -71,7 +71,7 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 
 def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
-    new_height, new_width = int(height * scale), int(height * scale)
+    new_height, new_width = int(height * scale), int(width * scale)
     img = cv2.resize(img, (new_width, new_height), interpolation=interpolation)
     return img
 
