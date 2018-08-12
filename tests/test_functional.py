@@ -617,6 +617,23 @@ def test_scale(target):
     assert np.array_equal(scaled, expected)
 
 
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_longest_max_size(target):
+    img = np.array([
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+        [10, 11, 12]], dtype=np.uint8)
+    expected = np.array([[ 2,  3],
+       [ 6,  7],
+       [10, 11]], dtype=np.uint8)
+
+    img, expected = convert_2d_to_target_format([img, expected], target=target)
+    scaled = F.longest_max_size(img, longest_max_size=3, interpolation=cv2.INTER_LINEAR)
+    assert np.array_equal(scaled, expected)
+
+
+
 def test_from_float_unknown_dtype():
     img = np.ones((100, 100, 3), dtype=np.float32)
     with pytest.raises(RuntimeError) as exc_info:

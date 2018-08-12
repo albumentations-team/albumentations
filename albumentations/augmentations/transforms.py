@@ -12,7 +12,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale']
+           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize']
 
 
 class PadIfNeeded(DualTransform):
@@ -36,9 +36,6 @@ class PadIfNeeded(DualTransform):
 
     def apply(self, img, **params):
         return F.pad(img, min_height=self.min_height, min_width=self.min_width)
-
-    def apply_to_bbox(self, bbox, **params):
-        pass
 
 
 class Crop(DualTransform):
@@ -151,6 +148,29 @@ class Transpose(DualTransform):
 
     def apply(self, img, **params):
         return F.transpose(img)
+
+
+class LongestMaxSize(DualTransform):
+    """Rescales and image so that maximum side is equal to max_size, keeping th aspect ratio of the initial image.
+
+    Args:
+        p (float): probability of applying the transform. Default: 1.
+        max_size (int): maximum size of the image after the transformation
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, p=1):
+        super(LongestMaxSize, self).__init__(p)
+        self.interpolation = interpolation
+        self.max_size = max_size
+
+    def apply(self, img, **params):
+        return F.longest_max_size(img)
 
 
 class RandomRotate90(DualTransform):
