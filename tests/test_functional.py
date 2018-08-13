@@ -624,14 +624,13 @@ def test_longest_max_size(target):
         [4, 5, 6],
         [7, 8, 9],
         [10, 11, 12]], dtype=np.uint8)
-    expected = np.array([[ 2,  3],
-       [ 6,  7],
-       [10, 11]], dtype=np.uint8)
+    expected = np.array([[2, 3],
+                         [6, 7],
+                         [10, 11]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     scaled = F.longest_max_size(img, longest_max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
-
 
 
 def test_from_float_unknown_dtype():
