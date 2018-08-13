@@ -170,7 +170,7 @@ class LongestMaxSize(DualTransform):
         self.max_size = max_size
 
     def apply(self, img, **params):
-        return F.longest_max_size(img)
+        return F.longest_max_size(img, longest_max_size=self.max_size, interpolation=self.interpolation)
 
 
 class RandomRotate90(DualTransform):
