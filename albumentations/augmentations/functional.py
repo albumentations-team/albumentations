@@ -242,6 +242,17 @@ def blur(img, ksize):
     return cv2.blur(img, (ksize, ksize))
 
 
+def longest_max_size(img, longest_max_size, interpolation):
+    height, width = img.shape[:2]
+
+    scale = longest_max_size / float(max(width, height))
+
+    if scale != 1.0:
+        out_size = tuple(int(dim * scale) for dim in (width, height))
+        img = cv2.resize(img, out_size, interpolation=interpolation)
+    return img
+
+
 def median_blur(img, ksize):
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(
