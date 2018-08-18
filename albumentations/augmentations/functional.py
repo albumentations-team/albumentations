@@ -261,12 +261,13 @@ def median_blur(img, ksize):
 
 
 def motion_blur(img, ksize):
+    assert ksize > 2
     kernel = np.zeros((ksize, ksize), dtype=np.uint8)
-    xs, xe = random.randint(0, ksize), random.randint(0, ksize)
+    xs, xe = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
     if xs == xe:
         ys, ye = random.sample(range(ksize), 2)
     else:
-        ys, ye = random.randint(0, ksize), random.randint(0, ksize)
+        ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
     cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
     return cv2.filter2D(img, -1, kernel / np.sum(kernel))
 
