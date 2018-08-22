@@ -39,7 +39,7 @@ class PadIfNeeded(DualTransform):
 
 
 class Crop(DualTransform):
-    """Crops region from image
+    """Crops region from image.
 
     Args:
         x_min (int): minimum upper left x coordinate
