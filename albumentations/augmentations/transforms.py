@@ -1,12 +1,12 @@
 from __future__ import absolute_import, division
 
-import cv2
-
-import numpy as np
 import random
 
-from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
+import cv2
+import numpy as np
+
 from . import functional as F
+from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
 
 __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
@@ -29,13 +29,14 @@ class PadIfNeeded(DualTransform):
 
     """
 
-    def __init__(self, min_height=1024, min_width=1024, p=1.0):
+    def __init__(self, min_height=1024, min_width=1024, border_mode=cv2.BORDER_REFLECT_101, p=1.0):
         super(PadIfNeeded, self).__init__(p)
         self.min_height = min_height
         self.min_width = min_width
+        self.border_mode = border_mode
 
     def apply(self, img, **params):
-        return F.pad(img, min_height=self.min_height, min_width=self.min_width)
+        return F.pad(img, min_height=self.min_height, min_width=self.min_width, border_mode=self.border_mode)
 
 
 class Crop(DualTransform):
