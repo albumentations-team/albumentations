@@ -641,3 +641,96 @@ def test_from_float_unknown_dtype():
         'Can\'t infer the maximum value for dtype int16. You need to specify the maximum value manually by passing '
         'the max_value argument'
     )
+
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_resize_default_interpolation(target):
+    img = np.array([
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 3, 3, 3],
+        [4, 4, 4, 4],
+    ], dtype=np.uint8)
+    expected = np.array([
+        [2, 2],
+        [4, 4],
+    ], dtype=np.uint8)
+    img, expected = convert_2d_to_target_format([img, expected], target=target)
+    resized_img = F.resize(img, 2, 2)
+    height, width = resized_img.shape[:2]
+    assert height == 2
+    assert width == 2
+    assert np.array_equal(resized_img, expected)
+
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_resize_nearest_interpolation(target):
+    img = np.array([
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 3, 3, 3],
+        [4, 4, 4, 4],
+    ], dtype=np.uint8)
+    expected = np.array([
+        [1, 1],
+        [3, 3],
+    ], dtype=np.uint8)
+    img, expected = convert_2d_to_target_format([img, expected], target=target)
+    resized_img = F.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
+    height, width = resized_img.shape[:2]
+    assert height == 2
+    assert width == 2
+    assert np.array_equal(resized_img, expected)
+
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_resize_different_height_and_width(target):
+    img = np.ones((100, 100), dtype=np.uint8)
+    img = convert_2d_to_target_format([img], target=target)
+    resized_img = F.resize(img, height=20, width=30)
+    height, width = resized_img.shape[:2]
+    assert height == 20
+    assert width == 30
+    if target == 'image':
+        num_channels = resized_img.shape[2]
+        assert num_channels == 3
+
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_resize_default_interpolation_float(target):
+    img = np.array([
+        [0.1, 0.1, 0.1, 0.1],
+        [0.2, 0.2, 0.2, 0.2],
+        [0.3, 0.3, 0.3, 0.3],
+        [0.4, 0.4, 0.4, 0.4],
+    ], dtype=np.float32)
+    expected = np.array([
+        [0.15, 0.15],
+        [0.35, 0.35],
+    ], dtype=np.float32)
+    img, expected = convert_2d_to_target_format([img, expected], target=target)
+    resized_img = F.resize(img, 2, 2)
+    height, width = resized_img.shape[:2]
+    assert height == 2
+    assert width == 2
+    assert np.array_equal(resized_img, expected)
+
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_resize_nearest_interpolation_float(target):
+    img = np.array([
+        [0.1, 0.1, 0.1, 0.1],
+        [0.2, 0.2, 0.2, 0.2],
+        [0.3, 0.3, 0.3, 0.3],
+        [0.4, 0.4, 0.4, 0.4],
+    ], dtype=np.float32)
+    expected = np.array([
+        [0.1, 0.1],
+        [0.3, 0.3],
+    ], dtype=np.float32)
+    img, expected = convert_2d_to_target_format([img, expected], target=target)
+    resized_img = F.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
+    height, width = resized_img.shape[:2]
+    assert height == 2
+    assert width == 2
+    assert np.array_equal(resized_img, expected)

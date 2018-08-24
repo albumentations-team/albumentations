@@ -77,6 +77,11 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     return img
 
 
+def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+    img = cv2.resize(img, (width, height), interpolation=interpolation)
+    return img
+
+
 def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)

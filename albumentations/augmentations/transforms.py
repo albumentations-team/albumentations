@@ -12,7 +12,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize']
+           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'Resize']
 
 
 class PadIfNeeded(DualTransform):
@@ -171,6 +171,34 @@ class LongestMaxSize(DualTransform):
 
     def apply(self, img, **params):
         return F.longest_max_size(img, longest_max_size=self.max_size, interpolation=self.interpolation)
+
+
+class Resize(DualTransform):
+    """Resizes the input to the given height and width.
+
+    Args:
+        p (float): probability of applying the transform. Default: 1.
+        height (int): desired height of the output.
+        width (int): desired width of the output.
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, p=1):
+        super(Resize, self).__init__(p)
+        self.height = height
+        self.width = width
+        self.interpolation = interpolation
+
+    def apply(self, img, **params):
+        return F.resize(img, height=self.height, width=self.width, interpolation=self.interpolation)
 
 
 class RandomRotate90(DualTransform):
