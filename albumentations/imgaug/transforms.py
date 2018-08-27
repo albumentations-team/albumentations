@@ -150,7 +150,7 @@ class IAAPiecewiseAffine(DualIAATransform):
         self.processor = iaa.PiecewiseAffine(scale, nb_rows, nb_cols, order, cval, mode)
 
 
-class IAAAffine:
+class IAAAffine(DualIAATransform):
     """Places a regular grid of points on the input and randomly moves the neighbourhood of these point around
     via affine transformations.
 
