@@ -4,7 +4,8 @@ from imgaug import augmenters as iaa
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
 
 __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IAAEmboss', 'IAASuperpixels',
-           'IAASharpen', 'IAAAdditiveGaussianNoise', 'IAACropAndPad', 'IAAFliplr', 'IAAFlipud', 'IAAAffine', 'IAAPiecewiseAffine', 'IAAPerspective']
+           'IAASharpen', 'IAAAdditiveGaussianNoise', 'IAACropAndPad', 'IAAFliplr', 'IAAFlipud', 'IAAAffine',
+           'IAAPiecewiseAffine', 'IAAPerspective']
 
 
 class BasicIAATransform(BasicTransform):
@@ -159,7 +160,8 @@ class IAAAffine:
     Targets:
         image, mask
     """
-    def __init__(self, scale=1.0, translate_percent=None, translate_px=None, rotate=0.0, shear=0.0, order=1, cval=0, mode="reflect", p=0.5):
+    def __init__(self, scale=1.0, translate_percent=None, translate_px=None, rotate=0.0, shear=0.0, order=1, cval=0,
+                 mode="reflect", p=0.5):
         super(IAAAffine, self).__init__(p)
         self.processor = iaa.Affine(scale, translate_percent, translate_px, rotate, shear, order, cval, mode)
 
