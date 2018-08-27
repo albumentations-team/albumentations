@@ -1,13 +1,13 @@
+import imgaug as ia
 from imgaug import augmenters as iaa
 
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
 
 __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IAAEmboss', 'IAASuperpixels',
-           'IAASharpen', 'IAAAdditiveGaussianNoise', 'IAAPiecewiseAffine', 'IAAPerspective']
+           'IAASharpen', 'IAAAdditiveGaussianNoise', 'IAACropAndPad', 'IAAFliplr', 'IAAFlipud', 'IAAAffine', 'IAAPiecewiseAffine', 'IAAPerspective']
 
 
 class BasicIAATransform(BasicTransform):
-
     def __init__(self, p=0.5):
         super(BasicIAATransform, self).__init__(p)
         self.processor = iaa.Noop()
@@ -22,11 +22,40 @@ class BasicIAATransform(BasicTransform):
 
 
 class DualIAATransform(DualTransform, BasicIAATransform):
-    pass
+    def __init__(self, p):
+        super().__init__(p)
+
+    def apply_to_bboxes(self, bboxes, **params):
+        rows, cols = params['rows'], params['cols']
+
+        bboxes_on_img = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox) for bbox in bboxes], (rows, cols))
+        bboxes_on_img = self.deterministic_processor.augment_bounding_boxes([bboxes_on_img])
+
+        assert len(bboxes_on_img) == 1
+        return [(bbox.x1, bbox.y1, bbox.x2, bbox.y2) for bbox in bboxes_on_img[0].bounding_boxes]
 
 
 class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):
-    pass
+    def __init__(self, p):
+        super().__init__(p)
+
+
+class IAACropAndPad(DualIAATransform):
+    def __init__(self, px=None, percent=None, pad_mode='constant', pad_cval=0, keep_size=True, p=1):
+        super().__init__(p)
+        self.processor = iaa.CropAndPad(px, percent, pad_mode, pad_cval, keep_size)
+
+
+class IAAFliplr(DualIAATransform):
+    def __init__(self, p=0.5):
+        super().__init__(p)
+        self.processor = iaa.Fliplr(1)
+
+
+class IAAFlipud(DualIAATransform):
+    def __init__(self, p=0.5):
+        super().__init__(p)
+        self.processor = iaa.Flipud(1)
 
 
 class IAAEmboss(ImageOnlyIAATransform):
@@ -97,9 +126,9 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
         image
     """
 
-    def __init__(self, loc=0, scale=(0.01 * 255, 0.05 * 255), p=0.5):
+    def __init__(self, loc=0, scale=(0.01 * 255, 0.05 * 255), per_channel=False, p=0.5):
         super(IAAAdditiveGaussianNoise, self).__init__(p)
-        self.processor = iaa.AdditiveGaussianNoise(loc, scale)
+        self.processor = iaa.AdditiveGaussianNoise(loc, scale, per_channel)
 
 
 class IAAPiecewiseAffine(DualIAATransform):
@@ -116,9 +145,24 @@ class IAAPiecewiseAffine(DualIAATransform):
         image, mask
     """
 
-    def __init__(self, scale=(0.03, 0.05), nb_rows=4, nb_cols=4, p=.5):
+    def __init__(self, scale=0, nb_rows=4, nb_cols=4, order=1, cval=0, mode="constant", p=.5):
         super(IAAPiecewiseAffine, self).__init__(p)
-        self.processor = iaa.PiecewiseAffine(scale, nb_rows, nb_cols)
+        self.processor = iaa.PiecewiseAffine(scale, nb_rows, nb_cols, order, cval, mode)
+
+
+class IAAAffine:
+    """Places a regular grid of points on the input and randomly moves the neighbourhood of these point around
+    via affine transformations.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask
+    """
+    def __init__(self, scale=1.0, translate_percent=None, translate_px=None, rotate=0.0, shear=0.0, order=1, cval=0, mode="reflect", p=0.5):
+        super(IAAAffine, self).__init__(p)
+        self.processor = iaa.Affine(scale, translate_percent, translate_px, rotate, shear, order, cval, mode)
 
 
 class IAAPerspective(DualIAATransform):
@@ -133,6 +177,6 @@ class IAAPerspective(DualIAATransform):
         image, mask
     """
 
-    def __init__(self, scale=(0.05, 0.1), p=.5):
+    def __init__(self, scale=(0.05, 0.1), keep_size=True, p=.5):
         super(IAAPerspective, self).__init__(p)
-        self.processor = iaa.PerspectiveTransform(scale)
+        self.processor = iaa.PerspectiveTransform(scale, keep_size)
