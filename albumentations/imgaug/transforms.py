@@ -24,7 +24,7 @@ class BasicIAATransform(BasicTransform):
 
 class DualIAATransform(DualTransform, BasicIAATransform):
     def __init__(self, p):
-        super().__init__(p)
+        super(DualIAATransform, self).__init__(p)
 
     def apply_to_bboxes(self, bboxes, **params):
         rows, cols = params['rows'], params['cols']
