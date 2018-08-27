@@ -36,25 +36,24 @@ class DualIAATransform(DualTransform, BasicIAATransform):
 
 
 class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):
-    def __init__(self, p):
-        super().__init__(p)
+    pass
 
 
 class IAACropAndPad(DualIAATransform):
     def __init__(self, px=None, percent=None, pad_mode='constant', pad_cval=0, keep_size=True, p=1):
-        super().__init__(p)
+        super(IAACropAndPad, self).__init__(p)
         self.processor = iaa.CropAndPad(px, percent, pad_mode, pad_cval, keep_size)
 
 
 class IAAFliplr(DualIAATransform):
     def __init__(self, p=0.5):
-        super().__init__(p)
+        super(IAAFliplr, self).__init__(p)
         self.processor = iaa.Fliplr(1)
 
 
 class IAAFlipud(DualIAATransform):
     def __init__(self, p=0.5):
-        super().__init__(p)
+        super(IAAFlipud, self).__init__(p)
         self.processor = iaa.Flipud(1)
 
 
