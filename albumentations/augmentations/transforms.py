@@ -12,7 +12,8 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'Resize']
+           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'Resize',
+           'FilterInvisibleBboxes']
 
 
 class PadIfNeeded(DualTransform):
@@ -64,6 +65,10 @@ class Crop(DualTransform):
 
     def apply(self, img, **params):
         return F.crop(img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max)
+
+    def apply_to_bbox(self, img, **params):
+        crop_coords = (self.x_min, self.y_min, self.x_max, self.y_max)
+        return F.bbox_crop(img, crop_coords, self.y_max - self.y_min, self.x_max - self.x_min, **params)
 
 
 class VerticalFlip(DualTransform):
@@ -133,6 +138,9 @@ class Flip(DualTransform):
         # Random int in range [-1, 2)
         return {'d': np.random.randint(-1, 2)}
 
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_flip(bbox, **params)
+
 
 class Transpose(DualTransform):
     """Transposes the input by swapping rows and columns.
@@ -173,6 +181,10 @@ class LongestMaxSize(DualTransform):
     def apply(self, img, **params):
         return F.longest_max_size(img, longest_max_size=self.max_size, interpolation=self.interpolation)
 
+    def apply_to_bbox(self, bbox, **params):
+        # Bounding box coordinates are scale invariant
+        return bbox
+
 
 class Resize(DualTransform):
     """Resizes the input to the given height and width.
@@ -200,6 +212,10 @@ class Resize(DualTransform):
 
     def apply(self, img, **params):
         return F.resize(img, height=self.height, width=self.width, interpolation=self.interpolation)
+
+    def apply_to_bbox(self, bbox, **params):
+        # Bounding box coordinates are scale invariant
+        return bbox
 
 
 class RandomRotate90(DualTransform):
@@ -365,6 +381,9 @@ class CenterCrop(DualTransform):
     def apply(self, img, **params):
         return F.center_crop(img, self.height, self.width)
 
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_center_crop(bbox, self.height, self.width, **params)
+
 
 class RandomCrop(DualTransform):
     """Crops random part of the input.
@@ -392,6 +411,9 @@ class RandomCrop(DualTransform):
     def get_params(self):
         return {'h_start': np.random.random(),
                 'w_start': np.random.random()}
+
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_random_crop(bbox, self.height, self.width, **params)
 
 
 class OpticalDistortion(DualTransform):
@@ -936,3 +958,15 @@ class FromFloat(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.from_float(img, self.dtype, self.max_value)
+
+
+class FilterInvisibleBboxes(DualTransform):
+
+    def __init__(self, p=1.0):
+        super(FilterInvisibleBboxes, self).__init__(p)
+
+    def apply(self, img, **params):
+        return img
+
+    def apply_to_bboxes(self, bboxes, **params):
+        return F.filter_invisible_bboxes(bboxes)

@@ -8,6 +8,9 @@ import numpy as np
 import random
 from scipy.ndimage.filters import gaussian_filter
 
+from albumentations.augmentations.bbox import denormalize_bbox, normalize_bbox
+
+
 MAX_VALUES_BY_DTYPE = {
     np.dtype('uint8'): 255,
     np.dtype('uint16'): 65535,
@@ -122,6 +125,14 @@ def crop(img, x_min, y_min, x_max, y_max):
     return img[y_min:y_max, x_min:x_max]
 
 
+def get_center_crop_coords(height, width, crop_height, crop_width):
+    y1 = (height - crop_height) // 2
+    y2 = y1 + crop_height
+    x1 = (width - crop_width) // 2
+    x2 = x1 + crop_width
+    return x1, y1, x2, y2
+
+
 def center_crop(img, crop_height, crop_width):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
@@ -134,12 +145,17 @@ def center_crop(img, crop_height, crop_width):
                 width=width,
             )
         )
-    y1 = (height - crop_height) // 2
-    y2 = y1 + crop_height
-    x1 = (width - crop_width) // 2
-    x2 = x1 + crop_width
+    x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
     img = img[y1:y2, x1:x2]
     return img
+
+
+def get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start):
+    y1 = int((height - crop_height) * h_start)
+    y2 = y1 + crop_height
+    x1 = int((width - crop_width) * w_start)
+    x2 = x1 + crop_width
+    return x1, y1, x2, y2
 
 
 def random_crop(img, crop_height, crop_width, h_start, w_start):
@@ -154,11 +170,7 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
                 width=width,
             )
         )
-
-    y1 = int((height - crop_height) * h_start)
-    y2 = y1 + crop_height
-    x1 = int((width - crop_width) * w_start)
-    x2 = x1 + crop_width
+    x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
     img = img[y1:y2, x1:x2]
     return img
 
@@ -487,8 +499,47 @@ def from_float(img, dtype, max_value=None):
 
 
 def bbox_vflip(bbox, cols, rows):
-    return (cols - bbox[0] - bbox[2],) + tuple(bbox[1:])
+    x_min, y_min, x_max, y_max = bbox[:4]
+    return [x_min, 1 - y_max,  x_max, 1 - y_min] + bbox[4:]
 
 
 def bbox_hflip(bbox, cols, rows):
-    return (bbox[0], rows - bbox[1] - bbox[3],) + tuple(bbox[2:])
+    x_min, y_min, x_max, y_max = bbox[:4]
+    return [1 - x_max, y_min,  1 - x_min, y_max] + bbox[4:]
+
+
+def bbox_flip(bbox, d, cols, rows):
+    if d == 0:
+        bbox = bbox_vflip(bbox, cols, rows)
+    elif d == 1:
+        bbox = bbox_hflip(bbox, cols, rows)
+    elif d == -1:
+        bbox = bbox_hflip(bbox, cols, rows)
+        bbox = bbox_vflip(bbox, cols, rows)
+    else:
+        raise ValueError('Invalid d value {}. Valid values are -1, 0 and 1'.format(d))
+    return bbox
+
+
+def bbox_crop(bbox, crop_coords, crop_height, crop_width, cols, rows):
+    bbox = denormalize_bbox(bbox, cols, rows)
+    x_min, y_min, x_max, y_max = bbox[:4]
+    x1, y1, x2, y2 = crop_coords
+    if x1 > x_max or y1 > y_max or x2 < x_min or y2 < y_min:
+        return [0, 0, 0, 0] + bbox[4:]
+    cropped_bbox = [max(x_min, x1) - x1, max(y_min, y1) - y1, min(x_max, x2) - x1, min(y_max, y2) - y1] + bbox[4:]
+    return normalize_bbox(cropped_bbox, crop_width, crop_height)
+
+
+def bbox_center_crop(bbox, crop_height, crop_width, cols, rows):
+    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
+    return bbox_crop(bbox, crop_coords, crop_height, crop_width, cols, rows)
+
+
+def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, cols, rows):
+    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
+    return bbox_crop(bbox, crop_coords, crop_height, crop_width, cols, rows)
+
+
+def filter_invisible_bboxes(bboxes):
+    return [bbox for bbox in bboxes if bbox[:4] != [0, 0, 0, 0]]
