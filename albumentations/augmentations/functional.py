@@ -8,7 +8,7 @@ import numpy as np
 import random
 from scipy.ndimage.filters import gaussian_filter
 
-from albumentations.augmentations.bbox import denormalize_bbox, normalize_bbox
+from albumentations.augmentations.bbox import denormalize_bbox, normalize_bbox, calculate_bbox_area
 
 
 MAX_VALUES_BY_DTYPE = {
@@ -498,48 +498,72 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
-def bbox_vflip(bbox, cols, rows):
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return [x_min, 1 - y_max,  x_max, 1 - y_min] + bbox[4:]
+def bbox_vflip(bbox, rows, cols):
+    """
+    Flips a bounding box vertically around the x-axis.
+    """
+    x_min, y_min, x_max, y_max = bbox
+    return [x_min, 1 - y_max,  x_max, 1 - y_min]
 
 
-def bbox_hflip(bbox, cols, rows):
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return [1 - x_max, y_min,  1 - x_min, y_max] + bbox[4:]
+def bbox_hflip(bbox, rows, cols):
+    """Flips a bounding box horizontally around the y-axis.
+    """
+    x_min, y_min, x_max, y_max = bbox
+    return [1 - x_max, y_min,  1 - x_min, y_max]
 
 
-def bbox_flip(bbox, d, cols, rows):
+def bbox_flip(bbox, d, rows, cols):
+    """
+    Flips a bounding box either vertically, horizontally or both depending on the value of `d`.
+    """
     if d == 0:
-        bbox = bbox_vflip(bbox, cols, rows)
+        bbox = bbox_vflip(bbox, rows, cols)
     elif d == 1:
-        bbox = bbox_hflip(bbox, cols, rows)
+        bbox = bbox_hflip(bbox, rows, cols)
     elif d == -1:
-        bbox = bbox_hflip(bbox, cols, rows)
-        bbox = bbox_vflip(bbox, cols, rows)
+        bbox = bbox_hflip(bbox, rows, cols)
+        bbox = bbox_vflip(bbox, rows, cols)
     else:
         raise ValueError('Invalid d value {}. Valid values are -1, 0 and 1'.format(d))
     return bbox
 
 
-def bbox_crop(bbox, crop_coords, crop_height, crop_width, cols, rows):
-    bbox = denormalize_bbox(bbox, cols, rows)
-    x_min, y_min, x_max, y_max = bbox[:4]
+def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows,  cols):
+    """
+    Crops a bounding box using the provided coordinates of bottom-left and top-right corners in pixels
+    and the required height and width of the crop.
+    """
+    bbox = denormalize_bbox(bbox, rows, cols)
+    x_min, y_min, x_max, y_max = bbox
     x1, y1, x2, y2 = crop_coords
-    if x1 > x_max or y1 > y_max or x2 < x_min or y2 < y_min:
-        return [0, 0, 0, 0] + bbox[4:]
-    cropped_bbox = [max(x_min, x1) - x1, max(y_min, y1) - y1, min(x_max, x2) - x1, min(y_max, y2) - y1] + bbox[4:]
-    return normalize_bbox(cropped_bbox, crop_width, crop_height)
+    cropped_bbox = [max(x_min, x1) - x1, max(y_min, y1) - y1, min(x_max, x2) - x1, min(y_max, y2) - y1]
+    return normalize_bbox(cropped_bbox, crop_height, crop_width)
 
 
-def bbox_center_crop(bbox, crop_height, crop_width, cols, rows):
+def bbox_crop(bbox, x_min, y_min, x_max, y_max, rows, cols):
+    crop_coords = [x_min, y_min, x_max, y_max]
+    crop_height = y_max - y_min
+    crop_width = x_max - x_min
+    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
+
+
+def bbox_center_crop(bbox, crop_height, crop_width, rows, cols):
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return bbox_crop(bbox, crop_coords, crop_height, crop_width, cols, rows)
+    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
-def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, cols, rows):
+def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols):
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return bbox_crop(bbox, crop_coords, crop_height, crop_width, cols, rows)
+    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
-def filter_invisible_bboxes(bboxes):
-    return [bbox for bbox in bboxes if bbox[:4] != [0, 0, 0, 0]]
+def filter_bboxes(bboxes, min_area, rows, cols):
+    filtered_bboxes = []
+    for bbox in bboxes:
+        if min_area and calculate_bbox_area(bbox, rows, cols) < min_area:
+            continue
+        if not all(0.0 <= value <= 1.0 for value in bbox[:4]):
+            continue
+        filtered_bboxes.append(bbox)
+    return filtered_bboxes

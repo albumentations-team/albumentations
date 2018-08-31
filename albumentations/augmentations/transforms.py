@@ -13,7 +13,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'Resize',
-           'FilterInvisibleBboxes']
+           'FilterBboxes']
 
 
 class PadIfNeeded(DualTransform):
@@ -50,7 +50,7 @@ class Crop(DualTransform):
         y_max (int): maximum lower right y coordinate
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -66,9 +66,8 @@ class Crop(DualTransform):
     def apply(self, img, **params):
         return F.crop(img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max)
 
-    def apply_to_bbox(self, img, **params):
-        crop_coords = (self.x_min, self.y_min, self.x_max, self.y_max)
-        return F.bbox_crop(img, crop_coords, self.y_max - self.y_min, self.x_max - self.x_min, **params)
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_crop(bbox, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max, **params)
 
 
 class VerticalFlip(DualTransform):
@@ -118,7 +117,7 @@ class Flip(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -167,7 +166,7 @@ class LongestMaxSize(DualTransform):
         max_size (int): maximum size of the image after the transformation
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -198,7 +197,7 @@ class Resize(DualTransform):
             Default: cv2.INTER_LINEAR.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -283,14 +282,14 @@ class RandomScale(DualTransform):
 
     Args:
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (-scale_limit, scale_limit). Default: 0.1.
+            range will be (1 - scale_limit, 1 + scale_limit). Default: 0.1.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -301,11 +300,15 @@ class RandomScale(DualTransform):
         self.scale_limit = to_tuple(scale_limit)
         self.interpolation = interpolation
 
+    def get_params(self):
+        return {'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1])}
+
     def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.scale(img, scale, interpolation)
 
-    def get_params(self):
-        return {'scale': random.uniform(self.scale_limit[0], self.scale_limit[1])}
+    def apply_to_bbox(self, bbox, **params):
+        # Bounding box coordinates are scale invariant
+        return bbox
 
 
 class ShiftScaleRotate(DualTransform):
@@ -362,7 +365,7 @@ class CenterCrop(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -394,7 +397,7 @@ class RandomCrop(DualTransform):
             p (float): probability of applying the transform. Default: 1.
 
         Targets:
-            image, mask
+            image, mask, bboxes
 
         Image types:
             uint8, float32
@@ -960,13 +963,25 @@ class FromFloat(ImageOnlyTransform):
         return F.from_float(img, self.dtype, self.max_value)
 
 
-class FilterInvisibleBboxes(DualTransform):
+class FilterBboxes(DualTransform):
+    """Removes bounding boxes that either lie outside of the visible area or whose area in pixels is under
+     the threshold set by `min_area`.
 
-    def __init__(self, p=1.0):
-        super(FilterInvisibleBboxes, self).__init__(p)
+    Args:
+        min_area (float): minimum area of a bounding box. All bounding boxes whose visible area in pixels
+            is less that this value will be removed. Default: 0.0.
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        bboxes
+    """
+
+    def __init__(self, min_area=0.0, p=1.0):
+        super(FilterBboxes, self).__init__(p)
+        self.min_area = min_area
 
     def apply(self, img, **params):
         return img
 
     def apply_to_bboxes(self, bboxes, **params):
-        return F.filter_invisible_bboxes(bboxes)
+        return F.filter_bboxes(bboxes, self.min_area, **params)

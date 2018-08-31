@@ -55,7 +55,8 @@ class DualTransform(BasicTransform):
         raise NotImplementedError
 
     def apply_to_bboxes(self, bboxes, **params):
-        return [self.apply_to_bbox(bbox, **params) for bbox in bboxes]
+        bboxes = [list(bbox) for bbox in bboxes]
+        return [self.apply_to_bbox(bbox[:4], **params) + bbox[4:] for bbox in bboxes]
 
     def apply_to_mask(self, img, **params):
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == 'interpolation' else v for k, v in params.items()})

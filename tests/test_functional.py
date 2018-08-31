@@ -271,30 +271,6 @@ def test_clip_float():
     assert_array_almost_equal_nulp(clipped, expected)
 
 
-@pytest.mark.parametrize(['bbox', 'expected_output'], [
-    [(1, 2, 5, 5), (194, 2, 5, 5)],
-    [(45, 67, 35, 24), (120, 67, 35, 24)],
-])
-@pytest.mark.parametrize('input_type', [tuple, list, np.array])
-def test_bbox_vflip(bbox, expected_output, input_type):
-    bbox = input_type(bbox)
-    flipped_bbox = F.bbox_vflip(bbox, cols=200, rows=100)
-    assert isinstance(flipped_bbox, tuple)
-    assert np.array_equal(flipped_bbox, expected_output)
-
-
-@pytest.mark.parametrize(['bbox', 'expected_output'], [
-    [(1, 2, 5, 5), (1, 93, 5, 5)],
-    [(45, 67, 35, 24), (45, 9, 35, 24)],
-])
-@pytest.mark.parametrize('input_type', [tuple, list, np.array])
-def test_bbox_hflip(bbox, expected_output, input_type):
-    bbox = input_type(bbox)
-    flipped_bbox = F.bbox_hflip(bbox, cols=200, rows=100)
-    assert isinstance(flipped_bbox, tuple)
-    assert np.array_equal(flipped_bbox, expected_output)
-
-
 @pytest.mark.parametrize('target', ['image', 'mask'])
 def test_pad(target):
     img = np.array(
