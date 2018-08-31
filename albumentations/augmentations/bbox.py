@@ -26,7 +26,7 @@ def normalize_bboxes(bboxes, rows, cols):
     """
     Normalizes a list of bounding boxes.
     """
-    return [normalize_bbox(bbox, rows,  cols) for bbox in bboxes]
+    return [normalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
 def denormalize_bboxes(bboxes, rows, cols):
@@ -47,7 +47,8 @@ def calculate_bbox_area(bbox, rows, cols):
 
 
 def filter_bboxes_by_visibility(img, bboxes, transformed_img, transformed_bboxes, threshold):
-    """Filters bounding boxes and returns only those boxes whose visibility after transformation is above the threshold.
+    """Filters bounding boxes and returns only those boxes whose visibility after transformation is above
+    the threshold.
 
     Args:
         img (np.array): original image

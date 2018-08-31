@@ -503,14 +503,14 @@ def bbox_vflip(bbox, rows, cols):
     Flips a bounding box vertically around the x-axis.
     """
     x_min, y_min, x_max, y_max = bbox
-    return [x_min, 1 - y_max,  x_max, 1 - y_min]
+    return [x_min, 1 - y_max, x_max, 1 - y_min]
 
 
 def bbox_hflip(bbox, rows, cols):
     """Flips a bounding box horizontally around the y-axis.
     """
     x_min, y_min, x_max, y_max = bbox
-    return [1 - x_max, y_min,  1 - x_min, y_max]
+    return [1 - x_max, y_min, 1 - x_min, y_max]
 
 
 def bbox_flip(bbox, d, rows, cols):
@@ -529,7 +529,7 @@ def bbox_flip(bbox, d, rows, cols):
     return bbox
 
 
-def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows,  cols):
+def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
     """
     Crops a bounding box using the provided coordinates of bottom-left and top-right corners in pixels
     and the required height and width of the crop.
