@@ -101,6 +101,10 @@ Albumentations has equivalents for common torchvision transforms as well as plen
 [`example_16_bit_tiff.ipynb`](notebooks/example_16_bit_tiff.ipynb) shows how albumentations can be used to work with non-8-bit images (such as 16-bit and 32-bit TIFF images).
 
 
+## Object detection tasks and bounding boxes
+[`example_bboxes.ipynb`](notebooks/example_bboxes.ipynb) shows how albumentations can be used to work with bounding boxes.
+
+
 ## Benchmarking results
 To run the benchmark yourself follow the instructions in [benchmark/README.md](benchmark/README.md)
 

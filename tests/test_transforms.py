@@ -88,14 +88,3 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
                                              random_state=np.random.RandomState(1111))
     assert np.array_equal(data['image'], expected_image)
     assert np.array_equal(data['mask'], expected_mask)
-
-
-@pytest.mark.parametrize(['augmentation_cls', 'expected'], [
-    [VerticalFlip, [(194, 2, 5, 5), (120, 67, 35, 24)]],
-    [HorizontalFlip, [(1, 93, 5, 5), (45, 9, 35, 24)]],
-])
-def test_apply_to_bboxes(augmentation_cls, expected):
-    aug = augmentation_cls(p=1)
-    image = np.ones((100, 200, 3), dtype=np.uint8)
-    data = aug(image=image, bboxes=[(1, 2, 5, 5), (45, 67, 35, 24)])
-    assert np.array_equal(data['bboxes'], expected)
