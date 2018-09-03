@@ -328,7 +328,7 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
     x = x.astype(np.float32) - width / 2 - dx
     y = y.astype(np.float32) - height / 2 - dy
     theta = np.arctan2(y, x)
-    d = (x * x + y * y) ** 0.5
+    d = (x * x + y * y + 1e-8) ** 0.5
     r = d * (1 + k * d * d)
     map_x = r * np.cos(theta) + width / 2 + dx
     map_y = r * np.sin(theta) + height / 2 + dy
