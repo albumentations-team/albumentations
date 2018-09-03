@@ -90,8 +90,19 @@ You can use this [Google Colaboratory notebook](https://colab.research.google.co
 to adjust image augmentation parameters and see the resulting images.
 
 
+## Migrating from torchvision to albumentations
+
+Migrating from torchvision to albumentations is simple - you just need to change a few lines of code. 
+Albumentations has equivalents for common torchvision transforms as well as plenty of transforms that are not presented in torchvision.
+[`migrating_from_torchvision_to_albumentations.ipynb`](notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
+
+
 ## Working with non-8-bit images
 [`example_16_bit_tiff.ipynb`](notebooks/example_16_bit_tiff.ipynb) shows how albumentations can be used to work with non-8-bit images (such as 16-bit and 32-bit TIFF images).
+
+
+## Object detection tasks and bounding boxes
+[`example_bboxes.ipynb`](notebooks/example_bboxes.ipynb) shows how albumentations can be used to work with bounding boxes.
 
 
 ## Benchmarking results
