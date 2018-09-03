@@ -68,13 +68,13 @@ def filter_bboxes_by_visibility(img, bboxes, transformed_img, transformed_bboxes
     return visible_bboxes
 
 
-def convert_bbox_to_albumentations(img, bbox, source_format):
+def convert_bbox_to_albumentations(shape, bbox, source_format):
     """Convert a bounding box from a format specified in `source_format` to the format used by albumentations:
     normalized coordinates of bottom-left and top-right corners of the bounding box in a form of
     `[x_min, y_min, x_max, y_max]` e.g. `[0.15, 0.27, 0.67, 0.5]`.
 
     Args:
-        img (np.array): input image
+        shape (tuple): input image shape. Image must have at least 2 dims
         bbox (list): bounding box
         source_format (str): format of the bounding box. Should be 'coco' or 'pascal_voc'.
 
@@ -86,7 +86,7 @@ def convert_bbox_to_albumentations(img, bbox, source_format):
         raise ValueError(
             "Unknown source_format {}. Supported formats are: 'coco' and 'pascal_voc'".format(source_format)
         )
-    img_height, img_width = img.shape[:2]
+    img_height, img_width = shape[:2]
     if source_format == 'coco':
         x_min, y_min, width, height = bbox[:4]
         x_max = x_min + width
@@ -98,11 +98,11 @@ def convert_bbox_to_albumentations(img, bbox, source_format):
     return bbox
 
 
-def convert_bbox_from_albumentations(img, bbox, target_format):
+def convert_bbox_from_albumentations(shape, bbox, target_format):
     """Convert a bounding box from the format used by albumentations to a format, specified in `target_format`.
 
     Args:
-        img (np.array): input image
+        shape (tuple): input image shape. Image must have at least 2 dims
         bbox (list): bounding box with coordinates in the format used by albumentations
         target_format (str): required format of the output bounding box. Should be 'coco' or 'pascal_voc'.
 
@@ -114,7 +114,7 @@ def convert_bbox_from_albumentations(img, bbox, target_format):
         raise ValueError(
             "Unknown target_format {}. Supported formats are: 'coco' and 'pascal_voc'".format(target_format)
         )
-    img_height, img_width = img.shape[:2]
+    img_height, img_width = shape[:2]
     bbox = denormalize_bbox(bbox, img_height, img_width)
     if target_format == 'coco':
         x_min, y_min, x_max, y_max = bbox[:4]
@@ -124,14 +124,19 @@ def convert_bbox_from_albumentations(img, bbox, target_format):
     return bbox
 
 
-def convert_bboxes_to_albumentations(img, bboxes, source_format):
+def convert_bboxes_to_albumentations(shape, bboxes, source_format):
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations
     """
-    return [convert_bbox_to_albumentations(img, bbox, source_format) for bbox in bboxes]
+    return [convert_bbox_to_albumentations(shape, bbox, source_format) for bbox in bboxes]
 
 
-def convert_bboxes_from_albumentations(img, bboxes, target_format):
+def convert_bboxes_from_albumentations(shape, bboxes, target_format):
     """Convert a list of bounding boxes from the format used by albumentations to a format, specified
     in `target_format`.
+
+    Args:
+        shape (tuple): input image shape. Image must have at least 2 dims
+        bboxes (list): List of bounding box with coordinates in the format used by albumentations
+        target_format (str): required format of the output bounding box. Should be 'coco' or 'pascal_voc'.
     """
-    return [convert_bbox_from_albumentations(img, bbox, target_format) for bbox in bboxes]
+    return [convert_bbox_from_albumentations(shape, bbox, target_format) for bbox in bboxes]

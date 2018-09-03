@@ -1,6 +1,8 @@
 import imgaug as ia
 from imgaug import augmenters as iaa
 
+from ..augmentations.bbox import convert_bboxes_from_albumentations, \
+    convert_bboxes_to_albumentations
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
 
 __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IAAEmboss', 'IAASuperpixels',
@@ -29,11 +31,15 @@ class DualIAATransform(DualTransform, BasicIAATransform):
     def apply_to_bboxes(self, bboxes, **params):
         rows, cols = params['rows'], params['cols']
 
-        bboxes_on_img = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox) for bbox in bboxes], (rows, cols))
-        bboxes_on_img = self.deterministic_processor.augment_bounding_boxes([bboxes_on_img])
+        bboxes = convert_bboxes_from_albumentations((rows, cols), bboxes, 'pascal_voc')
 
-        assert len(bboxes_on_img) == 1
-        return [(bbox.x1, bbox.y1, bbox.x2, bbox.y2) for bbox in bboxes_on_img[0].bounding_boxes]
+        bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols))
+        bboxes_t = self.deterministic_processor.augment_bounding_boxes([bboxes_t])[0].bounding_boxes
+        bboxes_t = [[bbox.x1, bbox.y1, bbox.x2, bbox.y2] + list(bbox_orig[4:]) for (bbox, bbox_orig) in
+                    zip(bboxes_t, bboxes)]
+
+        bboxes = convert_bboxes_to_albumentations((rows, cols), bboxes_t, 'pascal_voc')
+        return bboxes
 
 
 class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):
@@ -160,6 +166,7 @@ class IAAAffine(DualIAATransform):
     Targets:
         image, mask
     """
+
     def __init__(self, scale=1.0, translate_percent=None, translate_px=None, rotate=0.0, shear=0.0, order=1, cval=0,
                  mode="reflect", p=0.5):
         super(IAAAffine, self).__init__(p)
