@@ -499,24 +499,19 @@ def from_float(img, dtype, max_value=None):
 
 
 def bbox_vflip(bbox, rows, cols):
-    """
-    Flips a bounding box vertically around the x-axis.
-    """
+    """Flip a bounding box vertically around the x-axis."""
     x_min, y_min, x_max, y_max = bbox
     return [x_min, 1 - y_max, x_max, 1 - y_min]
 
 
 def bbox_hflip(bbox, rows, cols):
-    """Flips a bounding box horizontally around the y-axis.
-    """
+    """Flip a bounding box horizontally around the y-axis."""
     x_min, y_min, x_max, y_max = bbox
     return [1 - x_max, y_min, 1 - x_min, y_max]
 
 
 def bbox_flip(bbox, d, rows, cols):
-    """
-    Flips a bounding box either vertically, horizontally or both depending on the value of `d`.
-    """
+    """Flip a bounding box either vertically, horizontally or both depending on the value of `d`."""
     if d == 0:
         bbox = bbox_vflip(bbox, rows, cols)
     elif d == 1:
@@ -530,9 +525,8 @@ def bbox_flip(bbox, d, rows, cols):
 
 
 def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
-    """
-    Crops a bounding box using the provided coordinates of bottom-left and top-right corners in pixels
-    and the required height and width of the crop.
+    """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
+    required height and width of the crop.
     """
     bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox

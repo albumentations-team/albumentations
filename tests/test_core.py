@@ -81,7 +81,7 @@ def test_check_bboxes_with_values_greater_than_one():
     with pytest.raises(ValueError) as exc_info:
         check_bboxes([[0.2, 0.5, 1.5, 0.6, 99], [0.1, 0.5, 0.8, 1.0]])
     message = 'Expected x_max for bbox [0.2, 0.5, 1.5, 0.6, 99] at index 0 to be in the range [0.0, 1.0], got 1.5.'
-    assert str(exc_info.value) ==  message
+    assert str(exc_info.value) == message
 
 
 def test_check_bboxes_with_end_greater_that_start():

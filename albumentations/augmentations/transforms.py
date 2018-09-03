@@ -964,7 +964,7 @@ class FromFloat(ImageOnlyTransform):
 
 
 class FilterBboxes(DualTransform):
-    """Removes bounding boxes that either lie outside of the visible area or whose area in pixels is under
+    """Remove bounding boxes that either lie outside of the visible area or whose area in pixels is under
      the threshold set by `min_area`.
 
     Args:

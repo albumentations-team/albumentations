@@ -140,4 +140,3 @@ def test_convert_bboxes_from_albumentations():
     converted_bbox_1 = convert_bbox_from_albumentations(image, bboxes[0], target_format='coco')
     converted_bbox_2 = convert_bbox_from_albumentations(image, bboxes[1], target_format='coco')
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
-
