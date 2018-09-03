@@ -4,6 +4,7 @@ import pytest
 from albumentations.imgaug.transforms import IAAPiecewiseAffine, IAAPerspective, IAAFliplr, IAAFlipud, IAACropAndPad
 from albumentations.augmentations.bbox import convert_bboxes_from_albumentations, convert_bboxes_to_albumentations
 
+
 @pytest.mark.parametrize('augmentation_cls', [IAAPiecewiseAffine, IAAPerspective])
 def test_imagaug_dual_augmentations_are_deterministic(augmentation_cls, image):
     aug = augmentation_cls(p=1)
