@@ -561,9 +561,9 @@ def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols
 def filter_bboxes(bboxes, min_area, rows, cols):
     filtered_bboxes = []
     for bbox in bboxes:
-        if min_area and calculate_bbox_area(bbox, rows, cols) < min_area:
-            continue
         if not all(0.0 <= value <= 1.0 for value in bbox[:4]):
+            continue
+        if min_area and calculate_bbox_area(bbox, rows, cols) < min_area:
             continue
         filtered_bboxes.append(bbox)
     return filtered_bboxes

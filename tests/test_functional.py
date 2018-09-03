@@ -710,3 +710,54 @@ def test_resize_nearest_interpolation_float(target):
     assert height == 2
     assert width == 2
     assert np.array_equal(resized_img, expected)
+
+
+def test_bbox_vflip():
+    assert F.bbox_vflip([0.1, 0.2, 0.6, 0.5], 100, 200) == [0.1, 0.5, 0.6, 0.8]
+
+
+def test_bbox_hflip():
+    assert F.bbox_hflip([0.1, 0.2, 0.6, 0.5], 100, 200) == [0.4, 0.2, 0.9, 0.5]
+
+
+@pytest.mark.parametrize(['code', 'func'], [
+    [0, F.bbox_vflip],
+    [1, F.bbox_hflip],
+    [-1, lambda bbox, rows, cols: F.bbox_vflip(F.bbox_hflip(bbox, rows, cols), rows, cols)],
+])
+def test_bbox_flip(code, func):
+    rows, cols = 100, 200
+    bbox = [0.1, 0.2, 0.6, 0.5]
+    assert F.bbox_flip(bbox, code, rows, cols) == func(bbox, rows, cols)
+
+
+def test_crop_bbox_by_coords():
+    cropped_bbox = F.crop_bbox_by_coords([0.5, 0.2, 0.9, 0.7], (18, 18, 82, 82), 64, 64, 100, 100)
+    assert cropped_bbox == [0.5, 0.03125, 1.0, 0.8125]
+
+
+def test_bbox_center_crop():
+    cropped_bbox = F.bbox_center_crop([0.5, 0.2, 0.9, 0.7], 64, 64, 100, 100)
+    assert cropped_bbox == [0.5, 0.03125, 1.0, 0.8125]
+
+
+def test_bbox_crop():
+    cropped_bbox = F.bbox_crop([0.5, 0.2, 0.9, 0.7], 24, 24, 64, 64, 100, 100)
+    assert cropped_bbox == [0.65, 0.0, 1.0, 1.0]
+
+
+def test_bbox_random_crop():
+    cropped_bbox = F.bbox_random_crop([0.5, 0.2, 0.9, 0.7], 80, 80, 0.2, 0.1, 100, 100)
+    assert cropped_bbox == [0.6, 0.2, 1.0, 0.825]
+
+
+def test_filter_invalid_bboxes():
+    bboxes = [[0.1, 0.5, 1.1, 0.9], [-0.1, 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]]
+    filtered_bboxes = F.filter_bboxes(bboxes, min_area=0, rows=100, cols=100)
+    assert filtered_bboxes == [[0.1, 0.5, 0.8, 0.9]]
+
+
+def test_filter_small_bboxes():
+    bboxes = [[0.1, 0.5, 0.8, 0.9], [0.4, 0.5, 0.5, 0.6]]
+    filtered_bboxes = F.filter_bboxes(bboxes, min_area=150, rows=100, cols=100)
+    assert filtered_bboxes == [[0.1, 0.5, 0.8, 0.9]]

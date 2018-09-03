@@ -969,7 +969,7 @@ class FilterBboxes(DualTransform):
 
     Args:
         min_area (float): minimum area of a bounding box. All bounding boxes whose visible area in pixels
-            is less that this value will be removed. Default: 0.0.
+            is less than this value will be removed. Default: 0.0.
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:

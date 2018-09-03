@@ -55,7 +55,7 @@ def filter_bboxes_by_visibility(img, bboxes, transformed_img, transformed_bboxes
         bboxes (list): original bounding boxes
         transformed_img (np.array): transformed image
         transformed_bboxes (list): transformed bounding boxes
-        threshold (float): visibility threshold. Should be a value in range [0.0, 1.0].
+        threshold (float): visibility threshold. Should be a value in the range [0.0, 1.0].
     """
 
     img_height, img_width = img.shape[:2]
