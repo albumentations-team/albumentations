@@ -763,7 +763,6 @@ def test_bbox_transpose():
     assert np.allclose(F.bbox_transpose([0.7, 0.1, 0.8, 0.4], 1, 100, 200), [0.6, 0.2, 0.9, 0.3])
 
 
-
 def test_filter_invalid_bboxes():
     bboxes = [[0.1, 0.5, 1.1, 0.9], [-0.1, 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]]
     filtered_bboxes = F.filter_bboxes(bboxes, min_area=0, rows=100, cols=100)
