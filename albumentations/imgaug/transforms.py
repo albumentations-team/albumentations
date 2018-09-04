@@ -52,14 +52,14 @@ class IAACropAndPad(DualIAATransform):
 
 class IAAFliplr(DualIAATransform):
     def __init__(self, p=0.5):
-        super(IAAFliplr, self).__init__(p)
-        self.processor = iaa.Fliplr(1)
+        super(IAAFliplr, self).__init__(1)
+        self.processor = iaa.Fliplr(p)
 
 
 class IAAFlipud(DualIAATransform):
     def __init__(self, p=0.5):
-        super(IAAFlipud, self).__init__(p)
-        self.processor = iaa.Flipud(1)
+        super(IAAFlipud, self).__init__(1)
+        self.processor = iaa.Flipud(p)
 
 
 class IAAEmboss(ImageOnlyIAATransform):
