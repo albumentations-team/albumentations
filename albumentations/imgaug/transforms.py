@@ -28,9 +28,7 @@ class DualIAATransform(DualTransform, BasicIAATransform):
     def __init__(self, p):
         super(DualIAATransform, self).__init__(p)
 
-    def apply_to_bboxes(self, bboxes, **params):
-        rows, cols = params['rows'], params['cols']
-
+    def apply_to_bboxes(self, bboxes, rows=0, cols=0, **params):
         bboxes = convert_bboxes_from_albumentations((rows, cols), bboxes, 'pascal_voc')
 
         bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols))
