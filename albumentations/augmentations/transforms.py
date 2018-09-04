@@ -157,6 +157,9 @@ class Transpose(DualTransform):
     def apply(self, img, **params):
         return F.transpose(img)
 
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_transpose(bbox, 0, **params)
+
 
 class LongestMaxSize(DualTransform):
     """Rescales and image so that maximum side is equal to max_size, keeping th aspect ratio of the initial image.
@@ -241,6 +244,9 @@ class RandomRotate90(DualTransform):
     def get_params(self):
         # Random int in range [0, 4)
         return {'factor': np.random.randint(0, 4)}
+
+    def apply_to_bbox(self, bbox, factor=0, **params):
+        return F.bbox_rot90(bbox, factor, **params)
 
 
 class Rotate(DualTransform):
