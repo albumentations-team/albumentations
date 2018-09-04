@@ -588,7 +588,7 @@ def bbox_transpose(bbox, axis, rows, cols):
     if axis == 0:
         bbox = [y_min, x_min, y_max, x_max]
     if axis == 1:
-        bbox = [1-y_max, 1-x_max, 1-y_min, 1-x_min]
+        bbox = [1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min]
     return bbox
 
 
