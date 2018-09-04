@@ -149,7 +149,7 @@ class IAAPiecewiseAffine(DualIAATransform):
         image, mask
     """
 
-    def __init__(self, scale=0, nb_rows=4, nb_cols=4, order=1, cval=0, mode="constant", p=.5):
+    def __init__(self, scale=0, nb_rows=4, nb_cols=4, order=1, cval=0, mode='constant', p=.5):
         super(IAAPiecewiseAffine, self).__init__(p)
         self.processor = iaa.PiecewiseAffine(scale, nb_rows, nb_cols, order, cval, mode)
 
@@ -166,7 +166,7 @@ class IAAAffine(DualIAATransform):
     """
 
     def __init__(self, scale=1.0, translate_percent=None, translate_px=None, rotate=0.0, shear=0.0, order=1, cval=0,
-                 mode="reflect", p=0.5):
+                 mode='reflect', p=0.5):
         super(IAAAffine, self).__init__(p)
         self.processor = iaa.Affine(scale, translate_percent, translate_px, rotate, shear, order, cval, mode)
 
