@@ -95,7 +95,7 @@ def test_filter_bboxes_by_visibility():
 ])
 def test_convert_bbox_to_albumentations(bbox, source_format, expected):
     image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_to_albumentations(image, bbox, source_format=source_format)
+    converted_bbox = convert_bbox_to_albumentations(image.shape, bbox, source_format=source_format)
     assert converted_bbox == expected
 
 
@@ -107,7 +107,7 @@ def test_convert_bbox_to_albumentations(bbox, source_format, expected):
 ])
 def test_convert_bbox_from_albumentations(bbox, target_format, expected):
     image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_from_albumentations(image, bbox, target_format=target_format)
+    converted_bbox = convert_bbox_from_albumentations(image.shape, bbox, target_format=target_format)
     assert converted_bbox == expected
 
 
@@ -119,24 +119,24 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected):
 ])
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
     image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_to_albumentations(image, bbox, source_format=bbox_format)
-    converted_back_bbox = convert_bbox_from_albumentations(image, converted_bbox, target_format=bbox_format)
+    converted_bbox = convert_bbox_to_albumentations(image.shape, bbox, source_format=bbox_format)
+    converted_back_bbox = convert_bbox_from_albumentations(image.shape, converted_bbox, target_format=bbox_format)
     assert converted_back_bbox == bbox
 
 
 def test_convert_bboxes_to_albumentations():
     bboxes = [[20, 30, 40, 50], [30, 40, 50, 60, 99]]
     image = np.ones((100, 100, 3))
-    converted_bboxes = convert_bboxes_to_albumentations(image, bboxes, source_format='coco')
-    converted_bbox_1 = convert_bbox_to_albumentations(image, bboxes[0], source_format='coco')
-    converted_bbox_2 = convert_bbox_to_albumentations(image, bboxes[1], source_format='coco')
+    converted_bboxes = convert_bboxes_to_albumentations(image.shape, bboxes, source_format='coco')
+    converted_bbox_1 = convert_bbox_to_albumentations(image.shape, bboxes[0], source_format='coco')
+    converted_bbox_2 = convert_bbox_to_albumentations(image.shape, bboxes[1], source_format='coco')
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
 
 
 def test_convert_bboxes_from_albumentations():
     bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
     image = np.ones((100, 100, 3))
-    converted_bboxes = convert_bboxes_from_albumentations(image, bboxes, target_format='coco')
-    converted_bbox_1 = convert_bbox_from_albumentations(image, bboxes[0], target_format='coco')
-    converted_bbox_2 = convert_bbox_from_albumentations(image, bboxes[1], target_format='coco')
+    converted_bboxes = convert_bboxes_from_albumentations(image.shape, bboxes, target_format='coco')
+    converted_bbox_1 = convert_bbox_from_albumentations(image.shape, bboxes[0], target_format='coco')
+    converted_bbox_2 = convert_bbox_from_albumentations(image.shape, bboxes[1], target_format='coco')
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]

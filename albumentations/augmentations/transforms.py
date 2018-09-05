@@ -134,8 +134,8 @@ class Flip(DualTransform):
         return F.random_flip(img, d)
 
     def get_params(self):
-        # Random int in range [-1, 2)
-        return {'d': np.random.randint(-1, 2)}
+        # Random int in the range [-1, 1]
+        return {'d': random.randint(-1, 1)}
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_flip(bbox, **params)
@@ -242,8 +242,8 @@ class RandomRotate90(DualTransform):
         return np.ascontiguousarray(np.rot90(img, factor))
 
     def get_params(self):
-        # Random int in range [0, 4)
-        return {'factor': np.random.randint(0, 4)}
+        # Random int in the range [0, 3]
+        return {'factor': random.randint(0, 3)}
 
     def apply_to_bbox(self, bbox, factor=0, **params):
         return F.bbox_rot90(bbox, factor, **params)
@@ -280,7 +280,7 @@ class Rotate(DualTransform):
         return F.rotate(img, angle, interpolation, self.border_mode)
 
     def get_params(self):
-        return {'angle': np.random.uniform(self.limit[0], self.limit[1])}
+        return {'angle': random.uniform(self.limit[0], self.limit[1])}
 
 
 class RandomScale(DualTransform):
@@ -356,10 +356,10 @@ class ShiftScaleRotate(DualTransform):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
 
     def get_params(self):
-        return {'angle': np.random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
-                'scale': np.random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
-                'dx': np.random.uniform(self.shift_limit[0], self.shift_limit[1]),
-                'dy': np.random.uniform(self.shift_limit[0], self.shift_limit[1])}
+        return {'angle': random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
+                'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
+                'dx': random.uniform(self.shift_limit[0], self.shift_limit[1]),
+                'dy': random.uniform(self.shift_limit[0], self.shift_limit[1])}
 
 
 class CenterCrop(DualTransform):
@@ -418,8 +418,8 @@ class RandomCrop(DualTransform):
         return F.random_crop(img, self.height, self.width, h_start, w_start)
 
     def get_params(self):
-        return {'h_start': np.random.random(),
-                'w_start': np.random.random()}
+        return {'h_start': random.random(),
+                'w_start': random.random()}
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_random_crop(bbox, self.height, self.width, **params)
@@ -446,9 +446,9 @@ class OpticalDistortion(DualTransform):
         return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode)
 
     def get_params(self):
-        return {'k': np.random.uniform(self.distort_limit[0], self.distort_limit[1]),
-                'dx': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1])),
-                'dy': round(np.random.uniform(self.shift_limit[0], self.shift_limit[1]))}
+        return {'k': random.uniform(self.distort_limit[0], self.distort_limit[1]),
+                'dx': round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
+                'dy': round(random.uniform(self.shift_limit[0], self.shift_limit[1]))}
 
 
 class GridDistortion(DualTransform):
@@ -472,9 +472,9 @@ class GridDistortion(DualTransform):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode)
 
     def get_params(self):
-        stepsx = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
+        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
                   range(self.num_steps + 1)]
-        stepsy = [1 + np.random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
+        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
                   range(self.num_steps + 1)]
         return {
             'stepsx': stepsx,
@@ -505,7 +505,7 @@ class ElasticTransform(DualTransform):
                                         self.border_mode, np.random.RandomState(random_state))
 
     def get_params(self):
-        return {'random_state': np.random.randint(0, 10000)}
+        return {'random_state': random.randint(0, 10000)}
 
 
 class Normalize(ImageOnlyTransform):
@@ -592,7 +592,7 @@ class JpegCompression(ImageOnlyTransform):
         return F.jpeg_compression(image, quality)
 
     def get_params(self):
-        return {'quality': np.random.randint(self.quality_lower, self.quality_upper)}
+        return {'quality': random.randint(self.quality_lower, self.quality_upper)}
 
 
 class HueSaturationValue(ImageOnlyTransform):
@@ -624,9 +624,9 @@ class HueSaturationValue(ImageOnlyTransform):
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
 
     def get_params(self):
-        return {'hue_shift': np.random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
-                'sat_shift': np.random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
-                'val_shift': np.random.uniform(self.val_shift_limit[0], self.val_shift_limit[1])}
+        return {'hue_shift': random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
+                'sat_shift': random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
+                'val_shift': random.uniform(self.val_shift_limit[0], self.val_shift_limit[1])}
 
 
 class RGBShift(ImageOnlyTransform):
@@ -658,9 +658,9 @@ class RGBShift(ImageOnlyTransform):
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
     def get_params(self):
-        return {'r_shift': np.random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-                'g_shift': np.random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-                'b_shift': np.random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
+        return {'r_shift': random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
+                'g_shift': random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
+                'b_shift': random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
 
 
 class RandomBrightness(ImageOnlyTransform):
@@ -686,7 +686,7 @@ class RandomBrightness(ImageOnlyTransform):
         return F.random_brightness(img, alpha)
 
     def get_params(self):
-        return {'alpha': 1.0 + np.random.uniform(self.limit[0], self.limit[1])}
+        return {'alpha': 1.0 + random.uniform(self.limit[0], self.limit[1])}
 
 
 class RandomContrast(ImageOnlyTransform):
@@ -712,7 +712,7 @@ class RandomContrast(ImageOnlyTransform):
         return F.random_contrast(img, alpha)
 
     def get_params(self):
-        return {'alpha': 1.0 + np.random.uniform(self.limit[0], self.limit[1])}
+        return {'alpha': 1.0 + random.uniform(self.limit[0], self.limit[1])}
 
 
 class Blur(ImageOnlyTransform):
@@ -738,7 +738,7 @@ class Blur(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            'ksize': np.random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
+            'ksize': random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
         }
 
 
@@ -806,7 +806,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            'var': np.random.randint(self.var_limit[0], self.var_limit[1])
+            'var': random.randint(self.var_limit[0], self.var_limit[1])
         }
 
 
@@ -834,7 +834,7 @@ class CLAHE(ImageOnlyTransform):
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
-        return {'clip_limit': np.random.uniform(self.clip_limit[0], self.clip_limit[1])}
+        return {'clip_limit': random.uniform(self.clip_limit[0], self.clip_limit[1])}
 
 
 class ChannelShuffle(ImageOnlyTransform):
@@ -889,7 +889,7 @@ class RandomGamma(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            'gamma': np.random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0
+            'gamma': random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0
         }
 
 

@@ -1,11 +1,11 @@
 from __future__ import division
 
 from functools import wraps
+import random
 from warnings import warn
 
 import cv2
 import numpy as np
-import random
 from scipy.ndimage.filters import gaussian_filter
 
 from albumentations.augmentations.bbox import denormalize_bbox, normalize_bbox, calculate_bbox_area
@@ -328,7 +328,7 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
     x = x.astype(np.float32) - width / 2 - dx
     y = y.astype(np.float32) - height / 2 - dy
     theta = np.arctan2(y, x)
-    d = (x * x + y * y) ** 0.5
+    d = (x * x + y * y + 1e-8) ** 0.5
     r = d * (1 + k * d * d)
     map_x = r * np.cos(theta) + width / 2 + dx
     map_y = r * np.sin(theta) + height / 2 + dy
@@ -448,7 +448,8 @@ def gamma_transform(img, gamma):
 def gauss_noise(image, var):
     mean = var
     sigma = var ** 0.5
-    gauss = np.random.normal(mean, sigma, image.shape)
+    random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+    gauss = random_state.normal(mean, sigma, image.shape)
     gauss = (gauss - np.min(gauss)).astype(np.uint8)
     return image.astype(np.int32) + gauss
 
