@@ -556,11 +556,11 @@ def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols
 def bbox_rot90(bbox, factor, rows, cols):
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
-    :param bbox:
-    :param n: Number of rotations [0;3]
-    :param rows:
-    :param cols:
-    :return:
+    Args:
+        bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
+        factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
+        rows (int): Image rows.
+        rows (int): Image cols.
     """
     if factor < 0 or factor > 3:
         raise ValueError('Parameter n must be in range [0;3]')
@@ -577,11 +577,11 @@ def bbox_rot90(bbox, factor, rows, cols):
 def bbox_transpose(bbox, axis, rows, cols):
     """Transposes a bouning box along given axis.
 
-    :param bbox:
-    :param axis: 0 - main axis, 1 - secondary axis
-    :param rows:
-    :param cols:
-    :return:
+    Args:
+        bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
+        axis (int): 0 - main axis, 1 - secondary axis.
+        rows (int): Image rows.
+        rows (int): Image cols.
     """
     x_min, y_min, x_max, y_max = bbox
     if axis != 0 and axis != 1:
