@@ -1,4 +1,5 @@
-import numpy as np
+import random
+
 import cv2
 
 __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform']
@@ -42,7 +43,7 @@ class BasicTransform(object):
         self.p = p
 
     def __call__(self, **kwargs):
-        if np.random.random() < self.p:
+        if random.random() < self.p:
             params = self.get_params()
             params = self.update_params(params, **kwargs)
             return {key: self.targets.get(key, lambda x, **p: x)(arg, **params) for key, arg in kwargs.items()}

@@ -1,11 +1,11 @@
 from __future__ import division
 
 from functools import wraps
+import random
 from warnings import warn
 
 import cv2
 import numpy as np
-import random
 from scipy.ndimage.filters import gaussian_filter
 
 from albumentations.augmentations.bbox import denormalize_bbox, normalize_bbox, calculate_bbox_area
@@ -448,7 +448,8 @@ def gamma_transform(img, gamma):
 def gauss_noise(image, var):
     mean = var
     sigma = var ** 0.5
-    gauss = np.random.normal(mean, sigma, image.shape)
+    random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+    gauss = random_state.normal(mean, sigma, image.shape)
     gauss = (gauss - np.min(gauss)).astype(np.uint8)
     return image.astype(np.int32) + gauss
 
