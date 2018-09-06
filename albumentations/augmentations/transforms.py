@@ -435,6 +435,7 @@ class RandomSizedCrop(DualTransform):
     Image types:
         uint8, float32
     """
+
     def __init__(self, min_max_height, height, width, w2h_ratio=1., interpolation=cv2.INTER_LINEAR, p=1.0):
         super(RandomSizedCrop, self).__init__(p)
         self.height = height
