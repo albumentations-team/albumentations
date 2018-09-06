@@ -146,7 +146,7 @@ class Transpose(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes 
+        image, mask, bboxes
 
     Image types:
         uint8, float32
