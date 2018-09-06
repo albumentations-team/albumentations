@@ -17,7 +17,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
 
 
 class PadIfNeeded(DualTransform):
-    """Pads side of the image / max if side is less than desired number.
+    """Pad side of the image / max if side is less than desired number.
 
     Args:
         p (float): probability of applying the transform. Default: 1.0.
@@ -41,7 +41,7 @@ class PadIfNeeded(DualTransform):
 
 
 class Crop(DualTransform):
-    """Crops region from image.
+    """Crop region from image.
 
     Args:
         x_min (int): minimum upper left x coordinate
@@ -71,7 +71,7 @@ class Crop(DualTransform):
 
 
 class VerticalFlip(DualTransform):
-    """Flips the input vertically around the x-axis.
+    """Flip the input vertically around the x-axis.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -91,7 +91,7 @@ class VerticalFlip(DualTransform):
 
 
 class HorizontalFlip(DualTransform):
-    """Flips the input horizontally around the y-axis.
+    """Flip the input horizontally around the y-axis.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -111,7 +111,7 @@ class HorizontalFlip(DualTransform):
 
 
 class Flip(DualTransform):
-    """Flips the input either horizontally, vertically or both horizontally and vertically.
+    """Flip the input either horizontally, vertically or both horizontally and vertically.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -124,13 +124,11 @@ class Flip(DualTransform):
     """
 
     def apply(self, img, d=0, **params):
-        """
-        Args:
-            d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
+        """Args:
+        d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
                 -1 for both vertical and horizontal flipping (which is also could be seen as rotating the input by
                 180 degrees).
         """
-
         return F.random_flip(img, d)
 
     def get_params(self):
@@ -142,7 +140,7 @@ class Flip(DualTransform):
 
 
 class Transpose(DualTransform):
-    """Transposes the input by swapping rows and columns.
+    """Transpose the input by swapping rows and columns.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -159,7 +157,7 @@ class Transpose(DualTransform):
 
 
 class LongestMaxSize(DualTransform):
-    """Rescales and image so that maximum side is equal to max_size, keeping th aspect ratio of the initial image.
+    """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
         p (float): probability of applying the transform. Default: 1.
@@ -186,7 +184,7 @@ class LongestMaxSize(DualTransform):
 
 
 class Resize(DualTransform):
-    """Resizes the input to the given height and width.
+    """Resize the input to the given height and width.
 
     Args:
         p (float): probability of applying the transform. Default: 1.
@@ -218,7 +216,7 @@ class Resize(DualTransform):
 
 
 class RandomRotate90(DualTransform):
-    """Randomly rotates the input by 90 degrees zero or more times.
+    """Randomly rotate the input by 90 degrees zero or more times.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -235,7 +233,6 @@ class RandomRotate90(DualTransform):
         Args:
             factor (int): number of times the input will be rotated by 90 degrees.
         """
-
         return np.ascontiguousarray(np.rot90(img, factor))
 
     def get_params(self):
@@ -244,7 +241,7 @@ class RandomRotate90(DualTransform):
 
 
 class Rotate(DualTransform):
-    """Rotates the input by an angle selected randomly from the uniform distribution.
+    """Rotate the input by an angle selected randomly from the uniform distribution.
 
     Args:
         limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
@@ -278,7 +275,7 @@ class Rotate(DualTransform):
 
 
 class RandomScale(DualTransform):
-    """Randomly resizes. Output image size is different from the input image size.
+    """Randomly resize the input. Output image size is different from the input image size.
 
     Args:
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
@@ -312,7 +309,7 @@ class RandomScale(DualTransform):
 
 
 class ShiftScaleRotate(DualTransform):
-    """Randomly applies affine transforms: translates, scales and rotates the input.
+    """Randomly apply affine transforms: translate, scale and rotate the input.
 
     Args:
         shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
@@ -357,7 +354,7 @@ class ShiftScaleRotate(DualTransform):
 
 
 class CenterCrop(DualTransform):
-    """Crops the central part of the input.
+    """Crop the central part of the input.
 
     Args:
         height (int): height of the crop.
@@ -389,19 +386,19 @@ class CenterCrop(DualTransform):
 
 
 class RandomCrop(DualTransform):
-    """Crops random part of the input.
+    """Crop a random part of the input.
 
-        Args:
-            height (int): height of the crop.
-            width (int): width of the crop.
-            p (float): probability of applying the transform. Default: 1.
+    Args:
+        height (int): height of the crop.
+        width (int): width of the crop.
+        p (float): probability of applying the transform. Default: 1.
 
-        Targets:
-            image, mask, bboxes
+    Targets:
+        image, mask, bboxes
 
-        Image types:
-            uint8, float32
-        """
+    Image types:
+        uint8, float32
+    """
 
     def __init__(self, height, width, p=1.0):
         super(RandomCrop, self).__init__(p)
@@ -503,19 +500,19 @@ class ElasticTransform(DualTransform):
 
 
 class Normalize(ImageOnlyTransform):
-    """Divides pixel values by 255 = 2**8 - 1, subtracts mean per channel and divides by std per channel
+    """Divide pixel values by 255 = 2**8 - 1, subtract mean per channel and divide by std per channel.
 
-        Args:
-            mean (float, float, float): mean values
-            std  (float, float, float): std values
-            max_pixel_value (float): maximum possible pixel value
+    Args:
+        mean (float, float, float): mean values
+        std  (float, float, float): std values
+        max_pixel_value (float): maximum possible pixel value
 
-        Targets:
-            image
+    Targets:
+        image
 
-        Image types:
-            uint8, float32
-        """
+    Image types:
+        uint8, float32
+    """
 
     def __init__(self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0, p=1.0):
         super(Normalize, self).__init__(p)
@@ -528,26 +525,25 @@ class Normalize(ImageOnlyTransform):
 
 
 class Cutout(ImageOnlyTransform):
-    """CoarseDropout of the square regions in the image
+    """CoarseDropout of the square regions in the image.
 
-        Args:
-            num_holes (int): number of regions to zero out
-            max_h_size (int): maximum height of the hole
-            max_w_size (int): maximum width of the hole
+    Args:
+        num_holes (int): number of regions to zero out
+        max_h_size (int): maximum height of the hole
+        max_w_size (int): maximum width of the hole
 
-        Targets:
-            image
+    Targets:
+        image
 
-        Image types:
-            uint8, float32
+    Image types:
+        uint8, float32
 
-        Reference:
-        |  https://arxiv.org/abs/1708.04552
-        |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
-        |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+    Reference:
+    |  https://arxiv.org/abs/1708.04552
+    |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
+    |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
 
-
-        """
+    """
 
     def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, p=0.5):
         super(Cutout, self).__init__(p)
@@ -560,18 +556,18 @@ class Cutout(ImageOnlyTransform):
 
 
 class JpegCompression(ImageOnlyTransform):
-    """Decreases Jpeg compression of an image.
+    """Decrease Jpeg compression of an image.
 
-        Args:
-            quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
-            quality_upper (float): lower bound on the jpeg quality. Should be in [0, 100] range
+    Args:
+        quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
+        quality_upper (float): lower bound on the jpeg quality. Should be in [0, 100] range
 
-        Targets:
-            image
+    Targets:
+        image
 
-        Image types:
-            uint8, float32
-        """
+    Image types:
+        uint8, float32
+    """
 
     def __init__(self, quality_lower=99, quality_upper=100, p=0.5):
         super(JpegCompression, self).__init__(p)
@@ -590,7 +586,7 @@ class JpegCompression(ImageOnlyTransform):
 
 
 class HueSaturationValue(ImageOnlyTransform):
-    """Randomly changes hue, saturation and value of the input image.
+    """Randomly change hue, saturation and value of the input image.
 
     Args:
         hue_shift_limit ((int, int) or int): range for changing hue. If hue_shift_limit is a single int, the range
@@ -624,7 +620,7 @@ class HueSaturationValue(ImageOnlyTransform):
 
 
 class RGBShift(ImageOnlyTransform):
-    """Randomly shifts values for each channel of the input RGB image.
+    """Randomly shift values for each channel of the input RGB image.
 
     Args:
         r_shift_limit ((int, int) or int): range for changing values for the red channel. If r_shift_limit is a single
@@ -658,7 +654,7 @@ class RGBShift(ImageOnlyTransform):
 
 
 class RandomBrightness(ImageOnlyTransform):
-    """Randomly changes brightness of the input image.
+    """Randomly change brightness of the input image.
 
     Args:
         limit ((float, float) or float): factor range for changing brightness. If limit is a single float, the range
@@ -684,7 +680,7 @@ class RandomBrightness(ImageOnlyTransform):
 
 
 class RandomContrast(ImageOnlyTransform):
-    """Randomly changes contrast of the input image.
+    """Randomly change contrast of the input image.
 
     Args:
         limit ((float, float) or float): factor range for changing contrast. If limit is a single float, the range
@@ -710,7 +706,7 @@ class RandomContrast(ImageOnlyTransform):
 
 
 class Blur(ImageOnlyTransform):
-    """Blurs the input image using a random-sized kernel.
+    """Blur the input image using a random-sized kernel.
 
     Args:
         blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
@@ -737,7 +733,7 @@ class Blur(ImageOnlyTransform):
 
 
 class MotionBlur(Blur):
-    """Applies motion blur to the input image using a random-sized kernel.
+    """Apply motion blur to the input image using a random-sized kernel.
 
     Args:
         blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
@@ -755,7 +751,7 @@ class MotionBlur(Blur):
 
 
 class MedianBlur(Blur):
-    """Blurs the input image using using a median filter with a random aperture linear size.
+    """Blur the input image using using a median filter with a random aperture linear size.
 
     Args:
         blur_limit (int): maximum aperture linear size for blurring the input image. Default: 7.
@@ -777,7 +773,7 @@ class MedianBlur(Blur):
 
 
 class GaussNoise(ImageOnlyTransform):
-    """Applies gaussian noise to the input image.
+    """Apply gaussian noise to the input image.
 
     Args:
         var_limit ((int, int) or int): variance range for noise. If var_limit is a single int, the range
@@ -805,7 +801,7 @@ class GaussNoise(ImageOnlyTransform):
 
 
 class CLAHE(ImageOnlyTransform):
-    """Applies Contrast Limited Adaptive Histogram Equalization to the input image.
+    """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
 
     Args:
         clip_limit (float): upper threshold value for contrast limiting. Default: 4.0.
@@ -832,7 +828,7 @@ class CLAHE(ImageOnlyTransform):
 
 
 class ChannelShuffle(ImageOnlyTransform):
-    """Randomly rearranges channels of the input RGB image.
+    """Randomly rearrange channels of the input RGB image.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -849,7 +845,7 @@ class ChannelShuffle(ImageOnlyTransform):
 
 
 class InvertImg(ImageOnlyTransform):
-    """Inverts the input image by subtracting pixel values from 255.
+    """Invert the input image by subtracting pixel values from 255.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -888,8 +884,8 @@ class RandomGamma(ImageOnlyTransform):
 
 
 class ToGray(ImageOnlyTransform):
-    """Converts the input RGB image to grayscale. If the mean pixel value for the resulting image is greater
-    than 127, inverts the resulting grayscale image.
+    """Convert the input RGB image to grayscale. If the mean pixel value for the resulting image is greater
+    than 127, invert the resulting grayscale image.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -906,11 +902,12 @@ class ToGray(ImageOnlyTransform):
 
 
 class ToFloat(ImageOnlyTransform):
-    """Divides pixel values by `max_value` to get a float32 output array where all values lie in the range [0, 1.0].
+    """Divide pixel values by `max_value` to get a float32 output array where all values lie in the range [0, 1.0].
     If `max_value` is None the transform will try to infer the maximum value by inspecting the data type of the input
     image.
 
-    See also: :class:`~albumentations.augmentations.transforms.FromFloat`.
+    See Also:
+        :class:`~albumentations.augmentations.transforms.FromFloat`
 
     Args:
         max_value (float): maximum possible input value. Default: None.
@@ -921,6 +918,7 @@ class ToFloat(ImageOnlyTransform):
 
     Image types:
         any type
+
     """
 
     def __init__(self, max_value=None, p=1.0):
@@ -932,8 +930,8 @@ class ToFloat(ImageOnlyTransform):
 
 
 class FromFloat(ImageOnlyTransform):
-    """Takes an input array where all values should lie in the range [0, 1.0], multiplies them by `max_value` and then
-    casts the resulted value to a type specified by `dtype`. If `max_value` is None the transform will try to infer
+    """Take an input array where all values should lie in the range [0, 1.0], multiply them by `max_value` and then
+    cast the resulted value to a type specified by `dtype`. If `max_value` is None the transform will try to infer
     the maximum value for the data type from the `dtype` argument.
 
     This is the inverse transform for :class:`~albumentations.augmentations.transforms.ToFloat`.

@@ -339,9 +339,8 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
 
 def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
                     border_mode=cv2.BORDER_REFLECT_101):
-    """
-    Reference:
-        http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
+    """Reference:
+    http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
     """
     height, width = img.shape[:2]
 
@@ -512,7 +511,12 @@ def bbox_hflip(bbox, rows, cols):
 
 
 def bbox_flip(bbox, d, rows, cols):
-    """Flip a bounding box either vertically, horizontally or both depending on the value of `d`."""
+    """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
+
+    Raises:
+        ValueError: if value of `d` is not -1, 0 or 1.
+
+    """
     if d == 0:
         bbox = bbox_vflip(bbox, rows, cols)
     elif d == 1:
