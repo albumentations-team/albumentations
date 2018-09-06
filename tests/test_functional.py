@@ -760,4 +760,4 @@ def test_filter_invalid_bboxes():
 def test_filter_small_bboxes():
     bboxes = [[0.1, 0.5, 0.8, 0.9], [0.4, 0.5, 0.5, 0.6]]
     filtered_bboxes = F.filter_bboxes(bboxes, min_area=150, rows=100, cols=100)
-    assert filtered_bboxes != [[0.1, 0.5, 0.8, 0.9]]
+    assert filtered_bboxes == [[0.1, 0.5, 0.8, 0.9]]
