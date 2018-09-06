@@ -339,9 +339,8 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
 
 def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
                     border_mode=cv2.BORDER_REFLECT_101):
-    """
-    Reference:
-        http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
+    """Reference:
+    http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
     """
     height, width = img.shape[:2]
 

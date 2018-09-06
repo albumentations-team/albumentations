@@ -70,9 +70,7 @@ class BasicTransform(object):
 
 
 class DualTransform(BasicTransform):
-    """
-    transform for segmentation task
-    """
+    """Transform for segmentation task."""
 
     @property
     def targets(self):
@@ -91,9 +89,7 @@ class DualTransform(BasicTransform):
 
 
 class ImageOnlyTransform(BasicTransform):
-    """
-    transforms applied to image only
-    """
+    """Transform applied to image only."""
 
     @property
     def targets(self):
