@@ -420,10 +420,10 @@ class RandomSizedCrop(DualTransform):
     """Crop a random part of the input and rescale it to some size.
 
     Args:
-        min_max_height ((int, int)): crop size limits
+        min_max_height ((int, int)): crop size limits.
         height (int): height after crop and resize.
         width (int): width after crop and resize.
-        w2h_ratio (float): aspect ratio of crop
+        w2h_ratio (float): aspect ratio of crop.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
