@@ -13,7 +13,7 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
     JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
     GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise, \
-    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat
+    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -81,6 +81,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
 ])
 def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -103,6 +104,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
 ])
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -166,6 +168,7 @@ def test_torch_to_tensor_augmentations(image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [Normalize, {}],
     [GaussNoise, {}],
     [ToFloat, {}],
@@ -208,6 +211,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [Normalize, {}],
     [GaussNoise, {}],
     [ToFloat, {}],
