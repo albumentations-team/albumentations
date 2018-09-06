@@ -81,6 +81,10 @@ def convert_bbox_to_albumentations(shape, bbox, source_format):
     Note:
         The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
         The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
+
+    Raises:
+        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`.
+
     """
     if source_format not in {'coco', 'pascal_voc'}:
         raise ValueError(
@@ -109,6 +113,10 @@ def convert_bbox_from_albumentations(shape, bbox, target_format):
     Note:
         The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
         The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
+
+    Raises:
+        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`.
+
     """
     if target_format not in {'coco', 'pascal_voc'}:
         raise ValueError(
