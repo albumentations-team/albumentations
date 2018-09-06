@@ -13,7 +13,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'Resize',
-           'FilterBboxes']
+           'FilterBboxes', 'RandomSizedCrop']
 
 
 class PadIfNeeded(DualTransform):
@@ -414,6 +414,48 @@ class RandomCrop(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_random_crop(bbox, self.height, self.width, **params)
+
+
+class RandomSizedCrop(DualTransform):
+    """Crop a random part of the input and rescale it to some size.
+
+    Args:
+        min_max_height ((int, int)): crop size limits
+        height (int): height after crop and resize.
+        width (int): width after crop and resize.
+        w2h_ratio (float): aspect ratio of crop
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p (float): probability of applying the transform. Default: 1.
+
+    Targets:
+        image, mask, bboxes
+
+    Image types:
+        uint8, float32
+    """
+    def __init__(self, min_max_height, height, width, w2h_ratio=1., interpolation=cv2.INTER_LINEAR, p=1.0):
+        super(RandomSizedCrop, self).__init__(p)
+        self.height = height
+        self.width = width
+        self.interpolation = interpolation
+        self.min_max_height = min_max_height
+        self.w2h_ratio = w2h_ratio
+
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, **params):
+        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
+        return F.resize(crop, self.height, self.width, self.interpolation)
+
+    def get_params(self):
+        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
+        return {'h_start': random.random(),
+                'w_start': random.random(),
+                'crop_height': crop_height,
+                'crop_width': int(crop_height * self.w2h_ratio)}
+
+    def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, **params):
+        return F.bbox_random_crop(bbox, crop_height, crop_width, **params)
 
 
 class OpticalDistortion(DualTransform):
