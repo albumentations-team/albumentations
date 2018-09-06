@@ -157,7 +157,7 @@ class Transpose(DualTransform):
 
 
 class LongestMaxSize(DualTransform):
-    """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
+    """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image <very very very long line>.
 
     Args:
         p (float): probability of applying the transform. Default: 1.
@@ -200,7 +200,6 @@ class Resize(DualTransform):
     Image types:
         uint8, float32
     """
-
     def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, p=1):
         super(Resize, self).__init__(p)
         self.height = height
