@@ -15,14 +15,18 @@ matrix:
     - python: 3.6
     - python: 3.6
       env: TEST_MODE=PEP8
+    - python: 3.6
+      env: TEST_MODE=PEP257
 
 install:
   - pip install .[tests]
-  - pip install pycodestyle
+  - pip install pycodestyle pydocstyle
 
 script:
   - if [[ "$TEST_MODE" == "PEP8" ]]; then
       pycodestyle . --max-line-length 119 --ignore=E402;
+  - elif [[ "$TEST_MODE" == "PEP257" ]]; then
+      pydocstyle . --ignore=D100,D101,D102,D103,D104,D105,D106,D107,D200,D203,D205,D213,D400;
     else
       pytest;
     fi

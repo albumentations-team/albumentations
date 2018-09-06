@@ -63,7 +63,7 @@ class IAAFlipud(DualIAATransform):
 
 
 class IAAEmboss(ImageOnlyIAATransform):
-    """Embosses the input image and overlays the result with the original image.
+    """Emboss the input image and overlays the result with the original image.
 
     Args:
         alpha ((float, float)): range to choose the visibility of the embossed image. At 0, only the original image is
@@ -100,7 +100,7 @@ class IAASuperpixels(ImageOnlyIAATransform):
 
 
 class IAASharpen(ImageOnlyIAATransform):
-    """Sharpens the input image and overlays the result with the original image.
+    """Sharpen the input image and overlays the result with the original image.
 
     Args:
         alpha ((float, float)): range to choose the visibility of the sharpened image. At 0, only the original image is
@@ -118,7 +118,7 @@ class IAASharpen(ImageOnlyIAATransform):
 
 
 class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
-    """Adds gaussian noise to the input image.
+    """Add gaussian noise to the input image.
 
     Args:
         loc (int): mean of the normal distribution that generates the noise. Default: 0.
@@ -136,7 +136,7 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
 
 
 class IAAPiecewiseAffine(DualIAATransform):
-    """Places a regular grid of points on the input and randomly moves the neighbourhood of these point around
+    """Place a regular grid of points on the input and randomly move the neighbourhood of these point around
     via affine transformations.
 
     Args:
@@ -155,7 +155,7 @@ class IAAPiecewiseAffine(DualIAATransform):
 
 
 class IAAAffine(DualIAATransform):
-    """Places a regular grid of points on the input and randomly moves the neighbourhood of these point around
+    """Place a regular grid of points on the input and randomly move the neighbourhood of these point around
     via affine transformations.
 
     Args:
@@ -172,7 +172,7 @@ class IAAAffine(DualIAATransform):
 
 
 class IAAPerspective(DualIAATransform):
-    """Performs a random four point perspective transform of the input.
+    """Perform a random four point perspective transform of the input.
 
     Args:
         scale ((float, float): standard deviation of the normal distributions. These are used to sample

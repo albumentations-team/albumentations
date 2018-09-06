@@ -9,7 +9,7 @@ __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
 
 class Compose(object):
-    """Composes transforms together"""
+    """Compose transforms together."""
 
     def __init__(self, transforms, p=1.0):
         self.transforms = [t for t in transforms if t is not None]
