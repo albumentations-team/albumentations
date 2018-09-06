@@ -139,6 +139,10 @@ pip install -e .[tests]
 ```
 pytest
 ```
+4. Run flake8 to perform PEP8 and PEP257 style checks and to check code for lint errors.
+```
+flake8
+```
 
 ## Building the documentation
 1. Go to `docs/` directory
