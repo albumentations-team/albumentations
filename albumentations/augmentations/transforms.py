@@ -146,7 +146,7 @@ class Transpose(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -154,6 +154,9 @@ class Transpose(DualTransform):
 
     def apply(self, img, **params):
         return F.transpose(img)
+
+    def apply_to_bbox(self, bbox, **params):
+        return F.bbox_transpose(bbox, 0, **params)
 
 
 class LongestMaxSize(DualTransform):
@@ -222,7 +225,7 @@ class RandomRotate90(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -238,6 +241,9 @@ class RandomRotate90(DualTransform):
     def get_params(self):
         # Random int in the range [0, 3]
         return {'factor': random.randint(0, 3)}
+
+    def apply_to_bbox(self, bbox, factor=0, **params):
+        return F.bbox_rot90(bbox, factor, **params)
 
 
 class Rotate(DualTransform):
