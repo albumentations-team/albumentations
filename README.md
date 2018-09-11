@@ -7,6 +7,21 @@
 * Easy to customize
 * Easy to add other frameworks
 
+
+## How to use
+**Classification** - [`example.ipynb`](notebooks/example.ipynb)
+
+**Object detection** - [`example_bboxes.ipynb`](notebooks/example_bboxes.ipynb)
+
+**Non-8-bit images** - [`example_16_bit_tiff.ipynb`](notebooks/example_16_bit_tiff.ipynb)
+
+**Image segmentation** is also supported out of the box, notebook coming soon.
+
+**Custom tasks** such as autoencoders, more then three channel images - [`custom_targets`](https://gist.github.com/poxyu/799b359d7f87205b7c4288691ab019dc)
+
+You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
+to adjust image augmentation parameters and see the resulting images.
+
 ![Vladimir_Iglovikov](https://habrastorage.org/webt/_e/xe/8a/_exe8adren79a0ctavaiq4jf2jo.jpeg)
 
 ## Authors
@@ -15,59 +30,6 @@
 [Alex Parinov](https://www.linkedin.com/in/alex-parinov/)
 
 [Vladimir Iglovikov](https://www.linkedin.com/in/iglovikov/)
-
-## Example usage
-
-```python
-from albumentations import (
-    CLAHE, RandomRotate90, Transpose, ShiftScaleRotate, Blur, OpticalDistortion, 
-    GridDistortion, HueSaturationValue, IAAAdditiveGaussianNoise, GaussNoise, MotionBlur, 
-    MedianBlur, IAAPiecewiseAffine, IAASharpen, IAAEmboss, RandomContrast, RandomBrightness, 
-    Flip, OneOf, Compose
-)
-import numpy as np
-
-def strong_aug(p=0.5):
-    return Compose([
-        RandomRotate90(),
-        Flip(),
-        Transpose(),
-        OneOf([
-            IAAAdditiveGaussianNoise(),
-            GaussNoise(),
-        ], p=0.2),
-        OneOf([
-            MotionBlur(p=0.2),
-            MedianBlur(blur_limit=3, p=0.1),
-            Blur(blur_limit=3, p=0.1),
-        ], p=0.2),
-        ShiftScaleRotate(shift_limit=0.0625, scale_limit=0.2, rotate_limit=45, p=0.2),
-        OneOf([
-            OpticalDistortion(p=0.3),
-            GridDistortion(p=0.1),
-            IAAPiecewiseAffine(p=0.3),
-        ], p=0.2),
-        OneOf([
-            CLAHE(clip_limit=2),
-            IAASharpen(),
-            IAAEmboss(),
-            RandomContrast(),
-            RandomBrightness(),
-        ], p=0.3),
-        HueSaturationValue(p=0.3),
-    ], p=p)
-
-image = np.ones((300, 300, 3), dtype=np.uint8)
-mask = np.ones((300, 300), dtype=np.uint8)
-whatever_data = "my name"
-augmentation = strong_aug(p=0.9)
-data = {"image": image, "mask": mask, "whatever_data": whatever_data, "additional": "hello"}
-augmented = augmentation(**data)
-image, mask, whatever_data, additional = augmented["image"], augmented["mask"], augmented["whatever_data"], augmented["additional"]
-```
-
-See [`example.ipynb`](notebooks/example.ipynb)
-
 
 ## Installation
 You can use pip to install albumentations:
@@ -80,14 +42,8 @@ If you want to get the latest version of the code before it is released on PyPI 
 pip install -U git+https://github.com/albu/albumentations
 ```
 
-
 ## Documentation
 The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
-
-
-## Demo
-You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
-to adjust image augmentation parameters and see the resulting images.
 
 
 ## Migrating from torchvision to albumentations
@@ -95,14 +51,6 @@ to adjust image augmentation parameters and see the resulting images.
 Migrating from torchvision to albumentations is simple - you just need to change a few lines of code. 
 Albumentations has equivalents for common torchvision transforms as well as plenty of transforms that are not presented in torchvision.
 [`migrating_from_torchvision_to_albumentations.ipynb`](notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
-
-
-## Working with non-8-bit images
-[`example_16_bit_tiff.ipynb`](notebooks/example_16_bit_tiff.ipynb) shows how albumentations can be used to work with non-8-bit images (such as 16-bit and 32-bit TIFF images).
-
-
-## Object detection tasks and bounding boxes
-[`example_bboxes.ipynb`](notebooks/example_bboxes.ipynb) shows how albumentations can be used to work with bounding boxes.
 
 
 ## Benchmarking results
