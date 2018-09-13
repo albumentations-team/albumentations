@@ -461,8 +461,8 @@ class RandomSizedCrop(DualTransform):
                 'crop_height': crop_height,
                 'crop_width': int(crop_height * self.w2h_ratio)}
 
-    def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, **params):
-        return F.bbox_random_crop(bbox, crop_height, crop_width, **params)
+    def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
+        return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
 
 
 class OpticalDistortion(DualTransform):
