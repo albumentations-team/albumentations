@@ -49,7 +49,7 @@ class BasicTransform(object):
             res = {}
             for key, arg in kwargs.items():
                 target_function = self.targets.get(key, lambda x, **p: x)
-                target_dependencies = {k: kwargs[k] for k in self.target_dependence[key]}
+                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
                 res[key] = target_function(arg, **dict(params, **target_dependencies))
             return res
         return kwargs
