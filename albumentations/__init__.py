@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-__version__ = '0.0.13'
+__version__ = '0.0.14'
 
 from .core.composition import *
 from .core.transforms_interface import *

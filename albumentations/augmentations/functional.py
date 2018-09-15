@@ -409,7 +409,7 @@ def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), borderMode=border_mode)
+    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode)
 
     dx = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
     dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
