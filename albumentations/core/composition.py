@@ -11,7 +11,12 @@ __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
 
 class Compose(object):
-    """Compose transforms together."""
+    """Compose transforms together.
+
+    Args:
+        transforms (list): list of transformations to compose.
+        p (float): probability of applying all list of transforms. Default: 1.0.
+    """
 
     def __init__(self, transforms, p=1.0):
         self.transforms = [t for t in transforms if t is not None]
@@ -25,10 +30,20 @@ class Compose(object):
 
 
 class ComposeWithBoxes(object):
-    """Compose transforms and handle all transformations regrading bounding boxes"""
+    """Compose transforms and handle all transformations regrading bounding boxes
+
+    Args:
+        transforms (list): list of transformations to compose.
+        bbox_format (str): format of bounding boxes. Should be 'coco' or 'pascal_voc'.
+        label_fields (list): list of fields that are joined with boxes, e.g labels. Should be same type as boxes.
+        min_area (float): minimum area of a bounding box. All bounding boxes whose visible area in pixels
+            is less than this value will be removed. Default: 0.0.
+        min_visibility (float): minimum fraction of area for a bounding box to remain this box in list. Default: 0.0.
+        p (float): probability of applying all list of transforms. Default: 1.0.
+    """
 
     def __init__(self, transforms, bbox_format, label_fields=[], min_area=0., min_visibility=0., p=1.0):
-        self.bboxe_format = bbox_format
+        self.bbox_format = bbox_format
         self.label_fields = label_fields
         self.min_area = min_area
         self.min_visibility = min_visibility
@@ -47,14 +62,14 @@ class ComposeWithBoxes(object):
                     data['bboxes'] = bboxes_with_added_field
 
             rows, cols = data['image'].shape[:2]
-            data['bboxes'] = convert_bboxes_to_albumentations(data['bboxes'], self.bboxe_format, rows, cols,
+            data['bboxes'] = convert_bboxes_to_albumentations(data['bboxes'], self.bbox_format, rows, cols,
                                                               check_validity=True)
             for t in self.transforms:
                 data = t(**data)
 
             data['bboxes'] = filter_bboxes(data['bboxes'], rows, cols, self.min_area, self.min_visibility)
 
-            data['bboxes'] = convert_bboxes_from_albumentations(data['bboxes'], self.bboxe_format, rows, cols,
+            data['bboxes'] = convert_bboxes_from_albumentations(data['bboxes'], self.bbox_format, rows, cols,
                                                                 check_validity=True)
 
             if self.label_fields:
@@ -67,6 +82,13 @@ class ComposeWithBoxes(object):
 
 
 class OneOf(object):
+    """Select on of transforms to apply
+
+        Args:
+        transforms (list): list of transformations to compose.
+        p (float): probability of applying selected transform. Default: 0.5.
+    """
+
     def __init__(self, transforms, p=0.5):
         self.transforms = transforms
         self.p = p
@@ -84,6 +106,13 @@ class OneOf(object):
 
 
 class OneOrOther(object):
+    """Select on of transforms to apply
+
+        Args:
+        transforms (list): list of transformations to compose.
+        p (float): probability of applying selected transform. Default: 0.5.
+    """
+
     def __init__(self, first, second, p=0.5):
         self.first = first
         first.p = 1.
