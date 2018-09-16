@@ -178,8 +178,8 @@ class LongestMaxSize(DualTransform):
         self.interpolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, **params):
-        return F.longest_max_size(img, longest_max_size=self.max_size, interpolation=self.interpolation)
+    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+        return F.longest_max_size(img, longest_max_size=self.max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
@@ -450,9 +450,9 @@ class RandomSizedCrop(DualTransform):
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
-    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, **params):
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
-        return F.resize(crop, self.height, self.width, self.interpolation)
+        return F.resize(crop, self.height, self.width, interpolation)
 
     def get_params(self):
         crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])

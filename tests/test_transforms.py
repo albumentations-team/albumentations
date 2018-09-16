@@ -2,8 +2,9 @@ import numpy as np
 import cv2
 import pytest
 
-from albumentations import Transpose, Rotate, ShiftScaleRotate, OpticalDistortion, GridDistortion, ElasticTransform,\
-    VerticalFlip, HorizontalFlip
+from albumentations import Transpose, Rotate, ShiftScaleRotate, OpticalDistortion, GridDistortion, ElasticTransform, \
+    VerticalFlip, HorizontalFlip, RandomSizedCrop, RandomScale, IAAPiecewiseAffine, IAAAffine, IAAPerspective, \
+    LongestMaxSize
 import albumentations.augmentations.functional as F
 
 
@@ -88,3 +89,48 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
                                              random_state=np.random.RandomState(1111))
     assert np.array_equal(data['image'], expected_image)
     assert np.array_equal(data['mask'], expected_mask)
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [ElasticTransform, {}],
+    [GridDistortion, {}],
+    [ShiftScaleRotate, {'rotate_limit': 45}],
+    [RandomScale, {'scale_limit': 0.5}],
+    [RandomSizedCrop, {'min_max_height': (80, 90), 'height': 100, 'width': 100}],
+    [LongestMaxSize, {'max_size': 50}],
+    [Rotate, {}],
+    [OpticalDistortion, {}],
+    [IAAAffine, {'scale': 1.5}],
+    [IAAPiecewiseAffine, {'scale': 1.5}],
+    [IAAPerspective, {}],
+])
+def test_binary_mask_interpolation(augmentation_cls, params):
+    """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
+    aug = augmentation_cls(p=1, **params)
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+
+    data = aug(image=image, mask=mask)
+    assert np.array_equal(np.unique(data['mask']), np.array([0, 1]))
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [ElasticTransform, {}],
+    [GridDistortion, {}],
+    [ShiftScaleRotate, {'rotate_limit': 45}],
+    [RandomScale, {'scale_limit': 0.5}],
+    [RandomSizedCrop, {'min_max_height': (80, 90), 'height': 100, 'width': 100}],
+    [LongestMaxSize, {'max_size': 50}],
+    [Rotate, {}],
+    [OpticalDistortion, {}]
+])
+def test_semantic_mask_interpolation(augmentation_cls, params):
+    """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts.
+    Note: IAAAffine, IAAPiecewiseAffine, IAAPerspective does not properly operate if mask has values other than {0;1}
+    """
+    aug = augmentation_cls(p=1, **params)
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
+
+    data = aug(image=image, mask=mask)
+    assert np.array_equal(np.unique(data['mask']), np.array([0, 64, 128, 192]))
