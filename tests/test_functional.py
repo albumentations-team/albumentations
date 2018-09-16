@@ -5,6 +5,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal_nulp
 import pytest
 
+from albumentations.augmentations.bbox_utils import filter_bboxes
 import albumentations.augmentations.functional as F
 from .utils import convert_2d_to_target_format
 
@@ -733,22 +734,22 @@ def test_bbox_flip(code, func):
 
 def test_crop_bbox_by_coords():
     cropped_bbox = F.crop_bbox_by_coords([0.5, 0.2, 0.9, 0.7], (18, 18, 82, 82), 64, 64, 100, 100)
-    assert cropped_bbox == [0.5, 0.03125, 1.0, 0.8125]
+    assert cropped_bbox == [0.5, 0.03125, 1.125, 0.8125]
 
 
 def test_bbox_center_crop():
     cropped_bbox = F.bbox_center_crop([0.5, 0.2, 0.9, 0.7], 64, 64, 100, 100)
-    assert cropped_bbox == [0.5, 0.03125, 1.0, 0.8125]
+    assert cropped_bbox == [0.5, 0.03125, 1.125, 0.8125]
 
 
 def test_bbox_crop():
     cropped_bbox = F.bbox_crop([0.5, 0.2, 0.9, 0.7], 24, 24, 64, 64, 100, 100)
-    assert cropped_bbox == [0.65, 0.0, 1.0, 1.0]
+    assert cropped_bbox == [0.65, -0.1, 1.65, 1.15]
 
 
 def test_bbox_random_crop():
     cropped_bbox = F.bbox_random_crop([0.5, 0.2, 0.9, 0.7], 80, 80, 0.2, 0.1, 100, 100)
-    assert cropped_bbox == [0.6, 0.2, 1.0, 0.825]
+    assert cropped_bbox == [0.6, 0.2, 1.1, 0.825]
 
 
 def test_bbox_rot90():
@@ -765,11 +766,11 @@ def test_bbox_transpose():
 
 def test_filter_invalid_bboxes():
     bboxes = [[0.1, 0.5, 1.1, 0.9], [-0.1, 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]]
-    filtered_bboxes = F.filter_bboxes(bboxes, min_area=0, rows=100, cols=100)
-    assert filtered_bboxes == [[0.1, 0.5, 0.8, 0.9]]
+    filtered_bboxes = filter_bboxes(bboxes, min_area=0, rows=100, cols=100)
+    assert filtered_bboxes == [[0.1, 0.5, 1.0, 0.9], [0., 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]]
 
 
 def test_filter_small_bboxes():
     bboxes = [[0.1, 0.5, 0.8, 0.9], [0.4, 0.5, 0.5, 0.6]]
-    filtered_bboxes = F.filter_bboxes(bboxes, min_area=150, rows=100, cols=100)
+    filtered_bboxes = filter_bboxes(bboxes, min_area=150, rows=100, cols=100)
     assert filtered_bboxes == [[0.1, 0.5, 0.8, 0.9]]

@@ -13,7 +13,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'Resize',
-           'FilterBboxes', 'RandomSizedCrop']
+           'RandomSizedCrop']
 
 
 class PadIfNeeded(DualTransform):
@@ -1008,27 +1008,3 @@ class FromFloat(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.from_float(img, self.dtype, self.max_value)
-
-
-class FilterBboxes(DualTransform):
-    """Remove bounding boxes that either lie outside of the visible area or whose area in pixels is under
-     the threshold set by `min_area`.
-
-    Args:
-        min_area (float): minimum area of a bounding box. All bounding boxes whose visible area in pixels
-            is less than this value will be removed. Default: 0.0.
-        p (float): probability of applying the transform. Default: 1.0.
-
-    Targets:
-        bboxes
-    """
-
-    def __init__(self, min_area=0.0, p=1.0):
-        super(FilterBboxes, self).__init__(p)
-        self.min_area = min_area
-
-    def apply(self, img, **params):
-        return img
-
-    def apply_to_bboxes(self, bboxes, **params):
-        return F.filter_bboxes(bboxes, self.min_area, **params)
