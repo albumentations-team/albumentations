@@ -764,13 +764,12 @@ def test_bbox_transpose():
     assert np.allclose(F.bbox_transpose([0.7, 0.1, 0.8, 0.4], 1, 100, 200), [0.6, 0.2, 0.9, 0.3])
 
 
-def test_filter_invalid_bboxes():
-    bboxes = [[0.1, 0.5, 1.1, 0.9], [-0.1, 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]]
-    filtered_bboxes = filter_bboxes(bboxes, min_area=0, rows=100, cols=100)
-    assert filtered_bboxes == [[0.1, 0.5, 1.0, 0.9], [0., 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]]
-
-
-def test_filter_small_bboxes():
-    bboxes = [[0.1, 0.5, 0.8, 0.9], [0.4, 0.5, 0.5, 0.6]]
-    filtered_bboxes = filter_bboxes(bboxes, min_area=150, rows=100, cols=100)
-    assert filtered_bboxes == [[0.1, 0.5, 0.8, 0.9]]
+@pytest.mark.parametrize(['bboxes', 'min_area', 'min_visibility', 'target'], [
+    [[[0.1, 0.5, 1.1, 0.9], [-0.1, 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]], 0, 0, [[0.1, 0.5, 1.0, 0.9], [0., 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]]],
+    [[[0.1, 0.5, 0.8, 0.9], [0.4, 0.5, 0.5, 0.6]], 150, 0, [[0.1, 0.5, 0.8, 0.9]]],
+    [[[0.1, 0.5, 0.8, 0.9], [0.4, 0.9, 0.5, 1.6]], 0, 0.75, [[0.1, 0.5, 0.8, 0.9]]],
+    [[[0.1, 0.5, 0.8, 0.9], [0.4, 0.7, 0.5, 1.1]], 0, 0.7, [[0.1, 0.5, 0.8, 0.9], [0.4, 0.7, 0.5, 1.0]]],
+])
+def test_filter_bboxes(bboxes, min_area, min_visibility, target):
+    filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
+    assert filtered_bboxes == target

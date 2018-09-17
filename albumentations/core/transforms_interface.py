@@ -76,3 +76,16 @@ class ImageOnlyTransform(BasicTransform):
     @property
     def targets(self):
         return {'image': self.apply}
+
+
+class NoOp(DualTransform):
+    """Does nothing"""
+
+    def apply_to_bbox(self, bbox, **params):
+        return bbox
+
+    def apply(self, img, **params):
+        return img
+
+    def apply_to_mask(self, img, **params):
+        return img

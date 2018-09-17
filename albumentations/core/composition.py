@@ -78,6 +78,7 @@ class ComposeWithBoxes(object):
                     for bbox in data['bboxes']:
                         field_values.append(bbox[4+idx])
                     data[field] = field_values
+                data['bboxes'] = [bbox[:4] for bbox in data['bboxes']]
         return data
 
 
