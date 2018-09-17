@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from albumentations.augmentations.bbox_utils import normalize_bbox, denormalize_bbox, normalize_bboxes, \
-denormalize_bboxes, calculate_bbox_area, filter_bboxes_by_visibility, convert_bbox_to_albumentations,\
+    denormalize_bboxes, calculate_bbox_area, filter_bboxes_by_visibility, convert_bbox_to_albumentations,\
     convert_bbox_from_albumentations, convert_bboxes_to_albumentations, convert_bboxes_from_albumentations
 from albumentations.core.composition import ComposeWithBoxes
 from albumentations.core.transforms_interface import NoOp

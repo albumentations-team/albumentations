@@ -43,7 +43,8 @@ def calculate_bbox_area(bbox, rows, cols):
     return area
 
 
-def filter_bboxes_by_visibility(original_shape, bboxes, transformed_shape, transformed_bboxes, threshold=0., min_area=0.):
+def filter_bboxes_by_visibility(original_shape, bboxes, transformed_shape, transformed_bboxes,
+                                threshold=0., min_area=0.):
     """Filter bounding boxes and return only those boxes whose visibility after transformation is above
     the threshold and minimal area of bounding box in pixels is more then min_area.
 

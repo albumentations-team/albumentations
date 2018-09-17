@@ -76,7 +76,7 @@ class ComposeWithBoxes(object):
                 for idx, field in enumerate(self.label_fields):
                     field_values = []
                     for bbox in data['bboxes']:
-                        field_values.append(bbox[4+idx])
+                        field_values.append(bbox[4 + idx])
                     data[field] = field_values
                 data['bboxes'] = [bbox[:4] for bbox in data['bboxes']]
         return data
@@ -85,7 +85,7 @@ class ComposeWithBoxes(object):
 class OneOf(object):
     """Select on of transforms to apply
 
-        Args:
+    Args:
         transforms (list): list of transformations to compose.
         p (float): probability of applying selected transform. Default: 0.5.
     """
@@ -107,13 +107,6 @@ class OneOf(object):
 
 
 class OneOrOther(object):
-    """Select on of transforms to apply
-
-        Args:
-        transforms (list): list of transformations to compose.
-        p (float): probability of applying selected transform. Default: 0.5.
-    """
-
     def __init__(self, first, second, p=0.5):
         self.first = first
         first.p = 1.
