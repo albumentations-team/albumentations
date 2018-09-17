@@ -67,6 +67,7 @@ class ComposeWithBoxes(object):
             for t in self.transforms:
                 data = t(**data)
 
+            rows, cols = data['image'].shape[:2]
             data['bboxes'] = filter_bboxes(data['bboxes'], rows, cols, self.min_area, self.min_visibility)
 
             data['bboxes'] = convert_bboxes_from_albumentations(data['bboxes'], self.bbox_format, rows, cols,
