@@ -26,7 +26,7 @@ to adjust image augmentation parameters and see the resulting images.
 
 ![inria](https://habrastorage.org/webt/su/wa/np/suwanpeo6ww7wpwtobtrzd_cg20.jpeg)
 
-![medical](https://habrastorage.org/webt/wm/b2/64/wmb264kwpeap9szbvtlkouhbigc.jpeg)
+![medical](https://habrastorage.org/webt/1i/fi/wz/1ifiwzy0lxetc4nwjvss-71nkw0.jpeg)
 
 ![vistas](https://habrastorage.org/webt/rz/-h/3j/rz-h3jalbxic8o_fhucxysts4tc.jpeg)
 
