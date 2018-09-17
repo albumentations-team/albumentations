@@ -7,7 +7,7 @@ from albumentations.augmentations.bbox_utils import convert_bboxes_from_albument
     convert_bboxes_to_albumentations, filter_bboxes
 
 
-__all__ = ['Compose', 'OneOf', 'OneOrOther']
+__all__ = ['Compose', 'OneOf', 'OneOrOther', 'ComposeWithBoxes']
 
 
 class Compose(object):
