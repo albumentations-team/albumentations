@@ -22,7 +22,13 @@
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.
 
-![Vladimir_Iglovikov](https://habrastorage.org/webt/_e/xe/8a/_exe8adren79a0ctavaiq4jf2jo.jpeg)
+![parrot](https://habrastorage.org/webt/eh/oq/if/ehoqifphq4c7ntmnexcfa0jvcxw.jpeg)
+
+![inria](https://habrastorage.org/webt/su/wa/np/suwanpeo6ww7wpwtobtrzd_cg20.jpeg)
+
+![medical](https://habrastorage.org/webt/wm/b2/64/wmb264kwpeap9szbvtlkouhbigc.jpeg)
+
+![vistas](https://habrastorage.org/webt/rz/-h/3j/rz-h3jalbxic8o_fhucxysts4tc.jpeg)
 
 ## Authors
 [Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/)
