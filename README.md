@@ -81,22 +81,6 @@ Results for running the benchmark on first 2000 images from the ImageNet validat
 | Grayscale         |    **1.2048**   |  5.3895  |             1.6826              |               1.2721                  |    -     |
 
 
-# Citing
-
-If you find this library useful for your research, please consider citing:
-
-```
-@article{2018arXiv180906839B,
-    author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and 
-	A.~A. Kalinin},
-     title = "{Albumentations: fast and flexible image augmentations}",
-   journal = {ArXiv e-prints},
-    eprint = {1809.06839}, 
-      year = 2018      
-}
-```
-
-
 
 ## Contributing
 1. Clone the repository:
@@ -142,4 +126,19 @@ In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader 
 ```python
 cv2.setNumThreads(0)	
 cv2.ocl.setUseOpenCL(False)
+```
+
+# Citing
+
+If you find this library useful for your research, please consider citing:
+
+```
+@article{2018arXiv180906839B,
+    author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and 
+	A.~A. Kalinin},
+     title = "{Albumentations: fast and flexible image augmentations}",
+   journal = {ArXiv e-prints},
+    eprint = {1809.06839}, 
+      year = 2018      
+}
 ```
