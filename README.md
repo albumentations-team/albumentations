@@ -37,7 +37,7 @@ to adjust image augmentation parameters and see the resulting images.
 
 [Vladimir I. Iglovikov](https://www.linkedin.com/in/iglovikov/)
 
-Evegene Khvedchenya
+[Evegene Khvedchenya](https://www.linkedin.com/in/cvtalks/)
 
 ## Installation
 You can use pip to install albumentations:
