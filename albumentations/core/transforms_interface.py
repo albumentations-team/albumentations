@@ -12,32 +12,6 @@ def to_tuple(param, low=None):
         return (-param if low is None else low, param)
 
 
-def check_bboxes(bboxes):
-    for index, bbox in enumerate(bboxes):
-        for name, value in zip(['x_min', 'y_min', 'x_max', 'y_max'], bbox[:4]):
-            if not 0 <= value <= 1:
-                raise ValueError(
-                    'Expected {name} for bbox {bbox} at index {index} '
-                    'to be in the range [0.0, 1.0], got {value}.'.format(
-                        bbox=bbox,
-                        index=index,
-                        name=name,
-                        value=value,
-                    )
-                )
-        x_min, y_min, x_max, y_max = bbox[:4]
-        if x_max <= x_min:
-            raise ValueError('x_max is less than or equal to x_min for bbox {bbox} at index {index}.'.format(
-                bbox=bbox,
-                index=index,
-            ))
-        if y_max <= y_min:
-            raise ValueError('y_max is less than or equal to y_min for bbox {bbox} at index {index}.'.format(
-                bbox=bbox,
-                index=index,
-            ))
-
-
 class BasicTransform(object):
     def __init__(self, p=0.5):
         self.p = p
@@ -90,7 +64,6 @@ class DualTransform(BasicTransform):
 
     def apply_to_bboxes(self, bboxes, **params):
         bboxes = [list(bbox) for bbox in bboxes]
-        check_bboxes(bboxes)
         return [self.apply_to_bbox(bbox[:4], **params) + bbox[4:] for bbox in bboxes]
 
     def apply_to_mask(self, img, **params):
@@ -103,3 +76,16 @@ class ImageOnlyTransform(BasicTransform):
     @property
     def targets(self):
         return {'image': self.apply}
+
+
+class NoOp(DualTransform):
+    """Does nothing"""
+
+    def apply_to_bbox(self, bbox, **params):
+        return bbox
+
+    def apply(self, img, **params):
+        return img
+
+    def apply_to_mask(self, img, **params):
+        return img

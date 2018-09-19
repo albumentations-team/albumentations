@@ -8,8 +8,7 @@ import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
-from albumentations.augmentations.bbox import denormalize_bbox, normalize_bbox, calculate_bbox_area
-
+from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype('uint8'): 255,
@@ -537,7 +536,7 @@ def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
     bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox
     x1, y1, x2, y2 = crop_coords
-    cropped_bbox = [max(x_min, x1) - x1, max(y_min, y1) - y1, min(x_max, x2) - x1, min(y_max, y2) - y1]
+    cropped_bbox = [x_min - x1, y_min - y1, x_max - x1, y_max - y1]
     return normalize_bbox(cropped_bbox, crop_height, crop_width)
 
 
@@ -596,14 +595,3 @@ def bbox_transpose(bbox, axis, rows, cols):
     if axis == 1:
         bbox = [1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min]
     return bbox
-
-
-def filter_bboxes(bboxes, min_area, rows, cols):
-    filtered_bboxes = []
-    for bbox in bboxes:
-        if not all(0.0 <= value <= 1.0 for value in bbox[:4]):
-            continue
-        if min_area and calculate_bbox_area(bbox, rows, cols) < min_area:
-            continue
-        filtered_bboxes.append(bbox)
-    return filtered_bboxes
