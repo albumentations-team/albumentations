@@ -35,7 +35,9 @@ to adjust image augmentation parameters and see the resulting images.
 
 [Alex Parinov](https://www.linkedin.com/in/alex-parinov/)
 
-[Vladimir Iglovikov](https://www.linkedin.com/in/iglovikov/)
+[Vladimir I. Iglovikov](https://www.linkedin.com/in/iglovikov/)
+
+[Evegene Khvedchenya](https://www.linkedin.com/in/cvtalks/)
 
 ## Installation
 You can use pip to install albumentations:
@@ -77,6 +79,7 @@ Results for running the benchmark on first 2000 images from the ImageNet validat
 | ShiftRGB          |     2.6159      |**2.1989**|               -                 |                 -                     |  3.0598  |
 | Gamma             |     1.4832      |    -     |            **1.1397**           |               1.1447                  |    -     |
 | Grayscale         |    **1.2048**   |  5.3895  |             1.6826              |               1.2721                  |    -     |
+
 
 
 ## Contributing
@@ -125,5 +128,17 @@ cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 ```
 
-### Thanks:
-Special thanks to [@creafz](https://github.com/creafz) for refactoring, documentation, tests, CI and benchmarks. Awesome work!
+# Citing
+
+If you find this library useful for your research, please consider citing:
+
+```
+@article{2018arXiv180906839B,
+    author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and 
+	A.~A. Kalinin},
+     title = "{Albumentations: fast and flexible image augmentations}",
+   journal = {ArXiv e-prints},
+    eprint = {1809.06839}, 
+      year = 2018      
+}
+```
