@@ -134,8 +134,7 @@ If you find this library useful for your research, please consider citing:
 
 ```
 @article{2018arXiv180906839B,
-    author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and 
-	A.~A. Kalinin},
+    author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and A.~A. Kalinin},
      title = "{Albumentations: fast and flexible image augmentations}",
    journal = {ArXiv e-prints},
     eprint = {1809.06839}, 
