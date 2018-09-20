@@ -320,19 +320,20 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
         |  http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
     """
     height, width = img.shape[:2]
-    k = k * 0.00001
-    dx = dx * width
-    dy = dy * height
-    x, y = np.mgrid[0:width:1, 0:height:1]
-    x = x.astype(np.float32) - width / 2 - dx
-    y = y.astype(np.float32) - height / 2 - dy
-    theta = np.arctan2(y, x)
-    d = (x * x + y * y + 1e-8) ** 0.5
-    r = d * (1 + k * d * d)
-    map_x = r * np.cos(theta) + width / 2 + dx
-    map_y = r * np.sin(theta) + height / 2 + dy
 
-    img = cv2.remap(img, map_x, map_y, interpolation=interpolation, borderMode=border_mode)
+    fx = width
+    fy = width
+
+    cx = width * 0.5 + dx
+    cy = height * 0.5 + dy
+
+    camera_matrix = np.array([[fx, 0, cx],
+                             [0, fy, cy],
+                             [0, 0, 1]], dtype=np.float32)
+
+    distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
+    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+    img = cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode)
     return img
 
 
