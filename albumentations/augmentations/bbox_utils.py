@@ -204,15 +204,14 @@ def filter_bboxes(bboxes, rows, cols, min_area=0., min_visibility=0.):
     """
     resulting_boxes = []
     for bbox in bboxes:
-        if min_visibility:
-            transformed_box_area = calculate_bbox_area(bbox, rows, cols)
-            bbox[:4] = np.clip(bbox[:4], 0, 1.)
-            clipped_box_area = calculate_bbox_area(bbox, rows, cols)
-            if not transformed_box_area or clipped_box_area / transformed_box_area < min_visibility:
-                continue
+        transformed_box_area = calculate_bbox_area(bbox, rows, cols)
+        bbox[:4] = np.clip(bbox[:4], 0, 1.)
+        clipped_box_area = calculate_bbox_area(bbox, rows, cols)
+        if not transformed_box_area or clipped_box_area / transformed_box_area <= min_visibility:
+            continue
         else:
             bbox[:4] = np.clip(bbox[:4], 0, 1.)
-        if min_area and calculate_bbox_area(bbox, rows, cols) < min_area:
+        if calculate_bbox_area(bbox, rows, cols) <= min_area:
             continue
         resulting_boxes.append(bbox)
     return resulting_boxes
