@@ -4,7 +4,7 @@ import pytest
 from albumentations.augmentations.bbox_utils import normalize_bbox, denormalize_bbox, normalize_bboxes, \
     denormalize_bboxes, calculate_bbox_area, filter_bboxes_by_visibility, convert_bbox_to_albumentations,\
     convert_bbox_from_albumentations, convert_bboxes_to_albumentations, convert_bboxes_from_albumentations
-from albumentations.core.composition import ComposeWithBoxes
+from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
 from albumentations.augmentations.transforms import RandomSizedCrop
 
@@ -138,7 +138,7 @@ def test_convert_bboxes_from_albumentations():
 ])
 def test_compose_with_bbox_noop(bboxes, bbox_format):
     image = np.ones((100, 100, 3))
-    aug = ComposeWithBoxes([NoOp(p=1.)], bbox_format)
+    aug = Compose([NoOp(p=1.)], bbox_params={'format': bbox_format})
     transformed = aug(image=image, bboxes=bboxes)
     assert np.array_equal(transformed['image'], image)
     assert transformed['bboxes'] == bboxes
@@ -151,7 +151,7 @@ def test_compose_with_bbox_noop(bboxes, bbox_format):
 ])
 def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
     image = np.ones((100, 100, 3))
-    aug = ComposeWithBoxes([NoOp(p=1.)], bbox_format, label_fields=list(labels.keys()))
+    aug = Compose([NoOp(p=1.)], bbox_params={'format': bbox_format, 'label_fields': list(labels.keys())})
     transformed = aug(image=image, bboxes=bboxes, **labels)
     assert np.array_equal(transformed['image'], image)
     assert transformed['bboxes'] == bboxes
