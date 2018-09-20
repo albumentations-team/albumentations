@@ -1,10 +1,12 @@
 import numpy as np
 import pytest
 
-from albumentations.augmentations.transforms import CenterCrop
-from albumentations.augmentations.bbox import normalize_bbox, denormalize_bbox, normalize_bboxes, denormalize_bboxes, \
-    calculate_bbox_area, filter_bboxes_by_visibility, convert_bbox_to_albumentations,\
+from albumentations.augmentations.bbox_utils import normalize_bbox, denormalize_bbox, normalize_bboxes, \
+    denormalize_bboxes, calculate_bbox_area, filter_bboxes_by_visibility, convert_bbox_to_albumentations,\
     convert_bbox_from_albumentations, convert_bboxes_to_albumentations, convert_bboxes_from_albumentations
+from albumentations.core.composition import ComposeWithBoxes
+from albumentations.core.transforms_interface import NoOp
+from albumentations.augmentations.transforms import RandomSizedCrop
 
 
 @pytest.mark.parametrize(['bbox', 'expected'], [
@@ -62,31 +64,6 @@ def test_calculate_bbox_area(bbox, rows, cols, expected):
     assert area == expected
 
 
-def test_filter_bboxes_by_visibility():
-    image = np.ones((100, 100, 3))
-    aug = CenterCrop(64, 64, p=1)
-    bboxes = [[0.1, 0.1, 0.9, 0.8, 99], [0.7, 0.8, 0.9, 0.9]]
-    augmented = aug(image=image, bboxes=bboxes)
-
-    visible_bboxes_threshold_0_5 = filter_bboxes_by_visibility(
-        image,
-        bboxes,
-        augmented['image'],
-        augmented['bboxes'],
-        threshold=0.5,
-    )
-    assert visible_bboxes_threshold_0_5 == [augmented['bboxes'][0]]
-
-    visible_bboxes_threshold_0_1 = filter_bboxes_by_visibility(
-        image,
-        bboxes,
-        augmented['image'],
-        augmented['bboxes'],
-        threshold=0.1,
-    )
-    assert visible_bboxes_threshold_0_1 == augmented['bboxes']
-
-
 @pytest.mark.parametrize(['bbox', 'source_format', 'expected'], [
     [[20, 30, 40, 50], 'coco', [0.2, 0.3, 0.6, 0.8]],
     [[20, 30, 40, 50, 99], 'coco', [0.2, 0.3, 0.6, 0.8, 99]],
@@ -95,7 +72,9 @@ def test_filter_bboxes_by_visibility():
 ])
 def test_convert_bbox_to_albumentations(bbox, source_format, expected):
     image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_to_albumentations(image.shape, bbox, source_format=source_format)
+
+    converted_bbox = convert_bbox_to_albumentations(bbox, rows=image.shape[0], cols=image.shape[1],
+                                                    source_format=source_format)
     assert converted_bbox == expected
 
 
@@ -107,7 +86,8 @@ def test_convert_bbox_to_albumentations(bbox, source_format, expected):
 ])
 def test_convert_bbox_from_albumentations(bbox, target_format, expected):
     image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_from_albumentations(image.shape, bbox, target_format=target_format)
+    converted_bbox = convert_bbox_from_albumentations(bbox, rows=image.shape[0], cols=image.shape[1],
+                                                      target_format=target_format)
     assert converted_bbox == expected
 
 
@@ -119,24 +99,70 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected):
 ])
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
     image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_to_albumentations(image.shape, bbox, source_format=bbox_format)
-    converted_back_bbox = convert_bbox_from_albumentations(image.shape, converted_bbox, target_format=bbox_format)
+    converted_bbox = convert_bbox_to_albumentations(bbox, rows=image.shape[0], cols=image.shape[1],
+                                                    source_format=bbox_format)
+    converted_back_bbox = convert_bbox_from_albumentations(converted_bbox, rows=image.shape[0], cols=image.shape[1],
+                                                           target_format=bbox_format)
     assert converted_back_bbox == bbox
 
 
 def test_convert_bboxes_to_albumentations():
     bboxes = [[20, 30, 40, 50], [30, 40, 50, 60, 99]]
     image = np.ones((100, 100, 3))
-    converted_bboxes = convert_bboxes_to_albumentations(image.shape, bboxes, source_format='coco')
-    converted_bbox_1 = convert_bbox_to_albumentations(image.shape, bboxes[0], source_format='coco')
-    converted_bbox_2 = convert_bbox_to_albumentations(image.shape, bboxes[1], source_format='coco')
+    converted_bboxes = convert_bboxes_to_albumentations(bboxes, rows=image.shape[0], cols=image.shape[1],
+                                                        source_format='coco')
+    converted_bbox_1 = convert_bbox_to_albumentations(bboxes[0], rows=image.shape[0], cols=image.shape[1],
+                                                      source_format='coco')
+    converted_bbox_2 = convert_bbox_to_albumentations(bboxes[1], rows=image.shape[0], cols=image.shape[1],
+                                                      source_format='coco')
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
 
 
 def test_convert_bboxes_from_albumentations():
     bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
     image = np.ones((100, 100, 3))
-    converted_bboxes = convert_bboxes_from_albumentations(image.shape, bboxes, target_format='coco')
-    converted_bbox_1 = convert_bbox_from_albumentations(image.shape, bboxes[0], target_format='coco')
-    converted_bbox_2 = convert_bbox_from_albumentations(image.shape, bboxes[1], target_format='coco')
+    converted_bboxes = convert_bboxes_to_albumentations(bboxes, rows=image.shape[0], cols=image.shape[1],
+                                                        source_format='coco')
+    converted_bbox_1 = convert_bbox_to_albumentations(bboxes[0], rows=image.shape[0], cols=image.shape[1],
+                                                      source_format='coco')
+    converted_bbox_2 = convert_bbox_to_albumentations(bboxes[1], rows=image.shape[0], cols=image.shape[1],
+                                                      source_format='coco')
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
+
+
+@pytest.mark.parametrize(['bboxes', 'bbox_format'], [
+    [[[20, 30, 40, 50]], 'coco'],
+    [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], 'coco'],
+    [[[20, 30, 60, 80]], 'pascal_voc'],
+    [[[20, 30, 60, 80, 99]], 'pascal_voc'],
+])
+def test_compose_with_bbox_noop(bboxes, bbox_format):
+    image = np.ones((100, 100, 3))
+    aug = ComposeWithBoxes([NoOp(p=1.)], bbox_format)
+    transformed = aug(image=image, bboxes=bboxes)
+    assert np.array_equal(transformed['image'], image)
+    assert transformed['bboxes'] == bboxes
+
+
+@pytest.mark.parametrize(['bboxes', 'bbox_format', 'labels'], [
+    [[[20, 30, 60, 80]], 'pascal_voc', {'label': [1]}],
+    [[[20, 30, 60, 80]], 'pascal_voc', {'id': [3]}],
+    [[[20, 30, 60, 80], [30, 40, 40, 50]], 'pascal_voc', {'id': [3, 1]}],
+])
+def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
+    image = np.ones((100, 100, 3))
+    aug = ComposeWithBoxes([NoOp(p=1.)], bbox_format, label_fields=list(labels.keys()))
+    transformed = aug(image=image, bboxes=bboxes, **labels)
+    assert np.array_equal(transformed['image'], image)
+    assert transformed['bboxes'] == bboxes
+    for k, v in labels.items():
+        assert transformed[k] == v
+
+
+def test_random_sized_crop_size():
+    image = np.ones((100, 100, 3))
+    bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    aug = RandomSizedCrop((70, 90), 50, 50, p=1.)
+    transformed = aug(image=image, bboxes=bboxes)
+    assert transformed['image'].shape == (50, 50, 3)
+    assert len(bboxes) == len(transformed['bboxes'])

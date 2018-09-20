@@ -22,14 +22,22 @@
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.
 
-![Vladimir_Iglovikov](https://habrastorage.org/webt/_e/xe/8a/_exe8adren79a0ctavaiq4jf2jo.jpeg)
+![parrot](https://habrastorage.org/webt/bd/ne/rv/bdnerv5ctkudmsaznhw4crsdfiw.jpeg)
+
+![inria](https://habrastorage.org/webt/su/wa/np/suwanpeo6ww7wpwtobtrzd_cg20.jpeg)
+
+![medical](https://habrastorage.org/webt/1i/fi/wz/1ifiwzy0lxetc4nwjvss-71nkw0.jpeg)
+
+![vistas](https://habrastorage.org/webt/rz/-h/3j/rz-h3jalbxic8o_fhucxysts4tc.jpeg)
 
 ## Authors
 [Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/)
 
 [Alex Parinov](https://www.linkedin.com/in/alex-parinov/)
 
-[Vladimir Iglovikov](https://www.linkedin.com/in/iglovikov/)
+[Vladimir I. Iglovikov](https://www.linkedin.com/in/iglovikov/)
+
+[Evegene Khvedchenya](https://www.linkedin.com/in/cvtalks/)
 
 ## Installation
 You can use pip to install albumentations:
@@ -71,6 +79,7 @@ Results for running the benchmark on first 2000 images from the ImageNet validat
 | ShiftRGB          |     2.6159      |**2.1989**|               -                 |                 -                     |  3.0598  |
 | Gamma             |     1.4832      |    -     |            **1.1397**           |               1.1447                  |    -     |
 | Grayscale         |    **1.2048**   |  5.3895  |             1.6826              |               1.2721                  |    -     |
+
 
 
 ## Contributing
@@ -119,5 +128,16 @@ cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 ```
 
-### Thanks:
-Special thanks to [@creafz](https://github.com/creafz) for refactoring, documentation, tests, CI and benchmarks. Awesome work!
+# Citing
+
+If you find this library useful for your research, please consider citing:
+
+```
+@article{2018arXiv180906839B,
+    author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and A.~A. Kalinin},
+     title = "{Albumentations: fast and flexible image augmentations}",
+   journal = {ArXiv e-prints},
+    eprint = {1809.06839}, 
+      year = 2018      
+}
+```

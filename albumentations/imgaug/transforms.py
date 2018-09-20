@@ -1,7 +1,7 @@
 import imgaug as ia
 from imgaug import augmenters as iaa
 
-from ..augmentations.bbox import convert_bboxes_from_albumentations, \
+from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform
 
@@ -30,14 +30,14 @@ class DualIAATransform(DualTransform, BasicIAATransform):
 
     def apply_to_bboxes(self, bboxes, rows=0, cols=0, **params):
         if len(bboxes):
-            bboxes = convert_bboxes_from_albumentations((rows, cols), bboxes, 'pascal_voc')
+            bboxes = convert_bboxes_from_albumentations(bboxes, 'pascal_voc', rows=rows, cols=cols)
 
             bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols))
             bboxes_t = self.deterministic_processor.augment_bounding_boxes([bboxes_t])[0].bounding_boxes
             bboxes_t = [[bbox.x1, bbox.y1, bbox.x2, bbox.y2] + list(bbox_orig[4:]) for (bbox, bbox_orig) in
                         zip(bboxes_t, bboxes)]
 
-            bboxes = convert_bboxes_to_albumentations((rows, cols), bboxes_t, 'pascal_voc')
+            bboxes = convert_bboxes_to_albumentations(bboxes_t, 'pascal_voc', rows=rows, cols=cols)
         return bboxes
 
 
