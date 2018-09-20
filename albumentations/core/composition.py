@@ -17,7 +17,6 @@ class Compose(object):
         transforms (list): list of transformations to compose.
         preprocessing_transforms (list): list of transforms to run before transforms
         postprocessing_transforms (list): list of transforms to run after transforms
-
         p (float): probability of applying all list of transforms. Default: 1.0.
 
 
