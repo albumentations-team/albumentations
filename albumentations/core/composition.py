@@ -18,16 +18,16 @@ class Compose(object):
         preprocessing_transforms (list): list of transforms to run before transforms
         postprocessing_transforms (list): list of transforms to run after transforms
         p (float): probability of applying all list of transforms. Default: 1.0.
+        bbox_params (dict): Parameters for bounding boxes transforms
 
-
-    Other Parameters
-        bbox_params (dict): A `dict` with the following keys:
-            * format (str): format of bounding boxes. Should be 'coco' or 'pascal_voc'. If None - don't use bboxes.
-            label_fields (list): list of fields that are joined with boxes, e.g labels. Should be same type as boxes.
-            * min_area (float): minimum area of a bounding box. All bounding boxes whose visible area in pixels
-                is less than this value will be removed. Default: 0.0.
-            * min_visibility (float): minimum fraction of area for a bounding box to remain this box in list.
-                Default: 0.0.
+    **bbox_params** dictionary contains the following keys:
+        * **format** (*str*): format of bounding boxes. Should be 'coco' or 'pascal_voc'. If None - don't use bboxes.
+        * | **label_fields** (*list*): list of fields that are joined with boxes, e.g labels.
+          | Should be same type as boxes.
+        * | **min_area** (*float*): minimum area of a bounding box. All bounding boxes whose
+          | visible area in pixels is less than this value will be removed. Default: 0.0.
+        * | **min_visibility** (*float*): minimum fraction of area for a bounding box
+          | to remain this box in list. Default: 0.0.
     """
 
     def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[], bbox_params={}, p=1.0):
