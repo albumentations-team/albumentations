@@ -210,8 +210,8 @@ class Resize(DualTransform):
         self.width = width
         self.interpolation = interpolation
 
-    def apply(self, img, **params):
-        return F.resize(img, height=self.height, width=self.width, interpolation=self.interpolation)
+    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+        return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
