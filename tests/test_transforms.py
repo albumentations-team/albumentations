@@ -4,7 +4,7 @@ import pytest
 
 from albumentations import Transpose, Rotate, ShiftScaleRotate, OpticalDistortion, GridDistortion, ElasticTransform, \
     VerticalFlip, HorizontalFlip, RandomSizedCrop, RandomScale, IAAPiecewiseAffine, IAAAffine, IAAPerspective, \
-    LongestMaxSize
+    LongestMaxSize, Resize
 import albumentations.augmentations.functional as F
 
 
@@ -122,6 +122,8 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     [RandomSizedCrop, {'min_max_height': (80, 90), 'height': 100, 'width': 100}],
     [LongestMaxSize, {'max_size': 50}],
     [Rotate, {}],
+    [Resize, {'height': 80, 'width': 90}],
+    [Resize, {'height': 120, 'width': 130}],
     [OpticalDistortion, {}]
 ])
 def test_semantic_mask_interpolation(augmentation_cls, params):
