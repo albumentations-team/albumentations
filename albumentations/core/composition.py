@@ -22,6 +22,8 @@ class Compose(object):
 
     **bbox_params** dictionary contains the following keys:
         * **format** (*str*): format of bounding boxes. Should be 'coco' or 'pascal_voc'. If None - don't use bboxes.
+          The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
+          The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
         * | **label_fields** (*list*): list of fields that are joined with boxes, e.g labels.
           | Should be same type as boxes.
         * | **min_area** (*float*): minimum area of a bounding box. All bounding boxes whose
