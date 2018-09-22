@@ -9,6 +9,9 @@
 
 
 ## How to use
+
+**All in one showcase notebook** - [`showcase.ipynb`](notebooks/showcase.ipynb)
+
 **Classification** - [`example.ipynb`](notebooks/example.ipynb)
 
 **Object detection** - [`example_bboxes.ipynb`](notebooks/example_bboxes.ipynb)
