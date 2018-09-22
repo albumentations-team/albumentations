@@ -42,6 +42,16 @@ class Compose(object):
 
     def __call__(self, **data):
         need_to_run = random.random() < self.p
+        if 'bboxes' in data:
+            if self.bbox_format is None:
+                raise Exception("Please specify 'pascal_voc' or 'coco' as 'format' in 'bbox_params'")
+            if data['bboxes'] and len(data['bboxes'][0]) < 5:
+                if not self.label_fields:
+                    raise Exception("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
+                                    "because bboxes must have labels")
+            if self.label_fields:
+                if not all(l in data.keys() for l in self.label_fields):
+                    raise Exception("Your 'label_fields' are not valid - them must have same names as params in dict")
         if self.preprocessing_transforms or need_to_run:
             if self.bbox_format is not None:
                 data = self.boxes_preprocessing(data)
