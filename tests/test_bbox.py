@@ -130,18 +130,42 @@ def test_convert_bboxes_from_albumentations():
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
 
 
-@pytest.mark.parametrize(['bboxes', 'bbox_format'], [
-    [[[20, 30, 40, 50]], 'coco'],
-    [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], 'coco'],
-    [[[20, 30, 60, 80]], 'pascal_voc'],
-    [[[20, 30, 60, 80, 99]], 'pascal_voc'],
+@pytest.mark.parametrize(['bboxes', 'bbox_format', 'labels'], [
+    [[[20, 30, 40, 50]], 'coco', [1]],
+    [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], 'coco', None],
+    [[[20, 30, 60, 80]], 'pascal_voc', [2]],
+    [[[20, 30, 60, 80, 99]], 'pascal_voc', None],
 ])
-def test_compose_with_bbox_noop(bboxes, bbox_format):
+def test_compose_with_bbox_noop(bboxes, bbox_format, labels):
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.)], bbox_params={'format': bbox_format})
-    transformed = aug(image=image, bboxes=bboxes)
+    if labels is not None:
+        aug = Compose([NoOp(p=1.)], bbox_params={'format': bbox_format, 'label_fields': ['labels']})
+        transformed = aug(image=image, bboxes=bboxes, labels=labels)
+    else:
+        aug = Compose([NoOp(p=1.)], bbox_params={'format': bbox_format})
+        transformed = aug(image=image, bboxes=bboxes)
     assert np.array_equal(transformed['image'], image)
     assert transformed['bboxes'] == bboxes
+
+
+@pytest.mark.parametrize(['bboxes', 'bbox_format'], [
+    [[[20, 30, 40, 50]], 'coco'],
+])
+def test_compose_with_bbox_noop_error_label_fields(bboxes, bbox_format):
+    image = np.ones((100, 100, 3))
+    aug = Compose([NoOp(p=1.)], bbox_params={'format': bbox_format})
+    with pytest.raises(Exception):
+        aug(image=image, bboxes=bboxes)
+
+
+@pytest.mark.parametrize(['bboxes'], [
+    [[[20, 30, 40, 50]]],
+])
+def test_compose_with_bbox_noop_error_format(bboxes):
+    image = np.ones((100, 100, 3))
+    aug = Compose([NoOp(p=1.)])
+    with pytest.raises(Exception):
+        aug(image=image, bboxes=bboxes)
 
 
 @pytest.mark.parametrize(['bboxes', 'bbox_format', 'labels'], [
