@@ -158,16 +158,6 @@ def test_compose_with_bbox_noop_error_label_fields(bboxes, bbox_format):
         aug(image=image, bboxes=bboxes)
 
 
-@pytest.mark.parametrize(['bboxes'], [
-    [[[20, 30, 40, 50]]],
-])
-def test_compose_with_bbox_noop_error_format(bboxes):
-    image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.)])
-    with pytest.raises(Exception):
-        aug(image=image, bboxes=bboxes)
-
-
 @pytest.mark.parametrize(['bboxes', 'bbox_format', 'labels'], [
     [[[20, 30, 60, 80]], 'pascal_voc', {'label': [1]}],
     [[[20, 30, 60, 80]], 'pascal_voc', {'id': [3]}],
