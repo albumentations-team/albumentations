@@ -18,7 +18,7 @@
 
 **Non-8-bit images** - [`example_16_bit_tiff.ipynb`](notebooks/example_16_bit_tiff.ipynb)
 
-**Image segmentation** is also supported out of the box, notebook coming soon.
+**Image segmentation** [`example_kaggle_salt.ipynb`](notebooks/example_kaggle_salt.ipynb)
 
 **Custom tasks** such as autoencoders, more then three channel images - [`custom_targets`](https://gist.github.com/poxyu/799b359d7f87205b7c4288691ab019dc)
 
