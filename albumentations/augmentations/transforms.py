@@ -12,8 +12,8 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
-            'Resize', 'RandomSizedCrop']
+           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 
+           'SmallestMaxSize', 'Resize', 'RandomSizedCrop']
 
 
 class PadIfNeeded(DualTransform):
@@ -185,6 +185,7 @@ class LongestMaxSize(DualTransform):
         # Bounding box coordinates are scale invariant
         return bbox
 
+
 class SmallestMaxSize(DualTransform):
     """Rescale an image so that minimum side is equal to max_size, keeping the aspect ratio of the initial image.
 
@@ -198,7 +199,7 @@ class SmallestMaxSize(DualTransform):
     Image types:
         uint8, float32
     """
-    
+
     def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, p=1):
         super(SmallestMaxSize, self).__init__(p)
         self.inteprolation = interpolation
