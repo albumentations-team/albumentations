@@ -12,8 +12,8 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'Resize',
-           'RandomSizedCrop']
+           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
+            'Resize', 'RandomSizedCrop']
 
 
 class PadIfNeeded(DualTransform):
@@ -179,10 +179,34 @@ class LongestMaxSize(DualTransform):
         self.max_size = max_size
 
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
-        return F.longest_max_size(img, longest_max_size=self.max_size, interpolation=interpolation)
+        return F.longest_max_size(img, max_size=self.max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
+        return bbox
+
+class SmallestMaxSize(DualTransform):
+    """Rescale an image so that minimum side is equal to max_size, keeping the aspect ratio of the initial image.
+
+    Args:
+        p (float): probability of applying the transform. Default: 1.
+        max_size (int): maximum size of the image after the transformation
+
+    Targets:
+        image, mask, bboxes
+
+    Image types:
+        uint8, float32
+    """
+    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, p=1):
+        super(SmallestMaxSize, self).__init__(p)
+        self.inteprolation = interpolation
+        self.max_size = max_size
+
+    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+        return F.smallest_max_size(img, max_size=self.max_size, interpolation=interpolation)
+
+    def apply_to_bbox(self, bbox, **params):
         return bbox
 
 
