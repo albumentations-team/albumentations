@@ -198,6 +198,7 @@ class SmallestMaxSize(DualTransform):
     Image types:
         uint8, float32
     """
+    
     def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, p=1):
         super(SmallestMaxSize, self).__init__(p)
         self.inteprolation = interpolation
