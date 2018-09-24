@@ -190,7 +190,7 @@ class SmallestMaxSize(DualTransform):
 
     Args:
         p (float): probability of applying the transform. Default: 1.
-        max_size (int): maximum size of the image after the transformation
+        max_size (int): maximum size of smallest side of the image after the transformation
 
     Targets:
         image, mask, bboxes
