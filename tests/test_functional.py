@@ -606,7 +606,24 @@ def test_longest_max_size(target):
                          [10, 11]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = F.longest_max_size(img, longest_max_size=3, interpolation=cv2.INTER_LINEAR)
+    scaled = F.longest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
+    assert np.array_equal(scaled, expected)
+
+
+@pytest.mark.parametrize('target', ['image', 'mask'])
+def test_smallest_max_size(target):
+    img = np.array([
+        [1, 2, 3, 4, 5, 6],
+        [7, 8, 9, 10, 11, 12],
+        [12, 13, 14, 15, 16, 17],
+        [18, 19, 20, 21, 22, 23]], dtype=np.uint8)
+    expected = np.array([
+        [2, 4, 5, 7],
+        [10, 11, 13, 14],
+        [17, 19, 20, 22]], dtype=np.uint8)
+
+    img, expected = convert_2d_to_target_format([img, expected], target=target)
+    scaled = F.smallest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
