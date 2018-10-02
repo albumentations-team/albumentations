@@ -2,7 +2,7 @@ import random
 
 import cv2
 
-__all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform']
+__all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform', 'NoOp']
 
 
 def to_tuple(param, low=None):
