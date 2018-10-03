@@ -44,7 +44,7 @@ class Compose(object):
 
     def __call__(self, **data):
         need_to_run = random.random() < self.p
-        if self.bbox_format and len(data['bboxes'][0]) < 5:
+        if self.bbox_format and len(data.get('bboxes', [])) and len(data['bboxes'][0]) < 5:
             if not self.label_fields:
                 raise Exception("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
                                 "because bboxes must have labels")

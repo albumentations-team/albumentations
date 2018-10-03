@@ -160,6 +160,8 @@ def test_compose_with_bbox_noop_error_label_fields(bboxes, bbox_format):
 
 @pytest.mark.parametrize(['bboxes', 'bbox_format', 'labels'], [
     [[[20, 30, 60, 80]], 'pascal_voc', {'label': [1]}],
+    [[], 'pascal_voc', {}],
+    [[], 'pascal_voc', {'label': []}],
     [[[20, 30, 60, 80]], 'pascal_voc', {'id': [3]}],
     [[[20, 30, 60, 80], [30, 40, 40, 50]], 'pascal_voc', {'id': [3, 1]}],
 ])
