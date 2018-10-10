@@ -41,6 +41,7 @@ def test_to_tuple():
     assert to_tuple(10) == (-10, 10)
     assert to_tuple(0.5) == (-0.5, 0.5)
     assert to_tuple((-20, 20)) == (-20, 20)
+    assert to_tuple([-20, 20]) == (-20, 20)
     assert to_tuple(100, low=30) == (30, 100)
 
 

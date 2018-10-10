@@ -6,8 +6,8 @@ __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform', 
 
 
 def to_tuple(param, low=None):
-    if isinstance(param, tuple):
-        return param
+    if isinstance(param, (list, tuple)):
+        return tuple(param)
     else:
         return (-param if low is None else low, param)
 
