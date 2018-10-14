@@ -33,7 +33,6 @@ Then let's add the test itself:
         expected = np.ones((100, 100, 3), dtype=np.uint8) * expected_multiplier
         assert np.array_equal(img, expected)
 
-
 We can run tests from ``test_example.py`` (right now it contains only one test) by executing the following command: ``pytest tests/test_example.py -v``. The ``-v`` flag tells pytest to produce a more verbose output.
 
 ``pytest`` will show that the test has been completed successfully::
@@ -64,7 +63,6 @@ Output::
     tests/test_example.py::test_random_brightness PASSED
     tests/test_example.py::test_random_brightness_2 PASSED
 
-
 As we see functions ``test_random_brightness`` and ``test_random_brightness_2`` looks almost the same, the only difference is the values of ``alpha`` and ``expected_multiplier``. To get rid of code duplication we can use the ``@pytest.mark.parametrize`` decorator. With this decorator we can describe which values should be passed as arguments to the test and the pytest will run the test multiple times, each time passing the next value from the decorator.
 
 We can rewrite two previous tests as a one test using parametrization:
@@ -88,7 +86,6 @@ Let's run this test::
     tests/test_example.py::test_random_brightness[3-255] PASSED
 
 As we see pytest prints arguments values at each run.
-
 
 ***********************************************************************************************
 Simplifying tests for functions that work with both images and masks by using helper functions.
@@ -155,7 +152,6 @@ In ``test_vflip_img`` we manually defined values of ``img`` and ``expected_img``
 
     def convert_2d_to_3d(array, num_channels=3):
         return np.repeat(array[:, :, np.newaxis], repeats=num_channels, axis=2)
-
 
 Next, we can use this function to rewrite ``test_vflip_img`` as follows:
 
@@ -241,7 +237,6 @@ Using this helper function we can rewrite the test as follows:
         img, expected = convert_2d_to_target_format(img, expected, target=target)
         flipped_img = F.vflip(img)
         assert np.array_equal(flipped_img, expected)
-
 
 pytest output::
 
