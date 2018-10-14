@@ -62,8 +62,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'albumentations'
-copyright = '2017, Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov'
-author = 'Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov'
+copyright = '2017, Buslaev Alexander, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya'
+author = 'Buslaev Alexander, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
