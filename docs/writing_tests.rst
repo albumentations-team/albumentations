@@ -40,8 +40,6 @@ We can run tests from ``test_example.py`` (right now it contains only one test) 
 
     tests/test_example.py::test_random_brightness PASSED
 
-
-
 ****************************************************************
 Test parametrization and the @pytest.mark.parametrize decorator.
 ****************************************************************
@@ -90,7 +88,6 @@ Let's run this test::
     tests/test_example.py::test_random_brightness[3-255] PASSED
 
 As we see pytest prints arguments values at each run.
-
 
 ***********************************************************************************************
 Simplifying tests for functions that work with both images and masks by using helper functions.
@@ -205,7 +202,6 @@ Such a test can be written as follows:
         assert data['image'].dtype == np.uint8
         assert data['mask'].dtype == np.uint8
 
-
 We generate a random image and a random mask, then we pass them as inputs to the augmentation and then we check a data type of output values.
 
 If we want to perform this check for other augmentations as well, we will have to write code to generate a random image and mask at the beginning of each test:
@@ -216,7 +212,6 @@ If we want to perform this check for other augmentations as well, we will have t
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
 
 To avoid this duplication we can move code that generates random values to a fixture. Fixtures work as follows:
-
 
 1. In the ``tests/conftest.py`` file we create functions that are wrapped with the ``@pytest.fixture`` decorator:
 
@@ -287,9 +282,7 @@ A test that checks both VerticalFlip and HorizontalFlip can be written as follow
 
 This test will run two times, in the first run the ``augmentation_cls`` argument will be equal to ``VerticalFlip``. In the second run the ``augmentation_cls`` argument will be equal to ``HorizontalFlip``.
 
-
 pytest output::
 
     tests/test_example.py::test_multiple_augmentations[VerticalFlip] PASSED
     tests/test_example.py::test_multiple_augmentations[HorizontalFlip] PASSED
-
