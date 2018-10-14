@@ -89,9 +89,99 @@ Let's run this test::
 
 As we see pytest prints arguments values at each run.
 
+
 ***********************************************************************************************
 Simplifying tests for functions that work with both images and masks by using helper functions.
 ***********************************************************************************************
+Let's say that we want to test the ``hflip`` function. This function vertically flips an image or mask that passed as input to it.
+
+We will start with a test that checks that this function works correctly with masks, that is with two-dimensional NumPy arrays that have shape ``(height, width)``.
+
+.. code-block:: python
+
+    def test_vflip_mask():
+        mask = np.array(
+            [[1, 1, 1],
+             [0, 1, 1],
+             [0, 0, 1]], dtype=np.uint8)
+        expected_mask = np.array(
+            [[0, 0, 1],
+             [0, 1, 1],
+             [1, 1, 1]], dtype=np.uint8)
+        flipped_mask = F.vflip(mask)
+        assert np.array_equal(flipped_mask, expected_mask)
+
+Test running result::
+
+    tests/test_example.py::test_vflip_mask PASSED
+
+Next, we will make a test that checks how the same function works with RGB-images, that is with three-dimensional NumPy arrays that have shape ``(height, width, 3)``.
+
+.. code-block:: python
+
+    def test_vflip_img():
+        img = np.array(
+            [[[1, 1, 1],
+              [1, 1, 1],
+              [1, 1, 1]],
+             [[0, 0, 0],
+              [1, 1, 1],
+              [1, 1, 1]],
+             [[0, 0, 0],
+              [0, 0, 0],
+              [1, 1, 1]]], dtype=np.uint8)
+        expected_img = np.array(
+            [[[0, 0, 0],
+              [0, 0, 0],
+              [1, 1, 1]],
+             [[0, 0, 0],
+              [1, 1, 1],
+              [1, 1, 1]],
+             [[1, 1, 1],
+              [1, 1, 1],
+              [1, 1, 1]]], dtype=np.uint8)
+        flipped_img = F.vflip(img)
+        assert np.array_equal(flipped_img, expected_img)
+
+In this test, the value of ``img`` is the same NumPy array that was assigned to the ``mask`` variable in ``test_vflip_mask``, but this time it is repeated three times (one time for each of the three channels). And ``expected_img`` is also a repeated three times NumPy array that was assigned to the ``expected_mask`` variable in ``test_vflip_mask``.
+
+Let's run the test::
+
+    tests/test_example.py::test_vflip_img PASSED
+
+In ``test_vflip_img`` we manually defined values of ``img`` and ``expected_img`` that equal to repeated three times values of ``mask`` and ``expected_mask`` respectively. To avoid unnecessary and duplicate code we can make a helper function that takes a NumPy array with shape ``(height, width)`` as input and repeats this value 3 times along a new axis to produce a NumPy array with shape ``(height, width, 3)``:
+
+.. code-block:: python
+
+    def convert_2d_to_3d(array, num_channels=3):
+        return np.repeat(array[:, :, np.newaxis], repeats=num_channels, axis=2)
+
+
+Next, we can use this function to rewrite ``test_vflip_img`` as follows:
+
+.. code-block:: python
+
+    def test_vflip_img_2():
+        mask = np.array(
+            [[1, 1, 1],
+             [0, 1, 1],
+             [0, 0, 1]], dtype=np.uint8)
+        expected_mask = np.array(
+            [[0, 0, 1],
+             [0, 1, 1],
+             [1, 1, 1]], dtype=np.uint8)
+        img = convert_2d_to_3d(mask)
+        expected_img = convert_2d_to_3d(expected_mask)
+        flipped_img = F.vflip(img)
+        assert np.array_equal(flipped_img, expected_img)
+
+Let's run the test::
+
+    tests/test_example.py::test_vflip_img_2 PASSED
+
+**********************************************************************************************
+Simplifying tests for functions that work with both images and masks by using parametrization.
+**********************************************************************************************
 
 In the previous section we wrote two separate tests for ``vflip``, the first one checked how ``vflip`` works with masks, the second one checked how ``vflip`` works with images.
 
