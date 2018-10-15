@@ -229,7 +229,7 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     return img
 
 
-def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101):
+def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
     height, width = img.shape[:2]
 
     if height < min_height:
@@ -246,7 +246,11 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101):
         w_pad_left = 0
         w_pad_right = 0
 
-    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode)
+    if border_mode == cv2.BORDER_CONSTANT:
+        img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left,
+                                 w_pad_right, border_mode, value=value)
+    else:
+        img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode)
 
     assert img.shape[0] == max(min_height, height)
     assert img.shape[1] == max(min_width, width)
