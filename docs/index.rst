@@ -49,3 +49,4 @@ to adjust image augmentation parameters and see the resulting images.
    contributing
    api/index
    probabilities
+   writing_tests
