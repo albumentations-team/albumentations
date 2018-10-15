@@ -21,6 +21,7 @@ class PadIfNeeded(DualTransform):
 
     Args:
         p (float): probability of applying the transform. Default: 1.0.
+        value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
 
     Targets:
         image, mask
@@ -30,14 +31,17 @@ class PadIfNeeded(DualTransform):
 
     """
 
-    def __init__(self, min_height=1024, min_width=1024, border_mode=cv2.BORDER_REFLECT_101, p=1.0):
+    def __init__(self, min_height=1024, min_width=1024, border_mode=cv2.BORDER_REFLECT_101,
+                 value=[0, 0, 0], p=1.0):
         super(PadIfNeeded, self).__init__(p)
         self.min_height = min_height
         self.min_width = min_width
         self.border_mode = border_mode
+        self.value = value
 
     def apply(self, img, **params):
-        return F.pad(img, min_height=self.min_height, min_width=self.min_width, border_mode=self.border_mode)
+        return F.pad(img, min_height=self.min_height, min_width=self.min_width,
+                     border_mode=self.border_mode, value=self.value)
 
 
 class Crop(DualTransform):
