@@ -49,7 +49,7 @@ def print_package_versions():
     package_versions = {'python': sys.version}
     for package in packages:
         try:
-            package_versions[package] =  pkg_resources.get_distribution(package).version
+            package_versions[package] = pkg_resources.get_distribution(package).version
         except pkg_resources.DistributionNotFound:
             pass
     print(package_versions)
