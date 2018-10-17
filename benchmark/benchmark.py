@@ -1,8 +1,11 @@
 from __future__ import division, print_function
 import argparse
+import math
 import os
+import sys
 from timeit import Timer
 from collections import defaultdict
+import pkg_resources
 
 from PIL import Image
 import cv2
@@ -26,7 +29,30 @@ def parse_args():
                         help='number of runs for each benchmark (default: 5)')
     parser.add_argument('--show-std', dest='show_std', action='store_true',
                         help='show standard deviation for benchmark runs')
+    parser.add_argument('-p', '--print-package-versions', action='store_true', help='print versions of packages')
     return parser.parse_args()
+
+
+def print_package_versions():
+    packages = [
+        'albumentations',
+        'imgaug',
+        'torchvision',
+        'keras',
+        'numpy',
+        'opencv-python',
+        'scikit-image',
+        'scipy',
+        'pillow',
+        'pillow-simd',
+    ]
+    package_versions = {'python': sys.version}
+    for package in packages:
+        try:
+            package_versions[package] = pkg_resources.get_distribution(package).version
+        except pkg_resources.DistributionNotFound:
+            pass
+    print(package_versions)
 
 
 def read_img_pillow(path):
@@ -41,12 +67,12 @@ def read_img_cv2(filepath):
     return img
 
 
-def format_results(run_times_for_aug, show_std=False):
-    if run_times_for_aug is None:
+def format_results(images_per_second_for_aug, show_std=False):
+    if images_per_second_for_aug is None:
         return '-'
-    result = '{:.4f}'.format(np.mean(run_times_for_aug))
+    result = str(math.floor(np.mean(images_per_second_for_aug)))
     if show_std:
-        result += ' ± {:.4f}'.format(np.std(run_times_for_aug))
+        result += ' ± {}'.format(math.ceil(np.std(images_per_second_for_aug)))
     return result
 
 
@@ -237,7 +263,9 @@ class Grayscale(BenchmarkTest):
 
 def main():
     args = parse_args()
-    run_times = defaultdict(dict)
+    if args.print_package_versions:
+        print_package_versions()
+    images_per_second = defaultdict(dict)
     libraries = ['albumentations', 'imgaug', 'torchvision', 'keras']
     data_dir = args.data_dir
     paths = list(sorted(os.listdir(data_dir)))
@@ -262,15 +290,16 @@ def main():
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description('Current benchmark: {} | {}'.format(library, benchmark))
-            run_time = None
+            benchmark_images_per_second = None
             if hasattr(benchmark, library):
                 timer = Timer(lambda: benchmark.run(library, imgs))
-                run_time = timer.repeat(number=1, repeat=args.runs)
-            run_times[library][str(benchmark)] = run_time
+                run_times = timer.repeat(number=1, repeat=args.runs)
+                benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
+            images_per_second[library][str(benchmark)] = benchmark_images_per_second
             pbar.update(1)
         pbar.close()
     pd.set_option('display.width', 1000)
-    df = pd.DataFrame.from_dict(run_times)
+    df = pd.DataFrame.from_dict(images_per_second)
     df = df.applymap(lambda r: format_results(r, args.show_std))
     df = df[libraries]
     augmentations = ['RandomCrop64', 'PadToSize512', 'HorizontalFlip', 'VerticalFlip', 'Rotate', 'ShiftScaleRotate',
