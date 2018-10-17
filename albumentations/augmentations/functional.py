@@ -19,11 +19,11 @@ MAX_VALUES_BY_DTYPE = {
 
 
 def vflip(img):
-    return cv2.flip(img, 0)
+    return np.ascontiguousarray(img[::-1, ...])
 
 
 def hflip(img):
-    return cv2.flip(img, 1)
+    return np.ascontiguousarray(img[:, ::-1, ...])
 
 
 def random_flip(img, code):
