@@ -229,31 +229,12 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     return img
 
 
-def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
-    height, width = img.shape[:2]
-
-    if height < min_height:
-        h_pad_top = int((min_height - height) / 2.0)
-        h_pad_bottom = min_height - height - h_pad_top
-    else:
-        h_pad_top = 0
-        h_pad_bottom = 0
-
-    if width < min_width:
-        w_pad_left = int((min_width - width) / 2.0)
-        w_pad_right = min_width - width - w_pad_left
-    else:
-        w_pad_left = 0
-        w_pad_right = 0
-
+def pad(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
     if border_mode == cv2.BORDER_CONSTANT:
         img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left,
                                  w_pad_right, border_mode, value=value)
     else:
         img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode)
-
-    assert img.shape[0] == max(min_height, height)
-    assert img.shape[1] == max(min_width, width)
 
     return img
 
@@ -509,6 +490,21 @@ def from_float(img, dtype, max_value=None):
                 'passing the max_value argument'.format(dtype)
             )
     return (img * max_value).astype(dtype)
+
+
+def bbox_pad(bbox, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right):
+    h_padded_size = height + h_pad_top + h_pad_bottom
+    w_padded_size = width + w_pad_left + w_pad_right
+    if h_padded_size <= 0 or w_padded_size <= 0:
+        raise ValueError(
+            f'Invalid padding shape ({h_padded_size},{w_padded_size})'
+        )
+    return [
+        (bbox[0] * width + w_pad_left) / (width + w_pad_left + w_pad_right),
+        (bbox[2] * width + w_pad_left) / (width + w_pad_left + w_pad_right),
+        (bbox[1] * height + h_pad_top) / (height + h_pad_top + h_pad_bottom),
+        (bbox[3] * height + h_pad_top) / (height + h_pad_top + h_pad_bottom)
+    ]
 
 
 def bbox_vflip(bbox, rows, cols):
