@@ -40,7 +40,7 @@ class PadIfNeeded(DualTransform):
         self.value = value
 
     def apply(self, img, h_pad_top=0, h_pad_bottom=0, w_pad_left=0, w_pad_right=0, **params):
-        return F.pad(img, h_pad_top=h_pad_top, h_pad_botton=h_pad_bottom,
+        return F.pad(img, h_pad_top=h_pad_top, h_pad_bottom=h_pad_bottom,
                      w_pad_left=w_pad_left, w_pad_right=w_pad_right,
                      border_mode=self.border_mode, value=self.value)
 
