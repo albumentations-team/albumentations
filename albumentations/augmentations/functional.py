@@ -497,13 +497,13 @@ def bbox_pad(bbox, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_rig
     w_padded_size = width + w_pad_left + w_pad_right
     if h_padded_size <= 0 or w_padded_size <= 0:
         raise ValueError(
-            f'Invalid padding shape ({h_padded_size},{w_padded_size})'
+            'Invalid padding shape ({},{})'.format(h_padded_size, w_padded_size)
         )
     return [
-        (bbox[0] * width + w_pad_left) / (width + w_pad_left + w_pad_right),
-        (bbox[2] * width + w_pad_left) / (width + w_pad_left + w_pad_right),
-        (bbox[1] * height + h_pad_top) / (height + h_pad_top + h_pad_bottom),
-        (bbox[3] * height + h_pad_top) / (height + h_pad_top + h_pad_bottom)
+        (bbox[0] * width + w_pad_left) / w_padded_size,
+        (bbox[1] * height + h_pad_top) / h_padded_size,
+        (bbox[2] * width + w_pad_left) / w_padded_size,
+        (bbox[3] * height + h_pad_top) / h_padded_size
     ]
 
 
