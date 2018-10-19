@@ -33,7 +33,7 @@ def clipped(func):
 
 
 def preserve_shape(func):
-    """Decorator that preserve shape of the image after applying augmentation.
+    """Preserve shape of the image.
     """
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
@@ -46,7 +46,7 @@ def preserve_shape(func):
 
 
 def preserve_channel_dim(func):
-    """Decorator that preserve shape channels dim after applying augmentation.
+    """Preserve dummy channel dim.
     """
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
