@@ -33,11 +33,8 @@ def clipped(func):
 
 
 def preserve_shape(func):
+    """Decorator that preserves shape of the image after applying augmentation.
     """
-    Decorator that preserves shape of the image after applying augmentation.
-    OpenCV functions squeeze last dimension if it's 1.
-    """
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -49,9 +46,7 @@ def preserve_shape(func):
 
 
 def preserve_channel_dim(func):
-    """
-    Decorator that preserves shape channels dim after applying augmentation.
-    OpenCV functions tends to squeeze last dimension if it's 1. So we put it back
+    """Decorator that preserves shape channels dim after applying augmentation.
     """
 
     @wraps(func)
