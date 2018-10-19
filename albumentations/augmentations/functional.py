@@ -467,17 +467,11 @@ def gauss_noise(image, var):
 
 
 @clipped
-def random_brightness(img, alpha):
+def brightness_contrast_adjust(img, alpha=1, beta=0):
     img = img.astype('float32')
     img *= alpha
+    img += beta
     return img
-
-
-@clipped
-def random_contrast(img, alpha):
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    gray = (3.0 * (1.0 - alpha) / gray.size) * np.sum(gray)
-    return alpha * img + gray
 
 
 def to_gray(img):

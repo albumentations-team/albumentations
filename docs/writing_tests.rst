@@ -8,7 +8,7 @@ A first test.
 
 We use ``pytest`` to run tests for albumentations. Python files with tests should be placed inside the ``albumentations/tests`` directory, filenames should start with ``test_``, for example ``test_bbox.py``. Names of test functions should also start with ``test_``, for example, ``def test_random_brightness():``.
 
-Let's say that we want to test the ``random_brightness`` function. The purpose of this function is to take a NumPy array as input and multiply all the values of this array by a value specified in the argument ``alpha``.
+Let's say that we want to test the ``brightness_contrast_adjust`` function. The purpose of this function is to take a NumPy array as input and multiply all the values of this array by a value specified in the argument ``alpha``.
 
 We will write a first test for this function that will check that if you pass a NumPy array with all values equal to 128 and a parameter ``alpha`` that equals to 1.5 as inputs the function should produce a NumPy array with all values equal to 192 as output (that's because 128 * 1.5 = 192).
 
@@ -26,10 +26,10 @@ Then let's add the test itself:
 
 .. code-block:: python
 
-    def test_random_brightness():
+    def test_random_contrast():
         img = np.ones((100, 100, 3), dtype=np.uint8) * 128
-        img = F.random_brightness(img, alpha=1.5)
-        expected_multiplier = 192
+        img = F.brightness_contrast_adjust(img, alpha=1.5)
+        expected_brightness = 192
         expected = np.ones((100, 100, 3), dtype=np.uint8) * expected_multiplier
         assert np.array_equal(img, expected)
 
@@ -43,15 +43,15 @@ We can run tests from ``test_example.py`` (right now it contains only one test) 
 Test parametrization and the @pytest.mark.parametrize decorator.
 ****************************************************************
 
-Let's say that we also want to test that the function ``random_brightness`` correctly handles a situation in which after multiplying an input array by ``alpha`` some output values exceed 255. Because when we a pass a NumPy array with the data type ``np.uint8`` as input we expect that we will also get an array with the ``np.uint8`` data type as output and that means that output values should not exceed 255 (which is the maximum value for this data type). We also want to check that values don't overflow, so if inside the function we get a value 256 we should clip it to 255 and not overflow to 0.
+Let's say that we also want to test that the function ``brightness_contrast_adjust`` correctly handles a situation in which after multiplying an input array by ``alpha`` some output values exceed 255. Because when we a pass a NumPy array with the data type ``np.uint8`` as input we expect that we will also get an array with the ``np.uint8`` data type as output and that means that output values should not exceed 255 (which is the maximum value for this data type). We also want to check that values don't overflow, so if inside the function we get a value 256 we should clip it to 255 and not overflow to 0.
 
 Let's write a test:
 
 .. code-block:: python
 
-    def test_random_brightness_2():
+    def test_random_contrast_2():
         img = np.ones((100, 100, 3), dtype=np.uint8) * 128
-        img = F.random_brightness(img, alpha=3)
+        img = F.brightness_contrast_adjust(img, alpha=3)
         expected_multiplier = 255
         expected = np.ones((100, 100, 3), dtype=np.uint8) * expected_multiplier
         assert np.array_equal(img, expected)
@@ -74,7 +74,7 @@ We can rewrite two previous tests as a one test using parametrization:
     @pytest.mark.parametrize(['alpha', 'expected_multiplier'], [(1.5, 192), (3, 255)])
     def test_random_brightness(alpha, expected_multiplier):
         img = np.ones((100, 100, 3), dtype=np.uint8) * 128
-        img = F.random_brightness(img, alpha=alpha)
+        img = F.brightness_contrast_adjust(img, alpha=alpha)
         expected = np.ones((100, 100, 3), dtype=np.uint8) * expected_multiplier
         assert np.array_equal(img, expected)
 
