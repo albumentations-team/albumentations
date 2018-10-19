@@ -18,6 +18,36 @@ MAX_VALUES_BY_DTYPE = {
 }
 
 
+def clip(img, dtype, maxval):
+    return np.clip(img, 0, maxval).astype(dtype)
+
+
+def clipped(func):
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        dtype = img.dtype
+        maxval = MAX_VALUES_BY_DTYPE.get(dtype, 1.0)
+        return clip(func(img, *args, **kwargs), dtype, maxval)
+
+    return wrapped_function
+
+
+def preserve_shape(func):
+    """
+    Decorator that preserves shape of the image after applying augmentation.
+    OpenCV functions squeeze last dimension if it's 1.
+    """
+
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        shape = img.shape
+        result = func(img, *args, **kwargs)
+        result = result.reshape(shape)
+        return result
+
+    return wrapped_function
+
+
 def vflip(img):
     return np.ascontiguousarray(img[::-1, ...])
 
@@ -26,6 +56,7 @@ def hflip(img):
     return np.ascontiguousarray(img[:, ::-1, ...])
 
 
+@preserve_shape
 def random_flip(img, code):
     return cv2.flip(img, code)
 
@@ -65,6 +96,7 @@ def cutout(img, num_holes, max_h_size, max_w_size):
     return img
 
 
+@preserve_shape
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
@@ -72,6 +104,7 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
     return img
 
 
+@preserve_shape
 def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
@@ -79,11 +112,13 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     return img
 
 
+@preserve_shape
 def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
     img = cv2.resize(img, (width, height), interpolation=interpolation)
     return img
 
 
+@preserve_shape
 def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
@@ -174,20 +209,6 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
     return img
 
 
-def clip(img, dtype, maxval):
-    return np.clip(img, 0, maxval).astype(dtype)
-
-
-def clipped(func):
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        dtype = img.dtype
-        maxval = MAX_VALUES_BY_DTYPE.get(dtype, 1.0)
-        return clip(func(img, *args, **kwargs), dtype, maxval)
-
-    return wrapped_function
-
-
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
@@ -229,6 +250,7 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     return img
 
 
+@preserve_shape
 def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
     height, width = img.shape[:2]
 
@@ -258,6 +280,7 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=[0
     return img
 
 
+@preserve_shape
 def blur(img, ksize):
     return cv2.blur(img, (ksize, ksize))
 
@@ -273,14 +296,17 @@ def _func_max_size(img, max_size, interpolation, func):
     return img
 
 
+@preserve_shape
 def longest_max_size(img, max_size, interpolation):
     return _func_max_size(img, max_size, interpolation, max)
 
 
+@preserve_shape
 def smallest_max_size(img, max_size, interpolation):
     return _func_max_size(img, max_size, interpolation, min)
 
 
+@preserve_shape
 def median_blur(img, ksize):
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(
@@ -288,6 +314,7 @@ def median_blur(img, ksize):
     return cv2.medianBlur(img, ksize)
 
 
+@preserve_shape
 def motion_blur(img, ksize):
     assert ksize > 2
     kernel = np.zeros((ksize, ksize), dtype=np.uint8)
@@ -300,6 +327,7 @@ def motion_blur(img, ksize):
     return cv2.filter2D(img, -1, kernel / np.sum(kernel))
 
 
+@preserve_shape
 def jpeg_compression(img, quality):
     input_dtype = img.dtype
     needs_float = False
@@ -322,6 +350,7 @@ def jpeg_compression(img, quality):
     return img
 
 
+@preserve_shape
 def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -340,8 +369,8 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
     cy = height * 0.5 + dy
 
     camera_matrix = np.array([[fx, 0, cx],
-                             [0, fy, cy],
-                             [0, 0, 1]], dtype=np.float32)
+                              [0, fy, cy],
+                              [0, 0, 1]], dtype=np.float32)
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
     map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
@@ -349,6 +378,7 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
     return img
 
 
+@preserve_shape
 def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
                     border_mode=cv2.BORDER_REFLECT_101):
     """
@@ -394,6 +424,7 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
     return img
 
 
+@preserve_shape
 def elastic_transform_fast(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
                            border_mode=cv2.BORDER_REFLECT_101, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
@@ -445,6 +476,7 @@ def channel_shuffle(img):
     return img
 
 
+@preserve_shape
 def gamma_transform(img, gamma):
     if img.dtype == np.uint8:
         invGamma = 1.0 / gamma
