@@ -48,7 +48,6 @@ def preserve_shape(func):
 def preserve_channel_dim(func):
     """Decorator that preserves shape channels dim after applying augmentation.
     """
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
