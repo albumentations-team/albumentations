@@ -114,12 +114,11 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
     """Convert a bounding box from the format used by albumentations to a format, specified in `target_format`.
 
     Args:
-        shape (tuple): input image shape. Image must have at least 2 dims
         bbox (list): bounding box with coordinates in the format used by albumentations
         target_format (str): required format of the output bounding box. Should be 'coco' or 'pascal_voc'.
-        check_validity (bool): check if all boxes are valid boxes
         rows (int): image height
         cols (int): image width
+        check_validity (bool): check if all boxes are valid boxes
 
     Note:
         The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
@@ -155,9 +154,11 @@ def convert_bboxes_from_albumentations(bboxes, target_format, rows, cols, check_
     in `target_format`.
 
     Args:
-        shape (tuple): input image shape. Image must have at least 2 dims
         bboxes (list): List of bounding box with coordinates in the format used by albumentations
         target_format (str): required format of the output bounding box. Should be 'coco' or 'pascal_voc'.
+        rows (int): image height
+        cols (int): image width
+        check_validity (bool): check if all boxes are valid boxes
     """
     return [convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_validity) for bbox in bboxes]
 
@@ -196,11 +197,12 @@ def filter_bboxes(bboxes, rows, cols, min_area=0., min_visibility=0.):
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
     Args:
+        bboxes (list): List of bounding box with coordinates in the format used by albumentations
+        rows (int): Image rows.
+        cols (int): Image cols.
         min_area (float): minimum area of a bounding box. All bounding boxes whose visible area in pixels
             is less than this value will be removed. Default: 0.0.
         min_visibility (float): minimum fraction of area for a bounding box to remain this box in list. Default: 0.0.
-        rows (int): Image rows.
-        rows (int): Image cols.
     """
     resulting_boxes = []
     for bbox in bboxes:
