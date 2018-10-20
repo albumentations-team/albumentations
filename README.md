@@ -10,15 +10,15 @@
 
 ## How to use
 
-**All in one showcase notebook** - [`showcase.ipynb`](notebooks/showcase.ipynb)
+**All in one showcase notebook** - [`showcase.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/showcase.ipynb)
 
-**Classification** - [`example.ipynb`](notebooks/example.ipynb)
+**Classification** - [`example.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example.ipynb)
 
-**Object detection** - [`example_bboxes.ipynb`](notebooks/example_bboxes.ipynb)
+**Object detection** - [`example_bboxes.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_bboxes.ipynb)
 
-**Non-8-bit images** - [`example_16_bit_tiff.ipynb`](notebooks/example_16_bit_tiff.ipynb)
+**Non-8-bit images** - [`example_16_bit_tiff.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_16_bit_tiff.ipynb)
 
-**Image segmentation** [`example_kaggle_salt.ipynb`](notebooks/example_kaggle_salt.ipynb)
+**Image segmentation** [`example_kaggle_salt.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_kaggle_salt.ipynb)
 
 **Custom tasks** such as autoencoders, more then three channel images - [`custom_targets`](https://gist.github.com/poxyu/799b359d7f87205b7c4288691ab019dc)
 
@@ -61,11 +61,11 @@ The full documentation is available at [albumentations.readthedocs.io](https://a
 
 Migrating from torchvision to albumentations is simple - you just need to change a few lines of code. 
 Albumentations has equivalents for common torchvision transforms as well as plenty of transforms that are not presented in torchvision.
-[`migrating_from_torchvision_to_albumentations.ipynb`](notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
+[`migrating_from_torchvision_to_albumentations.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
 
 
 ## Benchmarking results
-To run the benchmark yourself follow the instructions in [benchmark/README.md](benchmark/README.md)
+To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albu/albumentations/blob/master/benchmark/README.md)
 
 Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Core i7-7800X CPU.
 The table shows how many images per second can be processed on a single core, higher is better.
@@ -90,36 +90,36 @@ Python and library versions: Python 3.6.6 | Anaconda, numpy 1.15.2, pillow 5.3.0
 
 ## Contributing
 1. Clone the repository:
-```
-git clone git@github.com:albu/albumentations.git
-cd albumentations
-```
+   ```
+   git clone git@github.com:albu/albumentations.git
+   cd albumentations
+   ```
 2. Install the library in development mode:
-```
-pip install -e .[tests]
-```
+   ```
+   pip install -e .[tests]
+   ```
 3. Run tests:
-```
-pytest
-```
+   ```
+   pytest
+   ```
 4. Run flake8 to perform PEP8 and PEP257 style checks and to check code for lint errors.
-```
-flake8
-```
+   ```
+   flake8
+   ```
 
 ## Building the documentation
 1. Go to `docs/` directory
-```
-cd docs
-```
+   ```
+   cd docs
+   ```
 2. Install required libraries
-```
-pip install -r requirements.txt
-```
+   ```
+   pip install -r requirements.txt
+   ```
 3. Build html files
-```
-make html
-```
+   ```
+   make html
+   ```
 4. Open `_build/html/index.html` in browser.
 
 Alternatively, you can start a web server that rebuilds the documentation
