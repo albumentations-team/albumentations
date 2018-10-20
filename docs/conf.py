@@ -63,8 +63,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'albumentations'
-copyright = '{}, Buslaev Alexander, Alex Parinov, '
-            'Vladimir Iglovikov, Evegene Khvedchenya'.format(datetime.datetime.now().year)
+copyright = ('{}, Buslaev Alexander, Alex Parinov, Vladimir Iglovikov, '
+             'Evegene Khvedchenya').format(datetime.datetime.now().year)
 author = 'Buslaev Alexander, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya'
 
 # The version info for the project you're documenting, acts as replacement for
