@@ -1,3 +1,4 @@
+import io
 import os
 import re
 import sys
@@ -7,7 +8,7 @@ from setuptools import setup, find_packages
 def get_version():
     current_dir = os.path.abspath(os.path.dirname(__file__))
     version_file = os.path.join(current_dir, 'albumentations', '__init__.py')
-    with open(version_file) as f:
+    with io.open(version_file, encoding='utf-8') as f:
         return re.search(r'^__version__ = [\'"]([^\'"]*)[\'"]', f.read(), re.M).group(1)
 
 
@@ -20,14 +21,14 @@ def get_test_requirements():
 
 def get_long_description():
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    with open(os.path.join(base_dir, 'README.md')) as f:
+    with io.open(os.path.join(base_dir, 'README.md'), encoding='utf-8') as f:
         return f.read()
 
 
 setup(
     name='albumentations',
     version=get_version(),
-    description='fast image augmentation library and easy to use wrapper around other libraries',
+    description='Fast image augmentation library and easy to use wrapper around other libraries',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
     author='Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov',
