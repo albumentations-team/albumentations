@@ -770,13 +770,13 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
 class RandomBrightness(RandomBrightnessContrast):
     def __init__(self, limit=0.2, p=0.5):
-        super().__init__(brightness_limit=limit, contrast_limit=0, p=p)
+        super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0, p=p)
         warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
 
 
 class RandomContrast(RandomBrightnessContrast):
     def __init__(self, limit=0.2, p=0.5):
-        super().__init__(brightness_limit=0, contrast_limit=limit, p=p)
+        super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, p=p)
         warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
 
 
