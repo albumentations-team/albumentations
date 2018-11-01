@@ -29,6 +29,16 @@ def test_compose():
     assert second.called
 
 
+def test_compose_to_tensor():
+    first = MagicMock()
+    second = MagicMock()
+    to_tensor = MagicMock()
+    augmentation = Compose([first, second], to_tensor=to_tensor, p=0)
+    image = np.ones((8, 8))
+    augmentation(image=image)
+    assert to_tensor.called
+
+
 def test_one_of():
     transforms = [Mock(p=1) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
