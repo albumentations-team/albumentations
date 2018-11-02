@@ -492,19 +492,23 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
-def bbox_pad(bbox, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right):
-    h_padded_size = height + h_pad_top + h_pad_bottom
-    w_padded_size = width + w_pad_left + w_pad_right
-    if h_padded_size <= 0 or w_padded_size <= 0:
-        raise ValueError(
-            'Invalid padding shape ({},{})'.format(h_padded_size, w_padded_size)
-        )
-    return [
-        (bbox[0] * width + w_pad_left) / w_padded_size,
-        (bbox[1] * height + h_pad_top) / h_padded_size,
-        (bbox[2] * width + w_pad_left) / w_padded_size,
-        (bbox[3] * height + h_pad_top) / h_padded_size
-    ]
+def bbox_pad(bbox, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101):
+    if border_mode == cv2.BORDER_CONSTANT:
+        h_padded_size = height + h_pad_top + h_pad_bottom
+        w_padded_size = width + w_pad_left + w_pad_right
+        if h_padded_size <= 0 or w_padded_size <= 0:
+            raise ValueError(
+                'Invalid padding shape ({},{})'.format(h_padded_size, w_padded_size)
+            )
+        return [
+            (bbox[0] * width + w_pad_left) / w_padded_size,
+            (bbox[1] * height + h_pad_top) / h_padded_size,
+            (bbox[2] * width + w_pad_left) / w_padded_size,
+            (bbox[3] * height + h_pad_top) / h_padded_size
+        ]
+    else:
+        raise ValueError('Unsupported padding border mode for boudning boxes: '
+                         'use cv2.BORDER_CONSTANT instead.')
 
 
 def bbox_vflip(bbox, rows, cols):

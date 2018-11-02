@@ -18,7 +18,7 @@ class BasicTransform(object):
 
     def __call__(self, **kwargs):
         if random.random() < self.p:
-            params = self.get_params(**kwargs)
+            params = self.get_params()
             params = self.update_params(params, **kwargs)
             res = {}
             for key, arg in kwargs.items():
@@ -31,7 +31,7 @@ class BasicTransform(object):
     def apply(self, img, **params):
         raise NotImplementedError
 
-    def get_params(self, **kwargs):
+    def get_params(self):
         return {}
 
     @property

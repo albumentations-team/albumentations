@@ -283,7 +283,7 @@ def test_pad(target):
          [4, 3, 4, 3],
          [2, 1, 2, 1]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    padded = F.pad(img, min_height=4, min_width=4)
+    padded = F.pad(img, h_pad_top=1, h_pad_bottom=1, w_pad_left=1, w_pad_right=1)
     assert np.array_equal(padded, expected)
 
 
@@ -298,8 +298,20 @@ def test_pad_float(target):
          [0.4, 0.3, 0.4, 0.3],
          [0.2, 0.1, 0.2, 0.1]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    padded_img = F.pad(img, min_height=4, min_width=4)
+    padded_img = F.pad(img, h_pad_top=1, h_pad_bottom=1, w_pad_left=1, w_pad_right=1)
     assert_array_almost_equal_nulp(padded_img, expected)
+
+
+@pytest.mark.parametrize(
+    'bbox,expected,height,width,h_pad_top,h_pad_bottom,w_pad_left,w_pad_right',
+    [([0.0, 0.0, 1.0, 1.0], [0.25, 0.25, 0.75, 0.75], 64, 64, 32, 32, 32, 32),
+     ([0.25, 0.5, 0.5, 0.75], [0.375, 0.5, 0.5, 0.75], 64, 64, 0, 0, 32, 32)])
+def test_bbox_pad(bbox, expected, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right):
+    padded_bbox = F.bbox_pad(
+        bbox, height=height, width=width, h_pad_top=h_pad_top, h_pad_bottom=h_pad_bottom,
+        w_pad_left=w_pad_left, w_pad_right=w_pad_right, border_mode = cv2.BORDER_CONSTANT
+    )
+    assert_array_almost_equal_nulp(np.array(padded_bbox), np.array(expected))
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
