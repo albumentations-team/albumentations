@@ -14,8 +14,9 @@ class Compose(object):
 
     Args:
         transforms (list): list of transformations to compose.
-        preprocessing_transforms (list): list of transforms to run before transforms
-        postprocessing_transforms (list): list of transforms to run after transforms
+        preprocessing_transforms (list): list of transforms to run before transforms (but after box preprocessing)
+        postprocessing_transforms (list): list of transforms to run after transforms (but before box postprocession)
+        to_tensor (callable): operation to apply after everything with probability 1.0
         p (float): probability of applying all list of transforms. Default: 1.0.
         bbox_params (dict): Parameters for bounding boxes transforms
 
@@ -34,10 +35,12 @@ class Compose(object):
           | to remain this box in list. Default: 0.0.
     """
 
-    def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[], bbox_params={}, p=1.0):
+    def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[],
+                 to_tensor=None, bbox_params={}, p=1.0):
         self.preprocessing_transforms = preprocessing_transforms
         self.postprocessing_transforms = postprocessing_transforms
         self.transforms = [t for t in transforms if t is not None]
+        self.to_tensor = to_tensor
         self.p = p
         self.bbox_format = bbox_params.get('format', None)
         self.label_fields = bbox_params.get('label_fields', [])
@@ -61,6 +64,9 @@ class Compose(object):
 
             if self.bbox_format is not None:
                 data = self.boxes_postprocessing(data)
+
+        if self.to_tensor is not None:
+            data = self.to_tensor(data)
         return data
 
     def run_transforms_if_needed(self, need_to_run, data):
