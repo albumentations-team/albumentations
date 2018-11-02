@@ -5,6 +5,7 @@ try:
     import torch
     import torchvision
     from albumentations.torch import ToTensor
+
     torch_available = True
 except ImportError:
     torch_available = False
@@ -222,3 +223,97 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     aug = augmentation_cls(p=1, **params)
     aug(image=float_image)
     assert np.array_equal(float_image, float_image_copy)
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [Cutout, {}],
+    [JpegCompression, {}],
+    [RandomBrightness, {}],
+    [Blur, {}],
+    [MotionBlur, {}],
+    [MedianBlur, {}],
+    [GaussNoise, {}],
+    [InvertImg, {}],
+    [RandomGamma, {}],
+    [Cutout, {}],
+    [VerticalFlip, {}],
+    [HorizontalFlip, {}],
+    [Flip, {}],
+    [Transpose, {}],
+    [RandomRotate90, {}],
+    [Rotate, {}],
+    [OpticalDistortion, {}],
+    [GridDistortion, {}],
+    [ElasticTransform, {}],
+    [GaussNoise, {}],
+    [ToFloat, {}],
+    [FromFloat, {}],
+])
+def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
+    aug = augmentation_cls(p=1, **params)
+
+    # Test for grayscale image
+    image = np.zeros((224, 224), dtype=np.uint8)
+    mask = np.zeros((224, 224))
+    result = aug(image=image, mask=mask)
+    assert np.array_equal(image.shape, result['image'].shape)
+    assert np.array_equal(mask.shape, result['mask'].shape)
+
+    # Test for grayscale image with dummy dim
+    image_1ch = np.zeros((224, 224, 1), dtype=np.uint8)
+    mask_1ch = np.zeros((224, 224, 1))
+
+    result = aug(image=image_1ch, mask=mask_1ch)
+    assert np.array_equal(image_1ch.shape, result['image'].shape)
+    assert np.array_equal(mask_1ch.shape, result['mask'].shape)
+
+    # Test for RGB image
+    image_3ch = np.zeros((224, 224, 3), dtype=np.uint8)
+    mask_3ch = np.zeros((224, 224, 3))
+
+    result = aug(image=image_3ch, mask=mask_3ch)
+    assert np.array_equal(image_3ch.shape, result['image'].shape)
+    assert np.array_equal(mask_3ch.shape, result['mask'].shape)
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [Cutout, {}],
+    [JpegCompression, {}],
+    [HueSaturationValue, {}],
+    [RGBShift, {}],
+    [RandomBrightness, {}],
+    [RandomContrast, {}],
+    [Blur, {}],
+    [MotionBlur, {}],
+    [MedianBlur, {}],
+    [GaussNoise, {}],
+    [CLAHE, {}],
+    [ChannelShuffle, {}],
+    [InvertImg, {}],
+    [RandomGamma, {}],
+    [ToGray, {}],
+    [Cutout, {}],
+    [VerticalFlip, {}],
+    [HorizontalFlip, {}],
+    [Flip, {}],
+    [Transpose, {}],
+    [RandomRotate90, {}],
+    [Rotate, {}],
+    [OpticalDistortion, {}],
+    [GridDistortion, {}],
+    [ElasticTransform, {}],
+    [Normalize, {}],
+    [GaussNoise, {}],
+    [ToFloat, {}],
+    [FromFloat, {}],
+])
+def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
+    aug = augmentation_cls(p=1, **params)
+
+    # Test for RGB image
+    image_3ch = np.zeros((224, 224, 3), dtype=np.uint8)
+    mask_3ch = np.zeros((224, 224, 3))
+
+    result = aug(image=image_3ch, mask=mask_3ch)
+    assert np.array_equal(image_3ch.shape, result['image'].shape)
+    assert np.array_equal(mask_3ch.shape, result['mask'].shape)
