@@ -535,7 +535,8 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
-def bbox_pad(bbox, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101):
+def bbox_pad(bbox, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right,
+             border_mode=cv2.BORDER_REFLECT_101):
     if border_mode == cv2.BORDER_CONSTANT:
         h_padded_size = height + h_pad_top + h_pad_bottom
         w_padded_size = width + w_pad_left + w_pad_right

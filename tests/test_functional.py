@@ -309,7 +309,7 @@ def test_pad_float(target):
 def test_bbox_pad(bbox, expected, height, width, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right):
     padded_bbox = F.bbox_pad(
         bbox, height=height, width=width, h_pad_top=h_pad_top, h_pad_bottom=h_pad_bottom,
-        w_pad_left=w_pad_left, w_pad_right=w_pad_right, border_mode = cv2.BORDER_CONSTANT
+        w_pad_left=w_pad_left, w_pad_right=w_pad_right, border_mode=cv2.BORDER_CONSTANT
     )
     assert_array_almost_equal_nulp(np.array(padded_bbox), np.array(expected))
 
