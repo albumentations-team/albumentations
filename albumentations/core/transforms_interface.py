@@ -22,9 +22,12 @@ class BasicTransform(object):
             params = self.update_params(params, **kwargs)
             res = {}
             for key, arg in kwargs.items():
-                target_function = self.targets.get(key, lambda x, **p: x)
-                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
-                res[key] = target_function(arg, **dict(params, **target_dependencies))
+                if arg is not None:
+                    target_function = self.targets.get(key, lambda x, **p: x)
+                    target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
+                    res[key] = target_function(arg, **dict(params, **target_dependencies))
+                else:
+                    res[key] = None
             return res
         return kwargs
 
