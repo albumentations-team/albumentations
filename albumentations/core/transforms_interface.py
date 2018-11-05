@@ -60,7 +60,7 @@ class DualTransform(BasicTransform):
 
     @property
     def targets(self):
-        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bboxes, 
+        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bboxes,
                 'masks': self.apply_to_masks}
 
     def apply_to_bbox(self, bbox, **params):
