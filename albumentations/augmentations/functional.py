@@ -639,7 +639,7 @@ def bbox_rotate(bbox, angle, rows, cols, interpolation):
 
     Args:
         bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
-        angle (int): Angle of rotation
+        angle (int): Angle of rotation in degrees
         rows (int): Image rows.
         cols (int): Image cols.
         interpolation (int): interpolation method.
