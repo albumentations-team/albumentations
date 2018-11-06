@@ -6,7 +6,7 @@ from albumentations.augmentations.bbox_utils import normalize_bbox, denormalize_
     convert_bbox_from_albumentations, convert_bboxes_to_albumentations, convert_bboxes_from_albumentations
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop
+from albumentations.augmentations.transforms import RandomSizedCrop, Rotate, RandomRotate90
 
 
 @pytest.mark.parametrize(['bbox', 'expected'], [
@@ -181,4 +181,11 @@ def test_random_sized_crop_size():
     aug = RandomSizedCrop((70, 90), 50, 50, p=1.)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed['image'].shape == (50, 50, 3)
+    assert len(bboxes) == len(transformed['bboxes'])
+
+def test_random_rotate():
+    image = np.ones((192, 192, 3))
+    bboxes = [[78, 42, 142, 80]]
+    aug = Rotate(limit = 15, p=1.)
+    transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed['bboxes'])

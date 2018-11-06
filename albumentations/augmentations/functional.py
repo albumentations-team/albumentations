@@ -634,6 +634,36 @@ def bbox_rot90(bbox, factor, rows, cols):
     return bbox
 
 
+def bbox_rotate(bbox, angle, rows, cols, interpolation):
+    """Rotates a bounding box by angle degrees
+
+    Args:
+        bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
+        angle (int): Angle of rotation
+        rows (int): Image rows.
+        cols (int): Image cols.
+        interpolation (int): interpolation method.
+
+        return a tuple (x_min, y_min, x_max, y_max)
+    """
+    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
+    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
+
+    x = x - 0.5
+    y = y - 0.5
+
+    angle = np.deg2rad(angle)
+
+    x_t = np.cos(angle) * x + np.sin(angle) * y
+    y_t = -np.sin(angle) * x + np.cos(angle) * y
+
+    x_t = x_t + 0.5
+    y_t = y_t + 0.5
+
+
+    return [min(x_t), min(y_t), max(x_t), max(y_t)]
+
+
 def bbox_transpose(bbox, axis, rows, cols):
     """Transposes a bounding box along given axis.
 
