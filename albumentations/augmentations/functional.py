@@ -648,19 +648,13 @@ def bbox_rotate(bbox, angle, rows, cols, interpolation):
     """
     x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
     y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
-
     x = x - 0.5
     y = y - 0.5
-
     angle = np.deg2rad(angle)
-
     x_t = np.cos(angle) * x + np.sin(angle) * y
     y_t = -np.sin(angle) * x + np.cos(angle) * y
-
     x_t = x_t + 0.5
     y_t = y_t + 0.5
-
-
     return [min(x_t), min(y_t), max(x_t), max(y_t)]
 
 
