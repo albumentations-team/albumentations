@@ -84,8 +84,9 @@ def rot90(img, factor):
 def normalize(img, mean, std, max_pixel_value=255.0):
     img = img.astype(np.float32) / max_pixel_value
 
-    img -= np.ones(img.shape) * mean
-    img /= np.ones(img.shape) * std
+    img = cv2.subtract(img, np.ones_like(img) * np.asarray(mean, dtype=np.float32))
+    img = cv2.divide(img, np.ones_like(img) * np.asarray(std, dtype=np.float32))
+
     return img
 
 
