@@ -60,7 +60,8 @@ class DualTransform(BasicTransform):
 
     @property
     def targets(self):
-        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bboxes}
+        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bboxes,
+                'masks': self.apply_to_masks}
 
     def apply_to_bbox(self, bbox, **params):
         raise NotImplementedError
@@ -71,6 +72,9 @@ class DualTransform(BasicTransform):
 
     def apply_to_mask(self, img, **params):
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == 'interpolation' else v for k, v in params.items()})
+
+    def apply_to_masks(self, masks, **params):
+        return [self.apply_to_mask(mask, **params) for mask in masks]
 
 
 class ImageOnlyTransform(BasicTransform):
