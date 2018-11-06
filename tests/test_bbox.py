@@ -189,3 +189,4 @@ def test_random_rotate():
     aug = Rotate(limit = 15, p=1.)
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed['bboxes'])
+    
