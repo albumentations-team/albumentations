@@ -391,6 +391,9 @@ class ShiftScaleRotate(DualTransform):
                 'dx': random.uniform(self.shift_limit[0], self.shift_limit[1]),
                 'dy': random.uniform(self.shift_limit[0], self.shift_limit[1])}
 
+    def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
+
 
 class CenterCrop(DualTransform):
     """Crop the central part of the input.
