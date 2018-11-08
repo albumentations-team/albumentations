@@ -48,6 +48,7 @@ def preserve_shape(func):
 def preserve_channel_dim(func):
     """Preserve dummy channel dim.
     """
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -552,6 +553,19 @@ def from_float(img, dtype, max_value=None):
                 'passing the max_value argument'.format(dtype)
             )
     return (img * max_value).astype(dtype)
+
+
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
+    center = (0.5, 0.5)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix[0, 2] += dx
+    matrix[1, 2] += dy
+    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
+    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
+    ones = np.ones(shape=(len(x)))
+    points_ones = np.vstack([x, y, ones]).transpose()
+    tr_points = matrix.dot(points_ones.T).T
+    return [min(tr_points[:, 0]), min(tr_points[:, 1]), max(tr_points[:, 0]), max(tr_points[:, 1])]
 
 
 def bbox_vflip(bbox, rows, cols):
