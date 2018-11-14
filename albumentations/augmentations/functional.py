@@ -35,6 +35,7 @@ def clipped(func):
 def preserve_shape(func):
     """Preserve shape of the image.
     """
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -48,6 +49,7 @@ def preserve_shape(func):
 def preserve_channel_dim(func):
     """Preserve dummy channel dim.
     """
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -512,9 +514,7 @@ def gauss_noise(image, var):
 
 @clipped
 def brightness_contrast_adjust(img, alpha=1, beta=0):
-    img = img.astype('float32')
-    img *= alpha
-    img += beta
+    img = img.astype('float32') * alpha + beta * np.mean(img)
     return img
 
 

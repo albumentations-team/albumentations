@@ -756,9 +756,6 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         self.contrast_limit = to_tuple(contrast_limit)
 
     def apply(self, img, alpha=1., beta=0., **params):
-        # For byte-type images, brightness change should be rescaled to range [0..255]
-        if img.dtype == np.uint8:
-            beta *= 255
         return F.brightness_contrast_adjust(img, alpha, beta)
 
     def get_params(self):

@@ -494,15 +494,15 @@ def test_random_contrast_float(alpha, expected):
     assert_array_almost_equal_nulp(img, expected)
 
 
-@pytest.mark.parametrize(['beta', 'expected'], [(-27, 100), (50, 177)])
+@pytest.mark.parametrize(['beta', 'expected'], [(-0.5, 50), (0.25, 125)])
 def test_random_brightness(beta, expected):
-    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
+    img = np.ones((100, 100, 3), dtype=np.uint8) * 100
     img = F.brightness_contrast_adjust(img, beta=beta)
     assert img.dtype == np.dtype('uint8')
     assert (img == expected).all()
 
 
-@pytest.mark.parametrize(['beta', 'expected'], [(0.2, 0.6), (0.1, 0.5), (10, 1)])
+@pytest.mark.parametrize(['beta', 'expected'], [(0.2, 0.48), (-0.1, 0.36)])
 def test_random_brightness_float(beta, expected):
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
     expected = np.ones_like(img) * expected
