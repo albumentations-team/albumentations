@@ -228,7 +228,7 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
         img = img.astype(np.int32)
     hue, sat, val = cv2.split(img)
     hue = cv2.add(hue, hue_shift)
-    hue = np.where(hue < 0, 180 - hue, hue)
+    hue = np.where(hue < 0, hue + 180, hue)
     hue = np.where(hue > 180, hue - 180, hue)
     hue = hue.astype(dtype)
     sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
