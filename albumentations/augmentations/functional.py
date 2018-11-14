@@ -84,8 +84,9 @@ def rot90(img, factor):
 def normalize(img, mean, std, max_pixel_value=255.0):
     img = img.astype(np.float32) / max_pixel_value
 
-    img -= np.ones(img.shape) * mean
-    img /= np.ones(img.shape) * std
+    img = cv2.subtract(img, np.ones_like(img) * np.asarray(mean, dtype=np.float32))
+    img = cv2.divide(img, np.ones_like(img) * np.asarray(std, dtype=np.float32))
+
     return img
 
 
@@ -227,7 +228,7 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
         img = img.astype(np.int32)
     hue, sat, val = cv2.split(img)
     hue = cv2.add(hue, hue_shift)
-    hue = np.where(hue < 0, 180 - hue, hue)
+    hue = np.where(hue < 0, hue + 180, hue)
     hue = np.where(hue > 180, hue - 180, hue)
     hue = hue.astype(dtype)
     sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)

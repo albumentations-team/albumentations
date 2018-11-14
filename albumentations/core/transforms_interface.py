@@ -22,9 +22,12 @@ class BasicTransform(object):
             params = self.update_params(params, **kwargs)
             res = {}
             for key, arg in kwargs.items():
-                target_function = self.targets.get(key, lambda x, **p: x)
-                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
-                res[key] = target_function(arg, **dict(params, **target_dependencies))
+                if arg is not None:
+                    target_function = self.targets.get(key, lambda x, **p: x)
+                    target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
+                    res[key] = target_function(arg, **dict(params, **target_dependencies))
+                else:
+                    res[key] = None
             return res
         return kwargs
 
@@ -57,7 +60,8 @@ class DualTransform(BasicTransform):
 
     @property
     def targets(self):
-        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bboxes}
+        return {'image': self.apply, 'mask': self.apply_to_mask, 'bboxes': self.apply_to_bboxes,
+                'masks': self.apply_to_masks}
 
     def apply_to_bbox(self, bbox, **params):
         raise NotImplementedError
@@ -68,6 +72,9 @@ class DualTransform(BasicTransform):
 
     def apply_to_mask(self, img, **params):
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == 'interpolation' else v for k, v in params.items()})
+
+    def apply_to_masks(self, masks, **params):
+        return [self.apply_to_mask(mask, **params) for mask in masks]
 
 
 class ImageOnlyTransform(BasicTransform):
