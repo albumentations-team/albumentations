@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division
 
 import random
+import warnings
 
 import cv2
 import numpy as np
@@ -732,12 +733,14 @@ class RGBShift(ImageOnlyTransform):
                 'b_shift': random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
 
 
-class RandomBrightness(ImageOnlyTransform):
-    """Randomly change brightness of the input image.
+class RandomBrightnessContrast(ImageOnlyTransform):
+    """Randomly change brightness and contrast of the input image.
 
     Args:
-        limit ((float, float) or float): factor range for changing brightness. If limit is a single float, the range
-            will be (-limit, limit). Default: 0.2.
+        brightness_limit ((float, float) or float): factor range for changing brightness.
+            If limit is a single float, the range will be (-limit, limit). Default: 0.2.
+        contrast_limit ((float, float) or float): factor range for changing contrast.
+            If limit is a single float, the range will be (-limit, limit). Default: 0.2.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -747,41 +750,31 @@ class RandomBrightness(ImageOnlyTransform):
         uint8, float32
     """
 
+    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, p=0.5):
+        super(RandomBrightnessContrast, self).__init__(p)
+        self.brightness_limit = to_tuple(brightness_limit)
+        self.contrast_limit = to_tuple(contrast_limit)
+
+    def apply(self, img, alpha=1., beta=0., **params):
+        return F.brightness_contrast_adjust(img, alpha, beta)
+
+    def get_params(self):
+        return {
+            'alpha': 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
+            'beta': 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1])
+        }
+
+
+class RandomBrightness(RandomBrightnessContrast):
     def __init__(self, limit=0.2, p=0.5):
-        super(RandomBrightness, self).__init__(p)
-        self.limit = to_tuple(limit)
-
-    def apply(self, img, alpha=0.2, **params):
-        return F.random_brightness(img, alpha)
-
-    def get_params(self):
-        return {'alpha': 1.0 + random.uniform(self.limit[0], self.limit[1])}
+        super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0, p=p)
+        warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
 
 
-class RandomContrast(ImageOnlyTransform):
-    """Randomly change contrast of the input image.
-
-    Args:
-        limit ((float, float) or float): factor range for changing contrast. If limit is a single float, the range
-            will be (-limit, limit). Default: 0.2.
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, limit=.2, p=.5):
-        super(RandomContrast, self).__init__(p)
-        self.limit = to_tuple(limit)
-
-    def apply(self, img, alpha=0.2, **params):
-        return F.random_contrast(img, alpha)
-
-    def get_params(self):
-        return {'alpha': 1.0 + random.uniform(self.limit[0], self.limit[1])}
+class RandomContrast(RandomBrightnessContrast):
+    def __init__(self, limit=0.2, p=0.5):
+        super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, p=p)
+        warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
 
 
 class Blur(ImageOnlyTransform):

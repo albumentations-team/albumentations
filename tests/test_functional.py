@@ -478,35 +478,35 @@ def test_shift_rgb_float(shift_params, expected):
 
 
 @pytest.mark.parametrize(['alpha', 'expected'], [(1.5, 190), (3, 255)])
-def test_random_brightness(alpha, expected):
+def test_random_contrast(alpha, expected):
     img = np.ones((100, 100, 3), dtype=np.uint8) * 127
-    img = F.random_brightness(img, alpha)
+    img = F.brightness_contrast_adjust(img, alpha=alpha)
     assert img.dtype == np.dtype('uint8')
     assert (img == expected).all()
 
 
 @pytest.mark.parametrize(['alpha', 'expected'], [(1.5, 0.6), (3, 1.0)])
-def test_random_brightness_float(alpha, expected):
+def test_random_contrast_float(alpha, expected):
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
     expected = np.ones((100, 100, 3), dtype=np.float32) * expected
-    img = F.random_brightness(img, alpha)
+    img = F.brightness_contrast_adjust(img, alpha=alpha)
     assert img.dtype == np.dtype('float32')
     assert_array_almost_equal_nulp(img, expected)
 
 
-@pytest.mark.parametrize(['alpha', 'expected'], [(1.2, 76), (0.1, 255), (10, 0)])
-def test_random_contrast(alpha, expected):
-    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
-    img = F.random_contrast(img, alpha)
+@pytest.mark.parametrize(['beta', 'expected'], [(-0.5, 50), (0.25, 125)])
+def test_random_brightness(beta, expected):
+    img = np.ones((100, 100, 3), dtype=np.uint8) * 100
+    img = F.brightness_contrast_adjust(img, beta=beta)
     assert img.dtype == np.dtype('uint8')
     assert (img == expected).all()
 
 
-@pytest.mark.parametrize(['alpha', 'expected'], [(1.2, 0.24), (0.1, 1.0), (10, 0.0)])
-def test_random_contrast_float(alpha, expected):
+@pytest.mark.parametrize(['beta', 'expected'], [(0.2, 0.48), (-0.1, 0.36)])
+def test_random_brightness_float(beta, expected):
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
-    expected = np.ones((100, 100, 3), dtype=np.float32) * expected
-    img = F.random_contrast(img, alpha)
+    expected = np.ones_like(img) * expected
+    img = F.brightness_contrast_adjust(img, beta=beta)
     assert img.dtype == np.dtype('float32')
     assert_array_almost_equal_nulp(img, expected)
 
