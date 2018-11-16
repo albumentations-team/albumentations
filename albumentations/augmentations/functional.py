@@ -547,6 +547,19 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
+    center = (0.5, 0.5)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix[0, 2] += dx
+    matrix[1, 2] += dy
+    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
+    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
+    ones = np.ones(shape=(len(x)))
+    points_ones = np.vstack([x, y, ones]).transpose()
+    tr_points = matrix.dot(points_ones.T).T
+    return [min(tr_points[:, 0]), min(tr_points[:, 1]), max(tr_points[:, 0]), max(tr_points[:, 1])]
+
+
 def bbox_vflip(bbox, rows, cols):
     """Flip a bounding box vertically around the x-axis."""
     x_min, y_min, x_max, y_max = bbox
@@ -625,6 +638,30 @@ def bbox_rot90(bbox, factor, rows, cols):
     if factor == 3:
         bbox = [1 - y_max, x_min, 1 - y_min, x_max]
     return bbox
+
+
+def bbox_rotate(bbox, angle, rows, cols, interpolation):
+    """Rotates a bounding box by angle degrees
+
+    Args:
+        bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
+        angle (int): Angle of rotation in degrees
+        rows (int): Image rows.
+        cols (int): Image cols.
+        interpolation (int): interpolation method.
+
+        return a tuple (x_min, y_min, x_max, y_max)
+    """
+    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
+    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
+    x = x - 0.5
+    y = y - 0.5
+    angle = np.deg2rad(angle)
+    x_t = np.cos(angle) * x + np.sin(angle) * y
+    y_t = -np.sin(angle) * x + np.cos(angle) * y
+    x_t = x_t + 0.5
+    y_t = y_t + 0.5
+    return [min(x_t), min(y_t), max(x_t), max(y_t)]
 
 
 def bbox_transpose(bbox, axis, rows, cols):
