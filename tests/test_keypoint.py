@@ -1,5 +1,6 @@
 import numpy as np
 import pytest
+from albumentations import Flip, HorizontalFlip
 
 from albumentations.augmentations.keypoints_utils import normalize_keypoint, denormalize_keypoint, \
     convert_keypoint_from_albumentations, convert_keypoints_from_albumentations, filter_keypoints, normalize_keypoints, denormalize_keypoints, \
@@ -177,3 +178,16 @@ def test_random_sized_crop_size():
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed['image'].shape == (50, 50, 3)
     assert len(keypoints) == len(transformed['keypoints'])
+
+
+@pytest.mark.parametrize(['aug', 'keypoints', 'expected'], [
+    [HorizontalFlip, [[20, 30, 0, 0]], [[80, 30, 180, 0]]],
+    [HorizontalFlip, [[20, 30, 45, 0]], [[80, 30, 135, 0]]],
+    [HorizontalFlip, [[20, 30, 90, 0]], [[80, 30, 90, 0]]],
+])
+def test_keypoint_transform(aug, keypoints, expected):
+    transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas', 'angle_in_degrees': True, 'label_fields': ['labels']})
+
+    image = np.ones((100, 100, 3))
+    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    assert np.allclose(expected, transformed['keypoints'])
