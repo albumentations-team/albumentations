@@ -304,7 +304,7 @@ class Rotate(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -322,8 +322,11 @@ class Rotate(DualTransform):
     def get_params(self):
         return {'angle': random.uniform(self.limit[0], self.limit[1])}
 
-    def apply_to_keypoint(self, keypoint, angle=0, rows=0, cols=0, **params):
-        return F.keypoint_rotate(keypoint, angle, rows, cols)
+    def apply_to_bbox(self, bbox, angle=0, **params):
+        return F.bbox_rotate(bbox, angle, **params)
+
+    def apply_to_keypoint(self, keypoint, angle=0, **params):
+        return F.keypoint_rotate(keypoint, angle, **params)
 
 
 class RandomScale(DualTransform):
@@ -409,6 +412,9 @@ class ShiftScaleRotate(DualTransform):
                 'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
                 'dx': random.uniform(self.shift_limit[0], self.shift_limit[1]),
                 'dy': random.uniform(self.shift_limit[0], self.shift_limit[1])}
+
+    def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
 
 
 class CenterCrop(DualTransform):
