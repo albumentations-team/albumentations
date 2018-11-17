@@ -1,3 +1,6 @@
+import math
+
+
 def check_keypoint(kp):
     """Check if keypoint coordinates are in range [0, 1)"""
     for name, value in zip(['x', 'y'], kp[:2]):
@@ -68,7 +71,7 @@ def keypoint_has_extra_data(kp, format):
     return len(kp) > len(format)
 
 
-def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols, check_validity=False):
+def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols, check_validity=False, angle_in_degrees=True):
     if source_format not in keypoint_formats:
         raise ValueError(
             "Unknown target_format {}. Supported formats are: {}".format(source_format, keypoint_formats)
@@ -97,6 +100,9 @@ def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols, chec
         x, y, s, a = keypoint[:4]
         tail = list(keypoint[4:])
 
+    if angle_in_degrees:
+        a = math.radians(a)
+
     keypoint = [x, y, a, s] + tail
     keypoint = normalize_keypoint(keypoint, rows, cols)
     if check_validity:
@@ -104,7 +110,7 @@ def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols, chec
     return keypoint
 
 
-def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols, check_validity=False):
+def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols, check_validity=False, angle_in_degrees=True):
     if target_format not in keypoint_formats:
         raise ValueError(
             "Unknown target_format {}. Supported formats are: {}".format(target_format, keypoint_formats)
@@ -113,6 +119,8 @@ def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols, ch
         check_keypoint(keypoint)
     keypoint = denormalize_keypoint(keypoint, rows, cols)
     x, y, a, s = keypoint[:4]
+    if angle_in_degrees:
+        a = math.degrees(a)
 
     if target_format == 'xy':
         kp = [x, y]

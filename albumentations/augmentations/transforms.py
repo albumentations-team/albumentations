@@ -94,6 +94,9 @@ class VerticalFlip(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_vflip(bbox, **params)
 
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_vflip(keypoint, **params)
+
 
 class HorizontalFlip(DualTransform):
     """Flip the input horizontally around the y-axis.
@@ -113,6 +116,9 @@ class HorizontalFlip(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_hflip(bbox, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_hflip(keypoint, **params)
 
 
 class Flip(DualTransform):
@@ -142,6 +148,9 @@ class Flip(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_flip(bbox, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_flip(keypoint, **params)
 
 
 class Transpose(DualTransform):
@@ -276,6 +285,9 @@ class RandomRotate90(DualTransform):
     def apply_to_bbox(self, bbox, factor=0, **params):
         return F.bbox_rot90(bbox, factor, **params)
 
+    def apply_to_keypoint(self, keypoint, factor=0, **params):
+        return F.keypoint_rot90(keypoint, factor, **params)
+
 
 class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
@@ -310,6 +322,9 @@ class Rotate(DualTransform):
     def get_params(self):
         return {'angle': random.uniform(self.limit[0], self.limit[1])}
 
+    def apply_to_keypoint(self, keypoint, angle=0, rows=0, cols=0, **params):
+        return F.keypoint_rotate(keypoint, angle, rows, cols)
+
 
 class RandomScale(DualTransform):
     """Randomly resize the input. Output image size is different from the input image size.
@@ -343,6 +358,9 @@ class RandomScale(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
         return bbox
+
+    def apply_to_keypoint(self, keypoint, scale=0, **params):
+        return F.keypoint_scale(keypoint, scale)
 
 
 class ShiftScaleRotate(DualTransform):
@@ -383,6 +401,9 @@ class ShiftScaleRotate(DualTransform):
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
 
+    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+        return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy)
+
     def get_params(self):
         return {'angle': random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
                 'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
@@ -421,6 +442,9 @@ class CenterCrop(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_center_crop(bbox, self.height, self.width, **params)
 
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_center_crop(keypoint, self.height, self.width, **params)
+
 
 class RandomCrop(DualTransform):
     """Crop a random part of the input.
@@ -451,6 +475,9 @@ class RandomCrop(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_random_crop(bbox, self.height, self.width, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_random_crop(keypoint, self.height, self.width, **params)
 
 
 class RandomSizedCrop(DualTransform):
@@ -494,6 +521,9 @@ class RandomSizedCrop(DualTransform):
 
     def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
         return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
+
+    def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
+        return F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
 
 
 class OpticalDistortion(DualTransform):

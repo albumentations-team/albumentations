@@ -6,7 +6,7 @@ import numpy as np
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
 from albumentations.augmentations.keypoints_utils import check_keypoints, filter_keypoints, convert_keypoints_from_albumentations, convert_keypoints_to_albumentations, \
-    keypoint_has_extra_data
+    keypoint_has_extra_data, keypoint_formats
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
@@ -51,6 +51,11 @@ class Compose(object):
         self.keypoint_format = keypoint_params.get('format', None)
         self.keypoint_remove_invisible = keypoint_params.get('remove_invisible', True)
         self.keypoint_label_fields = keypoint_params.get('label_fields', [])
+
+        if self.keypoint_format and self.keypoint_format not in keypoint_formats:
+                raise ValueError(
+                    "Unknown target_format {}. Supported formats are: {}".format(self.keypoint_format, keypoint_formats)
+                )
 
     def __call__(self, **data):
         need_to_run = random.random() < self.p
