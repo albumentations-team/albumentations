@@ -5,6 +5,8 @@ import random
 import numpy as np
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
+from albumentations.augmentations.keypoints_utils import check_keypoints, filter_keypoints, convert_keypoints_from_albumentations, convert_keypoints_to_albumentations, \
+    keypoint_has_extra_data
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
@@ -36,34 +38,54 @@ class Compose(object):
     """
 
     def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[],
-                 to_tensor=None, bbox_params={}, p=1.0):
+                 to_tensor=None, bbox_params={}, keypoint_params={}, p=1.0):
         self.preprocessing_transforms = preprocessing_transforms
         self.postprocessing_transforms = postprocessing_transforms
         self.transforms = [t for t in transforms if t is not None]
         self.to_tensor = to_tensor
         self.p = p
         self.bbox_format = bbox_params.get('format', None)
-        self.label_fields = bbox_params.get('label_fields', [])
-        self.min_area = bbox_params.get('min_area', 0.0)
-        self.min_visibility = bbox_params.get('min_visibility', 0.0)
+        self.bbox_label_fields = bbox_params.get('label_fields', [])
+        self.bbox_min_area = bbox_params.get('min_area', 0.0)
+        self.bbox_min_visibility = bbox_params.get('min_visibility', 0.0)
+        self.keypoint_format = keypoint_params.get('format', None)
+        self.keypoint_remove_invisible = keypoint_params.get('remove_invisible', True)
+        self.keypoint_label_fields = keypoint_params.get('label_fields', [])
 
     def __call__(self, **data):
         need_to_run = random.random() < self.p
         if self.bbox_format and len(data.get('bboxes', [])) and len(data['bboxes'][0]) < 5:
-            if not self.label_fields:
+            if not self.bbox_label_fields:
                 raise Exception("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
                                 "because bboxes must have labels")
-        if self.label_fields:
-            if not all(l in data.keys() for l in self.label_fields):
+
+        if self.keypoint_format and len(data.get('keypoints', [])) and not keypoint_has_extra_data(data['keypoints'][0], self.keypoint_format):
+            if not self.keypoint_label_fields:
+                raise Exception("Please specify 'label_fields' in 'keypoint_params' or add labels to the end of keypoint "
+                                "because keypoints must have labels")
+
+        if self.bbox_label_fields:
+            if not all(l in data.keys() for l in self.bbox_label_fields):
                 raise Exception("Your 'label_fields' are not valid - them must have same names as params in dict")
+        if self.keypoint_label_fields:
+            if not all(l in data.keys() for l in self.keypoint_label_fields):
+                raise Exception("Your 'label_fields' are not valid - them must have same names as "
+                                "keypoint_params['label_fields']")
+
         if self.preprocessing_transforms or need_to_run:
             if self.bbox_format is not None:
                 data = self.boxes_preprocessing(data)
+
+            if self.keypoint_format is not None:
+                data = self.keypoints_preprocessing(data)
 
             data = self.run_transforms_if_needed(need_to_run, data)
 
             if self.bbox_format is not None:
                 data = self.boxes_postprocessing(data)
+
+            if self.keypoint_format is not None:
+                data = self.keypoints_postprocessing(data)
 
         if self.to_tensor is not None:
             data = self.to_tensor(data)
@@ -84,8 +106,8 @@ class Compose(object):
     def boxes_preprocessing(self, data):
         if 'bboxes' not in data:
             raise Exception('Please name field with bounding boxes `bboxes`')
-        if self.label_fields:
-            for field in self.label_fields:
+        if self.bbox_label_fields:
+            for field in self.bbox_label_fields:
                 bboxes_with_added_field = []
                 for bbox, field_value in zip(data['bboxes'], data[field]):
                     bboxes_with_added_field.append(list(bbox) + [field_value])
@@ -102,7 +124,7 @@ class Compose(object):
 
     def boxes_postprocessing(self, data):
         rows, cols = data['image'].shape[:2]
-        data['bboxes'] = filter_bboxes(data['bboxes'], rows, cols, self.min_area, self.min_visibility)
+        data['bboxes'] = filter_bboxes(data['bboxes'], rows, cols, self.bbox_min_area, self.bbox_min_visibility)
 
         if self.bbox_format == 'albumentations':
             check_bboxes(data['bboxes'])
@@ -110,13 +132,51 @@ class Compose(object):
             data['bboxes'] = convert_bboxes_from_albumentations(data['bboxes'], self.bbox_format, rows, cols,
                                                                 check_validity=True)
 
-        if self.label_fields:
-            for idx, field in enumerate(self.label_fields):
+        if self.bbox_label_fields:
+            for idx, field in enumerate(self.bbox_label_fields):
                 field_values = []
                 for bbox in data['bboxes']:
                     field_values.append(bbox[4 + idx])
                 data[field] = field_values
             data['bboxes'] = [bbox[:4] for bbox in data['bboxes']]
+        return data
+
+    def keypoints_preprocessing(self, data):
+        if 'keypoints' not in data:
+            raise Exception('Please name field with keypoints `keypoints`')
+        if self.keypoint_label_fields:
+            for field in self.keypoint_label_fields:
+                keypoints_with_added_field = []
+                for kp, field_value in zip(data['keypoints'], data[field]):
+                    keypoints_with_added_field.append(list(kp) + [field_value])
+                data['keypoints'] = keypoints_with_added_field
+
+        rows, cols = data['image'].shape[:2]
+        if self.keypoint_format == 'albumentations':
+            check_keypoints(data['keypoints'])
+        else:
+            data['keypoints'] = convert_keypoints_to_albumentations(data['keypoints'], self.keypoint_format, rows, cols,
+                                                                    check_validity=True)
+
+        return data
+
+    def keypoints_postprocessing(self, data):
+        rows, cols = data['image'].shape[:2]
+        data['keypoints'] = filter_keypoints(data['keypoints'], rows, cols, self.keypoint_remove_invisible)
+
+        if self.keypoint_format == 'albumentations':
+            check_keypoints(data['keypoints'])
+        else:
+            data['keypoints'] = convert_keypoints_from_albumentations(data['keypoints'], self.keypoint_format, rows, cols,
+                                                                   check_validity=True)
+
+        if self.keypoint_label_fields:
+            for idx, field in enumerate(self.keypoint_label_fields):
+                field_values = []
+                for kp in data['keypoints']:
+                    field_values.append(kp[4 + idx])
+                data[field] = field_values
+            data['keypoints'] = [kp[:4] for kp in data['keypoints']]
         return data
 
 
