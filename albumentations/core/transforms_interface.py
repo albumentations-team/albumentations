@@ -8,16 +8,21 @@ __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform', 
 def to_tuple(param, low=None):
     if isinstance(param, (list, tuple)):
         return tuple(param)
+    elif param is not None:
+        if low is None:
+            return -param, param
+        return (low, param) if low < param else (param, low)
     else:
-        return (-param if low is None else low, param)
+        return param
 
 
 class BasicTransform(object):
-    def __init__(self, p=0.5):
+    def __init__(self, always_apply=False, p=0.5):
         self.p = p
+        self.always_apply = always_apply
 
     def __call__(self, **kwargs):
-        if random.random() < self.p:
+        if (random.random() < self.p) or self.always_apply:
             params = self.get_params()
             params = self.update_params(params, **kwargs)
             res = {}

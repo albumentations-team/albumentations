@@ -1,17 +1,18 @@
 import numpy as np
 import pytest
 
-from albumentations.imgaug.transforms import IAAPiecewiseAffine, IAAPerspective, IAAFliplr, IAAFlipud, IAACropAndPad
+from albumentations.imgaug.transforms import IAAPiecewiseAffine, IAAPerspective, IAAFliplr, IAAFlipud
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations
 
 
-@pytest.mark.parametrize('augmentation_cls', [IAAPiecewiseAffine, IAAPerspective])
+@pytest.mark.parametrize('augmentation_cls', [IAAPiecewiseAffine, IAAPerspective, IAAFliplr])
 def test_imagaug_dual_augmentations_are_deterministic(augmentation_cls, image):
     aug = augmentation_cls(p=1)
     mask = np.copy(image)
-    data = aug(image=image, mask=mask)
-    assert np.array_equal(data['image'], data['mask'])
+    for i in range(10):
+        data = aug(image=image, mask=mask)
+        assert np.array_equal(data['image'], data['mask'])
 
 
 def test_imagaug_fliplr_transform_bboxes(image):
