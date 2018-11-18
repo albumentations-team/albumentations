@@ -748,8 +748,8 @@ def keypoint_rot90(keypoint, factor, **params):
 def keypoint_rotate(keypoint, angle, **params):
     matrix = cv2.getRotationMatrix2D((0.5, 0.5), angle, 1.0)
     x, y, a, s = keypoint
-    x, y = cv2.transform([[x, y]], matrix)
-    return [x, y, a + math.radians(angle), scale]
+    x,y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
+    return [x, y, a + math.radians(angle), s]
 
 
 def keypoint_scale(keypoint, scale, **params):

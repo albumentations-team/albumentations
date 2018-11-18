@@ -206,6 +206,17 @@ def test_keypoint_transform(aug, keypoints, expected):
     [[0.2, 0.3, math.pi / 2, 0], [0.8, 0.7, -math.pi / 2, 0], 2],
     [[0.2, 0.3, math.pi / 2, 0], [0.7, 0.2, math.pi, 0], 3],
 ])
-def test_rotate90(keypoint, expected, factor):
+def test_keypoint_rotate90(keypoint, expected, factor):
     actual = F.keypoint_rot90(keypoint, factor)
     assert actual == expected
+
+
+@pytest.mark.parametrize(['keypoint', 'expected', 'angle'], [
+    [[0.0, 0.0, math.pi / 2, 0], [0.0, 0.0, math.pi / 2, 0], 0],
+    [[0.0, 0.0, math.pi / 2, 0], [0.0, 1.0, math.pi / 2 + math.pi / 2, 0], 90],
+    [[0.0, 0.0, math.pi / 2, 0], [1.0, 1.0, math.pi / 2 + math.pi, 0], 180],
+    [[0.0, 0.0, math.pi / 2, 0], [1.0, 0.0, math.pi / 2 + 3 * math.pi / 2, 0], 270],
+])
+def test_keypoint_rotate(keypoint, expected, angle):
+    actual = F.keypoint_rotate(keypoint, angle)
+    np.testing.assert_allclose(actual, expected, atol=1e-7)
