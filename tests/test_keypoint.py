@@ -1,6 +1,8 @@
+import math
+
 import numpy as np
 import pytest
-from albumentations import Flip, HorizontalFlip
+from albumentations import Flip, HorizontalFlip, VerticalFlip
 
 from albumentations.augmentations.keypoints_utils import normalize_keypoint, denormalize_keypoint, \
     convert_keypoint_from_albumentations, convert_keypoints_from_albumentations, filter_keypoints, normalize_keypoints, denormalize_keypoints, \
@@ -8,6 +10,7 @@ from albumentations.augmentations.keypoints_utils import normalize_keypoint, den
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
 from albumentations.augmentations.transforms import RandomSizedCrop
+import albumentations.augmentations.functional as F
 
 
 @pytest.mark.parametrize(['kp', 'expected'], [
@@ -184,6 +187,10 @@ def test_random_sized_crop_size():
     [HorizontalFlip, [[20, 30, 0, 0]], [[80, 30, 180, 0]]],
     [HorizontalFlip, [[20, 30, 45, 0]], [[80, 30, 135, 0]]],
     [HorizontalFlip, [[20, 30, 90, 0]], [[80, 30, 90, 0]]],
+    #
+    [VerticalFlip, [[20, 30, 0, 0]], [[20, 70, 0, 0]]],
+    [VerticalFlip, [[20, 30, 45, 0]], [[20, 70, 315, 0]]],
+    [VerticalFlip, [[20, 30, 90, 0]], [[20, 70, 270, 0]]],
 ])
 def test_keypoint_transform(aug, keypoints, expected):
     transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas', 'angle_in_degrees': True, 'label_fields': ['labels']})
@@ -191,3 +198,14 @@ def test_keypoint_transform(aug, keypoints, expected):
     image = np.ones((100, 100, 3))
     transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
     assert np.allclose(expected, transformed['keypoints'])
+
+
+@pytest.mark.parametrize(['keypoint', 'expected', 'factor'], [
+    [[0.2, 0.3, math.pi / 2, 0], [0.2, 0.3, math.pi / 2, 0], 0],
+    [[0.2, 0.3, math.pi / 2, 0], [0.3, 0.8, 0, 0], 1],
+    [[0.2, 0.3, math.pi / 2, 0], [0.8, 0.7, -math.pi / 2, 0], 2],
+    [[0.2, 0.3, math.pi / 2, 0], [0.7, 0.2, math.pi, 0], 3],
+])
+def test_rotate90(keypoint, expected, factor):
+    actual = F.keypoint_rot90(keypoint, factor)
+    assert actual == expected

@@ -110,6 +110,15 @@ def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols, chec
     return keypoint
 
 
+def normalize_angle(a):
+    two_pi=2. * math.pi
+    while a < 0:
+        a += two_pi
+    while a > two_pi:
+        a -= two_pi
+    return a
+
+
 def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols, check_validity=False, angle_in_degrees=True):
     if target_format not in keypoint_formats:
         raise ValueError(
@@ -119,6 +128,7 @@ def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols, ch
         check_keypoint(keypoint)
     keypoint = denormalize_keypoint(keypoint, rows, cols)
     x, y, a, s = keypoint[:4]
+    a = normalize_angle(a)
     if angle_in_degrees:
         a = math.degrees(a)
 

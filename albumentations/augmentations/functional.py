@@ -737,11 +737,11 @@ def keypoint_rot90(keypoint, factor, **params):
         raise ValueError('Parameter n must be in range [0;3]')
     x, y, angle, scale = keypoint
     if factor == 1:
-        keypoint = [y, 1 - x, angle + math.pi / 2, scale]
+        keypoint = [y, 1 - x, angle - math.pi / 2, scale]
     if factor == 2:
-        keypoint = [1 - x, 1 - y, angle + math.pi, scale]
+        keypoint = [1 - x, 1 - y, angle - math.pi, scale]
     if factor == 3:
-        keypoint = [1 - y, x, angle - math.pi, scale]
+        keypoint = [1 - y, x, angle + math.pi/2, scale]
     return keypoint
 
 
