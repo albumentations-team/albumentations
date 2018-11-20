@@ -53,9 +53,9 @@ class Compose(object):
         self.keypoint_label_fields = keypoint_params.get('label_fields', [])
 
         if self.keypoint_format and self.keypoint_format not in keypoint_formats:
-                raise ValueError(
-                    "Unknown target_format {}. Supported formats are: {}".format(self.keypoint_format, keypoint_formats)
-                )
+            raise ValueError(
+                "Unknown target_format {}. Supported formats are: {}".format(self.keypoint_format, keypoint_formats)
+            )
 
     def __call__(self, **data):
         need_to_run = random.random() < self.p
@@ -76,6 +76,9 @@ class Compose(object):
             if not all(l in data.keys() for l in self.keypoint_label_fields):
                 raise Exception("Your 'label_fields' are not valid - them must have same names as "
                                 "keypoint_params['label_fields']")
+
+        if 'keypoints' in data and self.keypoint_format is None:
+            raise Exception('Please specify keypoint format via `keypoint_params = {\'format\':\'FORMAT\'}`')
 
         if self.preprocessing_transforms or need_to_run:
             if self.bbox_format is not None:
@@ -173,7 +176,7 @@ class Compose(object):
             check_keypoints(data['keypoints'])
         else:
             data['keypoints'] = convert_keypoints_from_albumentations(data['keypoints'], self.keypoint_format, rows, cols,
-                                                                   check_validity=True)
+                                                                      check_validity=True)
 
         if self.keypoint_label_fields:
             for idx, field in enumerate(self.keypoint_label_fields):

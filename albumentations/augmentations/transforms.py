@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division
 
+import math
 import random
 import warnings
 
@@ -529,7 +530,9 @@ class RandomSizedCrop(DualTransform):
         return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
 
     def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
-        return F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
+        scale = self.height / crop_height
+        keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
+        return F.keypoint_scale(keypoint, scale)
 
 
 class OpticalDistortion(DualTransform):

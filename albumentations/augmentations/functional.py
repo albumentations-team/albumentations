@@ -783,5 +783,5 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, **params):
     matrix = cv2.getRotationMatrix2D((0.5, 0.5), angle, scale)
     matrix[0, 2] += dx
     matrix[1, 2] += dy
-    x, y = cv2.transform([[x, y]], matrix)
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     return [x, y, a + math.radians(angle), s * scale]

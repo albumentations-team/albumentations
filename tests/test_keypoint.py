@@ -64,8 +64,8 @@ def test_denormalize_bboxes():
     [[20, 30], 'xy', [0.2, 0.3, 0, 0]],
     [[20, 30], 'yx', [0.3, 0.2, 0, 0]],
     [[20, 30, 60], 'xys', [0.2, 0.3, 0, 60]],
-    [[20, 30, 60], 'xya', [0.2, 0.3, 60, 0]],
-    [[20, 30, 60, 80], 'xyas', [0.2, 0.3, 60, 80]],
+    [[20, 30, 60], 'xya', [0.2, 0.3, math.radians(60), 0]],
+    [[20, 30, 60, 80], 'xyas', [0.2, 0.3, math.radians(60), 80]],
 ])
 def test_convert_keypoint_to_albumentations(kp, source_format, expected):
     image = np.ones((100, 100, 3))
@@ -78,9 +78,9 @@ def test_convert_keypoint_to_albumentations(kp, source_format, expected):
 @pytest.mark.parametrize(['kp', 'target_format', 'expected'], [
     [[0.2, 0.3, 0, 0], 'xy', [20, 30]],
     [[0.2, 0.3, 0, 0], 'yx', [30, 20]],
-    [[0.2, 0.3, 0.6, 0], 'xya', [20, 30, 0.6]],
+    [[0.2, 0.3, 0.6, 0], 'xya', [20, 30, math.degrees(0.6)]],
     [[0.2, 0.3, 0, 0.6], 'xys', [20, 30, 0.6]],
-    [[0.2, 0.3, 60, 80], 'xyas', [20, 30, 60, 80]],
+    [[0.2, 0.3, 0.6, 80], 'xyas', [20, 30, math.degrees(0.6), 80]],
 ])
 def test_convert_keypoint_from_albumentations(kp, target_format, expected):
     image = np.ones((100, 100, 3))
@@ -219,4 +219,24 @@ def test_keypoint_rotate90(keypoint, expected, factor):
 ])
 def test_keypoint_rotate(keypoint, expected, angle):
     actual = F.keypoint_rotate(keypoint, angle)
+    np.testing.assert_allclose(actual, expected, atol=1e-7)
+
+
+@pytest.mark.parametrize(['keypoint', 'expected', 'scale'], [
+    [[0.0, 0.0, math.pi / 2, 1], [0.0, 0.0, math.pi / 2, 1], 1],
+    [[0.0, 0.0, math.pi / 2, 1], [0.0, 0.0, math.pi / 2, 2], 2],
+    [[0.0, 0.0, math.pi / 2, 1], [0.0, 0.0, math.pi / 2, 0.5], 0.5],
+])
+def test_keypoint_scale(keypoint, expected, scale):
+    actual = F.keypoint_scale(keypoint, scale)
+    np.testing.assert_allclose(actual, expected, atol=1e-7)
+
+
+
+
+@pytest.mark.parametrize(['keypoint', 'expected', 'angle', 'scale', 'dx', 'dy'], [
+    [[0.5, 0.5, 0.1, 5], [0.7, 0.3, 0.1 + math.radians(10), 10], 10, 2, 0.2, -0.2],
+])
+def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
+    actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
