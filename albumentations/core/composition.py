@@ -33,7 +33,7 @@ def find_always_apply_transforms(transforms):
     for transform in transforms:
         if isinstance(transform, BaseCompose):
             new_transforms.extend(find_always_apply_transforms(transform))
-        if transform.always_apply:
+        elif transform.always_apply:
             new_transforms.append(transform)
     return new_transforms
 
