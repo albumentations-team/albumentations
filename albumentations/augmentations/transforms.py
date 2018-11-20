@@ -14,7 +14,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
-           'SmallestMaxSize', 'Resize', 'RandomSizedCrop']
+           'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast']
 
 
 class PadIfNeeded(DualTransform):
