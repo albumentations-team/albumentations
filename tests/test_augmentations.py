@@ -4,7 +4,7 @@ import numpy as np
 try:
     import torch
     import torchvision
-    from albumentations.torch import ToTensor
+    from albumentations.pytorch import ToTensor
 
     torch_available = True
 except ImportError:
