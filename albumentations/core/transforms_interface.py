@@ -23,8 +23,9 @@ class BasicTransform(object):
 
     def __call__(self, **kwargs):
         if (random.random() < self.p) or self.always_apply:
-            params = self.get_params()
-            params = self.update_params(params, **kwargs)
+            initial_params = self.get_initial_params(**kwargs)
+            params = self.get_params(initial_params)
+            params.update(initial_params)
             res = {}
             for key, arg in kwargs.items():
                 if arg is not None:
@@ -39,7 +40,7 @@ class BasicTransform(object):
     def apply(self, img, **params):
         raise NotImplementedError
 
-    def get_params(self):
+    def get_params(self, params):
         return {}
 
     @property
@@ -49,15 +50,21 @@ class BasicTransform(object):
         #              ('image', 'boxes')
         raise NotImplementedError
 
-    def update_params(self, params, **kwargs):
+    def get_initial_params(self, **kwargs):
+        params = {}
         if hasattr(self, 'interpolation'):
             params['interpolation'] = self.interpolation
         params.update({'cols': kwargs['image'].shape[1], 'rows': kwargs['image'].shape[0]})
+        params.update({k: kwargs[k] for k in self.targets_as_params})
         return params
 
     @property
     def target_dependence(self):
         return {}
+
+    @property
+    def targets_as_params(self):
+        return []
 
 
 class DualTransform(BasicTransform):
