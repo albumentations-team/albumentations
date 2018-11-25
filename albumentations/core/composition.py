@@ -1,26 +1,62 @@
 from __future__ import division
 
 import random
+import warnings
 
 import numpy as np
+
+from albumentations.augmentations.keypoints_utils import convert_keypoints_from_albumentations, filter_keypoints, convert_keypoints_to_albumentations, check_keypoints
+from albumentations.core.transforms_interface import DualTransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
-from albumentations.augmentations.keypoints_utils import check_keypoints, filter_keypoints, convert_keypoints_from_albumentations, convert_keypoints_to_albumentations, \
-    keypoint_has_extra_data, keypoint_formats
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
 
-class Compose(object):
+def find_dual_start_end(transforms):
+    dual_start_end = None
+    last_dual = None
+    for idx, transform in enumerate(transforms):
+        if isinstance(transform, DualTransform):
+            last_dual = idx
+            if dual_start_end is None:
+                dual_start_end = [idx]
+        if isinstance(transform, BaseCompose):
+            inside = find_dual_start_end(transform)
+            if inside is not None:
+                dual_start_end = [idx]
+    if dual_start_end is not None:
+        dual_start_end.append(last_dual)
+    return dual_start_end
+
+
+def find_always_apply_transforms(transforms):
+    new_transforms = []
+    for transform in transforms:
+        if isinstance(transform, BaseCompose):
+            new_transforms.extend(find_always_apply_transforms(transform))
+        elif transform.always_apply:
+            new_transforms.append(transform)
+    return new_transforms
+
+
+def set_always_apply(transforms):
+    for t in transforms:
+        t.always_apply = True
+
+
+class BaseCompose(object):
+    def __getitem__(self, item):
+        raise NotImplementedError
+
+
+class Compose(BaseCompose):
     """Compose transforms and handle all transformations regrading bounding boxes
 
     Args:
         transforms (list): list of transformations to compose.
-        preprocessing_transforms (list): list of transforms to run before transforms (but after box preprocessing)
-        postprocessing_transforms (list): list of transforms to run after transforms (but before box postprocession)
-        to_tensor (callable): operation to apply after everything with probability 1.0
-        p (float): probability of applying all list of transforms. Default: 1.0.
         bbox_params (dict): Parameters for bounding boxes transforms
+        p (float): probability of applying all list of transforms. Default: 1.0.
 
     **bbox_params** dictionary contains the following keys:
         * **format** (*str*): format of bounding boxes. Should be 'coco', 'pascal_voc' or 'albumentations'.
@@ -38,84 +74,68 @@ class Compose(object):
     """
 
     def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[],
-                 to_tensor=None, bbox_params={}, keypoint_params={}, p=1.0):
-        self.preprocessing_transforms = preprocessing_transforms
-        self.postprocessing_transforms = postprocessing_transforms
-        self.transforms = [t for t in transforms if t is not None]
-        self.to_tensor = to_tensor
-        self.p = p
+                 to_tensor=None, bbox_params={}, p=1.0):
+        if preprocessing_transforms:
+            warnings.warn("preprocessing transforms are deprecated, use always_apply flag for this purpose. "
+                          "will be removed in 0.3.0", DeprecationWarning)
+            set_always_apply(preprocessing_transforms)
+        if postprocessing_transforms:
+            warnings.warn("postprocessing transforms are deprecated, use always_apply flag for this purpose"
+                          "will be removed in 0.3.0", DeprecationWarning)
+            set_always_apply(postprocessing_transforms)
+        if to_tensor is not None:
+            warnings.warn("to_tensor in Compose is deprecated, use always_apply flag for this purpose"
+                          "will be removed in 0.3.0", DeprecationWarning)
+            to_tensor.always_apply = True
+            # todo deprecated
+        self.transforms = (preprocessing_transforms +
+                           [t for t in transforms if t is not None] +
+                           postprocessing_transforms)
+        if to_tensor is not None:
+            self.transforms.append(to_tensor)
         self.bbox_format = bbox_params.get('format', None)
-        self.bbox_label_fields = bbox_params.get('label_fields', [])
-        self.bbox_min_area = bbox_params.get('min_area', 0.0)
-        self.bbox_min_visibility = bbox_params.get('min_visibility', 0.0)
-        self.keypoint_format = keypoint_params.get('format', None)
-        self.keypoint_remove_invisible = keypoint_params.get('remove_invisible', True)
-        self.keypoint_label_fields = keypoint_params.get('label_fields', [])
+        self.label_fields = bbox_params.get('label_fields', [])
+        self.min_area = bbox_params.get('min_area', 0.0)
+        self.min_visibility = bbox_params.get('min_visibility', 0.0)
 
-        if self.keypoint_format and self.keypoint_format not in keypoint_formats:
-            raise ValueError(
-                "Unknown target_format {}. Supported formats are: {}".format(self.keypoint_format, keypoint_formats)
-            )
+        self.p = p
+
+    def __getitem__(self, item):
+        return self.transforms[item]
 
     def __call__(self, **data):
         need_to_run = random.random() < self.p
+        transforms = self.transforms if need_to_run else find_always_apply_transforms(self.transforms)
+        dual_start_end = find_dual_start_end(transforms)
+        if self.bbox_format is None:
+            dual_start_end = None
+
         if self.bbox_format and len(data.get('bboxes', [])) and len(data['bboxes'][0]) < 5:
-            if not self.bbox_label_fields:
+            if not self.label_fields:
                 raise Exception("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
                                 "because bboxes must have labels")
-
-        if self.keypoint_format and len(data.get('keypoints', [])) and not keypoint_has_extra_data(data['keypoints'][0], self.keypoint_format):
-            if not self.keypoint_label_fields:
-                raise Exception("Please specify 'label_fields' in 'keypoint_params' or add labels to the end of keypoint "
-                                "because keypoints must have labels")
-
-        if self.bbox_label_fields:
-            if not all(l in data.keys() for l in self.bbox_label_fields):
+        if self.label_fields:
+            if not all(l in data.keys() for l in self.label_fields):
                 raise Exception("Your 'label_fields' are not valid - them must have same names as params in dict")
-        if self.keypoint_label_fields:
-            if not all(l in data.keys() for l in self.keypoint_label_fields):
-                raise Exception("Your 'label_fields' are not valid - them must have same names as "
-                                "keypoint_params['label_fields']")
 
-        if 'keypoints' in data and self.keypoint_format is None:
-            raise Exception('Please specify keypoint format via `keypoint_params = {\'format\':\'FORMAT\'}`')
-
-        if self.preprocessing_transforms or need_to_run:
-            if self.bbox_format is not None:
+        for idx, t in enumerate(transforms):
+            if dual_start_end is not None and idx == dual_start_end[0]:
                 data = self.boxes_preprocessing(data)
-
-            if self.keypoint_format is not None:
                 data = self.keypoints_preprocessing(data)
 
-            data = self.run_transforms_if_needed(need_to_run, data)
+            data = t(**data)
 
-            if self.bbox_format is not None:
+            if dual_start_end is not None and idx == dual_start_end[1]:
                 data = self.boxes_postprocessing(data)
-
-            if self.keypoint_format is not None:
                 data = self.keypoints_postprocessing(data)
 
-        if self.to_tensor is not None:
-            data = self.to_tensor(data)
-        return data
-
-    def run_transforms_if_needed(self, need_to_run, data):
-        for t in self.preprocessing_transforms:
-            data = t(**data)
-
-        if need_to_run:
-            for t in self.transforms:
-                data = t(**data)
-
-        for t in self.postprocessing_transforms:
-            data = t(**data)
         return data
 
     def boxes_preprocessing(self, data):
         if 'bboxes' not in data:
             raise Exception('Please name field with bounding boxes `bboxes`')
-        if self.bbox_label_fields:
-            for field in self.bbox_label_fields:
+        if self.label_fields:
+            for field in self.label_fields:
                 bboxes_with_added_field = []
                 for bbox, field_value in zip(data['bboxes'], data[field]):
                     bboxes_with_added_field.append(list(bbox) + [field_value])
@@ -132,7 +152,7 @@ class Compose(object):
 
     def boxes_postprocessing(self, data):
         rows, cols = data['image'].shape[:2]
-        data['bboxes'] = filter_bboxes(data['bboxes'], rows, cols, self.bbox_min_area, self.bbox_min_visibility)
+        data['bboxes'] = filter_bboxes(data['bboxes'], rows, cols, self.min_area, self.min_visibility)
 
         if self.bbox_format == 'albumentations':
             check_bboxes(data['bboxes'])
@@ -140,8 +160,8 @@ class Compose(object):
             data['bboxes'] = convert_bboxes_from_albumentations(data['bboxes'], self.bbox_format, rows, cols,
                                                                 check_validity=True)
 
-        if self.bbox_label_fields:
-            for idx, field in enumerate(self.bbox_label_fields):
+        if self.label_fields:
+            for idx, field in enumerate(self.label_fields):
                 field_values = []
                 for bbox in data['bboxes']:
                     field_values.append(bbox[4 + idx])
@@ -188,7 +208,7 @@ class Compose(object):
         return data
 
 
-class OneOf(object):
+class OneOf(BaseCompose):
     """Select on of transforms to apply
 
     Args:
@@ -203,6 +223,9 @@ class OneOf(object):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
+    def __getitem__(self, item):
+        return self.transforms[item]
+
     def __call__(self, **data):
         if random.random() < self.p:
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
@@ -212,13 +235,16 @@ class OneOf(object):
         return data
 
 
-class OneOrOther(object):
+class OneOrOther(BaseCompose):
     def __init__(self, first, second, p=0.5):
         self.first = first
         first.p = 1.
         self.second = second
         second.p = 1.
         self.p = p
+
+    def __getitem__(self, item):
+        return [self.first, self.second][item]
 
     def __call__(self, **data):
         return self.first(**data) if random.random() < self.p else self.second(**data)

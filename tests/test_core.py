@@ -7,6 +7,7 @@ import pytest
 from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
 from albumentations.augmentations.bbox_utils import check_bboxes
 from albumentations.core.composition import OneOrOther, Compose, OneOf
+from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
 from .compat import mock, MagicMock, Mock, call
 
 
@@ -37,6 +38,29 @@ def test_compose_to_tensor():
     image = np.ones((8, 8))
     augmentation(image=image)
     assert to_tensor.called
+
+
+def oneof_always_apply_crash():
+    aug = Compose([
+        HorizontalFlip(),
+        Rotate(),
+        OneOf([
+            Blur(),
+            MedianBlur(),
+        ], p=1)], p=1)
+    image = np.ones((8, 8))
+    data = aug(image=image)
+    assert data
+
+
+def test_always_apply():
+    first = MagicMock(always_apply=True)
+    second = MagicMock(always_apply=False)
+    augmentation = Compose([first, second], p=0)
+    image = np.ones((8, 8))
+    augmentation(image=image)
+    assert first.called
+    assert not second.called
 
 
 def test_one_of():
