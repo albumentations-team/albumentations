@@ -20,6 +20,7 @@ class BasicTransform(object):
     def __init__(self, always_apply=False, p=0.5):
         self.p = p
         self.always_apply = always_apply
+        self._additional_targets = {}
 
     def __call__(self, **kwargs):
         if (random.random() < self.p) or self.always_apply:
@@ -28,13 +29,21 @@ class BasicTransform(object):
             res = {}
             for key, arg in kwargs.items():
                 if arg is not None:
-                    target_function = self.targets.get(key, lambda x, **p: x)
+                    target_function = self._get_target_function(key)
                     target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
                     res[key] = target_function(arg, **dict(params, **target_dependencies))
                 else:
                     res[key] = None
             return res
         return kwargs
+
+    def _get_target_function(self, key):
+        transform_key = key
+        if key in self._additional_targets:
+            transform_key = self._additional_targets.get(key, None)
+
+        target_function = self.targets.get(transform_key, lambda x, **p: x)
+        return target_function
 
     def apply(self, img, **params):
         raise NotImplementedError
@@ -58,6 +67,17 @@ class BasicTransform(object):
     @property
     def target_dependence(self):
         return {}
+
+    def add_targets(self, additional_targets):
+        """
+        adds targets to transform them the same way as one of existing targets
+        ex: {'target_image': 'image'}
+        ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
+        by the way you must have at least one object with key 'image'
+        :param additional_targets: dict()
+        :return:
+        """
+        self._additional_targets = additional_targets
 
 
 class DualTransform(BasicTransform):
