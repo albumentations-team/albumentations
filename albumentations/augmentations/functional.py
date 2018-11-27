@@ -37,7 +37,6 @@ def clipped(func):
 def preserve_shape(func):
     """Preserve shape of the image.
     """
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -51,7 +50,6 @@ def preserve_shape(func):
 def preserve_channel_dim(func):
     """Preserve dummy channel dim.
     """
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -741,14 +739,14 @@ def keypoint_rot90(keypoint, factor, **params):
     if factor == 2:
         keypoint = [1 - x, 1 - y, angle - math.pi, scale]
     if factor == 3:
-        keypoint = [1 - y, x, angle + math.pi/2, scale]
+        keypoint = [1 - y, x, angle + math.pi / 2, scale]
     return keypoint
 
 
 def keypoint_rotate(keypoint, angle, **params):
     matrix = cv2.getRotationMatrix2D((0.5, 0.5), angle, 1.0)
     x, y, a, s = keypoint
-    x,y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     return [x, y, a + math.radians(angle), s]
 
 

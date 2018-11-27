@@ -5,8 +5,8 @@ import pytest
 from albumentations import Flip, HorizontalFlip, VerticalFlip
 
 from albumentations.augmentations.keypoints_utils import normalize_keypoint, denormalize_keypoint, \
-    convert_keypoint_from_albumentations, convert_keypoints_from_albumentations, filter_keypoints, normalize_keypoints, denormalize_keypoints, \
-    convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
+    convert_keypoint_from_albumentations, convert_keypoints_from_albumentations, normalize_keypoints, \
+    denormalize_keypoints, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
 from albumentations.augmentations.transforms import RandomSizedCrop
@@ -56,7 +56,8 @@ def test_denormalize_bboxes():
     keypoints = [[0.0375, 0.125],
                  [0.0375, 0.125, 99]]
     denormalized_bboxes_1 = denormalize_keypoints(keypoints, 200, 400)
-    denormalized_bboxes_2 = [denormalize_keypoint(keypoints[0], 200, 400), denormalize_keypoint(keypoints[1], 200, 400)]
+    denormalized_bboxes_2 = [denormalize_keypoint(keypoints[0], 200, 400),
+                             denormalize_keypoint(keypoints[1], 200, 400)]
     assert denormalized_bboxes_1 == denormalized_bboxes_2
 
 
@@ -193,7 +194,8 @@ def test_random_sized_crop_size():
     [VerticalFlip, [[20, 30, 90, 0]], [[20, 70, 270, 0]]],
 ])
 def test_keypoint_transform(aug, keypoints, expected):
-    transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas', 'angle_in_degrees': True, 'label_fields': ['labels']})
+    transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas',
+                                                     'angle_in_degrees': True, 'label_fields': ['labels']})
 
     image = np.ones((100, 100, 3))
     transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
@@ -230,8 +232,6 @@ def test_keypoint_rotate(keypoint, expected, angle):
 def test_keypoint_scale(keypoint, expected, scale):
     actual = F.keypoint_scale(keypoint, scale)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
-
-
 
 
 @pytest.mark.parametrize(['keypoint', 'expected', 'angle', 'scale', 'dx', 'dy'], [

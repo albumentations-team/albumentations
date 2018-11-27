@@ -72,7 +72,8 @@ def keypoint_has_extra_data(kp, format):
     return len(kp) > len(format)
 
 
-def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols, check_validity=False, angle_in_degrees=True):
+def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols,
+                                       check_validity=False, angle_in_degrees=True):
     if source_format not in keypoint_formats:
         raise ValueError(
             "Unknown target_format {}. Supported formats are: {}".format(source_format, keypoint_formats)
@@ -112,7 +113,7 @@ def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols, chec
 
 
 def normalize_angle(a):
-    two_pi=2. * math.pi
+    two_pi = 2. * math.pi
     while a < 0:
         a += two_pi
     while a > two_pi:
@@ -120,7 +121,8 @@ def normalize_angle(a):
     return a
 
 
-def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols, check_validity=False, angle_in_degrees=True):
+def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols,
+                                         check_validity=False, angle_in_degrees=True):
     if target_format not in keypoint_formats:
         raise ValueError(
             "Unknown target_format {}. Supported formats are: {}".format(target_format, keypoint_formats)

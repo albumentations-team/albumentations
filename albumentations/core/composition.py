@@ -14,8 +14,6 @@ from albumentations.augmentations.bbox_utils import convert_bboxes_from_albument
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
 
-
-
 def find_dual_start_end(transforms):
     dual_start_end = None
     last_dual = None
@@ -59,6 +57,7 @@ class Compose(BaseCompose):
     Args:
         transforms (list): list of transformations to compose.
         bbox_params (dict): Parameters for bounding boxes transforms
+        keypoint_params (dict): Parameters for keypoints transforms
         p (float): probability of applying all list of transforms. Default: 1.0.
 
     **bbox_params** dictionary contains the following keys:
@@ -122,7 +121,9 @@ class Compose(BaseCompose):
         if self.params[self.bboxes_name] or self.params[self.keypoints_name]:
             dual_start_end = find_dual_start_end(transforms)
 
-        if self.params[self.bboxes_name] and len(data.get(self.bboxes_name, [])) and len(data[self.bboxes_name][0]) < 5:
+        if (self.params[self.bboxes_name] and
+                len(data.get(self.bboxes_name, [])) and
+                len(data[self.bboxes_name][0]) < 5):
             if 'label_fields' not in self.params[self.bboxes_name]:
                 raise Exception("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
                                 "because bboxes must have labels")
@@ -161,9 +162,10 @@ def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data
         additional_params['min_visibility'] = params.get('min_visibility', 0.0)
     elif data_name == 'keypoints':
         additional_params['remove_invisible'] = params.get('remove_invisible', 0.0)
-    else: raise Exception('Not known data_name')
+    else:
+        raise Exception('Not known data_name')
 
-    data[data_name] = filter_fn(data[data_name], rows, cols, **additional_params) #todo
+    data[data_name] = filter_fn(data[data_name], rows, cols, **additional_params)
 
     if params['format'] == 'albumentations':
         check_fn(data[data_name])
