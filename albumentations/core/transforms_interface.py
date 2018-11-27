@@ -26,6 +26,10 @@ class BasicTransform(object):
         if (random.random() < self.p) or self.always_apply:
             params = self.get_params()
             params = self.update_params(params, **kwargs)
+            if self.targets_as_params:
+                targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
+                params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
+                params.update(params_dependent_on_targets)
             res = {}
             for key, arg in kwargs.items():
                 if arg is not None:
@@ -78,6 +82,13 @@ class BasicTransform(object):
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
         """
         self._additional_targets = additional_targets
+
+    @property
+    def targets_as_params(self):
+        return []
+
+    def get_params_dependent_on_targets(self, params):
+        raise NotImplementedError
 
 
 class DualTransform(BasicTransform):
