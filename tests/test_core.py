@@ -99,6 +99,17 @@ def test_dual_transform(image, mask):
             mocked_apply.assert_has_calls([image_call, mask_call], any_order=True)
 
 
+def test_additional_targets(image, mask):
+    image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
+    image2_call = call(mask, interpolation=cv2.INTER_LINEAR, cols=mask.shape[1], rows=mask.shape[0])
+    with mock.patch.object(DualTransform, 'apply') as mocked_apply:
+        with mock.patch.object(DualTransform, 'get_params', return_value={'interpolation': cv2.INTER_LINEAR}):
+            aug = DualTransform(p=1)
+            aug.add_targets({'image2': 'image'})
+            aug(image=image, image2=mask)
+            mocked_apply.assert_has_calls([image_call, image2_call], any_order=True)
+
+
 def test_check_bboxes_with_correct_values():
     try:
         check_bboxes([[0.1, 0.5, 0.8, 1.0], [0.2, 0.5, 0.5, 0.6, 99]])
