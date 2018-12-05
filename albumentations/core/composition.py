@@ -11,6 +11,7 @@ from albumentations.core.transforms_interface import DualTransform
 from albumentations.imgaug.transforms import DualIAATransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
+from albumentations.core.utils import get_field_name
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
@@ -59,7 +60,6 @@ class BaseCompose(object):
         if additional_targets:
             for t in self.transforms:
                 t.add_targets(additional_targets)
-
 
 class Compose(BaseCompose):
     """Compose transforms and handle all transformations regrading bounding boxes
@@ -133,6 +133,7 @@ class Compose(BaseCompose):
                                                                               self.keypoints_format))
                     break
 
+        self.additional_targets = additional_targets
         self.add_targets(additional_targets)
 
     def __call__(self, **data):
