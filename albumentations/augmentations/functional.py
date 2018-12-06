@@ -220,6 +220,17 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
     img = img[y1:y2, x1:x2]
     return img
 
+def simple_crop_coordinates(img, x_min, x_max, y_min, y_max):
+    h, w = img.shape[:2]
+    if x_min < 0:
+        x_min = 0
+    if y_min < 0:
+        y_min = 0
+    if y_max >= h:
+        y_max = h - 1
+    if x_max >= w:
+        x_max = w - 1
+    return img[int(y_min):int(y_max), int(x_min):int(x_max)]
 
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
     dtype = img.dtype
