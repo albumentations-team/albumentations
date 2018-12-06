@@ -406,8 +406,9 @@ class ShiftScaleRotate(DualTransform):
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
 
-    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy)
+    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, interpolation=cv2.INTER_LINEAR,
+                          **params):
+        return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
 
     def get_params(self):
         return {'angle': random.uniform(self.rotate_limit[0], self.rotate_limit[1]),

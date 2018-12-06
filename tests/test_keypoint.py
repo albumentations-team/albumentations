@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 import pytest
-from albumentations import Flip, HorizontalFlip, VerticalFlip
+from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud
 
 from albumentations.augmentations.keypoints_utils import normalize_keypoint, denormalize_keypoint, \
     convert_keypoint_from_albumentations, convert_keypoints_from_albumentations, normalize_keypoints, \
@@ -13,60 +13,12 @@ from albumentations.augmentations.transforms import RandomSizedCrop
 import albumentations.augmentations.functional as F
 
 
-@pytest.mark.parametrize(['kp', 'expected'], [
-    [[15, 25], [0.0375, 0.125]],
-    [[15, 25, 99], [0.0375, 0.125, 99]],
-])
-def test_normalize_keypoint(kp, expected):
-    normalized_kp = normalize_keypoint(kp, 200, 400)
-    assert normalized_kp == expected
-
-
-@pytest.mark.parametrize(['kp', 'expected'], [
-    [[0.0375, 0.125], [15, 25]],
-    [[0.0375, 0.125, 99], [15, 25, 99]],
-])
-def test_denormalize_keypoint(kp, expected):
-    denormalized_kp = denormalize_keypoint(kp, 200, 400)
-    assert denormalized_kp == expected
-
-
-@pytest.mark.parametrize('kp', [[15, 25], [15, 25, 99]])
-def test_normalize_denormalize_keypoint(kp):
-    normalized_bbox = normalize_keypoint(kp, 200, 400)
-    denormalized_bbox = denormalize_keypoint(normalized_bbox, 200, 400)
-    assert denormalized_bbox == kp
-
-
-@pytest.mark.parametrize('kp', [[0.0375, 0.125], [0.0375, 0.125, 99]])
-def test_denormalize_normalize_keypoint(kp):
-    denormalized_bbox = denormalize_keypoint(kp, 200, 400)
-    normalized_bbox = normalize_keypoint(denormalized_bbox, 200, 400)
-    assert normalized_bbox == kp
-
-
-def test_normalize_keypoints():
-    bboxes = [[15, 25, 100, 200], [15, 25, 100, 200, 99]]
-    normalized_bboxes_1 = normalize_keypoints(bboxes, 200, 400)
-    normalized_bboxes_2 = [normalize_keypoint(bboxes[0], 200, 400), normalize_keypoint(bboxes[1], 200, 400)]
-    assert normalized_bboxes_1 == normalized_bboxes_2
-
-
-def test_denormalize_bboxes():
-    keypoints = [[0.0375, 0.125],
-                 [0.0375, 0.125, 99]]
-    denormalized_bboxes_1 = denormalize_keypoints(keypoints, 200, 400)
-    denormalized_bboxes_2 = [denormalize_keypoint(keypoints[0], 200, 400),
-                             denormalize_keypoint(keypoints[1], 200, 400)]
-    assert denormalized_bboxes_1 == denormalized_bboxes_2
-
-
 @pytest.mark.parametrize(['kp', 'source_format', 'expected'], [
-    [[20, 30], 'xy', [0.2, 0.3, 0, 0]],
-    [[20, 30], 'yx', [0.3, 0.2, 0, 0]],
-    [[20, 30, 60], 'xys', [0.2, 0.3, 0, 60]],
-    [[20, 30, 60], 'xya', [0.2, 0.3, math.radians(60), 0]],
-    [[20, 30, 60, 80], 'xyas', [0.2, 0.3, math.radians(60), 80]],
+    [[20, 30], 'xy', [20, 30, 0, 0]],
+    [[20, 30], 'yx', [30, 20, 0, 0]],
+    [[20, 30, 60], 'xys', [20, 30, 0, 60]],
+    [[20, 30, 60], 'xya', [20, 30, math.radians(60), 0]],
+    [[20, 30, 60, 80], 'xyas', [20, 30, math.radians(60), 80]],
 ])
 def test_convert_keypoint_to_albumentations(kp, source_format, expected):
     image = np.ones((100, 100, 3))
@@ -77,11 +29,11 @@ def test_convert_keypoint_to_albumentations(kp, source_format, expected):
 
 
 @pytest.mark.parametrize(['kp', 'target_format', 'expected'], [
-    [[0.2, 0.3, 0, 0], 'xy', [20, 30]],
-    [[0.2, 0.3, 0, 0], 'yx', [30, 20]],
-    [[0.2, 0.3, 0.6, 0], 'xya', [20, 30, math.degrees(0.6)]],
-    [[0.2, 0.3, 0, 0.6], 'xys', [20, 30, 0.6]],
-    [[0.2, 0.3, 0.6, 80], 'xyas', [20, 30, math.degrees(0.6), 80]],
+    [[20, 30, 0, 0], 'xy', [20, 30]],
+    [[20, 30, 0, 0], 'yx', [30, 20]],
+    [[20, 30, 0.6, 0], 'xya', [20, 30, math.degrees(0.6)]],
+    [[20, 30, 0, 0.6], 'xys', [20, 30, 0.6]],
+    [[20, 30, 0.6, 80], 'xyas', [20, 30, math.degrees(0.6), 80]],
 ])
 def test_convert_keypoint_from_albumentations(kp, target_format, expected):
     image = np.ones((100, 100, 3))
@@ -151,7 +103,7 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
 @pytest.mark.parametrize(['keypoints', 'keypoint_format'], [
     [[[20, 30, 40, 50]], 'xyas'],
 ])
-def test_compose_with_bbox_noop_error_label_fields(keypoints, keypoint_format):
+def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format):
     image = np.ones((100, 100, 3))
     aug = Compose([NoOp(p=1.)], keypoint_params={'format': keypoint_format})
     with pytest.raises(Exception):
@@ -185,13 +137,35 @@ def test_random_sized_crop_size():
 
 
 @pytest.mark.parametrize(['aug', 'keypoints', 'expected'], [
-    [HorizontalFlip, [[20, 30, 0, 0]], [[80, 30, 180, 0]]],
-    [HorizontalFlip, [[20, 30, 45, 0]], [[80, 30, 135, 0]]],
-    [HorizontalFlip, [[20, 30, 90, 0]], [[80, 30, 90, 0]]],
+    [HorizontalFlip, [[0, 0]], [[2, 0]]],
+    [HorizontalFlip, [[2, 0]], [[0, 0]]],
+    [HorizontalFlip, [[0, 2]], [[2, 2]]],
+    [HorizontalFlip, [[2, 2]], [[0, 2]]],
     #
-    [VerticalFlip, [[20, 30, 0, 0]], [[20, 70, 0, 0]]],
-    [VerticalFlip, [[20, 30, 45, 0]], [[20, 70, 315, 0]]],
-    [VerticalFlip, [[20, 30, 90, 0]], [[20, 70, 270, 0]]],
+    [VerticalFlip, [[0, 0]], [[0, 2]]],
+    [VerticalFlip, [[2, 0]], [[2, 2]]],
+    [VerticalFlip, [[0, 2]], [[0, 0]]],
+    [VerticalFlip, [[2, 2]], [[2, 0]]],
+    #
+    [HorizontalFlip, [[1, 1]], [[1, 1]]],
+    [VerticalFlip, [[1, 1]], [[1, 1]]]
+])
+def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
+    transform = Compose([aug(p=1)], keypoint_params={'format': 'xy'})
+
+    image = np.ones((3, 3, 3))
+    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    assert np.allclose(expected, transformed['keypoints'])
+
+
+@pytest.mark.parametrize(['aug', 'keypoints', 'expected'], [
+    [HorizontalFlip, [[20, 30, 0, 0]], [[79, 30, 180, 0]]],
+    [HorizontalFlip, [[20, 30, 45, 0]], [[79, 30, 135, 0]]],
+    [HorizontalFlip, [[20, 30, 90, 0]], [[79, 30, 90, 0]]],
+    #
+    [VerticalFlip, [[20, 30, 0, 0]], [[20, 69, 0, 0]]],
+    [VerticalFlip, [[20, 30, 45, 0]], [[20, 69, 315, 0]]],
+    [VerticalFlip, [[20, 30, 90, 0]], [[20, 69, 270, 0]]],
 ])
 def test_keypoint_transform(aug, keypoints, expected):
     transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas',
@@ -202,25 +176,44 @@ def test_keypoint_transform(aug, keypoints, expected):
     assert np.allclose(expected, transformed['keypoints'])
 
 
+@pytest.mark.parametrize(['aug', 'keypoints', 'expected'], [
+    [IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]],
+    [IAAFliplr, [[20, 30, 45, 0]], [[79, 30, 45, 0]]],
+    [IAAFliplr, [[20, 30, 90, 0]], [[79, 30, 90, 0]]],
+    #
+    [IAAFlipud, [[20, 30, 0, 0]], [[20, 69, 0, 0]]],
+    [IAAFlipud, [[20, 30, 45, 0]], [[20, 69, 45, 0]]],
+    [IAAFlipud, [[20, 30, 90, 0]], [[20, 69, 90, 0]]],
+])
+def test_keypoint_transform(aug, keypoints, expected):
+    transform = Compose([aug(p=1)], keypoint_params={'format': 'xy', 'label_fields': ['labels']})
+
+    image = np.ones((100, 100, 3))
+    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    assert np.allclose(expected, transformed['keypoints'])
+
+
 @pytest.mark.parametrize(['keypoint', 'expected', 'factor'], [
-    [[0.2, 0.3, math.pi / 2, 0], [0.2, 0.3, math.pi / 2, 0], 0],
-    [[0.2, 0.3, math.pi / 2, 0], [0.3, 0.8, 0, 0], 1],
-    [[0.2, 0.3, math.pi / 2, 0], [0.8, 0.7, -math.pi / 2, 0], 2],
-    [[0.2, 0.3, math.pi / 2, 0], [0.7, 0.2, math.pi, 0], 3],
+    [[20, 30, math.pi / 2, 0], [20, 30, math.pi / 2, 0], 0],
+    [[20, 30, math.pi / 2, 0], [30, 179, 0, 0], 1],
+    [[20, 30, math.pi / 2, 0], [179, 69, -math.pi / 2, 0], 2],
+    [[20, 30, math.pi / 2, 0], [69, 20, math.pi, 0], 3],
 ])
 def test_keypoint_rotate90(keypoint, expected, factor):
-    actual = F.keypoint_rot90(keypoint, factor)
+    actual = F.keypoint_rot90(keypoint, factor, rows=100, cols=200)
     assert actual == expected
 
 
 @pytest.mark.parametrize(['keypoint', 'expected', 'angle'], [
-    [[0.0, 0.0, math.pi / 2, 0], [0.0, 0.0, math.pi / 2, 0], 0],
-    [[0.0, 0.0, math.pi / 2, 0], [0.0, 1.0, math.pi / 2 + math.pi / 2, 0], 90],
-    [[0.0, 0.0, math.pi / 2, 0], [1.0, 1.0, math.pi / 2 + math.pi, 0], 180],
-    [[0.0, 0.0, math.pi / 2, 0], [1.0, 0.0, math.pi / 2 + 3 * math.pi / 2, 0], 270],
+    [[20, 30, math.pi / 2, 0], [20, 30, math.pi / 2, 0], 0],
+    [[20, 30, math.pi / 2, 0], [30, 79, math.pi, 0], 90],
+    [[20, 30, math.pi / 2, 0], [79, 69, math.pi + math.pi / 2, 0], 180],
+    [[20, 30, math.pi / 2, 0], [69, 20, math.pi * 2, 0], 270],
+    [[0, 0, 0, 0], [99, 99, math.pi, 0], 180],
+    [[99, 99, 0, 0], [0, 0, math.pi, 0], 180],
 ])
 def test_keypoint_rotate(keypoint, expected, angle):
-    actual = F.keypoint_rotate(keypoint, angle)
+    actual = F.keypoint_rotate(keypoint, angle, rows=100, cols=100)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
@@ -235,8 +228,8 @@ def test_keypoint_scale(keypoint, expected, scale):
 
 
 @pytest.mark.parametrize(['keypoint', 'expected', 'angle', 'scale', 'dx', 'dy'], [
-    [[0.5, 0.5, 0.1, 5], [0.7, 0.3, 0.1 + math.radians(10), 10], 10, 2, 0.2, -0.2],
+    [[50, 50, 0, 5], [110, 158, math.pi/2, 10], 90, 2, 10, 10],
 ])
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
-    actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy)
+    actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
     np.testing.assert_allclose(actual, expected, atol=1e-7)

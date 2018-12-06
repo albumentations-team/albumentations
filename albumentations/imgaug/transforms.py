@@ -3,6 +3,8 @@ from imgaug import augmenters as iaa
 
 from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations
+from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, \
+    convert_keypoints_to_albumentations
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
 
 __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IAAEmboss', 'IAASuperpixels',
@@ -39,6 +41,24 @@ class DualIAATransform(DualTransform, BasicIAATransform):
 
             bboxes = convert_bboxes_to_albumentations(bboxes_t, 'pascal_voc', rows=rows, cols=cols)
         return bboxes
+
+    """Applies transformation to keypoints.
+    
+    Notes:
+        Since IAA supports only xy keypoints, scale and orientation will remain unchanged.
+        TODO: Emit a warning message if child classes of DualIAATransform are instantiated 
+        inside Compose with keypoints format other than 'xy'.
+    """
+    def apply_to_keypoints(self, keypoints, rows=0, cols=0, **params):
+        if len(keypoints):
+            keypoints = convert_keypoints_from_albumentations(keypoints, 'xy', rows=rows, cols=cols)
+            keypoints_t = ia.KeypointsOnImage([ia.Keypoint(*kp[:2]) for kp in keypoints], (rows, cols))
+            keypoints_t = self.deterministic_processor.augment_keypoints([keypoints_t])[0].keypoints
+
+            bboxes_t = [[kp.x, kp.y] + list(kp_orig[2:]) for (kp, kp_orig) in zip(keypoints_t, keypoints)]
+
+            keypoints = convert_keypoints_to_albumentations(bboxes_t, 'xy', rows=rows, cols=cols)
+        return keypoints
 
 
 class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):

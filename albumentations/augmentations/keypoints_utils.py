@@ -2,42 +2,45 @@ from __future__ import division
 import math
 
 
-def check_keypoint(kp):
+def check_keypoint(kp, rows, cols):
     """Check if keypoint coordinates are in range [0, 1)"""
-    for name, value in zip(['x', 'y'], kp[:2]):
-        if not 0 <= value < 1:
+    for name, value, size in zip(['x', 'y'], kp[:2], [cols, rows]):
+        if not 0 <= value < size:
             raise ValueError(
                 'Expected {name} for keypoint {kp} '
-                'to be in the range [0.0, 1.0], got {value}.'.format(
+                'to be in the range [0.0, {size}], got {value}.'.format(
                     kp=kp,
                     name=name,
                     value=value,
+                    size=size
                 )
             )
 
 
-def check_keypoints(keypoints):
+def check_keypoints(keypoints, rows, cols):
     """Check if keypoints boundaries are in range [0, 1)"""
     for kp in keypoints:
-        check_keypoint(kp)
+        check_keypoint(kp, rows, cols)
 
 
 def normalize_keypoint(kp, rows, cols):
     """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
     by image height.
     """
-    x, y = kp[:2]
-    normalized_bbox = [x / cols, y / rows]
-    return normalized_bbox + list(kp[2:])
+    # x, y = kp[:2]
+    # normalized_bbox = [float(x), float(y)]
+    # return normalized_bbox + list(kp[2:])
+    return kp
 
 
 def denormalize_keypoint(kp, rows, cols):
     """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
     by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
     """
-    x, y = kp[:2]
-    denormalized_bbox = [x * cols, y * rows]
-    return denormalized_bbox + list(kp[2:])
+    # x, y = kp[:2]
+    # denormalized_bbox = [x * (cols-1), y * (rows-1)]
+    # return denormalized_bbox + list(kp[2:])
+    return kp
 
 
 def normalize_keypoints(bboxes, rows, cols):
@@ -57,9 +60,9 @@ def filter_keypoints(keypoints, rows, cols, remove_invisible):
     resulting_keypoints = []
     for kp in keypoints:
         x, y = kp[:2]
-        if x < 0 or x >= 1:
+        if x < 0 or x >= cols:
             continue
-        if y < 0 or y >= 1:
+        if y < 0 or y >= rows:
             continue
         resulting_keypoints.append(kp)
     return resulting_keypoints
@@ -108,7 +111,7 @@ def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols,
     keypoint = [x, y, a, s] + tail
     keypoint = normalize_keypoint(keypoint, rows, cols)
     if check_validity:
-        check_keypoint(keypoint)
+        check_keypoint(keypoint, rows, cols)
     return keypoint
 
 
@@ -128,7 +131,7 @@ def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols,
             "Unknown target_format {}. Supported formats are: {}".format(target_format, keypoint_formats)
         )
     if check_validity:
-        check_keypoint(keypoint)
+        check_keypoint(keypoint, rows, cols)
     keypoint = denormalize_keypoint(keypoint, rows, cols)
     x, y, a, s = keypoint[:4]
     a = normalize_angle(a)
