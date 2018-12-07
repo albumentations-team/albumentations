@@ -6,7 +6,7 @@ import pytest
 
 from albumentations import Transpose, Rotate, ShiftScaleRotate, OpticalDistortion, GridDistortion, ElasticTransform, \
     VerticalFlip, HorizontalFlip, RandomSizedCrop, RandomScale, IAAPiecewiseAffine, IAAAffine, IAAPerspective, \
-    LongestMaxSize, Resize
+    LongestMaxSize, Resize, IAASharpen
 import albumentations.augmentations.functional as F
 
 
@@ -157,6 +157,7 @@ def __test_multiprocessing_support_proc(args):
     [IAAAffine, {'scale': 1.5}],
     [IAAPiecewiseAffine, {'scale': 1.5}],
     [IAAPerspective, {}],
+    [IAASharpen, {}]
 ])
 def test_multiprocessing_support(augmentation_cls, params):
     """Checks whether we can use augmetnations in multi-threaded environments"""
