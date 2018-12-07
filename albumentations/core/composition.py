@@ -48,8 +48,17 @@ def set_always_apply(transforms):
 
 
 class BaseCompose(object):
+    def __init__(self, transforms, p):
+        self.transforms = transforms
+        self.p = p
+
     def __getitem__(self, item):
-        raise NotImplementedError
+        return self.transforms[item]
+
+    def add_targets(self, additional_targets):
+        if additional_targets:
+            for t in self.transforms:
+                t.add_targets(additional_targets)
 
 
 class Compose(BaseCompose):
@@ -59,6 +68,7 @@ class Compose(BaseCompose):
         transforms (list): list of transformations to compose.
         bbox_params (dict): Parameters for bounding boxes transforms
         keypoint_params (dict): Parameters for keypoints transforms
+        additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
         p (float): probability of applying all list of transforms. Default: 1.0.
 
     **bbox_params** dictionary contains the following keys:
@@ -77,7 +87,7 @@ class Compose(BaseCompose):
     """
 
     def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[],
-                 to_tensor=None, bbox_params={}, keypoint_params={}, p=1.0):
+                 to_tensor=None, bbox_params={}, keypoint_params={}, additional_targets={}, p=1.0):
         if preprocessing_transforms:
             warnings.warn("preprocessing transforms are deprecated, use always_apply flag for this purpose. "
                           "will be removed in 0.3.0", DeprecationWarning)
@@ -91,11 +101,12 @@ class Compose(BaseCompose):
                           "will be removed in 0.3.0", DeprecationWarning)
             to_tensor.always_apply = True
             # todo deprecated
-        self.transforms = (preprocessing_transforms +
-                           [t for t in transforms if t is not None] +
-                           postprocessing_transforms)
+        _transforms = (preprocessing_transforms +
+                       [t for t in transforms if t is not None] +
+                       postprocessing_transforms)
         if to_tensor is not None:
-            self.transforms.append(to_tensor)
+            _transforms.append(to_tensor)
+        super(Compose, self).__init__(_transforms, p)
 
         self.bboxes_name = 'bboxes'
         self.keypoints_name = 'keypoints'
@@ -121,10 +132,7 @@ class Compose(BaseCompose):
                                   "and angle WILL NOT BE transformed.")
                     break
 
-        self.p = p
-
-    def __getitem__(self, item):
-        return self.transforms[item]
+        self.add_targets(additional_targets)
 
     def __call__(self, **data):
         need_to_run = random.random() < self.p
@@ -231,14 +239,10 @@ class OneOf(BaseCompose):
     """
 
     def __init__(self, transforms, p=0.5):
-        self.transforms = transforms
-        self.p = p
+        super(OneOf, self).__init__(transforms, p)
         transforms_ps = [t.p for t in transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
-
-    def __getitem__(self, item):
-        return self.transforms[item]
 
     def __call__(self, **data):
         if random.random() < self.p:
@@ -251,14 +255,9 @@ class OneOf(BaseCompose):
 
 class OneOrOther(BaseCompose):
     def __init__(self, first, second, p=0.5):
-        self.first = first
-        first.p = 1.
-        self.second = second
-        second.p = 1.
-        self.p = p
-
-    def __getitem__(self, item):
-        return [self.first, self.second][item]
+        super(OneOrOther, self).__init__([first, second], p)
+        for t in self.transforms:
+            t.p = 1.
 
     def __call__(self, **data):
-        return self.first(**data) if random.random() < self.p else self.second(**data)
+        return self.transforms[0](**data) if random.random() < self.p else self.transforms[-1](**data)
