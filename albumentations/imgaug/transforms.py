@@ -22,7 +22,7 @@ class BasicIAATransform(BasicTransform):
         return super(BasicIAATransform, self).__call__(**kwargs)
 
     def update_params(self, params, **kwargs):
-        params = super().update_params(params, **kwargs)
+        params = super(BasicIAATransform, self).update_params(params, **kwargs)
         params['deterministic_processor'] = self.processor.to_deterministic()
         return params
 
