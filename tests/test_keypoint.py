@@ -193,6 +193,14 @@ def test_keypoint_transform(aug, keypoints, expected):
     assert np.allclose(expected, transformed['keypoints'])
 
 
+@pytest.mark.parametrize(['aug', 'keypoints', 'expected'], [
+    [IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]],
+])
+def test_iaa_transforms_emit_warning(aug, keypoints, expected):
+    with pytest.warns(UserWarning, match='IAAFliplr transformation supports only \'xy\' keypoints augmentation'):
+        transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas', 'label_fields': ['labels']})
+
+
 @pytest.mark.parametrize(['keypoint', 'expected', 'factor'], [
     [[20, 30, math.pi / 2, 0], [20, 30, math.pi / 2, 0], 0],
     [[20, 30, math.pi / 2, 0], [30, 179, 0, 0], 1],
@@ -228,7 +236,7 @@ def test_keypoint_scale(keypoint, expected, scale):
 
 
 @pytest.mark.parametrize(['keypoint', 'expected', 'angle', 'scale', 'dx', 'dy'], [
-    [[50, 50, 0, 5], [110, 158, math.pi/2, 10], 90, 2, 10, 10],
+    [[50, 50, 0, 5], [110, 158, math.pi / 2, 10], 90, 2, 10, 10],
 ])
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
     actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)

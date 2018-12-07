@@ -8,6 +8,7 @@ import numpy as np
 from albumentations.augmentations.keypoints_utils import convert_keypoints_from_albumentations, filter_keypoints, \
     convert_keypoints_to_albumentations, check_keypoints
 from albumentations.core.transforms_interface import DualTransform
+from albumentations.imgaug.transforms import DualIAATransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
 
@@ -106,8 +107,19 @@ class Compose(BaseCompose):
         self.bbox_format = bbox_params.get('format', None)
         self.bbox_label_fields = bbox_params.get('label_fields', [])
 
-        self.keypoints_format = bbox_params.get('format', None)
-        self.keypoints_label_fields = bbox_params.get('label_fields', [])
+        self.keypoints_format = keypoint_params.get('format', None)
+        self.keypoints_label_fields = keypoint_params.get('label_fields', [])
+
+        # IAA-based augmentations supports only transformation of xy keypoints.
+        # If your keypoints formats is other than 'xy' we emit warning to let user
+        # be aware that angle and size will not be modified.
+        if self.keypoints_format is not None and self.keypoints_format != 'xy':
+            for transform in self.transforms:
+                if isinstance(transform, DualIAATransform):
+                    warnings.warn(f"{transform.__class__.__name__} transformation supports only 'xy' keypoints "
+                                  f"augmentation. You have '{self.keypoints_format}' keypoints format. Scale "
+                                  "and angle WILL NOT BE transformed.")
+                    break
 
         self.p = p
 
