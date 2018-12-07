@@ -13,27 +13,30 @@ __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IA
 class BasicIAATransform(BasicTransform):
     def __init__(self, always_apply=False, p=0.5):
         super(BasicIAATransform, self).__init__(always_apply, p)
-        self.deterministic_processor = iaa.Noop()
 
     @property
     def processor(self):
         return iaa.Noop()
 
     def __call__(self, **kwargs):
-        self.deterministic_processor = self.processor.to_deterministic()
         return super(BasicIAATransform, self).__call__(**kwargs)
 
-    def apply(self, img, **params):
-        return self.deterministic_processor.augment_image(img)
+    def update_params(self, params, **kwargs):
+        params = super(BasicIAATransform, self).update_params(params, **kwargs)
+        params['deterministic_processor'] = self.processor.to_deterministic()
+        return params
+
+    def apply(self, img, deterministic_processor=None, **params):
+        return deterministic_processor.augment_image(img)
 
 
 class DualIAATransform(DualTransform, BasicIAATransform):
-    def apply_to_bboxes(self, bboxes, rows=0, cols=0, **params):
+    def apply_to_bboxes(self, bboxes, deterministic_processor=None, rows=0, cols=0, **params):
         if len(bboxes):
             bboxes = convert_bboxes_from_albumentations(bboxes, 'pascal_voc', rows=rows, cols=cols)
 
             bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols))
-            bboxes_t = self.deterministic_processor.augment_bounding_boxes([bboxes_t])[0].bounding_boxes
+            bboxes_t = deterministic_processor.augment_bounding_boxes([bboxes_t])[0].bounding_boxes
             bboxes_t = [[bbox.x1, bbox.y1, bbox.x2, bbox.y2] + list(bbox_orig[4:]) for (bbox, bbox_orig) in
                         zip(bboxes_t, bboxes)]
 
