@@ -1,3 +1,5 @@
+from multiprocessing.pool import Pool
+
 import numpy as np
 import cv2
 import pytest
@@ -136,3 +138,30 @@ def test_semantic_mask_interpolation(augmentation_cls, params):
 
     data = aug(image=image, mask=mask)
     assert np.array_equal(np.unique(data['mask']), np.array([0, 64, 128, 192]))
+
+
+def __test_multiprocessing_support_proc(args):
+    x, transform = args
+    return transform(image=x)
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [ElasticTransform, {}],
+    [GridDistortion, {}],
+    [ShiftScaleRotate, {'rotate_limit': 45}],
+    [RandomScale, {'scale_limit': 0.5}],
+    [RandomSizedCrop, {'min_max_height': (80, 90), 'height': 100, 'width': 100}],
+    [LongestMaxSize, {'max_size': 50}],
+    [Rotate, {}],
+    [OpticalDistortion, {}],
+    [IAAAffine, {'scale': 1.5}],
+    [IAAPiecewiseAffine, {'scale': 1.5}],
+    [IAAPerspective, {}],
+])
+def test_multiprocessing_support(augmentation_cls, params):
+    """Checks whether we can use augmetnations in multi-threaded environments"""
+    aug = augmentation_cls(p=1, **params)
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+
+    with Pool(8) as pool:
+        pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
