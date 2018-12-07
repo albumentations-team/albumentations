@@ -14,7 +14,7 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
     JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
     GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise, \
-    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop, RandomCenteredBBoxCrop
+    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop, RandomCropNearBBox
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -83,12 +83,10 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
-    [RandomCenteredBBoxCrop, {'max_part_shift': 0.15}]
 ])
 def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
-    annotations = {'image': image, 'cropped_bbox': [-59, 77, 177, 231]}
-    data = aug(mask=mask, **annotations)
+    data = aug(image=image, mask=mask)
     assert data['image'].dtype == np.uint8
     assert data['mask'].dtype == np.uint8
 
@@ -108,12 +106,10 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
-    [RandomCenteredBBoxCrop, {'max_part_shift': 0.15}]
 ])
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
-    annotations = {'image': float_image, 'cropped_bbox': [-59, 77, 177, 231]}
-    data = aug(mask=mask, **annotations)
+    data = aug(image=float_image, mask=mask)
     assert data['image'].dtype == np.float32
     assert data['mask'].dtype == np.uint8
 
@@ -174,7 +170,6 @@ def test_torch_to_tensor_augmentations(image, mask):
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
-    [RandomCenteredBBoxCrop, {'max_part_shift': 0.15}],
     [Normalize, {}],
     [GaussNoise, {}],
     [ToFloat, {}],
@@ -184,8 +179,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
-    annotations = {'image': image, 'cropped_bbox': [-59, 77, 177, 231]}
-    data = aug(mask=mask, **annotations)
+    aug(image=image, mask=mask)
     assert np.array_equal(image, image_copy)
     assert np.array_equal(mask, mask_copy)
 
@@ -219,7 +213,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
-    [RandomCenteredBBoxCrop, {'max_part_shift': 0.15}],
     [Normalize, {}],
     [GaussNoise, {}],
     [ToFloat, {}],
@@ -228,8 +221,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
     aug = augmentation_cls(p=1, **params)
-    annotations = {'image': float_image, 'cropped_bbox': [-59, 77, 177, 231]}
-    data = aug(**annotations)
+    aug(image=float_image)
     assert np.array_equal(float_image, float_image_copy)
 
 
@@ -325,3 +317,13 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, ma
     result = aug(image=image_3ch, mask=mask_3ch)
     assert np.array_equal(image_3ch.shape, result['image'].shape)
     assert np.array_equal(mask_3ch.shape, result['mask'].shape)
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [RandomCropNearBBox, {'max_part_shift': 0.15}],
+])
+def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image, mask):
+    aug = augmentation_cls(p=1, **params)
+    annotations = {'image': image, 'cropping_bbox': [-59, 77, 177, 231]}
+    data = aug(**annotations)
+    assert data['image'].dtype == np.uint8
