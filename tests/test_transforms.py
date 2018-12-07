@@ -164,5 +164,5 @@ def test_multiprocessing_support(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    with Pool(8) as pool:
-        pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
+    pool = Pool(8)
+    pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
