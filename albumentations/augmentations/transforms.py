@@ -479,7 +479,7 @@ class RandomCropNearBBox(DualTransform):
         self.max_part_shift = max_part_shift
 
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        return F.clamping_crop(img, x_min, x_max, y_min, y_max)
+        return F.clamping_crop(img, x_min, y_min, x_max, y_max)
 
     def get_params_dependent_on_targets(self, params):
         bbox = params['cropping_bbox']
