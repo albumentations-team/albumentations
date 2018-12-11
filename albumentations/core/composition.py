@@ -151,6 +151,14 @@ class Compose(BaseCompose):
             if not all(l in data.keys() for l in self.params[self.bboxes_name]['label_fields']):
                 raise Exception("Your 'label_fields' are not valid - them must have same names as params in dict")
 
+        if 'label_fields' in self.params[self.keypoints_name]:
+            if not all(l in data.keys() for l in self.params[self.keypoints_name]['label_fields']):
+                raise Exception("Your 'label_fields' are not valid - them must have same names as params in "
+                                "'keypoint_params' dict")
+
+
+
+
         for idx, t in enumerate(transforms):
             if dual_start_end is not None and idx == dual_start_end[0]:
                 if self.params[self.bboxes_name]:

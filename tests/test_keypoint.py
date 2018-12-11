@@ -105,9 +105,9 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
 ])
 def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format):
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.)], keypoint_params={'format': keypoint_format})
+    aug = Compose([NoOp(p=1.)], keypoint_params={'format': keypoint_format, 'label_fields':'class_id'})
     with pytest.raises(Exception):
-        aug(image=image, keypoints=keypoints)
+        aug(image=image, keypoints=keypoints, cls_id=[0])
 
 
 @pytest.mark.parametrize(['keypoints', 'keypoint_format', 'labels'], [
