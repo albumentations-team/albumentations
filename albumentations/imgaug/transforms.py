@@ -46,10 +46,10 @@ class DualIAATransform(DualTransform, BasicIAATransform):
         return bboxes
 
     """Applies transformation to keypoints.
-    
     Notes:
         Since IAA supports only xy keypoints, scale and orientation will remain unchanged.
-        TODO: Emit a warning message if child classes of DualIAATransform are instantiated 
+    TODO:
+        Emit a warning message if child classes of DualIAATransform are instantiated
         inside Compose with keypoints format other than 'xy'.
     """
 

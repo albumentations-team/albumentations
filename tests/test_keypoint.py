@@ -105,7 +105,7 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
 ])
 def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format):
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.)], keypoint_params={'format': keypoint_format, 'label_fields':'class_id'})
+    aug = Compose([NoOp(p=1.)], keypoint_params={'format': keypoint_format, 'label_fields': 'class_id'})
     with pytest.raises(Exception):
         aug(image=image, keypoints=keypoints, cls_id=[0])
 
@@ -167,7 +167,7 @@ def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
     [VerticalFlip, [[20, 30, 45, 0]], [[20, 69, 315, 0]]],
     [VerticalFlip, [[20, 30, 90, 0]], [[20, 69, 270, 0]]],
 ])
-def test_keypoint_transform(aug, keypoints, expected):
+def test_keypoint_transform_format_xyas(aug, keypoints, expected):
     transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas',
                                                      'angle_in_degrees': True, 'label_fields': ['labels']})
 
@@ -185,7 +185,7 @@ def test_keypoint_transform(aug, keypoints, expected):
     [IAAFlipud, [[20, 30, 45, 0]], [[20, 69, 45, 0]]],
     [IAAFlipud, [[20, 30, 90, 0]], [[20, 69, 90, 0]]],
 ])
-def test_keypoint_transform(aug, keypoints, expected):
+def test_keypoint_transform_format_xy(aug, keypoints, expected):
     transform = Compose([aug(p=1)], keypoint_params={'format': 'xy', 'label_fields': ['labels']})
 
     image = np.ones((100, 100, 3))
@@ -198,7 +198,7 @@ def test_keypoint_transform(aug, keypoints, expected):
 ])
 def test_iaa_transforms_emit_warning(aug, keypoints, expected):
     with pytest.warns(UserWarning, match='IAAFliplr transformation supports only \'xy\' keypoints augmentation'):
-        transform = Compose([aug(p=1)], keypoint_params={'format': 'xyas', 'label_fields': ['labels']})
+        Compose([aug(p=1)], keypoint_params={'format': 'xyas', 'label_fields': ['labels']})
 
 
 @pytest.mark.parametrize(['keypoint', 'expected', 'factor'], [

@@ -157,9 +157,6 @@ class Compose(BaseCompose):
                 raise Exception("Your 'label_fields' are not valid - them must have same names as params in "
                                 "'keypoint_params' dict")
 
-
-
-
         for idx, t in enumerate(transforms):
             if dual_start_end is not None and idx == dual_start_end[0]:
                 if self.params[self.bboxes_name]:
