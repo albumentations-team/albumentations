@@ -127,9 +127,10 @@ class Compose(BaseCompose):
         if self.keypoints_format is not None and self.keypoints_format != 'xy':
             for transform in self.transforms:
                 if isinstance(transform, DualIAATransform):
-                    warnings.warn(f"{transform.__class__.__name__} transformation supports only 'xy' keypoints "
-                                  f"augmentation. You have '{self.keypoints_format}' keypoints format. Scale "
-                                  "and angle WILL NOT BE transformed.")
+                    warnings.warn("{} transformation supports only 'xy' keypoints "
+                                  "augmentation. You have '{}' keypoints format. Scale "
+                                  "and angle WILL NOT BE transformed.".format(transform.__class__.__name__,
+                                                                              self.keypoints_format))
                     break
 
         self.add_targets(additional_targets)
