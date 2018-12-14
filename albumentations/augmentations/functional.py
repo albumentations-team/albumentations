@@ -35,8 +35,8 @@ def clipped(func):
 
 
 def preserve_shape(func):
-    """Preserve shape of the image."""
-
+    """Preserve shape of the image.
+    """
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -48,8 +48,8 @@ def preserve_shape(func):
 
 
 def preserve_channel_dim(func):
-    """Preserve dummy channel dim."""
-
+    """Preserve dummy channel dim.
+    """
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
