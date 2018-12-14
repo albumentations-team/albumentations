@@ -86,11 +86,17 @@ def rot90(img, factor):
 
 
 def normalize(img, mean, std, max_pixel_value=255.0):
-    img = img.astype(np.float32) / max_pixel_value
+    mean = np.array(mean, dtype=np.float32)
+    mean *= max_pixel_value
 
-    img = cv2.subtract(img, np.ones_like(img) * np.asarray(mean, dtype=np.float32))
-    img = cv2.divide(img, np.ones_like(img) * np.asarray(std, dtype=np.float32))
+    std = np.array(std, dtype=np.float32)
+    std *= max_pixel_value
 
+    denominator = np.reciprocal(std, dtype=np.float32)
+
+    img = img.astype(np.float32)
+    img -= mean
+    img *= denominator
     return img
 
 
@@ -223,6 +229,19 @@ def random_crop(img, crop_height, crop_width, h_start, w_start):
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
     img = img[y1:y2, x1:x2]
     return img
+
+
+def clamping_crop(img, x_min, y_min, x_max, y_max):
+    h, w = img.shape[:2]
+    if x_min < 0:
+        x_min = 0
+    if y_min < 0:
+        y_min = 0
+    if y_max >= h:
+        y_max = h - 1
+    if x_max >= w:
+        x_max = w - 1
+    return img[int(y_min):int(y_max), int(x_min):int(x_max)]
 
 
 def shift_hsv(img, hue_shift, sat_shift, val_shift):

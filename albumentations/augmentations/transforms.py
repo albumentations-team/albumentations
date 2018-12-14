@@ -15,7 +15,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
-           'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast']
+           'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox']
 
 
 class PadIfNeeded(DualTransform):
@@ -487,6 +487,54 @@ class RandomCrop(DualTransform):
 
     def apply_to_keypoint(self, keypoint, **params):
         return F.keypoint_random_crop(keypoint, self.height, self.width, **params)
+
+
+class RandomCropNearBBox(DualTransform):
+    """Crop bbox from image with random shift by x,y coordinates
+
+    Args:
+        max_part_shift (float): float value in (0.0, 1.0) range. Default 0.3
+        p (float): probability of applying the transform. Default: 1.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, max_part_shift=0.3, always_apply=False, p=1.0):
+        super(RandomCropNearBBox, self).__init__(always_apply, p)
+        self.max_part_shift = max_part_shift
+
+    def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.clamping_crop(img, x_min, y_min, x_max, y_max)
+
+    def get_params_dependent_on_targets(self, params):
+        bbox = params['cropping_bbox']
+        h_max_shift = int((bbox[3] - bbox[1]) * self.max_part_shift)
+        w_max_shift = int((bbox[2] - bbox[0]) * self.max_part_shift)
+
+        x_min = bbox[0] - random.randint(-w_max_shift, w_max_shift)
+        x_max = bbox[2] + random.randint(-w_max_shift, w_max_shift)
+
+        y_min = bbox[1] - random.randint(-h_max_shift, h_max_shift)
+        y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
+
+        return {'x_min': x_min,
+                'x_max': x_max,
+                'y_min': y_min,
+                'y_max': y_max
+                }
+
+    def apply_to_bbox(self, bbox, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        h_start = y_min
+        w_start = x_min
+        return F.bbox_crop(bbox, y_max - y_min, x_max - x_min, h_start, w_start, **params)
+
+    @property
+    def targets_as_params(self):
+        return ['cropping_bbox']
 
 
 class RandomSizedCrop(DualTransform):

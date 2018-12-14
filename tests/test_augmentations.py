@@ -14,7 +14,7 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
     JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
     GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise, \
-    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop
+    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop, RandomCropNearBBox
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -317,3 +317,13 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, ma
     result = aug(image=image_3ch, mask=mask_3ch)
     assert np.array_equal(image_3ch.shape, result['image'].shape)
     assert np.array_equal(mask_3ch.shape, result['mask'].shape)
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [RandomCropNearBBox, {'max_part_shift': 0.15}],
+])
+def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image, mask):
+    aug = augmentation_cls(p=1, **params)
+    annotations = {'image': image, 'cropping_bbox': [-59, 77, 177, 231]}
+    data = aug(**annotations)
+    assert data['image'].dtype == np.uint8
