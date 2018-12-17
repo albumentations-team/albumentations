@@ -8,6 +8,9 @@ cache:
   directories:
     - $HOME/.cache/pip
 
+env:
+  - IMGAUG_NO_CV2_INSTALLED_CHECK=TRUE
+
 matrix:
   include:
     - python: 2.7
