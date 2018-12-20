@@ -43,6 +43,8 @@ to adjust image augmentation parameters and see the resulting images.
 [Evegene Khvedchenya](https://www.linkedin.com/in/cvtalks/)
 
 ## Installation
+
+### PyPI
 You can use pip to install albumentations:
 ```
 pip install albumentations
@@ -53,13 +55,20 @@ If you want to get the latest version of the code before it is released on PyPI 
 pip install -U git+https://github.com/albu/albumentations
 ```
 
+### Conda
+To install albumentations using conda we need first to install `imgaug` with pip
+```
+pip install imgaug
+conda install albumentations -c albu
+```
+
 ## Documentation
 The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
 
 
 ## Migrating from torchvision to albumentations
 
-Migrating from torchvision to albumentations is simple - you just need to change a few lines of code. 
+Migrating from torchvision to albumentations is simple - you just need to change a few lines of code.
 Albumentations has equivalents for common torchvision transforms as well as plenty of transforms that are not presented in torchvision.
 [`migrating_from_torchvision_to_albumentations.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
 
@@ -127,10 +136,10 @@ automatically when a change is detected by running `make livehtml`
 
 
 ## Comments
-In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355) 
+In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355)
 
 ```python
-cv2.setNumThreads(0)	
+cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 ```
 
@@ -143,7 +152,7 @@ If you find this library useful for your research, please consider citing:
     author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and A.~A. Kalinin},
      title = "{Albumentations: fast and flexible image augmentations}",
    journal = {ArXiv e-prints},
-    eprint = {1809.06839}, 
+    eprint = {1809.06839},
       year = 2018      
 }
 ```
