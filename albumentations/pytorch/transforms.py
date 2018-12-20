@@ -38,6 +38,14 @@ def mask_to_tensor(mask, num_classes, sigmoid):
 
 
 class ToTensor(BasicTransform):
+    """Convert image to `torch.Tensor`
+
+    Args:
+        num_classes (int):
+        sigmoid (bool, optional):
+        normalize (optional):
+    
+    """
     def __init__(self, num_classes=1, sigmoid=True, normalize=None):
         super(ToTensor, self).__init__(always_apply=True, p=1.)
         self.num_classes = num_classes

@@ -3,3 +3,4 @@ sphinx-autobuild
 sphinx_rtd_theme
 mock
 scikit-image
+https://download.pytorch.org/whl/cpu/torch-1.0.0-cp35-cp35m-linux_x86_64.whl
