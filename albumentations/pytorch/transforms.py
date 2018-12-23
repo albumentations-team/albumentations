@@ -43,9 +43,10 @@ class ToTensor(BasicTransform):
     Args:
         num_classes (int):
         sigmoid (bool, optional):
-        normalize (optional):
-    
+        normalize (optional): If True, normalizes image tensor with mean and standard deviation
+
     """
+
     def __init__(self, num_classes=1, sigmoid=True, normalize=None):
         super(ToTensor, self).__init__(always_apply=True, p=1.)
         self.num_classes = num_classes
