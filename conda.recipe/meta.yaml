@@ -1,0 +1,37 @@
+{% set data = load_setup_py_data() %}
+
+package:
+  name: albumentations
+  version: {{ data['version'] }}
+
+source:
+  path: ..
+
+build:
+  number: 0
+  script: python setup.py install --single-version-externally-managed --record=record.txt
+
+# https://conda.io/docs/user-guide/tasks/build-packages/define-metadata.html#export-runtime-requirements
+requirements:
+  build:
+    - python
+    - numpy>=1.11.1
+    - scipy
+    - opencv
+
+  run:
+    - python
+    - numpy>=1.11.1
+    - scipy 
+    - opencv
+    # ImgAug is not at Conda and should be installed via pip install 'imgaug>=0.2.5' 
+    # - imgaug>=0.2.5
+
+test:
+  imports:
+    - albumentations
+
+about:
+  home: {{ data['url'] }}
+  license: {{ data['license'] }}
+summary: {{ data['description'] }}
