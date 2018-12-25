@@ -59,7 +59,7 @@ pip install -U git+https://github.com/albu/albumentations
 To install albumentations using conda we need first to install `imgaug` with pip
 ```
 pip install imgaug
-conda install albumentations -c albu
+conda install albumentations -c albumentations
 ```
 
 ## Documentation
