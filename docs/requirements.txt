@@ -2,4 +2,5 @@ sphinx
 sphinx-autobuild
 sphinx_rtd_theme
 mock
+numpy==1.15.4
 scikit-image
