@@ -5,6 +5,7 @@ import warnings
 
 import cv2
 import numpy as np
+import inspect
 
 from . import functional as F
 from .bbox_utils import union_of_bboxes
@@ -16,7 +17,34 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop']
+           'RandomSizedBBoxSafeCrop', 'RandomBGMix']
+
+class _Dataset(object):
+    """Similar definition with pytorch."""
+
+    def __init__(self, X, y):
+        self.X = np.array(X)
+        self.y = np.array(y)
+
+    def __getitem__(self, index):
+        return (self.X[index], self.y[index])
+
+    def __len__(self):
+        return len(self.X)
+
+class RandomBGMix(DualTransform):
+    def __init__(self, bg, border_mode=cv2.BORDER_REFLECT_101,
+                 value=[0, 0, 0], always_apply=False, p=1.0):
+        super(RandomBGMix, self).__init__(always_apply, p)
+        self.bg_dataset = bg if inspect.isclass(bg) else _Dataset(bg, [0]*len(bg))
+        self.min_width = min_width
+        self.border_mode = border_mode
+        self.value = value
+
+    def apply(self, img, **params):
+        bg_idx = random
+        return F.pad(img, min_height=self.min_height, min_width=self.min_width,
+                     border_mode=self.border_mode, value=self.value)
 
 
 class PadIfNeeded(DualTransform):
@@ -1154,3 +1182,40 @@ class FromFloat(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.from_float(img, self.dtype, self.max_value)
+
+
+class _Dataset(object):
+    """Similar definition with pytorch."""
+
+    def __init__(self, X, y):
+        self.X = np.array(X)
+        self.y = np.array(y)
+
+    def __getitem__(self, index):
+        return (self.X[index], self.y[index])
+
+    def __len__(self):
+        return len(self.X)
+
+
+class RandomBGMix(DualTransform):
+    def __init__(self, bg, max_mix_ratio=0.5, border_mode=cv2.BORDER_REFLECT_101,
+                 value=[0, 0, 0], always_apply=False, p=1.0):
+        super(RandomBGMix, self).__init__(always_apply, p)
+        self.bg_dataset = bg if inspect.isclass(bg) else _Dataset(bg, [0]*len(bg))
+        self.max_mix_ratio = max_mix_ratio
+        self.border_mode = border_mode
+        self.value = value
+
+    def apply(self, img, **params):
+        bg_idx = random.randint(0, len(self.bg_dataset) - 1)
+        bg, _ = self.bg_dataset[bg_idx]
+        bg_h, bg_w = bg.shape[:2]
+        height, width = img.shape[:2]
+        bg = F.pad(bg, min_height=height, min_width=width,
+                   border_mode=self.border_mode, value=self.value)
+        bg = F.random_crop(bg, crop_height=height, crop_width=width,
+                           h_start=random.random(), w_start=random.random())
+        bg_ratio = random.random() * self.max_mix_ratio
+        img = ((img * (1 - bg_ratio)) + (bg * bg_ratio)).astype(np.uint8)
+        return img
