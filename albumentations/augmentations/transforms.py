@@ -19,33 +19,6 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
            'RandomSizedBBoxSafeCrop', 'RandomBGMix']
 
-class _Dataset(object):
-    """Similar definition with pytorch."""
-
-    def __init__(self, X, y):
-        self.X = np.array(X)
-        self.y = np.array(y)
-
-    def __getitem__(self, index):
-        return (self.X[index], self.y[index])
-
-    def __len__(self):
-        return len(self.X)
-
-class RandomBGMix(DualTransform):
-    def __init__(self, bg, border_mode=cv2.BORDER_REFLECT_101,
-                 value=[0, 0, 0], always_apply=False, p=1.0):
-        super(RandomBGMix, self).__init__(always_apply, p)
-        self.bg_dataset = bg if inspect.isclass(bg) else _Dataset(bg, [0]*len(bg))
-        self.min_width = min_width
-        self.border_mode = border_mode
-        self.value = value
-
-    def apply(self, img, **params):
-        bg_idx = random
-        return F.pad(img, min_height=self.min_height, min_width=self.min_width,
-                     border_mode=self.border_mode, value=self.value)
-
 
 class PadIfNeeded(DualTransform):
     """Pad side of the image / max if side is less than desired number.
@@ -1184,32 +1157,40 @@ class FromFloat(ImageOnlyTransform):
         return F.from_float(img, self.dtype, self.max_value)
 
 
-class _Dataset(object):
-    """Similar definition with pytorch."""
+class RandomBGMix(ImageOnlyTransform):
+    """Mix background image randomly selected.
+    If you want background image to be augmented,
+    use utils.ImageSource to wrap both image and your transforms.
 
-    def __init__(self, X, y):
-        self.X = np.array(X)
-        self.y = np.array(y)
+    Args:
+        bg_images (list or ImageSource): list of background image objects or ImageSource object.
+        max_mix_ratio (float): mix ratio of background image in the range [0, 1.0).
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
+        dtype (numpy data type): Image output data type, np.uint8 by default.
+        p (float): probability of applying the transform. Default: 1.0.
 
-    def __getitem__(self, index):
-        return (self.X[index], self.y[index])
+    Targets:
+        image
 
-    def __len__(self):
-        return len(self.X)
+    Image types:
+        any type
 
-
-class RandomBGMix(DualTransform):
-    def __init__(self, bg, max_mix_ratio=0.5, border_mode=cv2.BORDER_REFLECT_101,
-                 value=[0, 0, 0], always_apply=False, p=1.0):
+    """
+    def __init__(self, bg_images, max_mix_ratio=0.5, border_mode=cv2.BORDER_REFLECT_101,
+                 value=[0, 0, 0], dtype=np.uint8, always_apply=False, p=1.0):
         super(RandomBGMix, self).__init__(always_apply, p)
-        self.bg_dataset = bg if inspect.isclass(bg) else _Dataset(bg, [0]*len(bg))
+        self.bg_images = bg_images
         self.max_mix_ratio = max_mix_ratio
         self.border_mode = border_mode
         self.value = value
+        self.dtype = dtype
 
     def apply(self, img, **params):
-        bg_idx = random.randint(0, len(self.bg_dataset) - 1)
-        bg, _ = self.bg_dataset[bg_idx]
+        bg_idx = random.randint(0, len(self.bg_images) - 1)
+        bg = self.bg_images[bg_idx]
         bg_h, bg_w = bg.shape[:2]
         height, width = img.shape[:2]
         bg = F.pad(bg, min_height=height, min_width=width,
@@ -1217,5 +1198,7 @@ class RandomBGMix(DualTransform):
         bg = F.random_crop(bg, crop_height=height, crop_width=width,
                            h_start=random.random(), w_start=random.random())
         bg_ratio = random.random() * self.max_mix_ratio
-        img = ((img * (1 - bg_ratio)) + (bg * bg_ratio)).astype(np.uint8)
+        img = ((img * (1 - bg_ratio)) + (bg * bg_ratio))
+        if self.dtype == np.uint8:
+            img = img.astype(np.uint8)
         return img
