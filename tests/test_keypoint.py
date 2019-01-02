@@ -23,9 +23,9 @@ import albumentations.augmentations.functional as F
 def test_convert_keypoint_to_albumentations(kp, source_format, expected):
     image = np.ones((100, 100, 3))
 
-    converted_bbox = convert_keypoint_to_albumentations(kp, rows=image.shape[0], cols=image.shape[1],
-                                                        source_format=source_format)
-    assert converted_bbox == expected
+    converted_keypoint = convert_keypoint_to_albumentations(kp, rows=image.shape[0], cols=image.shape[1],
+                                                            source_format=source_format)
+    assert converted_keypoint == expected
 
 
 @pytest.mark.parametrize(['kp', 'target_format', 'expected'], [
@@ -37,9 +37,9 @@ def test_convert_keypoint_to_albumentations(kp, source_format, expected):
 ])
 def test_convert_keypoint_from_albumentations(kp, target_format, expected):
     image = np.ones((100, 100, 3))
-    converted_bbox = convert_keypoint_from_albumentations(kp, rows=image.shape[0], cols=image.shape[1],
-                                                          target_format=target_format)
-    assert converted_bbox == expected
+    converted_keypoint = convert_keypoint_from_albumentations(kp, rows=image.shape[0], cols=image.shape[1],
+                                                              target_format=target_format)
+    assert converted_keypoint == expected
 
 
 @pytest.mark.parametrize(['kp', 'keypoint_format'], [
@@ -61,25 +61,25 @@ def test_convert_keypoints_to_albumentations():
     keypoints = [[20, 30, 40, 50],
                  [30, 40, 50, 60, 99]]
     image = np.ones((100, 100, 3))
-    converted_bboxes = convert_keypoints_to_albumentations(keypoints, rows=image.shape[0], cols=image.shape[1],
-                                                           source_format='xyas')
-    converted_bbox_1 = convert_keypoint_to_albumentations(keypoints[0], rows=image.shape[0], cols=image.shape[1],
-                                                          source_format='xyas')
-    converted_bbox_2 = convert_keypoint_to_albumentations(keypoints[1], rows=image.shape[0], cols=image.shape[1],
-                                                          source_format='xyas')
-    assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
+    converted_keypoints = convert_keypoints_to_albumentations(keypoints, rows=image.shape[0], cols=image.shape[1],
+                                                              source_format='xyas')
+    converted_keypoint_1 = convert_keypoint_to_albumentations(keypoints[0], rows=image.shape[0], cols=image.shape[1],
+                                                              source_format='xyas')
+    converted_keypoint_2 = convert_keypoint_to_albumentations(keypoints[1], rows=image.shape[0], cols=image.shape[1],
+                                                              source_format='xyas')
+    assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
 
 
 def test_convert_keypoints_from_albumentations():
     keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
     image = np.ones((100, 100, 3))
-    converted_bboxes = convert_keypoints_from_albumentations(keypoints, rows=image.shape[0], cols=image.shape[1],
-                                                             target_format='xyas')
-    converted_bbox_1 = convert_keypoint_from_albumentations(keypoints[0], rows=image.shape[0], cols=image.shape[1],
-                                                            target_format='xyas')
-    converted_bbox_2 = convert_keypoint_from_albumentations(keypoints[1], rows=image.shape[0], cols=image.shape[1],
-                                                            target_format='xyas')
-    assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
+    converted_keypointes = convert_keypoints_from_albumentations(keypoints, rows=image.shape[0], cols=image.shape[1],
+                                                                 target_format='xyas')
+    converted_keypoint_1 = convert_keypoint_from_albumentations(keypoints[0], rows=image.shape[0], cols=image.shape[1],
+                                                                target_format='xyas')
+    converted_keypoint_2 = convert_keypoint_from_albumentations(keypoints[1], rows=image.shape[0], cols=image.shape[1],
+                                                                target_format='xyas')
+    assert converted_keypointes == [converted_keypoint_1, converted_keypoint_2]
 
 
 @pytest.mark.parametrize(['keypoints', 'keypoint_format', 'labels'], [
