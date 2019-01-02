@@ -3,7 +3,7 @@
 [![Documentation Status](https://readthedocs.org/projects/albumentations/badge/?version=latest)](https://albumentations.readthedocs.io/en/latest/?badge=latest)
 
 
-* The library is faster than other libraries on most of the transformation.
+* The library is faster than other libraries on most of the transformations.
 * Based on numpy, OpenCV, imgaug picking the best from each of them.
 * Simple, flexible API that allows the library to be used in any computer vision pipeline.
 * Large, diverse set of transformations.
