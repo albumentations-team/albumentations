@@ -2,11 +2,19 @@
 [![Build Status](https://travis-ci.org/albu/albumentations.svg?branch=master)](https://travis-ci.org/albu/albumentations)
 [![Documentation Status](https://readthedocs.org/projects/albumentations/badge/?version=latest)](https://albumentations.readthedocs.io/en/latest/?badge=latest)
 
-* Great fast augmentations based on highly-optimized OpenCV library
-* Super simple yet powerful interface for different tasks like (segmentation, detection, etc.)
-* Easy to customize
-* Easy to add other frameworks
 
+* The library is faster than other libraries on most of the transformations.
+* Based on numpy, OpenCV, imgaug picking the best from each of them.
+* Simple, flexible API that allows the library to be used in any computer vision pipeline.
+* Large, diverse set of transformations.
+* Easy to extend the library to wrap around other libraries.
+* Easy to extend to other tasks.
+* Supports transformations on images, masks, key points and bounding boxes.
+* Supports python 2.7-3.7
+* Easy integration with PyTorch.
+* Easy transfer from torchvision.
+* Was used to get top results in many DL competitions at Kaggle, topcoder, CVPR, MICCAI.
+* Written by Kaggle Masters.
 
 ## How to use
 
