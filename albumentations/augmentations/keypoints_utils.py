@@ -23,36 +23,6 @@ def check_keypoints(keypoints, rows, cols):
         check_keypoint(kp, rows, cols)
 
 
-def normalize_keypoint(kp, rows, cols):
-    """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
-    by image height.
-    """
-    # x, y = kp[:2]
-    # normalized_bbox = [float(x), float(y)]
-    # return normalized_bbox + list(kp[2:])
-    return kp
-
-
-def denormalize_keypoint(kp, rows, cols):
-    """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
-    by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
-    """
-    # x, y = kp[:2]
-    # denormalized_bbox = [x * (cols-1), y * (rows-1)]
-    # return denormalized_bbox + list(kp[2:])
-    return kp
-
-
-def normalize_keypoints(bboxes, rows, cols):
-    """Normalize a list of bounding boxes."""
-    return [normalize_keypoint(bbox, rows, cols) for bbox in bboxes]
-
-
-def denormalize_keypoints(bboxes, rows, cols):
-    """Denormalize a list of bounding boxes."""
-    return [denormalize_keypoint(bbox, rows, cols) for bbox in bboxes]
-
-
 def filter_keypoints(keypoints, rows, cols, remove_invisible):
     if not remove_invisible:
         return keypoints
@@ -109,7 +79,6 @@ def convert_keypoint_to_albumentations(keypoint, source_format, rows, cols,
         a = math.radians(a)
 
     keypoint = [x, y, a, s] + tail
-    keypoint = normalize_keypoint(keypoint, rows, cols)
     if check_validity:
         check_keypoint(keypoint, rows, cols)
     return keypoint
@@ -132,7 +101,6 @@ def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols,
         )
     if check_validity:
         check_keypoint(keypoint, rows, cols)
-    keypoint = denormalize_keypoint(keypoint, rows, cols)
     x, y, a, s = keypoint[:4]
     a = normalize_angle(a)
     if angle_in_degrees:

@@ -4,9 +4,8 @@ import numpy as np
 import pytest
 from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud
 
-from albumentations.augmentations.keypoints_utils import normalize_keypoint, denormalize_keypoint, \
-    convert_keypoint_from_albumentations, convert_keypoints_from_albumentations, normalize_keypoints, \
-    denormalize_keypoints, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
+from albumentations.augmentations.keypoints_utils import convert_keypoint_from_albumentations, \
+    convert_keypoints_from_albumentations, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
 from albumentations.augmentations.transforms import RandomSizedCrop
