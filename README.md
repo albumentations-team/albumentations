@@ -4,7 +4,7 @@
 
 
 * The library is faster than other libraries on most of the transformation.
-* Based on numpy, OpenCV, imguag picking the best from each of them.
+* Based on numpy, OpenCV, imgaug picking the best from each of them.
 * Simple, flexible API that allows the library to be used in any computer vision pipeline.
 * Large, diverse set of transformations.
 * Easy to extend the library to wrap around other libraries.
