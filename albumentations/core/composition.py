@@ -190,7 +190,8 @@ class Compose(BaseCompose):
                                                data, self.reverse_aliases, rows, cols)
                 if self.params[self.keypoints_name]:
                     data = data_postprocessing(self.aliases[self.keypoints_name], self.params[self.keypoints_name],
-                                               check_keypoints, filter_keypoints, convert_keypoints_from_albumentations,
+                                               check_keypoints, filter_keypoints,
+                                               convert_keypoints_from_albumentations,
                                                data, self.reverse_aliases, rows, cols)
 
         return data
