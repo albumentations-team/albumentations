@@ -1,5 +1,6 @@
 from __future__ import division
 
+import math
 from functools import wraps
 import random
 from warnings import warn
@@ -33,8 +34,7 @@ def clipped(func):
 
 
 def preserve_shape(func):
-    """Preserve shape of the image.
-    """
+    """Preserve shape of the image."""
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -46,8 +46,7 @@ def preserve_shape(func):
 
 
 def preserve_channel_dim(func):
-    """Preserve dummy channel dim.
-    """
+    """Preserve dummy channel dim."""
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -700,3 +699,102 @@ def bbox_transpose(bbox, axis, rows, cols):
     if axis == 1:
         bbox = [1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min]
     return bbox
+
+
+def keypoint_vflip(kp, rows, cols):
+    """Flip a keypoint vertically around the x-axis."""
+    x, y, angle, scale = kp
+    c = math.cos(angle)
+    s = math.sin(angle)
+    angle = math.atan2(-s, c)
+    return [x, (rows - 1) - y, angle, scale]
+
+
+def keypoint_hflip(kp, rows, cols):
+    """Flip a keypoint horizontally around the y-axis."""
+    x, y, angle, scale = kp
+    c = math.cos(angle)
+    s = math.sin(angle)
+    angle = math.atan2(s, -c)
+    return [(cols - 1) - x, y, angle, scale]
+
+
+def keypoint_flip(bbox, d, rows, cols):
+    """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
+
+    Raises:
+        ValueError: if value of `d` is not -1, 0 or 1.
+
+    """
+    if d == 0:
+        bbox = keypoint_vflip(bbox, rows, cols)
+    elif d == 1:
+        bbox = keypoint_hflip(bbox, rows, cols)
+    elif d == -1:
+        bbox = keypoint_hflip(bbox, rows, cols)
+        bbox = keypoint_vflip(bbox, rows, cols)
+    else:
+        raise ValueError('Invalid d value {}. Valid values are -1, 0 and 1'.format(d))
+    return bbox
+
+
+def keypoint_rot90(keypoint, factor, rows, cols, **params):
+    """Rotates a keypoint by 90 degrees CCW (see np.rot90)
+
+    Args:
+        keypoint (tuple): A tuple (x, y, angle, scale).
+        factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
+        rows (int): Image rows.
+        cols (int): Image cols.
+    """
+    if factor < 0 or factor > 3:
+        raise ValueError('Parameter n must be in range [0;3]')
+    x, y, angle, scale = keypoint
+    if factor == 1:
+        keypoint = [y, (cols - 1) - x, angle - math.pi / 2, scale]
+    if factor == 2:
+        keypoint = [(cols - 1) - x, (rows - 1) - y, angle - math.pi, scale]
+    if factor == 3:
+        keypoint = [(rows - 1) - y, x, angle + math.pi / 2, scale]
+    return keypoint
+
+
+def keypoint_rotate(keypoint, angle, rows, cols, **params):
+    matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, 1.0)
+    x, y, a, s = keypoint
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
+    return [x, y, a + math.radians(angle), s]
+
+
+def keypoint_scale(keypoint, scale, **params):
+    x, y, a, s = keypoint
+    return [x * scale, y * scale, a, s * scale]
+
+
+def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):
+    """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
+    required height and width of the crop.
+    """
+    x, y, a, s = keypoint
+    x1, y1, x2, y2 = crop_coords
+    cropped_keypoint = [x - x1, y - y1, a, s]
+    return cropped_keypoint
+
+
+def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols):
+    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
+    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
+
+
+def keypoint_center_crop(bbox, crop_height, crop_width, rows, cols):
+    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
+    return crop_keypoint_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
+
+
+def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
+    x, y, a, s = keypoint
+    matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, scale)
+    matrix[0, 2] += dx
+    matrix[1, 2] += dy
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
+    return [x, y, a + math.radians(angle), s * scale]
