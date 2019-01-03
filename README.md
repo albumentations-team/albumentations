@@ -28,7 +28,7 @@
 
 **Image segmentation** [`example_kaggle_salt.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_kaggle_salt.ipynb)
 
-**Custom tasks** such as autoencoders, more then three channel images - [`custom_targets`](https://gist.github.com/poxyu/799b359d7f87205b7c4288691ab019dc)
+**Custom tasks** such as autoencoders, more then three channel images - refer to `Compose` class [documentation](https://albumentations.readthedocs.io/en/latest/api/core.html#albumentations.core.composition.Compose) to use `additional_targets`.
 
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.

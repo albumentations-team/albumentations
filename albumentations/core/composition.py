@@ -61,6 +61,7 @@ class BaseCompose(object):
             for t in self.transforms:
                 t.add_targets(additional_targets)
 
+
 class Compose(BaseCompose):
     """Compose transforms and handle all transformations regrading bounding boxes
 
