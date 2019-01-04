@@ -11,6 +11,7 @@ from albumentations.core.transforms_interface import DualTransform
 from albumentations.imgaug.transforms import DualIAATransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
+from albumentations.core.utils import get_field_name
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
@@ -110,6 +111,8 @@ class Compose(BaseCompose):
 
         self.bboxes_name = 'bboxes'
         self.keypoints_name = 'keypoints'
+        self.aliases = {'bboxes': 'bboxes', 'keypoints': 'keypoints', 'image': 'image'}
+        self.reverse_aliases = {k: v for k, v in self.aliases.items()}
         self.params = {
             self.bboxes_name: bbox_params,
             self.keypoints_name: keypoint_params
@@ -133,9 +136,18 @@ class Compose(BaseCompose):
                                                                               self.keypoints_format))
                     break
 
+        self.additional_targets = additional_targets
         self.add_targets(additional_targets)
 
     def __call__(self, **data):
+        new_bboxes_name = get_field_name(data, self.additional_targets, self.bboxes_name)
+        self.aliases[self.bboxes_name] = new_bboxes_name
+        new_keypoints_name = get_field_name(data, self.additional_targets, self.keypoints_name)
+        self.aliases[self.keypoints_name] = new_keypoints_name
+        image_field_name = get_field_name(data, self.additional_targets, 'image')
+        self.aliases['image'] = image_field_name
+        self.reverse_aliases = {v: k for k, v in self.aliases.items()}
+
         need_to_run = random.random() < self.p
         transforms = self.transforms if need_to_run else find_always_apply_transforms(self.transforms)
         dual_start_end = None
@@ -143,8 +155,8 @@ class Compose(BaseCompose):
             dual_start_end = find_dual_start_end(transforms)
 
         if (self.params[self.bboxes_name] and
-                len(data.get(self.bboxes_name, [])) and
-                len(data[self.bboxes_name][0]) < 5):
+                len(data.get(self.aliases[self.bboxes_name], [])) and
+                len(data[self.aliases[self.bboxes_name]][0]) < 5):
             if 'label_fields' not in self.params[self.bboxes_name]:
                 raise Exception("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
                                 "because bboxes must have labels")
@@ -157,36 +169,40 @@ class Compose(BaseCompose):
                 raise Exception("Your 'label_fields' are not valid - them must have same names as params in "
                                 "'keypoint_params' dict")
 
+        rows, cols = data[self.aliases['image']].shape[:2]
         for idx, t in enumerate(transforms):
             if dual_start_end is not None and idx == dual_start_end[0]:
                 if self.params[self.bboxes_name]:
-                    data = data_preprocessing(self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
-                                              convert_bboxes_to_albumentations, data)
+                    data = data_preprocessing(self.aliases[self.bboxes_name], self.params[self.bboxes_name],
+                                              check_bboxes, convert_bboxes_to_albumentations,
+                                              data, rows, cols)
                 if self.params[self.keypoints_name]:
-                    data = data_preprocessing(self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
-                                              convert_keypoints_to_albumentations, data)
+                    data = data_preprocessing(self.aliases[self.keypoints_name], self.params[self.keypoints_name],
+                                              check_keypoints, convert_keypoints_to_albumentations,
+                                              data, rows, cols)
 
             data = t(**data)
 
             if dual_start_end is not None and idx == dual_start_end[1]:
                 if self.params[self.bboxes_name]:
-                    data = data_postprocessing(self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
-                                               filter_bboxes, convert_bboxes_from_albumentations, data)
+                    data = data_postprocessing(self.aliases[self.bboxes_name], self.params[self.bboxes_name],
+                                               check_bboxes, filter_bboxes, convert_bboxes_from_albumentations,
+                                               data, self.reverse_aliases, rows, cols)
                 if self.params[self.keypoints_name]:
-                    data = data_postprocessing(self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
-                                               filter_keypoints, convert_keypoints_from_albumentations, data)
+                    data = data_postprocessing(self.aliases[self.keypoints_name], self.params[self.keypoints_name],
+                                               check_keypoints, filter_keypoints,
+                                               convert_keypoints_from_albumentations,
+                                               data, self.reverse_aliases, rows, cols)
 
         return data
 
 
-def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data):
-    rows, cols = data['image'].shape[:2]
-
+def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data, reverse_aliases, rows, cols):
     additional_params = {}
-    if data_name == 'bboxes':
+    if reverse_aliases[data_name] == 'bboxes':
         additional_params['min_area'] = params.get('min_area', 0.0),
         additional_params['min_visibility'] = params.get('min_visibility', 0.0)
-    elif data_name == 'keypoints':
+    elif reverse_aliases[data_name] == 'keypoints':
         additional_params['remove_invisible'] = params.get('remove_invisible', 0.0)
     else:
         raise Exception('Not known data_name')
@@ -202,12 +218,11 @@ def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data
     return data
 
 
-def data_preprocessing(data_name, params, check_fn, convert_fn, data):
+def data_preprocessing(data_name, params, check_fn, convert_fn, data, rows, cols):
     if data_name not in data:
         raise Exception('Please name field with {} `{}`'.format(data_name, data_name))
     data = add_label_fields_to_data(data_name, params.get('label_fields', []), data)
 
-    rows, cols = data['image'].shape[:2]
     if params['format'] == 'albumentations':
         check_fn(data[data_name])
     else:
