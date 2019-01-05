@@ -707,7 +707,7 @@ def test_resize_default_interpolation_float(target):
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
-    assert np.array_equal(resized_img, expected)
+    assert_array_almost_equal_nulp(resized_img, expected)
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
