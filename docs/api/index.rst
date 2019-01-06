@@ -7,4 +7,4 @@ API
    ./core
    ./augmentations
    ./imgaug
-   ./torch
+   ./pytorch
