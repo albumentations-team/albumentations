@@ -38,12 +38,13 @@ def mask_to_tensor(mask, num_classes, sigmoid):
 
 
 class ToTensor(BasicTransform):
-    """Convert image to `torch.Tensor`
+    """Convert image and mask to `torch.Tensor` and divide by 255 if image or mask are `uint8` type.
+    WARNING! Please use this with care and look into sources before usage.
 
     Args:
-        num_classes (int):
-        sigmoid (bool, optional):
-        normalize (optional): If True, normalizes image tensor with mean and standard deviation
+        num_classes (int): only for segmentation
+        sigmoid (bool, optional): only for segmentation, transform mask to LongTensor or not.
+        normalize (dict, optional): dict with keys [mean, std] to pass it into torchvision.normalize
 
     """
 
