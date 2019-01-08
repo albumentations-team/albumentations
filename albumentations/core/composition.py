@@ -27,7 +27,9 @@ def find_dual_start_end(transforms):
         if isinstance(transform, BaseCompose):
             inside = find_dual_start_end(transform)
             if inside is not None:
-                dual_start_end = [idx]
+                last_dual = idx
+                if dual_start_end is None:
+                    dual_start_end = [idx]
     if dual_start_end is not None:
         dual_start_end.append(last_dual)
     return dual_start_end
