@@ -1,5 +1,4 @@
 import random
-from albumentations.core.utils import get_field_name
 
 import cv2
 
@@ -66,8 +65,7 @@ class BasicTransform(object):
     def update_params(self, params, **kwargs):
         if hasattr(self, 'interpolation'):
             params['interpolation'] = self.interpolation
-        image_field_name = get_field_name(kwargs, self._additional_targets, 'image')
-        params.update({'cols': kwargs[image_field_name].shape[1], 'rows': kwargs[image_field_name].shape[0]})
+        params.update({'cols': kwargs['image'].shape[1], 'rows': kwargs['image'].shape[0]})
         return params
 
     @property
