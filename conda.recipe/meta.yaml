@@ -15,17 +15,17 @@ build:
 requirements:
   build:
     - python
-    - numpy>=1.11.1
+    - numpy>=1.11.1,<1.16.0
     - scipy
     - opencv
 
   run:
     - python
-    - numpy>=1.11.1
+    - numpy>=1.11.1,<1.16.0
     - scipy 
     - opencv
-    # ImgAug is not at Conda and should be installed via pip install 'imgaug>=0.2.5' 
-    # - imgaug>=0.2.5
+    # ImgAug is not at Conda and should be installed via pip install 'imgaug>=0.2.5,<0.2.7'
+    # - imgaug>=0.2.5,<0.2.7
 
 test:
   imports:

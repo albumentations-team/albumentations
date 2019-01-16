@@ -31,11 +31,11 @@ setup(
     description='Fast image augmentation library and easy to use wrapper around other libraries',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
-    author='Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov',
+    author='Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov, Eugene Khvedchenya',
     license='MIT',
     url='https://github.com/albu/albumentations',
     packages=find_packages(exclude=['tests']),
-    install_requires=['numpy>=1.11.1', 'scipy', 'opencv-python', 'imgaug>=0.2.5'],
+    install_requires=['numpy>=1.11.1,<1.16.0', 'scipy', 'opencv-python', 'imgaug>=0.2.5,<0.2.7'],
     extras_require={'tests': get_test_requirements()},
     classifiers=[
         'Development Status :: 4 - Beta',
