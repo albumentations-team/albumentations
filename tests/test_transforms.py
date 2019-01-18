@@ -5,8 +5,8 @@ import cv2
 import pytest
 
 from albumentations import Transpose, Rotate, ShiftScaleRotate, OpticalDistortion, GridDistortion, ElasticTransform, \
-    VerticalFlip, HorizontalFlip, RandomSizedCrop, RandomScale, IAAPiecewiseAffine, IAAAffine, IAAPerspective, \
-    LongestMaxSize, Resize, IAASharpen
+    VerticalFlip, HorizontalFlip, RandomSizedCrop, RandomSizedBBoxSafeCrop, RandomScale, IAAPiecewiseAffine, \
+    IAAAffine, IAAPerspective, LongestMaxSize, Resize, IAASharpen
 import albumentations.augmentations.functional as F
 from .conftest import skip_appveyor
 
@@ -100,6 +100,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     [ShiftScaleRotate, {'rotate_limit': 45}],
     [RandomScale, {'scale_limit': 0.5}],
     [RandomSizedCrop, {'min_max_height': (80, 90), 'height': 100, 'width': 100}],
+    [RandomSizedBBoxSafeCrop, {'height': 100, 'width': 100}],
     [LongestMaxSize, {'max_size': 50}],
     [Rotate, {}],
     [OpticalDistortion, {}],
@@ -112,7 +113,6 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-
     data = aug(image=image, mask=mask)
     assert np.array_equal(np.unique(data['mask']), np.array([0, 1]))
 
@@ -123,6 +123,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     [ShiftScaleRotate, {'rotate_limit': 45}],
     [RandomScale, {'scale_limit': 0.5}],
     [RandomSizedCrop, {'min_max_height': (80, 90), 'height': 100, 'width': 100}],
+    [RandomSizedBBoxSafeCrop, {'height': 100, 'width': 100}],
     [LongestMaxSize, {'max_size': 50}],
     [Rotate, {}],
     [Resize, {'height': 80, 'width': 90}],
@@ -152,6 +153,7 @@ def __test_multiprocessing_support_proc(args):
     [ShiftScaleRotate, {'rotate_limit': 45}],
     [RandomScale, {'scale_limit': 0.5}],
     [RandomSizedCrop, {'min_max_height': (80, 90), 'height': 100, 'width': 100}],
+    [RandomSizedBBoxSafeCrop, {'height': 100, 'width': 100}],
     [LongestMaxSize, {'max_size': 50}],
     [Rotate, {}],
     [OpticalDistortion, {}],
