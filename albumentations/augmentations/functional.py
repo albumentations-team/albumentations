@@ -381,6 +381,29 @@ def jpeg_compression(img, quality):
 
 
 @preserve_shape
+def webp_compression(img, quality):
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        warn('WebP compression augmentation '
+             'is most effective with uint8 inputs, '
+             '{} is used as input.'.format(input_dtype),
+             UserWarning)
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for WebP augmentation'.format(input_dtype))
+
+    _, encoded_img = cv2.imencode('.webp', img, (cv2.IMWRITE_WEBP_QUALITY, quality))
+    img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
+
+    if needs_float:
+        img = to_float(img, max_value=255)
+    return img
+
+
+@preserve_shape
 def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     """Barrel / pincushion distortion. Unconventional augment.
 

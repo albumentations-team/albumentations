@@ -15,7 +15,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
            'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
+           'JpegCompression', 'WebPCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
            'RandomSizedBBoxSafeCrop']
 
@@ -817,6 +817,37 @@ class JpegCompression(ImageOnlyTransform):
 
     def apply(self, image, quality=100, **params):
         return F.jpeg_compression(image, quality)
+
+    def get_params(self):
+        return {'quality': random.randint(self.quality_lower, self.quality_upper)}
+
+
+class WebPCompression(ImageOnlyTransform):
+    """Decrease WebP compression of an image.
+
+    Args:
+        quality_lower (float): lower bound on the WebP quality. Should be in [1, 100] range
+        quality_upper (float): lower bound on the WebP quality. Should be in [1, 100] range
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, quality_lower=99, quality_upper=100, always_apply=False, p=0.5):
+        super(WebPCompression, self).__init__(always_apply, p)
+
+        assert 1 <= quality_lower <= 100
+        assert 1 <= quality_upper <= 100
+        assert quality_lower <= quality_upper
+
+        self.quality_lower = quality_lower
+        self.quality_upper = quality_upper
+
+    def apply(self, image, quality=100, **params):
+        return F.webp_compression(image, quality)
 
     def get_params(self):
         return {'quality': random.randint(self.quality_lower, self.quality_upper)}
