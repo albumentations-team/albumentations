@@ -10,7 +10,7 @@ Examples
        HorizontalFlip, IAAPerspective, ShiftScaleRotate, CLAHE, RandomRotate90,
        Transpose, ShiftScaleRotate, Blur, OpticalDistortion, GridDistortion, HueSaturationValue,
        IAAAdditiveGaussianNoise, GaussNoise, MotionBlur, MedianBlur, IAAPiecewiseAffine,
-       IAASharpen, IAAEmboss, RandomContrast, RandomBrightness, Flip, OneOf, Compose
+       IAASharpen, IAAEmboss, RandomBrightnessContrast, Flip, OneOf, Compose
    )
    import numpy as np
 
@@ -38,8 +38,7 @@ Examples
                CLAHE(clip_limit=2),
                IAASharpen(),
                IAAEmboss(),
-               RandomContrast(),
-               RandomBrightness(),
+               RandomBrightnessContrast(),
            ], p=0.3),
            HueSaturationValue(p=0.3),
        ], p=p)
