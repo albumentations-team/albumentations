@@ -710,7 +710,18 @@ class GridDistortion(DualTransform):
 
 
 class ElasticTransform(DualTransform):
-    """
+    """Elastic deformation of images as described in [Simard2003]_ (with modifications).
+    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+
+    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
+         Convolutional Neural Networks applied to Visual Document Analysis", in
+         Proc. of the International Conference on Document Analysis and
+         Recognition, 2003.
+
+    Args:
+        approximate (boolean): Whether to smooth displacement map with fixed kernel size.
+                               Enabling this option gives ~2X speedup on large images.
+
     Targets:
         image, mask
 
@@ -719,17 +730,19 @@ class ElasticTransform(DualTransform):
     """
 
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, approximate=False, p=0.5):
         super(ElasticTransform, self).__init__(always_apply, p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
         self.interpolation = interpolation
         self.border_mode = border_mode
+        self.approximate = approximate
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
-        return F.elastic_transform_fast(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
-                                        self.border_mode, np.random.RandomState(random_state))
+        return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
+                                   self.border_mode, np.random.RandomState(random_state),
+                                   self.approximate)
 
     def get_params(self):
         return {'random_state': random.randint(0, 10000)}

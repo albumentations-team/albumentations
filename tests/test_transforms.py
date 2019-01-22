@@ -83,13 +83,13 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
                         lambda *_: {'random_state': 1111})
     aug = ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.elastic_transform_fast(image, alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation,
-                                              border_mode=cv2.BORDER_REFLECT_101,
-                                              random_state=np.random.RandomState(1111))
-    expected_mask = F.elastic_transform_fast(mask, alpha=1, sigma=50, alpha_affine=50,
-                                             interpolation=cv2.INTER_NEAREST,
-                                             border_mode=cv2.BORDER_REFLECT_101,
-                                             random_state=np.random.RandomState(1111))
+    expected_image = F.elastic_transform(image, alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation,
+                                         border_mode=cv2.BORDER_REFLECT_101,
+                                         random_state=np.random.RandomState(1111))
+    expected_mask = F.elastic_transform(mask, alpha=1, sigma=50, alpha_affine=50,
+                                        interpolation=cv2.INTER_NEAREST,
+                                        border_mode=cv2.BORDER_REFLECT_101,
+                                        random_state=np.random.RandomState(1111))
     assert np.array_equal(data['image'], expected_image)
     assert np.array_equal(data['mask'], expected_mask)
 
