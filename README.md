@@ -87,22 +87,25 @@ To run the benchmark yourself follow the instructions in [benchmark/README.md](h
 Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Core i7-7800X CPU.
 The table shows how many images per second can be processed on a single core, higher is better.
 
-|                  | albumentations <br><small>0.1.2</small>| imgaug<br><small>0.2.6</small> | torchvision <br>(Pillow backend)<br><small>0.2.1</small> | torchvision<br>(Pillow-SIMD backend)<br><small>0.2.1</small>  | Keras<br><small>2.2.4</small>  |
-|------------------|:--------------:|:------:|:--------------------------------:|:------------------------------------:|:-----:|
-| RandomCrop64     | **746838**     | -      | 98793                            | 100889                               | -     |
-| PadToSize512     | **8270**       | -      | 759                              | 823                                  | -     |
-| HorizontalFlip   | 1319           | 938    | 6307                             | **6495**                             | 1025  |
-| VerticalFlip     | **11362**      | 5005   | 8545                             | 8651                                 | 11108 |
-| Rotate           | **1084**       | 786    | 123                              | 210                                  | 37    |
-| ShiftScaleRotate | **1993**       | 1228   | 107                              | 188                                  | 40    |
-| Brightness       | **896**        | 841    | 426                              | 567                                  | 199   |
-| ShiftHSV         | **219**        | 144    | 57                               | 73                                   | -     |
-| ShiftRGB         | 725            |**900** | -                                | -                                    | 663   |
-| Gamma            | 1354           | -      | **1724**                         | 1713                                 | -     |
-| Grayscale        | **2603**       | 330    | 1145                             | 1544                                 | -     |
+
+|  | albumentations  <br><small>0.1.11</small>  | imgaug  <br><small>0.2.6</small>  | torchvision (Pillow backend)  <br><small>0.2.1</small>  | torchvision (Pillow-SIMD backend)  <br><small>0.2.1</small>  | Keras  <br><small>2.2.4</small>  |
+|--------------------|:---------------------:|:------------:|:----------------------------------:|:---------------------------------------:|:-----------:|
+| RandomCrop64 | **740915** | - | 93057 | 97160 | - |
+| PadToSize512 | **7484** | - | 789 | 782 | - |
+| HorizontalFlip | 1093 | 982 | **6519** | 5923 | 1092 |
+| VerticalFlip | **11097** | 5093 | 7908 | 8105 | 10834 |
+| Rotate | **1076** | 802 | 124 | 206 | 37 |
+| ShiftScaleRotate | **2188** | 1282 | 107 | 184 | 40 |
+| Brightness | 582 | **888** | 426 | 562 | 199 |
+| Contrast | 581 | **761** | 303 | 401 | - |
+| BrightnessContrast | **583** | 412 | 173 | 229 | - |
+| ShiftHSV | **219** | 148 | 57 | 74 | - |
+| ShiftRGB | 736 | **889** | - | - | 668 |
+| Gamma | 1215 | - | **1685** | 1671 | - |
+| Grayscale | **2760** | 475 | 1182 | 1493 | - |
 
 
-Python and library versions: Python 3.6.6 | Anaconda, numpy 1.15.2, pillow 5.3.0, pillow-simd 5.2.0.post0, opencv-python 3.4.3.18, scikit-image 0.14.1, scipy 1.1.0.
+Python and library versions: Python 3.6.8 | Anaconda, numpy 1.15.4, pillow 5.4.1, pillow-simd 5.3.0.post0, opencv-python 4.0.0.21, scikit-image 0.14.2, scipy 1.2.0.
 
 
 ## Contributing
