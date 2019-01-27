@@ -587,7 +587,11 @@ def gauss_noise(image, var):
 
 @clipped
 def brightness_contrast_adjust(img, alpha=1, beta=0):
-    img = img.astype('float32') * alpha + beta * np.mean(img)
+    img = img.astype('float32')
+    if alpha != 1:
+        img *= alpha
+    if beta != 0:
+        img += beta * np.mean(img)
     return img
 
 

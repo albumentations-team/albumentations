@@ -96,9 +96,9 @@ The table shows how many images per second can be processed on a single core, hi
 | VerticalFlip | **11097** | 5093 | 7908 | 8105 | 10834 |
 | Rotate | **1076** | 802 | 124 | 206 | 37 |
 | ShiftScaleRotate | **2188** | 1282 | 107 | 184 | 40 |
-| Brightness | 582 | **888** | 426 | 562 | 199 |
-| Contrast | 581 | **761** | 303 | 401 | - |
-| BrightnessContrast | **583** | 412 | 173 | 229 | - |
+| Brightness | 775 | **888** | 426 | 562 | 199 |
+| Contrast | **898** | 761 | 303 | 401 | - |
+| BrightnessContrast | **692** | 412 | 173 | 229 | - |
 | ShiftHSV | **219** | 148 | 57 | 74 | - |
 | ShiftRGB | 736 | **889** | - | - | 668 |
 | Gamma | 1215 | - | **1685** | 1671 | - |
