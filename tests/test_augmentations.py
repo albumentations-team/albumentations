@@ -14,7 +14,8 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
     JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
     GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise, \
-    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop, RandomCropNearBBox
+    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop, RandomCropNearBBox, \
+    RandomBrightnessContrast
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -146,6 +147,7 @@ def test_torch_to_tensor_augmentations(image, mask):
     [RGBShift, {}],
     [RandomBrightness, {}],
     [RandomContrast, {}],
+    [RandomBrightnessContrast, {}],
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {}],
@@ -190,6 +192,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [RGBShift, {}],
     [RandomBrightness, {}],
     [RandomContrast, {}],
+    [RandomBrightnessContrast, {}],
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {'blur_limit': (3, 5)}],
