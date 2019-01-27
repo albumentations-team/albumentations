@@ -144,16 +144,53 @@ class Rotate(BenchmarkTest):
 class Brightness(BenchmarkTest):
 
     def __init__(self):
-        self.imgaug_transform = iaa.Multiply((1.5, 1.5), per_channel=False)
+        self.imgaug_transform = iaa.Add((127, 127), per_channel=False)
 
     def albumentations(self, img):
-        return albumentations.random_brightness(img, alpha=1.5)
+        return albumentations.brightness_contrast_adjust(img, beta=0.5)
 
     def torchvision(self, img):
         return torchvision.adjust_brightness(img, brightness_factor=1.5)
 
     def keras(self, img):
         return keras.apply_brightness_shift(img, brightness=1.5).astype(np.uint8)
+
+    def imgaug(self, img):
+        return self.imgaug_transform.augment_image(img)
+
+
+class Contrast(BenchmarkTest):
+
+    def __init__(self):
+        self.imgaug_transform = iaa.Sequential([
+            iaa.Multiply((1.5, 1.5), per_channel=False),
+        ])
+
+    def albumentations(self, img):
+        return albumentations.brightness_contrast_adjust(img, alpha=1.5)
+
+    def torchvision(self, img):
+        return torchvision.adjust_contrast(img, contrast_factor=1.5)
+
+    def imgaug(self, img):
+        return self.imgaug_transform.augment_image(img)
+
+
+class BrightnessContrast(BenchmarkTest):
+
+    def __init__(self):
+        self.imgaug_transform = iaa.Sequential([
+            iaa.Multiply((1.5, 1.5), per_channel=False),
+            iaa.Add((127, 127), per_channel=False),
+        ])
+
+    def albumentations(self, img):
+        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5)
+
+    def torchvision(self, img):
+        img = torchvision.adjust_brightness(img, brightness_factor=1.5)
+        img = torchvision.adjust_contrast(img, contrast_factor=1.5)
+        return img
 
     def imgaug(self, img):
         return self.imgaug_transform.augment_image(img)
@@ -280,6 +317,8 @@ def main():
             Rotate(),
             ShiftScaleRotate(),
             Brightness(),
+            Contrast(),
+            BrightnessContrast(),
             ShiftRGB(),
             ShiftHSV(),
             Gamma(),
@@ -303,7 +342,7 @@ def main():
     df = df.applymap(lambda r: format_results(r, args.show_std))
     df = df[libraries]
     augmentations = ['RandomCrop64', 'PadToSize512', 'HorizontalFlip', 'VerticalFlip', 'Rotate', 'ShiftScaleRotate',
-                     'Brightness', 'ShiftHSV', 'ShiftRGB', 'Gamma', 'Grayscale']
+                     'Brightness', 'Contrast', 'BrightnessContrast', 'ShiftHSV', 'ShiftRGB', 'Gamma', 'Grayscale']
     df = df.reindex(augmentations)
     print(df.head(len(augmentations)))
 
