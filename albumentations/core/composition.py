@@ -189,7 +189,7 @@ def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data
         additional_params['min_area'] = params.get('min_area', 0.0),
         additional_params['min_visibility'] = params.get('min_visibility', 0.0)
     elif data_name == 'keypoints':
-        additional_params['remove_invisible'] = params.get('remove_invisible', 0.0)
+        additional_params['remove_invisible'] = bool(params.get('remove_invisible', True))
     else:
         raise Exception('Not known data_name')
 
