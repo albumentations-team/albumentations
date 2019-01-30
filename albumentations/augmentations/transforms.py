@@ -195,7 +195,7 @@ class LongestMaxSize(DualTransform):
         self.interpolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, interpolation=self.inteprolation, **params):
         return F.longest_max_size(img, max_size=self.max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
@@ -222,7 +222,7 @@ class SmallestMaxSize(DualTransform):
         self.inteprolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, interpolation=self.inteprolation, **params):
         return F.smallest_max_size(img, max_size=self.max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
@@ -253,7 +253,7 @@ class Resize(DualTransform):
         self.width = width
         self.interpolation = interpolation
 
-    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, interpolation=self.inteprolation, **params):
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
@@ -320,7 +320,7 @@ class Rotate(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, angle=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, angle=0, interpolation=self.inteprolation, **params):
         return F.rotate(img, angle, interpolation, self.border_mode)
 
     def get_params(self):
@@ -359,7 +359,7 @@ class RandomScale(DualTransform):
     def get_params(self):
         return {'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1])}
 
-    def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, scale=0, interpolation=self.inteprolation, **params):
         return F.scale(img, scale, interpolation)
 
     def apply_to_bbox(self, bbox, **params):
@@ -405,10 +405,10 @@ class ShiftScaleRotate(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=self.inteprolation, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
 
-    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, interpolation=cv2.INTER_LINEAR,
+    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, interpolation=self.inteprolation,
                           **params):
         return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
 
@@ -418,8 +418,8 @@ class ShiftScaleRotate(DualTransform):
                 'dx': random.uniform(self.shift_limit[0], self.shift_limit[1]),
                 'dy': random.uniform(self.shift_limit[0], self.shift_limit[1])}
 
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
+    def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=self.inteprolation, **params):
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=interpolation, **params)
 
 
 class CenterCrop(DualTransform):
@@ -568,7 +568,7 @@ class RandomSizedCrop(DualTransform):
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
-    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=self.interpolation, **params):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
         return F.resize(crop, self.height, self.width, interpolation)
 
@@ -616,7 +616,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         self.interpolation = interpolation
         self.erosion_rate = erosion_rate
 
-    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=self.interpolation, **params):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
         return F.resize(crop, self.height, self.width, interpolation)
 
@@ -669,7 +669,7 @@ class OpticalDistortion(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, k=0, dx=0, dy=0, interpolation=self.interpolation, **params):
         return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode)
 
     def get_params(self):
@@ -695,7 +695,7 @@ class GridDistortion(DualTransform):
         self.interpolation = interpolation
         self.border_mode = border_mode
 
-    def apply(self, img, stepsx=[], stepsy=[], interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, stepsx=[], stepsy=[], interpolation=self.interpolation, **params):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode)
 
     def get_params(self):
@@ -739,7 +739,7 @@ class ElasticTransform(DualTransform):
         self.border_mode = border_mode
         self.approximate = approximate
 
-    def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, random_state=None, interpolation=self.interpolation, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
                                    self.border_mode, np.random.RandomState(random_state),
                                    self.approximate)
