@@ -88,7 +88,8 @@ class BasicTransform(object):
         return []
 
     def get_params_dependent_on_targets(self, params):
-        raise NotImplementedError
+        raise NotImplementedError('Method  get_params_dependent_on_targets is not implemented in class '
+                                  + self.__class__.__name__)
 
 
 class DualTransform(BasicTransform):
@@ -103,10 +104,10 @@ class DualTransform(BasicTransform):
                 'keypoints': self.apply_to_keypoints}
 
     def apply_to_bbox(self, bbox, **params):
-        raise NotImplementedError
+        raise NotImplementedError('Method apply_to_bbox is not implemented in class ' + self.__class__.__name__)
 
     def apply_to_keypoint(self, keypoint, **params):
-        raise NotImplementedError
+        raise NotImplementedError('Method apply_to_keypoint is not implemented in class ' + self.__class__.__name__)
 
     def apply_to_bboxes(self, bboxes, **params):
         bboxes = [list(bbox) for bbox in bboxes]
