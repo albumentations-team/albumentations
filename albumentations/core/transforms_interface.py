@@ -88,8 +88,8 @@ class BasicTransform(object):
         return []
 
     def get_params_dependent_on_targets(self, params):
-        raise NotImplementedError('Method  get_params_dependent_on_targets is not implemented in class '
-                                  + self.__class__.__name__)
+        raise NotImplementedError('Method  get_params_dependent_on_targets is not implemented in class ' +
+                                  self.__class__.__name__)
 
 
 class DualTransform(BasicTransform):
