@@ -195,7 +195,7 @@ class LongestMaxSize(DualTransform):
         self.interpolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, interpolation=self.inteprolation, **params):
+    def apply(self, img, interpolation=self.interpolation, **params):
         return F.longest_max_size(img, max_size=self.max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
