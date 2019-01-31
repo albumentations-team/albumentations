@@ -72,10 +72,10 @@ class PadIfNeeded(DualTransform):
         return F.pad_with_params(img, pad_top, pad_bottom, pad_left, pad_right,
                                  border_mode=self.border_mode, value=self.value)
 
-    def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, right=0, rows=0, cols=0, **params):
+    def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
         bbox = [x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top]
-        return normalize_bbox(bbox, rows, cols)
+        return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
     def apply_to_keypoint(self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
         x, y, a, s = keypoint
