@@ -253,7 +253,7 @@ class SmallestMaxSize(DualTransform):
 
     def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
         super(SmallestMaxSize, self).__init__(always_apply, p)
-        self.inteprolation = interpolation
+        self.interpolation = interpolation
         self.max_size = max_size
 
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
