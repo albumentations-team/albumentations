@@ -312,6 +312,7 @@ def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, borde
     img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
     return img
 
+
 @preserve_shape
 def blur(img, ksize):
     return cv2.blur(img, (ksize, ksize))
