@@ -11,6 +11,10 @@ def normalize_bbox(bbox, rows, cols):
     """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
     by image height.
     """
+    if rows == 0:
+        raise ValueError('Argument rows cannot be zero')
+    if cols == 0:
+        raise ValueError('Argument cols cannot be zero')
     x_min, y_min, x_max, y_max = bbox[:4]
     normalized_bbox = [x_min / cols, y_min / rows, x_max / cols, y_max / rows]
     return normalized_bbox + list(bbox[4:])
@@ -20,6 +24,11 @@ def denormalize_bbox(bbox, rows, cols):
     """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
     by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
     """
+    if rows == 0:
+        raise ValueError('Argument rows cannot be zero')
+    if cols == 0:
+        raise ValueError('Argument cols cannot be zero')
+
     x_min, y_min, x_max, y_max = bbox[:4]
     denormalized_bbox = [x_min * cols, y_min * rows, x_max * cols, y_max * rows]
     return denormalized_bbox + list(bbox[4:])
