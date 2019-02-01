@@ -298,15 +298,18 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=[0
         w_pad_left = 0
         w_pad_right = 0
 
-    if border_mode == cv2.BORDER_CONSTANT:
-        img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left,
-                                 w_pad_right, border_mode, value=value)
-    else:
-        img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode)
+    img = pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value)
 
     assert img.shape[0] == max(min_height, height)
     assert img.shape[1] == max(min_width, width)
 
+    return img
+
+
+@preserve_channel_dim
+def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101,
+                    value=[0, 0, 0]):
+    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
     return img
 
 
