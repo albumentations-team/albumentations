@@ -88,24 +88,25 @@ Results for running the benchmark on first 2000 images from the ImageNet validat
 The table shows how many images per second can be processed on a single core, higher is better.
 
 
-|  | albumentations  <br><small>0.1.11</small>  | imgaug  <br><small>0.2.6</small>  | torchvision (Pillow backend)  <br><small>0.2.1</small>  | torchvision (Pillow-SIMD backend)  <br><small>0.2.1</small>  | Keras  <br><small>2.2.4</small>  |
-|--------------------|:---------------------:|:------------:|:----------------------------------:|:---------------------------------------:|:-----------:|
-| RandomCrop64 | **740915** | - | 93057 | 97160 | - |
-| PadToSize512 | **7484** | - | 789 | 782 | - |
-| HorizontalFlip | 1093 | 982 | **6519** | 5923 | 1092 |
-| VerticalFlip | **11097** | 5093 | 7908 | 8105 | 10834 |
-| Rotate | **1076** | 802 | 124 | 206 | 37 |
-| ShiftScaleRotate | **2188** | 1282 | 107 | 184 | 40 |
-| Brightness | 775 | **888** | 426 | 562 | 199 |
-| Contrast | **898** | 761 | 303 | 401 | - |
-| BrightnessContrast | **692** | 412 | 173 | 229 | - |
-| ShiftHSV | **219** | 148 | 57 | 74 | - |
-| ShiftRGB | 736 | **889** | - | - | 668 |
-| Gamma | 1215 | - | **1685** | 1671 | - |
-| Grayscale | **2760** | 475 | 1182 | 1493 | - |
+|  | albumentations <br><small>0.1.11</small> | imgaug <br><small>0.2.67</small> | torchvision (Pillow backend) <br><small>0.2.1</small>  | torchvision (Pillow-SIMD backend) <br><small>0.2.1</small> | Keras <br><small>2.2.4</small> | Augmentor <br><small>0.2.3</small> | solt <br><small>0.1.3</small> |
+|--------------------|:--------------:|:------:|:-----------:|:-------------------------:|:-----:|:---------:|:----:|
+| RandomCrop64 | **754387** | 6730 | 94557 | 97446 | - | 69562 | 7932 |
+| PadToSize512 | **7516** | - | 798 | 772 | - | - | 3102 |
+| Resize512 | **2898** | 1272 | 379 | 1441 | - | 378 | 1822 |
+| HorizontalFlip | 1093 | 1008 | **6475** | 5972 | 1093 | 6346 | 1154 |
+| VerticalFlip | **11048** | 5429 | 7845 | 8213 | 10760 | 7677 | 3823 |
+| Rotate | **1079** | 772 | 124 | 206 | 37 | 52 | 267 |
+| ShiftScaleRotate | **2198** | 1223 | 107 | 184 | 40 | - | - |
+| Brightness | 772 | **884** | 425 | 563 | 199 | 425 | 134 |
+| Contrast | 894 | 826 | 304 | 401 | - | 303 | **1028** |
+| BrightnessContrast | **690** | 408 | 173 | 229 | - | 173 | 119 |
+| ShiftHSV | **216** | 151 | 57 | 74 | - | - | 142 |
+| ShiftRGB | 728 | **884** | - | - | 665 | - | - |
+| Gamma | 1151 | - | 1655 | **1692** | - | - | 918 |
+| Grayscale | 2710 | 509 | 1183 | 1515 | - | 2891 | **3872** |
 
 
-Python and library versions: Python 3.6.8 | Anaconda, numpy 1.15.4, pillow 5.4.1, pillow-simd 5.3.0.post0, opencv-python 4.0.0.21, scikit-image 0.14.2, scipy 1.2.0.
+Python and library versions: Python 3.6.8 | Anaconda, numpy 1.16.1, pillow 5.4.1, pillow-simd 5.3.0.post0, opencv-python 4.0.0.21, scikit-image 0.14.2, scipy 1.2.0.
 
 
 ## Contributing
