@@ -5,6 +5,8 @@ pandas
 tqdm
 tensorflow # required for keras
 keras
-imgaug
 albumentations
+imgaug==0.2.7
 torchvision
+Augmentor
+solt
