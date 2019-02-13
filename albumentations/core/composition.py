@@ -137,8 +137,8 @@ class Compose(BaseCompose):
 
         self.add_targets(additional_targets)
 
-    def __call__(self, **data):
-        need_to_run = random.random() < self.p
+    def __call__(self, force_apply=False, **data):
+        need_to_run = force_apply or random.random() < self.p
         transforms = self.transforms if need_to_run else find_always_apply_transforms(self.transforms)
         dual_start_end = None
         if self.params[self.bboxes_name] or self.params[self.keypoints_name]:
@@ -168,7 +168,7 @@ class Compose(BaseCompose):
                     data = data_preprocessing(self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
                                               convert_keypoints_to_albumentations, data)
 
-            data = t(**data)
+            data = t(force_apply=force_apply, **data)
 
             if dual_start_end is not None and idx == dual_start_end[1]:
                 if self.params[self.bboxes_name]:
@@ -256,16 +256,16 @@ class OneOf(BaseCompose):
         if random.random() < self.p:
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             t = random_state.choice(self.transforms, p=self.transforms_ps)
-            t.p = 1.
-            data = t(**data)
+            data = t(force_apply=True, **data)
         return data
 
 
 class OneOrOther(BaseCompose):
     def __init__(self, first, second, p=0.5):
         super(OneOrOther, self).__init__([first, second], p)
-        for t in self.transforms:
-            t.p = 1.
 
     def __call__(self, **data):
-        return self.transforms[0](**data) if random.random() < self.p else self.transforms[-1](**data)
+        if random.random() < self.p:
+            return self.transforms[0](force_apply=True, **data)
+        else:
+            return self.transforms[-1](force_apply=True, **data)

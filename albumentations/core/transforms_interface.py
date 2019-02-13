@@ -22,8 +22,8 @@ class BasicTransform(object):
         self.always_apply = always_apply
         self._additional_targets = {}
 
-    def __call__(self, **kwargs):
-        if (random.random() < self.p) or self.always_apply:
+    def __call__(self, force_apply=False, **kwargs):
+        if (random.random() < self.p) or self.always_apply or force_apply:
             params = self.get_params()
             params = self.update_params(params, **kwargs)
             if self.targets_as_params:
