@@ -162,9 +162,7 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, col
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
     height, width = rows, cols
     center = (width / 2, height / 2)
-
     x, y, a, s = keypoint
-    # matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, scale)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
