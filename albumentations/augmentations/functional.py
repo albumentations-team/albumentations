@@ -35,7 +35,6 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -48,7 +47,6 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -306,7 +304,6 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
         img = clahe.apply(img)
     else:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
-
         img[:, :, 0] = clahe.apply(img[:, :, 0])
         img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
