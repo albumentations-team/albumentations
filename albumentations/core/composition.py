@@ -252,8 +252,8 @@ class OneOf(BaseCompose):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(self, **data):
-        if random.random() < self.p:
+    def __call__(self, force_apply=False, **data):
+        if force_apply or random.random() < self.p:
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             t = random_state.choice(self.transforms, p=self.transforms_ps)
             data = t(force_apply=True, **data)
@@ -264,7 +264,7 @@ class OneOrOther(BaseCompose):
     def __init__(self, first, second, p=0.5):
         super(OneOrOther, self).__init__([first, second], p)
 
-    def __call__(self, **data):
+    def __call__(self, force_apply=False, **data):
         if random.random() < self.p:
             return self.transforms[0](force_apply=True, **data)
         else:
