@@ -76,6 +76,62 @@ conda install albumentations -c albumentations
 The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
 
 
+## Supported targets
+| Transform                                                                                                                                                           | Image | Masks | Bboxes | Keypoints |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :---: | :----: | :-------: |
+| [Blur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Blur)                                         | ✓     |       |        |           |
+| [CLAHE](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CLAHE)                                       | ✓     |       |        |           |
+| [CenterCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CenterCrop)                             | ✓     | ✓     | ✓      | ✓         |
+| [ChannelShuffle](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ChannelShuffle)                     | ✓     |       |        |           |
+| [Crop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Crop)                                         | ✓     | ✓     | ✓      |           |
+| [Cutout](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Cutout)                                     | ✓     |       |        |           |
+| [ElasticTransform](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ElasticTransform)                 | ✓     | ✓     |        |           |
+| [Flip](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Flip)                                         | ✓     | ✓     | ✓      | ✓         |
+| [FromFloat](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.FromFloat)                               | ✓     |       |        |           |
+| [GaussNoise](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.GaussNoise)                             | ✓     |       |        |           |
+| [GridDistortion](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.GridDistortion)                     | ✓     | ✓     |        |           |
+| [HorizontalFlip](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.HorizontalFlip)                     | ✓     | ✓     | ✓      | ✓         |
+| [HueSaturationValue](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.HueSaturationValue)             | ✓     |       |        |           |
+| [IAAAdditiveGaussianNoise](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAAdditiveGaussianNoise)        | ✓     |       |        |           |
+| [IAAAffine](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAAffine)                                      | ✓     | ✓     |        |           |
+| [IAACropAndPad](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAACropAndPad)                              | ✓     | ✓     |        |           |
+| [IAAEmboss](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAEmboss)                                      | ✓     |       |        |           |
+| [IAAFliplr](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAFliplr)                                      | ✓     | ✓     |        |           |
+| [IAAFlipud](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAFlipud)                                      | ✓     | ✓     |        |           |
+| [IAAPerspective](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPerspective)                            | ✓     | ✓     |        |           |
+| [IAAPiecewiseAffine](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPiecewiseAffine)                    | ✓     | ✓     |        |           |
+| [IAASharpen](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAASharpen)                                    | ✓     |       |        |           |
+| [IAASuperpixels](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAASuperpixels)                            | ✓     |       |        |           |
+| [InvertImg](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.InvertImg)                               | ✓     |       |        |           |
+| [JpegCompression](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.JpegCompression)                   | ✓     |       |        |           |
+| [LongestMaxSize](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.LongestMaxSize)                     | ✓     | ✓     | ✓      |           |
+| [MedianBlur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.MedianBlur)                             | ✓     |       |        |           |
+| [MotionBlur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.MotionBlur)                             | ✓     |       |        |           |
+| NoOp                                                                                                                                                                | ✓     | ✓     | ✓      | ✓         |
+| [Normalize](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Normalize)                               | ✓     |       |        |           |
+| [OpticalDistortion](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.OpticalDistortion)               | ✓     | ✓     |        |           |
+| [PadIfNeeded](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.PadIfNeeded)                           | ✓     | ✓     | ✓      | ✓         |
+| [RGBShift](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RGBShift)                                 | ✓     |       |        |           |
+| [RandomBrightness](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomBrightness)                 | ✓     |       |        |           |
+| [RandomBrightnessContrast](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomBrightnessContrast) | ✓     |       |        |           |
+| [RandomContrast](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomContrast)                     | ✓     |       |        |           |
+| [RandomCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomCrop)                             | ✓     | ✓     | ✓      | ✓         |
+| [RandomCropNearBBox](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomCropNearBBox)             | ✓     | ✓     | ✓      |           |
+| [RandomGamma](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomGamma)                           | ✓     |       |        |           |
+| [RandomRotate90](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomRotate90)                     | ✓     | ✓     | ✓      | ✓         |
+| [RandomScale](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomScale)                           | ✓     | ✓     | ✓      | ✓         |
+| [RandomSizedBBoxSafeCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomSizedBBoxSafeCrop)   | ✓     | ✓     | ✓      |           |
+| [RandomSizedCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomSizedCrop)                   | ✓     | ✓     | ✓      | ✓         |
+| [Resize](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Resize)                                     | ✓     | ✓     | ✓      |           |
+| [Rotate](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Rotate)                                     | ✓     | ✓     | ✓      | ✓         |
+| [ShiftScaleRotate](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ShiftScaleRotate)                 | ✓     | ✓     | ✓      | ✓         |
+| [SmallestMaxSize](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.SmallestMaxSize)                   | ✓     | ✓     | ✓      |           |
+| [ToFloat](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ToFloat)                                   | ✓     |       |        |           |
+| [ToGray](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ToGray)                                     | ✓     |       |        |           |
+| [Transpose](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Transpose)                               | ✓     | ✓     | ✓      |           |
+| [VerticalFlip](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.VerticalFlip)                         | ✓     | ✓     | ✓      | ✓         |
+
+
 ## Migrating from torchvision to albumentations
 
 Migrating from torchvision to albumentations is simple - you just need to change a few lines of code.
