@@ -235,7 +235,7 @@ class IAAAffine(DualIAATransform):
     """
 
     def __init__(self, scale=1.0, translate_percent=None, translate_px=None, rotate=0.0, shear=0.0, order=1, cval=0,
-                 mode='reflect', always_apply=False, p=0.5):
+                 mode='reflect', always_apply=False, p=0.5, fit_output=False):
         super(IAAAffine, self).__init__(always_apply, p)
         self.scale = to_tuple(scale, 1.0)
         self.translate_percent = to_tuple(translate_percent, 0)
@@ -245,11 +245,12 @@ class IAAAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
+        self.fit_output = fit_output
 
     @property
     def processor(self):
         return iaa.Affine(self.scale, self.translate_percent, self.translate_px, self.rotate, self.shear,
-                          self.order, self.cval, self.mode)
+                          self.order, self.cval, self.mode, fit_output=self.fit_output)
 
 
 class IAAPerspective(DualIAATransform):
