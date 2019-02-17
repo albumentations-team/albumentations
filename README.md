@@ -77,7 +77,8 @@ The full documentation is available at [albumentations.readthedocs.io](https://a
 
 
 ## Supported targets
-| Transform                                                                                                                                                           | Image | Masks | Bboxes | Keypoints |
+
+| Transform                                                                                                                                                           | Image | Masks | BBoxes | Keypoints |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :---: | :----: | :-------: |
 | [Blur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Blur)                                         | ✓     |       |        |           |
 | [CLAHE](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CLAHE)                                       | ✓     |       |        |           |
@@ -93,13 +94,13 @@ The full documentation is available at [albumentations.readthedocs.io](https://a
 | [HorizontalFlip](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.HorizontalFlip)                     | ✓     | ✓     | ✓      | ✓         |
 | [HueSaturationValue](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.HueSaturationValue)             | ✓     |       |        |           |
 | [IAAAdditiveGaussianNoise](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAAdditiveGaussianNoise)        | ✓     |       |        |           |
-| [IAAAffine](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAAffine)                                      | ✓     | ✓     |        |           |
-| [IAACropAndPad](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAACropAndPad)                              | ✓     | ✓     |        |           |
+| [IAAAffine](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAAffine)                                      | ✓     | ✓     | ✓      | ✓         |
+| [IAACropAndPad](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAACropAndPad)                              | ✓     | ✓     | ✓      | ✓         |
 | [IAAEmboss](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAEmboss)                                      | ✓     |       |        |           |
-| [IAAFliplr](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAFliplr)                                      | ✓     | ✓     |        |           |
-| [IAAFlipud](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAFlipud)                                      | ✓     | ✓     |        |           |
-| [IAAPerspective](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPerspective)                            | ✓     | ✓     |        |           |
-| [IAAPiecewiseAffine](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPiecewiseAffine)                    | ✓     | ✓     |        |           |
+| [IAAFliplr](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAFliplr)                                      | ✓     | ✓     | ✓      | ✓         |
+| [IAAFlipud](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAFlipud)                                      | ✓     | ✓     | ✓      | ✓         |
+| [IAAPerspective](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPerspective)                            | ✓     | ✓     | ✓      | ✓         |
+| [IAAPiecewiseAffine](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPiecewiseAffine)                    | ✓     | ✓     | ✓      | ✓         |
 | [IAASharpen](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAASharpen)                                    | ✓     |       |        |           |
 | [IAASuperpixels](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAASuperpixels)                            | ✓     |       |        |           |
 | [InvertImg](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.InvertImg)                               | ✓     |       |        |           |

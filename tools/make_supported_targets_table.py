@@ -17,10 +17,10 @@ IGNORED_CLASSES = {
 
 
 class Targets(Enum):
-    IMAGE = 'image'
-    MASKS = 'masks'
-    BBOXES = 'bboxes'
-    KEYPOINTS = 'keypoints'
+    IMAGE = 'Image'
+    MASKS = 'Masks'
+    BBOXES = 'BBoxes'
+    KEYPOINTS = 'Keypoints'
 
 
 READTHEDOCS_TEMPLATE = '[{name}](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations'
@@ -34,9 +34,8 @@ def make_separator(width, align_center):
     return '-' * width
 
 
-def make_transforms_targets_table():
-    transforms_targets = {}
-    transforms_docs_links = {}
+def get_transforms_info():
+    transforms_info = {}
     for name, cls in inspect.getmembers(albumentations):
         if (
             inspect.isclass(cls) and
@@ -57,33 +56,43 @@ def make_transforms_targets_table():
             ):
                 targets.add(Targets.KEYPOINTS)
 
+            if issubclass(cls, albumentations.DualIAATransform):
+                targets.update({Targets.BBOXES, Targets.KEYPOINTS})
+
+            docs_link = None
             if cls.__module__ == 'albumentations.augmentations.transforms':
-                transforms_docs_links[name] = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
+                docs_link = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
             elif cls.__module__ == 'albumentations.imgaug.transforms':
-                transforms_docs_links[name] = IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
+                docs_link = IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
 
-            transforms_targets[name] = targets
+            transforms_info[name] = {
+                'targets': targets,
+                'docs_link': docs_link,
+                'image_only': issubclass(cls, albumentations.ImageOnlyTransform)
+            }
+    return transforms_info
 
-    header = ['Transform'] + [target.name.capitalize() for target in Targets]
-    rows = []
-    for transform, targets in sorted(transforms_targets.items(), key=lambda kv: kv[0]):
+
+def make_transforms_targets_table(transforms_info, header):
+    rows = [header]
+    for transform, info in sorted(transforms_info.items(), key=lambda kv: kv[0]):
         transform_targets = []
         for target in Targets:
-            mark = '✓' if target in targets else ''
+            mark = '✓' if target in info['targets'] else ''
             transform_targets.append(mark)
-        row = [transforms_docs_links.get(transform) or transform] + transform_targets
+        row = [info['docs_link'] or transform] + transform_targets
         rows.append(row)
 
     column_widths = [max([len(r) for r in column]) for column in zip(*rows)]
     lines = [
         ' | '.join(
-            '{title: <{width}}'.format(width=width, title=title) for width, title in zip(column_widths, header)
+            '{title: <{width}}'.format(width=width, title=title) for width, title in zip(column_widths, rows[0])
         ),
         ' | '.join(
             make_separator(width, align_center=column_index > 0) for column_index, width in enumerate(column_widths)
         )
     ]
-    for row in rows:
+    for row in rows[1:]:
         lines.append(' | '.join(
             '{column: <{width}}'.format(width=width, column=column)
             for width, column in zip(column_widths, row)
@@ -92,5 +101,10 @@ def make_transforms_targets_table():
 
 
 if __name__ == '__main__':
-    table = make_transforms_targets_table()
+    transforms_info = get_transforms_info()
+    table = make_transforms_targets_table(
+        transforms_info,
+        header=['Transform'] + [target.value for target in Targets],
+
+    )
     print(table)
