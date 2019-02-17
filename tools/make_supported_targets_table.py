@@ -100,11 +100,21 @@ def make_transforms_targets_table(transforms_info, header):
     return '\n'.join('| {line} |'.format(line=line) for line in lines)
 
 
-if __name__ == '__main__':
-    transforms_info = get_transforms_info()
-    table = make_transforms_targets_table(
-        transforms_info,
-        header=['Transform'] + [target.value for target in Targets],
-
+def make_transforms_targets_links(transforms_info):
+    return '\n'.join(
+        '- ' + info['docs_link'] for transform, info in sorted(transforms_info.items(), key=lambda kv: kv[0])
     )
-    print(table)
+
+
+if __name__ == '__main__':
+    if __name__ == '__main__':
+        transforms_info = get_transforms_info()
+        image_only_transforms = {transform: info for transform, info in transforms_info.items() if info['image_only']}
+        dual_transforms = {transform: info for transform, info in transforms_info.items() if not info['image_only']}
+        image_only_transforms_links = make_transforms_targets_links(image_only_transforms)
+        dual_transforms_table = make_transforms_targets_table(
+            dual_transforms,
+            header=['Transform'] + [target.value for target in Targets],
+        )
+        print(image_only_transforms_links)
+        print(dual_transforms_table)
