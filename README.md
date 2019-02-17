@@ -77,7 +77,7 @@ The full documentation is available at [albumentations.readthedocs.io](https://a
 
 
 ## Pixel-level transforms
-Pixel-level transforms will change just an input image and will leave any additional targets unchanged. The list of pixel-level transforms: 
+Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. The list of pixel-level transforms: 
 - [Blur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Blur)
 - [CLAHE](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CLAHE)
 - [ChannelShuffle](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ChannelShuffle)
