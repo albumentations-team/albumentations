@@ -28,7 +28,7 @@ class PadIfNeeded(DualTransform):
         value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
 
     Targets:
-        image, mask, bbox, keypoint
+        image, mask, bbox, keypoints
 
     Image types:
         uint8, float32
@@ -119,7 +119,7 @@ class VerticalFlip(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -142,7 +142,7 @@ class HorizontalFlip(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -165,7 +165,7 @@ class Flip(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -302,7 +302,7 @@ class RandomRotate90(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -341,7 +341,7 @@ class Rotate(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -379,7 +379,7 @@ class RandomScale(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -424,7 +424,7 @@ class ShiftScaleRotate(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask
+        image, mask, keypoints
 
     Image types:
         uint8, float32
@@ -465,7 +465,7 @@ class CenterCrop(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -500,7 +500,7 @@ class RandomCrop(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -587,7 +587,7 @@ class RandomSizedCrop(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
