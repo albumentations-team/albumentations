@@ -30,7 +30,7 @@
 
 **Keypoints** [`example_keypoints.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_keypoints.ipynb)
 
-**Custom tasks** such as autoencoders, more then three channel images - refer to `Compose` class [documentation](https://albumentations.readthedocs.io/en/latest/api/core.html#albumentations.core.composition.Compose) to use `additional_targets`.
+**Custom targets** [`example_multi_target.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_multi_target.ipynb)
 
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.
