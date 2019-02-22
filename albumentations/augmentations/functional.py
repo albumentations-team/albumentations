@@ -35,6 +35,7 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -47,6 +48,7 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -847,9 +849,10 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
     return [x, y, a + math.radians(angle), s]
 
 
-def keypoint_scale(keypoint, scale, **params):
+def keypoint_scale(keypoint, scale_x, scale_y, **params):
+    """Scales a keypoint by scale_x and scale_y."""
     x, y, a, s = keypoint
-    return [x * scale, y * scale, a, s * scale]
+    return [x * scale_x, y * scale_y, a, s * max(scale_x, scale_y)]
 
 
 def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):

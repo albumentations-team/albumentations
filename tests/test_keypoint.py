@@ -230,7 +230,7 @@ def test_keypoint_rotate(keypoint, expected, angle):
     [[0.0, 0.0, math.pi / 2, 1], [0.0, 0.0, math.pi / 2, 0.5], 0.5],
 ])
 def test_keypoint_scale(keypoint, expected, scale):
-    actual = F.keypoint_scale(keypoint, scale)
+    actual = F.keypoint_scale(keypoint, scale, scale)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 

@@ -401,7 +401,7 @@ class RandomScale(DualTransform):
         return bbox
 
     def apply_to_keypoint(self, keypoint, scale=0, **params):
-        return F.keypoint_scale(keypoint, scale)
+        return F.keypoint_scale(keypoint, scale, scale)
 
 
 class ShiftScaleRotate(DualTransform):
@@ -617,9 +617,11 @@ class RandomSizedCrop(DualTransform):
         return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
 
     def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
-        scale = self.height / crop_height
         keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
-        return F.keypoint_scale(keypoint, scale)
+        scale_x = self.width / crop_height
+        scale_y = self.height / crop_height
+        keypoint = F.keypoint_scale(keypoint, scale_x, scale_y)
+        return keypoint
 
 
 class RandomSizedBBoxSafeCrop(DualTransform):
