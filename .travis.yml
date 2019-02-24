@@ -16,14 +16,18 @@ matrix:
     - python: 2.7
     - python: 3.5
     - python: 3.6
+    - python: 3.6
+      env: TEST_MODE=DOCS
     - python: 3.7
       dist: xenial
       sudo: true
 
 install:
-  - pip install .[tests]
-  - pip install flake8 flake8-docstrings
+- if [[ "$TEST_MODE" == "DOCS" ]]; then pip install .; fi
+- if [[ "$TEST_MODE" != "DOCS" ]]; then pip install .[tests]; fi
+- if [[ "$TEST_MODE" != "DOCS" ]]; then pip install flake8 flake8-docstrings; fi
 
 script:
-  - pytest
-  - flake8
+  - if [[ "$TEST_MODE" == "DOCS" ]]; then python tools/make_transforms_docs.py check README.md; fi
+  - if [[ "$TEST_MODE" != "DOCS" ]]; then pytest; fi
+  - if [[ "$TEST_MODE" != "DOCS" ]]; then flake8; fi
