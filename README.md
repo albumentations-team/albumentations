@@ -43,6 +43,8 @@ to adjust image augmentation parameters and see the resulting images.
 
 ![vistas](https://habrastorage.org/webt/rz/-h/3j/rz-h3jalbxic8o_fhucxysts4tc.jpeg)
 
+<img src="https://habrastorage.org/webt/e-/6k/z-/e-6kz-fugp2heak3jzns3bc-r8o.jpeg" width=100%>
+
 ## Authors
 [Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/)
 
