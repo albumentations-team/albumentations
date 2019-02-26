@@ -77,6 +77,8 @@ def test_to_tuple():
     assert to_tuple((-20, 20)) == (-20, 20)
     assert to_tuple([-20, 20]) == (-20, 20)
     assert to_tuple(100, low=30) == (30, 100)
+    assert to_tuple(10, bias=1) == (-9, 11)
+    assert to_tuple(100, bias=2) == (-98, 102)
 
 
 def test_image_only_transform(image, mask):

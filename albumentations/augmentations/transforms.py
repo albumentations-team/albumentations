@@ -387,11 +387,11 @@ class RandomScale(DualTransform):
 
     def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
         super(RandomScale, self).__init__(always_apply, p)
-        self.scale_limit = to_tuple(scale_limit)
+        self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.interpolation = interpolation
 
     def get_params(self):
-        return {'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1])}
+        return {'scale': random.uniform(self.scale_limit[0], self.scale_limit[1])}
 
     def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.scale(img, scale, interpolation)
@@ -434,7 +434,7 @@ class ShiftScaleRotate(DualTransform):
                  border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
         super(ShiftScaleRotate, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
-        self.scale_limit = to_tuple(scale_limit)
+        self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.rotate_limit = to_tuple(rotate_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -448,7 +448,7 @@ class ShiftScaleRotate(DualTransform):
 
     def get_params(self):
         return {'angle': random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
-                'scale': random.uniform(1 + self.scale_limit[0], 1 + self.scale_limit[1]),
+                'scale': random.uniform(self.scale_limit[0], self.scale_limit[1]),
                 'dx': random.uniform(self.shift_limit[0], self.shift_limit[1]),
                 'dy': random.uniform(self.shift_limit[0], self.shift_limit[1])}
 
