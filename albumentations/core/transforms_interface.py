@@ -6,7 +6,7 @@ __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform', 
 
 
 def to_tuple(param, low=None, bias=None):
-    """ Converts input argument to min-max tuple
+    """Convert input argument to min-max tuple
     Args:
         param (scalar, tuple or list of 2+ elements): Input value.
             If value is scalar, return value would be (offset - value, offset + value).
