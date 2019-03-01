@@ -589,10 +589,8 @@ def invert(img):
     return 255 - img
 
 
-def channel_shuffle(img):
-    ch_arr = [0, 1, 2]
-    random.shuffle(ch_arr)
-    img = img[..., ch_arr]
+def channel_shuffle(img, channels_shuffled):
+    img = img[..., channels_shuffled]
     return img
 
 

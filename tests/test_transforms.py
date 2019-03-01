@@ -198,3 +198,15 @@ def test_force_apply():
     res = aug(image=np.zeros((1248, 1248, 3), dtype=np.uint8))
     assert res['image'].shape[0] in (256, 384, 512)
     assert res['image'].shape[1] in (256, 384, 512)
+
+
+def test_channel_shuffle():
+    aug = A.Compose(
+        [A.ChannelShuffle(always_apply=True)], additional_targets={'image2': 'image'})
+    for i in range(10):
+        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image2 = image1.copy()
+        res = aug(image=image1, image2=image2)
+        aug1 = res['image']
+        aug2 = res['image2']
+        assert np.array_equal(aug1, aug2)
