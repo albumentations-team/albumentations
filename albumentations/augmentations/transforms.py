@@ -1118,8 +1118,13 @@ class ChannelShuffle(ImageOnlyTransform):
         uint8, float32
     """
 
-    def apply(self, img, **params):
-        return F.channel_shuffle(img)
+    def apply(self, img, channels_shuffled=[0, 1, 2], **params):
+        return F.channel_shuffle(img, channels_shuffled)
+
+    def get_params(self):
+        ch_arr = [0, 1, 2]
+        random.shuffle(ch_arr)
+        return {'channels_shuffled': ch_arr}
 
 
 class InvertImg(ImageOnlyTransform):
