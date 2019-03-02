@@ -35,6 +35,7 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -47,6 +48,7 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -354,7 +356,7 @@ def _func_max_size(img, max_size, interpolation, func):
     scale = max_size / float(func(width, height))
 
     if scale != 1.0:
-        out_size = tuple(int(round(dim * scale)) for dim in (width, height))
+        out_size = tuple(py3round(dim * scale) for dim in (width, height))
         img = cv2.resize(img, out_size, interpolation=interpolation)
     return img
 
@@ -869,3 +871,12 @@ def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, ro
 def keypoint_center_crop(bbox, crop_height, crop_width, rows, cols):
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
     return crop_keypoint_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
+
+
+def py3round(number):
+    """Unified rounding in all python versions."""
+
+    if abs(round(number) - number) == 0.5:
+        return 2.0 * round(number / 2.0)
+
+    return round(number)
