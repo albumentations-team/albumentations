@@ -794,3 +794,12 @@ def test_bbox_transpose():
 def test_filter_bboxes(bboxes, min_area, min_visibility, target):
     filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
     assert filtered_bboxes == target
+
+
+def test_fun_max_size():
+    target_width = 256
+
+    img = np.empty((330, 49), dtype=np.uint8)
+    out = F.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
+
+    assert out.shape == (1724, target_width)
