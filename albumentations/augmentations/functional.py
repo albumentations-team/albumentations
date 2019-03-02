@@ -354,7 +354,7 @@ def _func_max_size(img, max_size, interpolation, func):
     scale = max_size / float(func(width, height))
 
     if scale != 1.0:
-        out_size = tuple(int(dim * scale) for dim in (width, height))
+        out_size = tuple(round(dim * scale) for dim in (width, height))
         img = cv2.resize(img, out_size, interpolation=interpolation)
     return img
 
