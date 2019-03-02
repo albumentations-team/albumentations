@@ -54,7 +54,7 @@ class ToTensor(BasicTransform):
         self.sigmoid = sigmoid
         self.normalize = normalize
 
-    def __call__(self, **kwargs):
+    def __call__(self, force_apply, **kwargs):
         kwargs.update({'image': img_to_tensor(kwargs['image'], self.normalize)})
         if 'mask' in kwargs.keys():
             kwargs.update({'mask': mask_to_tensor(kwargs['mask'], self.num_classes, sigmoid=self.sigmoid)})
