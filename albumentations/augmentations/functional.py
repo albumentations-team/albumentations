@@ -873,7 +873,6 @@ def keypoint_center_crop(bbox, crop_height, crop_width, rows, cols):
 
 def py3round(number):
     """Unified rounding in all python versions."""
-
     if abs(round(number) - number) == 0.5:
         return int(2.0 * round(number / 2.0))
 
