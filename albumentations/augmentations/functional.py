@@ -66,6 +66,10 @@ def hflip(img):
     return np.ascontiguousarray(img[:, ::-1, ...])
 
 
+def hflip_cv2(img):
+    return cv2.flip(img, 1)
+
+
 @preserve_shape
 def random_flip(img, code):
     return cv2.flip(img, code)

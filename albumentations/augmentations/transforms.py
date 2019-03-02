@@ -149,7 +149,10 @@ class HorizontalFlip(DualTransform):
     """
 
     def apply(self, img, **params):
-        return F.hflip(img)
+        if img.ndim == 3 and img.shape[2] > 1:
+            return F.hflip_cv2(img)
+        else:
+            return F.hflip(img)
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_hflip(bbox, **params)
