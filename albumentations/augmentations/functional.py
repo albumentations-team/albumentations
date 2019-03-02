@@ -877,6 +877,6 @@ def py3round(number):
     """Unified rounding in all python versions."""
 
     if abs(round(number) - number) == 0.5:
-        return 2.0 * round(number / 2.0)
+        return int(2.0 * round(number / 2.0))
 
     return int(round(number))
