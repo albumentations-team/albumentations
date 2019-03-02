@@ -802,4 +802,4 @@ def test_fun_max_size():
     img = np.empty((330, 49), dtype=np.uint8)
     out = F.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
 
-    assert out.shape == (1724, 256)
+    assert out.shape == (1724, target_width)
