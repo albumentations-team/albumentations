@@ -879,4 +879,4 @@ def py3round(number):
     if abs(round(number) - number) == 0.5:
         return 2.0 * round(number / 2.0)
 
-    return round(number)
+    return int(round(number))
