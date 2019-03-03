@@ -149,7 +149,9 @@ class HorizontalFlip(DualTransform):
     """
 
     def apply(self, img, **params):
-        if img.ndim == 3 and img.shape[2] > 1:
+        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
+            # Opencv is faster than numpy only in case of
+            # non-gray scale 8bits images
             return F.hflip_cv2(img)
         else:
             return F.hflip(img)
