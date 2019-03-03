@@ -1121,6 +1121,7 @@ class GaussNoise(ImageOnlyTransform):
     def targets_as_params(self):
         return ['image']
 
+
 class CLAHE(ImageOnlyTransform):
     """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
 
