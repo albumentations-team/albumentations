@@ -1,7 +1,6 @@
 from __future__ import division
 
 import math
-import random
 from functools import wraps
 from warnings import warn
 
@@ -95,20 +94,11 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     return img
 
 
-def cutout(img, num_holes, max_h_size, max_w_size):
+def cutout(img, holes):
     # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
-    height, width = img.shape[:2]
 
-    for n in range(num_holes):
-        y = random.randint(0, height)
-        x = random.randint(0, width)
-
-        y1 = np.clip(y - max_h_size // 2, 0, height)
-        y2 = np.clip(y + max_h_size // 2, 0, height)
-        x1 = np.clip(x - max_w_size // 2, 0, width)
-        x2 = np.clip(x + max_w_size // 2, 0, width)
-
+    for x1, y1, x2, y2 in holes:
         img[y1: y2, x1: x2] = 0
     return img
 
@@ -378,15 +368,7 @@ def median_blur(img, ksize):
 
 
 @preserve_shape
-def motion_blur(img, ksize):
-    assert ksize > 2
-    kernel = np.zeros((ksize, ksize), dtype=np.uint8)
-    xs, xe = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
-    if xs == xe:
-        ys, ye = random.sample(range(ksize), 2)
-    else:
-        ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
-    cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
+def motion_blur(img, kernel):
     return cv2.filter2D(img, -1, kernel / np.sum(kernel))
 
 
@@ -607,11 +589,8 @@ def gamma_transform(img, gamma):
 
 
 @clipped
-def gauss_noise(image, var):
-    mean = var
-    sigma = var ** 0.5
-    random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-    gauss = random_state.normal(mean, sigma, image.shape)
+def gauss_noise(image, gauss):
+
     gauss = (gauss - np.min(gauss)).astype(np.uint8)
     return image.astype(np.int32) + gauss
 
