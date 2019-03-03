@@ -73,6 +73,12 @@ To install albumentations using conda we need first to install `imgaug` with pip
 pip install imgaug
 conda install albumentations -c albumentations
 ```
+### Kaggle
+To install albumentations into kaggle kernel with GPU run in first line in kernel:
+```
+!pip install albumentations > /dev/null
+```
+Or just fork [this kernel](https://www.kaggle.com/creafz/albumentations-installation)
 
 ## Documentation
 The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
