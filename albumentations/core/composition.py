@@ -198,7 +198,8 @@ def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data
     if params['format'] == 'albumentations':
         check_fn(data[data_name])
     else:
-        data[data_name] = convert_fn(data[data_name], params['format'], rows, cols, check_validity=True)
+        data[data_name] = convert_fn(data[data_name], params['format'], rows, cols,
+                                     check_validity=bool(params.get('remove_invisible', True)))
 
     data = remove_label_fields_from_data(data_name, params.get('label_fields', []), data)
     return data
