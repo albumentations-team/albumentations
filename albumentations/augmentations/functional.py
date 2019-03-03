@@ -590,9 +590,8 @@ def gamma_transform(img, gamma):
 
 @clipped
 def gauss_noise(image, gauss):
-
-    gauss = (gauss - np.min(gauss)).astype(np.uint8)
-    return image.astype(np.int32) + gauss
+    image = image.astype('float32')
+    return image + gauss
 
 
 @clipped
