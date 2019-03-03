@@ -200,9 +200,37 @@ def test_force_apply():
     assert res['image'].shape[1] in (256, 384, 512)
 
 
-def test_channel_shuffle():
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [A.ChannelShuffle, {}],
+    [A.GaussNoise, {}],
+    [A.Cutout, {}],
+    [A.JpegCompression, {}],
+    [A.HueSaturationValue, {}],
+    [A.RGBShift, {}],
+    [A.RandomBrightnessContrast, {}],
+    [A.Blur, {}],
+    [A.MotionBlur, {}],
+    [A.MedianBlur, {}],
+    [A.CLAHE, {}],
+    [A.InvertImg, {}],
+    [A.RandomGamma, {}],
+    [A.ToGray, {}],
+    [A.VerticalFlip, {}],
+    [A.HorizontalFlip, {}],
+    [A.Flip, {}],
+    [A.Transpose, {}],
+    [A.RandomRotate90, {}],
+    [A.Rotate, {}],
+    [A.OpticalDistortion, {}],
+    [A.GridDistortion, {}],
+    [A.ElasticTransform, {}],
+    [A.Normalize, {}],
+    [A.ToFloat, {}],
+    [A.FromFloat, {}],
+])
+def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose(
-        [A.ChannelShuffle(always_apply=True)], additional_targets={'image2': 'image'})
+        [augmentation_cls(always_apply=True, **params)], additional_targets={'image2': 'image'})
     for i in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = image1.copy()

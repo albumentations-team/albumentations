@@ -836,8 +836,29 @@ class Cutout(ImageOnlyTransform):
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
 
-    def apply(self, image, **params):
-        return F.cutout(image, self.num_holes, self.max_h_size, self.max_w_size)
+    def apply(self, image, holes=[], **params):
+        return F.cutout(image, holes)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        height, width = img.shape[:2]
+
+        holes = []
+        for n in range(self.num_holes):
+            y = random.randint(0, height)
+            x = random.randint(0, width)
+
+            y1 = np.clip(y - self.max_h_size // 2, 0, height)
+            y2 = np.clip(y + self.max_h_size // 2, 0, height)
+            x1 = np.clip(x - self.max_w_size // 2, 0, width)
+            x2 = np.clip(x + self.max_w_size // 2, 0, width)
+            holes.append((x1, y1, x2, y2))
+
+        return {'holes': holes}
+
+    @property
+    def targets_as_params(self):
+        return ['image']
 
 
 class JpegCompression(ImageOnlyTransform):
@@ -1024,8 +1045,22 @@ class MotionBlur(Blur):
         uint8, float32
     """
 
-    def apply(self, img, ksize=9, **params):
-        return F.motion_blur(img, ksize=ksize)
+    def apply(self, img, kernel=None, **params):
+        return F.motion_blur(img, kernel=kernel)
+
+    def get_params(self):
+        ksize = random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
+        assert ksize > 2
+        kernel = np.zeros((ksize, ksize), dtype=np.uint8)
+        xs, xe = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+        if xs == xe:
+            ys, ye = random.sample(range(ksize), 2)
+        else:
+            ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+        cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
+        return {
+            'kernel': kernel
+        }
 
 
 class MedianBlur(Blur):
@@ -1068,14 +1103,23 @@ class GaussNoise(ImageOnlyTransform):
         super(GaussNoise, self).__init__(always_apply, p)
         self.var_limit = to_tuple(var_limit)
 
-    def apply(self, img, var=30, **params):
-        return F.gauss_noise(img, var=var)
+    def apply(self, img, gauss=None, **params):
+        return F.gauss_noise(img, gauss=gauss)
 
-    def get_params(self):
+    def get_params_dependent_on_targets(self, params):
+        image = params['image']
+        var = random.randint(self.var_limit[0], self.var_limit[1])
+        mean = var
+        sigma = var ** 0.5
+        random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+        gauss = random_state.normal(mean, sigma, image.shape)
         return {
-            'var': random.randint(self.var_limit[0], self.var_limit[1])
+            'gauss': gauss
         }
 
+    @property
+    def targets_as_params(self):
+        return ['image']
 
 class CLAHE(ImageOnlyTransform):
     """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
