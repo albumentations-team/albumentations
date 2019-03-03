@@ -67,6 +67,11 @@ If you want to get the latest version of the code before it is released on PyPI 
 pip install -U git+https://github.com/albu/albumentations
 ```
 
+And it also works in Kaggle GPU kernels [(proof)](https://www.kaggle.com/creafz/albumentations-installation/)
+```
+!pip install albumentations > /dev/null
+```
+
 ### Conda
 To install albumentations using conda we need first to install `imgaug` with pip
 ```
