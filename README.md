@@ -158,12 +158,12 @@ Results for running the benchmark on first 2000 images from the ImageNet validat
 The table shows how many images per second can be processed on a single core, higher is better.
 
 
-|  | albumentations <br><small>0.1.11</small> | imgaug <br><small>0.2.67</small> | torchvision (Pillow backend) <br><small>0.2.1</small>  | torchvision (Pillow-SIMD backend) <br><small>0.2.1</small> | Keras <br><small>2.2.4</small> | Augmentor <br><small>0.2.3</small> | solt <br><small>0.1.3</small> |
+|  | albumentations <br><small>0.1.11</small> | imgaug <br><small>0.2.7</small> | torchvision (Pillow backend) <br><small>0.2.1</small>  | torchvision (Pillow-SIMD backend) <br><small>0.2.1</small> | Keras <br><small>2.2.4</small> | Augmentor <br><small>0.2.3</small> | solt <br><small>0.1.3</small> |
 |--------------------|:--------------:|:------:|:-----------:|:-------------------------:|:-----:|:---------:|:----:|
 | RandomCrop64 | **754387** | 6730 | 94557 | 97446 | - | 69562 | 7932 |
 | PadToSize512 | **7516** | - | 798 | 772 | - | - | 3102 |
 | Resize512 | **2898** | 1272 | 379 | 1441 | - | 378 | 1822 |
-| HorizontalFlip | 1093 | 1008 | **6475** | 5972 | 1093 | 6346 | 1154 |
+| HorizontalFlip | 1320 | 1008 | **6475** | 5972 | 1093 | 6346 | 1154 |
 | VerticalFlip | **11048** | 5429 | 7845 | 8213 | 10760 | 7677 | 3823 |
 | Rotate | **1079** | 772 | 124 | 206 | 37 | 52 | 267 |
 | ShiftScaleRotate | **2198** | 1223 | 107 | 184 | 40 | - | - |
