@@ -123,7 +123,10 @@ class HorizontalFlip(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.RandomFlip(p=1, axis=1)])
 
     def albumentations(self, img):
-        return albumentations.hflip(img)
+        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
+            return albumentations.hflip_cv2(img)
+        else:
+            return albumentations.hflip(img)
 
     def torchvision(self, img):
         return torchvision.hflip(img)
