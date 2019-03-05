@@ -610,8 +610,6 @@ def brightness_contrast_adjust(img, alpha=1, beta=0):
 
 def to_gray(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    if np.mean(gray) > 127:
-        gray = 255 - gray
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
 
