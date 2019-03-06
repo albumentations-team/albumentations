@@ -133,7 +133,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
 @pytest.mark.skipif(not torch_available, reason='PyTorch and torchvision are not available')
 def test_torch_to_tensor_augmentations(image, mask):
     aug = ToTensor()
-    data = aug(image=image, mask=mask)
+    data = aug(image=image, mask=mask, force_apply=True)
     assert data['image'].dtype == torch.float32
     assert data['mask'].dtype == torch.float32
 
