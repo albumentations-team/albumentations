@@ -14,7 +14,7 @@ from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransf
 __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
            'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
-           'MotionBlur', 'MedianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
+           'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
            'RandomSizedBBoxSafeCrop']
@@ -1087,6 +1087,27 @@ class MedianBlur(Blur):
 
     def apply(self, image, ksize=3, **params):
         return F.median_blur(image, ksize)
+
+
+class GaussianBlur(Blur):
+    """Blur the input image using using a Gaussian filter with a random kernel size.
+
+    Args:
+        blur_limit (int): maximum Gaussian kernel size for blurring the input image. Default: 7.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, blur_limit=7, always_apply=False, p=0.5):
+        super(GaussianBlur, self).__init__(blur_limit, always_apply, p)
+
+    def apply(self, image, ksize=3, **params):
+        return F.gaussian_blur(image, ksize)
 
 
 class GaussNoise(ImageOnlyTransform):
