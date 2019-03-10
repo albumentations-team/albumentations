@@ -16,7 +16,8 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog', 'RandomSunFlare']
+           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog', 'RandomSunFlare',
+           'RandomShadow']
 
 
 class PadIfNeeded(DualTransform):
@@ -1092,6 +1093,55 @@ class RandomSunFlare(ImageOnlyTransform):
                 'flare_center_y': random.uniform(self.flare_center_lower_y, self.flare_center_upper_y),
                 'angle': random.uniform(self.angle_lower, self.angle_upper),
                 'num_circles': random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)}
+
+
+class RandomShadow(ImageOnlyTransform):
+    """Simulates shadows for the image
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        shadow_roi (float, float, float, float): region of the image where shadows
+            will appear (x_min, y_min, x_max, y_max)
+        num_shadows_lower (int): Lower limit for the possible number of shadows.
+        num_shadows_upper (int): Lower limit for the possible number of shadows.
+        shadow_dimension (int): number of edges in the shadow polygons
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self,
+                 shadow_roi=(0, 0, 0, 1),
+                 num_shadows_lower=1,
+                 num_shadows_upper=2,
+                 shadow_dimension=5,
+                 always_apply=False,
+                 p=0.5):
+        super(RandomShadow, self).__init__(always_apply, p)
+
+        (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
+
+        assert 0 <= shadow_lower_x <= shadow_upper_x <= 1
+        assert 0 <= shadow_lower_y <= shadow_upper_y <= 1
+
+        assert 0 <= num_shadows_lower < num_shadows_upper
+
+        self.shadow_roi = shadow_roi
+
+        self.num_shadows_lower = num_shadows_lower
+        self.num_shadows_upper = num_shadows_upper
+
+        self.shadow_dimension = shadow_dimension
+
+    def apply(self, image, num_shadows=1, **params):
+        return F.add_shadow(image, self.shadow_roi, num_shadows, self.shadow_dimension)
+
+    def get_params(self):
+        return {'num_shadows': random.randint(self.num_shadows_lower, self.num_shadows_upper)}
 
 
 class HueSaturationValue(ImageOnlyTransform):

@@ -670,6 +670,68 @@ def add_sun_flare(img, flare_center_x, flare_center_y, angle, num_circles, src_r
 
 
 @preserve_shape
+def add_shadow(img, shadow_roi, num_shadows, shadow_dimension):
+    """Adds shadows to the image.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.array):
+        shadow_roi (float, float, float, float): region of the image where shadow will appear
+        num_shadows (int): number of shadows
+        shadow_dimension (int): number of sides in the shadow polygon
+
+    Returns:
+
+    """
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
+
+    height, width = img.shape[:2]
+
+    x_min, y_min, x_max, y_max = shadow_roi
+
+    x_min = width * x_min
+    x_max = width * x_max
+    y_min = height * y_min
+    y_max = height * y_max
+
+    image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    mask = np.zeros_like(img)
+
+    vertices_list = []
+
+    for index in range(num_shadows):
+        vertex = []
+        for dimensions in range(shadow_dimension):
+            vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
+
+        vertices = np.array([vertex], dtype=np.int32)
+        vertices_list.append(vertices)
+
+    # adding all shadow polygons on empty mask, single 255 denotes only red channel
+    for vertices in vertices_list:
+        cv2.fillPoly(mask, vertices, 255)
+
+    # if red channel is hot, image's "Lightness" channel's brightness is lowered
+    red_max_value_ind = mask[:, :, 0] == 255
+    image_hls[:, :, 1][red_max_value_ind] = image_hls[:, :, 1][red_max_value_ind] * 0.5
+
+    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
+
+    if needs_float:
+        image_rgb = to_float(image_rgb, max_value=255)
+
+    return image_rgb
+
+
+@preserve_shape
 def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     """Barrel / pincushion distortion. Unconventional augment.
 
