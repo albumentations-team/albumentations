@@ -501,9 +501,9 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
         if slant < 0:
             x = random.randint(slant, imshape[1])
         else:
-            x = random.randint(0, imshape[1] - slant)
+            x = random.randint(0, width - slant)
 
-        y = random.randint(0, imshape[0] - drop_length)
+        y = random.randint(0, height - drop_length)
 
         rain_drops.append((x, y))
 
@@ -523,6 +523,68 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
     image_HLS[:, :, 1] *= brightness_coefficient
 
     image_RGB = cv2.cvtColor(image_HLS.astype(np.uint8), cv2.COLOR_HLS2RGB)
+
+    if needs_float:
+        image_RGB = to_float(image_RGB, max_value=255)
+
+    return image_RGB
+
+
+@preserve_shape
+def add_fog(img, fog_coef, alpha_coef):
+    """Adds fog to the image.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.array):
+        fog_coef (float):
+        alpha_coef (float):
+
+    Returns:
+
+    """
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomFog augmentation'.format(input_dtype))
+
+    height, width = imshape = img.shape[:2]
+
+    hw = int(width // 3 * fog_coef)
+
+    haze_list = []
+    midx = width // 2 - 2 * hw
+    midy = height // 2 - hw
+    index = 1
+
+    while midx > -hw or midy > - hw:
+        for i in range(hw // 10 * index):
+            x = random.randint(midx, width - midx - hw)
+            y = random.randint(midy, height - midy - hw)
+            haze_list.append((x, y))
+
+        midx -= 3 * hw * width // sum(imshape)
+        midy -= 3 * hw * height // sum(imshape)
+        index += 1
+
+    for haze_points in haze_list:
+        x, y = haze_points
+        overlay = img.copy()
+        output = img.copy()
+        alpha = alpha_coef * fog_coef
+        rad = hw // 2
+        point = (x + hw // 2, y + hw // 2)
+        cv2.circle(overlay, point, int(rad), (255, 255, 255), -1)
+        cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
+
+        img = output.copy()
+
+    image_RGB = cv2.blur(img, (hw // 10, hw // 10))
 
     if needs_float:
         image_RGB = to_float(image_RGB, max_value=255)

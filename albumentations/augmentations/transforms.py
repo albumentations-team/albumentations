@@ -16,7 +16,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain']
+           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog']
 
 
 class PadIfNeeded(DualTransform):
@@ -993,6 +993,40 @@ class RandomRain(ImageOnlyTransform):
 
     def get_params(self):
         return {'slant': int(random.uniform(self.slant_lower, self.slant_upper))}
+
+
+class RandomFog(ImageOnlyTransform):
+    """Simulates fog for the image
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        fog_coef_lower (float): lower limit for fog intensity coefficient. Should be in [0, 1] range.
+        fog_coef_upper (float): upper limit for fog intensity coefficient. Should be in [0, 1] range.
+        alpha_coef (float): transparence of the fog circles. Should be in [0, 1] range.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, fog_coef_lower=0.3, fog_coef_upper=1, alpha_coef=0.08, always_apply=False, p=0.5):
+        super(RandomFog, self).__init__(always_apply, p)
+
+        assert 0 <= fog_coef_lower <= fog_coef_upper <= 1
+        assert 0 <= alpha_coef <= 1
+
+        self.fog_coef_lower = fog_coef_lower
+        self.fog_coef_upper = fog_coef_upper
+        self.alpha_coef = alpha_coef
+
+    def apply(self, image, fog_coef=0.1, **params):
+        return F.add_fog(image, fog_coef, self.alpha_coef)
+
+    def get_params(self):
+        return {'fog_coef': random.uniform(self.fog_coef_lower, self.fog_coef_upper)}
 
 
 class HueSaturationValue(ImageOnlyTransform):
