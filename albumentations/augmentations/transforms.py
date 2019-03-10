@@ -16,7 +16,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop', 'RandomSnow']
+           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain']
 
 
 class PadIfNeeded(DualTransform):
@@ -903,7 +903,6 @@ class RandomSnow(ImageOnlyTransform):
     Args:
         snow_point_lower (float): lower_bond of the amount of snow. Should be in [0, 1] range
         snow_point_upper (float): upper_bond of the amount of snow. Should be in [0, 1] range
-
         brightness_coeff (float): larger number will lead to a more snow on the image. Should be >= 0
 
     Targets:
@@ -928,6 +927,72 @@ class RandomSnow(ImageOnlyTransform):
 
     def get_params(self):
         return {'snow_point': random.uniform(self.snow_point_lower, self.snow_point_upper)}
+
+
+class RandomRain(ImageOnlyTransform):
+    """Adds rain effects.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        slant_lower:
+        slant_upper:
+        drop_length:
+        drop_width:
+        drop_color:
+        blur_value (int): rainy view are blurry
+        brightness_coefficient (float): rainy days are usually shady
+        rain_type: [None, "drizzle", "heavy", "torrestial"]
+
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self,
+                 slant_lower=-10,
+                 slant_upper=10,
+                 drop_length=20,
+                 drop_width=1,
+                 drop_color=(200, 200, 200),
+                 blur_value=7,
+                 brightness_coefficient=0.7,
+                 rain_type=None,
+                 always_apply=False, p=0.5):
+        super(RandomRain, self).__init__(always_apply, p)
+
+        assert rain_type in ['drizzle', 'heavy', 'torrential', None]
+
+        assert -20 <= slant_lower <= slant_upper <= 20
+        assert 1 <= drop_width <= 5
+        assert 0 <= drop_length <= 100
+        assert 0 <= brightness_coefficient <= 1
+
+        self.slant_lower = slant_lower
+        self.slant_upper = slant_upper
+
+        self.drop_length = drop_length
+        self.drop_width = drop_width
+        self.drop_color = drop_color
+        self.blur_value = blur_value
+        self.brightness_coefficient = brightness_coefficient
+        self.rain_type = rain_type
+
+    def apply(self, image, slant=10, **params):
+        return F.add_rain(image,
+                          slant,
+                          self.drop_length,
+                          self.drop_width,
+                          self.drop_color,
+                          self.blur_value,
+                          self.brightness_coefficient,
+                          self.rain_type)
+
+    def get_params(self):
+        return {'slant': int(random.uniform(self.slant_lower, self.slant_upper))}
 
 
 class HueSaturationValue(ImageOnlyTransform):

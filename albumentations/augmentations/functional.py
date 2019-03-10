@@ -1,6 +1,7 @@
 from __future__ import division
 
 import math
+import random
 from functools import wraps
 from warnings import warn
 
@@ -443,6 +444,85 @@ def add_snow(img, snow_point, brightness_coeff):
     image_HLS = np.array(image_HLS, dtype=np.uint8)
 
     image_RGB = cv2.cvtColor(image_HLS, cv2.COLOR_HLS2RGB)
+
+    if needs_float:
+        image_RGB = to_float(image_RGB, max_value=255)
+
+    return image_RGB
+
+
+@preserve_shape
+def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_type):
+    """
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.uint8):
+        slant (int):
+        drop_length:
+        drop_width:
+        drop_color:
+        blur_value (int): rainy view are blurry
+        brightness_coefficient (float): rainy days are usually shady
+        rain_type: [None, "drizzle", "heavy", "torrestial"]
+
+    Returns:
+
+    """
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
+
+    height, width = imshape = img.shape[:2]
+
+    area = height * width
+
+    if rain_type == 'drizzle':
+        no_of_drops = area // 770
+        drop_length = 10
+    elif rain_type == 'heavy':
+        no_of_drops = width * height // 600
+        drop_length = 30
+    elif rain_type == 'torrential':
+        no_of_drops = area // 500
+        drop_length = 60
+    else:
+        no_of_drops = area // 600
+
+    rain_drops = []
+
+    for i in range(no_of_drops):  # If You want heavy rain, try increasing this
+        if slant < 0:
+            x = random.randint(slant, imshape[1])
+        else:
+            x = random.randint(0, imshape[1] - slant)
+
+        y = random.randint(0, imshape[0] - drop_length)
+
+        rain_drops.append((x, y))
+
+    image_t = img.copy()
+
+    for (rain_drop_x0, rain_drop_y0) in rain_drops:
+        rain_drop_x1 = rain_drop_x0 + slant
+        rain_drop_y1 = rain_drop_y0 + drop_length
+
+        cv2.line(image_t, (rain_drop_x0, rain_drop_y0),
+                 (rain_drop_x1, rain_drop_y1),
+                 drop_color,
+                 drop_width)
+
+    image_t = cv2.blur(image_t, (blur_value, blur_value))  # rainy view are blurry
+    image_HLS = cv2.cvtColor(image_t, cv2.COLOR_RGB2HLS).astype(np.float32)
+    image_HLS[:, :, 1] *= brightness_coefficient
+
+    image_RGB = cv2.cvtColor(image_HLS.astype(np.uint8), cv2.COLOR_HLS2RGB)
 
     if needs_float:
         image_RGB = to_float(image_RGB, max_value=255)
