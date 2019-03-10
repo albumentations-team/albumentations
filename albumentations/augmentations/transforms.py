@@ -1,6 +1,5 @@
 from __future__ import absolute_import, division
 
-import math
 import random
 import warnings
 
@@ -17,7 +16,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop']
+           'RandomSizedBBoxSafeCrop', 'RandomSnow']
 
 
 class PadIfNeeded(DualTransform):
@@ -871,7 +870,7 @@ class JpegCompression(ImageOnlyTransform):
 
     Args:
         quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
-        quality_upper (float): lower bound on the jpeg quality. Should be in [0, 100] range
+        quality_upper (float): upper bound on the jpeg quality. Should be in [0, 100] range
 
     Targets:
         image
@@ -894,6 +893,41 @@ class JpegCompression(ImageOnlyTransform):
 
     def get_params(self):
         return {'quality': random.randint(self.quality_lower, self.quality_upper)}
+
+
+class RandomSnow(ImageOnlyTransform):
+    """Bleach out some pixel values simulating snow.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        snow_point_lower (float): lower_bond of the amount of snow. Should be in [0, 1] range
+        snow_point_upper (float): upper_bond of the amount of snow. Should be in [0, 1] range
+
+        brightness_coeff (float): larger number will lead to a more snow on the image. Should be >= 0
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, always_apply=False, p=0.5):
+        super(RandomSnow, self).__init__(always_apply, p)
+
+        assert 0 <= snow_point_lower <= snow_point_upper <= 1
+        assert 0 <= brightness_coeff
+
+        self.snow_point_lower = snow_point_lower
+        self.snow_point_upper = snow_point_upper
+        self.brightness_coeff = brightness_coeff
+
+    def apply(self, image, snow_point=0.1, **params):
+        return F.add_snow(image, snow_point, self.brightness_coeff)
+
+    def get_params(self):
+        return {'snow_point': random.uniform(self.snow_point_lower, self.snow_point_upper)}
 
 
 class HueSaturationValue(ImageOnlyTransform):
