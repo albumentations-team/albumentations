@@ -1035,11 +1035,7 @@ class RandomSunFlare(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-
-        flare_center_lower_x (float): lower limit for center of flare in X dimension. Should be in [0, 1] range.
-        flare_center_lower_y (float): lower limit for center of flare in Y dimension. Should be in [0, 1] range.
-        flare_center_upper_x (float): upper limit for center of flare in X dimension. Should be in [0, 1] range.
-        flare_center_upper_y (float): upper limit for center of flare in Y dimension. Should be in [0, 1] range.
+        flare_roi (float, float, float, float): region of the image where flare will appear (x_min, y_min, x_max, y_max)
         angle_lower (float):
         angle_upper (float):
         num_flare_circles_lower (int): lower limit for the number of flare circles.
@@ -1055,10 +1051,7 @@ class RandomSunFlare(ImageOnlyTransform):
     """
 
     def __init__(self,
-                 flare_center_lower_x=0,
-                 flare_center_lower_y=0,
-                 flare_center_upper_x=1.0,
-                 flare_center_upper_y=0.5,
+                 flare_roi=(0, 0, 0, 1),
                  angle_lower=0,
                  angle_upper=1,
                  num_flare_circles_lower=6,
@@ -1068,6 +1061,8 @@ class RandomSunFlare(ImageOnlyTransform):
                  always_apply=False,
                  p=0.5):
         super(RandomSunFlare, self).__init__(always_apply, p)
+
+        (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = flare_roi
 
         assert 0 <= flare_center_lower_x <= flare_center_upper_x <= 1
         assert 0 <= flare_center_lower_y <= flare_center_upper_y <= 1
