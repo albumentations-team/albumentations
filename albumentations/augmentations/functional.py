@@ -593,6 +593,83 @@ def add_fog(img, fog_coef, alpha_coef):
 
 
 @preserve_shape
+def add_sun_flare(img, flare_center_x, flare_center_y, angle, num_circles, src_radius, src_color):
+    """Adds sun flare.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.array):
+        flare_center_x (float):
+        flare_center_y (float):
+        angle:
+        num_circles (int):
+        src_radius:
+        src_color (int, int, int):
+
+    Returns:
+
+    """
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
+
+    angle *= 2 * math.pi
+
+    height, width = img.shape[:2]
+
+    flare_center_x = int(width * flare_center_x)
+    flare_center_y = int(height * flare_center_y)
+
+    x = []
+    y = []
+
+    for rand_x in range(0, width, 10):
+        rand_y = math.tan(angle) * (rand_x - flare_center_x) + flare_center_y
+        x.append(rand_x)
+        y.append(2 * flare_center_y - rand_y)
+
+    overlay = img.copy()
+    output = img.copy()
+
+    for i in range(num_circles):
+        alpha = random.uniform(0.05, 0.2)
+        r = random.randint(0, len(x) - 1)
+        rad = random.randint(1, max(height // 100 - 2, 2))
+
+        cv2.circle(overlay, (int(x[r]), int(y[r])), rad * rad * rad, (
+            random.randint(max(src_color[0] - 50, 0), src_color[0]),
+            random.randint(max(src_color[1] - 50, 0), src_color[1]),
+            random.randint(max(src_color[2] - 50, 0), src_color[2])),
+                   -1)
+
+        cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
+
+    point = (int(flare_center_x), int(flare_center_y))
+
+    overlay = output.copy()
+    num_times = src_radius // 10
+    alpha = np.linspace(0.0, 1, num=num_times)
+    rad = np.linspace(1, src_radius, num=num_times)
+    for i in range(num_times):
+        cv2.circle(overlay, point, int(rad[i]), src_color, -1)
+        alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
+        cv2.addWeighted(overlay, alp, output, 1 - alp, 0, output)
+
+    image_RGB = output
+
+    if needs_float:
+        image_RGB = to_float(image_RGB, max_value=255)
+
+    return image_RGB
+
+
+@preserve_shape
 def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
     """Barrel / pincushion distortion. Unconventional augment.
 

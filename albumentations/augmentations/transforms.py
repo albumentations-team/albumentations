@@ -16,7 +16,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog']
+           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog', 'RandomSunFlare']
 
 
 class PadIfNeeded(DualTransform):
@@ -1027,6 +1027,76 @@ class RandomFog(ImageOnlyTransform):
 
     def get_params(self):
         return {'fog_coef': random.uniform(self.fog_coef_lower, self.fog_coef_upper)}
+
+
+class RandomSunFlare(ImageOnlyTransform):
+    """Simulates Sun Flare for the image
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+
+        flare_center_lower_x (float): lower limit for center of flare in X dimension. Should be in [0, 1] range.
+        flare_center_lower_y (float): lower limit for center of flare in Y dimension. Should be in [0, 1] range.
+        flare_center_upper_x (float): upper limit for center of flare in X dimension. Should be in [0, 1] range.
+        flare_center_upper_y (float): upper limit for center of flare in Y dimension. Should be in [0, 1] range.
+        angle_lower (float):
+        angle_upper (float):
+        num_flare_circles_lower (int): lower limit for the number of flare circles.
+        num_flare_circles_upper (int): upper limit for the number of flare circles.
+        src_radius (int):
+        src_color (int, int, int): color of the flare
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self,
+                 flare_center_lower_x=0,
+                 flare_center_lower_y=0,
+                 flare_center_upper_x=1.0,
+                 flare_center_upper_y=0.5,
+                 angle_lower=0,
+                 angle_upper=1,
+                 num_flare_circles_lower=6,
+                 num_flare_circles_upper=10,
+                 src_radius=400,
+                 src_color=(255, 255, 255),
+                 always_apply=False,
+                 p=0.5):
+        super(RandomSunFlare, self).__init__(always_apply, p)
+
+        assert 0 <= flare_center_lower_x <= flare_center_upper_x <= 1
+        assert 0 <= flare_center_lower_y <= flare_center_upper_y <= 1
+        assert 0 <= angle_lower <= angle_upper <= 1
+        assert 0 <= num_flare_circles_lower < num_flare_circles_upper
+
+        self.flare_center_lower_x = flare_center_lower_x
+        self.flare_center_upper_x = flare_center_upper_x
+
+        self.flare_center_lower_y = flare_center_lower_y
+        self.flare_center_upper_y = flare_center_upper_y
+
+        self.angle_lower = angle_lower
+        self.angle_upper = angle_upper
+        self.num_flare_circles_lower = num_flare_circles_lower
+        self.num_flare_circles_upper = num_flare_circles_upper
+
+        self.src_radius = src_radius
+        self.src_color = src_color
+
+    def apply(self, image, flare_center_x=0.5, flare_center_y=0.5, angle=0, num_circles=1, **params):
+        return F.add_sun_flare(image, flare_center_x, flare_center_y, angle, num_circles, self.src_radius,
+                               self.src_color)
+
+    def get_params(self):
+        return {'flare_center_x': random.uniform(self.flare_center_lower_x, self.flare_center_upper_x),
+                'flare_center_y': random.uniform(self.flare_center_lower_y, self.flare_center_upper_y),
+                'angle': random.uniform(self.angle_lower, self.angle_upper),
+                'num_circles': random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)}
 
 
 class HueSaturationValue(ImageOnlyTransform):
