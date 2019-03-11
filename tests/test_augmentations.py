@@ -364,6 +364,6 @@ def test_augmentations_multitarget_image_the_same(augmentation_cls, params):
     image = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
     image1 = image.copy()
 
-    result = aug(image=image1, image1=image1)
+    result = aug(image=image, image1=image1)
 
     assert np.array_equal(result['image'], result['image1'])
