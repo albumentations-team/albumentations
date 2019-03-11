@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 try:
     import torch
@@ -12,10 +12,10 @@ except ImportError:
 
 from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose, RandomRotate90, \
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
-    JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
+    JpegCompression, HueSaturationValue, RGBShift, Blur, MotionBlur, MedianBlur, \
     GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise, \
     IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop, RandomCropNearBBox, \
-    RandomBrightnessContrast
+    RandomBrightnessContrast, Compose
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -325,3 +325,45 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     annotations = {'image': image, 'cropping_bbox': [-59, 77, 177, 231]}
     data = aug(**annotations)
     assert data['image'].dtype == np.uint8
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [Cutout, {}],
+    [JpegCompression, {}],
+    [HueSaturationValue, {}],
+    [RGBShift, {}],
+    [RandomBrightnessContrast, {}],
+    [Blur, {}],
+    [MotionBlur, {}],
+    [MedianBlur, {}],
+    [GaussNoise, {}],
+    [CLAHE, {}],
+    [ChannelShuffle, {}],
+    [InvertImg, {}],
+    [RandomGamma, {}],
+    [ToGray, {}],
+    [Cutout, {}],
+    [VerticalFlip, {}],
+    [HorizontalFlip, {}],
+    [Flip, {}],
+    [Transpose, {}],
+    [RandomRotate90, {}],
+    [Rotate, {}],
+    [OpticalDistortion, {}],
+    [GridDistortion, {}],
+    [ElasticTransform, {}],
+    [Normalize, {}],
+    [GaussNoise, {}],
+    [ToFloat, {}],
+    [FromFloat, {}],
+])
+def test_augmentations_multitarget_image_the_same(augmentation_cls, params):
+    aug = Compose([augmentation_cls(p=1, **params)], p=1, additional_targets={'image1': 'image'})
+
+    # Test for RGB image
+    image = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+    image1 = image.copy()
+
+    result = aug(image=image1, image1=image1)
+
+    assert np.array_equal(result['image'], result['image1'])
