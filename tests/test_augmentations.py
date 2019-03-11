@@ -13,9 +13,9 @@ except ImportError:
 from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose, RandomRotate90, \
     Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
     JpegCompression, HueSaturationValue, RGBShift, RandomBrightness, RandomContrast, Blur, MotionBlur, MedianBlur, \
-    GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise, \
-    IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, RandomSizedCrop, RandomCropNearBBox, \
-    RandomBrightnessContrast
+    GaussianBlur, GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, \
+    IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, \
+    RandomSizedCrop, RandomCropNearBBox, RandomBrightnessContrast
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -26,6 +26,7 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {}],
+    [GaussianBlur, {}],
     [GaussNoise, {}],
     [CLAHE, {}],
     [ChannelShuffle, {}],
@@ -50,6 +51,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {'blur_limit': (3, 5)}],
+    [GaussianBlur, {}],
     [GaussNoise, {}],
     [ChannelShuffle, {}],
     [InvertImg, {}],
@@ -148,6 +150,7 @@ def test_torch_to_tensor_augmentations(image, mask):
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {}],
+    [GaussianBlur, {}],
     [GaussNoise, {}],
     [CLAHE, {}],
     [ChannelShuffle, {}],
@@ -192,6 +195,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {'blur_limit': (3, 5)}],
+    [GaussianBlur, {}],
     [GaussNoise, {}],
     [ChannelShuffle, {}],
     [InvertImg, {}],
@@ -231,6 +235,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {}],
+    [GaussianBlur, {}],
     [GaussNoise, {}],
     [InvertImg, {}],
     [RandomGamma, {}],
@@ -284,6 +289,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [Blur, {}],
     [MotionBlur, {}],
     [MedianBlur, {}],
+    [GaussianBlur, {}],
     [GaussNoise, {}],
     [CLAHE, {}],
     [ChannelShuffle, {}],

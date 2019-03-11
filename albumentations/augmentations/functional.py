@@ -342,6 +342,12 @@ def blur(img, ksize):
     return cv2.blur(img, (ksize, ksize))
 
 
+@preserve_shape
+def gaussian_blur(img, ksize):
+    # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
+    return cv2.GaussianBlur(img, (ksize, ksize), sigmaX=0)
+
+
 def _func_max_size(img, max_size, interpolation, func):
     height, width = img.shape[:2]
 
