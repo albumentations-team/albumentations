@@ -198,6 +198,21 @@ Python and library versions: Python 3.6.8 | Anaconda, numpy 1.16.2, pillow 5.4.1
    flake8
    ```
 
+### Adding new transforms
+
+If you are contributing a new transformation, make sure to update 
+["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections
+of this file (`README.md`). To do this, simply run (with python3 only):
+```
+python3 tools/make_transforms_docs.py make
+```
+and copy/paste the results in the corresponding sections. To validate your modifications, you
+can run:
+```
+python3 tools/make_transforms_docs.py check README.md
+```
+
+
 ## Building the documentation
 1. Go to `docs/` directory
    ```
