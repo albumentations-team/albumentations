@@ -1,5 +1,5 @@
-import pytest
 import numpy as np
+import pytest
 
 try:
     import torch
@@ -15,7 +15,8 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     JpegCompression, HueSaturationValue, RGBShift, Blur, MotionBlur, MedianBlur, \
     GaussianBlur, GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, \
     IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, \
-    RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog, RandomSunFlare
+    RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog, RandomSunFlare, RandomCropNearBBox, RandomShadow, \
+    RandomSizedCrop
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
