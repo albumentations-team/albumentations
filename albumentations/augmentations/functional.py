@@ -1,7 +1,6 @@
 from __future__ import division
 
 import math
-import random
 from functools import wraps
 from warnings import warn
 
@@ -452,7 +451,7 @@ def add_snow(img, snow_point, brightness_coeff):
 
 
 @preserve_shape
-def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_type):
+def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_drops):
     """
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -465,7 +464,7 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
         drop_color:
         blur_value (int): rainy view are blurry
         brightness_coefficient (float): rainy days are usually shady
-        rain_type: [None, "drizzle", "heavy", "torrestial"]
+        rain_drops:
 
     Returns:
 
@@ -479,59 +478,28 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
     elif input_dtype not in (np.uint8, np.float32):
         raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
 
-    height, width = imshape = img.shape[:2]
-
-    area = height * width
-
-    if rain_type == 'drizzle':
-        no_of_drops = area // 770
-        drop_length = 10
-    elif rain_type == 'heavy':
-        no_of_drops = width * height // 600
-        drop_length = 30
-    elif rain_type == 'torrential':
-        no_of_drops = area // 500
-        drop_length = 60
-    else:
-        no_of_drops = area // 600
-
-    rain_drops = []
-
-    for i in range(no_of_drops):  # If You want heavy rain, try increasing this
-        if slant < 0:
-            x = random.randint(slant, imshape[1])
-        else:
-            x = random.randint(0, width - slant)
-
-        y = random.randint(0, height - drop_length)
-
-        rain_drops.append((x, y))
-
-    image_t = img.copy()
+    image = img.copy()
 
     for (rain_drop_x0, rain_drop_y0) in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
 
-        cv2.line(image_t, (rain_drop_x0, rain_drop_y0),
-                 (rain_drop_x1, rain_drop_y1),
-                 drop_color,
-                 drop_width)
+        cv2.line(image, (rain_drop_x0, rain_drop_y0), (rain_drop_x1, rain_drop_y1), drop_color, drop_width)
 
-    image_t = cv2.blur(image_t, (blur_value, blur_value))  # rainy view are blurry
-    image_HLS = cv2.cvtColor(image_t, cv2.COLOR_RGB2HLS).astype(np.float32)
-    image_HLS[:, :, 1] *= brightness_coefficient
+    image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
+    image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
+    image_hls[:, :, 1] *= brightness_coefficient
 
-    image_RGB = cv2.cvtColor(image_HLS.astype(np.uint8), cv2.COLOR_HLS2RGB)
+    image_rgb = cv2.cvtColor(image_hls.astype(np.uint8), cv2.COLOR_HLS2RGB)
 
     if needs_float:
-        image_RGB = to_float(image_RGB, max_value=255)
+        image_rgb = to_float(image_rgb, max_value=255)
 
-    return image_RGB
+    return image_rgb
 
 
 @preserve_shape
-def add_fog(img, fog_coef, alpha_coef):
+def add_fog(img, fog_coef, alpha_coef, haze_list):
     """Adds fog to the image.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -540,7 +508,7 @@ def add_fog(img, fog_coef, alpha_coef):
         img (np.array):
         fog_coef (float):
         alpha_coef (float):
-
+        haze_list (list):
     Returns:
 
     """
@@ -553,24 +521,9 @@ def add_fog(img, fog_coef, alpha_coef):
     elif input_dtype not in (np.uint8, np.float32):
         raise ValueError('Unexpected dtype {} for RandomFog augmentation'.format(input_dtype))
 
-    height, width = imshape = img.shape[:2]
+    height, width = img.shape[:2]
 
-    hw = int(width // 3 * fog_coef)
-
-    haze_list = []
-    midx = width // 2 - 2 * hw
-    midy = height // 2 - hw
-    index = 1
-
-    while midx > -hw or midy > - hw:
-        for i in range(hw // 10 * index):
-            x = random.randint(midx, width - midx - hw)
-            y = random.randint(midy, height - midy - hw)
-            haze_list.append((x, y))
-
-        midx -= 3 * hw * width // sum(imshape)
-        midy -= 3 * hw * height // sum(imshape)
-        index += 1
+    hw = max(int(width // 3 * fog_coef), 10)
 
     for haze_points in haze_list:
         x, y = haze_points
@@ -584,16 +537,16 @@ def add_fog(img, fog_coef, alpha_coef):
 
         img = output.copy()
 
-    image_RGB = cv2.blur(img, (hw // 10, hw // 10))
+    image_rgb = cv2.blur(img, (hw // 10, hw // 10))
 
     if needs_float:
-        image_RGB = to_float(image_RGB, max_value=255)
+        image_rgb = to_float(image_rgb, max_value=255)
 
-    return image_RGB
+    return image_rgb
 
 
 @preserve_shape
-def add_sun_flare(img, flare_center_x, flare_center_y, angle, num_circles, src_radius, src_color):
+def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, circles):
     """Adds sun flare.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -602,10 +555,9 @@ def add_sun_flare(img, flare_center_x, flare_center_y, angle, num_circles, src_r
         img (np.array):
         flare_center_x (float):
         flare_center_y (float):
-        angle:
-        num_circles (int):
         src_radius:
         src_color (int, int, int):
+        circles (list):
 
     Returns:
 
@@ -617,36 +569,13 @@ def add_sun_flare(img, flare_center_x, flare_center_y, angle, num_circles, src_r
         img = from_float(img, dtype=np.dtype('uint8'))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
-
-    angle *= 2 * math.pi
-
-    height, width = img.shape[:2]
-
-    flare_center_x = int(width * flare_center_x)
-    flare_center_y = int(height * flare_center_y)
-
-    x = []
-    y = []
-
-    for rand_x in range(0, width, 10):
-        rand_y = math.tan(angle) * (rand_x - flare_center_x) + flare_center_y
-        x.append(rand_x)
-        y.append(2 * flare_center_y - rand_y)
+        raise ValueError('Unexpected dtype {} for RandomSunFlareaugmentation'.format(input_dtype))
 
     overlay = img.copy()
     output = img.copy()
 
-    for i in range(num_circles):
-        alpha = random.uniform(0.05, 0.2)
-        r = random.randint(0, len(x) - 1)
-        rad = random.randint(1, max(height // 100 - 2, 2))
-
-        cv2.circle(overlay, (int(x[r]), int(y[r])), rad * rad * rad, (
-            random.randint(max(src_color[0] - 50, 0), src_color[0]),
-            random.randint(max(src_color[1] - 50, 0), src_color[1]),
-            random.randint(max(src_color[2] - 50, 0), src_color[2])),
-                   -1)
+    for alpha, (x, y), rad3, (r_color, g_color, b_color) in circles:
+        cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
 
         cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
 
@@ -661,25 +590,23 @@ def add_sun_flare(img, flare_center_x, flare_center_y, angle, num_circles, src_r
         alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
         cv2.addWeighted(overlay, alp, output, 1 - alp, 0, output)
 
-    image_RGB = output
+    image_rgb = output
 
     if needs_float:
-        image_RGB = to_float(image_RGB, max_value=255)
+        image_rgb = to_float(image_rgb, max_value=255)
 
-    return image_RGB
+    return image_rgb
 
 
 @preserve_shape
-def add_shadow(img, shadow_roi, num_shadows, shadow_dimension):
+def add_shadow(img, vertices_list):
     """Adds shadows to the image.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
         img (np.array):
-        shadow_roi (float, float, float, float): region of the image where shadow will appear
-        num_shadows (int): number of shadows
-        shadow_dimension (int): number of sides in the shadow polygon
+        vertices_list (list):
 
     Returns:
 
@@ -693,27 +620,8 @@ def add_shadow(img, shadow_roi, num_shadows, shadow_dimension):
     elif input_dtype not in (np.uint8, np.float32):
         raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
 
-    height, width = img.shape[:2]
-
-    x_min, y_min, x_max, y_max = shadow_roi
-
-    x_min = width * x_min
-    x_max = width * x_max
-    y_min = height * y_min
-    y_max = height * y_max
-
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     mask = np.zeros_like(img)
-
-    vertices_list = []
-
-    for index in range(num_shadows):
-        vertex = []
-        for dimensions in range(shadow_dimension):
-            vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
-
-        vertices = np.array([vertex], dtype=np.int32)
-        vertices_list.append(vertices)
 
     # adding all shadow polygons on empty mask, single 255 denotes only red channel
     for vertices in vertices_list:

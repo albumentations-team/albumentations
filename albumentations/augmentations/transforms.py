@@ -1,5 +1,6 @@
 from __future__ import absolute_import, division
 
+import math
 import random
 import warnings
 
@@ -982,18 +983,54 @@ class RandomRain(ImageOnlyTransform):
         self.brightness_coefficient = brightness_coefficient
         self.rain_type = rain_type
 
-    def apply(self, image, slant=10, **params):
+    def apply(self, image, slant=10, drop_length=20, rain_drops=[], **params):
         return F.add_rain(image,
                           slant,
-                          self.drop_length,
+                          drop_length,
                           self.drop_width,
                           self.drop_color,
                           self.blur_value,
                           self.brightness_coefficient,
-                          self.rain_type)
+                          rain_drops)
 
-    def get_params(self):
-        return {'slant': int(random.uniform(self.slant_lower, self.slant_upper))}
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        slant = int(random.uniform(self.slant_lower, self.slant_upper))
+
+        height, width = img.shape[:2]
+        area = height * width
+
+        if self.rain_type == 'drizzle':
+            num_drops = area // 770
+            drop_length = 10
+        elif self.rain_type == 'heavy':
+            num_drops = width * height // 600
+            drop_length = 30
+        elif self.rain_type == 'torrential':
+            num_drops = area // 500
+            drop_length = 60
+        else:
+            drop_length = self.drop_length
+            num_drops = area // 600
+
+        rain_drops = []
+
+        for i in range(num_drops):  # If You want heavy rain, try increasing this
+            if slant < 0:
+                x = random.randint(slant, width)
+            else:
+                x = random.randint(0, width - slant)
+
+            y = random.randint(0, height - drop_length)
+
+            rain_drops.append((x, y))
+
+        return {'drop_length': drop_length,
+                'rain_drops': rain_drops}
+
+    @property
+    def targets_as_params(self):
+        return ['image']
 
 
 class RandomFog(ImageOnlyTransform):
@@ -1023,11 +1060,33 @@ class RandomFog(ImageOnlyTransform):
         self.fog_coef_upper = fog_coef_upper
         self.alpha_coef = alpha_coef
 
-    def apply(self, image, fog_coef=0.1, **params):
-        return F.add_fog(image, fog_coef, self.alpha_coef)
+    def apply(self, image, fog_coef=0.1, haze_list=[], **params):
+        return F.add_fog(image, fog_coef, self.alpha_coef, haze_list)
 
-    def get_params(self):
-        return {'fog_coef': random.uniform(self.fog_coef_lower, self.fog_coef_upper)}
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        fog_coef = random.uniform(self.fog_coef_lower, self.fog_coef_upper)
+
+        width, height = imshape = img.shape[:2]
+
+        hw = int(width // 3 * fog_coef)
+
+        haze_list = []
+        midx = width // 2 - 2 * hw
+        midy = height // 2 - hw
+        index = 1
+
+        while midx > -hw or midy > - hw:
+            for i in range(hw // 10 * index):
+                x = random.randint(midx, width - midx - hw)
+                y = random.randint(midy, height - midy - hw)
+                haze_list.append((x, y))
+
+            midx -= 3 * hw * width // sum(imshape)
+            midy -= 3 * hw * height // sum(imshape)
+            index += 1
+
+        return {'haze_list': haze_list}
 
 
 class RandomSunFlare(ImageOnlyTransform):
@@ -1084,15 +1143,56 @@ class RandomSunFlare(ImageOnlyTransform):
         self.src_radius = src_radius
         self.src_color = src_color
 
-    def apply(self, image, flare_center_x=0.5, flare_center_y=0.5, angle=0, num_circles=1, **params):
-        return F.add_sun_flare(image, flare_center_x, flare_center_y, angle, num_circles, self.src_radius,
-                               self.src_color)
+    def apply(self,
+              image,
+              flare_center_x=0.5,
+              flare_center_y=0.5,
+              circles=[], **params):
+        return F.add_sun_flare(image, flare_center_x, flare_center_y,
+                               self.src_radius,
+                               self.src_color,
+                               circles)
 
-    def get_params(self):
-        return {'flare_center_x': random.uniform(self.flare_center_lower_x, self.flare_center_upper_x),
-                'flare_center_y': random.uniform(self.flare_center_lower_y, self.flare_center_upper_y),
-                'angle': random.uniform(self.angle_lower, self.angle_upper),
-                'num_circles': random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)}
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        width, height = img.shape[:2]
+
+        angle = 2 * math.pi * random.uniform(self.angle_lower, self.angle_upper)
+
+        flare_center_x = random.uniform(self.flare_center_lower_x, self.flare_center_upper_x)
+        flare_center_y = random.uniform(self.flare_center_lower_y, self.flare_center_upper_y)
+
+        flare_center_x = int(width * flare_center_x)
+        flare_center_y = int(height * flare_center_y)
+
+        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
+
+        circles = []
+
+        x = []
+        y = []
+
+        for rand_x in range(0, width, 10):
+            rand_y = math.tan(angle) * (rand_x - flare_center_x) + flare_center_y
+            x.append(rand_x)
+            y.append(2 * flare_center_y - rand_y)
+
+        for i in range(num_circles):
+            alpha = random.uniform(0.05, 0.2)
+            r = random.randint(0, len(x) - 1)
+            rad = random.randint(1, max(height // 100 - 2, 2))
+
+            r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            g_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            b_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+
+            circles += ([alpha, (int(x[r]), int(y[r])), pow(rad, 3), (r_color,
+                                                                      g_color,
+                                                                      b_color)])
+
+        return {'circles': circles,
+                'flare_center_x': flare_center_x,
+                'flare_center_y': flare_center_y}
 
 
 class RandomShadow(ImageOnlyTransform):
@@ -1127,7 +1227,6 @@ class RandomShadow(ImageOnlyTransform):
 
         assert 0 <= shadow_lower_x <= shadow_upper_x <= 1
         assert 0 <= shadow_lower_y <= shadow_upper_y <= 1
-
         assert 0 <= num_shadows_lower < num_shadows_upper
 
         self.shadow_roi = shadow_roi
@@ -1137,11 +1236,33 @@ class RandomShadow(ImageOnlyTransform):
 
         self.shadow_dimension = shadow_dimension
 
-    def apply(self, image, num_shadows=1, **params):
-        return F.add_shadow(image, self.shadow_roi, num_shadows, self.shadow_dimension)
+    def apply(self, image, vertices_list=[], **params):
+        return F.add_shadow(image, vertices_list)
 
-    def get_params(self):
-        return {'num_shadows': random.randint(self.num_shadows_lower, self.num_shadows_upper)}
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        width, height = img.shape[:2]
+
+        num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
+
+        x_min, y_min, x_max, y_max = self.shadow_roi
+
+        x_min = width * x_min
+        x_max = width * x_max
+        y_min = height * y_min
+        y_max = height * y_max
+
+        vertices_list = []
+
+        for index in range(num_shadows):
+            vertex = []
+            for dimensions in range(self.shadow_dimension):
+                vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
+
+            vertices = np.array([vertex], dtype=np.int32)
+            vertices_list.append(vertices)
+
+        return {'vertices_list': vertices_list}
 
 
 class HueSaturationValue(ImageOnlyTransform):

@@ -236,6 +236,11 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [GaussNoise, {}],
     [ToFloat, {}],
     [FromFloat, {}],
+    [RandomSnow, {}],
+    [RandomRain, {}],
+    [RandomFog, {}],
+    [RandomSunFlare, {}],
+    [RandomShadow, {}],
 ])
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
@@ -267,7 +272,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     [ElasticTransform, {}],
     [GaussNoise, {}],
     [ToFloat, {}],
-    [FromFloat, {}]
+    [FromFloat, {}],
 ])
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
