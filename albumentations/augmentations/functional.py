@@ -34,7 +34,6 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -47,7 +46,6 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -500,7 +498,7 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
 
 @preserve_shape
 def add_fog(img, fog_coef, alpha_coef, haze_list):
-    """Adds fog to the image.
+    """Add fog to the image.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
@@ -547,7 +545,7 @@ def add_fog(img, fog_coef, alpha_coef, haze_list):
 
 @preserve_shape
 def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, circles):
-    """Adds sun flare.
+    """Add sun flare.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
@@ -600,7 +598,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
 
 @preserve_shape
 def add_shadow(img, vertices_list):
-    """Adds shadows to the image.
+    """Add shadows to the image.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 

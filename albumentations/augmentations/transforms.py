@@ -1095,7 +1095,8 @@ class RandomSunFlare(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        flare_roi (float, float, float, float): region of the image where flare will appear (x_min, y_min, x_max, y_max)
+        flare_roi (float, float, float, float): region of the image where flare will
+                                                    appear (x_min, y_min, x_max, y_max)
         angle_lower (float):
         angle_upper (float):
         num_flare_circles_lower (int): lower limit for the number of flare circles.
