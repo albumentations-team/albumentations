@@ -85,6 +85,7 @@ The full documentation is available at [albumentations.readthedocs.io](https://a
 
 ## Pixel-level transforms
 Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. The list of pixel-level transforms:
+
 - [Blur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Blur)
 - [CLAHE](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CLAHE)
 - [ChannelShuffle](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ChannelShuffle)
@@ -114,7 +115,13 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [RandomSunFlare](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.RandomSunFlare)
 - [ToFloat](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ToFloat)
 - [ToGray](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ToGray)
+                                                                                                                                            
+
+## Spatial-level transforms
+Spatial-level transforms will simultaneously change both an input image as well as additional targets such as masks, bounding boxes, and keypoints. The following table shows which additional targets are supported by each transform.
+
 | Transform                                                                                                                                                         | Image | Masks | BBoxes | Keypoints |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :---: | :----: | :-------: |
 | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :---: | :----: | :-------: |
 | [CenterCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CenterCrop)                           | ✓     | ✓     | ✓      | ✓         |
 | [Crop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Crop)                                       | ✓     | ✓     | ✓      |           |
@@ -202,7 +209,8 @@ Python and library versions: Python 3.6.8 | Anaconda, numpy 1.16.2, pillow 5.4.1
 ### Adding new transforms
 
 If you are contributing a new transformation, make sure to update 
-["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections
+["Pixel-level transforms"](#pixel-level-transforms) or/and ["
+tial-level transforms"](#spatial-level-transforms) sections
 of this file (`README.md`). To do this, simply run (with python3 only):
 ```
 python3 tools/make_transforms_docs.py make
