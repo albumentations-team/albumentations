@@ -238,3 +238,29 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         aug1 = res['image']
         aug2 = res['image2']
         assert np.array_equal(aug1, aug2)
+
+
+def test_get_init_params():
+    aug = A.Compose([
+        A.OneOrOther(
+            A.Compose([
+                A.RandomSizedCrop(min_max_height=(256, 1025), height=512, width=512, p=1),
+                A.OneOf([
+                    A.RandomSizedCrop(min_max_height=(256, 512), height=384, width=384, p=0.5),
+                    A.RandomSizedCrop(min_max_height=(256, 512), height=512, width=512, p=0.5),
+                ])
+            ]),
+            A.Compose([
+                A.RandomSizedCrop(min_max_height=(256, 1025), height=256, width=256, p=1),
+                A.OneOf([
+                    A.HueSaturationValue(p=0.5),
+                    A.RGBShift(p=0.7)
+                ], p=1),
+            ])
+        ),
+        A.HorizontalFlip(p=1),
+        A.RandomBrightnessContrast(p=0.5)
+    ])
+
+    import json
+    json.dumps(aug.get_init_params(), indent=4)

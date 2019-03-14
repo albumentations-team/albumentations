@@ -1,4 +1,5 @@
 import random
+from albumentations.core.serializable import Serializable
 
 import cv2
 
@@ -36,11 +37,15 @@ def to_tuple(param, low=None, bias=None):
     return tuple(param)
 
 
-class BasicTransform(object):
+class BasicTransform(Serializable):
     def __init__(self, always_apply=False, p=0.5):
+        Serializable.__init__(self)
         self.p = p
         self.always_apply = always_apply
         self._additional_targets = {}
+
+    def get_init_params(self):
+        return {self.class_name: self.init_params}
 
     def __call__(self, force_apply=False, **kwargs):
         if (random.random() < self.p) or self.always_apply or force_apply:

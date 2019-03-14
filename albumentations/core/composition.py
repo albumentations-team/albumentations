@@ -2,6 +2,7 @@ from __future__ import division
 
 import random
 import warnings
+from copy import deepcopy
 
 import numpy as np
 
@@ -11,6 +12,7 @@ from albumentations.core.transforms_interface import DualTransform
 from albumentations.imgaug.transforms import DualIAATransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
+from albumentations.core.serializable import Serializable
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
@@ -49,8 +51,9 @@ def set_always_apply(transforms):
         t.always_apply = True
 
 
-class BaseCompose(object):
+class BaseCompose(Serializable):
     def __init__(self, transforms, p):
+        Serializable.__init__(self)
         self.transforms = transforms
         self.p = p
 
@@ -61,6 +64,17 @@ class BaseCompose(object):
         if additional_targets:
             for t in self.transforms:
                 t.add_targets(additional_targets)
+
+    def get_init_params(self):
+        init_params = deepcopy(self.init_params)
+        if 'first' in init_params:
+            del init_params['first']
+        if 'second' in init_params:
+            del init_params['second']
+        init_params['transforms'] = [t.get_init_params() for t in self.transforms]
+        return {
+            str(self.__class__.__name__): init_params,
+        }
 
 
 class Compose(BaseCompose):
@@ -88,26 +102,8 @@ class Compose(BaseCompose):
           | to remain this box in list. Default: 0.0.
     """
 
-    def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[],
-                 to_tensor=None, bbox_params={}, keypoint_params={}, additional_targets={}, p=1.0):
-        if preprocessing_transforms:
-            warnings.warn("preprocessing transforms are deprecated, use always_apply flag for this purpose. "
-                          "will be removed in 0.3.0", DeprecationWarning)
-            set_always_apply(preprocessing_transforms)
-        if postprocessing_transforms:
-            warnings.warn("postprocessing transforms are deprecated, use always_apply flag for this purpose"
-                          "will be removed in 0.3.0", DeprecationWarning)
-            set_always_apply(postprocessing_transforms)
-        if to_tensor is not None:
-            warnings.warn("to_tensor in Compose is deprecated, use always_apply flag for this purpose"
-                          "will be removed in 0.3.0", DeprecationWarning)
-            to_tensor.always_apply = True
-            # todo deprecated
-        _transforms = (preprocessing_transforms +
-                       [t for t in transforms if t is not None] +
-                       postprocessing_transforms)
-        if to_tensor is not None:
-            _transforms.append(to_tensor)
+    def __init__(self, transforms, bbox_params={}, keypoint_params={}, additional_targets={}, p=1.0):
+        _transforms = [t for t in transforms if t is not None]
         super(Compose, self).__init__(_transforms, p)
 
         self.bboxes_name = 'bboxes'
