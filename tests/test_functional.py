@@ -803,3 +803,45 @@ def test_fun_max_size():
     out = F.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
 
     assert out.shape == (1724, target_width)
+
+
+def test_is_rgb_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert F.is_rgb_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert not F.is_rgb_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert not F.is_rgb_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert not F.is_rgb_image(gray_image)
+
+
+def test_is_grayscale_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert not F.is_grayscale_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert not F.is_grayscale_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert F.is_grayscale_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert F.is_grayscale_image(gray_image)
+
+
+def test_is_multispectral_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert not F.is_multispectral_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert F.is_multispectral_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert not F.is_multispectral_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert not F.is_multispectral_image(gray_image)

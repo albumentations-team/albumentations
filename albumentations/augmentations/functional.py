@@ -34,6 +34,7 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -46,6 +47,7 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -55,6 +57,29 @@ def preserve_channel_dim(func):
         return result
 
     return wrapped_function
+
+
+def is_rgb_image(image):
+    return len(image.shape) == 3 and image.shape[-1] == 3
+
+
+def is_grayscale_image(image):
+    return (len(image.shape) == 2) or (len(image.shape) == 3 and image.shape[-1] == 1)
+
+
+def is_multispectral_image(image):
+    return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
+
+
+def non_rgb_warning(image):
+    if not is_rgb_image(image):
+        message = 'This transformation expects 3-channel images'
+        if is_grayscale_image(image):
+            message += '\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))'
+        if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
+            message += '\This transformation cannot be applied to multi-spectral images'
+
+        raise ValueError(message)
 
 
 def vflip(img):
@@ -419,6 +444,8 @@ def add_snow(img, snow_point, brightness_coeff):
     Returns:
 
     """
+    non_rgb_warning(img)
+
     input_dtype = img.dtype
     needs_float = False
 
@@ -467,6 +494,8 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
     Returns:
 
     """
+    non_rgb_warning(img)
+
     input_dtype = img.dtype
     needs_float = False
 
@@ -510,6 +539,8 @@ def add_fog(img, fog_coef, alpha_coef, haze_list):
     Returns:
 
     """
+    non_rgb_warning(img)
+
     input_dtype = img.dtype
     needs_float = False
 
@@ -560,6 +591,8 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     Returns:
 
     """
+    non_rgb_warning(img)
+
     input_dtype = img.dtype
     needs_float = False
 
@@ -609,6 +642,7 @@ def add_shadow(img, vertices_list):
     Returns:
 
     """
+    non_rgb_warning(img)
     input_dtype = img.dtype
     needs_float = False
 
