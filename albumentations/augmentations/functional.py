@@ -34,7 +34,6 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -47,7 +46,6 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
-
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -77,7 +75,7 @@ def non_rgb_warning(image):
         if is_grayscale_image(image):
             message += '\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))'
         if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
-            message += '\This transformation cannot be applied to multi-spectral images'
+            message += '\nThis transformation cannot be applied to multi-spectral images'
 
         raise ValueError(message)
 
