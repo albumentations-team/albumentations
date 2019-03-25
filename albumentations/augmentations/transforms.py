@@ -17,7 +17,8 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop']
+           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog', 'RandomSunFlare',
+           'RandomShadow']
 
 
 class PadIfNeeded(DualTransform):
@@ -871,7 +872,7 @@ class JpegCompression(ImageOnlyTransform):
 
     Args:
         quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
-        quality_upper (float): lower bound on the jpeg quality. Should be in [0, 100] range
+        quality_upper (float): upper bound on the jpeg quality. Should be in [0, 100] range
 
     Targets:
         image
@@ -894,6 +895,389 @@ class JpegCompression(ImageOnlyTransform):
 
     def get_params(self):
         return {'quality': random.randint(self.quality_lower, self.quality_upper)}
+
+
+class RandomSnow(ImageOnlyTransform):
+    """Bleach out some pixel values simulating snow.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        snow_point_lower (float): lower_bond of the amount of snow. Should be in [0, 1] range
+        snow_point_upper (float): upper_bond of the amount of snow. Should be in [0, 1] range
+        brightness_coeff (float): larger number will lead to a more snow on the image. Should be >= 0
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, always_apply=False, p=0.5):
+        super(RandomSnow, self).__init__(always_apply, p)
+
+        assert 0 <= snow_point_lower <= snow_point_upper <= 1
+        assert 0 <= brightness_coeff
+
+        self.snow_point_lower = snow_point_lower
+        self.snow_point_upper = snow_point_upper
+        self.brightness_coeff = brightness_coeff
+
+    def apply(self, image, snow_point=0.1, **params):
+        return F.add_snow(image, snow_point, self.brightness_coeff)
+
+    def get_params(self):
+        return {'snow_point': random.uniform(self.snow_point_lower, self.snow_point_upper)}
+
+
+class RandomRain(ImageOnlyTransform):
+    """Adds rain effects.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        slant_lower:
+        slant_upper:
+        drop_length:
+        drop_width:
+        drop_color:
+        blur_value (int): rainy view are blurry
+        brightness_coefficient (float): rainy days are usually shady
+        rain_type: [None, "drizzle", "heavy", "torrestial"]
+
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self,
+                 slant_lower=-10,
+                 slant_upper=10,
+                 drop_length=20,
+                 drop_width=1,
+                 drop_color=(200, 200, 200),
+                 blur_value=7,
+                 brightness_coefficient=0.7,
+                 rain_type=None,
+                 always_apply=False, p=0.5):
+        super(RandomRain, self).__init__(always_apply, p)
+
+        assert rain_type in ['drizzle', 'heavy', 'torrential', None]
+
+        assert -20 <= slant_lower <= slant_upper <= 20
+        assert 1 <= drop_width <= 5
+        assert 0 <= drop_length <= 100
+        assert 0 <= brightness_coefficient <= 1
+
+        self.slant_lower = slant_lower
+        self.slant_upper = slant_upper
+
+        self.drop_length = drop_length
+        self.drop_width = drop_width
+        self.drop_color = drop_color
+        self.blur_value = blur_value
+        self.brightness_coefficient = brightness_coefficient
+        self.rain_type = rain_type
+
+    def apply(self, image, slant=10, drop_length=20, rain_drops=[], **params):
+        return F.add_rain(image,
+                          slant,
+                          drop_length,
+                          self.drop_width,
+                          self.drop_color,
+                          self.blur_value,
+                          self.brightness_coefficient,
+                          rain_drops)
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        slant = int(random.uniform(self.slant_lower, self.slant_upper))
+
+        height, width = img.shape[:2]
+        area = height * width
+
+        if self.rain_type == 'drizzle':
+            num_drops = area // 770
+            drop_length = 10
+        elif self.rain_type == 'heavy':
+            num_drops = width * height // 600
+            drop_length = 30
+        elif self.rain_type == 'torrential':
+            num_drops = area // 500
+            drop_length = 60
+        else:
+            drop_length = self.drop_length
+            num_drops = area // 600
+
+        rain_drops = []
+
+        for i in range(num_drops):  # If You want heavy rain, try increasing this
+            if slant < 0:
+                x = random.randint(slant, width)
+            else:
+                x = random.randint(0, width - slant)
+
+            y = random.randint(0, height - drop_length)
+
+            rain_drops.append((x, y))
+
+        return {'drop_length': drop_length,
+                'rain_drops': rain_drops}
+
+
+class RandomFog(ImageOnlyTransform):
+    """Simulates fog for the image
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        fog_coef_lower (float): lower limit for fog intensity coefficient. Should be in [0, 1] range.
+        fog_coef_upper (float): upper limit for fog intensity coefficient. Should be in [0, 1] range.
+        alpha_coef (float): transparence of the fog circles. Should be in [0, 1] range.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, fog_coef_lower=0.3, fog_coef_upper=1, alpha_coef=0.08, always_apply=False, p=0.5):
+        super(RandomFog, self).__init__(always_apply, p)
+
+        assert 0 <= fog_coef_lower <= fog_coef_upper <= 1
+        assert 0 <= alpha_coef <= 1
+
+        self.fog_coef_lower = fog_coef_lower
+        self.fog_coef_upper = fog_coef_upper
+        self.alpha_coef = alpha_coef
+
+    def apply(self, image, fog_coef=0.1, haze_list=[], **params):
+        return F.add_fog(image, fog_coef, self.alpha_coef, haze_list)
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        fog_coef = random.uniform(self.fog_coef_lower, self.fog_coef_upper)
+
+        height, width = imshape = img.shape[:2]
+
+        hw = int(width // 3 * fog_coef)
+
+        haze_list = []
+        midx = width // 2 - 2 * hw
+        midy = height // 2 - hw
+        index = 1
+
+        while midx > -hw or midy > - hw:
+            for i in range(hw // 10 * index):
+                x = random.randint(midx, width - midx - hw)
+                y = random.randint(midy, height - midy - hw)
+                haze_list.append((x, y))
+
+            midx -= 3 * hw * width // sum(imshape)
+            midy -= 3 * hw * height // sum(imshape)
+            index += 1
+
+        return {'haze_list': haze_list,
+                'fog_coef': fog_coef}
+
+
+class RandomSunFlare(ImageOnlyTransform):
+    """Simulates Sun Flare for the image
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        flare_roi (float, float, float, float): region of the image where flare will
+                                                    appear (x_min, y_min, x_max, y_max)
+        angle_lower (float):
+        angle_upper (float):
+        num_flare_circles_lower (int): lower limit for the number of flare circles.
+        num_flare_circles_upper (int): upper limit for the number of flare circles.
+        src_radius (int):
+        src_color (int, int, int): color of the flare
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self,
+                 flare_roi=(0, 0, 1, 0.5),
+                 angle_lower=0,
+                 angle_upper=1,
+                 num_flare_circles_lower=6,
+                 num_flare_circles_upper=10,
+                 src_radius=400,
+                 src_color=(255, 255, 255),
+                 always_apply=False,
+                 p=0.5):
+        super(RandomSunFlare, self).__init__(always_apply, p)
+
+        (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = flare_roi
+
+        assert 0 <= flare_center_lower_x < flare_center_upper_x <= 1
+        assert 0 <= flare_center_lower_y < flare_center_upper_y <= 1
+        assert 0 <= angle_lower < angle_upper <= 1
+        assert 0 <= num_flare_circles_lower < num_flare_circles_upper
+
+        self.flare_center_lower_x = flare_center_lower_x
+        self.flare_center_upper_x = flare_center_upper_x
+
+        self.flare_center_lower_y = flare_center_lower_y
+        self.flare_center_upper_y = flare_center_upper_y
+
+        self.angle_lower = angle_lower
+        self.angle_upper = angle_upper
+        self.num_flare_circles_lower = num_flare_circles_lower
+        self.num_flare_circles_upper = num_flare_circles_upper
+
+        self.src_radius = src_radius
+        self.src_color = src_color
+
+    def apply(self,
+              image,
+              flare_center_x=0.5,
+              flare_center_y=0.5,
+              circles=[], **params):
+
+        return F.add_sun_flare(image, flare_center_x, flare_center_y,
+                               self.src_radius,
+                               self.src_color,
+                               circles)
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        height, width = img.shape[:2]
+
+        angle = 2 * math.pi * random.uniform(self.angle_lower, self.angle_upper)
+
+        flare_center_x = random.uniform(self.flare_center_lower_x, self.flare_center_upper_x)
+        flare_center_y = random.uniform(self.flare_center_lower_y, self.flare_center_upper_y)
+
+        flare_center_x = int(width * flare_center_x)
+        flare_center_y = int(height * flare_center_y)
+
+        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
+
+        circles = []
+
+        x = []
+        y = []
+
+        for rand_x in range(0, width, 10):
+            rand_y = math.tan(angle) * (rand_x - flare_center_x) + flare_center_y
+            x.append(rand_x)
+            y.append(2 * flare_center_y - rand_y)
+
+        for i in range(num_circles):
+            alpha = random.uniform(0.05, 0.2)
+            r = random.randint(0, len(x) - 1)
+            rad = random.randint(1, max(height // 100 - 2, 2))
+
+            r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            g_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            b_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+
+            circles += [(alpha, (int(x[r]), int(y[r])), pow(rad, 3), (r_color,
+                                                                      g_color,
+                                                                      b_color))]
+
+        return {'circles': circles,
+                'flare_center_x': flare_center_x,
+                'flare_center_y': flare_center_y}
+
+
+class RandomShadow(ImageOnlyTransform):
+    """Simulates shadows for the image
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        shadow_roi (float, float, float, float): region of the image where shadows
+            will appear (x_min, y_min, x_max, y_max)
+        num_shadows_lower (int): Lower limit for the possible number of shadows.
+        num_shadows_upper (int): Lower limit for the possible number of shadows.
+        shadow_dimension (int): number of edges in the shadow polygons
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self,
+                 shadow_roi=(0, 0.5, 1, 1),
+                 num_shadows_lower=1,
+                 num_shadows_upper=2,
+                 shadow_dimension=5,
+                 always_apply=False,
+                 p=0.5):
+        super(RandomShadow, self).__init__(always_apply, p)
+
+        (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
+
+        assert 0 <= shadow_lower_x <= shadow_upper_x <= 1
+        assert 0 <= shadow_lower_y <= shadow_upper_y <= 1
+        assert 0 <= num_shadows_lower <= num_shadows_upper
+
+        self.shadow_roi = shadow_roi
+
+        self.num_shadows_lower = num_shadows_lower
+        self.num_shadows_upper = num_shadows_upper
+
+        self.shadow_dimension = shadow_dimension
+
+    def apply(self, image, vertices_list=[], **params):
+        return F.add_shadow(image, vertices_list)
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        height, width = img.shape[:2]
+
+        num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
+
+        x_min, y_min, x_max, y_max = self.shadow_roi
+
+        x_min = int(x_min * width)
+        x_max = int(x_max * width)
+        y_min = int(y_min * height)
+        y_max = int(y_max * height)
+
+        vertices_list = []
+
+        for index in range(num_shadows):
+            vertex = []
+            for dimensions in range(self.shadow_dimension):
+                vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
+
+            vertices = np.array([vertex], dtype=np.int32)
+            vertices_list.append(vertices)
+
+        return {'vertices_list': vertices_list}
 
 
 class HueSaturationValue(ImageOnlyTransform):
