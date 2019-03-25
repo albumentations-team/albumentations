@@ -32,7 +32,7 @@
 
 **Custom targets** [`example_multi_target.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_multi_target.ipynb)
 
-**Weather transforms** [`example_wather_transforms.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_weather_transforms.ipynb)
+**Weather transforms** [`example_weather_transforms.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_weather_transforms.ipynb)
 
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.
