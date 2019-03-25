@@ -993,6 +993,10 @@ class RandomRain(ImageOnlyTransform):
                           self.brightness_coefficient,
                           rain_drops)
 
+    @property
+    def targets_as_params(self):
+        return ['image']
+
     def get_params_dependent_on_targets(self, params):
         img = params['image']
         slant = int(random.uniform(self.slant_lower, self.slant_upper))
@@ -1063,11 +1067,15 @@ class RandomFog(ImageOnlyTransform):
     def apply(self, image, fog_coef=0.1, haze_list=[], **params):
         return F.add_fog(image, fog_coef, self.alpha_coef, haze_list)
 
+    @property
+    def targets_as_params(self):
+        return ['image']
+
     def get_params_dependent_on_targets(self, params):
         img = params['image']
         fog_coef = random.uniform(self.fog_coef_lower, self.fog_coef_upper)
 
-        width, height = imshape = img.shape[:2]
+        height, width = imshape = img.shape[:2]
 
         hw = int(width // 3 * fog_coef)
 
@@ -1086,7 +1094,8 @@ class RandomFog(ImageOnlyTransform):
             midy -= 3 * hw * height // sum(imshape)
             index += 1
 
-        return {'haze_list': haze_list}
+        return {'haze_list': haze_list,
+                'fog_coef': fog_coef}
 
 
 class RandomSunFlare(ImageOnlyTransform):
@@ -1112,7 +1121,7 @@ class RandomSunFlare(ImageOnlyTransform):
     """
 
     def __init__(self,
-                 flare_roi=(0, 0, 0, 1),
+                 flare_roi=(0, 0, 1, 0.5),
                  angle_lower=0,
                  angle_upper=1,
                  num_flare_circles_lower=6,
@@ -1125,9 +1134,9 @@ class RandomSunFlare(ImageOnlyTransform):
 
         (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = flare_roi
 
-        assert 0 <= flare_center_lower_x <= flare_center_upper_x <= 1
-        assert 0 <= flare_center_lower_y <= flare_center_upper_y <= 1
-        assert 0 <= angle_lower <= angle_upper <= 1
+        assert 0 <= flare_center_lower_x < flare_center_upper_x <= 1
+        assert 0 <= flare_center_lower_y < flare_center_upper_y <= 1
+        assert 0 <= angle_lower < angle_upper <= 1
         assert 0 <= num_flare_circles_lower < num_flare_circles_upper
 
         self.flare_center_lower_x = flare_center_lower_x
@@ -1149,14 +1158,19 @@ class RandomSunFlare(ImageOnlyTransform):
               flare_center_x=0.5,
               flare_center_y=0.5,
               circles=[], **params):
+
         return F.add_sun_flare(image, flare_center_x, flare_center_y,
                                self.src_radius,
                                self.src_color,
                                circles)
 
+    @property
+    def targets_as_params(self):
+        return ['image']
+
     def get_params_dependent_on_targets(self, params):
         img = params['image']
-        width, height = img.shape[:2]
+        height, width = img.shape[:2]
 
         angle = 2 * math.pi * random.uniform(self.angle_lower, self.angle_upper)
 
@@ -1187,9 +1201,9 @@ class RandomSunFlare(ImageOnlyTransform):
             g_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
             b_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
 
-            circles += ([alpha, (int(x[r]), int(y[r])), pow(rad, 3), (r_color,
+            circles += [(alpha, (int(x[r]), int(y[r])), pow(rad, 3), (r_color,
                                                                       g_color,
-                                                                      b_color)])
+                                                                      b_color))]
 
         return {'circles': circles,
                 'flare_center_x': flare_center_x,
@@ -1216,7 +1230,7 @@ class RandomShadow(ImageOnlyTransform):
     """
 
     def __init__(self,
-                 shadow_roi=(0, 0, 0, 1),
+                 shadow_roi=(0, 0.5, 1, 1),
                  num_shadows_lower=1,
                  num_shadows_upper=2,
                  shadow_dimension=5,
@@ -1228,7 +1242,7 @@ class RandomShadow(ImageOnlyTransform):
 
         assert 0 <= shadow_lower_x <= shadow_upper_x <= 1
         assert 0 <= shadow_lower_y <= shadow_upper_y <= 1
-        assert 0 <= num_shadows_lower < num_shadows_upper
+        assert 0 <= num_shadows_lower <= num_shadows_upper
 
         self.shadow_roi = shadow_roi
 
@@ -1240,18 +1254,22 @@ class RandomShadow(ImageOnlyTransform):
     def apply(self, image, vertices_list=[], **params):
         return F.add_shadow(image, vertices_list)
 
+    @property
+    def targets_as_params(self):
+        return ['image']
+
     def get_params_dependent_on_targets(self, params):
         img = params['image']
-        width, height = img.shape[:2]
+        height, width = img.shape[:2]
 
         num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
-        x_min = width * x_min
-        x_max = width * x_max
-        y_min = height * y_min
-        y_max = height * y_max
+        x_min = int(x_min * width)
+        x_max = int(x_max * width)
+        y_min = int(y_min * height)
+        y_max = int(y_max * height)
 
         vertices_list = []
 
