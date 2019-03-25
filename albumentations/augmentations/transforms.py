@@ -1032,10 +1032,6 @@ class RandomRain(ImageOnlyTransform):
         return {'drop_length': drop_length,
                 'rain_drops': rain_drops}
 
-    @property
-    def targets_as_params(self):
-        return ['image']
-
 
 class RandomFog(ImageOnlyTransform):
     """Simulates fog for the image
