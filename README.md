@@ -16,6 +16,23 @@
 * Was used to get top results in many DL competitions at Kaggle, topcoder, CVPR, MICCAI.
 * Written by Kaggle Masters.
 
+## Table of contents
+- [How to use](#how-to-use)
+- [Authors](#authors)
+- [Installation](#installation)
+  - [PyPI](#pypi)
+  - [Conda](#conda)
+- [Documentation](#documentation)
+- [Pixel-level transforms](#pixel-level-transforms)
+- [Spatial-level transforms](#spatial-level-transforms)
+- [Migrating from torchvision to albumentations](#migrating-from-torchvision-to-albumentations)
+- [Benchmarking results](#benchmarking-results)
+- [Contributing](#contributing)
+  - [Adding new transforms](#adding-new-transforms)
+- [Building the documentation](#building-the-documentation)
+- [Comments](#comments)
+- [Citing](#citing)
+
 ## How to use
 
 **All in one showcase notebook** - [`showcase.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/showcase.ipynb)
