@@ -1,4 +1,5 @@
 import os
+import warnings
 
 import numpy as np
 import pytest
@@ -8,6 +9,24 @@ skip_appveyor = pytest.mark.skipif(
     'APPVEYOR' in os.environ,
     reason='Skipping test in AppVeyor',
 )
+
+try:
+    import torch
+    import torchvision
+    torch_available = True
+except ImportError:
+    torch_available = False
+
+
+def pytest_ignore_collect(path):
+    if not torch_available and path.fnmatch('test_torch.py'):
+        warnings.warn(
+            UserWarning(
+                'Tests that require PyTorch and torchvision were skipped because those libraries are not installed.'
+            )
+        )
+        return True
+    return False
 
 
 @pytest.fixture
