@@ -163,8 +163,7 @@ def __test_multiprocessing_add_to_image(image, **kwargs):
     [A.IAAAffine, {'scale': 1.5}],
     [A.IAAPiecewiseAffine, {'scale': 1.5}],
     [A.IAAPerspective, {}],
-    [A.IAASharpen, {}],
-    [A.Lambda, {'image': __test_multiprocessing_add_to_image}]
+    [A.IAASharpen, {}]
 ])
 @skip_appveyor
 def test_multiprocessing_support(augmentation_cls, params):
