@@ -146,8 +146,8 @@ def __test_multiprocessing_support_proc(args):
     return transform(image=x)
 
 
-def __test_multiprocessing_add_to_image(image, value, **kwargs):
-    return image + value
+def __test_multiprocessing_add_to_image(image, **kwargs):
+    return image + 1
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -164,7 +164,7 @@ def __test_multiprocessing_add_to_image(image, value, **kwargs):
     [A.IAAPiecewiseAffine, {'scale': 1.5}],
     [A.IAAPerspective, {}],
     [A.IAASharpen, {}],
-    [A.Lambda, {'image': partial(__test_multiprocessing_add_to_image, value=1)}]
+    [A.Lambda, {'image': __test_multiprocessing_add_to_image}]
 ])
 @skip_appveyor
 def test_multiprocessing_support(augmentation_cls, params):
