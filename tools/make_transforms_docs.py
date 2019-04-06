@@ -75,7 +75,6 @@ def get_transforms_info():
                 targets.add(Targets.BBOXES)
                 targets.add(Targets.KEYPOINTS)
 
-
             docs_link = None
             if cls.__module__ == 'albumentations.augmentations.transforms':
                 docs_link = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
