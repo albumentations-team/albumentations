@@ -70,6 +70,12 @@ def get_transforms_info():
             if issubclass(cls, albumentations.DualIAATransform):
                 targets.update({Targets.BBOXES, Targets.KEYPOINTS})
 
+            if issubclass(cls, albumentations.Lambda):
+                targets.add(Targets.MASKS)
+                targets.add(Targets.BBOXES)
+                targets.add(Targets.KEYPOINTS)
+
+
             docs_link = None
             if cls.__module__ == 'albumentations.augmentations.transforms':
                 docs_link = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)

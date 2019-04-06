@@ -152,6 +152,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [IAAFlipud](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAFlipud)                                    | ✓     | ✓     | ✓      | ✓         |
 | [IAAPerspective](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPerspective)                          | ✓     | ✓     | ✓      | ✓         |
 | [IAAPiecewiseAffine](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.imgaug.transforms.IAAPiecewiseAffine)                  | ✓     | ✓     | ✓      | ✓         |
+| [Lambda](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Lambda)                                   | ✓     | ✓     | ✓      | ✓         |
 | [LongestMaxSize](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.LongestMaxSize)                   | ✓     | ✓     | ✓      |           |
 | NoOp                                                                                                                                                              | ✓     | ✓     | ✓      | ✓         |
 | [OpticalDistortion](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.OpticalDistortion)             | ✓     | ✓     |        |           |
