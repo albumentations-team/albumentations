@@ -1,3 +1,4 @@
+from functools import partial
 from multiprocessing.pool import Pool
 
 import numpy as np
@@ -145,6 +146,10 @@ def __test_multiprocessing_support_proc(args):
     return transform(image=x)
 
 
+def __test_multiprocessing_add_to_image(image, value, **kwargs):
+    return image + value
+
+
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [A.ElasticTransform, {}],
     [A.GridDistortion, {}],
@@ -158,11 +163,12 @@ def __test_multiprocessing_support_proc(args):
     [A.IAAAffine, {'scale': 1.5}],
     [A.IAAPiecewiseAffine, {'scale': 1.5}],
     [A.IAAPerspective, {}],
-    [A.IAASharpen, {}]
+    [A.IAASharpen, {}],
+    [A.Lambda, {'image': partial(__test_multiprocessing_add_to_image, value=1)}]
 ])
 @skip_appveyor
 def test_multiprocessing_support(augmentation_cls, params):
-    """Checks whether we can use augmetnations in multi-threaded environments"""
+    """Checks whether we can use augmentations in multi-threaded environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
@@ -238,3 +244,18 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         aug1 = res['image']
         aug2 = res['image2']
         assert np.array_equal(aug1, aug2)
+
+
+def test_lambda_transform():
+    def negate_image(image, **kwargs):
+        return -image
+
+    def one_hot_mask(mask, num_channels, **kwargs):
+        new_mask = np.eye(num_channels, dtype=np.uint8)[mask]
+        return new_mask
+
+    aug = A.Lambda(image=negate_image, mask=partial(one_hot_mask, num_channels=16), p=1)
+
+    output = aug(image=np.ones((10, 10, 3), dtype=np.float32), mask=np.tile(np.arange(0, 10), (10, 1)))
+    assert (output['image'] < 0).all()
+    assert output['mask'].shape[2] == 16  # num_channels
