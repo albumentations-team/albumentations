@@ -146,10 +146,6 @@ def __test_multiprocessing_support_proc(args):
     return transform(image=x)
 
 
-def __test_multiprocessing_add_to_image(image, **kwargs):
-    return image + 1
-
-
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [A.ElasticTransform, {}],
     [A.GridDistortion, {}],
