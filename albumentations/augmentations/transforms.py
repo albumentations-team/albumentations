@@ -1726,7 +1726,7 @@ class Lambda(DualTransform):
     def __init__(self, image=None, mask=None, keypoint=None, bbox=None, always_apply=False, p=1.0):
         super(Lambda, self).__init__(always_apply, p)
 
-        self._targets = super().targets
+        self._targets = super(Lambda, self).targets
 
         for target_name, custom_apply_fn in {'image': image, 'mask': mask, 'keypoint': keypoint, 'bbox': bbox}.items():
             if custom_apply_fn is not None:
