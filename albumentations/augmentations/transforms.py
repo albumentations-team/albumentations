@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division
 
+from types import LambdaType
+
 import math
 import random
 import warnings
@@ -18,7 +20,7 @@ __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Trans
            'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
            'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
            'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog', 'RandomSunFlare',
-           'RandomShadow']
+           'RandomShadow', 'Lambda']
 
 
 class PadIfNeeded(DualTransform):
@@ -1697,3 +1699,43 @@ class FromFloat(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.from_float(img, self.dtype, self.max_value)
+
+
+class Lambda(DualTransform):
+    """A flexible transformation class for using user-defined transformation functions per targets.
+    Function signature must include **kwargs to accept optinal arguments like interpolation method, image size, etc:
+
+
+
+    Args:
+        image (callable): Image transformation function.
+        mask (callable): Mask transformation function.
+        keypoint (callable): Keypoint transformation function.
+        bbox (callable): BBox transformation function.
+        always_apply (bool): Indicates whether this transformation should be always applied.
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        Any
+
+    """
+
+    def __init__(self, image=None, mask=None, keypoint=None, bbox=None, always_apply=False, p=1.0):
+        super(Lambda, self).__init__(always_apply, p)
+
+        self._targets = super(Lambda, self).targets
+
+        for target_name, custom_apply_fn in {'image': image, 'mask': mask, 'keypoint': keypoint, 'bbox': bbox}.items():
+            if custom_apply_fn is not None:
+                if isinstance(custom_apply_fn, LambdaType):
+                    warnings.warn('Using lambda is incompatible with multiprocessing. '
+                                  'Consider using regular functions or partial().')
+
+                self._targets[target_name] = custom_apply_fn
+
+    @property
+    def targets(self):
+        return self._targets
