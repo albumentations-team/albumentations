@@ -11,7 +11,7 @@ import numpy as np
 
 from . import functional as F
 from .bbox_utils import union_of_bboxes, denormalize_bbox, normalize_bbox
-from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform
+from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform, NoOp
 
 __all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
            'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
@@ -1701,7 +1701,7 @@ class FromFloat(ImageOnlyTransform):
         return F.from_float(img, self.dtype, self.max_value)
 
 
-class Lambda(DualTransform):
+class Lambda(NoOp):
     """A flexible transformation class for using user-defined transformation functions per targets.
     Function signature must include **kwargs to accept optinal arguments like interpolation method, image size, etc:
 
