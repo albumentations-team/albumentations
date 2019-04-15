@@ -1759,8 +1759,6 @@ class Lambda(NoOp):
     """A flexible transformation class for using user-defined transformation functions per targets.
     Function signature must include **kwargs to accept optinal arguments like interpolation method, image size, etc:
 
-
-
     Args:
         image (callable): Image transformation function.
         mask (callable): Mask transformation function.

@@ -1138,12 +1138,14 @@ def py3round(number):
 
 
 def encapsulate_bboxes(bboxes):
-    """Gets the bounding box that contains all bboxes.
-        **bboxes must be in xyxy format (Pascal VOC).
+    """Gets the bounding box that contains all bboxes. Bboxes must be in xyxy format (Pascal VOC).
+
     Args:
         bboxes (List[List[float]]): Boxes to encapsulate.
+
     Returns:
         encapsulate box
+
     """
     x = min(b[0] for b in bboxes)
     y = min(b[1] for b in bboxes)
@@ -1155,15 +1157,14 @@ def encapsulate_bboxes(bboxes):
 
 def get_box_with_margins(bbox, margin, rows, cols):
     """Adds a percentage of margin (defined by `margin`) to each dimension of `box`, if possible.
-        Also controls that the added margin does not exceed image dimensions.
-
-        **bbox must be in xyxy format (Pascal VOC).
+    Also controls that the added margin does not exceed image dimensions. Bbox must be in xyxy format (Pascal VOC).
 
     Args:
         bbox (List[float]): Bbox to add margins to.
         margin (float): Margin to add to each side, in terms of percentage over each dimension (width and height)
         rows (int): Height of the image the box is placed in.
         cols (int): Width of the image the box is placed in.
+
     """
     x, y, xmax, ymax = bbox[:4]
     x_margin, y_margin = (xmax - x) * margin, (ymax - y) * margin
@@ -1233,7 +1234,7 @@ def select_random_bboxes(bboxes, n_min=1, n_max=None):
 
 def find_best_encapsulated_fit(all_bboxes, rows, cols, max_size, margin=0.1):
     """Find the box that encapsulates the maximum area of `all_boxes` without any of its sides
-        exceeding the limit, imposed by `max_size`.
+    exceeding the limit, imposed by `max_size`.
 
     Args:
         all_bboxes (List[List[float]]): Bboxes that will be encapsulated.
@@ -1245,6 +1246,7 @@ def find_best_encapsulated_fit(all_bboxes, rows, cols, max_size, margin=0.1):
 
     Returns:
         The best encapsulated box fit.
+
     """
     assert len(all_bboxes) > 0, "bboxes must at least have one element"
     assert max_size > 0, "max_size must be positive"
@@ -1332,11 +1334,11 @@ def get_roi_box(bboxes, rows, cols, view_min=2, context_min=0.2, context_max=0.9
     """Select a random subsample of all boxes and create a box that encapsulates all those boxes.
         Stretch this box and apply other restrictions.
 
-        - If the ROI box has any side bigger than `max_size`, loop through multiple combinations of boxes
+        -If the ROI box has any side bigger than `max_size`, loop through multiple combinations of boxes
         to obtain the encapsulated box with sides smaller or equal to `max_size` that contains the maximum amount
         of boxes' area.
 
-        - If none of the boxes is smaller than `max_size`,
+        -If none of the boxes is smaller than `max_size`
 
     Args:
         img (np.ndarray): Image
@@ -1353,6 +1355,7 @@ def get_roi_box(bboxes, rows, cols, view_min=2, context_min=0.2, context_max=0.9
 
     Image types:
         uint8, float32
+
     """
     if len(bboxes) == 0:
         return None
