@@ -803,3 +803,60 @@ def test_fun_max_size():
     out = F.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
 
     assert out.shape == (1724, target_width)
+
+
+def test_is_rgb_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert F.is_rgb_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert not F.is_rgb_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert not F.is_rgb_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert not F.is_rgb_image(gray_image)
+
+
+def test_is_grayscale_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert not F.is_grayscale_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert not F.is_grayscale_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert F.is_grayscale_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert F.is_grayscale_image(gray_image)
+
+
+def test_is_multispectral_image():
+    image = np.ones((5, 5, 3), dtype=np.uint8)
+    assert not F.is_multispectral_image(image)
+
+    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
+    assert F.is_multispectral_image(multispectral_image)
+
+    gray_image = np.ones((5, 5), dtype=np.uint8)
+    assert not F.is_multispectral_image(gray_image)
+
+    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
+    assert not F.is_multispectral_image(gray_image)
+
+
+def test_encapsulate_bboxes():
+    boxes = [(561, 296, 680, 390), (493, 356, 589, 482), (369, 276, 457, 345), (481, 304, 524, 384),
+             (346, 421, 520, 535), (558, 232, 689, 335), (217, 315, 317, 407), (535, 325, 590, 393)]
+    assert np.array_equal(F.encapsulate_bboxes(boxes), (217, 232, 689, 535))
+
+
+def test_get_box_with_margins():
+    # if box with margins fits inside the image
+    box_with_margins = F.get_box_with_margins([50, 50, 100, 100], 0.5, 200, 200)
+    assert np.array_equal(box_with_margins, [25, 25, 125, 125])
+    # if box with margins does not fit inside the image (one of the axes)
+    box_with_margins = F.get_box_with_margins([50, 50, 150, 150], 0.5, 200, 200)
+    assert np.array_equal(box_with_margins, [0.0, 0.0, 199, 199])
