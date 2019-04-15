@@ -1,6 +1,7 @@
 from __future__ import division
 
 import math
+import random
 from functools import wraps
 from warnings import warn
 
@@ -8,7 +9,8 @@ import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
-from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox, denormalize_bboxes, \
+    calculate_bbox_area
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype('uint8'): 255,
@@ -55,6 +57,29 @@ def preserve_channel_dim(func):
         return result
 
     return wrapped_function
+
+
+def is_rgb_image(image):
+    return len(image.shape) == 3 and image.shape[-1] == 3
+
+
+def is_grayscale_image(image):
+    return (len(image.shape) == 2) or (len(image.shape) == 3 and image.shape[-1] == 1)
+
+
+def is_multispectral_image(image):
+    return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
+
+
+def non_rgb_warning(image):
+    if not is_rgb_image(image):
+        message = 'This transformation expects 3-channel images'
+        if is_grayscale_image(image):
+            message += '\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))'
+        if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
+            message += '\nThis transformation cannot be applied to multi-spectral images'
+
+        raise ValueError(message)
 
 
 def vflip(img):
@@ -141,15 +166,20 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
 
 
 def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
-    center = (0.5, 0.5)
+    height, width = rows, cols
+    center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx
-    matrix[1, 2] += dy
+    matrix[0, 2] += dx * width
+    matrix[1, 2] += dy * height
     x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
     y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
     ones = np.ones(shape=(len(x)))
     points_ones = np.vstack([x, y, ones]).transpose()
+    points_ones[:, 0] *= width
+    points_ones[:, 1] *= height
     tr_points = matrix.dot(points_ones.T).T
+    tr_points[:, 0] /= width
+    tr_points[:, 1] /= height
     return [min(tr_points[:, 0]), min(tr_points[:, 1]), max(tr_points[:, 0]), max(tr_points[:, 1])]
 
 
@@ -342,6 +372,12 @@ def blur(img, ksize):
     return cv2.blur(img, (ksize, ksize))
 
 
+@preserve_shape
+def gaussian_blur(img, ksize):
+    # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
+    return cv2.GaussianBlur(img, (ksize, ksize), sigmaX=0)
+
+
 def _func_max_size(img, max_size, interpolation, func):
     height, width = img.shape[:2]
 
@@ -397,6 +433,247 @@ def jpeg_compression(img, quality):
     if needs_float:
         img = to_float(img, max_value=255)
     return img
+
+
+@preserve_shape
+def add_snow(img, snow_point, brightness_coeff):
+    """Bleaches out pixels, mitation snow.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img:
+        snow_point:
+        brightness_coeff:
+
+    Returns:
+
+    """
+    non_rgb_warning(img)
+
+    input_dtype = img.dtype
+    needs_float = False
+
+    snow_point *= 127.5  # = 255 / 2
+    snow_point += 85  # = 255 / 3
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
+
+    image_HLS = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    image_HLS = np.array(image_HLS, dtype=np.float32)
+
+    image_HLS[:, :, 1][image_HLS[:, :, 1] < snow_point] *= brightness_coeff
+
+    image_HLS[:, :, 1] = clip(image_HLS[:, :, 1], np.uint8, 255)
+
+    image_HLS = np.array(image_HLS, dtype=np.uint8)
+
+    image_RGB = cv2.cvtColor(image_HLS, cv2.COLOR_HLS2RGB)
+
+    if needs_float:
+        image_RGB = to_float(image_RGB, max_value=255)
+
+    return image_RGB
+
+
+@preserve_shape
+def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_drops):
+    """
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.uint8):
+        slant (int):
+        drop_length:
+        drop_width:
+        drop_color:
+        blur_value (int): rainy view are blurry
+        brightness_coefficient (float): rainy days are usually shady
+        rain_drops:
+
+    Returns:
+
+    """
+    non_rgb_warning(img)
+
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
+
+    image = img.copy()
+
+    for (rain_drop_x0, rain_drop_y0) in rain_drops:
+        rain_drop_x1 = rain_drop_x0 + slant
+        rain_drop_y1 = rain_drop_y0 + drop_length
+
+        cv2.line(image, (rain_drop_x0, rain_drop_y0), (rain_drop_x1, rain_drop_y1), drop_color, drop_width)
+
+    image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
+    image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
+    image_hls[:, :, 1] *= brightness_coefficient
+
+    image_rgb = cv2.cvtColor(image_hls.astype(np.uint8), cv2.COLOR_HLS2RGB)
+
+    if needs_float:
+        image_rgb = to_float(image_rgb, max_value=255)
+
+    return image_rgb
+
+
+@preserve_shape
+def add_fog(img, fog_coef, alpha_coef, haze_list):
+    """Add fog to the image.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.array):
+        fog_coef (float):
+        alpha_coef (float):
+        haze_list (list):
+    Returns:
+
+    """
+    non_rgb_warning(img)
+
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomFog augmentation'.format(input_dtype))
+
+    height, width = img.shape[:2]
+
+    hw = max(int(width // 3 * fog_coef), 10)
+
+    for haze_points in haze_list:
+        x, y = haze_points
+        overlay = img.copy()
+        output = img.copy()
+        alpha = alpha_coef * fog_coef
+        rad = hw // 2
+        point = (x + hw // 2, y + hw // 2)
+        cv2.circle(overlay, point, int(rad), (255, 255, 255), -1)
+        cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
+
+        img = output.copy()
+
+    image_rgb = cv2.blur(img, (hw // 10, hw // 10))
+
+    if needs_float:
+        image_rgb = to_float(image_rgb, max_value=255)
+
+    return image_rgb
+
+
+@preserve_shape
+def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, circles):
+    """Add sun flare.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.array):
+        flare_center_x (float):
+        flare_center_y (float):
+        src_radius:
+        src_color (int, int, int):
+        circles (list):
+
+    Returns:
+
+    """
+    non_rgb_warning(img)
+
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomSunFlareaugmentation'.format(input_dtype))
+
+    overlay = img.copy()
+    output = img.copy()
+
+    for (alpha, (x, y), rad3, (r_color, g_color, b_color)) in circles:
+        cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
+
+        cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
+
+    point = (int(flare_center_x), int(flare_center_y))
+
+    overlay = output.copy()
+    num_times = src_radius // 10
+    alpha = np.linspace(0.0, 1, num=num_times)
+    rad = np.linspace(1, src_radius, num=num_times)
+    for i in range(num_times):
+        cv2.circle(overlay, point, int(rad[i]), src_color, -1)
+        alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
+        cv2.addWeighted(overlay, alp, output, 1 - alp, 0, output)
+
+    image_rgb = output
+
+    if needs_float:
+        image_rgb = to_float(image_rgb, max_value=255)
+
+    return image_rgb
+
+
+@preserve_shape
+def add_shadow(img, vertices_list):
+    """Add shadows to the image.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (np.array):
+        vertices_list (list):
+
+    Returns:
+
+    """
+    non_rgb_warning(img)
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype('uint8'))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError('Unexpected dtype {} for RandomSnow augmentation'.format(input_dtype))
+
+    image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+    mask = np.zeros_like(img)
+
+    # adding all shadow polygons on empty mask, single 255 denotes only red channel
+    for vertices in vertices_list:
+        cv2.fillPoly(mask, vertices, 255)
+
+    # if red channel is hot, image's "Lightness" channel's brightness is lowered
+    red_max_value_ind = mask[:, :, 0] == 255
+    image_hls[:, :, 1][red_max_value_ind] = image_hls[:, :, 1][red_max_value_ind] * 0.5
+
+    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
+
+    if needs_float:
+        image_rgb = to_float(image_rgb, max_value=255)
+
+    return image_rgb
 
 
 @preserve_shape
@@ -610,8 +887,6 @@ def brightness_contrast_adjust(img, alpha=1, beta=0):
 
 def to_gray(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    if np.mean(gray) > 127:
-        gray = 255 - gray
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
 
@@ -860,3 +1135,255 @@ def py3round(number):
         return int(2.0 * round(number / 2.0))
 
     return int(round(number))
+
+
+def encapsulate_bboxes(bboxes):
+    """Gets the bounding box that contains all bboxes.
+        **bboxes must be in xyxy format (Pascal VOC).
+    Args:
+        bboxes (List[List[float]]): Boxes to encapsulate.
+    Returns:
+        encapsulate box
+    """
+    x = min(b[0] for b in bboxes)
+    y = min(b[1] for b in bboxes)
+    xmax = max(b[2] for b in bboxes)
+    ymax = max(b[3] for b in bboxes)
+
+    return [x, y, xmax, ymax]
+
+
+def get_box_with_margins(bbox, margin, rows, cols):
+    """Adds a percentage of margin (defined by `margin`) to each dimension of `box`, if possible.
+        Also controls that the added margin does not exceed image dimensions.
+
+        **bbox must be in xyxy format (Pascal VOC).
+
+    Args:
+        bbox (List[float]): Bbox to add margins to.
+        margin (float): Margin to add to each side, in terms of percentage over each dimension (width and height)
+        rows (int): Height of the image the box is placed in.
+        cols (int): Width of the image the box is placed in.
+    """
+    x, y, xmax, ymax = bbox[:4]
+    x_margin, y_margin = (xmax - x) * margin, (ymax - y) * margin
+    x = max(x - x_margin, 0)
+    y = max(y - y_margin, 0)
+    xmax = min(xmax + x_margin, cols-1)
+    ymax = min(ymax + y_margin, rows-1)
+
+    return [x, y, xmax, ymax]
+
+
+def random_stretch_bbox(bbox, rows, cols, context_min=0.2, context_max=0.9):
+    """Stretches a bounding box in both axes by a random number between `context_min` and `context_max`.
+
+    Args:
+        bbox (List[float]): Bbox to stretch
+        rows (int): Height of the image the box is placed in.
+        cols (int): Width of the image the box is placed in.
+        context_min (float): Minimum stretching range, can be positive (increase area) or negative (decrease area).
+        context_max (float): Maximum stretching range, can be positive (increase area) or negative (decrease area).
+
+    Returns:
+        A randomly stretched box.
+
+    """
+    bbox = denormalize_bbox(bbox, rows, cols)
+    stretch = random.uniform(context_min, context_max)
+    x, y, xmax, ymax = bbox
+    w, h = xmax - x, ymax - y
+
+    # stretch along x axis
+    delta_x = w * stretch / 2
+    x -= delta_x if delta_x < x else x
+    xmax += delta_x if delta_x < cols - xmax else cols - xmax
+
+    # stretch along y axis
+    delta_y = h * stretch / 2
+    y -= delta_y if delta_y < x else y
+    ymax += delta_y if delta_y < rows - ymax else rows - ymax
+
+    return [x, y, xmax, ymax]
+
+
+def select_random_bboxes(bboxes, n_min=1, n_max=None):
+    """Selects a random number of bboxes, between `min` and `max`.
+
+    Args:
+        bboxes (List[List[float]]): Boxes in Pascal VOC standard (xyxy).
+        n_min (int): Minimum number of boxes to choose.
+        n_max (int): Maximum number of boxes to choose.
+
+    Returns:
+        A list of bboxes randomly chosen from the original list.
+
+    """
+    assert len(bboxes) >= 1, "bboxes must have at least one element"
+    assert n_min >= 1, "min must be at least 1."
+    if n_max is not None:
+        assert n_max <= len(bboxes), "max must be less or equal to the number of bboxes."
+        n_max = len(bboxes)
+
+    indices = np.random.choice(range(len(bboxes)),
+                               size=max(n_min, random.randrange(1, n_max)),
+                               replace=False)
+    return [bboxes[i] for i in indices]
+
+
+def find_best_encapsulated_fit(all_bboxes, rows, cols, max_size, margin=0.1):
+    """Find the box that encapsulates the maximum area of `all_boxes` without any of its sides
+        exceeding the limit, imposed by `max_size`.
+
+    Args:
+        all_bboxes (List[List[float]]): Bboxes that will be encapsulated.
+        rows (int): Height of the image where boxes are placed in.
+        cols (int): Width of the image where boxes are placed in.
+        max_size (int): maximum edge length of the resulting ROI box (limit GPU mem use)
+        margin (float): adds this percentage of the edge length as margin, in order to contemplate context around
+            boxes.
+
+    Returns:
+        The best encapsulated box fit.
+    """
+    assert len(all_bboxes) > 0, "bboxes must at least have one element"
+    assert max_size > 0, "max_size must be positive"
+    assert margin >= 0, "margin must be either positive or 0, for no margin"
+
+    best_area_bboxes = 0
+    best_encap_box = None
+
+    # denormalize boxes
+    all_bboxes = [denormalize_bbox(box, rows, cols) for box in all_bboxes]
+    # shuffle boxes for added randomness
+    random.shuffle(all_bboxes)
+
+    for i, box0 in enumerate(all_bboxes):
+        box_group = []
+        box = get_box_with_margins(box0, margin, rows, cols)
+        w, h = box[2] - box[0], box[3] - box[1]
+        # box with margins must be smaller than max_size
+        if max(w, h) <= max_size:
+            box_area = calculate_bbox_area(normalize_bbox(box, rows, cols), rows, cols)
+            # if current box is better than current best encapsulated boxes
+            if box_area > best_area_bboxes:
+                best_area_bboxes = box_area
+                best_encap_box = box0  # we save the box without margins
+
+            box_group.append(box0)
+        else:
+            # if current box is already too big, don't bother adding more to it
+            continue
+
+        # add more boxes to considered boxes
+        for j, box1 in enumerate(all_bboxes):
+            # skip the same box
+            if j == i:
+                continue
+
+            box_group.append(box1)
+            # get total area of boxes covered by the encapsulated box (the more, the better)
+            area_boxes = np.sum([calculate_bbox_area(normalize_bbox(box, rows, cols), rows, cols)
+                                 for box in box_group])
+            encap_box = encapsulate_bboxes(box_group)
+            encap_box_with_margins = get_box_with_margins(encap_box, margin, rows, cols)
+            w, h = (encap_box_with_margins[2] - encap_box_with_margins[0],
+                    encap_box_with_margins[3] - encap_box_with_margins[1])
+
+            if max(w, h) <= max_size:
+                if area_boxes > best_area_bboxes:
+                    best_area_bboxes = area_boxes
+                    best_encap_box = encap_box  # we save the box without margins
+            else:
+                break
+
+    # if all boxes are too big for `max_size`, take a random box and make a random crop from it.
+    if best_encap_box is None:
+        box = random.choice(all_bboxes)
+        x, y, xmax, ymax = get_random_crop_coords(height=box[3] - box[1], width=box[2] - box[0],
+                                                  crop_height=max_size, crop_width=max_size,
+                                                  h_start=random.random(), w_start=random.random())
+
+        # transform coordinates to global reference system
+        x += box[0]
+        y += box[1]
+        xmax += box[0]
+        ymax += box[1]
+
+    else:
+        x, y, xmax, ymax = get_box_with_margins(best_encap_box, margin, rows, cols)
+
+        # expand best encapsulated box until it reaches max dim
+        w, h = (xmax - x), (ymax - y)
+        if max(w, h) <= max_size:
+            delta_w = max_size - w
+            if delta_w != 0:
+                xmax += delta_w // 2 if xmax + delta_w // 2 <= cols else cols - 1
+                x -= delta_w // 2 if x - delta_w // 2 != 0 else 0
+            delta_h = max_size - h
+            if delta_h != 0:
+                ymax += delta_h // 2 if ymax + delta_h // 2 <= rows else rows - 1
+                y -= delta_h // 2 if y - delta_h // 2 != 0 else 0
+
+    return [x, y, xmax, ymax]
+
+
+def get_roi_box(bboxes, rows, cols, view_min=2, context_min=0.2, context_max=0.9, max_size=None, margin=0.1):
+    """Select a random subsample of all boxes and create a box that encapsulates all those boxes.
+        Stretch this box and apply other restrictions.
+
+        - If the ROI box has any side bigger than `max_size`, loop through multiple combinations of boxes
+        to obtain the encapsulated box with sides smaller or equal to `max_size` that contains the maximum amount
+        of boxes' area.
+
+        - If none of the boxes is smaller than `max_size`,
+
+    Args:
+        img (np.ndarray): Image
+        bboxes (List[List[float]]): Boxes in Pascal VOC standard (xyxy).
+        view_min (ing): Minimal amount of boxes in field of view.
+        context_min (float): Minimal additional area around focused boxes. (0 to X)
+        context_max (float): Maximal additional area around focused boxes. (0 to X)
+        max_size (int): maximum edge length of the resulting ROI box (limit GPU mem use)
+        margin (float): adds this percentage of the edge length as margin, in order to contemplate context around
+            boxes.
+
+    Returns:
+        processed encapsulate box
+
+    Image types:
+        uint8, float32
+    """
+    if len(bboxes) == 0:
+        return None
+    assert view_min > 0, "view_min must be 1 or bigger"
+    assert context_min < context_max, "context_min must be smaller than context_max"
+    if max_size is not None:
+        assert max_size > 0, "max_size must be positive"
+    assert margin >= 0, "margin must be either positive or 0, for no margin"
+
+    # get a random subset of all boxes
+    considered_bboxes = select_random_bboxes(bboxes, view_min)
+
+    # randomly stretch bounding box
+    stretched_bbox = random_stretch_bbox(encapsulate_bboxes(considered_bboxes), rows, cols, context_min, context_max)
+
+    # ensure resulting box is under or equal to max dimension (with added margin)
+    x, y, xmax, ymax = get_box_with_margins(stretched_bbox, margin, rows, cols)[:4]
+    if max_size is not None and max((xmax - x), (ymax - y)) > max_size:
+        x, y, xmax, ymax = find_best_encapsulated_fit(considered_bboxes, rows, cols, max_size, margin)[:4]
+
+    return [int(i) for i in [x, y, xmax, ymax]]
+
+
+def random_gaze_img(img, roi_box):
+    if roi_box is None:
+        return img
+    return crop(img, *roi_box)
+
+
+def random_gaze_bbox(bbox, roi_box, rows, cols):
+    if roi_box is None:
+        return bbox
+    x_min, y_min, x_max, y_max = roi_box
+    return bbox_crop(bbox, x_min=x_min, y_min=y_min, x_max=x_max, y_max=y_max, rows=rows, cols=cols)

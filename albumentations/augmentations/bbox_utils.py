@@ -28,7 +28,6 @@ def denormalize_bbox(bbox, rows, cols):
         raise ValueError('Argument rows cannot be zero')
     if cols == 0:
         raise ValueError('Argument cols cannot be zero')
-
     x_min, y_min, x_max, y_max = bbox[:4]
     denormalized_bbox = [x_min * cols, y_min * rows, x_max * cols, y_max * rows]
     return denormalized_bbox + list(bbox[4:])
@@ -50,7 +49,6 @@ def calculate_bbox_area(bbox, rows, cols):
     x_min, y_min, x_max, y_max = bbox[:4]
     area = (x_max - x_min) * (y_max - y_min)
     return area
-
 
 def filter_bboxes_by_visibility(original_shape, bboxes, transformed_shape, transformed_bboxes,
                                 threshold=0., min_area=0.):
