@@ -752,7 +752,7 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
 
 @preserve_shape
 def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
-                      border_mode=cv2.BORDER_REFLECT_101, random_state=None, approximate=False):
+                      border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], random_state=None, approximate=False):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
 
@@ -778,7 +778,7 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode)
+    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
 
     if approximate:
         # Approximate computation smooth displacement map with a large enough kernel.

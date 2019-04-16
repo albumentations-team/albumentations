@@ -779,18 +779,19 @@ class ElasticTransform(DualTransform):
     """
 
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, approximate=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], always_apply=False, approximate=False, p=0.5):
         super(ElasticTransform, self).__init__(always_apply, p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
         self.interpolation = interpolation
         self.border_mode = border_mode
+        self.value = value
         self.approximate = approximate
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
-                                   self.border_mode, np.random.RandomState(random_state),
+                                   self.border_mode, self. value, np.random.RandomState(random_state),
                                    self.approximate)
 
     def get_params(self):
