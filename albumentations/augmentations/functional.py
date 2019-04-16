@@ -153,13 +153,14 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
 
 
 @preserve_channel_dim
-def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
+def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
+                       value=[0, 0, 0]):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
-    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode)
+    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
     return img
 
 

@@ -431,6 +431,7 @@ class ShiftScaleRotate(DualTransform):
         border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
+        value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -441,13 +442,14 @@ class ShiftScaleRotate(DualTransform):
     """
 
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], always_apply=False, p=0.5):
         super(ShiftScaleRotate, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.rotate_limit = to_tuple(rotate_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
+        self.value = value
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
