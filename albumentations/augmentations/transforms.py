@@ -452,7 +452,7 @@ class ShiftScaleRotate(DualTransform):
         self.value = value
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
+        return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
 
     def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, interpolation=cv2.INTER_LINEAR,
                           **params):
