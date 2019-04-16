@@ -154,7 +154,7 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
 
 @preserve_channel_dim
 def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
-                       value=[0, 0, 0]):
+                       value=None):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
@@ -334,7 +334,7 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
 
 
 @preserve_channel_dim
-def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
+def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=None):
     height, width = img.shape[:2]
 
     if height < min_height:
@@ -361,7 +361,7 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=[0
 
 @preserve_channel_dim
 def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101,
-                    value=[0, 0, 0]):
+                    value=None):
     img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
     return img
 
@@ -677,7 +677,7 @@ def add_shadow(img, vertices_list):
 
 @preserve_shape
 def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
-                       value=[0, 0, 0]):
+                       value=None):
     """Barrel / pincushion distortion. Unconventional augment.
 
     Reference:
@@ -706,7 +706,7 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
 
 @preserve_shape
 def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
-                    border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
+                    border_mode=cv2.BORDER_REFLECT_101, value=None):
     """
     Reference:
         http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
@@ -752,7 +752,7 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
 
 @preserve_shape
 def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
-                      border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], random_state=None, approximate=False):
+                      border_mode=cv2.BORDER_REFLECT_101, value=None, random_state=None, approximate=False):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
 

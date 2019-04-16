@@ -442,7 +442,7 @@ class ShiftScaleRotate(DualTransform):
     """
 
     def __init__(self, shift_limit=0.0625, scale_limit=0.1, rotate_limit=45, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], always_apply=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=None, always_apply=False, p=0.5):
         super(ShiftScaleRotate, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
@@ -709,7 +709,7 @@ class OpticalDistortion(DualTransform):
     """
 
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], always_apply=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=None, always_apply=False, p=0.5):
         super(OpticalDistortion, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
@@ -736,7 +736,7 @@ class GridDistortion(DualTransform):
     """
 
     def __init__(self, num_steps=5, distort_limit=0.3, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], always_apply=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=None, always_apply=False, p=0.5):
         super(GridDistortion, self).__init__(always_apply, p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
@@ -779,7 +779,7 @@ class ElasticTransform(DualTransform):
     """
 
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], always_apply=False, approximate=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=None, always_apply=False, approximate=False, p=0.5):
         super(ElasticTransform, self).__init__(always_apply, p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
