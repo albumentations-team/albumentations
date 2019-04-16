@@ -706,7 +706,7 @@ def optical_distortion(img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, bor
 
 @preserve_shape
 def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.INTER_LINEAR,
-                    border_mode=cv2.BORDER_REFLECT_101):
+                    border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
     """
     Reference:
         http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
@@ -746,7 +746,7 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
     map_x, map_y = np.meshgrid(xx, yy)
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
-    img = cv2.remap(img, map_x, map_y, interpolation=interpolation, borderMode=border_mode)
+    img = cv2.remap(img, map_x, map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value)
     return img
 
 
