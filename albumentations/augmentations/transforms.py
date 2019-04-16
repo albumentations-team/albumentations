@@ -709,15 +709,16 @@ class OpticalDistortion(DualTransform):
     """
 
     def __init__(self, distort_limit=0.05, shift_limit=0.05, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, always_apply=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0], always_apply=False, p=0.5):
         super(OpticalDistortion, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
+        self.value = value
 
     def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode)
+        return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
 
     def get_params(self):
         return {'k': random.uniform(self.distort_limit[0], self.distort_limit[1]),
