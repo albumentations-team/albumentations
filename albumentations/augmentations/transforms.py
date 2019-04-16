@@ -39,7 +39,7 @@ class PadIfNeeded(DualTransform):
     """
 
     def __init__(self, min_height=1024, min_width=1024, border_mode=cv2.BORDER_REFLECT_101,
-                 value=[0, 0, 0], always_apply=False, p=1.0):
+                 value=None, always_apply=False, p=1.0):
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
@@ -357,7 +357,7 @@ class Rotate(DualTransform):
     """
 
     def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
-                 value=[0, 0, 0], always_apply=False, p=.5):
+                 value=None, always_apply=False, p=.5):
         super(Rotate, self).__init__(always_apply, p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
