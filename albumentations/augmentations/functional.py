@@ -131,10 +131,10 @@ def cutout(img, holes):
 
 
 @preserve_channel_dim
-def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101):
+def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=[0, 0, 0]):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
-    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode)
+    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
     return img
 
 

@@ -346,6 +346,7 @@ class Rotate(DualTransform):
         border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
+        value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -356,14 +357,15 @@ class Rotate(DualTransform):
     """
 
     def __init__(self, limit=90, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101,
-                 always_apply=False, p=.5):
+                 value=[0, 0, 0], always_apply=False, p=.5):
         super(Rotate, self).__init__(always_apply, p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
+        self.value = value
 
     def apply(self, img, angle=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.rotate(img, angle, interpolation, self.border_mode)
+        return F.rotate(img, angle, interpolation, self.border_mode, self.value)
 
     def get_params(self):
         return {'angle': random.uniform(self.limit[0], self.limit[1])}
