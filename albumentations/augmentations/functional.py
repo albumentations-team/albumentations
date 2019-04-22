@@ -778,7 +778,8 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
+    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode,
+                           borderValue=value)
 
     if approximate:
         # Approximate computation smooth displacement map with a large enough kernel.
