@@ -846,7 +846,7 @@ def test_is_multispectral_image():
     gray_image = np.ones((5, 5, 1), dtype=np.uint8)
     assert not F.is_multispectral_image(gray_image)
 
-    
+
 def test_encapsulate_bboxes():
     boxes = [(561, 296, 680, 390), (493, 356, 589, 482), (369, 276, 457, 345), (481, 304, 524, 384),
              (346, 421, 520, 535), (558, 232, 689, 335), (217, 315, 317, 407), (535, 325, 590, 393)]

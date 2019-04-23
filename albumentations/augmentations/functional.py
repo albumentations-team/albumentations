@@ -1042,7 +1042,7 @@ def bbox_transpose(bbox, axis, rows, cols):
 
 
 def keypoint_vflip(kp, rows, cols):
-    """Flip a keypoint vertically around the x-axis."""
+    """Flips a keypoint vertically around the x-axis."""
     x, y, angle, scale = kp
     c = math.cos(angle)
     s = math.sin(angle)
@@ -1051,7 +1051,7 @@ def keypoint_vflip(kp, rows, cols):
 
 
 def keypoint_hflip(kp, rows, cols):
-    """Flip a keypoint horizontally around the y-axis."""
+    """Flips a keypoint horizontally around the y-axis."""
     x, y, angle, scale = kp
     c = math.cos(angle)
     s = math.sin(angle)
@@ -1060,7 +1060,7 @@ def keypoint_hflip(kp, rows, cols):
 
 
 def keypoint_flip(bbox, d, rows, cols):
-    """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
+    """Flips a keypoint either vertically, horizontally or both depending on the value of `d`.
 
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
@@ -1173,8 +1173,8 @@ def get_box_with_margins(bbox, margin, rows, cols):
     x_margin, y_margin = (xmax - x) * margin, (ymax - y) * margin
     x = max(x - x_margin, 0)
     y = max(y - y_margin, 0)
-    xmax = min(xmax + x_margin, cols-1)
-    ymax = min(ymax + y_margin, rows-1)
+    xmax = min(xmax + x_margin, cols - 1)
+    ymax = min(ymax + y_margin, rows - 1)
 
     return [x, y, xmax, ymax]
 

@@ -50,6 +50,7 @@ def calculate_bbox_area(bbox, rows, cols):
     area = (x_max - x_min) * (y_max - y_min)
     return area
 
+
 def filter_bboxes_by_visibility(original_shape, bboxes, transformed_shape, transformed_bboxes,
                                 threshold=0., min_area=0.):
     """Filter bounding boxes and return only those boxes whose visibility after transformation is above
