@@ -7,6 +7,8 @@ import numpy as np
 
 from albumentations.augmentations.keypoints_utils import convert_keypoints_from_albumentations, filter_keypoints, \
     convert_keypoints_to_albumentations, check_keypoints
+from albumentations.core.serialization import SerializableMeta
+from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.imgaug.transforms import DualIAATransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
@@ -49,6 +51,7 @@ def set_always_apply(transforms):
         t.always_apply = True
 
 
+@add_metaclass(SerializableMeta)
 class BaseCompose(object):
     def __init__(self, transforms, p):
         self.transforms = transforms
@@ -56,6 +59,32 @@ class BaseCompose(object):
 
     def __getitem__(self, item):
         return self.transforms[item]
+
+    def __repr__(self):
+        return self.indented_repr()
+
+    def indented_repr(self, indent=2):
+        string = self.__class__.__name__ + '(['
+        for t in self.transforms:
+            string += '\n'
+            if hasattr(t, 'indented_repr'):
+                t_repr = t.indented_repr(indent + 2)
+            else:
+                t_repr = repr(t)
+            string += ' ' * indent + t_repr + ','
+        string += '\n' + ' ' * (indent - 2) + '], p={p})'.format(p=self.p)
+        return string
+
+    @classmethod
+    def get_name(cls):
+        return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
+
+    def get_state(self):
+        return {
+            '__name__': self.get_name(),
+            'p': self.p,
+            'transforms': [t.get_state() for t in self.transforms]
+        }
 
     def add_targets(self, additional_targets):
         if additional_targets:

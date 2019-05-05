@@ -1,6 +1,8 @@
 import random
 
 import cv2
+from albumentations.core.serialization import SerializableMeta
+from albumentations.core.six import add_metaclass
 
 __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform', 'NoOp']
 
@@ -36,6 +38,7 @@ def to_tuple(param, low=None, bias=None):
     return tuple(param)
 
 
+@add_metaclass(SerializableMeta)
 class BasicTransform(object):
     def __init__(self, always_apply=False, p=0.5):
         self.p = p
@@ -60,6 +63,10 @@ class BasicTransform(object):
                     res[key] = None
             return res
         return kwargs
+
+    def __repr__(self):
+        args = ', '.join(['{0}={1}'.format(k, v) for k, v in self.get_args().items()])
+        return '{name}({args})'.format(name=self.__class__.__name__, args=args)
 
     def _get_target_function(self, key):
         transform_key = key
@@ -110,6 +117,24 @@ class BasicTransform(object):
     def get_params_dependent_on_targets(self, params):
         raise NotImplementedError('Method  get_params_dependent_on_targets is not implemented in class ' +
                                   self.__class__.__name__)
+
+    @classmethod
+    def get_name(cls):
+        return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
+
+    def get_base_args_names(self):
+        return 'always_apply', 'p'
+
+    def get_args_names(self):
+        return ()
+
+    def get_args(self):
+        return {k: getattr(self, k) for k in self.get_args_names() + self.get_base_args_names()}
+
+    def get_state(self):
+        state = {'__name__': self.get_name()}
+        state.update(self.get_args())
+        return state
 
 
 class DualTransform(BasicTransform):
