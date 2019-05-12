@@ -31,7 +31,7 @@ class SerializableMeta(type):
 
 def to_dict(transform, on_not_implemented_error='raise'):
     """
-    Takes a transform pipeline and converts it to a serializable representation that uses only standard
+    Take a transform pipeline and convert it to a serializable representation that uses only standard
     python data types: dictionaries, lists, strings, integers, and floats.
 
     Args:
@@ -40,7 +40,6 @@ def to_dict(transform, on_not_implemented_error='raise'):
             If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
             but no transform parameters will be serialized.
     """
-
     if on_not_implemented_error not in {'raise', 'warn'}:
         raise ValueError(
             "Unknown on_not_implemented_error value: {}. Supported values are: 'raise' and 'warn'".format(
@@ -73,7 +72,6 @@ def from_dict(transform_dict):
     Args:
         transform (dict): A dictionary with serialized transform pipeline.
     """
-
     transform = transform_dict['transform']
     name = transform['__class_fullname__']
     args = {k: v for k, v in transform.items() if k != '__class_fullname__'}
@@ -92,7 +90,7 @@ def check_data_format(data_format):
 
 def save(transform, filepath, data_format='json', on_not_implemented_error='raise'):
     """
-    Takes a transform pipeline, serializes it and saves a serialized version to a file
+    Take a transform pipeline, serialize it and save a serialized version to a file
     using either json or yaml format.
 
     Args:
@@ -103,7 +101,6 @@ def save(transform, filepath, data_format='json', on_not_implemented_error='rais
             the `to_dict` method. If 'raise' then `NotImplementedError` is raised, if `warn` then the exception will be
             ignored and no transform arguments will be saved.
     """
-
     check_data_format(data_format)
     transform_dict = to_dict(transform, on_not_implemented_error=on_not_implemented_error)
     dump_fn = json.dump if data_format == 'json' else yaml.dump
@@ -113,14 +110,13 @@ def save(transform, filepath, data_format='json', on_not_implemented_error='rais
 
 def load(filepath, data_format='json'):
     """
-    Loads a serialized pipeline from a json or yaml file and constructs a transform pipeline.
+    Load a serialized pipeline from a json or yaml file and construct a transform pipeline.
 
     Args:
         transform (obj): Transform to serialize.
         filepath (str): Filepath to read from.
         data_format (str): Serialization format. Should be either `json` or 'yaml'.
     """
-
     check_data_format(data_format)
     load_fn = json.load if data_format == 'json' else yaml.load
     with open(filepath) as f:
