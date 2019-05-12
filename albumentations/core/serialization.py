@@ -31,7 +31,7 @@ class SerializableMeta(type):
 
 def to_dict(transform, on_not_implemented_error='raise'):
     """
-    Takes a transforms pipeline and converts it to a serializable representation that uses only standard
+    Takes a transform pipeline and converts it to a serializable representation that uses only standard
     python data types: dictionaries, lists, strings, integers, and floats.
 
     Args:
