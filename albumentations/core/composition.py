@@ -82,11 +82,11 @@ class BaseCompose(object):
     def get_class_fullname(cls):
         return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
 
-    def dump(self):
+    def to_dict(self):
         return {
             '__class_fullname__': self.get_class_fullname(),
             'p': self.p,
-            'transforms': [t.dump() for t in self.transforms]
+            'transforms': [t.to_dict() for t in self.transforms]
         }
 
     def add_targets(self, additional_targets):
@@ -294,8 +294,11 @@ class OneOf(BaseCompose):
 
 
 class OneOrOther(BaseCompose):
-    def __init__(self, first, second, p=0.5):
-        super(OneOrOther, self).__init__([first, second], p)
+
+    def __init__(self, first=None, second=None, transforms=None, p=0.5):
+        if transforms is None:
+            transforms = [first, second]
+        super(OneOrOther, self).__init__(transforms, p)
 
     def __call__(self, force_apply=False, **data):
         if random.random() < self.p:

@@ -1,6 +1,6 @@
-import cv2
 import random
 
+import cv2
 import pytest
 import numpy as np
 import imgaug as ia
@@ -410,3 +410,37 @@ def test_from_float_serialization(float_image):
     aug_data = aug(image=float_image)
     deserialized_aug_data = deserialized_aug(image=float_image)
     assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
+
+
+@pytest.mark.parametrize('seed', TEST_SEEDS)
+def test_transform_pipeline_serialization(seed, image, mask):
+    aug = A.Compose([
+        A.OneOrOther(
+            A.Compose([
+                A.Resize(1024, 1024),
+                A.RandomSizedCrop(min_max_height=(256, 1024), height=512, width=512, p=1),
+                A.OneOf([
+                    A.RandomSizedCrop(min_max_height=(256, 512), height=384, width=384, p=0.5),
+                    A.RandomSizedCrop(min_max_height=(256, 512), height=512, width=512, p=0.5),
+                ])
+            ]),
+            A.Compose([
+                A.Resize(1024, 1024),
+                A.RandomSizedCrop(min_max_height=(256, 1025), height=256, width=256, p=1),
+                A.OneOf([
+                    A.HueSaturationValue(p=0.5),
+                    A.RGBShift(p=0.7)
+                ], p=1),
+            ])
+        ),
+        A.HorizontalFlip(p=1),
+        A.RandomBrightnessContrast(p=0.5)
+    ])
+    serialized_aug = A.to_dict(aug)
+    deserialized_aug = A.from_dict(serialized_aug)
+    random.seed(seed)
+    aug_data = aug(image=image, mask=mask)
+    random.seed(seed)
+    deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+    assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
+    assert np.array_equal(aug_data['mask'], deserialized_aug_data['mask'])

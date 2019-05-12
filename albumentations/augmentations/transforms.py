@@ -1913,5 +1913,5 @@ class Lambda(NoOp):
     def targets(self):
         return self._targets
 
-    def dump(self):
+    def to_dict(self):
         raise NotImplementedError('Lambda is not serializable')

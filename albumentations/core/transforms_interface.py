@@ -142,7 +142,7 @@ class BasicTransform(object):
     def get_transform_init_args(self):
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
 
-    def dump(self):
+    def to_dict(self):
         state = {
             '__class_fullname__': self.get_class_fullname(),
         }
