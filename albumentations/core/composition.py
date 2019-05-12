@@ -17,6 +17,9 @@ from albumentations.augmentations.bbox_utils import convert_bboxes_from_albument
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
 
 
+REPR_INDENT_STEP = 2
+
+
 def find_dual_start_end(transforms):
     dual_start_end = None
     last_dual = None
@@ -63,27 +66,27 @@ class BaseCompose(object):
     def __repr__(self):
         return self.indented_repr()
 
-    def indented_repr(self, indent=2):
-        string = self.__class__.__name__ + '(['
+    def indented_repr(self, indent=REPR_INDENT_STEP):
+        repr_string = self.__class__.__name__ + '(['
         for t in self.transforms:
-            string += '\n'
+            repr_string += '\n'
             if hasattr(t, 'indented_repr'):
-                t_repr = t.indented_repr(indent + 2)
+                t_repr = t.indented_repr(indent + REPR_INDENT_STEP)
             else:
                 t_repr = repr(t)
-            string += ' ' * indent + t_repr + ','
-        string += '\n' + ' ' * (indent - 2) + '], p={p})'.format(p=self.p)
-        return string
+            repr_string += ' ' * indent + t_repr + ','
+        repr_string += '\n' + ' ' * (indent - REPR_INDENT_STEP) + '], p={p})'.format(p=self.p)
+        return repr_string
 
     @classmethod
-    def get_name(cls):
+    def get_class_fullname(cls):
         return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
 
-    def get_state(self):
+    def dump(self):
         return {
-            '__name__': self.get_name(),
+            '__class_fullname__': self.get_class_fullname(),
             'p': self.p,
-            'transforms': [t.get_state() for t in self.transforms]
+            'transforms': [t.dump() for t in self.transforms]
         }
 
     def add_targets(self, additional_targets):

@@ -1,4 +1,5 @@
 import json
+import warnings
 
 try:
     import yaml
@@ -10,7 +11,7 @@ except ImportError:
 from albumentations import __version__
 
 
-__all__ = ['dump', 'load']
+__all__ = ['to_dict', 'from_dict', 'save', 'load']
 
 
 SERIALIZABLE_REGISTRY = {}
@@ -19,55 +20,75 @@ SERIALIZABLE_REGISTRY = {}
 class SerializableMeta(type):
     def __new__(cls, clsname, bases, attrs):
         newclass = super(SerializableMeta, cls).__new__(cls, clsname, bases, attrs)
-        SERIALIZABLE_REGISTRY[newclass.get_name()] = newclass
+        SERIALIZABLE_REGISTRY[newclass.get_class_fullname()] = newclass
         return newclass
 
 
-def dump(obj, data_format='json'):
-    dumped_obj = {
-        '__version__': __version__,
-        'state': obj.get_state(),
-    }
-    if data_format == 'json':
-        return json.dumps(dumped_obj)
-    elif data_format == 'yaml':
-        if not yaml_available:
-            raise RuntimeError(
-                "Can't dump the object to YAML because PyYAML library is not installed. "
-                "You can install the library by running 'pip install pyyaml'"
-            )
-        return yaml.dumps(dumped_obj)
-    elif data_format == 'dict':
-        return dumped_obj
-    else:
-        raise ValueError(
-            "Unknown data_format {}. Supported formats are: 'json', 'yaml' and 'dict'".format(data_format)
-        )
-
-
 def initialize_transforms(data):
-    name = data['__name__']
-    data = {k: v for k, v in data.items() if k != '__name__'}
+    name = data['__class_fullname__']
+    data = {k: v for k, v in data.items() if k != '__class_fullname__'}
     cls = SERIALIZABLE_REGISTRY[name]
     if 'transforms' in data:
         data['transforms'] = [initialize_transforms(t) for t in data['transforms']]
     return cls(**data)
 
 
-def load(obj, data_format='json'):
-    if data_format == 'json':
-        loaded_obj = json.loads(obj)
-    elif data_format == 'yaml':
-        if not yaml_available:
-            raise RuntimeError(
-                "Can't dump the object to YAML because PyYAML library is not installed. "
-                "You can install the library by running 'pip install pyyaml'"
-            )
-        loaded_obj = yaml.loads(obj)
-    elif data_format == 'dict':
-        loaded_obj = obj
-    else:
+def to_dict(transforms, on_not_implemented_error='raise'):
+    if on_not_implemented_error not in {'raise', 'warn'}:
         raise ValueError(
-            "Unknown data_format {}. Supported formats are: 'json', 'yaml' and 'dict'".format(data_format)
+            "Unknown on_not_implemented_error value: {}. Supported values are: 'raise' and 'warn'".format(
+                on_not_implemented_error
+            )
         )
-    return initialize_transforms(loaded_obj['state'])
+    try:
+        dumped_transforms = transforms.dump()
+    except NotImplementedError as e:
+        if on_not_implemented_error == 'raise':
+            raise e
+        else:
+            dumped_transforms = {}
+            warnings.warn(
+                "Got NotImplementedError while trying to serialize {obj}. Object arguments are not preserved. "
+                "Implement either '{cls_name}.get_transform_init_args_names' or '{cls_name}.get_transform_init_args' "
+                "method to make the transforms serializable".format(
+                    obj=transforms,
+                    cls_name=transforms.__class__.__name__,
+                )
+            )
+    return {
+        '__version__': __version__,
+        'transforms': dumped_transforms,
+    }
+
+
+def from_dict(transforms_dict):
+    transforms = transforms_dict['transforms']
+    name = transforms['__class_fullname__']
+    data = {k: v for k, v in transforms.items() if k != '__class_fullname__'}
+    cls = SERIALIZABLE_REGISTRY[name]
+    if 'transforms' in data:
+        data['transforms'] = [initialize_transforms(t) for t in data['transforms']]
+    return cls(**data)
+
+
+def check_data_format(data_format):
+    if data_format not in {'json', 'yaml'}:
+        raise ValueError(
+            "Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(data_format)
+        )
+
+
+def save(transforms, filepath, data_format='json', on_not_implemented_error='raise'):
+    check_data_format(data_format)
+    transforms_dict = to_dict(transforms, on_not_implemented_error=on_not_implemented_error)
+    dump_fn = json.dump if data_format == 'json' else yaml.dump
+    with open(filepath, 'w') as f:
+        dump_fn(transforms_dict, f)
+
+
+def load(filepath, data_format='json'):
+    check_data_format(data_format)
+    load_fn = json.load if data_format == 'json' else yaml.load
+    with open(filepath) as f:
+        transforms_dict = load_fn(f)
+    return from_dict(transforms_dict)

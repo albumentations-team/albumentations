@@ -1,6 +1,7 @@
 import random
 
 import cv2
+
 from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
 
@@ -30,7 +31,7 @@ def to_tuple(param, low=None, bias=None):
     elif isinstance(param, (list, tuple)):
         param = tuple(param)
     else:
-        raise ValueError('Argument param must be either scalar (int,float) or tuple')
+        raise ValueError('Argument param must be either scalar (int, float) or tuple')
 
     if bias is not None:
         return tuple([bias + x for x in param])
@@ -65,7 +66,9 @@ class BasicTransform(object):
         return kwargs
 
     def __repr__(self):
-        args = ', '.join(['{0}={1}'.format(k, v) for k, v in self.get_args().items()])
+        state = self.get_base_init_args()
+        state.update(self.get_transform_init_args())
+        args = ', '.join(['{0}={1}'.format(k, v) for k, v in state.items()])
         return '{name}({args})'.format(name=self.__class__.__name__, args=args)
 
     def _get_target_function(self, key):
@@ -115,25 +118,36 @@ class BasicTransform(object):
         return []
 
     def get_params_dependent_on_targets(self, params):
-        raise NotImplementedError('Method  get_params_dependent_on_targets is not implemented in class ' +
+        raise NotImplementedError('Method get_params_dependent_on_targets is not implemented in class ' +
                                   self.__class__.__name__)
 
     @classmethod
-    def get_name(cls):
+    def get_class_fullname(cls):
         return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
 
-    def get_base_args_names(self):
-        return 'always_apply', 'p'
+    def get_transform_init_args_names(self):
+        raise NotImplementedError(
+            'Class {name} is not serializable because the `get_transform_init_args_names` method is not '
+            'implemented'.format(
+                name=self.get_class_fullname()
+            )
+        )
 
-    def get_args_names(self):
-        return ()
+    def get_base_init_args(self):
+        return {
+            'always_apply': self.always_apply,
+            'p': self.p,
+        }
 
-    def get_args(self):
-        return {k: getattr(self, k) for k in self.get_args_names() + self.get_base_args_names()}
+    def get_transform_init_args(self):
+        return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
 
-    def get_state(self):
-        state = {'__name__': self.get_name()}
-        state.update(self.get_args())
+    def dump(self):
+        state = {
+            '__class_fullname__': self.get_class_fullname(),
+        }
+        state.update(self.get_base_init_args())
+        state.update(self.get_transform_init_args())
         return state
 
 

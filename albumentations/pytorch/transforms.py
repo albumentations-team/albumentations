@@ -70,5 +70,5 @@ class ToTensor(BasicTransform):
     def targets(self):
         raise NotImplementedError
 
-    def get_args_names(self):
+    def get_transform_init_args_names(self):
         return ('num_classes', 'sigmoid', 'normalize')

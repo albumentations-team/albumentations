@@ -35,7 +35,7 @@ setup(
     license='MIT',
     url='https://github.com/albu/albumentations',
     packages=find_packages(exclude=['tests']),
-    install_requires=['numpy>=1.11.1', 'scipy', 'opencv-python-headless', 'imgaug>=0.2.5,<0.2.7'],
+    install_requires=['numpy>=1.11.1', 'scipy', 'opencv-python-headless', 'imgaug>=0.2.5,<0.2.7', 'PyYAML'],
     extras_require={'tests': get_test_requirements()},
     classifiers=[
         'Development Status :: 4 - Beta',
