@@ -103,7 +103,7 @@ def save(transform, filepath, data_format='json', on_not_implemented_error='rais
     """
     check_data_format(data_format)
     transform_dict = to_dict(transform, on_not_implemented_error=on_not_implemented_error)
-    dump_fn = json.dump if data_format == 'json' else yaml.dump
+    dump_fn = json.dump if data_format == 'json' else yaml.safe_dump
     with open(filepath, 'w') as f:
         dump_fn(transform_dict, f)
 
@@ -118,7 +118,7 @@ def load(filepath, data_format='json'):
         data_format (str): Serialization format. Should be either `json` or 'yaml'.
     """
     check_data_format(data_format)
-    load_fn = json.load if data_format == 'json' else yaml.load
+    load_fn = json.load if data_format == 'json' else yaml.safe_load
     with open(filepath) as f:
         transform_dict = load_fn(f)
     return from_dict(transform_dict)
