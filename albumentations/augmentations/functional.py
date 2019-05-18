@@ -1136,3 +1136,7 @@ def py3round(number):
         return int(2.0 * round(number / 2.0))
 
     return int(round(number))
+
+
+def noop(input_obj, **params):
+    return input_obj

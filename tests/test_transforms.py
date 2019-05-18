@@ -249,8 +249,27 @@ def test_lambda_transform():
         new_mask = np.eye(num_channels, dtype=np.uint8)[mask]
         return new_mask
 
-    aug = A.Lambda(image=negate_image, mask=partial(one_hot_mask, num_channels=16), p=1)
+    def vflip_bbox(bbox, **kwargs):
+        return F.bbox_vflip(bbox, **kwargs)
 
-    output = aug(image=np.ones((10, 10, 3), dtype=np.float32), mask=np.tile(np.arange(0, 10), (10, 1)))
+    def vflip_keypoint(keypoint, **kwargs):
+        return F.keypoint_vflip(keypoint, **kwargs)
+
+    aug = A.Lambda(
+        image=negate_image,
+        mask=partial(one_hot_mask, num_channels=16),
+        bbox=vflip_bbox,
+        keypoint=vflip_keypoint,
+        p=1,
+    )
+
+    output = aug(
+        image=np.ones((10, 10, 3), dtype=np.float32),
+        mask=np.tile(np.arange(0, 10), (10, 1)),
+        bboxes=[[10, 15, 25, 35]],
+        keypoints=[[20, 30, 40, 50]],
+    )
     assert (output['image'] < 0).all()
     assert output['mask'].shape[2] == 16  # num_channels
+    assert output['bboxes'] == [F.bbox_vflip([10, 15, 25, 35], 10, 10)]
+    assert output['keypoints'] == [F.keypoint_vflip([20, 30, 40, 50], 10, 10)]

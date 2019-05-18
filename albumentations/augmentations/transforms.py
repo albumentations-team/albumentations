@@ -1899,19 +1899,30 @@ class Lambda(NoOp):
     def __init__(self, image=None, mask=None, keypoint=None, bbox=None, always_apply=False, p=1.0):
         super(Lambda, self).__init__(always_apply, p)
 
-        self._targets = super(Lambda, self).targets
-
+        self.custom_apply_fns = {target_name: F.noop for target_name in ('image', 'mask', 'keypoint', 'bbox')}
         for target_name, custom_apply_fn in {'image': image, 'mask': mask, 'keypoint': keypoint, 'bbox': bbox}.items():
             if custom_apply_fn is not None:
                 if isinstance(custom_apply_fn, LambdaType):
                     warnings.warn('Using lambda is incompatible with multiprocessing. '
                                   'Consider using regular functions or partial().')
 
-                self._targets[target_name] = custom_apply_fn
+                self.custom_apply_fns[target_name] = custom_apply_fn
 
-    @property
-    def targets(self):
-        return self._targets
+    def apply(self, img, **params):
+        fn = self.custom_apply_fns['image']
+        return fn(img, **params)
+
+    def apply_to_mask(self, mask, **params):
+        fn = self.custom_apply_fns['mask']
+        return fn(mask, **params)
+
+    def apply_to_bbox(self, bbox, **params):
+        fn = self.custom_apply_fns['bbox']
+        return fn(bbox, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        fn = self.custom_apply_fns['keypoint']
+        return fn(keypoint, **params)
 
     def to_dict(self):
         raise NotImplementedError('Lambda is not serializable')
