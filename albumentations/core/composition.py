@@ -7,12 +7,17 @@ import numpy as np
 
 from albumentations.augmentations.keypoints_utils import convert_keypoints_from_albumentations, filter_keypoints, \
     convert_keypoints_to_albumentations, check_keypoints
+from albumentations.core.serialization import SerializableMeta
+from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.imgaug.transforms import DualIAATransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
 
 __all__ = ['Compose', 'OneOf', 'OneOrOther']
+
+
+REPR_INDENT_STEP = 2
 
 
 def find_dual_start_end(transforms):
@@ -49,6 +54,7 @@ def set_always_apply(transforms):
         t.always_apply = True
 
 
+@add_metaclass(SerializableMeta)
 class BaseCompose(object):
     def __init__(self, transforms, p):
         self.transforms = transforms
@@ -56,6 +62,32 @@ class BaseCompose(object):
 
     def __getitem__(self, item):
         return self.transforms[item]
+
+    def __repr__(self):
+        return self.indented_repr()
+
+    def indented_repr(self, indent=REPR_INDENT_STEP):
+        repr_string = self.__class__.__name__ + '(['
+        for t in self.transforms:
+            repr_string += '\n'
+            if hasattr(t, 'indented_repr'):
+                t_repr = t.indented_repr(indent + REPR_INDENT_STEP)
+            else:
+                t_repr = repr(t)
+            repr_string += ' ' * indent + t_repr + ','
+        repr_string += '\n' + ' ' * (indent - REPR_INDENT_STEP) + '], p={p})'.format(p=self.p)
+        return repr_string
+
+    @classmethod
+    def get_class_fullname(cls):
+        return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
+
+    def to_dict(self):
+        return {
+            '__class_fullname__': self.get_class_fullname(),
+            'p': self.p,
+            'transforms': [t.to_dict() for t in self.transforms]
+        }
 
     def add_targets(self, additional_targets):
         if additional_targets:
@@ -262,8 +294,11 @@ class OneOf(BaseCompose):
 
 
 class OneOrOther(BaseCompose):
-    def __init__(self, first, second, p=0.5):
-        super(OneOrOther, self).__init__([first, second], p)
+
+    def __init__(self, first=None, second=None, transforms=None, p=0.5):
+        if transforms is None:
+            transforms = [first, second]
+        super(OneOrOther, self).__init__(transforms, p)
 
     def __call__(self, force_apply=False, **data):
         if random.random() < self.p:

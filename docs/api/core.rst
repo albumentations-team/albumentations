@@ -10,3 +10,8 @@ Transforms interface
 --------------------
 .. automodule:: albumentations.core.transforms_interface
     :members:
+
+Serialization
+--------------------
+.. automodule:: albumentations.core.serialization
+    :members:

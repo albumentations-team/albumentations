@@ -40,5 +40,15 @@ def mask():
 
 
 @pytest.fixture
+def bboxes():
+    return [[15, 12, 75, 30], [55, 25, 90, 90]]
+
+
+@pytest.fixture
+def keypoints():
+    return [[20, 30, 40, 50], [20, 30, 60, 80]]
+
+
+@pytest.fixture
 def float_image():
     return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype('float32')

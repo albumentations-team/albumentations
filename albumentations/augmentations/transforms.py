@@ -84,6 +84,9 @@ class PadIfNeeded(DualTransform):
         x, y, a, s = keypoint
         return [x + pad_left, y + pad_top, a, s]
 
+    def get_transform_init_args_names(self):
+        return ('min_height', 'min_width', 'border_mode', 'value')
+
 
 class Crop(DualTransform):
     """Crop region from image.
@@ -114,6 +117,9 @@ class Crop(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_crop(bbox, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max, **params)
 
+    def get_transform_init_args_names(self):
+        return ('x_min', 'y_min', 'x_max', 'y_max')
+
 
 class VerticalFlip(DualTransform):
     """Flip the input vertically around the x-axis.
@@ -136,6 +142,9 @@ class VerticalFlip(DualTransform):
 
     def apply_to_keypoint(self, keypoint, **params):
         return F.keypoint_vflip(keypoint, **params)
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class HorizontalFlip(DualTransform):
@@ -164,6 +173,9 @@ class HorizontalFlip(DualTransform):
 
     def apply_to_keypoint(self, keypoint, **params):
         return F.keypoint_hflip(keypoint, **params)
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class Flip(DualTransform):
@@ -197,6 +209,9 @@ class Flip(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         return F.keypoint_flip(keypoint, **params)
 
+    def get_transform_init_args_names(self):
+        return ()
+
 
 class Transpose(DualTransform):
     """Transpose the input by swapping rows and columns.
@@ -216,6 +231,9 @@ class Transpose(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_transpose(bbox, 0, **params)
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class LongestMaxSize(DualTransform):
@@ -244,6 +262,9 @@ class LongestMaxSize(DualTransform):
         # Bounding box coordinates are scale invariant
         return bbox
 
+    def get_transform_init_args_names(self):
+        return ('max_size', 'interpolation')
+
 
 class SmallestMaxSize(DualTransform):
     """Rescale an image so that minimum side is equal to max_size, keeping the aspect ratio of the initial image.
@@ -269,6 +290,9 @@ class SmallestMaxSize(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return bbox
+
+    def get_transform_init_args_names(self):
+        return ('max_size', 'interpolation')
 
 
 class Resize(DualTransform):
@@ -302,6 +326,9 @@ class Resize(DualTransform):
         # Bounding box coordinates are scale invariant
         return bbox
 
+    def get_transform_init_args_names(self):
+        return ('height', 'width', 'interpolation')
+
 
 class RandomRotate90(DualTransform):
     """Randomly rotate the input by 90 degrees zero or more times.
@@ -332,6 +359,9 @@ class RandomRotate90(DualTransform):
 
     def apply_to_keypoint(self, keypoint, factor=0, **params):
         return F.keypoint_rot90(keypoint, factor, **params)
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class Rotate(DualTransform):
@@ -376,6 +406,9 @@ class Rotate(DualTransform):
     def apply_to_keypoint(self, keypoint, angle=0, **params):
         return F.keypoint_rotate(keypoint, angle, **params)
 
+    def get_transform_init_args_names(self):
+        return ('limit', 'interpolation', 'border_mode', 'value')
+
 
 class RandomScale(DualTransform):
     """Randomly resize the input. Output image size is different from the input image size.
@@ -412,6 +445,12 @@ class RandomScale(DualTransform):
 
     def apply_to_keypoint(self, keypoint, scale=0, **params):
         return F.keypoint_scale(keypoint, scale, scale)
+
+    def get_transform_init_args(self):
+        return {
+            'interpolation': self.interpolation,
+            'scale_limit': to_tuple(self.scale_limit, bias=-1.0),
+        }
 
 
 class ShiftScaleRotate(DualTransform):
@@ -467,6 +506,16 @@ class ShiftScaleRotate(DualTransform):
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
         return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
 
+    def get_transform_init_args(self):
+        return {
+            'shift_limit': self.shift_limit,
+            'scale_limit': to_tuple(self.scale_limit, bias=-1.0),
+            'rotate_limit': self.rotate_limit,
+            'interpolation': self.interpolation,
+            'border_mode': self.border_mode,
+            'value': self.value,
+        }
+
 
 class CenterCrop(DualTransform):
     """Crop the central part of the input.
@@ -502,6 +551,9 @@ class CenterCrop(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         return F.keypoint_center_crop(keypoint, self.height, self.width, **params)
 
+    def get_transform_init_args_names(self):
+        return ('height', 'width')
+
 
 class RandomCrop(DualTransform):
     """Crop a random part of the input.
@@ -535,6 +587,9 @@ class RandomCrop(DualTransform):
 
     def apply_to_keypoint(self, keypoint, **params):
         return F.keypoint_random_crop(keypoint, self.height, self.width, **params)
+
+    def get_transform_init_args_names(self):
+        return ('height', 'width')
 
 
 class RandomCropNearBBox(DualTransform):
@@ -583,6 +638,9 @@ class RandomCropNearBBox(DualTransform):
     @property
     def targets_as_params(self):
         return ['cropping_bbox']
+
+    def get_transform_init_args_names(self):
+        return ('max_part_shift', )
 
 
 class RandomSizedCrop(DualTransform):
@@ -634,6 +692,9 @@ class RandomSizedCrop(DualTransform):
         scale_y = self.height / crop_height
         keypoint = F.keypoint_scale(keypoint, scale_x, scale_y)
         return keypoint
+
+    def get_transform_init_args_names(self):
+        return ('min_max_height', 'height', 'width', 'w2h_ratio', 'interpolation')
 
 
 class RandomSizedBBoxSafeCrop(DualTransform):
@@ -698,6 +759,9 @@ class RandomSizedBBoxSafeCrop(DualTransform):
     def targets_as_params(self):
         return ['image']
 
+    def get_transform_init_args_names(self):
+        return ('height', 'width', 'erosion_rate', 'interpolation')
+
 
 class OpticalDistortion(DualTransform):
     """
@@ -724,6 +788,9 @@ class OpticalDistortion(DualTransform):
         return {'k': random.uniform(self.distort_limit[0], self.distort_limit[1]),
                 'dx': round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
                 'dy': round(random.uniform(self.shift_limit[0], self.shift_limit[1]))}
+
+    def get_transform_init_args_names(self):
+        return ('distort_limit', 'shift_limit', 'interpolation', 'border_mode', 'value')
 
 
 class GridDistortion(DualTransform):
@@ -756,6 +823,9 @@ class GridDistortion(DualTransform):
             'stepsx': stepsx,
             'stepsy': stepsy
         }
+
+    def get_transform_init_args_names(self):
+        return ('num_steps', 'distort_limit', 'interpolation', 'border_mode', 'value')
 
 
 class ElasticTransform(DualTransform):
@@ -797,6 +867,9 @@ class ElasticTransform(DualTransform):
     def get_params(self):
         return {'random_state': random.randint(0, 10000)}
 
+    def get_transform_init_args_names(self):
+        return ('alpha', 'sigma', 'alpha_affine', 'interpolation', 'border_mode', 'value', 'approximate')
+
 
 class Normalize(ImageOnlyTransform):
     """Divide pixel values by 255 = 2**8 - 1, subtract mean per channel and divide by std per channel.
@@ -822,6 +895,9 @@ class Normalize(ImageOnlyTransform):
 
     def apply(self, image, **params):
         return F.normalize(image, self.mean, self.std, self.max_pixel_value)
+
+    def get_transform_init_args_names(self):
+        return ('mean', 'std', 'max_pixel_value')
 
 
 class Cutout(ImageOnlyTransform):
@@ -875,6 +951,9 @@ class Cutout(ImageOnlyTransform):
     def targets_as_params(self):
         return ['image']
 
+    def get_transform_init_args_names(self):
+        return ('num_holes', 'max_h_size', 'max_w_size')
+
 
 class JpegCompression(ImageOnlyTransform):
     """Decrease Jpeg compression of an image.
@@ -904,6 +983,9 @@ class JpegCompression(ImageOnlyTransform):
 
     def get_params(self):
         return {'quality': random.randint(self.quality_lower, self.quality_upper)}
+
+    def get_transform_init_args_names(self):
+        return ('quality_lower', 'quality_upper')
 
 
 class RandomSnow(ImageOnlyTransform):
@@ -938,6 +1020,9 @@ class RandomSnow(ImageOnlyTransform):
 
     def get_params(self):
         return {'snow_point': random.uniform(self.snow_point_lower, self.snow_point_upper)}
+
+    def get_transform_init_args_names(self):
+        return ('snow_point_lower', 'snow_point_upper', 'brightness_coeff')
 
 
 class RandomRain(ImageOnlyTransform):
@@ -1041,6 +1126,18 @@ class RandomRain(ImageOnlyTransform):
         return {'drop_length': drop_length,
                 'rain_drops': rain_drops}
 
+    def get_transform_init_args_names(self):
+        return (
+            'slant_lower',
+            'slant_upper',
+            'drop_length',
+            'drop_width',
+            'drop_color',
+            'blur_value',
+            'brightness_coefficient',
+            'rain_type',
+        )
+
 
 class RandomFog(ImageOnlyTransform):
     """Simulates fog for the image
@@ -1101,6 +1198,9 @@ class RandomFog(ImageOnlyTransform):
 
         return {'haze_list': haze_list,
                 'fog_coef': fog_coef}
+
+    def get_transform_init_args_names(self):
+        return ('fog_coef_lower', 'fog_coef_upper', 'alpha_coef')
 
 
 class RandomSunFlare(ImageOnlyTransform):
@@ -1214,6 +1314,22 @@ class RandomSunFlare(ImageOnlyTransform):
                 'flare_center_x': flare_center_x,
                 'flare_center_y': flare_center_y}
 
+    def get_transform_init_args(self):
+        return {
+            'flare_roi': (
+                self.flare_center_lower_x,
+                self.flare_center_lower_y,
+                self.flare_center_upper_x,
+                self.flare_center_upper_y,
+            ),
+            'angle_lower': self.angle_lower,
+            'angle_upper': self.angle_upper,
+            'num_flare_circles_lower': self.num_flare_circles_lower,
+            'num_flare_circles_upper': self.num_flare_circles_upper,
+            'src_radius': self.src_radius,
+            'src_color': self.src_color,
+        }
+
 
 class RandomShadow(ImageOnlyTransform):
     """Simulates shadows for the image
@@ -1288,6 +1404,9 @@ class RandomShadow(ImageOnlyTransform):
 
         return {'vertices_list': vertices_list}
 
+    def get_transform_init_args_names(self):
+        return ('shadow_roi', 'num_shadows_lower', 'num_shadows_upper', 'shadow_dimension')
+
 
 class HueSaturationValue(ImageOnlyTransform):
     """Randomly change hue, saturation and value of the input image.
@@ -1321,6 +1440,9 @@ class HueSaturationValue(ImageOnlyTransform):
         return {'hue_shift': random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
                 'sat_shift': random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
                 'val_shift': random.uniform(self.val_shift_limit[0], self.val_shift_limit[1])}
+
+    def get_transform_init_args_names(self):
+        return ('hue_shift_limit', 'sat_shift_limit', 'val_shift_limit')
 
 
 class RGBShift(ImageOnlyTransform):
@@ -1356,6 +1478,9 @@ class RGBShift(ImageOnlyTransform):
                 'g_shift': random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
                 'b_shift': random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
 
+    def get_transform_init_args_names(self):
+        return ('r_shift_limit', 'g_shift_limit', 'b_shift_limit')
+
 
 class RandomBrightnessContrast(ImageOnlyTransform):
     """Randomly change brightness and contrast of the input image.
@@ -1388,6 +1513,9 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             'beta': 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1])
         }
 
+    def get_transform_init_args_names(self):
+        return ('brightness_limit', 'contrast_limit')
+
 
 class RandomBrightness(RandomBrightnessContrast):
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
@@ -1395,11 +1523,21 @@ class RandomBrightness(RandomBrightnessContrast):
                                                always_apply=always_apply, p=p)
         warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
 
+    def get_transform_init_args(self):
+        return {
+            'limit': self.brightness_limit,
+        }
+
 
 class RandomContrast(RandomBrightnessContrast):
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
         super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
         warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
+
+    def get_transform_init_args(self):
+        return {
+            'limit': self.contrast_limit,
+        }
 
 
 class Blur(ImageOnlyTransform):
@@ -1427,6 +1565,9 @@ class Blur(ImageOnlyTransform):
         return {
             'ksize': random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
         }
+
+    def get_transform_init_args_names(self):
+        return ('blur_limit',)
 
 
 class MotionBlur(Blur):
@@ -1541,6 +1682,9 @@ class GaussNoise(ImageOnlyTransform):
     def targets_as_params(self):
         return ['image']
 
+    def get_transform_init_args_names(self):
+        return ('var_limit',)
+
 
 class CLAHE(ImageOnlyTransform):
     """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
@@ -1560,13 +1704,16 @@ class CLAHE(ImageOnlyTransform):
     def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), always_apply=False, p=0.5):
         super(CLAHE, self).__init__(always_apply, p)
         self.clip_limit = to_tuple(clip_limit, 1)
-        self.tile_grid_size = tile_grid_size
+        self.tile_grid_size = tuple(tile_grid_size)
 
     def apply(self, img, clip_limit=2, **params):
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
         return {'clip_limit': random.uniform(self.clip_limit[0], self.clip_limit[1])}
+
+    def get_transform_init_args_names(self):
+        return ('clip_limit', 'tile_grid_size')
 
 
 class ChannelShuffle(ImageOnlyTransform):
@@ -1590,6 +1737,9 @@ class ChannelShuffle(ImageOnlyTransform):
         random.shuffle(ch_arr)
         return {'channels_shuffled': ch_arr}
 
+    def get_transform_init_args_names(self):
+        return ()
+
 
 class InvertImg(ImageOnlyTransform):
     """Invert the input image by subtracting pixel values from 255.
@@ -1606,6 +1756,9 @@ class InvertImg(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.invert(img)
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class RandomGamma(ImageOnlyTransform):
@@ -1629,6 +1782,9 @@ class RandomGamma(ImageOnlyTransform):
             'gamma': random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0
         }
 
+    def get_transform_init_args_names(self):
+        return ('gamma_limit',)
+
 
 class ToGray(ImageOnlyTransform):
     """Convert the input RGB image to grayscale. If the mean pixel value for the resulting image is greater
@@ -1646,6 +1802,9 @@ class ToGray(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.to_gray(img)
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class ToFloat(ImageOnlyTransform):
@@ -1674,6 +1833,9 @@ class ToFloat(ImageOnlyTransform):
 
     def apply(self, img, **params):
         return F.to_float(img, self.max_value)
+
+    def get_transform_init_args_names(self):
+        return ('max_value',)
 
 
 class FromFloat(ImageOnlyTransform):
@@ -1707,12 +1869,16 @@ class FromFloat(ImageOnlyTransform):
     def apply(self, img, **params):
         return F.from_float(img, self.dtype, self.max_value)
 
+    def get_transform_init_args(self):
+        return {
+            'dtype': self.dtype.name,
+            'max_value': self.max_value
+        }
+
 
 class Lambda(NoOp):
     """A flexible transformation class for using user-defined transformation functions per targets.
     Function signature must include **kwargs to accept optinal arguments like interpolation method, image size, etc:
-
-
 
     Args:
         image (callable): Image transformation function.
@@ -1746,3 +1912,6 @@ class Lambda(NoOp):
     @property
     def targets(self):
         return self._targets
+
+    def to_dict(self):
+        raise NotImplementedError('Lambda is not serializable')
