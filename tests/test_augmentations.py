@@ -8,6 +8,7 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, \
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog, RandomSunFlare, RandomCropNearBBox, RandomShadow, \
     RandomSizedCrop
+import albumentations as A
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [

@@ -6,6 +6,7 @@ import numpy as np
 import imgaug as ia
 
 import albumentations as A
+import albumentations.augmentations.functional as F
 
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
@@ -444,3 +445,155 @@ def test_transform_pipeline_serialization(seed, image, mask):
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
     assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
     assert np.array_equal(aug_data['mask'], deserialized_aug_data['mask'])
+
+
+@pytest.mark.parametrize(['bboxes', 'bbox_format', 'labels'], [
+    [[[20, 30, 40, 50]], 'coco', [1]],
+    [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], 'coco', None],
+    [[[20, 30, 60, 80]], 'pascal_voc', [2]],
+    [[[20, 30, 60, 80, 99]], 'pascal_voc', None],
+])
+@pytest.mark.parametrize('seed', TEST_SEEDS)
+def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_format, labels):
+    aug = A.Compose([
+        A.OneOrOther(
+            A.Compose([
+                A.RandomRotate90(),
+                A.OneOf([
+                    A.HorizontalFlip(p=0.5),
+                    A.VerticalFlip(p=0.5),
+                ])
+            ]),
+            A.Compose([
+                A.Rotate(p=0.5),
+                A.OneOf([
+                    A.HueSaturationValue(p=0.5),
+                    A.RGBShift(p=0.7)
+                ], p=1),
+            ])
+        ),
+        A.HorizontalFlip(p=1),
+        A.RandomBrightnessContrast(p=0.5)
+    ], bbox_params={'format': bbox_format, 'label_fields': ['labels']})
+    serialized_aug = A.to_dict(aug)
+    deserialized_aug = A.from_dict(serialized_aug)
+    random.seed(seed)
+    aug_data = aug(image=image, bboxes=bboxes, labels=labels)
+    random.seed(seed)
+    deserialized_aug_data = deserialized_aug(image=image, bboxes=bboxes, labels=labels)
+    assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
+    assert np.array_equal(aug_data['bboxes'], deserialized_aug_data['bboxes'])
+
+
+@pytest.mark.parametrize(['keypoints', 'keypoint_format', 'labels'], [
+    [[[20, 30, 40, 50]], 'xyas', [1]],
+    [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], 'xy', [1, 2]],
+    [[[20, 30, 60, 80]], 'yx', [2]],
+    [[[20, 30, 60, 80, 99]], 'xys', [1]],
+])
+@pytest.mark.parametrize('seed', TEST_SEEDS)
+def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints, keypoint_format, labels):
+    aug = A.Compose([
+        A.OneOrOther(
+            A.Compose([
+                A.RandomRotate90(),
+                A.OneOf([
+                    A.HorizontalFlip(p=0.5),
+                    A.VerticalFlip(p=0.5),
+                ])
+            ]),
+            A.Compose([
+                A.Rotate(p=0.5),
+                A.OneOf([
+                    A.HueSaturationValue(p=0.5),
+                    A.RGBShift(p=0.7)
+                ], p=1),
+            ])
+        ),
+        A.HorizontalFlip(p=1),
+        A.RandomBrightnessContrast(p=0.5)
+    ], keypoint_params={'format': keypoint_format, 'label_fields': ['labels']})
+    serialized_aug = A.to_dict(aug)
+    deserialized_aug = A.from_dict(serialized_aug)
+    random.seed(seed)
+    aug_data = aug(image=image, keypoints=keypoints, labels=labels)
+    random.seed(seed)
+    deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints, labels=labels)
+    assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
+    assert np.array_equal(aug_data['keypoints'], deserialized_aug_data['keypoints'])
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [A.ChannelShuffle, {}],
+    [A.GaussNoise, {}],
+    [A.Cutout, {}],
+    [A.JpegCompression, {}],
+    [A.HueSaturationValue, {}],
+    [A.RGBShift, {}],
+    [A.RandomBrightnessContrast, {}],
+    [A.Blur, {}],
+    [A.MotionBlur, {}],
+    [A.MedianBlur, {}],
+    [A.CLAHE, {}],
+    [A.InvertImg, {}],
+    [A.RandomGamma, {}],
+    [A.ToGray, {}],
+    [A.VerticalFlip, {}],
+    [A.HorizontalFlip, {}],
+    [A.Flip, {}],
+    [A.Transpose, {}],
+    [A.RandomRotate90, {}],
+    [A.Rotate, {}],
+    [A.OpticalDistortion, {}],
+    [A.GridDistortion, {}],
+    [A.ElasticTransform, {}],
+    [A.Normalize, {}],
+    [A.ToFloat, {}],
+    [A.FromFloat, {}],
+])
+@pytest.mark.parametrize('seed', TEST_SEEDS)
+def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
+    aug = A.Compose(
+        [augmentation_cls(always_apply=True, **params)],
+        additional_targets={'image2': 'image'},
+    )
+    image2 = image.copy()
+
+    serialized_aug = A.to_dict(aug)
+    deserialized_aug = A.from_dict(serialized_aug)
+    random.seed(seed)
+    aug_data = aug(image=image, image2=image2)
+    random.seed(seed)
+    deserialized_aug_data = deserialized_aug(image=image, image2=image2)
+    assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
+    assert np.array_equal(aug_data['image2'], deserialized_aug_data['image2'])
+
+
+@pytest.mark.parametrize('seed', TEST_SEEDS)
+@pytest.mark.parametrize('p', [1])
+def test_lambda_serialization(image, mask, bboxes, keypoints, seed, p):
+
+    def vflip_image(image, **kwargs):
+        return F.vflip(image)
+
+    def vflip_mask(mask, **kwargs):
+        return F.vflip(mask)
+
+    def vflip_bbox(bbox, **kwargs):
+        return F.bbox_vflip(bbox, **kwargs)
+
+    def vflip_keypoint(keypoint, **kwargs):
+        return F.keypoint_vflip(keypoint, **kwargs)
+
+    aug = A.Lambda(name='vflip', image=vflip_image, mask=vflip_mask, bbox=vflip_bbox, keypoint=vflip_keypoint, p=p)
+
+    serialized_aug = A.to_dict(aug)
+    deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={'vflip': aug})
+    random.seed(seed)
+    aug_data = aug(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+    random.seed(seed)
+    deserialized_aug_data = deserialized_aug(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+    assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
+    assert np.array_equal(aug_data['mask'], deserialized_aug_data['mask'])
+    assert np.array_equal(aug_data['bboxes'], deserialized_aug_data['bboxes'])
+    assert np.array_equal(aug_data['keypoints'], deserialized_aug_data['keypoints'])

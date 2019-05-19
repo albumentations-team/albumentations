@@ -41,12 +41,12 @@ def mask():
 
 @pytest.fixture
 def bboxes():
-    return [[15, 12, 75, 30], [55, 25, 90, 90]]
+    return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
 
 
 @pytest.fixture
 def keypoints():
-    return [[20, 30, 40, 50], [20, 30, 60, 80]]
+    return [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]]
 
 
 @pytest.fixture
