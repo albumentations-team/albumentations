@@ -901,12 +901,18 @@ class Normalize(ImageOnlyTransform):
 
 
 class Cutout(ImageOnlyTransform):
-    """CoarseDropout of the square regions in the image.
+    """CoarseDropout of the rectangular regions in the image.
 
     Args:
-        num_holes (int): number of regions to zero out
-        max_h_size (int): maximum height of the hole
-        max_w_size (int): maximum width of the hole
+        max_holes (int): Maximum number of regions to zero out.
+        max_height (int): Maximum height of the hole.
+        min_width (int): Maximum width of the hole.
+        min_holes (int): Minimum number of regions to zero out. If `None`,
+            `min_holes` is be set to `max_holes`. Default: `None`.
+        min_height (int): Minimum height of the hole. Default: None. If `None`,
+            `min_height` is set to `max_height`. Default: `None`.
+        min_width (int): Minimum width of the hole. If `None`, `min_height` is
+            set to `max_width`. Default: `None`.
 
     Targets:
         image
@@ -921,11 +927,20 @@ class Cutout(ImageOnlyTransform):
 
     """
 
-    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, always_apply=False, p=0.5):
+    def __init__(self, max_holes=8, max_height=8, max_width=8,
+                 min_holes=None, min_height=None, min_width=None,
+                 always_apply=False, p=0.5):
         super(Cutout, self).__init__(always_apply, p)
-        self.num_holes = num_holes
-        self.max_h_size = max_h_size
-        self.max_w_size = max_w_size
+        self.max_holes = max_holes
+        self.max_height = max_height
+        self.max_width = max_width
+        self.min_holes = min_holes if min_holes is not None else max_holes
+        self.min_height = min_height if min_height is not None else max_height
+        self.min_width = min_width if min_width is not None else max_width
+
+        assert 0 < self.min_holes and self.min_holes <= self.max_holes
+        assert 0 < self.min_height and self.min_height <= self.max_height
+        assert 0 < self.min_width and self.min_width <= self.max_width
 
     def apply(self, image, holes=[], **params):
         return F.cutout(image, holes)
@@ -935,14 +950,14 @@ class Cutout(ImageOnlyTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for n in range(self.num_holes):
-            y = random.randint(0, height)
-            x = random.randint(0, width)
+        for n in range(random.randint(self.min_holes, self.max_holes + 1)):
+            hole_height = random.randint(self.min_height, self.max_height + 1)
+            hole_width = random.randint(self.min_width, self.max_width + 1)
 
-            y1 = np.clip(y - self.max_h_size // 2, 0, height)
-            y2 = np.clip(y + self.max_h_size // 2, 0, height)
-            x1 = np.clip(x - self.max_w_size // 2, 0, width)
-            x2 = np.clip(x + self.max_w_size // 2, 0, width)
+            y1 = random.randint(0, height - hole_height)
+            x1 = random.randint(0, width - hole_width)
+            y2 = y1 + hole_height
+            x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
 
         return {'holes': holes}
@@ -952,7 +967,8 @@ class Cutout(ImageOnlyTransform):
         return ['image']
 
     def get_transform_init_args_names(self):
-        return ('num_holes', 'max_h_size', 'max_w_size')
+        return ('max_holes', 'max_height', 'max_width', 'min_holes',
+                'min_height', 'min_width')
 
 
 class JpegCompression(ImageOnlyTransform):
