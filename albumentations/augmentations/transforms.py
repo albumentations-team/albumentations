@@ -938,9 +938,9 @@ class Cutout(ImageOnlyTransform):
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
 
-        assert 0 < self.min_holes and self.min_holes <= self.max_holes
-        assert 0 < self.min_height and self.min_height <= self.max_height
-        assert 0 < self.min_width and self.min_width <= self.max_width
+        assert 0 < self.min_holes <= self.max_holes
+        assert 0 < self.min_height <= self.max_height
+        assert 0 < self.min_width <= self.max_width
 
     def apply(self, image, holes=[], **params):
         return F.cutout(image, holes)
