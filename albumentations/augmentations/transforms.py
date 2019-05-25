@@ -13,14 +13,19 @@ from . import functional as F
 from .bbox_utils import union_of_bboxes, denormalize_bbox, normalize_bbox
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform, NoOp
 
-__all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
-           'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
-           'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
-           'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
-           'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog', 'RandomSunFlare',
-           'RandomShadow', 'Lambda']
+__all__ = [
+    'Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose',
+    'RandomCrop', 'RandomGamma', 'RandomRotate90', 'Rotate',
+    'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
+    'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
+    'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
+    'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
+    'ToGray', 'JpegCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
+    'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
+    'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
+    'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
+    'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
+]
 
 
 class PadIfNeeded(DualTransform):
@@ -901,6 +906,57 @@ class Normalize(ImageOnlyTransform):
 
 
 class Cutout(ImageOnlyTransform):
+    """CoarseDropout of the square regions in the image.
+    Args:
+        num_holes (int): number of regions to zero out
+        max_h_size (int): maximum height of the hole
+        max_w_size (int): maximum width of the hole
+    Targets:
+        image
+    Image types:
+        uint8, float32
+    Reference:
+    |  https://arxiv.org/abs/1708.04552
+    |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
+    |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+    """
+
+    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, always_apply=False, p=0.5):
+        super(Cutout, self).__init__(always_apply, p)
+        self.num_holes = num_holes
+        self.max_h_size = max_h_size
+        self.max_w_size = max_w_size
+        warnings.warn("This class has been deprecated. Please use CoarseDropout", DeprecationWarning)
+
+    def apply(self, image, holes=[], **params):
+        return F.cutout(image, holes)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        height, width = img.shape[:2]
+
+        holes = []
+        for n in range(self.num_holes):
+            y = random.randint(0, height)
+            x = random.randint(0, width)
+
+            y1 = np.clip(y - self.max_h_size // 2, 0, height)
+            y2 = np.clip(y + self.max_h_size // 2, 0, height)
+            x1 = np.clip(x - self.max_w_size // 2, 0, width)
+            x2 = np.clip(x + self.max_w_size // 2, 0, width)
+            holes.append((x1, y1, x2, y2))
+
+        return {'holes': holes}
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+    def get_transform_init_args_names(self):
+        return ('num_holes', 'max_h_size', 'max_w_size')
+
+
+class CoarseDropout(ImageOnlyTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
@@ -930,7 +986,7 @@ class Cutout(ImageOnlyTransform):
     def __init__(self, max_holes=8, max_height=8, max_width=8,
                  min_holes=None, min_height=None, min_width=None,
                  always_apply=False, p=0.5):
-        super(Cutout, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.max_holes = max_holes
         self.max_height = max_height
         self.max_width = max_width

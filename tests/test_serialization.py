@@ -27,6 +27,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
     [A.RandomGamma, {}],
     [A.ToGray, {}],
     [A.Cutout, {}],
+    [A.CoarseDropout, {}],
     [A.RandomSnow, {}],
     [A.RandomRain, {}],
     [A.RandomFog, {}],
@@ -78,7 +79,8 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     [A.GaussNoise, {'var_limit': (20, 90)}],
     [A.CLAHE, {'clip_limit': 2, 'tile_grid_size': (12, 12)}],
     [A.RandomGamma, {'gamma_limit': (10, 90)}],
-    [A.Cutout, {'max_holes': 4, 'max_height': 4, 'max_width': 4}],
+    [A.Cutout, {'num_holes': 4, 'max_h_size': 4, 'max_w_size': 4}],
+    [A.CoarseDropout, {'max_holes': 4, 'max_height': 4, 'max_width': 4}],
     [A.RandomSnow, {'snow_point_lower': 0.2, 'snow_point_upper': 0.4, 'brightness_coeff': 4}],
     [A.RandomRain, {
         'slant_lower': -5,
