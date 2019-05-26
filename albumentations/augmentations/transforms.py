@@ -986,7 +986,7 @@ class CoarseDropout(ImageOnlyTransform):
     def __init__(self, max_holes=8, max_height=8, max_width=8,
                  min_holes=None, min_height=None, min_width=None,
                  always_apply=False, p=0.5):
-        super().__init__(always_apply, p)
+        super(CoarseDropout, self).__init__(always_apply, p)
         self.max_holes = max_holes
         self.max_height = max_height
         self.max_width = max_width
