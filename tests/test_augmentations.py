@@ -1,13 +1,16 @@
 import numpy as np
 import pytest
 
-from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose, RandomRotate90, \
-    Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
-    JpegCompression, HueSaturationValue, RGBShift, Blur, MotionBlur, MedianBlur, \
-    GaussianBlur, GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, \
-    IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective, Cutout, CoarseDropout, Normalize, ToFloat, FromFloat, \
-    RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog, RandomSunFlare, RandomCropNearBBox, RandomShadow, \
-    RandomSizedCrop
+from albumentations import (
+    RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose,
+    RandomRotate90, Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion,
+    GridDistortion, ElasticTransform, ToGray, RandomGamma, JpegCompression,
+    HueSaturationValue, RGBShift, Blur, MotionBlur, MedianBlur, GaussianBlur,
+    GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels,
+    IAASharpen, IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective,
+    Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
+    RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
+    RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
