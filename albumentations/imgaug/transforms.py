@@ -1,7 +1,7 @@
 import imgaug as ia
 try:
     from imgaug import augmenters as iaa
-except:
+except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
 from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, \
