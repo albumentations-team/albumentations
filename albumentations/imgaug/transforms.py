@@ -1,5 +1,8 @@
 import imgaug as ia
-from imgaug import augmenters as iaa
+try:
+    from imgaug import augmenters as iaa
+except:
+    import imgaug.imgaug.augmenters as iaa
 
 from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations

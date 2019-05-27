@@ -34,6 +34,7 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -46,6 +47,7 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -121,12 +123,11 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     return img
 
 
-def cutout(img, holes):
+def cutout(img, holes, fill_value):
     # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
-
     for x1, y1, x2, y2 in holes:
-        img[y1: y2, x1: x2] = 0
+        img[y1: y2, x1: x2] = fill_value
     return img
 
 

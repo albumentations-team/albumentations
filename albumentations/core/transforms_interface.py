@@ -95,6 +95,8 @@ class BasicTransform(object):
     def update_params(self, params, **kwargs):
         if hasattr(self, 'interpolation'):
             params['interpolation'] = self.interpolation
+        if hasattr(self, 'fill_value'):
+            params['fill_value'] = self.fill_value
         params.update({'cols': kwargs['image'].shape[1], 'rows': kwargs['image'].shape[0]})
         return params
 

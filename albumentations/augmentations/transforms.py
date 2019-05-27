@@ -640,7 +640,7 @@ class RandomCropNearBBox(DualTransform):
         return ['cropping_bbox']
 
     def get_transform_init_args_names(self):
-        return ('max_part_shift', )
+        return ('max_part_shift',)
 
 
 class RandomSizedCrop(DualTransform):
@@ -861,7 +861,7 @@ class ElasticTransform(DualTransform):
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
-                                   self.border_mode, self. value, np.random.RandomState(random_state),
+                                   self.border_mode, self.value, np.random.RandomState(random_state),
                                    self.approximate)
 
     def get_params(self):
@@ -921,14 +921,15 @@ class Cutout(ImageOnlyTransform):
 
     """
 
-    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, always_apply=False, p=0.5):
+    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, fill_value=0, always_apply=False, p=0.5):
         super(Cutout, self).__init__(always_apply, p)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
+        self.fill_value = fill_value
 
-    def apply(self, image, holes=[], **params):
-        return F.cutout(image, holes)
+    def apply(self, image, fill_value, holes=[], **params):
+        return F.cutout(image, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params['image']
