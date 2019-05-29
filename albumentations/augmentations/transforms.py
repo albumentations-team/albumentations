@@ -13,14 +13,19 @@ from . import functional as F
 from .bbox_utils import union_of_bboxes, denormalize_bbox, normalize_bbox
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform, NoOp
 
-__all__ = ['Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose', 'RandomCrop', 'RandomGamma',
-           'RandomRotate90', 'Rotate', 'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
-           'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift', 'RandomBrightness', 'RandomContrast',
-           'MotionBlur', 'MedianBlur', 'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg', 'ToGray',
-           'JpegCompression', 'Cutout', 'ToFloat', 'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize',
-           'SmallestMaxSize', 'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast', 'RandomCropNearBBox',
-           'RandomSizedBBoxSafeCrop', 'RandomSnow', 'RandomRain', 'RandomFog', 'RandomSunFlare',
-           'RandomShadow', 'Lambda']
+__all__ = [
+    'Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose',
+    'RandomCrop', 'RandomGamma', 'RandomRotate90', 'Rotate',
+    'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
+    'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
+    'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
+    'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
+    'ToGray', 'JpegCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
+    'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
+    'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
+    'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
+    'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
+]
 
 
 class PadIfNeeded(DualTransform):
@@ -902,23 +907,18 @@ class Normalize(ImageOnlyTransform):
 
 class Cutout(ImageOnlyTransform):
     """CoarseDropout of the square regions in the image.
-
     Args:
         num_holes (int): number of regions to zero out
         max_h_size (int): maximum height of the hole
         max_w_size (int): maximum width of the hole
-
     Targets:
         image
-
     Image types:
         uint8, float32
-
     Reference:
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
-
     """
 
     def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, always_apply=False, p=0.5):
@@ -926,6 +926,7 @@ class Cutout(ImageOnlyTransform):
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
+        warnings.warn("This class has been deprecated. Please use CoarseDropout", DeprecationWarning)
 
     def apply(self, image, holes=[], **params):
         return F.cutout(image, holes)
@@ -953,6 +954,77 @@ class Cutout(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('num_holes', 'max_h_size', 'max_w_size')
+
+
+class CoarseDropout(ImageOnlyTransform):
+    """CoarseDropout of the rectangular regions in the image.
+
+    Args:
+        max_holes (int): Maximum number of regions to zero out.
+        max_height (int): Maximum height of the hole.
+        min_width (int): Maximum width of the hole.
+        min_holes (int): Minimum number of regions to zero out. If `None`,
+            `min_holes` is be set to `max_holes`. Default: `None`.
+        min_height (int): Minimum height of the hole. Default: None. If `None`,
+            `min_height` is set to `max_height`. Default: `None`.
+        min_width (int): Minimum width of the hole. If `None`, `min_height` is
+            set to `max_width`. Default: `None`.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Reference:
+    |  https://arxiv.org/abs/1708.04552
+    |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
+    |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+
+    """
+
+    def __init__(self, max_holes=8, max_height=8, max_width=8,
+                 min_holes=None, min_height=None, min_width=None,
+                 always_apply=False, p=0.5):
+        super(CoarseDropout, self).__init__(always_apply, p)
+        self.max_holes = max_holes
+        self.max_height = max_height
+        self.max_width = max_width
+        self.min_holes = min_holes if min_holes is not None else max_holes
+        self.min_height = min_height if min_height is not None else max_height
+        self.min_width = min_width if min_width is not None else max_width
+
+        assert 0 < self.min_holes <= self.max_holes
+        assert 0 < self.min_height <= self.max_height
+        assert 0 < self.min_width <= self.max_width
+
+    def apply(self, image, holes=[], **params):
+        return F.cutout(image, holes)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        height, width = img.shape[:2]
+
+        holes = []
+        for n in range(random.randint(self.min_holes, self.max_holes + 1)):
+            hole_height = random.randint(self.min_height, self.max_height + 1)
+            hole_width = random.randint(self.min_width, self.max_width + 1)
+
+            y1 = random.randint(0, height - hole_height)
+            x1 = random.randint(0, width - hole_width)
+            y2 = y1 + hole_height
+            x2 = x1 + hole_width
+            holes.append((x1, y1, x2, y2))
+
+        return {'holes': holes}
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+    def get_transform_init_args_names(self):
+        return ('max_holes', 'max_height', 'max_width', 'min_holes',
+                'min_height', 'min_width')
 
 
 class JpegCompression(ImageOnlyTransform):
