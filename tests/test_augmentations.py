@@ -1,13 +1,16 @@
 import numpy as np
 import pytest
 
-from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose, RandomRotate90, \
-    Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion, GridDistortion, ElasticTransform, ToGray, RandomGamma, \
-    JpegCompression, HueSaturationValue, RGBShift, Blur, MotionBlur, MedianBlur, \
-    GaussianBlur, GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels, IAASharpen, \
-    IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective, Cutout, Normalize, ToFloat, FromFloat, \
-    RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog, RandomSunFlare, RandomCropNearBBox, RandomShadow, \
-    RandomSizedCrop
+from albumentations import (
+    RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose,
+    RandomRotate90, Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion,
+    GridDistortion, ElasticTransform, ToGray, RandomGamma, JpegCompression,
+    HueSaturationValue, RGBShift, Blur, MotionBlur, MedianBlur, GaussianBlur,
+    GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels,
+    IAASharpen, IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective,
+    Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
+    RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
+    RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -26,6 +29,7 @@ from albumentations import RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip
     [RandomGamma, {}],
     [ToGray, {}],
     [Cutout, {}],
+    [CoarseDropout, {}],
     [GaussNoise, {}],
     [RandomSnow, {}],
     [RandomRain, {}],
@@ -56,6 +60,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [JpegCompression, {}],
     [ToGray, {}],
     [Cutout, {}],
+    [CoarseDropout, {}],
     [GaussNoise, {}],
     [RandomSnow, {}],
     [RandomRain, {}],
@@ -135,7 +140,6 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
-    [Cutout, {}],
     [JpegCompression, {}],
     [HueSaturationValue, {}],
     [RGBShift, {}],
@@ -152,6 +156,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [RandomGamma, {}],
     [ToGray, {}],
     [Cutout, {}],
+    [CoarseDropout, {}],
     [PadIfNeeded, {}],
     [VerticalFlip, {}],
     [HorizontalFlip, {}],
@@ -187,6 +192,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [Cutout, {}],
+    [CoarseDropout, {}],
     [HueSaturationValue, {}],
     [RGBShift, {}],
     [RandomBrightnessContrast, {}],
@@ -200,7 +206,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [InvertImg, {}],
     [RandomGamma, {}],
     [ToGray, {}],
-    [Cutout, {}],
     [PadIfNeeded, {}],
     [VerticalFlip, {}],
     [HorizontalFlip, {}],
@@ -234,6 +239,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [Cutout, {}],
+    [CoarseDropout, {}],
     [JpegCompression, {}],
     [RandomBrightnessContrast, {}],
     [Blur, {}],
@@ -243,7 +249,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     [GaussNoise, {}],
     [InvertImg, {}],
     [RandomGamma, {}],
-    [Cutout, {}],
     [VerticalFlip, {}],
     [HorizontalFlip, {}],
     [Flip, {}],
@@ -286,6 +291,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [Cutout, {}],
+    [CoarseDropout, {}],
     [JpegCompression, {}],
     [HueSaturationValue, {}],
     [RGBShift, {}],
@@ -300,7 +306,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [InvertImg, {}],
     [RandomGamma, {}],
     [ToGray, {}],
-    [Cutout, {}],
     [VerticalFlip, {}],
     [HorizontalFlip, {}],
     [Flip, {}],
