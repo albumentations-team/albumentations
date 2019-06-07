@@ -205,6 +205,7 @@ def test_force_apply():
     [A.ChannelShuffle, {}],
     [A.GaussNoise, {}],
     [A.Cutout, {}],
+    [A.CoarseDropout, {}],
     [A.JpegCompression, {}],
     [A.HueSaturationValue, {}],
     [A.RGBShift, {}],
