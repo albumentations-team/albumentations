@@ -11,6 +11,7 @@ from albumentations import (
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
     RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop)
+import albumentations as A
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -140,6 +141,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [Cutout, {}],
     [JpegCompression, {}],
     [HueSaturationValue, {}],
     [RGBShift, {}],

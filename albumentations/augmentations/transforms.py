@@ -1,7 +1,6 @@
 from __future__ import absolute_import, division
 
 from types import LambdaType
-
 import math
 import random
 import warnings
@@ -12,6 +11,7 @@ import numpy as np
 from . import functional as F
 from .bbox_utils import union_of_bboxes, denormalize_bbox, normalize_bbox
 from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform, NoOp
+from ..core.utils import format_args
 
 __all__ = [
     'Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose',
@@ -1968,9 +1968,10 @@ class Lambda(NoOp):
 
     """
 
-    def __init__(self, image=None, mask=None, keypoint=None, bbox=None, always_apply=False, p=1.0):
+    def __init__(self, image=None, mask=None, keypoint=None, bbox=None, name=None, always_apply=False, p=1.0):
         super(Lambda, self).__init__(always_apply, p)
 
+        self.name = name
         self.custom_apply_fns = {target_name: F.noop for target_name in ('image', 'mask', 'keypoint', 'bbox')}
         for target_name, custom_apply_fn in {'image': image, 'mask': mask, 'keypoint': keypoint, 'bbox': bbox}.items():
             if custom_apply_fn is not None:
@@ -1996,5 +1997,19 @@ class Lambda(NoOp):
         fn = self.custom_apply_fns['keypoint']
         return fn(keypoint, **params)
 
-    def to_dict(self):
-        raise NotImplementedError('Lambda is not serializable')
+    def _to_dict(self):
+        if self.name is None:
+            raise ValueError(
+                "To make a Lambda transform serializable you should provide the `name` argument, "
+                "e.g. `Lambda(name='my_transform', image=<some func>, ...)`."
+            )
+        return {
+            '__type__': 'Lambda',
+            '__name__': self.name,
+        }
+
+    def __repr__(self):
+        state = {'name': self.name}
+        state.update(self.custom_apply_fns.items())
+        state.update(self.get_base_init_args())
+        return '{name}({args})'.format(name=self.__class__.__name__, args=format_args(state))

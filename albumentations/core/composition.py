@@ -10,6 +10,7 @@ from albumentations.augmentations.keypoints_utils import convert_keypoints_from_
 from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
+from albumentations.core.utils import format_args
 from albumentations.imgaug.transforms import DualIAATransform
 from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
     convert_bboxes_to_albumentations, filter_bboxes, check_bboxes
@@ -67,6 +68,7 @@ class BaseCompose(object):
         return self.indented_repr()
 
     def indented_repr(self, indent=REPR_INDENT_STEP):
+        args = {k: v for k, v in self._to_dict().items() if not (k.startswith('__') or k == 'transforms')}
         repr_string = self.__class__.__name__ + '(['
         for t in self.transforms:
             repr_string += '\n'
@@ -75,18 +77,18 @@ class BaseCompose(object):
             else:
                 t_repr = repr(t)
             repr_string += ' ' * indent + t_repr + ','
-        repr_string += '\n' + ' ' * (indent - REPR_INDENT_STEP) + '], p={p})'.format(p=self.p)
+        repr_string += '\n' + ' ' * (indent - REPR_INDENT_STEP) + '], {args})'.format(args=format_args(args))
         return repr_string
 
     @classmethod
     def get_class_fullname(cls):
         return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
 
-    def to_dict(self):
+    def _to_dict(self):
         return {
             '__class_fullname__': self.get_class_fullname(),
             'p': self.p,
-            'transforms': [t.to_dict() for t in self.transforms]
+            'transforms': [t._to_dict() for t in self.transforms],
         }
 
     def add_targets(self, additional_targets):
@@ -120,30 +122,19 @@ class Compose(BaseCompose):
           | to remain this box in list. Default: 0.0.
     """
 
-    def __init__(self, transforms, preprocessing_transforms=[], postprocessing_transforms=[],
-                 to_tensor=None, bbox_params={}, keypoint_params={}, additional_targets={}, p=1.0):
-        if preprocessing_transforms:
-            warnings.warn("preprocessing transforms are deprecated, use always_apply flag for this purpose. "
-                          "will be removed in 0.3.0", DeprecationWarning)
-            set_always_apply(preprocessing_transforms)
-        if postprocessing_transforms:
-            warnings.warn("postprocessing transforms are deprecated, use always_apply flag for this purpose"
-                          "will be removed in 0.3.0", DeprecationWarning)
-            set_always_apply(postprocessing_transforms)
-        if to_tensor is not None:
-            warnings.warn("to_tensor in Compose is deprecated, use always_apply flag for this purpose"
-                          "will be removed in 0.3.0", DeprecationWarning)
-            to_tensor.always_apply = True
-            # todo deprecated
-        _transforms = (preprocessing_transforms +
-                       [t for t in transforms if t is not None] +
-                       postprocessing_transforms)
-        if to_tensor is not None:
-            _transforms.append(to_tensor)
-        super(Compose, self).__init__(_transforms, p)
+    def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0):
+        super(Compose, self).__init__([t for t in transforms if t is not None], p)
+
+        if bbox_params is None:
+            bbox_params = {}
+        if keypoint_params is None:
+            keypoint_params = {}
+        if additional_targets is None:
+            additional_targets = {}
 
         self.bboxes_name = 'bboxes'
         self.keypoints_name = 'keypoints'
+        self.additional_targets = additional_targets
         self.params = {
             self.bboxes_name: bbox_params,
             self.keypoints_name: keypoint_params
@@ -211,6 +202,15 @@ class Compose(BaseCompose):
                                                filter_keypoints, convert_keypoints_from_albumentations, data)
 
         return data
+
+    def _to_dict(self):
+        dictionary = super(Compose, self)._to_dict()
+        dictionary.update({
+            'bbox_params': self.params[self.bboxes_name],
+            'keypoint_params': self.params[self.keypoints_name],
+            'additional_targets': self.additional_targets,
+        })
+        return dictionary
 
 
 def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data):
