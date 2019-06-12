@@ -65,13 +65,11 @@ to adjust image augmentation parameters and see the resulting images.
 <img src="https://habrastorage.org/webt/e-/6k/z-/e-6kz-fugp2heak3jzns3bc-r8o.jpeg" width=100%>
 
 ## Authors
-[Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/)
 
-[Alex Parinov](https://www.linkedin.com/in/alex-parinov/)
-
-[Vladimir I. Iglovikov](https://www.linkedin.com/in/iglovikov/)
-
-[Evegene Khvedchenya](https://www.linkedin.com/in/cvtalks/)
+| ![Alexander Buslaev](https://avatars3.githubusercontent.com/u/1128788?s=400&v=4)   |      ![Alex Parinov](https://avatars2.githubusercontent.com/u/681989?s=400&v=4)     |  ![Vladimir Iglovikov](https://avatars0.githubusercontent.com/u/5481618?s=400&v=4) | ![Eugene Khvedchenya](https://avatars3.githubusercontent.com/u/532320?s=400&v=4) |
+|:----------:|:-------------:|:------:|:------:|
+| [Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/) |  [Alex Parinov](https://www.linkedin.com/in/alex-parinov/) | [Vladimir I. Iglovikov](https://www.linkedin.com/in/iglovikov/) | [Evegene Khvedchenya](https://www.linkedin.com/in/cvtalks/)|
+| [Kaggle Master](https://www.kaggle.com/albuslaev) |    [Kaggle Master](https://www.kaggle.com/creafz)   |   [Kaggle GrandMaster](https://www.kaggle.com/iglovikov) |   [Kaggle Master](https://www.kaggle.com/bloodaxe) |
 
 ## Installation
 
