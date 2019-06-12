@@ -1745,7 +1745,6 @@ class GaussNoise(ImageOnlyTransform):
         sigma = var ** 0.5
         random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
         gauss = random_state.normal(mean, sigma, image.shape)
-        gauss = gauss - np.min(gauss)
         return {
             'gauss': gauss
         }
