@@ -876,7 +876,7 @@ def gauss_noise(image, gauss):
     return image + gauss
 
 
-def _brightness_contrast_adjust_float(img, alpha=1, beta=0):
+def _brightness_contrast_adjust_non_unit(img, alpha=1, beta=0):
     img = img.copy()
 
     if alpha != 1:
@@ -887,8 +887,8 @@ def _brightness_contrast_adjust_float(img, alpha=1, beta=0):
 
 
 @preserve_shape
-def _brightness_contrast_adjust_int(img, alpha=1, beta=0):
-    dtype = img.dtype
+def _brightness_contrast_adjust_uint(img, alpha=1, beta=0):
+    dtype = np.dtype('uint8')
 
     max_value = MAX_VALUES_BY_DTYPE[dtype]
 
@@ -906,10 +906,10 @@ def _brightness_contrast_adjust_int(img, alpha=1, beta=0):
 
 @clipped
 def brightness_contrast_adjust(img, alpha=1, beta=0):
-    if img.dtype in (np.uint8, np.uint16, np.uint32):
-        return _brightness_contrast_adjust_int(img, alpha, beta)
+    if img.dtype == np.uint8:
+        return _brightness_contrast_adjust_uint(img, alpha, beta)
     else:
-        return _brightness_contrast_adjust_float(img, alpha, beta)
+        return _brightness_contrast_adjust_non_unit(img, alpha, beta)
 
 
 def to_gray(img):
