@@ -34,6 +34,7 @@ def clipped(func):
 
 def preserve_shape(func):
     """Preserve shape of the image."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -46,6 +47,7 @@ def preserve_shape(func):
 
 def preserve_channel_dim(func):
     """Preserve dummy channel dim."""
+
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -876,14 +878,40 @@ def gauss_noise(image, gauss):
     return image + gauss
 
 
-@clipped
-def brightness_contrast_adjust(img, alpha=1, beta=0):
-    img = img.astype('float32')
+def _brightness_contrast_adjust_float(img, alpha=1, beta=0):
+    img = img.copy()
+
     if alpha != 1:
         img *= alpha
     if beta != 0:
         img += beta * np.mean(img)
     return img
+
+
+@preserve_shape
+def _brightness_contrast_adjust_int(img, alpha=1, beta=0):
+    dtype = img.dtype
+
+    max_value = MAX_VALUES_BY_DTYPE[dtype]
+
+    lut = np.arange(0, max_value + 1).astype('float32')
+
+    if alpha != 1:
+        lut *= alpha
+    if beta != 0:
+        lut += beta * np.mean(img)
+
+    lut = np.clip(lut, 0, max_value).astype(dtype)
+    img = cv2.LUT(img, lut)
+    return img
+
+
+@clipped
+def brightness_contrast_adjust(img, alpha=1, beta=0):
+    if img.dtype in (np.uint8, np.uint16, np.uint32):
+        return _brightness_contrast_adjust_int(img, alpha, beta)
+    else:
+        return _brightness_contrast_adjust_float(img, alpha, beta)
 
 
 def to_gray(img):
