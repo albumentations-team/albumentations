@@ -929,7 +929,7 @@ class Cutout(ImageOnlyTransform):
         self.fill_value = fill_value
         warnings.warn("This class has been deprecated. Please use CoarseDropout", DeprecationWarning)
 
-    def apply(self, image, fill_value, holes=[], **params):
+    def apply(self, image, fill_value=0, holes=[], **params):
         return F.cutout(image, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params):
