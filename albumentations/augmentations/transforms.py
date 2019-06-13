@@ -986,7 +986,7 @@ class CoarseDropout(ImageOnlyTransform):
 
     def __init__(self, max_holes=8, max_height=8, max_width=8,
                  min_holes=None, min_height=None, min_width=None,
-                 always_apply=False, p=0.5):
+                 fill_value=0, always_apply=False, p=0.5):
         super(CoarseDropout, self).__init__(always_apply, p)
         self.max_holes = max_holes
         self.max_height = max_height
@@ -994,13 +994,13 @@ class CoarseDropout(ImageOnlyTransform):
         self.min_holes = min_holes if min_holes is not None else max_holes
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
-
+        self.fill_value = fill_value
         assert 0 < self.min_holes <= self.max_holes
         assert 0 < self.min_height <= self.max_height
         assert 0 < self.min_width <= self.max_width
 
-    def apply(self, image, holes=[], **params):
-        return F.cutout(image, holes)
+    def apply(self, image, fill_value, holes=[], **params):
+        return F.cutout(image, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params['image']
