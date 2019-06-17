@@ -999,7 +999,7 @@ class CoarseDropout(ImageOnlyTransform):
         assert 0 < self.min_height <= self.max_height
         assert 0 < self.min_width <= self.max_width
 
-    def apply(self, image, fill_value, holes=[], **params):
+    def apply(self, image, fill_value=0, holes=[], **params):
         return F.cutout(image, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params):
