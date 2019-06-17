@@ -92,9 +92,9 @@ And it also works in Kaggle GPU kernels [(proof)](https://www.kaggle.com/creafz/
 ```
 
 ### Conda
-To install albumentations using conda we need first to install `imgaug` with pip
+To install albumentations using conda we need first to install `imgaug` via conda-forge collection
 ```
-pip install imgaug
+conda install -c conda-forge imgaug
 conda install albumentations -c albumentations
 ```
 
