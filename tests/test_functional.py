@@ -847,7 +847,7 @@ def test_is_multispectral_image():
     assert not F.is_multispectral_image(gray_image)
 
 
-def test_is_brightness_contrast():
+def test_brightness_contrast():
     dtype = np.uint8
     min_value = np.iinfo(dtype).min
     max_value = np.iinfo(dtype).max
