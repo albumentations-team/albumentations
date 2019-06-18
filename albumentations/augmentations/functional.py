@@ -876,7 +876,7 @@ def gauss_noise(image, gauss):
     return image + gauss
 
 
-def _brightness_contrast_adjust_non_unit(img, alpha=1, beta=0):
+def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0):
     img = img.astype('float32')
 
     if alpha != 1:
