@@ -25,6 +25,7 @@ __all__ = [
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
+    'ChannelDropout',
 ]
 
 
@@ -1785,6 +1786,54 @@ class CLAHE(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('clip_limit', 'tile_grid_size')
+
+
+class ChannelDropout(ImageOnlyTransform):
+    """Randomly Drop Channels in the input Image.
+
+    Args:
+        min_channels (int): lower threshold for channels to be dropped.
+        max_channels (int): upper threshold for channels to be dropped.
+        fill_value : pixel value for the dropped channel.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, uint16, unit32, float32
+    """
+
+    def __init__(self, min_channels=1, max_channels=2, fill_value=0, always_apply=False, p=0.5):
+        super(ChannelDropout, self).__init__(always_apply, p)
+
+        assert 1 <= min_channels <= max_channels
+        self.min_channels = min_channels
+        self.max_channels = max_channels
+        self.fill_value = fill_value
+
+    def apply(self, img, channels_to_drop=(0, ), **params):
+        return F.channel_dropout(img, channels_to_drop, self.fill_value)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+
+        num_channels = img.shape[-1]
+
+        if self.max_channels >= num_channels:
+            raise ValueError("Can not drop all channels in ChannelDropout.")
+
+        if len(img.shape) == 2 or num_channels == 1:
+            raise NotImplementedError("Images has one channel. ChannelDropout is not defined.")
+
+        num_drop_channels = random.randint(self.min_channels, self.max_channels)
+
+        channels_to_drop = random.choice(range(num_channels), size=num_drop_channels, replace=False)
+
+        return {'channels_to_drop': channels_to_drop}
+
+    def get_transform_init_args_names(self):
+        return ('min_channels', 'max_channels', 'fill_value')
 
 
 class ChannelShuffle(ImageOnlyTransform):
