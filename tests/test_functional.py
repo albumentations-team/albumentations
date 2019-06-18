@@ -857,7 +857,7 @@ def test_brightness_contrast():
     assert np.array_equal(F.brightness_contrast_adjust(image_uint8),
                           F._brightness_contrast_adjust_uint(image_uint8))
 
-    assert np.array_equal(F._brightness_contrast_adjust_non_unit(image_uint8),
+    assert np.array_equal(F._brightness_contrast_adjust_non_uint(image_uint8),
                           F._brightness_contrast_adjust_uint(image_uint8))
 
     dtype = np.uint16
@@ -867,7 +867,7 @@ def test_brightness_contrast():
     image_uint16 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
 
     assert np.array_equal(F.brightness_contrast_adjust(image_uint16),
-                          F._brightness_contrast_adjust_non_unit(image_uint16))
+                          F._brightness_contrast_adjust_non_uint(image_uint16))
 
     F.brightness_contrast_adjust(image_uint16)
 
@@ -878,9 +878,9 @@ def test_brightness_contrast():
     image_uint32 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
 
     assert np.array_equal(F.brightness_contrast_adjust(image_uint32),
-                          F._brightness_contrast_adjust_non_unit(image_uint32))
+                          F._brightness_contrast_adjust_non_uint(image_uint32))
 
     image_float = np.random.random((5, 5, 3))
 
     assert np.array_equal(F.brightness_contrast_adjust(image_float),
-                          F._brightness_contrast_adjust_non_unit(image_float))
+                          F._brightness_contrast_adjust_non_uint(image_float))
