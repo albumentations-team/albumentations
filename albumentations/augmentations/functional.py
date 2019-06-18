@@ -909,7 +909,7 @@ def brightness_contrast_adjust(img, alpha=1, beta=0):
     if img.dtype == np.uint8:
         return _brightness_contrast_adjust_uint(img, alpha, beta)
     else:
-        return _brightness_contrast_adjust_non_unit(img, alpha, beta)
+        return _brightness_contrast_adjust_non_uint(img, alpha, beta)
 
 
 def to_gray(img):
