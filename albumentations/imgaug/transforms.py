@@ -32,10 +32,8 @@ class BasicIAATransform(BasicTransform):
         params['deterministic_processor'] = self.processor.to_deterministic()
         return params
 
-
     def apply(self, img, deterministic_processor=None, **params):
         return deterministic_processor.augment_image(img)
-
 
 class DualIAATransform(DualTransform, BasicIAATransform):
 
