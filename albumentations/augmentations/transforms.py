@@ -1792,8 +1792,7 @@ class ChannelDropout(ImageOnlyTransform):
     """Randomly Drop Channels in the input Image.
 
     Args:
-        min_channels (int): lower threshold for channels to be dropped.
-        max_channels (int): upper threshold for channels to be dropped.
+        channel_drop_range (int, int): range from which we choose the number of channels to drop.
         fill_value : pixel value for the dropped channel.
         p (float): probability of applying the transform. Default: 0.5.
 
@@ -1804,12 +1803,14 @@ class ChannelDropout(ImageOnlyTransform):
         uint8, uint16, unit32, float32
     """
 
-    def __init__(self, min_channels=1, max_channels=2, fill_value=0, always_apply=False, p=0.5):
+    def __init__(self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5):
         super(ChannelDropout, self).__init__(always_apply, p)
 
-        assert 1 <= min_channels <= max_channels
-        self.min_channels = min_channels
-        self.max_channels = max_channels
+        self.min_channels = channel_drop_range[0]
+        self.max_channels = channel_drop_range[1]
+
+        assert 1 <= self.min_channels <= self.max_channels
+
         self.fill_value = fill_value
 
     def apply(self, img, channels_to_drop=(0, ), **params):
@@ -1820,11 +1821,11 @@ class ChannelDropout(ImageOnlyTransform):
 
         num_channels = img.shape[-1]
 
-        if self.max_channels >= num_channels:
-            raise ValueError("Can not drop all channels in ChannelDropout.")
-
         if len(img.shape) == 2 or num_channels == 1:
             raise NotImplementedError("Images has one channel. ChannelDropout is not defined.")
+
+        if self.max_channels >= num_channels:
+            raise ValueError("Can not drop all channels in ChannelDropout.")
 
         num_drop_channels = random.randint(self.min_channels, self.max_channels)
 
@@ -1833,7 +1834,7 @@ class ChannelDropout(ImageOnlyTransform):
         return {'channels_to_drop': channels_to_drop}
 
     def get_transform_init_args_names(self):
-        return ('min_channels', 'max_channels', 'fill_value')
+        return ('channel_drop_range', 'fill_value')
 
 
 class ChannelShuffle(ImageOnlyTransform):
