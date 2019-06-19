@@ -35,6 +35,7 @@ class BasicIAATransform(BasicTransform):
     def apply(self, img, deterministic_processor=None, **params):
         return deterministic_processor.augment_image(img)
 
+
 class DualIAATransform(DualTransform, BasicIAATransform):
 
     def apply_to_bboxes(self, bboxes, deterministic_processor=None, rows=0, cols=0, **params):
