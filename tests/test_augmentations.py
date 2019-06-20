@@ -10,8 +10,8 @@ from albumentations import (
     IAASharpen, IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective,
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
-    RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop)
-import albumentations as A
+    RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop,
+    ChannelDropout)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -37,6 +37,7 @@ import albumentations as A
     [RandomFog, {}],
     [RandomSunFlare, {}],
     [RandomShadow, {}],
+    [ChannelDropout, {}],
 ])
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -68,6 +69,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [RandomFog, {}],
     [RandomSunFlare, {}],
     [RandomShadow, {}],
+    [ChannelDropout, {}],
 ])
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -182,6 +184,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [RandomFog, {}],
     [RandomSunFlare, {}],
     [RandomShadow, {}],
+    [ChannelDropout, {}],
 ])
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
@@ -231,6 +234,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [RandomFog, {}],
     [RandomSunFlare, {}],
     [RandomShadow, {}],
+    [ChannelDropout, {}],
 ])
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
@@ -326,6 +330,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [RandomFog, {}],
     [RandomSunFlare, {}],
     [RandomShadow, {}],
+    [ChannelDropout, {}],
 ])
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)

@@ -859,6 +859,18 @@ def channel_shuffle(img, channels_shuffled):
 
 
 @preserve_shape
+def channel_dropout(img, channels_to_drop, fill_value=0):
+    if len(img.shape) == 2 or img.shape[2] == 1:
+        raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
+
+    img = img.copy()
+
+    img[..., channels_to_drop] = fill_value
+
+    return img
+
+
+@preserve_shape
 def gamma_transform(img, gamma):
     if img.dtype == np.uint8:
         invGamma = 1.0 / gamma

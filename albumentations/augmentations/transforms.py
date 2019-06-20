@@ -25,6 +25,7 @@ __all__ = [
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
+    'ChannelDropout',
 ]
 
 
@@ -1785,6 +1786,55 @@ class CLAHE(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('clip_limit', 'tile_grid_size')
+
+
+class ChannelDropout(ImageOnlyTransform):
+    """Randomly Drop Channels in the input Image.
+
+    Args:
+        channel_drop_range (int, int): range from which we choose the number of channels to drop.
+        fill_value : pixel value for the dropped channel.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, uint16, unit32, float32
+    """
+
+    def __init__(self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5):
+        super(ChannelDropout, self).__init__(always_apply, p)
+
+        self.min_channels = channel_drop_range[0]
+        self.max_channels = channel_drop_range[1]
+
+        assert 1 <= self.min_channels <= self.max_channels
+
+        self.fill_value = fill_value
+
+    def apply(self, img, channels_to_drop=(0, ), **params):
+        return F.channel_dropout(img, channels_to_drop, self.fill_value)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+
+        num_channels = img.shape[-1]
+
+        if len(img.shape) == 2 or num_channels == 1:
+            raise NotImplementedError("Images has one channel. ChannelDropout is not defined.")
+
+        if self.max_channels >= num_channels:
+            raise ValueError("Can not drop all channels in ChannelDropout.")
+
+        num_drop_channels = random.randint(self.min_channels, self.max_channels)
+
+        channels_to_drop = random.choice(range(num_channels), size=num_drop_channels, replace=False)
+
+        return {'channels_to_drop': channels_to_drop}
+
+    def get_transform_init_args_names(self):
+        return ('channel_drop_range', 'fill_value')
 
 
 class ChannelShuffle(ImageOnlyTransform):

@@ -229,6 +229,7 @@ def test_force_apply():
     [A.Normalize, {}],
     [A.ToFloat, {}],
     [A.FromFloat, {}],
+    [A.ChannelDropout, {}],
 ])
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose(
