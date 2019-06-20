@@ -859,7 +859,7 @@ def channel_shuffle(img, channels_shuffled):
 
 
 def channel_dropout(img, channels_to_drop, fill_value=0):
-    if len(img.shape) == 2:
+    if len(img.shape) == 2 or img.shape[2] == 1:
         raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
 
     img = img.copy()
