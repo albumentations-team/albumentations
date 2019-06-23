@@ -33,7 +33,10 @@ def clipped(func):
 
 
 def preserve_shape(func):
-    """Preserve shape of the image."""
+    """
+    Preserve shape of the image
+
+    """
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -45,7 +48,10 @@ def preserve_shape(func):
 
 
 def preserve_channel_dim(func):
-    """Preserve dummy channel dim."""
+    """
+    Preserve dummy channel dim.
+
+    """
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
@@ -922,6 +928,36 @@ def brightness_contrast_adjust(img, alpha=1, beta=0):
         return _brightness_contrast_adjust_uint(img, alpha, beta)
     else:
         return _brightness_contrast_adjust_non_uint(img, alpha, beta)
+
+
+@clipped
+def iso_noise(image, intensity=0.5, random_state=None, **kwargs):
+    """
+    Apply poisson noise to image to simulate camera sensor noise.
+
+    Args:
+        image: Input image, currently, only RGB, uint8 images are supported.
+        intensity: Multiplication factor for noise values. Values of ~0.5 are produce noticeable,
+                   yet acceptable level of noise.
+        random_state:
+        **kwargs:
+
+    Returns:
+        Noised image
+
+    """
+    assert image.dtype == np.uint8, 'Image must have uint8 channel type'
+    assert image.shape[2] == 3, 'Image must be RGB'
+
+    if random_state is None:
+        random_state = np.random.RandomState(42)
+
+    hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
+    mean, stddev = cv2.meanStdDev(hls)
+
+    noise = random_state.poisson(stddev[1] * intensity, image.shape)
+    dampen_factor = 1.0 - image / 255.
+    return (image + noise * dampen_factor).astype(image.dtype)
 
 
 def to_gray(img):

@@ -25,7 +25,7 @@ __all__ = [
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
-    'ChannelDropout',
+    'ChannelDropout', 'ISONoise'
 ]
 
 
@@ -1756,6 +1756,28 @@ class GaussNoise(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('var_limit',)
+
+
+class ISONoise(ImageOnlyTransform):
+    """
+    Apply camera sensor noise.
+    """
+
+    def __init__(self, intensity=(0.1, 0.5), always_apply=False, p=0.5):
+        super(ISONoise, self).__init__(always_apply, p)
+        self.intensity = intensity
+
+    def apply(self, img, intensity=(10, 30), random_state=None, **params):
+        return F.iso_noise(img, intensity, np.random.RandomState(random_state))
+
+    def get_params(self):
+        return {
+            'intensity': random.uniform(self.intensity[0], self.intensity[1]),
+            'random_state': random.randint(0, 65536)
+        }
+
+    def get_transform_init_args_names(self):
+        return ('intensity',)
 
 
 class CLAHE(ImageOnlyTransform):
