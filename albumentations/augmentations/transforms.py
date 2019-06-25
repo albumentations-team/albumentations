@@ -25,7 +25,7 @@ __all__ = [
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
-    'ChannelDropout',
+    'ChannelDropout', 'Zigsaw'
 ]
 
 
@@ -1814,7 +1814,7 @@ class ChannelDropout(ImageOnlyTransform):
 
         self.fill_value = fill_value
 
-    def apply(self, img, channels_to_drop=(0, ), **params):
+    def apply(self, img, channels_to_drop=(0,), **params):
         return F.channel_dropout(img, channels_to_drop, self.fill_value)
 
     def get_params_dependent_on_targets(self, params):
@@ -2063,3 +2063,38 @@ class Lambda(NoOp):
         state.update(self.custom_apply_fns.items())
         state.update(self.get_base_init_args())
         return '{name}({args})'.format(name=self.__class__.__name__, args=format_args(state))
+
+
+class Zigsaw(DualTransform):
+    """
+    Splits image into square patches, shuffles and merge them back together.
+
+    Works only for the square images.
+
+     Args:
+        num_cuts (int): number of cuts per side. Default: 1.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask
+
+    Image types:
+        Any
+
+    """
+
+    def __init__(self, num_cuts=1, always_apply=False, p=0.5):
+        super(Zigsaw, self).__init__(always_apply, p)
+
+        self.num_cuts = num_cuts
+
+    def apply(self, img, random_state=None, **params):
+        return F.zigsaw(img, self.num_cuts, np.random.RandomState(random_state))
+
+    def get_params(self):
+        return {
+            'random_state': random.randint(0, 65536)
+        }
+
+    def get_transform_init_args_names(self):
+        return ('num_cuts',)

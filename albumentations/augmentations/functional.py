@@ -7,6 +7,8 @@ from warnings import warn
 import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
+from toolz import partition
+from itertools import chain
 
 from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
 
@@ -1177,3 +1179,59 @@ def py3round(number):
 
 def noop(input_obj, **params):
     return input_obj
+
+
+def _split(img, num_horizontal_cuts, num_vertical_cuts):
+    """Split an image into smaller parts.
+
+    Args:
+        img:
+        num_horizontal_cuts:
+        num_vertical_cuts:
+
+    Returns: list with patches.
+
+    """
+    return list(
+        chain(*(np.split(sub, num_horizontal_cuts, axis=1) for sub in np.split(img, num_vertical_cuts, axis=0))))
+
+
+def _combine(seq, num_horizontal_patches):
+    """Combine list of patches into big image.
+
+    Args:
+        seq:
+        num_horizontal_patches:
+
+    Returns:
+
+    """
+    return np.concatenate([np.concatenate(p, axis=1) for p in partition(num_horizontal_patches, seq)], axis=0)
+
+
+def zigsaw(image, num_cuts, random_state=None, **kwargs):
+    """Apply poisson noise to image to simulate camera sensor noise.
+
+    Args:
+        image: Input image, currently, only RGB, uint8 images are supported.
+        num_cuts: number of cuts per side. Image is split `into num_cuts * num_cuts` pieces
+        random_state:
+        **kwargs:
+    Returns:
+        Image with reshuffled patches.
+    """
+    if random_state is None:
+        random_state = np.random.RandomState(42)
+
+    height, width = image.shape[:2]
+
+    assert height % num_cuts == 0
+    assert width % num_cuts == 0
+
+    splitted = _split(image, num_cuts, num_cuts)
+
+    random_state.shuffle(splitted)
+
+    image = _combine(splitted, num_cuts)
+
+    return image

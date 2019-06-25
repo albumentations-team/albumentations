@@ -11,7 +11,7 @@ from albumentations import (
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
     RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop,
-    ChannelDropout)
+    ChannelDropout, Zigsaw)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -38,6 +38,7 @@ from albumentations import (
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [Zigsaw, {}],
 ])
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -70,6 +71,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [Zigsaw, {}],
 ])
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -94,6 +96,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
+    [Zigsaw, {'num_cuts': 2}],
 ])
 def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -117,6 +120,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
+    [Zigsaw, {'num_cuts': 2}],
 ])
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -185,6 +189,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [Zigsaw, {}],
 ])
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
@@ -235,6 +240,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [Zigsaw, {}],
 ])
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
@@ -267,6 +273,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     [GaussNoise, {}],
     [ToFloat, {}],
     [FromFloat, {}],
+    [Zigsaw, {}],
 ])
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -331,6 +338,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [Zigsaw, {}],
 ])
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
