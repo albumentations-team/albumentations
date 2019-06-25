@@ -121,12 +121,11 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     return img
 
 
-def cutout(img, holes):
+def cutout(img, holes, fill_value=0):
     # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
-
     for x1, y1, x2, y2 in holes:
-        img[y1: y2, x1: x2] = 0
+        img[y1: y2, x1: x2] = fill_value
     return img
 
 

@@ -646,7 +646,7 @@ class RandomCropNearBBox(DualTransform):
         return ['cropping_bbox']
 
     def get_transform_init_args_names(self):
-        return ('max_part_shift', )
+        return ('max_part_shift',)
 
 
 class RandomSizedCrop(DualTransform):
@@ -867,7 +867,7 @@ class ElasticTransform(DualTransform):
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
-                                   self.border_mode, self. value, np.random.RandomState(random_state),
+                                   self.border_mode, self.value, np.random.RandomState(random_state),
                                    self.approximate)
 
     def get_params(self):
@@ -922,15 +922,16 @@ class Cutout(ImageOnlyTransform):
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
     """
 
-    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, always_apply=False, p=0.5):
+    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, fill_value=0, always_apply=False, p=0.5):
         super(Cutout, self).__init__(always_apply, p)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
+        self.fill_value = fill_value
         warnings.warn("This class has been deprecated. Please use CoarseDropout", DeprecationWarning)
 
-    def apply(self, image, holes=[], **params):
-        return F.cutout(image, holes)
+    def apply(self, image, fill_value=0, holes=[], **params):
+        return F.cutout(image, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params['image']
@@ -986,7 +987,7 @@ class CoarseDropout(ImageOnlyTransform):
 
     def __init__(self, max_holes=8, max_height=8, max_width=8,
                  min_holes=None, min_height=None, min_width=None,
-                 always_apply=False, p=0.5):
+                 fill_value=0, always_apply=False, p=0.5):
         super(CoarseDropout, self).__init__(always_apply, p)
         self.max_holes = max_holes
         self.max_height = max_height
@@ -994,13 +995,13 @@ class CoarseDropout(ImageOnlyTransform):
         self.min_holes = min_holes if min_holes is not None else max_holes
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
-
+        self.fill_value = fill_value
         assert 0 < self.min_holes <= self.max_holes
         assert 0 < self.min_height <= self.max_height
         assert 0 < self.min_width <= self.max_width
 
-    def apply(self, image, holes=[], **params):
-        return F.cutout(image, holes)
+    def apply(self, image, fill_value=0, holes=[], **params):
+        return F.cutout(image, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params['image']
