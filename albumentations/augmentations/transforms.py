@@ -35,6 +35,7 @@ class PadIfNeeded(DualTransform):
     Args:
         p (float): probability of applying the transform. Default: 1.0.
         value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
 
     Targets:
         image, mask, bbox, keypoints
@@ -45,12 +46,13 @@ class PadIfNeeded(DualTransform):
     """
 
     def __init__(self, min_height=1024, min_width=1024, border_mode=cv2.BORDER_REFLECT_101,
-                 value=None, always_apply=False, p=1.0):
+                 value=None, mask_value=None, always_apply=False, p=1.0):
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
         self.border_mode = border_mode
         self.value = value
+        self.mask_value = value
 
     def update_params(self, params, **kwargs):
         params = super(PadIfNeeded, self).update_params(params, **kwargs)
@@ -80,6 +82,10 @@ class PadIfNeeded(DualTransform):
     def apply(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
         return F.pad_with_params(img, pad_top, pad_bottom, pad_left, pad_right,
                                  border_mode=self.border_mode, value=self.value)
+
+    def apply_to_mask(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
+        return F.pad_with_params(img, pad_top, pad_bottom, pad_left, pad_right,
+                                 border_mode=self.border_mode, value=self.mask_value)
 
     def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
