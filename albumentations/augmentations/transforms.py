@@ -839,10 +839,12 @@ class GridDistortion(DualTransform):
         self.mask_value = mask_value
 
     def apply(self, img, stepsx=[], stepsy=[], interpolation=cv2.INTER_LINEAR, **params):
-        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode, self.value)
+        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation,
+                                 self.border_mode, self.value)
 
     def apply_to_mask(self, img, stepsx=[], stepsy=[], **params):
-        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST,
+                                 self.border_mode, self.mask_value)
 
     def get_params(self):
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
@@ -879,7 +881,8 @@ class ElasticTransform(DualTransform):
     """
 
     def __init__(self, alpha=1, sigma=50, alpha_affine=50, interpolation=cv2.INTER_LINEAR,
-                 border_mode=cv2.BORDER_REFLECT_101, value=None, mask_value=None, always_apply=False, approximate=False, p=0.5):
+                 border_mode=cv2.BORDER_REFLECT_101, value=None, mask_value=None,
+                 always_apply=False, approximate=False, p=0.5):
         super(ElasticTransform, self).__init__(always_apply, p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
