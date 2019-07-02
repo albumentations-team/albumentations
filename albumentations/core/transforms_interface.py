@@ -1,9 +1,12 @@
+from __future__ import absolute_import
+
 import random
 
 import cv2
 
 from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
+from albumentations.core.utils import format_args
 
 __all__ = ['to_tuple', 'BasicTransform', 'DualTransform', 'ImageOnlyTransform', 'NoOp']
 
@@ -68,8 +71,7 @@ class BasicTransform(object):
     def __repr__(self):
         state = self.get_base_init_args()
         state.update(self.get_transform_init_args())
-        args = ', '.join(['{0}={1}'.format(k, v) for k, v in state.items()])
-        return '{name}({args})'.format(name=self.__class__.__name__, args=args)
+        return '{name}({args})'.format(name=self.__class__.__name__, args=format_args(state))
 
     def _get_target_function(self, key):
         transform_key = key
@@ -146,7 +148,7 @@ class BasicTransform(object):
     def get_transform_init_args(self):
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
 
-    def to_dict(self):
+    def _to_dict(self):
         state = {
             '__class_fullname__': self.get_class_fullname(),
         }

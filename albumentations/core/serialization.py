@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import json
 import warnings
 
@@ -47,7 +49,7 @@ def to_dict(transform, on_not_implemented_error='raise'):
             )
         )
     try:
-        transform_dict = transform.to_dict()
+        transform_dict = transform._to_dict()
     except NotImplementedError as e:
         if on_not_implemented_error == 'raise':
             raise e
@@ -67,17 +69,34 @@ def to_dict(transform, on_not_implemented_error='raise'):
     }
 
 
-def from_dict(transform_dict):
+def from_dict(transform_dict, lambda_transforms=None):
     """
     Args:
         transform (dict): A dictionary with serialized transform pipeline.
+        lambda_transforms (dict): A dictionary that contains lambda transforms, that is instances of the Lambda class.
+            This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
+            in that dictionary should be named same as `name` arguments in respective lambda transforms from
+            a serialized pipeline.
     """
     transform = transform_dict['transform']
+    if transform.get('__type__') == 'Lambda':
+        name = transform['__name__']
+        if lambda_transforms is None:
+            raise ValueError(
+                'To deserialize a Lambda transform with name {name} you need to pass a dict with this transform '
+                'as the `lambda_transforms` argument'.format(name=name)
+            )
+        transform = lambda_transforms.get(name)
+        if transform is None:
+            raise ValueError('Lambda transform with {name} was not found in `lambda_transforms`'.format(name=name))
+        return transform
     name = transform['__class_fullname__']
     args = {k: v for k, v in transform.items() if k != '__class_fullname__'}
     cls = SERIALIZABLE_REGISTRY[name]
     if 'transforms' in args:
-        args['transforms'] = [from_dict({'transform': t}) for t in args['transforms']]
+        args['transforms'] = [
+            from_dict({'transform': t}, lambda_transforms=lambda_transforms) for t in args['transforms']
+        ]
     return cls(**args)
 
 
@@ -108,7 +127,7 @@ def save(transform, filepath, data_format='json', on_not_implemented_error='rais
         dump_fn(transform_dict, f)
 
 
-def load(filepath, data_format='json'):
+def load(filepath, data_format='json', lambda_transforms=None):
     """
     Load a serialized pipeline from a json or yaml file and construct a transform pipeline.
 
@@ -116,9 +135,13 @@ def load(filepath, data_format='json'):
         transform (obj): Transform to serialize.
         filepath (str): Filepath to read from.
         data_format (str): Serialization format. Should be either `json` or 'yaml'.
+        lambda_transforms (dict): A dictionary that contains lambda transforms, that is instances of the Lambda class.
+            This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
+            in that dictionary should be named same as `name` arguments in respective lambda transforms from
+            a serialized pipeline.
     """
     check_data_format(data_format)
     load_fn = json.load if data_format == 'json' else yaml.safe_load
     with open(filepath) as f:
         transform_dict = load_fn(f)
-    return from_dict(transform_dict)
+    return from_dict(transform_dict, lambda_transforms=lambda_transforms)

@@ -845,3 +845,42 @@ def test_is_multispectral_image():
 
     gray_image = np.ones((5, 5, 1), dtype=np.uint8)
     assert not F.is_multispectral_image(gray_image)
+
+
+def test_brightness_contrast():
+    dtype = np.uint8
+    min_value = np.iinfo(dtype).min
+    max_value = np.iinfo(dtype).max
+
+    image_uint8 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_uint8),
+                          F._brightness_contrast_adjust_uint(image_uint8))
+
+    assert np.array_equal(F._brightness_contrast_adjust_non_uint(image_uint8),
+                          F._brightness_contrast_adjust_uint(image_uint8))
+
+    dtype = np.uint16
+    min_value = np.iinfo(dtype).min
+    max_value = np.iinfo(dtype).max
+
+    image_uint16 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_uint16),
+                          F._brightness_contrast_adjust_non_uint(image_uint16))
+
+    F.brightness_contrast_adjust(image_uint16)
+
+    dtype = np.uint32
+    min_value = np.iinfo(dtype).min
+    max_value = np.iinfo(dtype).max
+
+    image_uint32 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_uint32),
+                          F._brightness_contrast_adjust_non_uint(image_uint32))
+
+    image_float = np.random.random((5, 5, 3))
+
+    assert np.array_equal(F.brightness_contrast_adjust(image_float),
+                          F._brightness_contrast_adjust_non_uint(image_float))

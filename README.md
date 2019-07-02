@@ -92,9 +92,9 @@ And it also works in Kaggle GPU kernels [(proof)](https://www.kaggle.com/creafz/
 ```
 
 ### Conda
-To install albumentations using conda we need first to install `imgaug` with pip
+To install albumentations using conda we need first to install `imgaug` via conda-forge collection
 ```
-pip install imgaug
+conda install -c conda-forge imgaug
 conda install albumentations -c albumentations
 ```
 
@@ -107,6 +107,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 
 - [Blur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Blur)
 - [CLAHE](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CLAHE)
+- [ChannelDropout](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ChannelDropout)
 - [ChannelShuffle](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ChannelShuffle)
 - [CoarseDropout](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CoarseDropout)
 - [Cutout](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Cutout)
@@ -181,29 +182,27 @@ Albumentations has equivalents for common torchvision transforms as well as plen
 ## Benchmarking results
 To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albu/albumentations/blob/master/benchmark/README.md)
 
-Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Core i7-7800X CPU.
+Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Xeon Gold 6140 CPU.
 The table shows how many images per second can be processed on a single core, higher is better.
 
+|                    | albumentations <br><small>0.3.0</small> | imgaug <br><small>0.2.9</small> | torchvision (Pillow backend) <br><small>0.3.0</small> | torchvision (Pillow-SIMD backend) <br><small>0.3.0</small> | Keras <br><small>2.2.4</small> | Augmentor <br><small>0.2.3</small> | <br><small>solt 0.1.6</small> |
+|--------------------|:--------------------:|:------------:|:----------------------------------:|:---------------------------------------:|:-----------:|:---------------:|:----------:|
+| RandomCrop64       |        **271641**    |     3373     |                26538               |                  83251                  |      -      |      22535      |    21383   |
+| PadToSize512       |         **2818**     |       -      |                 414                |                   422                   |      -      |        -        |    2539    |
+| Resize512          |         **2168**     |      696     |                 296                |                   1046                  |      -      |       297       |    1907    |
+| HorizontalFlip     |          991         |      162     |                **4881**            |                   4595                  |     167     |       4595      |     166    |
+| VerticalFlip       |         **4244**     |     2278     |                3066                |                   3598                  |     4162    |       2985      |    3486    |
+| Rotate             |         **702**      |      475     |                 82                 |                   110                   |      7      |        37       |     239    |
+| ShiftScaleRotate   |         **1761**     |      761     |                 81                 |                   105                   |      9      |        -        |       -    |
+| Brightness         |          652         |     1520     |                 316                |                   408                   |     149     |       308       |    **2506**|
+| Contrast           |         1059         |     1539     |                 231                |                   316                   |      -      |       241       |    **2524**|
+| BrightnessContrast |          646         |      861     |                 128                |                   174                   |      -      |       130       |    **1305**|
+| ShiftHSV           |          168         |    **208**   |                 32                 |                    42                   |      -      |        -        |     107    |
+| ShiftRGB           |          555         |   **1521**   |                  -                 |                    -                    |     477     |        -        |      -     |
+| Gamma              |          483         |       -      |                 801                |                   **858**               |      -      |        -        |     447    |
+| Grayscale          |         **12097**    |      88      |                 728                |                   915                   |      -      |       2182      |    9140    |
 
-|  | albumentations <br><small>0.2.0</small> | imgaug <br><small>0.2.8</small> | torchvision (Pillow backend) <br><small>0.2.2.post3</small>  | torchvision (Pillow-SIMD backend) <br><small>0.2.2.post3</small> | Keras <br><small>2.2.4</small> | Augmentor <br><small>0.2.3</small> | solt <br><small>0.1.5</small> |
-|--------------------|:--------------:|:------:|:-----------:|:-------------------------:|:-----:|:---------:|:----:|
-| RandomCrop64 | **1017890** | 7160 | 106858 | 107643 | - | 81651 | 50782 |
-| PadToSize512 | **8047** | - | 825 | 782 | - | - | 6559 |
-| Resize512 | **2976** | 1314 | 405 | 1595 | - | 404 | 2838 |
-| HorizontalFlip | 2541 | 885 | 6564 | **6569** | 967 | 6387 | 942 |
-| VerticalFlip | **11070** | 5430 | 8598 | 8441 | 10989 | 8166 | 8481 |
-| Rotate | **1086** | 784 | 124 | 212 | 39 | 52 | 299 |
-| ShiftScaleRotate | **2196** | 1241 | 107 | 188 | 42 | - | - |
-| Brightness | 774 | 1980 | 427 | 570 | 202 | 425 | **2759** |
-| Contrast | 898 | 1976 | 340 | 472 | - | 339 | **2766** |
-| BrightnessContrast | 692 | 1083 | 184 | 251 | - | 183 | **1420** |
-| ShiftHSV | 218 | **305** | 57 | 74 | - | - | 148 |
-| ShiftRGB | 734 | **1965** | - | - | 652 | - | - |
-| Gamma | 1154 | - | **1760** | 1746 | - | - | 1090 |
-| Grayscale | 2661 | 335 | 1188 | 1509 | - | 2884 | **7893** |
-
-
-Python and library versions: Python 3.6.8 | Anaconda, numpy 1.16.2, pillow 5.4.1, pillow-simd 5.3.0.post0, opencv-python 4.0.0.21, scikit-image 0.14.2, scipy 1.2.1.
+Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0, pillow-simd 5.3.0.post1, opencv-python 4.1.0.25, scikit-image 0.15.0, scipy 1.3.0.
 
 
 ## Contributing
