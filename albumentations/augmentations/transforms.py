@@ -97,7 +97,7 @@ class PadIfNeeded(DualTransform):
         return [x + pad_left, y + pad_top, a, s]
 
     def get_transform_init_args_names(self):
-        return ('min_height', 'min_width', 'border_mode', 'value')
+        return ('min_height', 'min_width', 'border_mode', 'value', 'mask_value')
 
 
 class Crop(DualTransform):
@@ -424,7 +424,7 @@ class Rotate(DualTransform):
         return F.keypoint_rotate(keypoint, angle, **params)
 
     def get_transform_init_args_names(self):
-        return ('limit', 'interpolation', 'border_mode', 'value')
+        return ('limit', 'interpolation', 'border_mode', 'value', 'mask_value')
 
 
 class RandomScale(DualTransform):
@@ -536,6 +536,7 @@ class ShiftScaleRotate(DualTransform):
             'interpolation': self.interpolation,
             'border_mode': self.border_mode,
             'value': self.value,
+            'mask_value': self.mask_value
         }
 
 
@@ -816,7 +817,7 @@ class OpticalDistortion(DualTransform):
                 'dy': round(random.uniform(self.shift_limit[0], self.shift_limit[1]))}
 
     def get_transform_init_args_names(self):
-        return ('distort_limit', 'shift_limit', 'interpolation', 'border_mode', 'value')
+        return ('distort_limit', 'shift_limit', 'interpolation', 'border_mode', 'value', 'mask_value')
 
 
 class GridDistortion(DualTransform):
@@ -857,7 +858,7 @@ class GridDistortion(DualTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ('num_steps', 'distort_limit', 'interpolation', 'border_mode', 'value')
+        return ('num_steps', 'distort_limit', 'interpolation', 'border_mode', 'value', 'mask_value')
 
 
 class ElasticTransform(DualTransform):
@@ -907,7 +908,8 @@ class ElasticTransform(DualTransform):
         return {'random_state': random.randint(0, 10000)}
 
     def get_transform_init_args_names(self):
-        return ('alpha', 'sigma', 'alpha_affine', 'interpolation', 'border_mode', 'value', 'approximate')
+        return ('alpha', 'sigma', 'alpha_affine', 'interpolation', 'border_mode', 'value',
+                'mask_value', 'approximate')
 
 
 class Normalize(ImageOnlyTransform):
