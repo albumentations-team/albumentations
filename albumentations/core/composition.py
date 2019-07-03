@@ -191,24 +191,24 @@ class Compose(BaseCompose):
             if dual_start_end is not None and idx == dual_start_end[0]:
                 if self.params[self.bboxes_name]:
                     for trg_name in self.bboxes_targes:
-                        data = data_preprocessing(trg_name, self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
-                                                convert_bboxes_to_albumentations, data)
+                        data = data_preprocessing(trg_name, self.bboxes_name, self.params[self.bboxes_name],
+                                                  check_bboxes, convert_bboxes_to_albumentations, data)
                 if self.params[self.keypoints_name]:
                     for trg_name in self.keypoints_targets:
-                        data = data_preprocessing(trg_name, self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
-                                                convert_keypoints_to_albumentations, data)
+                        data = data_preprocessing(trg_name, self.keypoints_name, self.params[self.keypoints_name],
+                                                  check_keypoints, convert_keypoints_to_albumentations, data)
 
             data = t(force_apply=force_apply, **data)
 
             if dual_start_end is not None and idx == dual_start_end[1]:
                 if self.params[self.bboxes_name]:
-                    for trg_name in self.bboxes_targes: 
-                        data = data_postprocessing(trg_name, self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
-                                                filter_bboxes, convert_bboxes_from_albumentations, data)
+                    for trg_name in self.bboxes_targes:
+                        data = data_postprocessing(trg_name, self.bboxes_name, self.params[self.bboxes_name],
+                                                   check_bboxes, filter_bboxes, convert_bboxes_from_albumentations, data)
                 if self.params[self.keypoints_name]:
                     for trg_name in self.keypoints_targets:
-                        data = data_postprocessing(trg_name, self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
-                                                filter_keypoints, convert_keypoints_from_albumentations, data)
+                        data = data_postprocessing(trg_name, self.keypoints_name, self.params[self.keypoints_name],
+                                                   check_keypoints, filter_keypoints, convert_keypoints_from_albumentations, data)
 
         return data
 
@@ -240,7 +240,7 @@ def data_postprocessing(trg_name, data_name, params, check_fn, filter_fn, conver
         check_fn(data[trg_name])
     else:
         data[trg_name] = convert_fn(data[trg_name], params['format'], rows, cols,
-                                     check_validity=bool(params.get('remove_invisible', True)))
+                                    check_validity=bool(params.get('remove_invisible', True)))
 
     data = remove_label_fields_from_data(trg_name, params.get('label_fields', []), data)
     return data
