@@ -132,9 +132,14 @@ class Compose(BaseCompose):
         if additional_targets is None:
             additional_targets = {}
 
-        self.bboxes_name = 'bboxes'
-        self.keypoints_name = 'keypoints'
         self.additional_targets = additional_targets
+        self.bboxes_name = 'bboxes'
+        self.bboxes_targes = [k for k, v in self.additional_targets.items() if v == self.bboxes_name]
+        self.bboxes_targes.append(self.bboxes_name)
+        self.keypoints_name = 'keypoints'
+        self.keypoints_targets = [k for k, v in self.additional_targets.items() if v == self.keypoints_name]
+        self.keypoints_targets.append(self.keypoints_name)
+
         self.params = {
             self.bboxes_name: bbox_params,
             self.keypoints_name: keypoint_params
@@ -185,21 +190,25 @@ class Compose(BaseCompose):
         for idx, t in enumerate(transforms):
             if dual_start_end is not None and idx == dual_start_end[0]:
                 if self.params[self.bboxes_name]:
-                    data = data_preprocessing(self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
-                                              convert_bboxes_to_albumentations, data)
+                    for trg_name in self.bboxes_targes:
+                        data = data_preprocessing(trg_name, self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
+                                                convert_bboxes_to_albumentations, data)
                 if self.params[self.keypoints_name]:
-                    data = data_preprocessing(self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
-                                              convert_keypoints_to_albumentations, data)
+                    for trg_name in self.keypoints_targets:
+                        data = data_preprocessing(trg_name, self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
+                                                convert_keypoints_to_albumentations, data)
 
             data = t(force_apply=force_apply, **data)
 
             if dual_start_end is not None and idx == dual_start_end[1]:
                 if self.params[self.bboxes_name]:
-                    data = data_postprocessing(self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
-                                               filter_bboxes, convert_bboxes_from_albumentations, data)
+                    for trg_name in self.bboxes_targes: 
+                        data = data_postprocessing(trg_name, self.bboxes_name, self.params[self.bboxes_name], check_bboxes,
+                                                filter_bboxes, convert_bboxes_from_albumentations, data)
                 if self.params[self.keypoints_name]:
-                    data = data_postprocessing(self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
-                                               filter_keypoints, convert_keypoints_from_albumentations, data)
+                    for trg_name in self.keypoints_targets:
+                        data = data_postprocessing(trg_name, self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
+                                                filter_keypoints, convert_keypoints_from_albumentations, data)
 
         return data
 
@@ -213,7 +222,7 @@ class Compose(BaseCompose):
         return dictionary
 
 
-def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data):
+def data_postprocessing(trg_name, data_name, params, check_fn, filter_fn, convert_fn, data):
     rows, cols = data['image'].shape[:2]
 
     additional_params = {}
@@ -225,28 +234,28 @@ def data_postprocessing(data_name, params, check_fn, filter_fn, convert_fn, data
     else:
         raise Exception('Not known data_name')
 
-    data[data_name] = filter_fn(data[data_name], rows, cols, **additional_params)
+    data[trg_name] = filter_fn(data[trg_name], rows, cols, **additional_params)
 
     if params['format'] == 'albumentations':
-        check_fn(data[data_name])
+        check_fn(data[trg_name])
     else:
-        data[data_name] = convert_fn(data[data_name], params['format'], rows, cols,
+        data[trg_name] = convert_fn(data[trg_name], params['format'], rows, cols,
                                      check_validity=bool(params.get('remove_invisible', True)))
 
-    data = remove_label_fields_from_data(data_name, params.get('label_fields', []), data)
+    data = remove_label_fields_from_data(trg_name, params.get('label_fields', []), data)
     return data
 
 
-def data_preprocessing(data_name, params, check_fn, convert_fn, data):
+def data_preprocessing(trg_name, data_name, params, check_fn, convert_fn, data):
     if data_name not in data:
         raise Exception('Please name field with {} `{}`'.format(data_name, data_name))
-    data = add_label_fields_to_data(data_name, params.get('label_fields', []), data)
+    data = add_label_fields_to_data(trg_name, params.get('label_fields', []), data)
 
     rows, cols = data['image'].shape[:2]
     if params['format'] == 'albumentations':
-        check_fn(data[data_name])
+        check_fn(data[trg_name])
     else:
-        data[data_name] = convert_fn(data[data_name], params['format'], rows, cols, check_validity=True)
+        data[trg_name] = convert_fn(data[trg_name], params['format'], rows, cols, check_validity=True)
 
     return data
 
