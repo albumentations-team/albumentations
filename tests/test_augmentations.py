@@ -1,3 +1,6 @@
+import random
+
+import cv2
 import numpy as np
 import pytest
 
@@ -356,3 +359,21 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     annotations = {'image': image, 'cropping_bbox': [-59, 77, 177, 231]}
     data = aug(**annotations)
     assert data['image'].dtype == np.uint8
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [PadIfNeeded, {'min_height': 514, 'min_width': 514,
+                   'border_mode': cv2.BORDER_CONSTANT, 'value': 100, 'mask_value': 1}],
+    [Rotate, {'border_mode': cv2.BORDER_CONSTANT, 'value': 100, 'mask_value': 1}],
+    [ShiftScaleRotate, {'border_mode': cv2.BORDER_CONSTANT, 'value': 100, 'mask_value': 1}],
+    [OpticalDistortion, {'border_mode': cv2.BORDER_CONSTANT, 'value': 100, 'mask_value': 1}],
+    [ElasticTransform, {'border_mode': cv2.BORDER_CONSTANT, 'value': 100, 'mask_value': 1}],
+    [GridDistortion, {'border_mode': cv2.BORDER_CONSTANT, 'value': 100, 'mask_value': 1}],
+])
+def test_mask_fill_value(augmentation_cls, params):
+    random.seed(42)
+    aug = augmentation_cls(p=1, **params)
+    input = {'image': np.zeros((512, 512), dtype=np.uint8) + 100, 'mask': np.ones((512, 512))}
+    output = aug(**input)
+    assert (output['image'] == 100).all()
+    assert (output['mask'] == 1).all()

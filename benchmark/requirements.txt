@@ -6,7 +6,7 @@ tqdm
 tensorflow # required for keras
 keras
 albumentations
-imgaug==0.2.7
+imgaug==0.2.9
 torchvision
 Augmentor
 solt

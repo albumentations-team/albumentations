@@ -127,12 +127,11 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     return img
 
 
-def cutout(img, holes):
+def cutout(img, holes, fill_value=0):
     # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
-
     for x1, y1, x2, y2 in holes:
-        img[y1: y2, x1: x2] = 0
+        img[y1: y2, x1: x2] = fill_value
     return img
 
 
@@ -806,12 +805,12 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     mapx = np.float32(x + dx)
     mapy = np.float32(y + dy)
 
-    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode)
+    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
 
 
 @preserve_shape
 def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
-                             border_mode=cv2.BORDER_REFLECT_101, random_state=None):
+                             border_mode=cv2.BORDER_REFLECT_101, value=None, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
 
@@ -837,7 +836,8 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode)
+    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation,
+                           borderMode=border_mode, value=value)
 
     dx = (random_state.rand(height, width).astype(np.float32) * 2 - 1)
     cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
@@ -852,7 +852,7 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
     mapx = np.float32(x + dx)
     mapy = np.float32(y + dy)
 
-    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode)
+    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
 
 
 def invert(img):

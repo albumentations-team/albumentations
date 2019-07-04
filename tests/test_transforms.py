@@ -169,6 +169,8 @@ def test_multiprocessing_support(augmentation_cls, params):
 
     pool = Pool(8)
     pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
+    pool.close()
+    pool.join()
 
 
 def test_force_apply():
