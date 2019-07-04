@@ -931,7 +931,7 @@ def brightness_contrast_adjust(img, alpha=1, beta=0):
 
 
 @clipped
-def iso_noise(image, intensity=0.5, random_state=None, **kwargs):
+def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwargs):
     """
     Apply poisson noise to image to simulate camera sensor noise.
 
@@ -952,12 +952,24 @@ def iso_noise(image, intensity=0.5, random_state=None, **kwargs):
     if random_state is None:
         random_state = np.random.RandomState(42)
 
+    one_over_255 = float(1. / 255.)
+    image = np.multiply(image, one_over_255, dtype=np.float32)
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     mean, stddev = cv2.meanStdDev(hls)
 
-    noise = random_state.poisson(stddev[1] * intensity, image.shape)
-    dampen_factor = 1.0 - image / 255.
-    return (image + noise * dampen_factor).astype(image.dtype)
+    luminance_noise = random_state.poisson(stddev[1] * intensity * 255, size=hls.shape[:2])
+    color_noise = random_state.normal(0, color_shift * 360 * intensity, size=hls.shape[:2])
+
+    hue = hls[..., 0]
+    hue += color_noise
+    hue[hue < 0] += 360
+    hue[hue > 360] -= 360
+
+    luminance = hls[..., 1]
+    luminance += (luminance_noise / 255) * (1.0 - luminance)
+
+    image = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB) * 255
+    return image.astype(np.uint8)
 
 
 def to_gray(img):

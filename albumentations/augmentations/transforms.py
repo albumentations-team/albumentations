@@ -1797,23 +1797,38 @@ class GaussNoise(ImageOnlyTransform):
 class ISONoise(ImageOnlyTransform):
     """
     Apply camera sensor noise.
+
+    Args:
+        color_shift (float, float): variance range for color hue change.
+            Measured as a fraction of 360 degree Hue angle in HLS colorspace.
+        intensity ((float, float): Multiplicative factor that control strength
+            of color and luminace noise.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8
     """
 
-    def __init__(self, intensity=(0.1, 0.5), always_apply=False, p=0.5):
+    def __init__(self, color_shift=(0.01, 0.05), intensity=(0.1, 0.5), always_apply=False, p=0.5):
         super(ISONoise, self).__init__(always_apply, p)
         self.intensity = intensity
+        self.color_shift = color_shift
 
-    def apply(self, img, intensity=(10, 30), random_state=None, **params):
-        return F.iso_noise(img, intensity, np.random.RandomState(random_state))
+    def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
+        return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_state))
 
     def get_params(self):
         return {
+            'color_shift': random.uniform(self.color_shift[0], self.color_shift[1]),
             'intensity': random.uniform(self.intensity[0], self.intensity[1]),
             'random_state': random.randint(0, 65536)
         }
 
     def get_transform_init_args_names(self):
-        return ('intensity',)
+        return ('intensity', 'color_shift')
 
 
 class CLAHE(ImageOnlyTransform):
@@ -1871,7 +1886,7 @@ class ChannelDropout(ImageOnlyTransform):
 
         self.fill_value = fill_value
 
-    def apply(self, img, channels_to_drop=(0, ), **params):
+    def apply(self, img, channels_to_drop=(0,), **params):
         return F.channel_dropout(img, channels_to_drop, self.fill_value)
 
     def get_params_dependent_on_targets(self, params):
