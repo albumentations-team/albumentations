@@ -14,7 +14,7 @@ from albumentations import (
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
     RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop,
-    ChannelDropout)
+    ChannelDropout, ISONoise)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -41,6 +41,7 @@ from albumentations import (
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [ISONoise, {}],
 ])
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -97,6 +98,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
+    [ISONoise, {}],
 ])
 def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -188,6 +190,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [ISONoise, {}],
 ])
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
@@ -334,6 +337,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [ISONoise, {}],
 ])
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
