@@ -8,7 +8,7 @@ from albumentations.augmentations.keypoints_utils import convert_keypoint_from_a
     convert_keypoints_from_albumentations, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop
+from albumentations.augmentations.transforms import RandomSizedCrop, CenterCrop
 import albumentations.augmentations.functional as F
 
 
@@ -124,6 +124,16 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, la
     assert transformed['keypoints'] == keypoints
     for k, v in labels.items():
         assert transformed[k] == v
+
+
+def test_compose_with_additional_targets():
+    image = np.ones((100, 100, 3))
+    keypoints = [[10, 10], [50, 50]]
+    kp1 = [[15, 15], [55, 55]]
+    aug = Compose([CenterCrop(50, 50)], keypoint_params={'format': 'xy'}, additional_targets={'kp1': 'keypoints'})
+    transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
+    assert transformed['keypoints'] == [[25, 25]]
+    assert transformed['kp1'] == [[30, 30]]
 
 
 def test_random_sized_crop_size():

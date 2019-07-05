@@ -204,11 +204,13 @@ class Compose(BaseCompose):
                 if self.params[self.bboxes_name]:
                     for trg_name in self.bboxes_targes:
                         data = data_postprocessing(trg_name, self.bboxes_name, self.params[self.bboxes_name],
-                                                   check_bboxes, filter_bboxes, convert_bboxes_from_albumentations, data)
+                                                   check_bboxes, filter_bboxes,
+                                                   convert_bboxes_from_albumentations, data)
                 if self.params[self.keypoints_name]:
                     for trg_name in self.keypoints_targets:
                         data = data_postprocessing(trg_name, self.keypoints_name, self.params[self.keypoints_name],
-                                                   check_keypoints, filter_keypoints, convert_keypoints_from_albumentations, data)
+                                                   check_keypoints, filter_keypoints,
+                                                   convert_keypoints_from_albumentations, data)
 
         return data
 
