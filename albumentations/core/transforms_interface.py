@@ -50,7 +50,7 @@ class BasicTransform(object):
         self._additional_targets = {}
 
     def __call__(self, force_apply=False, random_state=RandomState(), **kwargs):
-        if (random_state.uniform() < self.p) or self.always_apply or force_apply:
+        if (random_state.rand() < self.p) or self.always_apply or force_apply:
             params = self.get_params(random_state)
             params = self.update_params(params, **kwargs)
             if self.targets_as_params:

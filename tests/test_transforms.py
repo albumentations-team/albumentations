@@ -79,7 +79,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     monkeypatch.setattr('albumentations.augmentations.transforms.ElasticTransform.get_params',
-                        lambda *_: {'random_state': 1111})
+                        lambda *_: {'random_state': np.random.RandomState(1111).get_state()})
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
     expected_image = F.elastic_transform(image, alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation,

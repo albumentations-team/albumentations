@@ -2,7 +2,6 @@ from __future__ import division
 
 import warnings
 
-import numpy as np
 from numpy.random import RandomState
 
 from albumentations.augmentations.keypoints_utils import convert_keypoints_from_albumentations, filter_keypoints, \
