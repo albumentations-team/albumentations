@@ -702,8 +702,8 @@ class RandomSizedCrop(DualTransform):
 
     def get_params(self, random_state=RandomState()):
         crop_height = random_state.randint(self.min_max_height[0], self.min_max_height[1] + 1)
-        return {'h_start': random_state.uniform(),
-                'w_start': random_state.uniform(),
+        return {'h_start': random_state.rand(),
+                'w_start': random_state.rand(),
                 'crop_height': crop_height,
                 'crop_width': int(crop_height * self.w2h_ratio)}
 

@@ -1,9 +1,9 @@
 from __future__ import division
 
-import random
 import warnings
 
 import numpy as np
+from numpy.random import RandomState
 
 from albumentations.augmentations.keypoints_utils import convert_keypoints_from_albumentations, filter_keypoints, \
     convert_keypoints_to_albumentations, check_keypoints
@@ -160,8 +160,8 @@ class Compose(BaseCompose):
 
         self.add_targets(additional_targets)
 
-    def __call__(self, force_apply=False, **data):
-        need_to_run = force_apply or random.random() < self.p
+    def __call__(self, force_apply=False, random_state=RandomState(), **data):
+        need_to_run = force_apply or random_state.rand() < self.p
         transforms = self.transforms if need_to_run else find_always_apply_transforms(self.transforms)
         dual_start_end = None
         if self.params[self.bboxes_name] or self.params[self.keypoints_name]:
@@ -191,7 +191,7 @@ class Compose(BaseCompose):
                     data = data_preprocessing(self.keypoints_name, self.params[self.keypoints_name], check_keypoints,
                                               convert_keypoints_to_albumentations, data)
 
-            data = t(force_apply=force_apply, **data)
+            data = t(force_apply=force_apply, random_state=random_state, **data)
 
             if dual_start_end is not None and idx == dual_start_end[1]:
                 if self.params[self.bboxes_name]:
@@ -285,11 +285,10 @@ class OneOf(BaseCompose):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(self, force_apply=False, **data):
-        if force_apply or random.random() < self.p:
-            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+    def __call__(self, force_apply=False, random_state=RandomState(), **data):
+        if force_apply or random_state.rand() < self.p:
             t = random_state.choice(self.transforms, p=self.transforms_ps)
-            data = t(force_apply=True, **data)
+            data = t(force_apply=True, random_state=random_state, **data)
         return data
 
 
@@ -300,8 +299,8 @@ class OneOrOther(BaseCompose):
             transforms = [first, second]
         super(OneOrOther, self).__init__(transforms, p)
 
-    def __call__(self, force_apply=False, **data):
-        if random.random() < self.p:
-            return self.transforms[0](force_apply=True, **data)
+    def __call__(self, force_apply=False, random_state=RandomState(), **data):
+        if random_state.rand() < self.p:
+            return self.transforms[0](force_apply=True, random_state=random_state, **data)
         else:
-            return self.transforms[-1](force_apply=True, **data)
+            return self.transforms[-1](force_apply=True, random_state=random_state, **data)

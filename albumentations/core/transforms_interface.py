@@ -63,7 +63,6 @@ class BasicTransform(object):
                     target_function = self._get_target_function(key)
                     target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
                     res[key] = target_function(arg, **dict(params, **target_dependencies))
-                    print(params)
                 else:
                     res[key] = None
             return res
