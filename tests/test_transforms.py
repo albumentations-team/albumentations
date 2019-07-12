@@ -78,17 +78,19 @@ def test_grid_distortion_interpolation(interpolation):
 def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    monkeypatch.setattr('albumentations.augmentations.transforms.ElasticTransform.get_params',
-                        lambda *_: {'random_state': np.random.RandomState(1111).get_state()})
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
-    data = aug(image=image, mask=mask)
+    data = aug(random_state=np.random.RandomState(1111), image=image, mask=mask)
+    random_state_expected = np.random.RandomState(1111)
+    random_state_expected.rand()
+    random_state_expected_copy = np.random.RandomState(1111)
+    random_state_expected_copy.rand()
     expected_image = F.elastic_transform(image, alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation,
                                          border_mode=cv2.BORDER_REFLECT_101,
-                                         random_state=np.random.RandomState(1111))
+                                         random_state=random_state_expected)
     expected_mask = F.elastic_transform(mask, alpha=1, sigma=50, alpha_affine=50,
                                         interpolation=cv2.INTER_NEAREST,
                                         border_mode=cv2.BORDER_REFLECT_101,
-                                        random_state=np.random.RandomState(1111))
+                                        random_state=random_state_expected_copy)
     assert np.array_equal(data['image'], expected_image)
     assert np.array_equal(data['mask'], expected_mask)
 

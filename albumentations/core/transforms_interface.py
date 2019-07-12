@@ -57,9 +57,11 @@ class BasicTransform(object):
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params, random_state)
                 params.update(params_dependent_on_targets)
+            start_state = random_state.get_state()
             res = {}
             for key, arg in kwargs.items():
                 if arg is not None:
+                    random_state.set_state(start_state)
                     target_function = self._get_target_function(key)
                     target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
                     res[key] = target_function(arg, **dict(params, **target_dependencies))
