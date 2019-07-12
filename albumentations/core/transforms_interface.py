@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import random
+from numpy.random import RandomState
 
 import cv2
 
@@ -49,13 +49,13 @@ class BasicTransform(object):
         self.always_apply = always_apply
         self._additional_targets = {}
 
-    def __call__(self, force_apply=False, **kwargs):
-        if (random.random() < self.p) or self.always_apply or force_apply:
-            params = self.get_params()
+    def __call__(self, force_apply=False, random_state=RandomState(), **kwargs):
+        if (random_state.uniform() < self.p) or self.always_apply or force_apply:
+            params = self.get_params(random_state)
             params = self.update_params(params, **kwargs)
             if self.targets_as_params:
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
-                params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
+                params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params, random_state)
                 params.update(params_dependent_on_targets)
             res = {}
             for key, arg in kwargs.items():
@@ -63,6 +63,7 @@ class BasicTransform(object):
                     target_function = self._get_target_function(key)
                     target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
                     res[key] = target_function(arg, **dict(params, **target_dependencies))
+                    print(params)
                 else:
                     res[key] = None
             return res
@@ -84,7 +85,7 @@ class BasicTransform(object):
     def apply(self, img, **params):
         raise NotImplementedError
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         return {}
 
     @property
@@ -123,7 +124,7 @@ class BasicTransform(object):
     def targets_as_params(self):
         return []
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         raise NotImplementedError('Method get_params_dependent_on_targets is not implemented in class ' +
                                   self.__class__.__name__)
 

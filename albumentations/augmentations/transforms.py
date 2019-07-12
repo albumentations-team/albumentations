@@ -2,11 +2,12 @@ from __future__ import absolute_import, division
 
 from types import LambdaType
 import math
-import random
 import warnings
 
 import cv2
 import numpy as np
+
+from numpy.random import RandomState
 
 from . import functional as F
 from .bbox_utils import union_of_bboxes, denormalize_bbox, normalize_bbox
@@ -211,9 +212,9 @@ class Flip(DualTransform):
         """
         return F.random_flip(img, d)
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         # Random int in the range [-1, 1]
-        return {'d': random.randint(-1, 1)}
+        return {'d': random_state.randint(-1, 2)}
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_flip(bbox, **params)
@@ -362,9 +363,9 @@ class RandomRotate90(DualTransform):
         """
         return np.ascontiguousarray(np.rot90(img, factor))
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         # Random int in the range [0, 3]
-        return {'factor': random.randint(0, 3)}
+        return {'factor': random_state.randint(0, 4)}
 
     def apply_to_bbox(self, bbox, factor=0, **params):
         return F.bbox_rot90(bbox, factor, **params)
@@ -414,8 +415,8 @@ class Rotate(DualTransform):
     def apply_to_mask(self, img, angle=0, **params):
         return F.rotate(img, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def get_params(self):
-        return {'angle': random.uniform(self.limit[0], self.limit[1])}
+    def get_params(self, random_state=RandomState()):
+        return {'angle': random_state.uniform(self.limit[0], self.limit[1])}
 
     def apply_to_bbox(self, bbox, angle=0, **params):
         return F.bbox_rotate(bbox, angle, **params)
@@ -450,8 +451,8 @@ class RandomScale(DualTransform):
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.interpolation = interpolation
 
-    def get_params(self):
-        return {'scale': random.uniform(self.scale_limit[0], self.scale_limit[1])}
+    def get_params(self, random_state=RandomState()):
+        return {'scale': random_state.uniform(self.scale_limit[0], self.scale_limit[1])}
 
     def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.scale(img, scale, interpolation)
@@ -519,11 +520,11 @@ class ShiftScaleRotate(DualTransform):
                           **params):
         return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
 
-    def get_params(self):
-        return {'angle': random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
-                'scale': random.uniform(self.scale_limit[0], self.scale_limit[1]),
-                'dx': random.uniform(self.shift_limit[0], self.shift_limit[1]),
-                'dy': random.uniform(self.shift_limit[0], self.shift_limit[1])}
+    def get_params(self, random_state=RandomState()):
+        return {'angle': random_state.uniform(self.rotate_limit[0], self.rotate_limit[1]),
+                'scale': random_state.uniform(self.scale_limit[0], self.scale_limit[1]),
+                'dx': random_state.uniform(self.shift_limit[0], self.shift_limit[1]),
+                'dy': random_state.uniform(self.shift_limit[0], self.shift_limit[1])}
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
         return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
@@ -601,9 +602,9 @@ class RandomCrop(DualTransform):
     def apply(self, img, h_start=0, w_start=0, **params):
         return F.random_crop(img, self.height, self.width, h_start, w_start)
 
-    def get_params(self):
-        return {'h_start': random.random(),
-                'w_start': random.random()}
+    def get_params(self, random_state=RandomState()):
+        return {'h_start': random_state.rand(),
+                'w_start': random_state.rand()}
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_random_crop(bbox, self.height, self.width, **params)
@@ -636,16 +637,16 @@ class RandomCropNearBBox(DualTransform):
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.clamping_crop(img, x_min, y_min, x_max, y_max)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         bbox = params['cropping_bbox']
         h_max_shift = int((bbox[3] - bbox[1]) * self.max_part_shift)
         w_max_shift = int((bbox[2] - bbox[0]) * self.max_part_shift)
 
-        x_min = bbox[0] - random.randint(-w_max_shift, w_max_shift)
-        x_max = bbox[2] + random.randint(-w_max_shift, w_max_shift)
+        x_min = bbox[0] - random_state.randint(-w_max_shift, w_max_shift + 1)
+        x_max = bbox[2] + random_state.randint(-w_max_shift, w_max_shift + 1)
 
-        y_min = bbox[1] - random.randint(-h_max_shift, h_max_shift)
-        y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
+        y_min = bbox[1] - random_state.randint(-h_max_shift, h_max_shift + 1)
+        y_max = bbox[3] + random_state.randint(-h_max_shift, h_max_shift + 1)
 
         return {'x_min': x_min,
                 'x_max': x_max,
@@ -699,10 +700,10 @@ class RandomSizedCrop(DualTransform):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
         return F.resize(crop, self.height, self.width, interpolation)
 
-    def get_params(self):
-        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
-        return {'h_start': random.random(),
-                'w_start': random.random(),
+    def get_params(self, random_state=RandomState()):
+        crop_height = random_state.randint(self.min_max_height[0], self.min_max_height[1] + 1)
+        return {'h_start': random_state.uniform(),
+                'w_start': random_state.uniform(),
                 'crop_height': crop_height,
                 'crop_width': int(crop_height * self.w2h_ratio)}
 
@@ -751,21 +752,21 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
         return F.resize(crop, self.height, self.width, interpolation)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img_h, img_w = params['image'].shape[:2]
         if 'bboxes' not in params:  # less likely, this class is for use with bboxes.
             erosive_h = int(img_h * (1.0 - self.erosion_rate))
-            crop_height = img_h if erosive_h >= img_h else random.randint(erosive_h, img_h)
-            return {'h_start': random.random(),
-                    'w_start': random.random(),
+            crop_height = img_h if erosive_h >= img_h else random_state.randint(erosive_h, img_h + 1)
+            return {'h_start': random_state.rand(),
+                    'w_start': random_state.rand(),
                     'crop_height': crop_height,
                     'crop_width': int(crop_height * img_w / img_h)}
         # get union of all bboxes
         x, y, x2, y2 = union_of_bboxes(width=img_w, height=img_h, bboxes=params['bboxes'],
                                        erosion_rate=self.erosion_rate)
         # find bigger region
-        bx, by = x * random.random(), y * random.random()
-        bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
+        bx, by = x * random_state.rand(), y * random_state.rand()
+        bx2, by2 = x2 + (1 - x2) * random_state.rand(), y2 + (1 - y2) * random_state.rand()
         bw, bh = bx2 - bx, by2 - by
         crop_height, crop_width = int(img_h * bh), int(img_w * bw)
         h_start = np.clip(0.0 if bh >= 1.0 else by / (1.0 - bh), 0.0, 1.0)
@@ -811,10 +812,10 @@ class OpticalDistortion(DualTransform):
     def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def get_params(self):
-        return {'k': random.uniform(self.distort_limit[0], self.distort_limit[1]),
-                'dx': round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-                'dy': round(random.uniform(self.shift_limit[0], self.shift_limit[1]))}
+    def get_params(self, random_state=RandomState()):
+        return {'k': random_state.uniform(self.distort_limit[0], self.distort_limit[1]),
+                'dx': round(random_state.uniform(self.shift_limit[0], self.shift_limit[1])),
+                'dy': round(random_state.uniform(self.shift_limit[0], self.shift_limit[1]))}
 
     def get_transform_init_args_names(self):
         return ('distort_limit', 'shift_limit', 'interpolation', 'border_mode', 'value', 'mask_value')
@@ -847,10 +848,10 @@ class GridDistortion(DualTransform):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST,
                                  self.border_mode, self.mask_value)
 
-    def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
+    def get_params(self, random_state=RandomState()):
+        stepsx = [1 + random_state.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
                   range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
+        stepsy = [1 + random_state.uniform(self.distort_limit[0], self.distort_limit[1]) for i in
                   range(self.num_steps + 1)]
         return {
             'stepsx': stepsx,
@@ -896,16 +897,16 @@ class ElasticTransform(DualTransform):
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
-                                   self.border_mode, self.value, np.random.RandomState(random_state),
+                                   self.border_mode, self.value, None,
                                    self.approximate)
 
     def apply_to_mask(self, img, random_state=None, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, cv2.INTER_NEAREST,
-                                   self.border_mode, self.mask_value, np.random.RandomState(random_state),
+                                   self.border_mode, self.mask_value, None,
                                    self.approximate)
 
-    def get_params(self):
-        return {'random_state': random.randint(0, 10000)}
+    def get_params(self, random_state=RandomState()):
+        return {'random_state': random_state.get_state()}
 
     def get_transform_init_args_names(self):
         return ('alpha', 'sigma', 'alpha_affine', 'interpolation', 'border_mode', 'value',
@@ -968,14 +969,14 @@ class Cutout(ImageOnlyTransform):
     def apply(self, image, fill_value=0, holes=[], **params):
         return F.cutout(image, holes, fill_value)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img = params['image']
         height, width = img.shape[:2]
 
         holes = []
         for n in range(self.num_holes):
-            y = random.randint(0, height)
-            x = random.randint(0, width)
+            y = random_state.randint(0, height + 1)
+            x = random_state.randint(0, width + 1)
 
             y1 = np.clip(y - self.max_h_size // 2, 0, height)
             y2 = np.clip(y + self.max_h_size // 2, 0, height)
@@ -1038,17 +1039,17 @@ class CoarseDropout(ImageOnlyTransform):
     def apply(self, image, fill_value=0, holes=[], **params):
         return F.cutout(image, holes, fill_value)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img = params['image']
         height, width = img.shape[:2]
 
         holes = []
-        for n in range(random.randint(self.min_holes, self.max_holes + 1)):
-            hole_height = random.randint(self.min_height, self.max_height + 1)
-            hole_width = random.randint(self.min_width, self.max_width + 1)
+        for n in range(random_state.randint(self.min_holes, self.max_holes + 2)):
+            hole_height = random_state.randint(self.min_height, self.max_height + 2)
+            hole_width = random_state.randint(self.min_width, self.max_width + 2)
 
-            y1 = random.randint(0, height - hole_height)
-            x1 = random.randint(0, width - hole_width)
+            y1 = random_state.randint(0, height - hole_height + 1)
+            x1 = random_state.randint(0, width - hole_width + 1)
             y2 = y1 + hole_height
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
@@ -1090,8 +1091,8 @@ class JpegCompression(ImageOnlyTransform):
     def apply(self, image, quality=100, **params):
         return F.jpeg_compression(image, quality)
 
-    def get_params(self):
-        return {'quality': random.randint(self.quality_lower, self.quality_upper)}
+    def get_params(self, random_state=RandomState()):
+        return {'quality': random_state.randint(self.quality_lower, self.quality_upper + 1)}
 
     def get_transform_init_args_names(self):
         return ('quality_lower', 'quality_upper')
@@ -1127,8 +1128,8 @@ class RandomSnow(ImageOnlyTransform):
     def apply(self, image, snow_point=0.1, **params):
         return F.add_snow(image, snow_point, self.brightness_coeff)
 
-    def get_params(self):
-        return {'snow_point': random.uniform(self.snow_point_lower, self.snow_point_upper)}
+    def get_params(self, random_state=RandomState()):
+        return {'snow_point': random_state.uniform(self.snow_point_lower, self.snow_point_upper)}
 
     def get_transform_init_args_names(self):
         return ('snow_point_lower', 'snow_point_upper', 'brightness_coeff')
@@ -1200,9 +1201,9 @@ class RandomRain(ImageOnlyTransform):
     def targets_as_params(self):
         return ['image']
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img = params['image']
-        slant = int(random.uniform(self.slant_lower, self.slant_upper))
+        slant = int(random_state.uniform(self.slant_lower, self.slant_upper))
 
         height, width = img.shape[:2]
         area = height * width
@@ -1224,11 +1225,11 @@ class RandomRain(ImageOnlyTransform):
 
         for i in range(num_drops):  # If You want heavy rain, try increasing this
             if slant < 0:
-                x = random.randint(slant, width)
+                x = random_state.randint(slant, width + 1)
             else:
-                x = random.randint(0, width - slant)
+                x = random_state.randint(0, width - slant + 1)
 
-            y = random.randint(0, height - drop_length)
+            y = random_state.randint(0, height - drop_length + 1)
 
             rain_drops.append((x, y))
 
@@ -1282,9 +1283,9 @@ class RandomFog(ImageOnlyTransform):
     def targets_as_params(self):
         return ['image']
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img = params['image']
-        fog_coef = random.uniform(self.fog_coef_lower, self.fog_coef_upper)
+        fog_coef = random_state.uniform(self.fog_coef_lower, self.fog_coef_upper)
 
         height, width = imshape = img.shape[:2]
 
@@ -1297,8 +1298,8 @@ class RandomFog(ImageOnlyTransform):
 
         while midx > -hw or midy > - hw:
             for i in range(hw // 10 * index):
-                x = random.randint(midx, width - midx - hw)
-                y = random.randint(midy, height - midy - hw)
+                x = random_state.randint(midx, width - midx - hw + 1)
+                y = random_state.randint(midy, height - midy - hw + 1)
                 haze_list.append((x, y))
 
             midx -= 3 * hw * width // sum(imshape)
@@ -1382,19 +1383,19 @@ class RandomSunFlare(ImageOnlyTransform):
     def targets_as_params(self):
         return ['image']
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img = params['image']
         height, width = img.shape[:2]
 
-        angle = 2 * math.pi * random.uniform(self.angle_lower, self.angle_upper)
+        angle = 2 * math.pi * random_state.uniform(self.angle_lower, self.angle_upper)
 
-        flare_center_x = random.uniform(self.flare_center_lower_x, self.flare_center_upper_x)
-        flare_center_y = random.uniform(self.flare_center_lower_y, self.flare_center_upper_y)
+        flare_center_x = random_state.uniform(self.flare_center_lower_x, self.flare_center_upper_x)
+        flare_center_y = random_state.uniform(self.flare_center_lower_y, self.flare_center_upper_y)
 
         flare_center_x = int(width * flare_center_x)
         flare_center_y = int(height * flare_center_y)
 
-        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
+        num_circles = random_state.randint(self.num_flare_circles_lower, self.num_flare_circles_upper + 1)
 
         circles = []
 
@@ -1407,13 +1408,13 @@ class RandomSunFlare(ImageOnlyTransform):
             y.append(2 * flare_center_y - rand_y)
 
         for i in range(num_circles):
-            alpha = random.uniform(0.05, 0.2)
-            r = random.randint(0, len(x) - 1)
-            rad = random.randint(1, max(height // 100 - 2, 2))
+            alpha = random_state.uniform(0.05, 0.2)
+            r = random_state.randint(0, len(x))
+            rad = random_state.randint(1, max(height // 100 - 2, 2) + 1)
 
-            r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
-            g_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
-            b_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            r_color = random_state.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            g_color = random_state.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            b_color = random_state.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
 
             circles += [(alpha, (int(x[r]), int(y[r])), pow(rad, 3), (r_color,
                                                                       g_color,
@@ -1488,11 +1489,11 @@ class RandomShadow(ImageOnlyTransform):
     def targets_as_params(self):
         return ['image']
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img = params['image']
         height, width = img.shape[:2]
 
-        num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
+        num_shadows = random_state.randint(self.num_shadows_lower, self.num_shadows_upper + 1)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -1506,7 +1507,7 @@ class RandomShadow(ImageOnlyTransform):
         for index in range(num_shadows):
             vertex = []
             for dimensions in range(self.shadow_dimension):
-                vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
+                vertex.append((random_state.randint(x_min, x_max + 1), random_state.randint(y_min, y_max + 1)))
 
             vertices = np.array([vertex], dtype=np.int32)
             vertices_list.append(vertices)
@@ -1545,10 +1546,10 @@ class HueSaturationValue(ImageOnlyTransform):
     def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
 
-    def get_params(self):
-        return {'hue_shift': random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
-                'sat_shift': random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
-                'val_shift': random.uniform(self.val_shift_limit[0], self.val_shift_limit[1])}
+    def get_params(self, random_state=RandomState()):
+        return {'hue_shift': random_state.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
+                'sat_shift': random_state.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
+                'val_shift': random_state.uniform(self.val_shift_limit[0], self.val_shift_limit[1])}
 
     def get_transform_init_args_names(self):
         return ('hue_shift_limit', 'sat_shift_limit', 'val_shift_limit')
@@ -1582,10 +1583,10 @@ class RGBShift(ImageOnlyTransform):
     def apply(self, image, r_shift=0, g_shift=0, b_shift=0, **params):
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
-    def get_params(self):
-        return {'r_shift': random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-                'g_shift': random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-                'b_shift': random.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
+    def get_params(self, random_state=RandomState()):
+        return {'r_shift': random_state.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
+                'g_shift': random_state.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
+                'b_shift': random_state.uniform(self.b_shift_limit[0], self.b_shift_limit[1])}
 
     def get_transform_init_args_names(self):
         return ('r_shift_limit', 'g_shift_limit', 'b_shift_limit')
@@ -1616,10 +1617,10 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     def apply(self, img, alpha=1., beta=0., **params):
         return F.brightness_contrast_adjust(img, alpha, beta)
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         return {
-            'alpha': 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
-            'beta': 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1])
+            'alpha': 1.0 + random_state.uniform(self.contrast_limit[0], self.contrast_limit[1]),
+            'beta': 0.0 + random_state.uniform(self.brightness_limit[0], self.brightness_limit[1])
         }
 
     def get_transform_init_args_names(self):
@@ -1670,9 +1671,9 @@ class Blur(ImageOnlyTransform):
     def apply(self, image, ksize=3, **params):
         return F.blur(image, ksize)
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         return {
-            'ksize': random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
+            'ksize': random_state.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
         }
 
     def get_transform_init_args_names(self):
@@ -1696,15 +1697,15 @@ class MotionBlur(Blur):
     def apply(self, img, kernel=None, **params):
         return F.motion_blur(img, kernel=kernel)
 
-    def get_params(self):
-        ksize = random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
+    def get_params(self, random_state=RandomState()):
+        ksize = random_state.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
         assert ksize > 2
         kernel = np.zeros((ksize, ksize), dtype=np.uint8)
-        xs, xe = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+        xs, xe = random_state.randint(0, ksize), random_state.randint(0, ksize)
         if xs == xe:
-            ys, ye = random.sample(range(ksize), 2)
+            ys, ye = tuple(random_state.choice(range(ksize), 2, False))
         else:
-            ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+            ys, ye = random_state.randint(0, ksize), random_state.randint(0, ksize)
         cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
         return {
             'kernel': kernel
@@ -1775,12 +1776,11 @@ class GaussNoise(ImageOnlyTransform):
     def apply(self, img, gauss=None, **params):
         return F.gauss_noise(img, gauss=gauss)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         image = params['image']
-        var = random.uniform(self.var_limit[0], self.var_limit[1])
+        var = random_state.uniform(self.var_limit[0], self.var_limit[1])
         mean = var
         sigma = var ** 0.5
-        random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
         gauss = random_state.normal(mean, sigma, image.shape)
         return {
             'gauss': gauss
@@ -1818,13 +1818,13 @@ class ISONoise(ImageOnlyTransform):
         self.color_shift = color_shift
 
     def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
-        return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_state))
+        return F.iso_noise(img, color_shift, intensity, None)
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         return {
-            'color_shift': random.uniform(self.color_shift[0], self.color_shift[1]),
-            'intensity': random.uniform(self.intensity[0], self.intensity[1]),
-            'random_state': random.randint(0, 65536)
+            'color_shift': random_state.uniform(self.color_shift[0], self.color_shift[1]),
+            'intensity': random_state.uniform(self.intensity[0], self.intensity[1]),
+            'random_state': random_state.get_state()
         }
 
     def get_transform_init_args_names(self):
@@ -1854,8 +1854,8 @@ class CLAHE(ImageOnlyTransform):
     def apply(self, img, clip_limit=2, **params):
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
-    def get_params(self):
-        return {'clip_limit': random.uniform(self.clip_limit[0], self.clip_limit[1])}
+    def get_params(self, random_state=RandomState()):
+        return {'clip_limit': random_state.uniform(self.clip_limit[0], self.clip_limit[1])}
 
     def get_transform_init_args_names(self):
         return ('clip_limit', 'tile_grid_size')
@@ -1889,7 +1889,7 @@ class ChannelDropout(ImageOnlyTransform):
     def apply(self, img, channels_to_drop=(0,), **params):
         return F.channel_dropout(img, channels_to_drop, self.fill_value)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params, random_state=RandomState()):
         img = params['image']
 
         num_channels = img.shape[-1]
@@ -1900,9 +1900,9 @@ class ChannelDropout(ImageOnlyTransform):
         if self.max_channels >= num_channels:
             raise ValueError("Can not drop all channels in ChannelDropout.")
 
-        num_drop_channels = random.randint(self.min_channels, self.max_channels)
+        num_drop_channels = random_state.randint(self.min_channels, self.max_channels + 1)
 
-        channels_to_drop = random.choice(range(num_channels), size=num_drop_channels, replace=False)
+        channels_to_drop = tuple(random_state.choice(range(num_channels), size=num_drop_channels, replace=False))
 
         return {'channels_to_drop': channels_to_drop}
 
@@ -1926,9 +1926,9 @@ class ChannelShuffle(ImageOnlyTransform):
     def apply(self, img, channels_shuffled=[0, 1, 2], **params):
         return F.channel_shuffle(img, channels_shuffled)
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         ch_arr = [0, 1, 2]
-        random.shuffle(ch_arr)
+        random_state.shuffle(ch_arr)
         return {'channels_shuffled': ch_arr}
 
     def get_transform_init_args_names(self):
@@ -1971,9 +1971,9 @@ class RandomGamma(ImageOnlyTransform):
     def apply(self, img, gamma=1, **params):
         return F.gamma_transform(img, gamma=gamma)
 
-    def get_params(self):
+    def get_params(self, random_state=RandomState()):
         return {
-            'gamma': random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0
+            'gamma': random_state.randint(self.gamma_limit[0], self.gamma_limit[1] + 1) / 100.0
         }
 
     def get_transform_init_args_names(self):
