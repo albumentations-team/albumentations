@@ -519,7 +519,8 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     random_state = RandomState(seed)
     aug_data = aug(random_state=random_state, image=image, keypoints=keypoints, labels=labels)
     random_state = RandomState(seed)
-    deserialized_aug_data = deserialized_aug(random_state=random_state, image=image, keypoints=keypoints, labels=labels)
+    deserialized_aug_data = deserialized_aug(random_state=random_state, image=image, keypoints=keypoints,
+                                             labels=labels)
     assert np.array_equal(aug_data['image'], deserialized_aug_data['image'])
     assert np.array_equal(aug_data['keypoints'], deserialized_aug_data['keypoints'])
 

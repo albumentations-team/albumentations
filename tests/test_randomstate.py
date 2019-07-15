@@ -82,6 +82,7 @@ def test_pipeline_repeatability(seed, image, mask):
         assert np.array_equal(aug_data_1['image'], aug_data_2['image'])
         assert np.array_equal(aug_data_1['mask'], aug_data_2['mask'])
 
+
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [A.GaussNoise, {}],
     [A.Cutout, {}],
