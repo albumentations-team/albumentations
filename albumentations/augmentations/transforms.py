@@ -897,14 +897,14 @@ class ElasticTransform(DualTransform):
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, interpolation,
-                                   self.border_mode, self.value, random_state, self.approximate)
+                                   self.border_mode, self.value, RandomState(random_state), self.approximate)
 
     def apply_to_mask(self, img, random_state=None, **params):
         return F.elastic_transform(img, self.alpha, self.sigma, self.alpha_affine, cv2.INTER_NEAREST,
-                                   self.border_mode, self.mask_value, random_state, self.approximate)
+                                   self.border_mode, self.mask_value, RandomState(random_state), self.approximate)
 
     def get_params(self, random_state=RandomState()):
-        return {'random_state': random_state}
+        return {'random_state': random_state.randint(0, 10000)}
 
     def get_transform_init_args_names(self):
         return ('alpha', 'sigma', 'alpha_affine', 'interpolation', 'border_mode', 'value',
@@ -1816,13 +1816,13 @@ class ISONoise(ImageOnlyTransform):
         self.color_shift = color_shift
 
     def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
-        return F.iso_noise(img, color_shift, intensity, random_state)
+        return F.iso_noise(img, color_shift, intensity, RandomState(random_state))
 
     def get_params(self, random_state=RandomState()):
         return {
             'color_shift': random_state.uniform(self.color_shift[0], self.color_shift[1]),
             'intensity': random_state.uniform(self.intensity[0], self.intensity[1]),
-            'random_state': random_state
+            'random_state': random_state.randint(0, 65536)
         }
 
     def get_transform_init_args_names(self):

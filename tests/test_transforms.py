@@ -78,19 +78,17 @@ def test_grid_distortion_interpolation(interpolation):
 def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+    monkeypatch.setattr('albumentations.augmentations.transforms.ElasticTransform.get_params',
+                        lambda *_: {'random_state': 1111})
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
     data = aug(random_state=np.random.RandomState(1111), image=image, mask=mask)
-    random_state_expected = np.random.RandomState(1111)
-    random_state_expected.rand()
-    random_state_expected_copy = np.random.RandomState(1111)
-    random_state_expected_copy.rand()
     expected_image = F.elastic_transform(image, alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation,
                                          border_mode=cv2.BORDER_REFLECT_101,
-                                         random_state=random_state_expected)
+                                         random_state=np.random.RandomState(1111))
     expected_mask = F.elastic_transform(mask, alpha=1, sigma=50, alpha_affine=50,
                                         interpolation=cv2.INTER_NEAREST,
                                         border_mode=cv2.BORDER_REFLECT_101,
-                                        random_state=random_state_expected_copy)
+                                        random_state=np.random.RandomState(1111))
     assert np.array_equal(data['image'], expected_image)
     assert np.array_equal(data['mask'], expected_mask)
 
@@ -107,7 +105,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     [A.OpticalDistortion, {}],
     [A.IAAAffine, {'scale': 1.5}],
     [A.IAAPiecewiseAffine, {'scale': 1.5}],
-    [A.IAAPerspective, {}],
+    [A.IAAPerspective, {}]
 ])
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""

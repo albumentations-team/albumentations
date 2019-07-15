@@ -50,18 +50,16 @@ class BasicTransform(object):
         self._additional_targets = {}
 
     def __call__(self, force_apply=False, random_state=RandomState(), **kwargs):
-        if (random_state.rand() < self.p) or self.always_apply or force_apply:
+        if self.always_apply or force_apply or (random_state.rand() < self.p):
             params = self.get_params(random_state)
             params = self.update_params(params, **kwargs)
             if self.targets_as_params:
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params, random_state)
                 params.update(params_dependent_on_targets)
-            start_state = random_state.get_state()
             res = {}
             for key, arg in kwargs.items():
                 if arg is not None:
-                    random_state.set_state(start_state)
                     target_function = self._get_target_function(key)
                     target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
                     res[key] = target_function(arg, **dict(params, **target_dependencies))
