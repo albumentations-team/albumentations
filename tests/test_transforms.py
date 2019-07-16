@@ -81,7 +81,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     monkeypatch.setattr('albumentations.augmentations.transforms.ElasticTransform.get_params',
                         lambda *_: {'random_state': 1111})
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
-    data = aug(random_state=np.random.RandomState(1111), image=image, mask=mask)
+    data = aug(image=image, mask=mask)
     expected_image = F.elastic_transform(image, alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation,
                                          border_mode=cv2.BORDER_REFLECT_101,
                                          random_state=np.random.RandomState(1111))
@@ -105,7 +105,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     [A.OpticalDistortion, {}],
     [A.IAAAffine, {'scale': 1.5}],
     [A.IAAPiecewiseAffine, {'scale': 1.5}],
-    [A.IAAPerspective, {}]
+    [A.IAAPerspective, {}],
 ])
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
