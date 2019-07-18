@@ -282,18 +282,13 @@ def test_lambda_transform():
 def test_channel_droput():
     img = np.ones((10, 10, 3), dtype=np.float32)
 
-    aug = A.ChannelDropout(channel_drop_range=(1, 1))  # Drop one channel
+    aug = A.ChannelDropout(channel_drop_range=(1, 1), always_apply=True)  # Drop one channel
 
     transformed = aug(image=img)['image']
 
     assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 2
 
-    aug = A.ChannelDropout(channel_drop_range=(2, 2))  # Drop two channels
+    aug = A.ChannelDropout(channel_drop_range=(2, 2), always_apply=True)  # Drop two channels
     transformed = aug(image=img)['image']
 
     assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 1
-
-    aug = A.ChannelDropout(channel_drop_range=(3, 3))  # Drop all channels
-    transformed = aug(image=img)['image']
-
-    assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 0
