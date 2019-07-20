@@ -1879,6 +1879,8 @@ class ChannelDropout(ImageOnlyTransform):
     def __init__(self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5):
         super(ChannelDropout, self).__init__(always_apply, p)
 
+        self.channel_drop_range = channel_drop_range
+
         self.min_channels = channel_drop_range[0]
         self.max_channels = channel_drop_range[1]
 
@@ -1902,12 +1904,16 @@ class ChannelDropout(ImageOnlyTransform):
 
         num_drop_channels = random.randint(self.min_channels, self.max_channels)
 
-        channels_to_drop = random.choice(range(num_channels), size=num_drop_channels, replace=False)
+        channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
 
         return {'channels_to_drop': channels_to_drop}
 
     def get_transform_init_args_names(self):
         return ('channel_drop_range', 'fill_value')
+
+    @property
+    def targets_as_params(self):
+        return ['image']
 
 
 class ChannelShuffle(ImageOnlyTransform):

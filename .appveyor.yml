@@ -19,7 +19,7 @@ install:
   - '%PYTHON%\python.exe -m pip install -U pip wheel setuptools'
   - 'if defined PYTORCH_WHEEL %PYTHON%\python.exe -m pip install %PYTORCH_WHEEL% torchvision'
   - '%PYTHON%\python.exe -m pip install .[tests]'
-  - '%PYTHON%\python.exe -m pip install flake8 flake8-docstrings'
+  - '%PYTHON%\python.exe -m pip install "pydocstyle<4.0.0" flake8 flake8-docstrings'
 
 test_script:
   - '%PYTHON%\python.exe -m pytest'
