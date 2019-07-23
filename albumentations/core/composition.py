@@ -305,3 +305,38 @@ class OneOrOther(BaseCompose):
             return self.transforms[0](force_apply=True, **data)
         else:
             return self.transforms[-1](force_apply=True, **data)
+
+
+class PerChannel(BaseCompose):
+    """Apply transformations per-channel
+
+    Args:
+        transforms (list): list of transformations to compose.
+        channels (list): channels to apply the transform to. Pass None to apply to all.
+                         Default: None (apply to all)
+        p (float): probability of applying the transform. Default: 0.5.
+    """
+
+    def __init__(self, transforms, channels=None, p=0.5):
+        super(PerChannel, self).__init__(transforms, p)
+        self.transforms = transforms
+        self.channels = channels
+
+    def __call__(self, force_apply=False, **data):
+
+        image = data['image']
+
+        # Expan mono images to have a single channel
+        if len(image.shape) == 2:
+            image = np.expand_dims(image, -1)
+
+        if self.channels is None:
+            self.channels = range(image.shape[2])
+
+        for c in self.channels:
+            for t in self.transforms:
+                image[:, :, c] = t(image=image[:, :, c])['image']
+
+        data['image'] = image
+
+        return data
