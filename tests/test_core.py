@@ -6,7 +6,7 @@ import pytest
 
 from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
 from albumentations.augmentations.bbox_utils import check_bboxes
-from albumentations.core.composition import OneOrOther, Compose, OneOf
+from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel
 from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
 from .compat import mock, MagicMock, Mock, call
 
@@ -128,3 +128,19 @@ def test_check_bboxes_with_end_greater_that_start():
         check_bboxes([[0.8, 0.5, 0.7, 0.6, 99], [0.1, 0.5, 0.8, 1.0]])
     message = 'x_max is less than or equal to x_min for bbox [0.8, 0.5, 0.7, 0.6, 99].'
     assert str(exc_info.value) == message
+
+
+def test_per_channel_mono():
+    transforms = [Blur(), Rotate()]
+    augmentation = PerChannel(transforms, p=1)
+    image = np.ones((8, 8))
+    data = augmentation(image=image)
+    assert data
+
+
+def test_per_channel_multi():
+    transforms = [Blur(), Rotate()]
+    augmentation = PerChannel(transforms, p=1)
+    image = np.ones((8, 8, 5))
+    data = augmentation(image=image)
+    assert data
