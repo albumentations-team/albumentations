@@ -308,6 +308,24 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
     return img
 
 
+def solarize(img: np.ndarray, threshold=128):
+    """Invert all pixel values above a threshold.
+
+    Args:
+        img: The image to solarize.
+        threshold: All pixels above this greyscale level are inverted.
+
+    Returns:
+        Solarized image.
+
+    """
+    dtype = img.dtype
+    max_val = MAX_VALUES_BY_DTYPE[dtype]
+
+    lut = [(i if i < threshold else max_val - i) for i in range(max_val + 1)]
+    return cv2.LUT(img, np.array(lut, dtype=dtype))
+
+
 @clipped
 def shift_rgb(img, r_shift, g_shift, b_shift):
     if img.dtype == np.uint8:
