@@ -9,6 +9,8 @@ from albumentations.augmentations.bbox_utils import filter_bboxes
 import albumentations.augmentations.functional as F
 from .utils import convert_2d_to_target_format
 
+from PIL import Image, ImageOps
+
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
 def test_vflip(target):
@@ -910,3 +912,14 @@ def test_solarize(dtype):
         assert np.all(np.isclose(result_img, check_img))
         assert np.min(result_img) >= 0
         assert np.max(result_img) <= max_value
+
+
+def test_solarize_equal_to_pillow():
+    img_cv = np.arange(256).astype(np.uint8).reshape([16, 16])
+    img_pil = Image.fromarray(img_cv)
+
+    for i in range(256):
+        result_albu = F.solarize(img_cv, i)
+        result_pil = np.array(ImageOps.solarize(img_pil, i))
+
+        assert np.all(result_albu == result_pil)
