@@ -14,7 +14,7 @@ from albumentations import (
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
     RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop,
-    ChannelDropout, ISONoise)
+    ChannelDropout, ISONoise, Solarize)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -42,6 +42,7 @@ from albumentations import (
     [RandomShadow, {}],
     [ChannelDropout, {}],
     [ISONoise, {}],
+    [Solarize, {}],
 ])
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -191,6 +192,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [RandomShadow, {}],
     [ChannelDropout, {}],
     [ISONoise, {}],
+    [Solarize, {}],
 ])
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
@@ -241,6 +243,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [Solarize, {}],
 ])
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
@@ -273,6 +276,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     [GaussNoise, {}],
     [ToFloat, {}],
     [FromFloat, {}],
+    [Solarize, {}],
 ])
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -338,6 +342,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [RandomShadow, {}],
     [ChannelDropout, {}],
     [ISONoise, {}],
+    [Solarize, {}],
 ])
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)

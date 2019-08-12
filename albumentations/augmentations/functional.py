@@ -322,9 +322,15 @@ def solarize(img: np.ndarray, threshold=128):
     dtype = img.dtype
     max_val = MAX_VALUES_BY_DTYPE[dtype]
 
-    if isinstance(dtype, (np.uint8, np.uint16, np.uint32)):
+    if dtype == np.dtype('uint8'):
         lut = [(i if i < threshold else max_val - i) for i in range(max_val + 1)]
-        return cv2.LUT(img, np.array(lut, dtype=dtype))
+
+        prev_shape = img.shape
+        img = cv2.LUT(img, np.array(lut, dtype=dtype))
+
+        if len(prev_shape) != len(img.shape):
+            img = np.expand_dims(img, -1)
+        return img
 
     result_img = img.copy()
     cond = img >= threshold
