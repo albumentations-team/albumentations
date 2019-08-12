@@ -1566,7 +1566,7 @@ class Solarize(ImageOnlyTransform):
         image
 
         Image types:
-            uint8, uint16, uint32
+            any
 
         """
     def __init__(self, threshold=128, always_apply=False, p=0.5):

@@ -322,8 +322,14 @@ def solarize(img: np.ndarray, threshold=128):
     dtype = img.dtype
     max_val = MAX_VALUES_BY_DTYPE[dtype]
 
-    lut = [(i if i < threshold else max_val - i) for i in range(max_val + 1)]
-    return cv2.LUT(img, np.array(lut, dtype=dtype))
+    if isinstance(dtype, (np.uint8, np.uint16, np.uint32)):
+        lut = [(i if i < threshold else max_val - i) for i in range(max_val + 1)]
+        return cv2.LUT(img, np.array(lut, dtype=dtype))
+
+    result_img = img.copy()
+    cond = img >= threshold
+    result_img[cond] = max_val - result_img[cond]
+    return result_img
 
 
 @clipped
