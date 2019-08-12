@@ -1557,18 +1557,18 @@ class HueSaturationValue(ImageOnlyTransform):
 class Solarize(ImageOnlyTransform):
     """Invert all pixel values above a threshold.
 
-        Args:
-            threshold ((int, int) or int, or (float, float) or float): range for solarizing threshold.
-            If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
-            p (float): probability of applying the transform. Default: 0.5.
+    Args:
+        threshold ((int, int) or int, or (float, float) or float): range for solarizing threshold.
+        If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
+        p (float): probability of applying the transform. Default: 0.5.
 
-        Targets:
-        image
+    Targets:
+    image
 
-        Image types:
-            any
+    Image types:
+        any
+    """
 
-        """
     def __init__(self, threshold=128, always_apply=False, p=0.5):
         super(Solarize, self).__init__(always_apply, p)
 

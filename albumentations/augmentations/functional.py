@@ -308,7 +308,7 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
     return img
 
 
-def solarize(img: np.ndarray, threshold=128):
+def solarize(img, threshold=128):
     """Invert all pixel values above a threshold.
 
     Args:
