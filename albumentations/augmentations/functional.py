@@ -1226,3 +1226,80 @@ def py3round(number):
 
 def noop(input_obj, **params):
     return input_obj
+
+
+def split_and_shuffle_shape_by_grid(shape, grid, random_state=42):
+    """
+    Split image by grid.
+
+    Args:
+        shape (tuple): image shape.
+        grid (tuple): tuple with two values.
+        random_state (int): seed for numpy
+    """
+    np.random.seed(random_state)
+
+    n, m = grid
+
+    if n == 0 or m == 0:
+        raise ValueError("Grid's values must be positive. Current grid [%s, %s]" % (n, m))
+
+    height, width = shape
+
+    if n > height // 2 or m > width // 2:
+        raise ValueError("Incorrect size cell of grid. Just shuffle pixels of image")
+
+    height_split = np.linspace(0, height, n + 1, dtype=np.int)
+    width_split = np.linspace(0, width, m + 1, dtype=np.int)
+
+    height_matrix, width_matrix = np.meshgrid(height_split, width_split, indexing='ij')
+
+    index_height_matrix = height_matrix[:-1, :-1]
+    index_width_matrix = width_matrix[:-1, :-1]
+
+    shifted_index_height_matrix = height_matrix[1:, 1:]
+    shifted_index_width_matrix = width_matrix[1:, 1:]
+
+    height_box_sizes = shifted_index_height_matrix - index_height_matrix
+    width_box_sizes = shifted_index_width_matrix - index_width_matrix
+
+    bbox_sizes = np.stack((height_box_sizes, width_box_sizes), axis=2)
+
+    index_matrix = np.indices((n, m))
+    new_index_matrix = np.stack(index_matrix, axis=2)
+
+    for bbox_size in np.unique(bbox_sizes.reshape(-1, 2), axis=0):
+        eq_mat = np.all(bbox_sizes == bbox_size, axis=2)
+        new_index_matrix[eq_mat] = np.random.permutation(new_index_matrix[eq_mat])
+
+    new_index_matrix = np.split(new_index_matrix, 2, axis=2)
+
+    old_x = index_height_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
+    old_y = index_width_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
+
+    shift_x = height_box_sizes.reshape(-1)
+    shift_y = width_box_sizes.reshape(-1)
+
+    curr_x = index_height_matrix.reshape(-1)
+    curr_y = index_width_matrix.reshape(-1)
+
+    bboxes = np.stack([curr_x, curr_y, old_x, old_y, shift_x, shift_y], axis=1)
+
+    return bboxes
+
+
+def swap_bboxes_on_image(image, bboxes):
+    """
+    Swap bounding boxes on image.
+
+    Args:
+        image (np.ndarray): Input image.
+        bboxes (np.ndarray): array of tuples with bounding boxes
+    """
+    new_image = image.copy()
+
+    for idx, bbox in enumerate(bboxes):
+        new_image[bbox[0]:bbox[0] + bbox[4], bbox[1]:bbox[1] + bbox[5]] = \
+            image[bbox[2]:bbox[2] + bbox[4], bbox[3]:bbox[3] + bbox[5]]
+
+    return new_image

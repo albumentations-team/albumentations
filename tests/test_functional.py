@@ -884,3 +884,88 @@ def test_brightness_contrast():
 
     assert np.array_equal(F.brightness_contrast_adjust(image_float),
                           F._brightness_contrast_adjust_non_uint(image_float))
+
+
+def test_swap_bboxes_on_image_with_empty_bboxes():
+    img = np.array([
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 3, 3, 3],
+        [4, 4, 4, 4],
+    ], dtype=np.uint8)
+
+    result_img = F.swap_bboxes_on_image(img, [])
+
+    assert np.array_equal(img, result_img)
+
+
+def test_swap_bboxes_on_image_with_non_empty_bboxes():
+    img = np.array([
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 3, 3, 3],
+        [4, 4, 4, 4],
+    ], dtype=np.uint8)
+
+    bboxes = np.array([
+        [0, 0, 2, 2, 2, 2],
+        [2, 2, 0, 0, 2, 2]
+    ])
+
+    target = np.array([
+        [3, 3, 1, 1],
+        [4, 4, 2, 2],
+        [3, 3, 1, 1],
+        [4, 4, 2, 2],
+    ], dtype=np.uint8)
+
+    result_img = F.swap_bboxes_on_image(img, bboxes)
+
+    assert np.array_equal(result_img, target)
+
+
+@pytest.mark.parametrize(['shape', 'grid'], [((100, 100), (0, 1)), ((100, 100), (1, 0))])
+def test_split_and_shuffle_shape_by_grid_zero_grid(shape, grid):
+    try:
+        F.split_and_shuffle_shape_by_grid(shape, grid)
+        assert False
+    except:
+        assert True
+
+
+@pytest.mark.parametrize(['shape', 'grid'], [((100, 100), (53, 1)), ((100, 100), (40, 85))])
+def test_split_and_shuffle_shape_by_grid_oversize_grid(shape, grid):
+    try:
+        F.split_and_shuffle_shape_by_grid(shape, grid)
+        assert False
+    except:
+        assert True
+
+
+def test_split_and_shuffle_shape_by_grid_count_boxes():
+    shape = (100, 100)
+
+    for i in range(1, 10):
+        for j in range(1, 10):
+            grid = (i, j)
+
+            bboxes = F.split_and_shuffle_shape_by_grid(shape, grid)
+
+            assert len(bboxes) == grid[0] * grid[1]
+
+
+@pytest.mark.parametrize(['shape', 'grid'], [((100, 100), (9, 9))])
+def test_split_and_shuffle_shape_by_grid_all_blocks_correct(shape, grid):
+    bboxes = F.split_and_shuffle_shape_by_grid(shape, grid)
+
+    for idx, box_i in enumerate(bboxes):
+        coord_x, coord_y = box_i[2], box_i[3]
+        flag_exist = False
+        for jdx, box_j in enumerate(bboxes):
+            if idx == jdx:
+                pass
+
+            if coord_x == box_j[0] and coord_y == box_j[1]:
+                flag_exist = True
+
+        assert flag_exist
