@@ -75,6 +75,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
+    [Solarize, {}]
 ])
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
