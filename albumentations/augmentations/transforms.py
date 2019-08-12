@@ -1573,8 +1573,7 @@ class Solarize(ImageOnlyTransform):
         super(Solarize, self).__init__(always_apply, p)
 
         if isinstance(threshold, (int, float)):
-            threshold = max(0, threshold)
-            self.threshold = (threshold, threshold)
+            self.threshold = to_tuple(threshold, low=threshold)
         else:
             self.threshold = to_tuple(threshold, low=0)
 
