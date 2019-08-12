@@ -929,7 +929,7 @@ def test_split_and_shuffle_shape_by_grid_zero_grid(shape, grid):
     try:
         F.split_and_shuffle_shape_by_grid(shape, grid)
         assert False
-    except:
+    except ValueError:
         assert True
 
 
@@ -938,7 +938,7 @@ def test_split_and_shuffle_shape_by_grid_oversize_grid(shape, grid):
     try:
         F.split_and_shuffle_shape_by_grid(shape, grid)
         assert False
-    except:
+    except ValueError:
         assert True
 
 

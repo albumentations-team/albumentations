@@ -929,30 +929,30 @@ class RandomGridShuffle(DualTransform):
     def __init__(self, grid=(3, 3), always_apply=False, p=1.0):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
-        
+
     def update_params(self, params, **kwargs):
         params = super(RandomGridShuffle, self).update_params(params, **kwargs)
         rows = params['rows']
         cols = params['cols']
 
         random_state = random.randint(0, 10000)
-        
+
         params.update({
             "bboxes": F.split_and_shuffle_shape_by_grid((rows, cols), self.grid, random_state),
         })
-        
+
         return params
 
     def apply(self, img, bboxes=None, **params):
         if bboxes is None:
             bboxes = []
-        
+
         return F.swap_bboxes_on_image(img, bboxes)
 
-    def apply_to_mask(self, img,  bboxes=None, **params):
+    def apply_to_mask(self, img, bboxes=None, **params):
         if bboxes is None:
             bboxes = []
-        
+
         return F.swap_bboxes_on_image(img, bboxes)
 
     def get_transform_init_args_names(self):
