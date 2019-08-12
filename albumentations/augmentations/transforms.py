@@ -25,7 +25,7 @@ __all__ = [
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
-    'ChannelDropout', 'ISONoise'
+    'ChannelDropout', 'ISONoise', 'Solarize'
 ]
 
 
@@ -1552,6 +1552,39 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('hue_shift_limit', 'sat_shift_limit', 'val_shift_limit')
+
+
+class Solarize(ImageOnlyTransform):
+    """Invert all pixel values above a threshold.
+
+    Args:
+        threshold ((int, int) or int, or (float, float) or float): range for solarizing threshold.
+        If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+    image
+
+    Image types:
+        any
+    """
+
+    def __init__(self, threshold=128, always_apply=False, p=0.5):
+        super(Solarize, self).__init__(always_apply, p)
+
+        if isinstance(threshold, (int, float)):
+            self.threshold = to_tuple(threshold, low=threshold)
+        else:
+            self.threshold = to_tuple(threshold, low=0)
+
+    def apply(self, image, threshold=0, **params):
+        return F.solarize(image, threshold)
+
+    def get_params(self):
+        return {'threshold': random.uniform(self.threshold[0], self.threshold[1])}
+
+    def get_transform_init_args_names(self):
+        return ('threshold', )
 
 
 class RGBShift(ImageOnlyTransform):

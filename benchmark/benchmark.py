@@ -276,6 +276,15 @@ class ShiftHSV(BenchmarkTest):
         return img
 
 
+class Solarize(BenchmarkTest):
+
+    def __init__(self):
+        pass
+
+    def albumentations(self, img):
+        return albumentations.solarize(img)
+
+
 class RandomCrop64(BenchmarkTest):
 
     def __init__(self):

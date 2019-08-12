@@ -9,6 +9,8 @@ from albumentations.augmentations.bbox_utils import filter_bboxes
 import albumentations.augmentations.functional as F
 from .utils import convert_2d_to_target_format
 
+from PIL import Image, ImageOps
+
 
 @pytest.mark.parametrize('target', ['image', 'mask'])
 def test_vflip(target):
@@ -884,3 +886,40 @@ def test_brightness_contrast():
 
     assert np.array_equal(F.brightness_contrast_adjust(image_float),
                           F._brightness_contrast_adjust_non_uint(image_float))
+
+
+@pytest.mark.parametrize('dtype', list(F.MAX_VALUES_BY_DTYPE.keys()))
+def test_solarize(dtype):
+    max_value = F.MAX_VALUES_BY_DTYPE[dtype]
+
+    if dtype == np.dtype('float32'):
+        img = np.arange(2 ** 10, dtype=np.float32) / (2 ** 10)
+        img = img.reshape([2 ** 5, 2 ** 5])
+    else:
+        max_count = 1024
+        count = min(max_value + 1, 1024)
+        step = max(1, (max_value + 1) // max_count)
+        shape = [int(np.sqrt(count))] * 2
+        img = np.arange(0, max_value + 1, step, dtype=dtype).reshape(shape)
+
+    for threshold in [0, max_value // 3, max_value // 3 * 2, max_value, max_value + 1]:
+        check_img = img.copy()
+        cond = check_img >= threshold
+        check_img[cond] = max_value - check_img[cond]
+
+        result_img = F.solarize(img, threshold=threshold)
+
+        assert np.all(np.isclose(result_img, check_img))
+        assert np.min(result_img) >= 0
+        assert np.max(result_img) <= max_value
+
+
+def test_solarize_equal_to_pillow():
+    img_cv = np.arange(256).astype(np.uint8).reshape([16, 16])
+    img_pil = Image.fromarray(img_cv)
+
+    for i in range(256):
+        result_albu = F.solarize(img_cv, i)
+        result_pil = np.array(ImageOps.solarize(img_pil, i))
+
+        assert np.all(result_albu == result_pil)
