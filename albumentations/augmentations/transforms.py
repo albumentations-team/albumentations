@@ -21,7 +21,7 @@ __all__ = [
     'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
     'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
     'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
-    'ToGray', 'ImageCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
+    'ToGray', 'JpegCompression', 'ImageCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
     'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
@@ -1115,6 +1115,33 @@ class ImageCompression(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('quality_lower', 'quality_upper', 'compression_type')
+
+
+class JpegCompression(ImageCompression):
+    """Decrease Jpeg compression of an image.
+
+    Args:
+        quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
+        quality_upper (float): upper bound on the jpeg quality. Should be in [0, 100] range
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, quality_lower=99, quality_upper=100, always_apply=False, p=0.5):
+        super(JpegCompression, self).__init__(quality_lower=quality_lower, quality_upper=quality_upper,
+                                              compression_type=ImageCompression.ImageCompressionType.JPEG,
+                                              always_apply=always_apply, p=p)
+        warnings.warn("This class has been deprecated. Please use ImageCompression", DeprecationWarning)
+
+    def get_transform_init_args(self):
+        return {
+            'quality_lower': self.quality_lower,
+            'quality_upper': self.quality_upper
+        }
 
 
 class RandomSnow(ImageOnlyTransform):
