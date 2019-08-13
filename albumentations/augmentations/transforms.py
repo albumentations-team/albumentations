@@ -938,22 +938,22 @@ class RandomGridShuffle(DualTransform):
         random_state = random.randint(0, 10000)
 
         params.update({
-            "bboxes": F.split_and_shuffle_shape_by_grid((rows, cols), self.grid, random_state),
+            "tiles": F.split_and_shuffle_shape_by_grid((rows, cols), self.grid, random_state),
         })
 
         return params
 
-    def apply(self, img, bboxes=None, **params):
-        if bboxes is None:
-            bboxes = []
+    def apply(self, img, tiles=None, **params):
+        if tiles is None:
+            tiles = []
 
-        return F.swap_bboxes_on_image(img, bboxes)
+        return F.swap_tiles_on_image(img, tiles)
 
-    def apply_to_mask(self, img, bboxes=None, **params):
-        if bboxes is None:
-            bboxes = []
+    def apply_to_mask(self, img, tiles=None, **params):
+        if tiles is None:
+            tiles = []
 
-        return F.swap_bboxes_on_image(img, bboxes)
+        return F.swap_tiles_on_image(img, tiles)
 
     def get_transform_init_args_names(self):
         return ('grid',)

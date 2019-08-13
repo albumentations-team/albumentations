@@ -888,7 +888,7 @@ def test_brightness_contrast():
                           F._brightness_contrast_adjust_non_uint(image_float))
 
 
-def test_swap_bboxes_on_image_with_empty_bboxes():
+def test_swap_tiles_on_image_with_empty_tiles():
     img = np.array([
         [1, 1, 1, 1],
         [2, 2, 2, 2],
@@ -896,12 +896,12 @@ def test_swap_bboxes_on_image_with_empty_bboxes():
         [4, 4, 4, 4],
     ], dtype=np.uint8)
 
-    result_img = F.swap_bboxes_on_image(img, [])
+    result_img = F.swap_tiles_on_image(img, [])
 
     assert np.array_equal(img, result_img)
 
 
-def test_swap_bboxes_on_image_with_non_empty_bboxes():
+def test_swap_tiles_on_image_with_non_empty_tiles():
     img = np.array([
         [1, 1, 1, 1],
         [2, 2, 2, 2],
@@ -909,7 +909,7 @@ def test_swap_bboxes_on_image_with_non_empty_bboxes():
         [4, 4, 4, 4],
     ], dtype=np.uint8)
 
-    bboxes = np.array([
+    tiles = np.array([
         [0, 0, 2, 2, 2, 2],
         [2, 2, 0, 0, 2, 2]
     ])
@@ -921,7 +921,7 @@ def test_swap_bboxes_on_image_with_non_empty_bboxes():
         [4, 4, 2, 2],
     ], dtype=np.uint8)
 
-    result_img = F.swap_bboxes_on_image(img, bboxes)
+    result_img = F.swap_tiles_on_image(img, tiles)
 
     assert np.array_equal(result_img, target)
 
@@ -951,23 +951,23 @@ def test_split_and_shuffle_shape_by_grid_count_boxes():
         for j in range(1, 10):
             grid = (i, j)
 
-            bboxes = F.split_and_shuffle_shape_by_grid(shape, grid)
+            tiles = F.split_and_shuffle_shape_by_grid(shape, grid)
 
-            assert len(bboxes) == grid[0] * grid[1]
+            assert len(tiles) == grid[0] * grid[1]
 
 
 @pytest.mark.parametrize(['shape', 'grid'], [((100, 100), (9, 9))])
-def test_split_and_shuffle_shape_by_grid_all_blocks_correct(shape, grid):
+def test_split_and_shuffle_shape_by_grid_all_tiles_correct(shape, grid):
     bboxes = F.split_and_shuffle_shape_by_grid(shape, grid)
 
-    for idx, box_i in enumerate(bboxes):
-        coord_x, coord_y = box_i[2], box_i[3]
+    for idx, tile_i in enumerate(bboxes):
+        coord_x, coord_y = tile_i[2], tile_i[3]
         flag_exist = False
-        for jdx, box_j in enumerate(bboxes):
+        for jdx, tile_j in enumerate(bboxes):
             if idx == jdx:
                 pass
 
-            if coord_x == box_j[0] and coord_y == box_j[1]:
+            if coord_x == tile_j[0] and coord_y == tile_j[1]:
                 flag_exist = True
 
         assert flag_exist

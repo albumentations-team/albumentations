@@ -1290,16 +1290,16 @@ def split_and_shuffle_shape_by_grid(shape, grid, random_state=42):
     shifted_index_height_matrix = height_matrix[1:, 1:]
     shifted_index_width_matrix = width_matrix[1:, 1:]
 
-    height_box_sizes = shifted_index_height_matrix - index_height_matrix
-    width_box_sizes = shifted_index_width_matrix - index_width_matrix
+    height_tile_sizes = shifted_index_height_matrix - index_height_matrix
+    width_tile_sizes = shifted_index_width_matrix - index_width_matrix
 
-    bbox_sizes = np.stack((height_box_sizes, width_box_sizes), axis=2)
+    tiles_sizes = np.stack((height_tile_sizes, width_tile_sizes), axis=2)
 
     index_matrix = np.indices((n, m))
     new_index_matrix = np.stack(index_matrix, axis=2)
 
-    for bbox_size in np.unique(bbox_sizes.reshape(-1, 2), axis=0):
-        eq_mat = np.all(bbox_sizes == bbox_size, axis=2)
+    for bbox_size in np.unique(tiles_sizes.reshape(-1, 2), axis=0):
+        eq_mat = np.all(tiles_sizes == bbox_size, axis=2)
         new_index_matrix[eq_mat] = np.random.permutation(new_index_matrix[eq_mat])
 
     new_index_matrix = np.split(new_index_matrix, 2, axis=2)
@@ -1307,29 +1307,29 @@ def split_and_shuffle_shape_by_grid(shape, grid, random_state=42):
     old_x = index_height_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
     old_y = index_width_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
 
-    shift_x = height_box_sizes.reshape(-1)
-    shift_y = width_box_sizes.reshape(-1)
+    shift_x = height_tile_sizes.reshape(-1)
+    shift_y = width_tile_sizes.reshape(-1)
 
     curr_x = index_height_matrix.reshape(-1)
     curr_y = index_width_matrix.reshape(-1)
 
-    bboxes = np.stack([curr_x, curr_y, old_x, old_y, shift_x, shift_y], axis=1)
+    tiles = np.stack([curr_x, curr_y, old_x, old_y, shift_x, shift_y], axis=1)
 
-    return bboxes
+    return tiles
 
 
-def swap_bboxes_on_image(image, bboxes):
+def swap_tiles_on_image(image, tiles):
     """
-    Swap bounding boxes on image.
+    Swap tiles on image.
 
     Args:
         image (np.ndarray): Input image.
-        bboxes (np.ndarray): array of tuples with bounding boxes
+        tiles (np.ndarray): array of tuples with bounding boxes
     """
     new_image = image.copy()
 
-    for idx, bbox in enumerate(bboxes):
-        new_image[bbox[0]:bbox[0] + bbox[4], bbox[1]:bbox[1] + bbox[5]] = \
-            image[bbox[2]:bbox[2] + bbox[4], bbox[3]:bbox[3] + bbox[5]]
+    for idx, tile in enumerate(tiles):
+        new_image[tile[0]:tile[0] + tile[4], tile[1]:tile[1] + tile[5]] = \
+            image[tile[2]:tile[2] + tile[4], tile[3]:tile[3] + tile[5]]
 
     return new_image

@@ -143,12 +143,12 @@ def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
     assert np.array_equal(data['mask'], mask)
 
 
-# @pytest.mark.parametrize('augmentation_cls', [IAAPiecewiseAffine, IAAPerspective])
-# def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
-#     aug = augmentation_cls(p=1)
-#     data = aug(image=image, mask=mask)
-#     assert data['image'].dtype == np.uint8
-#     assert data['mask'].dtype == np.uint8
+@pytest.mark.parametrize('augmentation_cls', [IAAPiecewiseAffine, IAAPerspective])
+def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
+    aug = augmentation_cls(p=1)
+    data = aug(image=image, mask=mask)
+    assert data['image'].dtype == np.uint8
+    assert data['mask'].dtype == np.uint8
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
