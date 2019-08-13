@@ -448,10 +448,12 @@ def motion_blur(img, kernel):
 
 @preserve_shape
 def image_compression(img, quality, image_type):
-    quality_flag = cv2.IMWRITE_JPEG_QUALITY
-
-    if image_type == '.webp':
+    if image_type == '.jpeg' or image_type == '.jpg':
+        quality_flag = cv2.IMWRITE_JPEG_QUALITY
+    elif image_type == '.webp':
         quality_flag = cv2.IMWRITE_WEBP_QUALITY
+    else:
+        NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
 
     input_dtype = img.dtype
     needs_float = False
