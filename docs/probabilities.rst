@@ -1,12 +1,12 @@
 About probabilities.
-=====================
+====================
 
 .. toctree::
    :maxdepth: 2
 
 
 Default probability values
-******************************
+**************************
 
 **Compose**, **PadIfNeeded**, **CenterCrop**, **RandomCrop**, **Crop**, **Normalize**, **ToFloat**, **FromFloat**, **ToTensor**, **LongestMaxSize** have default
 probability values equal to **1**. All other are equal to **0.5**
@@ -46,7 +46,7 @@ decides how often each of them will be applied.
  3. **p3**: decide if **OneOf** will be applied.
 
 OneOf Block
-**************
+***********
 
 To decide which augmentation within **OneOf** block is used the following rule is applied.
 
@@ -54,7 +54,7 @@ To decide which augmentation within **OneOf** block is used the following rule i
  2. If we picked to consider **GaussNoise** the next step will be to decide if we should use it or not and **p=0.6** will be used in this case.
 
 Example calculations
-*******************
+********************
 Thus, each augmentation in the example above will be applied with the probability:
 
  1. **RandomRotate90**: `p1 * p2`

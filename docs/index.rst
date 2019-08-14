@@ -50,3 +50,4 @@ to adjust image augmentation parameters and see the resulting images.
    api/index
    probabilities
    writing_tests
+   issues_with_opencv
