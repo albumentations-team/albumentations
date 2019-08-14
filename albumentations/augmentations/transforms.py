@@ -1804,6 +1804,14 @@ class GaussNoise(ImageOnlyTransform):
 
     def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
+        if isinstance(var_limit, tuple):
+            if var_limit[0] < 0:
+                raise ValueError("Lower var_limit should be non negative.")
+            if var_limit[1] < 0:
+                raise ValueError("Upper var_limit should be non negative.")
+        elif isinstance(var_limit, float):
+            raise ValueError(" var_limit should be non negative.")
+
         self.var_limit = to_tuple(var_limit)
         self.mean = mean
 
