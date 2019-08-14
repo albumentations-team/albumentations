@@ -1791,19 +1791,21 @@ class GaussNoise(ImageOnlyTransform):
 
     Args:
         var_limit ((float, float) or float): variance range for noise. If var_limit is a single float, the range
-            will be (-var_limit, var_limit). Default: (10., 50.).
+            will be (-var_limit, var_limit). Default: (10.0, 50.0).
+        mean (float): mean of the noise. Default: 0
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
-        uint8
+        uint8, float32
     """
 
-    def __init__(self, var_limit=(10., 50.), always_apply=False, p=0.5):
+    def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
         self.var_limit = to_tuple(var_limit)
+        self.mean = mean
 
     def apply(self, img, gauss=None, **params):
         return F.gauss_noise(img, gauss=gauss)
@@ -1811,10 +1813,9 @@ class GaussNoise(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         image = params['image']
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        mean = var
         sigma = var ** 0.5
         random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-        gauss = random_state.normal(mean, sigma, image.shape)
+        gauss = random_state.normal(self.mean, sigma, image.shape)
         return {
             'gauss': gauss
         }
