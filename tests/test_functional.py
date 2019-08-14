@@ -926,53 +926,6 @@ def test_swap_tiles_on_image_with_non_empty_tiles():
     assert np.array_equal(result_img, target)
 
 
-@pytest.mark.parametrize(['shape', 'grid'], [((100, 100), (0, 1)), ((100, 100), (1, 0))])
-def test_split_and_shuffle_shape_by_grid_zero_grid(shape, grid):
-    try:
-        F.split_and_shuffle_shape_by_grid(shape, grid)
-        assert False
-    except ValueError:
-        assert True
-
-
-@pytest.mark.parametrize(['shape', 'grid'], [((100, 100), (53, 1)), ((100, 100), (40, 85))])
-def test_split_and_shuffle_shape_by_grid_oversize_grid(shape, grid):
-    try:
-        F.split_and_shuffle_shape_by_grid(shape, grid)
-        assert False
-    except ValueError:
-        assert True
-
-
-def test_split_and_shuffle_shape_by_grid_count_boxes():
-    shape = (100, 100)
-
-    for i in range(1, 10):
-        for j in range(1, 10):
-            grid = (i, j)
-
-            tiles = F.split_and_shuffle_shape_by_grid(shape, grid)
-
-            assert len(tiles) == grid[0] * grid[1]
-
-
-@pytest.mark.parametrize(['shape', 'grid'], [((100, 100), (9, 9))])
-def test_split_and_shuffle_shape_by_grid_all_tiles_correct(shape, grid):
-    bboxes = F.split_and_shuffle_shape_by_grid(shape, grid)
-
-    for idx, tile_i in enumerate(bboxes):
-        coord_x, coord_y = tile_i[2], tile_i[3]
-        flag_exist = False
-        for jdx, tile_j in enumerate(bboxes):
-            if idx == jdx:
-                pass
-
-            if coord_x == tile_j[0] and coord_y == tile_j[1]:
-                flag_exist = True
-
-        assert flag_exist
-
-
 @pytest.mark.parametrize('dtype', list(F.MAX_VALUES_BY_DTYPE.keys()))
 def test_solarize(dtype):
     max_value = F.MAX_VALUES_BY_DTYPE[dtype]

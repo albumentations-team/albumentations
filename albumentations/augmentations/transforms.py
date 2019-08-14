@@ -930,19 +930,6 @@ class RandomGridShuffle(DualTransform):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
-    def update_params(self, params, **kwargs):
-        params = super(RandomGridShuffle, self).update_params(params, **kwargs)
-        rows = params['rows']
-        cols = params['cols']
-
-        random_state = random.randint(0, 10000)
-
-        params.update({
-            "tiles": F.split_and_shuffle_shape_by_grid((rows, cols), self.grid, random_state),
-        })
-
-        return params
-
     def apply(self, img, tiles=None, **params):
         if tiles is None:
             tiles = []
@@ -954,6 +941,62 @@ class RandomGridShuffle(DualTransform):
             tiles = []
 
         return F.swap_tiles_on_image(img, tiles)
+
+    def get_params_dependent_on_targets(self, params):
+        height, width = params['image'].shape[:2]
+        n, m = self.grid
+
+        if n == 0 or m == 0:
+            raise ValueError("Grid's values must be positive. Current grid [%s, %s]" % (n, m))
+
+        if n > height // 2 or m > width // 2:
+            raise ValueError("Incorrect size cell of grid. Just shuffle pixels of image")
+
+        random_state = np.random.RandomState(random.randint(0, 10000))
+
+        height_split = np.linspace(0, height, n + 1, dtype=np.int)
+        width_split = np.linspace(0, width, m + 1, dtype=np.int)
+
+        height_matrix, width_matrix = np.meshgrid(height_split, width_split, indexing='ij')
+
+        index_height_matrix = height_matrix[:-1, :-1]
+        index_width_matrix = width_matrix[:-1, :-1]
+
+        shifted_index_height_matrix = height_matrix[1:, 1:]
+        shifted_index_width_matrix = width_matrix[1:, 1:]
+
+        height_tile_sizes = shifted_index_height_matrix - index_height_matrix
+        width_tile_sizes = shifted_index_width_matrix - index_width_matrix
+
+        tiles_sizes = np.stack((height_tile_sizes, width_tile_sizes), axis=2)
+
+        index_matrix = np.indices((n, m))
+        new_index_matrix = np.stack(index_matrix, axis=2)
+
+        for bbox_size in np.unique(tiles_sizes.reshape(-1, 2), axis=0):
+            eq_mat = np.all(tiles_sizes == bbox_size, axis=2)
+            new_index_matrix[eq_mat] = random_state.permutation(new_index_matrix[eq_mat])
+
+        new_index_matrix = np.split(new_index_matrix, 2, axis=2)
+
+        old_x = index_height_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
+        old_y = index_width_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
+
+        shift_x = height_tile_sizes.reshape(-1)
+        shift_y = width_tile_sizes.reshape(-1)
+
+        curr_x = index_height_matrix.reshape(-1)
+        curr_y = index_width_matrix.reshape(-1)
+
+        tiles = np.stack([curr_x, curr_y, old_x, old_y, shift_x, shift_y], axis=1)
+
+        return {
+            "tiles": tiles,
+        }
+
+    @property
+    def targets_as_params(self):
+        return ['image']
 
     def get_transform_init_args_names(self):
         return ('grid',)
