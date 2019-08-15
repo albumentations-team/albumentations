@@ -71,7 +71,7 @@ class ToTensor(BasicTransform):
         self.num_classes = num_classes
         self.sigmoid = sigmoid
         self.normalize = normalize
-        warnings.warn("ToTensor is deprecated and will be removed in albumentations 1.0.0", DeprecationWarning)
+        warnings.warn("ToTensor is deprecated and will be removed in albumentations 0.4.0", DeprecationWarning)
 
     def __call__(self, force_apply=True, **kwargs):
         kwargs.update({'image': img_to_tensor(kwargs['image'], self.normalize)})
