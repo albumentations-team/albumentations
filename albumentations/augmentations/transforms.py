@@ -1811,7 +1811,7 @@ class GaussNoise(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         image = params['image']
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        mean = var
+        mean = 0.
         sigma = var ** 0.5
         random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
         gauss = random_state.normal(mean, sigma, image.shape)
