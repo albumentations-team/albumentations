@@ -3,11 +3,12 @@ from __future__ import absolute_import
 import numpy as np
 import torch
 from torchvision.transforms import functional as F
+import warnings
 
 from ..core.transforms_interface import BasicTransform
 
 
-__all__ = ['ToTensor']
+__all__ = ['ToTensor', 'ImgToTensor']
 
 
 def img_to_tensor(im, normalize=None):
@@ -15,6 +16,10 @@ def img_to_tensor(im, normalize=None):
     if normalize is not None:
         return F.normalize(tensor, **normalize)
     return tensor
+
+
+def img_to_tensor_just_move(im):
+    return torch.from_numpy(np.moveaxis(im, -1, 0))
 
 
 def mask_to_tensor(mask, num_classes, sigmoid):
@@ -37,6 +42,19 @@ def mask_to_tensor(mask, num_classes, sigmoid):
     return torch.from_numpy(mask)
 
 
+class ImgToTensor(BasicTransform):
+    def __call__(self, force_apply=True, **kwargs):
+        kwargs.update({'image': img_to_tensor_just_move(kwargs['image'])})
+        for k, v in kwargs.items():
+            if self._additional_targets.get(k) == 'image':
+                kwargs.update({k: img_to_tensor_just_move(kwargs[k])})
+        return kwargs
+
+    @property
+    def targets(self):
+        raise NotImplementedError
+
+
 class ToTensor(BasicTransform):
     """Convert image and mask to `torch.Tensor` and divide by 255 if image or mask are `uint8` type.
     WARNING! Please use this with care and look into sources before usage.
@@ -53,6 +71,7 @@ class ToTensor(BasicTransform):
         self.num_classes = num_classes
         self.sigmoid = sigmoid
         self.normalize = normalize
+        warnings.warn("ToTensor is deprecated and will be removed in albumentations 1.0.0", DeprecationWarning)
 
     def __call__(self, force_apply=True, **kwargs):
         kwargs.update({'image': img_to_tensor(kwargs['image'], self.normalize)})
