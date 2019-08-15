@@ -946,7 +946,7 @@ class RandomGridShuffle(DualTransform):
         height, width = params['image'].shape[:2]
         n, m = self.grid
 
-        if n == 0 or m == 0:
+        if n <= 0 or m <= 0:
             raise ValueError("Grid's values must be positive. Current grid [%s, %s]" % (n, m))
 
         if n > height // 2 or m > width // 2:

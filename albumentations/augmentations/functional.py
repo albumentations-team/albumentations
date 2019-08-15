@@ -1264,7 +1264,9 @@ def swap_tiles_on_image(image, tiles):
 
     Args:
         image (np.ndarray): Input image.
-        tiles (np.ndarray): array of tuples with bounding boxes
+        tiles (np.ndarray): array of tuples(current_left_up_corner_row, current_left_up_corner_col,
+                                            old_left_up_corner_row, old_left_up_corner_col,
+                                            height_tile, width_tile)
     """
     new_image = image.copy()
 
