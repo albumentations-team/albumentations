@@ -923,3 +923,110 @@ def test_solarize_equal_to_pillow():
         result_pil = np.array(ImageOps.solarize(img_pil, i))
 
         assert np.all(result_albu == result_pil)
+
+
+def test_equalize_checks():
+    img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
+
+    with pytest.raises(ValueError) as exc_info:
+        F.equalize(img, mode='other')
+    assert str(exc_info.value) == "Unsupported equalization mode. Supports: ['cv', 'pil']. Got: other"
+
+    mask = np.random.randint(0, 1, [256, 256, 3], dtype=np.bool)
+    with pytest.raises(ValueError) as exc_info:
+        F.equalize(img, mask=mask)
+    assert str(exc_info.value) == "Wrong mask shape. Image shape: (256, 256). Mask shape: (256, 256, 3)"
+
+    img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
+    with pytest.raises(ValueError) as exc_info:
+        F.equalize(img, mask=mask, by_channels=False)
+    assert str(exc_info.value) == "When by_channels=False only 1-channel mask supports. Mask shape: (256, 256, 3)"
+
+
+def test_equalize_grayscale():
+    img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
+    pil_img = Image.fromarray(img)
+
+    assert np.all(cv2.equalizeHist(img) == F.equalize(img, mode='cv'))
+    assert np.all(np.array(ImageOps.equalize(pil_img)) == F.equalize(img, mode='pil'))
+
+
+def test_equalize_rgb():
+    img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
+    img_pil = Image.fromarray(img)
+
+    _img = img.copy()
+    for i in range(3):
+        _img[..., i] = cv2.equalizeHist(_img[..., i])
+    assert np.all(_img == F.equalize(img, mode='cv'))
+    assert np.all(np.array(ImageOps.equalize(img_pil)) == F.equalize(img, mode='pil'))
+
+    _img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+    img_cv = _img.copy()
+    img_pil = _img.copy()
+    img_cv[..., 0] = cv2.equalizeHist(_img[..., 0])
+    img_pil[..., 0] = np.array(ImageOps.equalize(Image.fromarray(_img[..., 0])))
+    img_cv = cv2.cvtColor(img_cv, cv2.COLOR_YCrCb2RGB)
+    img_pil = cv2.cvtColor(img_pil, cv2.COLOR_YCrCb2RGB)
+    assert np.all(img_cv == F.equalize(img, mode='cv', by_channels=False))
+    assert np.all(img_pil == F.equalize(img, mode='pil', by_channels=False))
+
+
+def test_equalize_grayscale_mask():
+    img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
+    pil_img = Image.fromarray(img)
+
+    mask = np.zeros([256, 256], dtype=np.bool)
+    mask[:10, :10] = True
+    pil_mask = Image.fromarray(mask)
+
+    assert np.all(cv2.equalizeHist(img[:10, :10]) == F.equalize(img, mask=mask, mode='cv')[:10, :10])
+    assert np.all(np.array(ImageOps.equalize(pil_img, pil_mask)) == F.equalize(img, mask=mask, mode='pil'))
+
+
+def test_equalize_rgb_mask():
+    img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
+    img_pil = Image.fromarray(img)
+
+    mask = np.zeros([256, 256], dtype=np.bool)
+    mask[:10, :10] = True
+    mask_pil = Image.fromarray(mask)
+
+    _img = img.copy()[:10, :10]
+    for i in range(3):
+        _img[..., i] = cv2.equalizeHist(_img[..., i])
+    assert np.all(_img == F.equalize(img, mask, mode='cv')[:10, :10])
+    assert np.all(np.array(ImageOps.equalize(img_pil, mask_pil)) == F.equalize(img, mask, mode='pil'))
+
+    _img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+    img_cv = _img.copy()[:10, :10]
+    img_pil = _img.copy()
+    img_cv[..., 0] = cv2.equalizeHist(img_cv[..., 0])
+    img_pil[..., 0] = np.array(ImageOps.equalize(Image.fromarray(_img[..., 0]), mask_pil))
+    img_cv = cv2.cvtColor(img_cv, cv2.COLOR_YCrCb2RGB)
+    img_pil = cv2.cvtColor(img_pil, cv2.COLOR_YCrCb2RGB)
+    assert np.all(img_cv == F.equalize(img, mask=mask, mode='cv', by_channels=False)[:10, :10])
+    assert np.all(img_pil == F.equalize(img, mask=mask, mode='pil', by_channels=False))
+
+    mask = np.zeros([256, 256, 3], dtype=np.bool)
+    mask[:10, :10, 0] = True
+    mask[10:20, 10:20, 1] = True
+    mask[20:30, 20:30, 2] = True
+    img_r = img.copy()[:10, :10, 0]
+    img_g = img.copy()[10:20, 10:20, 1]
+    img_b = img.copy()[20:30, 20:30, 2]
+
+    img_r = cv2.equalizeHist(img_r)
+    img_g = cv2.equalizeHist(img_g)
+    img_b = cv2.equalizeHist(img_b)
+
+    result_img = F.equalize(img, mask=mask, mode='cv')
+    assert np.all(img_r == result_img[:10, :10, 0])
+    assert np.all(img_g == result_img[10:20, 10:20, 1])
+    assert np.all(img_b == result_img[20:30, 20:30, 2])
+
+    _img = img.copy()
+    for i in range(3):
+        _img[..., i] = np.array(ImageOps.equalize(Image.fromarray(_img[..., i]),
+                                                  Image.fromarray(mask[..., i])))
+    assert np.all(_img == F.equalize(img, mask=mask, mode='pil'))

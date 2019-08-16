@@ -25,7 +25,7 @@ __all__ = [
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
-    'ChannelDropout', 'ISONoise', 'Solarize'
+    'ChannelDropout', 'ISONoise', 'Solarize', 'Equalize'
 ]
 
 
@@ -1563,7 +1563,7 @@ class Solarize(ImageOnlyTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-    image
+        image
 
     Image types:
         any
@@ -1585,6 +1585,39 @@ class Solarize(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('threshold', )
+
+
+class Equalize(ImageOnlyTransform):
+    """Equalize the image histogram.
+
+    Args:
+        mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
+        by_channels (bool): If True, use equalization by channels separately,
+            else convert image to YCbCr representation and use equalization by `Y` channel.
+
+    Targets:
+        image
+
+    Image types:
+        uint8
+
+    """
+
+    def __init__(self, mode='cv', by_channels=True, always_apply=False, p=0.5):
+        modes = ['cv', 'pil']
+        if mode not in modes:
+            raise ValueError('Unsupported equalization mode. Supports: {}. '
+                             'Got: {}'.format(modes, mode))
+
+        super(Equalize, self).__init__(always_apply, p)
+        self.mode = mode
+        self.by_channels = by_channels
+
+    def apply(self, image, **params):
+        return F.equalize(image, mode=self.mode, by_channels=self.by_channels)
+
+    def get_transform_init_args_names(self):
+        return ('mode', 'by_channels')
 
 
 class RGBShift(ImageOnlyTransform):

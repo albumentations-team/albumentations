@@ -285,6 +285,15 @@ class Solarize(BenchmarkTest):
         return albumentations.solarize(img)
 
 
+class Equalize(BenchmarkTest):
+
+    def __init__(self):
+        pass
+
+    def albumentations(self, img):
+        return albumentations.equalize(img)
+
+
 class RandomCrop64(BenchmarkTest):
 
     def __init__(self):
