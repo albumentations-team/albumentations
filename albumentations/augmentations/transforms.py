@@ -1810,7 +1810,7 @@ class GaussNoise(ImageOnlyTransform):
             if var_limit[1] < 0:
                 raise ValueError("Upper var_limit should be non negative.")
             self.var_limit = var_limit
-        elif isinstance(var_limit, float):
+        elif isinstance(var_limit, (int, float)):
             if var_limit < 0:
                 raise ValueError(" var_limit should be non negative.")
 
