@@ -10,12 +10,22 @@ __all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormaliz
 
 class BboxParams(Params):
     def __init__(self, format=None, label_fields=None, min_area=0.0, min_visibility=0.0):
-        super().__init__(format, label_fields)
+        super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
 
+    def _to_dict(self):
+        data = super(BboxParams, self)._to_dict()
+        data.update({"min_area": self.min_area,
+                     "min_visibility": self.min_visibility})
+        return data
+
 
 class BboxProcessor(DataProcessor):
+    @property
+    def default_data_name(self):
+        return "bboxes"
+
     def ensure_data_valid(self, data):
         for data_name in self.data_fields:
             if data.get(data_name, None) and len(data[data_name][0]) < 5:

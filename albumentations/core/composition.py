@@ -5,7 +5,7 @@ import warnings
 
 import numpy as np
 
-from albumentations.augmentations.keypoints_utils import KeypointsParams, KeypointsProcessor
+from albumentations.augmentations.keypoints_utils import KeypointParams, KeypointsProcessor
 from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
@@ -130,52 +130,62 @@ class Compose(BaseCompose):
     def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0):
         super(Compose, self).__init__([t for t in transforms if t is not None], p)
 
-        self.processors = []
-        if bbox_params is not None:
-            params = BboxParams(**bbox_params)
-            self.processors.append(BboxProcessor(params, ['bboxes']))
+        self.processors = {}
+        if bbox_params:
+            if isinstance(bbox_params, dict):
+                params = BboxParams(**bbox_params)
+            elif isinstance(bbox_params, BboxParams):
+                params = bbox_params
+            else:
+                raise Exception("unknown format of bbox_params, please use `dict` or `BboxParams`")
+            self.processors['bboxes'] = BboxProcessor(params, additional_targets)
 
-        if keypoint_params is not None:
-            params = KeypointsParams(**keypoint_params)
-            self.processors.append(KeypointsProcessor(params, ['keypoints']))
-        # todo additional
+        if keypoint_params:
+            if isinstance(keypoint_params, dict):
+                params = KeypointParams(**keypoint_params)
+            elif isinstance(keypoint_params, KeypointParams):
+                params = keypoint_params
+            else:
+                raise Exception("unknown format of keypoint_params, please use `dict` or `KeypointParams`")
+            self.processors['keypoints'] = KeypointsProcessor(params, additional_targets)
 
         if additional_targets is None:
             additional_targets = {}
 
         self.additional_targets = additional_targets
 
-        for proc in self.processors:
+        for proc in self.processors.values():
             proc.ensure_transforms_valid(self.transforms)
 
         self.add_targets(additional_targets)
 
     def __call__(self, force_apply=False, **data):
         need_to_run = force_apply or random.random() < self.p
-        for p in self.processors:
+        for p in self.processors.values():
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else self.transforms.get_always_apply(self.transforms)
         dual_start_end = transforms.start_end if self.processors else None
 
         for idx, t in enumerate(transforms):
             if dual_start_end is not None and idx == dual_start_end[0]:
-                for p in self.processors:
+                for p in self.processors.values():
                     p.preprocess(data)
 
             data = t(force_apply=force_apply, **data)
 
             if dual_start_end is not None and idx == dual_start_end[1]:
-                for p in self.processors:
+                for p in self.processors.values():
                     p.postprocess(data)
 
         return data
 
     def _to_dict(self):
-        #todo
         dictionary = super(Compose, self)._to_dict()
+        bbox_processor = self.processors.get('bboxes', None)
+        keypoints_processor = self.processors.get('keypoints', None)
         dictionary.update({
-            'bbox_params': self.params[self.bboxes_name],
-            'keypoint_params': self.params[self.keypoints_name],
+            'bbox_params': bbox_processor.params._to_dict() if bbox_processor else None,
+            'keypoint_params': keypoints_processor.params._to_dict() if keypoints_processor else None,
             'additional_targets': self.additional_targets,
         })
         return dictionary
@@ -198,7 +208,7 @@ class OneOf(BaseCompose):
     def __call__(self, force_apply=False, **data):
         if force_apply or random.random() < self.p:
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            t = random_state.choice(self.transforms, p=self.transforms_ps)
+            t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
             data = t(force_apply=True, **data)
         return data
 

@@ -20,14 +20,29 @@ class Params:
         self.format = format
         self.label_fields = label_fields
 
+    def _to_dict(self):
+        return {
+            "format": self.format,
+            "label_fields": self.label_fields
+        }
+
 
 class DataProcessor:
     __metaclass__ = ABCMeta
 
-    def __init__(self, params, data_fields):
+    def __init__(self, params, additional_targets=None):
         self.params = params
-        self.data_fields = data_fields
+        self.data_fields = [self.default_data_name]
+        if additional_targets is not None:
+            for k, v in additional_targets.items():
+                if v == self.default_data_name:
+                    self.data_fields.append(k)
         self.data_length = 0
+
+    @property
+    @abstractmethod
+    def default_data_name(self):
+        raise NotImplementedError
 
     def ensure_data_valid(self, data):
         pass
