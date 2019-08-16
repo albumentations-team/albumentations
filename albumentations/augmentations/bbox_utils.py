@@ -1,10 +1,58 @@
 from __future__ import division
+from albumentations.core.utils import Params, DataProcessor
 
 import numpy as np
 
 __all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormalize_bboxes', 'calculate_bbox_area',
            'filter_bboxes_by_visibility', 'convert_bbox_to_albumentations', 'convert_bbox_from_albumentations',
            'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations']
+
+
+class BboxParams(Params):
+    def __init__(self, format=None, label_fields=None, min_area=0.0, min_visibility=0.0):
+        super().__init__(format, label_fields)
+        self.min_area = min_area
+        self.min_visibility = min_visibility
+
+
+class BboxProcessor(DataProcessor):
+    def ensure_data_valid(self, data):
+        for data_name in self.data_fields:
+            if data.get(data_name, None) and len(data[data_name][0]) < 5:
+                if self.params.label_fields is None:
+                    raise Exception("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
+                                    "because bboxes must have labels")
+        if self.params.label_fields:
+            if not all(l in data.keys() for l in self.params.label_fields):
+                raise Exception("Your 'label_fields' are not valid - them must have same names as params in dict")
+
+    def postprocess(self, data):
+        rows, cols = data['image'].shape[:2]
+
+        for data_name in self.data_fields:
+            data[data_name] = filter_bboxes(data[data_name], rows, cols,
+                                            min_area=self.params.min_area, min_visibility=self.params.min_visibility)
+
+            if self.params.format == 'albumentations':
+                check_bboxes(data[data_name])
+            else:
+                data[data_name] = convert_bboxes_from_albumentations(data[data_name], self.params.format, rows, cols,
+                                                                     check_validity=True)
+
+        data = self.remove_label_fields_from_data(data)
+        return data
+
+    def preprocess(self, data):
+        data = self.add_label_fields_to_data(data)
+
+        rows, cols = data['image'].shape[:2]
+        for data_name in self.data_fields:
+            if self.params.format == 'albumentations':
+                check_bboxes(data[data_name])
+            else:
+                data[data_name] = convert_bboxes_to_albumentations(data[data_name], self.params.format, rows, cols,
+                                                                   check_validity=True)
+        return data
 
 
 def normalize_bbox(bbox, rows, cols):
