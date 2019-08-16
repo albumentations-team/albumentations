@@ -82,5 +82,3 @@ class DataProcessor:
 
             data[data_name] = [d[:self.data_length] for d in data[data_name]]
         return data
-
-

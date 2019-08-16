@@ -49,7 +49,8 @@ class KeypointsProcessor(DataProcessor):
         rows, cols = data['image'].shape[:2]
 
         for data_name in self.data_fields:
-            data[data_name] = filter_keypoints(data[data_name], rows, cols, remove_invisible=self.params.remove_invisible)
+            data[data_name] = filter_keypoints(data[data_name], rows, cols,
+                                               remove_invisible=self.params.remove_invisible)
 
             if self.params.format == 'albumentations':
                 check_keypoints(data[data_name], rows, cols)
@@ -200,11 +201,11 @@ def convert_keypoint_from_albumentations(keypoint, target_format, rows, cols,
 
 def convert_keypoints_to_albumentations(keypoints, source_format, rows, cols,
                                         check_validity=False, angle_in_degrees=True):
-    return [convert_keypoint_to_albumentations(kp, source_format, rows, cols,
-                                               check_validity, angle_in_degrees=angle_in_degrees) for kp in keypoints]
+    return [convert_keypoint_to_albumentations(kp, source_format, rows, cols, check_validity,
+                                               angle_in_degrees=angle_in_degrees) for kp in keypoints]
 
 
 def convert_keypoints_from_albumentations(keypoints, target_format, rows, cols,
                                           check_validity=False, angle_in_degrees=True):
-    return [convert_keypoint_from_albumentations(kp, target_format, rows, cols,
-                                                 check_validity, angle_in_degrees=angle_in_degrees) for kp in keypoints]
+    return [convert_keypoint_from_albumentations(kp, target_format, rows, cols, check_validity,
+                                                 angle_in_degrees=angle_in_degrees) for kp in keypoints]
