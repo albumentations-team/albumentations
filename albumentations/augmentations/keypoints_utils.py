@@ -4,9 +4,25 @@ import warnings
 
 from albumentations.core.utils import Params, DataProcessor
 
+__all__ = ['check_keypoints', 'convert_keypoints_from_albumentations', 'convert_keypoints_to_albumentations',
+           'filter_keypoints', 'KeypointParams']
+
+keypoint_formats = {'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'}
+
 
 class KeypointParams(Params):
     def __init__(self, format=None, label_fields=None, remove_invisible=True, angle_in_degrees=True):
+        """
+        Parameters of keypoints
+
+        Args:
+            format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
+                If None - don't use keypoints.
+            label_fields (list): list of fields that are joined with boxes, e.g labels.
+                Should be same type as boxes.
+            remove_invisible (bool): to remove invisible points after transform or not
+            angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' transforms
+        """
         super(KeypointParams, self).__init__(format, label_fields)
         self.remove_invisible = remove_invisible
         self.angle_in_degrees = angle_in_degrees
@@ -113,9 +129,6 @@ def filter_keypoints(keypoints, rows, cols, remove_invisible):
             continue
         resulting_keypoints.append(kp)
     return resulting_keypoints
-
-
-keypoint_formats = {'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'}
 
 
 def keypoint_has_extra_data(kp, format):

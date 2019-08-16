@@ -107,24 +107,10 @@ class Compose(BaseCompose):
 
     Args:
         transforms (list): list of transformations to compose.
-        bbox_params (dict): Parameters for bounding boxes transforms
-        keypoint_params (dict): Parameters for keypoints transforms
+        bbox_params (BboxParams): Parameters for bounding boxes transforms
+        keypoint_params (KeypointParams): Parameters for keypoints transforms
         additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
         p (float): probability of applying all list of transforms. Default: 1.0.
-
-    **bbox_params** dictionary contains the following keys:
-        * **format** (*str*): format of bounding boxes. Should be 'coco', 'pascal_voc' or 'albumentations'.
-          If None - don't use bboxes.
-          The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
-          The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
-          The `albumentations` format of a bounding box looks like `pascal_voc`, but between [0, 1], in other words:
-          [x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
-        * | **label_fields** (*list*): list of fields that are joined with boxes, e.g labels.
-          | Should be same type as boxes.
-        * | **min_area** (*float*): minimum area of a bounding box. All bounding boxes whose
-          | visible area in pixels is less than this value will be removed. Default: 0.0.
-        * | **min_visibility** (*float*): minimum fraction of area for a bounding box
-          | to remain this box in list. Default: 0.0.
     """
 
     def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0):

@@ -5,11 +5,31 @@ import numpy as np
 
 __all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormalize_bboxes', 'calculate_bbox_area',
            'filter_bboxes_by_visibility', 'convert_bbox_to_albumentations', 'convert_bbox_from_albumentations',
-           'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations']
+           'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations', 'BboxParams']
 
 
 class BboxParams(Params):
     def __init__(self, format=None, label_fields=None, min_area=0.0, min_visibility=0.0):
+        """
+        Parameters of bounding boxes
+
+        Args:
+            format (str): format of bounding boxes. Should be 'coco', 'pascal_voc' or 'albumentations'.
+                If None - don't use bboxes.
+                The `coco` format of a bounding box
+                looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
+                The `pascal_voc` format of a bounding box
+                looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
+                The `albumentations` format of a bounding box
+                looks like `pascal_voc`, but between [0, 1], in other words:
+                [x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
+            label_fields (list): list of fields that are joined with boxes, e.g labels.
+                Should be same type as boxes.
+            min_area (float): minimum area of a bounding box. All bounding boxes whose
+                visible area in pixels is less than this value will be removed. Default: 0.0.
+            min_visibility (float): minimum fraction of area for a bounding box
+                to remain this box in list. Default: 0.0.
+        """
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
