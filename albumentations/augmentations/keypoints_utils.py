@@ -2,38 +2,12 @@ from __future__ import division
 import math
 import warnings
 
-from albumentations.core.utils import Params, DataProcessor
+from albumentations.core.utils import DataProcessor
 
 __all__ = ['check_keypoints', 'convert_keypoints_from_albumentations', 'convert_keypoints_to_albumentations',
-           'filter_keypoints', 'KeypointParams']
+           'filter_keypoints', 'KeypointsProcessor']
 
 keypoint_formats = {'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'}
-
-
-class KeypointParams(Params):
-    def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True):
-        """
-        Parameters of keypoints
-
-        Args:
-            format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
-                x - X coordinate, y - Y coordinate
-                s - Keypoint scale
-                a - Keypoint orientation in radians or degrees (depending on KeypointParams.angle_in_degrees)
-            label_fields (list): list of fields that are joined with keypoints, e.g labels.
-                Should be same type as keypoints.
-            remove_invisible (bool): to remove invisible points after transform or not
-            angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' transforms
-        """
-        super(KeypointParams, self).__init__(format, label_fields)
-        self.remove_invisible = remove_invisible
-        self.angle_in_degrees = angle_in_degrees
-
-    def _to_dict(self):
-        data = super(KeypointParams, self)._to_dict()
-        data.update({"remove_invisible": self.remove_invisible,
-                     "angle_in_degrees": self.angle_in_degrees})
-        return data
 
 
 class KeypointsProcessor(DataProcessor):

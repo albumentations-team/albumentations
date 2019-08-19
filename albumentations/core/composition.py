@@ -1,19 +1,17 @@
 from __future__ import division
 
 import random
-import warnings
 
 import numpy as np
 
-from albumentations.augmentations.keypoints_utils import KeypointParams, KeypointsProcessor
+from albumentations.augmentations.keypoints_utils import KeypointsProcessor
 from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.utils import format_args
-from albumentations.imgaug.transforms import DualIAATransform
-from albumentations.augmentations.bbox_utils import BboxParams, BboxProcessor
+from albumentations.core.utils import format_args, Params
+from albumentations.augmentations.bbox_utils import BboxProcessor
 
-__all__ = ['Compose', 'OneOf', 'OneOrOther']
+__all__ = ['Compose', 'OneOf', 'OneOrOther', 'BboxParams', 'KeypointParams']
 
 
 REPR_INDENT_STEP = 2
@@ -178,7 +176,7 @@ class Compose(BaseCompose):
 
 
 class OneOf(BaseCompose):
-    """Select on of transforms to apply
+    """Select one of transforms to apply
 
     Args:
         transforms (list): list of transformations to compose.
@@ -245,4 +243,70 @@ class PerChannel(BaseCompose):
 
             data['image'] = image
 
+        return data
+
+
+class BboxParams(Params):
+    """
+    Parameters of bounding boxes
+
+    Args:
+        format (str): format of bounding boxes. Should be 'coco', 'pascal_voc' or 'albumentations'.
+
+            The `coco` format
+                `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
+            The `pascal_voc` format
+                `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
+            The `albumentations` format
+                is like `pascal_voc`, but normalized,
+                in other words: [x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
+        label_fields (list): list of fields that are joined with boxes, e.g labels.
+            Should be same type as boxes.
+        min_area (float): minimum area of a bounding box. All bounding boxes whose
+            visible area in pixels is less than this value will be removed. Default: 0.0.
+        min_visibility (float): minimum fraction of area for a bounding box
+            to remain this box in list. Default: 0.0.
+    """
+
+    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0):
+        super(BboxParams, self).__init__(format, label_fields)
+        self.min_area = min_area
+        self.min_visibility = min_visibility
+
+    def _to_dict(self):
+        data = super(BboxParams, self)._to_dict()
+        data.update({"min_area": self.min_area,
+                     "min_visibility": self.min_visibility})
+        return data
+
+
+class KeypointParams(Params):
+    """
+    Parameters of keypoints
+
+    Args:
+        format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
+
+            x - X coordinate,
+
+            y - Y coordinate
+
+            s - Keypoint scale
+
+            a - Keypoint orientation in radians or degrees (depending on KeypointParams.angle_in_degrees)
+        label_fields (list): list of fields that are joined with keypoints, e.g labels.
+            Should be same type as keypoints.
+        remove_invisible (bool): to remove invisible points after transform or not
+        angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
+    """
+
+    def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True):
+        super(KeypointParams, self).__init__(format, label_fields)
+        self.remove_invisible = remove_invisible
+        self.angle_in_degrees = angle_in_degrees
+
+    def _to_dict(self):
+        data = super(KeypointParams, self)._to_dict()
+        data.update({"remove_invisible": self.remove_invisible,
+                     "angle_in_degrees": self.angle_in_degrees})
         return data

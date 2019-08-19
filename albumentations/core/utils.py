@@ -18,7 +18,7 @@ class Params:
 
     def __init__(self, format, label_fields=None):
         self.format = format
-        self.label_fields = label_fields or []
+        self.label_fields = label_fields
 
     def _to_dict(self):
         return {
