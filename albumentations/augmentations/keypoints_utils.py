@@ -48,7 +48,6 @@ class KeypointsProcessor(DataProcessor):
                                 "'keypoint_params' dict")
 
     def ensure_transforms_valid(self, transforms):
-        pass
         # IAA-based augmentations supports only transformation of xy keypoints.
         # If your keypoints formats is other than 'xy' we emit warning to let user
         # be aware that angle and size will not be modified.
