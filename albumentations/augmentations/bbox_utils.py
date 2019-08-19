@@ -9,13 +9,12 @@ __all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormaliz
 
 
 class BboxParams(Params):
-    def __init__(self, format=None, label_fields=None, min_area=0.0, min_visibility=0.0):
+    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0):
         """
         Parameters of bounding boxes
 
         Args:
             format (str): format of bounding boxes. Should be 'coco', 'pascal_voc' or 'albumentations'.
-                If None - don't use bboxes.
                 The `coco` format of a bounding box
                 looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
                 The `pascal_voc` format of a bounding box

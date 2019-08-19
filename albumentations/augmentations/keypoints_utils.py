@@ -11,15 +11,17 @@ keypoint_formats = {'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'}
 
 
 class KeypointParams(Params):
-    def __init__(self, format=None, label_fields=None, remove_invisible=True, angle_in_degrees=True):
+    def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True):
         """
         Parameters of keypoints
 
         Args:
             format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
-                If None - don't use keypoints.
-            label_fields (list): list of fields that are joined with boxes, e.g labels.
-                Should be same type as boxes.
+                x - X coordinate, y - Y coordinate
+                s - Keypoint scale
+                a - Keypoint orientation in radians or degrees (depending on KeypointParams.angle_in_degrees)
+            label_fields (list): list of fields that are joined with keypoints, e.g labels.
+                Should be same type as keypoints.
             remove_invisible (bool): to remove invisible points after transform or not
             angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' transforms
         """

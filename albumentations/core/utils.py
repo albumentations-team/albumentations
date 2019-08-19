@@ -16,9 +16,9 @@ def format_args(args_dict):
 class Params:
     __metaclass__ = ABCMeta
 
-    def __init__(self, format=None, label_fields=None):
+    def __init__(self, format, label_fields=None):
         self.format = format
-        self.label_fields = label_fields
+        self.label_fields = label_fields or []
 
     def _to_dict(self):
         return {
