@@ -259,14 +259,6 @@ Alternatively, you can start a web server that rebuilds the documentation
 automatically when a change is detected by running `make livehtml`
 
 
-## Comments
-In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355)
-
-```python
-cv2.setNumThreads(0)
-cv2.ocl.setUseOpenCL(False)
-```
-
 # Citing
 
 If you find this library useful for your research, please consider citing:
