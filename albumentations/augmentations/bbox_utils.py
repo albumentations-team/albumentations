@@ -18,7 +18,7 @@ class BboxProcessor(DataProcessor):
             if data.get(data_name) and len(data[data_name][0]) < 5:
                 if self.params.label_fields is None:
                     raise ValueError("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
-                                    "because bboxes must have labels")
+                                     "because bboxes must have labels")
         if self.params.label_fields:
             if not all(l in data.keys() for l in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")

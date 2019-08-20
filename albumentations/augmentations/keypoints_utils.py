@@ -19,7 +19,7 @@ class KeypointsProcessor(DataProcessor):
         if self.params.label_fields:
             if not all(l in data.keys() for l in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in "
-                                "'keypoint_params' dict")
+                                 "'keypoint_params' dict")
 
     def ensure_transforms_valid(self, transforms):
         # IAA-based augmentations supports only transformation of xy keypoints.
