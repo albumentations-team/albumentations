@@ -973,12 +973,12 @@ def test_equalize_checks():
     mask = np.random.randint(0, 1, [256, 256, 3], dtype=np.bool)
     with pytest.raises(ValueError) as exc_info:
         F.equalize(img, mask=mask)
-    assert str(exc_info.value) == "Wrong mask shape. Image shape: (256, 256). Mask shape: (256, 256, 3)"
+    assert str(exc_info.value) == "Wrong mask shape. Image shape: {}. Mask shape: {}".format(img.shape, mask.shape)
 
     img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
     with pytest.raises(ValueError) as exc_info:
         F.equalize(img, mask=mask, by_channels=False)
-    assert str(exc_info.value) == "When by_channels=False only 1-channel mask supports. Mask shape: (256, 256, 3)"
+    assert str(exc_info.value) == "When by_channels=False only 1-channel mask supports. Mask shape: {}".format(mask.shape)
 
 
 def test_equalize_grayscale():
