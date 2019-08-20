@@ -165,8 +165,8 @@ class Compose(BaseCompose):
 
     def _to_dict(self):
         dictionary = super(Compose, self)._to_dict()
-        bbox_processor = self.processors.get('bboxes', None)
-        keypoints_processor = self.processors.get('keypoints', None)
+        bbox_processor = self.processors.get('bboxes')
+        keypoints_processor = self.processors.get('keypoints')
         dictionary.update({
             'bbox_params': bbox_processor.params._to_dict() if bbox_processor else None,
             'keypoint_params': keypoints_processor.params._to_dict() if keypoints_processor else None,

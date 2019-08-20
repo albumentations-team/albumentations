@@ -36,38 +36,23 @@ class KeypointsProcessor(DataProcessor):
                                                                               self.params.format))
                     break
 
-    def postprocess(self, data):
-        rows, cols = data['image'].shape[:2]
+    def filter(self, data, rows, cols):
+        return filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
 
-        for data_name in self.data_fields:
-            data[data_name] = filter_keypoints(data[data_name], rows, cols,
-                                               remove_invisible=self.params.remove_invisible)
+    def check(self, data, rows, cols):
+        return check_keypoints(data, rows, cols)
 
-            if self.params.format == 'albumentations':
-                check_keypoints(data[data_name], rows, cols)
-            else:
-                data[data_name] = convert_keypoints_from_albumentations(data[data_name], self.params.format,
-                                                                        rows, cols,
-                                                                        check_validity=self.params.remove_invisible,
-                                                                        angle_in_degrees=self.params.angle_in_degrees)
+    def convert_from_albumentations(self, data, rows, cols):
+        return convert_keypoints_from_albumentations(data, self.params.format,
+                                                     rows, cols,
+                                                     check_validity=self.params.remove_invisible,
+                                                     angle_in_degrees=self.params.angle_in_degrees)
 
-            data = self.remove_label_fields_from_data(data)
-        return data
-
-    def preprocess(self, data):
-        data = self.add_label_fields_to_data(data)
-
-        rows, cols = data['image'].shape[:2]
-        for data_name in self.data_fields:
-            if self.params.format == 'albumentations':
-                check_keypoints(data[data_name], rows, cols)
-            else:
-                data[data_name] = convert_keypoints_to_albumentations(data[data_name], self.params.format,
-                                                                      rows, cols,
-                                                                      check_validity=self.params.remove_invisible,
-                                                                      angle_in_degrees=self.params.angle_in_degrees)
-
-        return data
+    def convert_to_albumentations(self, data, rows, cols):
+        return convert_keypoints_to_albumentations(data, self.params.format,
+                                                   rows, cols,
+                                                   check_validity=self.params.remove_invisible,
+                                                   angle_in_degrees=self.params.angle_in_degrees)
 
 
 def check_keypoint(kp, rows, cols):

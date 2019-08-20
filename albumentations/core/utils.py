@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 
-from ..core.six import string_types
+from ..core.six import string_types, add_metaclass
 
 
 def format_args(args_dict):
@@ -13,9 +13,8 @@ def format_args(args_dict):
     return ', '.join(formatted_args)
 
 
+@add_metaclass(ABCMeta)
 class Params:
-    __metaclass__ = ABCMeta
-
     def __init__(self, format, label_fields=None):
         self.format = format
         self.label_fields = label_fields
@@ -27,9 +26,8 @@ class Params:
         }
 
 
+@add_metaclass(ABCMeta)
 class DataProcessor:
-    __metaclass__ = ABCMeta
-
     def __init__(self, params, additional_targets=None):
         self.params = params
         self.data_fields = [self.default_data_name]
@@ -50,12 +48,47 @@ class DataProcessor:
     def ensure_transforms_valid(self, transforms):
         pass
 
-    @abstractmethod
+    def postprocess(self, data):
+        rows, cols = data['image'].shape[:2]
+
+        for data_name in self.data_fields:
+            data[data_name] = self.filter(data[data_name], rows, cols)
+            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction='from')
+
+        data = self.remove_label_fields_from_data(data)
+        return data
+
     def preprocess(self, data):
+        data = self.add_label_fields_to_data(data)
+
+        rows, cols = data['image'].shape[:2]
+        for data_name in self.data_fields:
+            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction='to')
+
+    def check_and_convert(self, data, rows, cols, direction='to'):
+        if self.params.format == 'albumentations':
+            self.check(data, rows, cols)
+            return data
+        else:
+            if direction == 'to':
+                return self.convert_to_albumentations(data, rows, cols)
+            else:
+                return self.convert_from_albumentations(data, rows, cols)
+
+    @abstractmethod
+    def filter(self, data, rows, cols):
         pass
 
     @abstractmethod
-    def postprocess(self, data):
+    def check(self, data, rows, cols):
+        pass
+
+    @abstractmethod
+    def convert_to_albumentations(self, data, rows, cols):
+        pass
+
+    @abstractmethod
+    def convert_from_albumentations(self, data, rows, cols):
         pass
 
     def add_label_fields_to_data(self, data):
