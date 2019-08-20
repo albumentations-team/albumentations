@@ -121,7 +121,7 @@ class Compose(BaseCompose):
             elif isinstance(bbox_params, BboxParams):
                 params = bbox_params
             else:
-                raise Exception("unknown format of bbox_params, please use `dict` or `BboxParams`")
+                raise ValueError("unknown format of bbox_params, please use `dict` or `BboxParams`")
             self.processors['bboxes'] = BboxProcessor(params, additional_targets)
 
         if keypoint_params:
@@ -130,7 +130,7 @@ class Compose(BaseCompose):
             elif isinstance(keypoint_params, KeypointParams):
                 params = keypoint_params
             else:
-                raise Exception("unknown format of keypoint_params, please use `dict` or `KeypointParams`")
+                raise ValueError("unknown format of keypoint_params, please use `dict` or `KeypointParams`")
             self.processors['keypoints'] = KeypointsProcessor(params, additional_targets)
 
         if additional_targets is None:
