@@ -52,6 +52,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
     [A.RandomScale, {}],
     [A.SmallestMaxSize, {}],
     [A.LongestMaxSize, {}],
+    [A.RandomGridShuffle, {}],
     [A.Solarize, {}],
     [A.Equalize, {}],
 ])
@@ -160,6 +161,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     [A.Resize, {'height': 64, 'width': 64}],
     [A.SmallestMaxSize, {'max_size': 64, 'interpolation': cv2.INTER_CUBIC}],
     [A.LongestMaxSize, {'max_size': 128, 'interpolation': cv2.INTER_CUBIC}],
+    [A.RandomGridShuffle, {'grid': (5, 5)}],
     [A.Solarize, {'threshold': 32}],
     [A.Equalize, {'mode': 'pil', 'by_channels': False}],
 ])
@@ -560,6 +562,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     [A.Normalize, {}],
     [A.ToFloat, {}],
     [A.FromFloat, {}],
+    [A.RandomGridShuffle, {}],
     [A.Solarize, {}],
     [A.Equalize, {}],
 ])

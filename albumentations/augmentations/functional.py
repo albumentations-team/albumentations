@@ -1361,3 +1361,22 @@ def py3round(number):
 
 def noop(input_obj, **params):
     return input_obj
+
+
+def swap_tiles_on_image(image, tiles):
+    """
+    Swap tiles on image.
+
+    Args:
+        image (np.ndarray): Input image.
+        tiles (np.ndarray): array of tuples(current_left_up_corner_row, current_left_up_corner_col,
+                                            old_left_up_corner_row, old_left_up_corner_col,
+                                            height_tile, width_tile)
+    """
+    new_image = image.copy()
+
+    for idx, tile in enumerate(tiles):
+        new_image[tile[0]:tile[0] + tile[4], tile[1]:tile[1] + tile[5]] = \
+            image[tile[2]:tile[2] + tile[4], tile[3]:tile[3] + tile[5]]
+
+    return new_image

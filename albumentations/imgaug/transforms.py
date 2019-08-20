@@ -308,7 +308,7 @@ class IAAPerspective(DualIAATransform):
 
     @property
     def processor(self):
-        return iaa.PerspectiveTransform(self.scale, self.keep_size)
+        return iaa.PerspectiveTransform(self.scale, keep_size=self.keep_size)
 
     def get_transform_init_args_names(self):
         return ('scale', 'keep_size')

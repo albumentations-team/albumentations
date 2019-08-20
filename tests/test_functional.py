@@ -888,6 +888,44 @@ def test_brightness_contrast():
                           F._brightness_contrast_adjust_non_uint(image_float))
 
 
+def test_swap_tiles_on_image_with_empty_tiles():
+    img = np.array([
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 3, 3, 3],
+        [4, 4, 4, 4],
+    ], dtype=np.uint8)
+
+    result_img = F.swap_tiles_on_image(img, [])
+
+    assert np.array_equal(img, result_img)
+
+
+def test_swap_tiles_on_image_with_non_empty_tiles():
+    img = np.array([
+        [1, 1, 1, 1],
+        [2, 2, 2, 2],
+        [3, 3, 3, 3],
+        [4, 4, 4, 4],
+    ], dtype=np.uint8)
+
+    tiles = np.array([
+        [0, 0, 2, 2, 2, 2],
+        [2, 2, 0, 0, 2, 2]
+    ])
+
+    target = np.array([
+        [3, 3, 1, 1],
+        [4, 4, 2, 2],
+        [3, 3, 1, 1],
+        [4, 4, 2, 2],
+    ], dtype=np.uint8)
+
+    result_img = F.swap_tiles_on_image(img, tiles)
+
+    assert np.array_equal(result_img, target)
+
+
 @pytest.mark.parametrize('dtype', list(F.MAX_VALUES_BY_DTYPE.keys()))
 def test_solarize(dtype):
     max_value = F.MAX_VALUES_BY_DTYPE[dtype]

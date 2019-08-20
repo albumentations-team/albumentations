@@ -246,7 +246,8 @@ def data_preprocessing(data_name, params, check_fn, convert_fn, data):
     if params['format'] == 'albumentations':
         check_fn(data[data_name])
     else:
-        data[data_name] = convert_fn(data[data_name], params['format'], rows, cols, check_validity=True)
+        data[data_name] = convert_fn(data[data_name], params['format'], rows, cols,
+                                     check_validity=bool(params.get('remove_invisible', True)))
 
     return data
 
