@@ -981,6 +981,11 @@ def test_equalize_checks():
     assert str(exc_info.value) == "When by_channels=False only 1-channel mask supports. " \
                                   "Mask shape: {}".format(mask.shape)
 
+    img = np.random.random([256, 256, 3])
+    with pytest.raises(AssertionError) as exc_info:
+        F.equalize(img, mask=mask, by_channels=False)
+    assert str(exc_info.value) == 'Image must have uint8 channel type'
+
 
 def test_equalize_grayscale():
     img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)

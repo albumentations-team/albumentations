@@ -404,6 +404,8 @@ def equalize(img, mask=None, mode='cv', by_channels=True):
         Equalized image.
 
     """
+    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+
     modes = ['cv', 'pil']
 
     if mode not in modes:
