@@ -1,5 +1,5 @@
 from albumentations import HorizontalFlip, OneOf, IAAPiecewiseAffine, IAAAffine, OpticalDistortion, GridDistortion
-from albumentations.core.composition import find_dual_start_end
+from albumentations.core.composition import Transforms
 import pytest
 
 
@@ -51,4 +51,4 @@ def empty_aug3():
     [empty_aug3, [0, 0]],
 ])
 def test_strong_aug(aug, start_end):
-    assert find_dual_start_end(aug()) == start_end
+    assert Transforms(aug()).start_end == start_end

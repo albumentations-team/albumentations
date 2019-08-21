@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 import pytest
-from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud
+from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 
 from albumentations.augmentations.keypoints_utils import convert_keypoint_from_albumentations, \
     convert_keypoints_from_albumentations, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
@@ -240,3 +240,13 @@ def test_keypoint_scale(keypoint, expected, scale):
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
     actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
     np.testing.assert_allclose(actual, expected, rtol=1e-4)
+
+
+def test_compose_with_additional_targets():
+    image = np.ones((100, 100, 3))
+    keypoints = [[10, 10], [50, 50]]
+    kp1 = [[15, 15], [55, 55]]
+    aug = Compose([CenterCrop(50, 50)], keypoint_params={'format': 'xy'}, additional_targets={'kp1': 'keypoints'})
+    transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
+    assert transformed['keypoints'] == [[25, 25]]
+    assert transformed['kp1'] == [[30, 30]]
