@@ -1697,7 +1697,7 @@ class Equalize(ImageOnlyTransform):
 
     """
 
-    def __init__(self, mode='cv', by_channels=True, mask=None, mask_params=None, always_apply=False, p=0.5):
+    def __init__(self, mode='cv', by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5):
         modes = ['cv', 'pil']
         if mode not in modes:
             raise ValueError('Unsupported equalization mode. Supports: {}. '
@@ -1720,7 +1720,7 @@ class Equalize(ImageOnlyTransform):
 
     @property
     def targets_as_params(self):
-        return ['image'] + (list(self.mask_params) or [])
+        return ['image'] + list(self.mask_params)
 
     def get_transform_init_args_names(self):
         return ('mode', 'by_channels')
