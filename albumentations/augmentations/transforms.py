@@ -1684,6 +1684,10 @@ class Equalize(ImageOnlyTransform):
         mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
         by_channels (bool): If True, use equalization by channels separately,
             else convert image to YCbCr representation and use equalization by `Y` channel.
+        mask (np.ndarray, callable): If given, only the pixels selected by
+            the mask are included in the analysis. Maybe 1 channel or 3 channel array or callable.
+            Function signature must include `image` argument.
+        mask_params (list of str): Params for mask function.
 
     Targets:
         image
@@ -1693,7 +1697,7 @@ class Equalize(ImageOnlyTransform):
 
     """
 
-    def __init__(self, mode='cv', by_channels=True, always_apply=False, p=0.5):
+    def __init__(self, mode='cv', by_channels=True, mask=None, mask_params=None, always_apply=False, p=0.5):
         modes = ['cv', 'pil']
         if mode not in modes:
             raise ValueError('Unsupported equalization mode. Supports: {}. '
@@ -1702,9 +1706,21 @@ class Equalize(ImageOnlyTransform):
         super(Equalize, self).__init__(always_apply, p)
         self.mode = mode
         self.by_channels = by_channels
+        self.mask = mask
+        self.mask_params = mask_params
 
-    def apply(self, image, **params):
-        return F.equalize(image, mode=self.mode, by_channels=self.by_channels)
+    def apply(self, image, mask=None, **params):
+        return F.equalize(image, mode=self.mode, by_channels=self.by_channels, mask=mask)
+
+    def get_params_dependent_on_targets(self, params):
+        if not callable(self.mask):
+            return {'mask': self.mask}
+
+        return {'mask': self.mask(**params)}
+
+    @property
+    def targets_as_params(self):
+        return ['image'] + (list(self.mask_params) or [])
 
     def get_transform_init_args_names(self):
         return ('mode', 'by_channels')
