@@ -368,6 +368,7 @@ def _equalize_cv(img, mask=None):
         if val > 0:
             break
         i += 1
+    i = min(i, 255)
 
     total = np.sum(histogram)
     if histogram[i] == total:
