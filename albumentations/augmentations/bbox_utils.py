@@ -1,10 +1,40 @@
 from __future__ import division
+from albumentations.core.utils import DataProcessor
 
 import numpy as np
 
 __all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormalize_bboxes', 'calculate_bbox_area',
            'filter_bboxes_by_visibility', 'convert_bbox_to_albumentations', 'convert_bbox_from_albumentations',
-           'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations']
+           'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations', 'BboxProcessor']
+
+
+class BboxProcessor(DataProcessor):
+    @property
+    def default_data_name(self):
+        return "bboxes"
+
+    def ensure_data_valid(self, data):
+        for data_name in self.data_fields:
+            if data.get(data_name) and len(data[data_name][0]) < 5:
+                if self.params.label_fields is None:
+                    raise ValueError("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
+                                     "because bboxes must have labels")
+        if self.params.label_fields:
+            if not all(l in data.keys() for l in self.params.label_fields):
+                raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
+
+    def filter(self, data, rows, cols):
+        return filter_bboxes(data, rows, cols,
+                             min_area=self.params.min_area, min_visibility=self.params.min_visibility)
+
+    def check(self, data, rows, cols):
+        return check_bboxes(data)
+
+    def convert_from_albumentations(self, data, rows, cols):
+        return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
+
+    def convert_to_albumentations(self, data, rows, cols):
+        return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
 def normalize_bbox(bbox, rows, cols):
