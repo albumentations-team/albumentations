@@ -339,10 +339,7 @@ def solarize(img, threshold=128):
 
 
 def _equalize_pil(img, mask=None):
-    if mask is None:
-        histogram = np.histogram(img, 256, range=(0, 255))[0]
-    else:
-        histogram = np.histogram(img[mask], 256, range=(0, 255))[0]
+    histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
     h = [_f for _f in histogram if _f]
 
     if len(h) <= 1:
@@ -365,7 +362,7 @@ def _equalize_cv(img, mask=None):
     if mask is None:
         return cv2.equalizeHist(img)
 
-    histogram = np.histogram(img[mask], 256, range=(0, 255))[0]
+    histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
     i = 0
     for val in histogram:
         if val > 0:
@@ -424,6 +421,9 @@ def equalize(img, mask=None, mode='cv', by_channels=True):
     else:
         function = _equalize_cv
 
+    if mask is not None:
+        mask = mask.astype(np.uint8)
+
     if is_grayscale_image(img):
         return function(img, mask)
 
@@ -432,7 +432,7 @@ def equalize(img, mask=None, mode='cv', by_channels=True):
         result_img[..., 0] = function(result_img[..., 0], mask)
         return cv2.cvtColor(result_img, cv2.COLOR_YCrCb2RGB)
 
-    result_img = img.copy()
+    result_img = np.empty_like(img)
     for i in range(3):
         if mask is None:
             _mask = None
