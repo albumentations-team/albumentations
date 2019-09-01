@@ -1722,6 +1722,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             If limit is a single float, the range will be (-limit, limit). Default: 0.2.
         contrast_limit ((float, float) or float): factor range for changing contrast.
             If limit is a single float, the range will be (-limit, limit). Default: 0.2.
+        brightness_by_max (Boolean): If True adjust contrast by image dtype maximum,
+            else adjust contrast by image mean.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1731,13 +1733,18 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, always_apply=False, p=0.5):
+    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, brightness_by_max=None, always_apply=False, p=0.5):
         super(RandomBrightnessContrast, self).__init__(always_apply, p)
         self.brightness_limit = to_tuple(brightness_limit)
         self.contrast_limit = to_tuple(contrast_limit)
+        self.brightness_by_max = brightness_by_max
+
+        if brightness_by_max is None:
+            DeprecationWarning('In the version 0.4.0 default behavior of RandomBrightnessContrast '
+                               'brightness_by_max will be changed to True.')
 
     def apply(self, img, alpha=1., beta=0., **params):
-        return F.brightness_contrast_adjust(img, alpha, beta)
+        return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
 
     def get_params(self):
         return {
@@ -1746,7 +1753,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ('brightness_limit', 'contrast_limit')
+        return ('brightness_limit', 'contrast_limit', 'brightness_by_max')
 
 
 class RandomBrightness(RandomBrightnessContrast):
