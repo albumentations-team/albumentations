@@ -69,6 +69,8 @@ def test_calculate_bbox_area(bbox, rows, cols, expected):
     [[20, 30, 40, 50, 99], 'coco', [0.2, 0.3, 0.6, 0.8, 99]],
     [[20, 30, 60, 80], 'pascal_voc', [0.2, 0.3, 0.6, 0.8]],
     [[20, 30, 60, 80, 99], 'pascal_voc', [0.2, 0.3, 0.6, 0.8, 99]],
+    [[0.2, 0.3, 0.4, 0.5], 'yolo', [0.01, 0.06, 0.41, 0.56]],
+    [[0.2, 0.3, 0.4, 0.5, 99], 'yolo', [0.01, 0.06, 0.41, 0.56, 99]],
 ])
 def test_convert_bbox_to_albumentations(bbox, source_format, expected):
     image = np.ones((100, 100, 3))
@@ -83,12 +85,14 @@ def test_convert_bbox_to_albumentations(bbox, source_format, expected):
     [[0.2, 0.3, 0.6, 0.8, 99], 'coco', [20, 30, 40, 50, 99]],
     [[0.2, 0.3, 0.6, 0.8], 'pascal_voc', [20, 30, 60, 80]],
     [[0.2, 0.3, 0.6, 0.8, 99], 'pascal_voc', [20, 30, 60, 80, 99]],
+    [[0.01, 0.06, 0.41, 0.56], 'yolo', [0.2, 0.3, 0.4, 0.5]],
+    [[0.01, 0.06, 0.41, 0.56, 99], 'yolo', [0.2, 0.3, 0.4, 0.5, 99]],
 ])
 def test_convert_bbox_from_albumentations(bbox, target_format, expected):
     image = np.ones((100, 100, 3))
     converted_bbox = convert_bbox_from_albumentations(bbox, rows=image.shape[0], cols=image.shape[1],
                                                       target_format=target_format)
-    assert converted_bbox == expected
+    assert np.all(np.isclose(converted_bbox, expected))
 
 
 @pytest.mark.parametrize(['bbox', 'bbox_format'], [
@@ -96,6 +100,8 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected):
     [[20, 30, 40, 50, 99], 'coco'],
     [[20, 30, 60, 80], 'pascal_voc'],
     [[20, 30, 60, 80, 99], 'pascal_voc'],
+    [[0.01, 0.06, 0.41, 0.56], 'yolo'],
+    [[0.01, 0.06, 0.41, 0.56, 99], 'yolo'],
 ])
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
     image = np.ones((100, 100, 3))
@@ -103,7 +109,7 @@ def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
                                                     source_format=bbox_format)
     converted_back_bbox = convert_bbox_from_albumentations(converted_bbox, rows=image.shape[0], cols=image.shape[1],
                                                            target_format=bbox_format)
-    assert converted_back_bbox == bbox
+    assert np.all(np.isclose(converted_back_bbox, bbox))
 
 
 def test_convert_bboxes_to_albumentations():
@@ -135,6 +141,8 @@ def test_convert_bboxes_from_albumentations():
     [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], 'coco', None],
     [[[20, 30, 60, 80]], 'pascal_voc', [2]],
     [[[20, 30, 60, 80, 99]], 'pascal_voc', None],
+    [[[0.1, 0.2, 0.1, 0.2]], 'yolo', [2]],
+    [[[0.1, 0.2, 0.1, 0.2, 99]], 'yolo', None],
 ])
 def test_compose_with_bbox_noop(bboxes, bbox_format, labels):
     image = np.ones((100, 100, 3))
@@ -145,7 +153,7 @@ def test_compose_with_bbox_noop(bboxes, bbox_format, labels):
         aug = Compose([NoOp(p=1.)], bbox_params={'format': bbox_format})
         transformed = aug(image=image, bboxes=bboxes)
     assert np.array_equal(transformed['image'], image)
-    assert transformed['bboxes'] == bboxes
+    assert np.all(np.isclose(transformed['bboxes'], bboxes))
 
 
 @pytest.mark.parametrize(['bboxes', 'bbox_format'], [
