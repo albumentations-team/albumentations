@@ -338,6 +338,29 @@ def solarize(img, threshold=128):
     return result_img
 
 
+@preserve_shape
+def posterize(img, bits):
+    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+
+    if not isinstance(bits, (list, tuple)):
+        lut = np.arange(0, 256, dtype=np.uint8)
+        mask = ~np.uint8(2 ** (8 - bits) - 1)
+        lut &= mask
+
+        return cv2.LUT(img, lut)
+
+    assert is_rgb_image(img), 'If bits is iterable image must be RGB'
+
+    result_img = np.empty_like(img)
+    for i, channel_bits in enumerate(bits):
+        lut = np.arange(0, 256, dtype=np.uint8)
+        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+        lut &= mask
+
+        result_img[..., i] = cv2.LUT(img[..., i], lut)
+    return result_img
+
+
 @clipped
 def shift_rgb(img, r_shift, g_shift, b_shift):
     if img.dtype == np.uint8:
