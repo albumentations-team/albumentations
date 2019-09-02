@@ -716,7 +716,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
                                               interpolation=interpolation,
                                               always_apply=always_apply, p=p)
         self.min_max_height = min_max_height
-        self.w2h_ratio = w2h_ratio        
+        self.w2h_ratio = w2h_ratio
 
     def get_params(self):
         crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
@@ -807,6 +807,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     @property
     def targets_as_params(self):
         return ['image']
+
+    def get_transform_init_args_names(self):
+        return 'height', 'width', 'scale', 'ratio', 'interpolation'
 
 
 class RandomSizedBBoxSafeCrop(DualTransform):
