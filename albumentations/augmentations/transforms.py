@@ -22,7 +22,7 @@ __all__ = [
     'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
     'ToGray', 'JpegCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
     'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
-    'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
+    'Resize', 'RandomSizedCrop', 'RandomResizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
     'ChannelDropout', 'ISONoise', 'Solarize', 'Equalize'
@@ -690,7 +690,7 @@ class _BaseRandomSizedCrop(DualTransform):
         return keypoint
 
 
-class RandomSizedCropOld(_BaseRandomSizedCrop):
+class RandomSizedCrop(_BaseRandomSizedCrop):
     """Crop a random part of the input and rescale it to some size.
 
     Args:
@@ -712,9 +712,9 @@ class RandomSizedCropOld(_BaseRandomSizedCrop):
 
     def __init__(self, min_max_height, height, width, w2h_ratio=1., interpolation=cv2.INTER_LINEAR,
                  always_apply=False, p=1.0):
-        super(RandomSizedCropOld, self).__init__(height=height, width=width,
-                                                 interpolation=interpolation,
-                                                 always_apply=always_apply, p=p)
+        super(RandomSizedCrop, self).__init__(height=height, width=width,
+                                              interpolation=interpolation,
+                                              always_apply=always_apply, p=p)
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
         warnings.warn("This class has been deprecated. Please use RandomSizedCropTorchVision", DeprecationWarning)
@@ -730,8 +730,8 @@ class RandomSizedCropOld(_BaseRandomSizedCrop):
         return 'min_max_height', 'height', 'width', 'w2h_ratio', 'interpolation'
 
 
-class RandomSizedCropTorchVision(_BaseRandomSizedCrop):
-    """Torchvision variant of crop a random part of the input and rescale it to some size.
+class RandomResizedCrop(_BaseRandomSizedCrop):
+    """Torchvision's variant of crop a random part of the input and rescale it to some size.
 
     Args:
         height (int): height after crop and resize.
@@ -754,9 +754,9 @@ class RandomSizedCropTorchVision(_BaseRandomSizedCrop):
                  interpolation=cv2.INTER_LINEAR,
                  always_apply=False, p=1.0):
 
-        super(RandomSizedCropTorchVision, self).__init__(height=height, width=width,
-                                                         interpolation=interpolation,
-                                                         always_apply=always_apply, p=p)
+        super(RandomResizedCrop, self).__init__(height=height, width=width,
+                                                interpolation=interpolation,
+                                                always_apply=always_apply, p=p)
         self.scale = scale
         self.ratio = ratio
 
@@ -808,44 +808,6 @@ class RandomSizedCropTorchVision(_BaseRandomSizedCrop):
     @property
     def targets_as_params(self):
         return ['image']
-
-
-def RandomSizedCrop(height, width,
-                    scale=(0.08, 1.0),
-                    ratio=(0.75, 1.3333333333333333),
-                    interpolation=cv2.INTER_LINEAR,
-                    mode='old', *args, **kwargs):
-    """Crop a random part of the input and rescale it to some size.
-
-    Args:
-        height (int): height after crop and resize.
-        width (int): width after crop and resize.
-        scale ((float, float)): range of size of the origin size cropped
-        ratio ((float, float)): range of aspect ratio of the origin aspect ratio cropped
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        mode (str): mode 'old' or 'torchvision' to specify transform version:
-            :class:`~albumentations.augmentations.transforms.RandomSizedCropOld` or
-            :class:`~albumentations.augmentations.transforms.RandomSizedCropTorchVision`
-        *args: positional argument for :class:`~albumentations.augmentations.transforms.RandomSizedCropOld`
-        *kwargs: kwargs for :class:`~albumentations.augmentations.transforms.RandomSizedCropOld`
-
-    Targets:
-        image, mask, bboxes, keypoints
-
-    Image types:
-        uint8, float32
-    """
-    if mode not in ('old', 'torchvision'):
-        raise ValueError("Argument mode should be either 'old' or 'torchvision', but given {}".format(mode))
-
-    if mode == 'old':
-        return RandomSizedCropOld(*args, height=height, width=width, interpolation=interpolation, **kwargs)
-    elif mode == 'torchvision':
-        return RandomSizedCropTorchVision(height=height, width=width,
-                                          scale=scale, ratio=ratio,
-                                          interpolation=interpolation, **kwargs)
 
 
 class RandomSizedBBoxSafeCrop(DualTransform):

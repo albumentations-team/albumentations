@@ -8,7 +8,7 @@ from albumentations.augmentations.keypoints_utils import convert_keypoint_from_a
     convert_keypoints_from_albumentations, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop
+from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
 import albumentations.augmentations.functional as F
 
 
@@ -130,16 +130,16 @@ def test_random_sized_crop_size():
     image = np.ones((100, 100, 3))
     keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
     with pytest.warns(DeprecationWarning):
-        aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1., mode='old')
+        aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.)
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed['image'].shape == (50, 50, 3)
     assert len(keypoints) == len(transformed['keypoints'])
 
 
-def test_random_sized_crop_size_torchvision():
+def test_random_resized_crop_size():
     image = np.ones((100, 100, 3))
     keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
-    aug = RandomSizedCrop(height=50, width=50, p=1., mode='torchvision')
+    aug = RandomResizedCrop(height=50, width=50, p=1.)
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed['image'].shape == (50, 50, 3)
     assert len(keypoints) == len(transformed['keypoints'])
