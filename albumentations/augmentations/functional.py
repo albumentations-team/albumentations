@@ -344,7 +344,7 @@ def posterize(img, bits):
 
     Args:
         img: image to posterize.
-        bits: number of high bits. Must be in range. Must be in range [0, 8]
+        bits: number of high bits. Must be in range [0, 8]
     """
     bits = np.uint8(bits)
 
