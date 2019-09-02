@@ -380,6 +380,8 @@ def posterize(img, bits):
 
         result_img[..., i] = cv2.LUT(img[..., i], lut)
 
+    return result_img
+
 
 def _shift_image_uint8(img, value):
     max_value = MAX_VALUES_BY_DTYPE[img.dtype]
