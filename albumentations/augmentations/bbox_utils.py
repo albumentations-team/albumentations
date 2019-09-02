@@ -127,7 +127,8 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
     Note:
         The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
         The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
-        The `yolo` format of a bounding box looks like `[x, y, height, width]`, e.g. [0.3, 0.1, 0.05, 0.07].
+        The `yolo` format of a bounding box looks like `[x, y, width, height]`, e.g. [0.3, 0.1, 0.05, 0.07];
+        where `x`, `y` coordinates of the center of the box, all values normalized to 1 by image height and width.
 
     Raises:
         ValueError: if `target_format` is not equal to `coco` or `pascal_voc`, ot `yolo`.
