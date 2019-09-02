@@ -667,7 +667,7 @@ class RandomCropNearBBox(DualTransform):
 
 
 class _BaseRandomSizedCrop(DualTransform):
-    # Base class for RandomSizedCropOld and RandomSizedCropTorchVision
+    # Base class for RandomSizedCrop and RandomResizedCrop
 
     def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0):
         super(_BaseRandomSizedCrop, self).__init__(always_apply, p)
@@ -716,8 +716,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
                                               interpolation=interpolation,
                                               always_apply=always_apply, p=p)
         self.min_max_height = min_max_height
-        self.w2h_ratio = w2h_ratio
-        warnings.warn("This class has been deprecated. Please use RandomSizedCropTorchVision", DeprecationWarning)
+        self.w2h_ratio = w2h_ratio        
 
     def get_params(self):
         crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
