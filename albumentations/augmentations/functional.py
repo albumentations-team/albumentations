@@ -340,9 +340,23 @@ def solarize(img, threshold=128):
 
 @preserve_shape
 def posterize(img, bits):
-    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+    """Reduce the number of bits for each color channel.
 
-    if not isinstance(bits, (list, tuple)):
+    Args:
+        img: image to posterize.
+        bits: number of high bits. Must be in range. Must be in range [0, 8]
+    """
+    bits = np.uint8(bits)
+
+    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+    assert np.all((0 <= bits) & (bits <= 8)), "bits must be in range [0, 8]"
+
+    if not bits.shape or len(bits) == 1:
+        if bits == 0:
+            return np.zeros_like(img)
+        elif bits == 8:
+            return img.copy()
+
         lut = np.arange(0, 256, dtype=np.uint8)
         mask = ~np.uint8(2 ** (8 - bits) - 1)
         lut &= mask
@@ -353,6 +367,13 @@ def posterize(img, bits):
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits):
+        if channel_bits == 0:
+            result_img[..., i] = np.zeros_like(img[..., i])
+            continue
+        elif channel_bits == 8:
+            result_img[..., i] = img[..., i].copy()
+            continue
+
         lut = np.arange(0, 256, dtype=np.uint8)
         mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
         lut &= mask

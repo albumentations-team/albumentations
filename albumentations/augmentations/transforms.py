@@ -1683,8 +1683,9 @@ class Posterize(ImageOnlyTransform):
     Args:
         num_bits ((int, int) or int,
                   or list of ints [r, g, b],
-                  or list of ints [[r1, r1], [g1, g2], [b1, b2]]): number of bits.
-            If num_bits is a single value, the range will be [num_bits, num_bits]. Default: 4.
+                  or list of ints [[r1, r1], [g1, g2], [b1, b2]]): number of high bits.
+            If num_bits is a single value, the range will be [num_bits, num_bits].
+            Must be in range [0, 8]. Default: 4.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1699,9 +1700,9 @@ class Posterize(ImageOnlyTransform):
 
         if isinstance(num_bits, (list, tuple)):
             if len(num_bits) == 3:
-                self.num_bits = [to_tuple(i, 1) for i in num_bits]
+                self.num_bits = [to_tuple(i, 0) for i in num_bits]
             else:
-                self.num_bits = to_tuple(num_bits, 1)
+                self.num_bits = to_tuple(num_bits, 0)
         else:
             self.num_bits = to_tuple(num_bits, num_bits)
 
