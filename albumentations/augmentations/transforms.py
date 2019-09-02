@@ -666,7 +666,7 @@ class RandomCropNearBBox(DualTransform):
         return ('max_part_shift',)
 
 
-class RandomSizedCrop(DualTransform):
+class RandomSizedCropOld(DualTransform):
     """Crop a random part of the input and rescale it to some size.
 
     Args:
@@ -688,12 +688,13 @@ class RandomSizedCrop(DualTransform):
 
     def __init__(self, min_max_height, height, width, w2h_ratio=1., interpolation=cv2.INTER_LINEAR,
                  always_apply=False, p=1.0):
-        super(RandomSizedCrop, self).__init__(always_apply, p)
+        super(RandomSizedCropOld, self).__init__(always_apply, p)
         self.height = height
         self.width = width
         self.interpolation = interpolation
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
+        warnings.warn("This class has been deprecated. Please use RandomSizedCropTorchVision", DeprecationWarning)
 
     def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
@@ -717,7 +718,112 @@ class RandomSizedCrop(DualTransform):
         return keypoint
 
     def get_transform_init_args_names(self):
-        return ('min_max_height', 'height', 'width', 'w2h_ratio', 'interpolation')
+        return 'min_max_height', 'height', 'width', 'w2h_ratio', 'interpolation'
+
+
+class RandomSizedCropTorchVision(RandomSizedCropOld):
+    """Torchvision variant of crop a random part of the input and rescale it to some size.
+
+    Args:
+        height (int): height after crop and resize.
+        width (int): width after crop and resize.
+        scale ((float, float)): range of size of the origin size cropped
+        ratio ((float, float)): range of aspect ratio of the origin aspect ratio cropped
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p (float): probability of applying the transform. Default: 1.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, height, width, scale=(0.08, 1.0), ratio=(0.75, 1.3333333333333333),
+                 interpolation=cv2.INTER_LINEAR,
+                 always_apply=False, p=1.0):
+
+        super(RandomSizedCropTorchVision, self).__init__(min_max_height=0, height=height, width=width,
+                                                         w2h_ratio=1.0, interpolation=interpolation,
+                                                         always_apply=always_apply, p=p)
+        self.scale = scale
+        self.ratio = ratio
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        area = img.shape[0] * img.shape[1]
+
+        for attempt in range(10):
+            target_area = random.uniform(*self.scale) * area
+            log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
+            aspect_ratio = math.exp(random.uniform(*log_ratio))
+
+            w = int(round(math.sqrt(target_area * aspect_ratio)))
+            h = int(round(math.sqrt(target_area / aspect_ratio)))
+
+            if w <= img.shape[1] and h <= img.shape[0]:
+                i = random.randint(0, img.shape[0] - h)
+                j = random.randint(0, img.shape[1] - w)
+                return {
+                    'crop_height': h,
+                    'crop_width': w,
+                    'h_start': i * 1.0 / (img.shape[0] - h + 1e-10),
+                    'w_start': j * 1.0 / (img.shape[1] - w + 1e-10)
+                }
+
+        # Fallback to central crop
+        in_ratio = img.shape[1] / img.shape[0]
+        if in_ratio < min(self.ratio):
+            w = img.shape[1]
+            h = w / min(self.ratio)
+        elif in_ratio > max(self.ratio):
+            h = img.shape[0]
+            w = h * max(self.ratio)
+        else:  # whole image
+            w = img.shape[1]
+            h = img.shape[0]
+        i = (img.shape[0] - h) // 2
+        j = (img.shape[1] - w) // 2
+        return {
+            'crop_height': h,
+            'crop_width': w,
+            'h_start': i * 1.0 / (img.shape[0] - h + 1e-10),
+            'w_start': j * 1.0 / (img.shape[1] - w + 1e-10)
+        }
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+
+def RandomSizedCrop(*args, mode='old', **kwargs):
+    """Crop a random part of the input and rescale it to some size.
+
+    Args:
+        mode (str): mode 'old' or 'torchvision' to specify transform version:
+            :class:`~albumentations.augmentations.transforms.RandomSizedCropOld` or
+            :class:`~albumentations.augmentations.transforms.RandomSizedCropTorchVision`
+        *args: positional argument for specified transform
+        *kwargs: kwargs for specified transform
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+    """
+    if mode not in ('old', 'torchvision'):
+        raise ValueError("Argument mode should be either 'old' or 'torchvision', but given {}".format(mode))
+
+    if mode == 'old':
+        return RandomSizedCropOld(*args, **kwargs)
+    elif mode == 'torchvision':
+        return RandomSizedCropTorchVision(*args, **kwargs)
 
 
 class RandomSizedBBoxSafeCrop(DualTransform):
