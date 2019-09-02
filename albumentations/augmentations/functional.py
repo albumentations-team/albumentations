@@ -338,6 +338,114 @@ def solarize(img, threshold=128):
     return result_img
 
 
+def _equalize_pil(img, mask=None):
+    histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
+    h = [_f for _f in histogram if _f]
+
+    if len(h) <= 1:
+        return img.copy()
+
+    step = np.sum(h[:-1]) // 255
+    if not step:
+        return img.copy()
+
+    lut = np.empty(256, dtype=np.uint8)
+    n = step // 2
+    for i in range(256):
+        lut[i] = min(n // step, 255)
+        n += histogram[i]
+
+    return cv2.LUT(img, np.array(lut))
+
+
+def _equalize_cv(img, mask=None):
+    if mask is None:
+        return cv2.equalizeHist(img)
+
+    histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
+    i = 0
+    for val in histogram:
+        if val > 0:
+            break
+        i += 1
+    i = min(i, 255)
+
+    total = np.sum(histogram)
+    if histogram[i] == total:
+        return np.full_like(img, i)
+
+    scale = 255 / (total - histogram[i])
+    _sum = 0
+
+    lut = np.zeros(256, dtype=np.uint8)
+    i += 1
+    for i in range(i, len(histogram)):
+        _sum += histogram[i]
+        lut[i] = clip(round(_sum * scale), np.dtype('uint8'), 255)
+
+    return cv2.LUT(img, lut)
+
+
+@preserve_channel_dim
+def equalize(img, mask=None, mode='cv', by_channels=True):
+    """Equalize the image histogram.
+
+    Args:
+        img (np.ndarray): RGB or grayscale image.
+        mask (np.ndarray): An optional mask.  If given, only the pixels selected by
+            the mask are included in the analysis. Maybe 1 channel or 3 channel array.
+        mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
+        by_channels (bool): If True, use equalization by channels separately,
+            else convert image to YCbCr representation and use equalization by `Y` channel.
+
+    Returns:
+        Equalized image.
+
+    """
+    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+
+    modes = ['cv', 'pil']
+
+    if mode not in modes:
+        raise ValueError('Unsupported equalization mode. Supports: {}. '
+                         'Got: {}'.format(modes, mode))
+    if mask is not None:
+        if is_rgb_image(mask) and is_grayscale_image(img):
+            raise ValueError('Wrong mask shape. Image shape: {}. '
+                             'Mask shape: {}'.format(img.shape, mask.shape))
+        if not by_channels and not is_grayscale_image(mask):
+            raise ValueError('When by_channels=False only 1-channel mask supports. '
+                             'Mask shape: {}'.format(mask.shape))
+
+    if mode == 'pil':
+        function = _equalize_pil
+    else:
+        function = _equalize_cv
+
+    if mask is not None:
+        mask = mask.astype(np.uint8)
+
+    if is_grayscale_image(img):
+        return function(img, mask)
+
+    if not by_channels:
+        result_img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+        result_img[..., 0] = function(result_img[..., 0], mask)
+        return cv2.cvtColor(result_img, cv2.COLOR_YCrCb2RGB)
+
+    result_img = np.empty_like(img)
+    for i in range(3):
+        if mask is None:
+            _mask = None
+        elif is_grayscale_image(mask):
+            _mask = mask
+        else:
+            _mask = mask[..., i]
+
+        result_img[..., i] = function(img[..., i], _mask)
+    return result_img
+
+
 @clipped
 def shift_rgb(img, r_shift, g_shift, b_shift):
     if img.dtype == np.uint8:

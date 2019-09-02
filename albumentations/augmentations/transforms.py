@@ -25,7 +25,7 @@ __all__ = [
     'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
-    'ChannelDropout', 'ISONoise', 'Solarize'
+    'ChannelDropout', 'ISONoise', 'Solarize', 'Equalize'
 ]
 
 
@@ -1653,7 +1653,7 @@ class Solarize(ImageOnlyTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-    image
+        image
 
     Image types:
         any
@@ -1675,6 +1675,55 @@ class Solarize(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('threshold', )
+
+
+class Equalize(ImageOnlyTransform):
+    """Equalize the image histogram.
+
+    Args:
+        mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
+        by_channels (bool): If True, use equalization by channels separately,
+            else convert image to YCbCr representation and use equalization by `Y` channel.
+        mask (np.ndarray, callable): If given, only the pixels selected by
+            the mask are included in the analysis. Maybe 1 channel or 3 channel array or callable.
+            Function signature must include `image` argument.
+        mask_params (list of str): Params for mask function.
+
+    Targets:
+        image
+
+    Image types:
+        uint8
+
+    """
+
+    def __init__(self, mode='cv', by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5):
+        modes = ['cv', 'pil']
+        if mode not in modes:
+            raise ValueError('Unsupported equalization mode. Supports: {}. '
+                             'Got: {}'.format(modes, mode))
+
+        super(Equalize, self).__init__(always_apply, p)
+        self.mode = mode
+        self.by_channels = by_channels
+        self.mask = mask
+        self.mask_params = mask_params
+
+    def apply(self, image, mask=None, **params):
+        return F.equalize(image, mode=self.mode, by_channels=self.by_channels, mask=mask)
+
+    def get_params_dependent_on_targets(self, params):
+        if not callable(self.mask):
+            return {'mask': self.mask}
+
+        return {'mask': self.mask(**params)}
+
+    @property
+    def targets_as_params(self):
+        return ['image'] + list(self.mask_params)
+
+    def get_transform_init_args_names(self):
+        return ('mode', 'by_channels')
 
 
 class RGBShift(ImageOnlyTransform):

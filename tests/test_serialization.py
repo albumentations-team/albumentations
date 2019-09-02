@@ -54,6 +54,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
     [A.LongestMaxSize, {}],
     [A.RandomGridShuffle, {}],
     [A.Solarize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -162,6 +163,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     [A.LongestMaxSize, {'max_size': 128, 'interpolation': cv2.INTER_CUBIC}],
     [A.RandomGridShuffle, {'grid': (5, 5)}],
     [A.Solarize, {'threshold': 32}],
+    [A.Equalize, {'mode': 'pil', 'by_channels': False}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -231,6 +233,7 @@ def test_augmentations_serialization_with_custom_parameters(
     [A.LongestMaxSize, {}],
     [A.RandomSizedBBoxSafeCrop, {'height': 50, 'width': 50}],
     [A.Solarize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -286,6 +289,7 @@ def test_augmentations_for_bboxes_serialization(augmentation_cls, params, p, see
     [A.RandomContrast, {}],
     [A.RandomScale, {}],
     [A.Solarize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -562,6 +566,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     [A.FromFloat, {}],
     [A.RandomGridShuffle, {}],
     [A.Solarize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
 def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
