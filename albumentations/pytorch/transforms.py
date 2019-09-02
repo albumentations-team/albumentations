@@ -10,8 +10,8 @@ __all__ = ['ToTensor']
 
 class ToTensor(BasicTransform):
     """Convert image and mask to `torch.Tensor`.
-
     """
+
     def __init__(self):
         super(ToTensor, self).__init__(always_apply=True)
 
