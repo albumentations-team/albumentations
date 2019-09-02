@@ -186,7 +186,17 @@ def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
 def test_random_sized_crop_size():
     image = np.ones((100, 100, 3))
     bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
-    aug = RandomSizedCrop((70, 90), 50, 50, p=1.)
+    with pytest.warns(DeprecationWarning):
+        aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1., mode='old')
+    transformed = aug(image=image, bboxes=bboxes)
+    assert transformed['image'].shape == (50, 50, 3)
+    assert len(bboxes) == len(transformed['bboxes'])
+
+
+def test_random_sized_crop_size_torchvision():
+    image = np.ones((100, 100, 3))
+    bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    aug = RandomSizedCrop(height=50, width=50, p=1., mode='torchvision')
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed['image'].shape == (50, 50, 3)
     assert len(bboxes) == len(transformed['bboxes'])

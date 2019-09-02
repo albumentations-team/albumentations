@@ -100,7 +100,8 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
-    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'height': 10, 'width': 10, 'mode': 'torchvision'}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10, 'mode': 'old'}],
     [ISONoise, {}],
     [RandomGridShuffle, {}]
 ])
@@ -125,7 +126,8 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
-    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'height': 10, 'width': 10, 'mode': 'torchvision'}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10, 'mode': 'old'}],
     [RandomGridShuffle, {}]
 ])
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -184,7 +186,8 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
-    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'height': 10, 'width': 10, 'mode': 'torchvision'}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10, 'mode': 'old'}],
     [Normalize, {}],
     [GaussNoise, {}],
     [ToFloat, {}],
@@ -238,7 +241,8 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
-    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
+    [RandomSizedCrop, {'height': 10, 'width': 10, 'mode': 'torchvision'}],
+    [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10, 'mode': 'old'}],
     [Normalize, {}],
     [GaussNoise, {}],
     [ToFloat, {}],
