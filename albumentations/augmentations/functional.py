@@ -910,7 +910,7 @@ def channel_dropout(img, channels_to_drop, fill_value=0):
 def gamma_transform(img, gamma):
     if img.dtype == np.uint8:
         invGamma = 1.0 / gamma
-        table = ((np.arange(0, 256) / 255) ** invGamma) * 255
+        table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** invGamma) * 255
         img = cv2.LUT(img, table.astype(np.uint8))
     else:
         img = np.power(img, gamma)
