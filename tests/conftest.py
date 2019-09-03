@@ -19,7 +19,7 @@ except ImportError:
 
 
 def pytest_ignore_collect(path):
-    if not torch_available and path.fnmatch('test_torch.py'):
+    if not torch_available and path.fnmatch('test_pytorch.py'):
         warnings.warn(
             UserWarning(
                 'Tests that require PyTorch and torchvision were skipped because those libraries are not installed.'
