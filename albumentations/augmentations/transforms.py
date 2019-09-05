@@ -21,12 +21,96 @@ __all__ = [
     'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
     'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
     'ToGray', 'JpegCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
-    'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
+    'FromFloat', 'Crop', 'CropWithMaskIfExist', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
     'Resize', 'RandomSizedCrop', 'RandomResizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
     'ChannelDropout', 'ISONoise', 'Solarize', 'Equalize'
 ]
+
+
+class CropWithMaskIfExist(DualTransform):
+    """Crop area with mask if mask is non-empty, else make random crop.
+
+    Args:
+        crop_height (int): vertical size of crop in pixels
+        crop_width (int): horizontal size of crop in pixels
+        ignore_values (list of int): values to ignore in mask
+            (e.g. if background value is 0 set `ignore_values=[0]` to ignore)
+        ignore_channels (list of int): channels to ignore in mask
+            (e.g. if background is a first channel set `ignore_channels=[0]` to ignore)
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    """
+
+    def __init__(self, crop_height, crop_width, ignore_values=None,
+                 ignore_channels=None, always_apply=True, p=1.):
+        super(CropWithMaskIfExist, self).__init__(always_apply, p)
+
+        if self.ignore_values is not None and not isinstance(ignore_values, list):
+            raise ValueError('Expected `ignore_values` of type `list`, got `{}`'.format(type(ignore_values)))
+        if self.ignore_values is not None and not isinstance(ignore_values, list):
+            raise ValueError('Expected `ignore_channels` of type `list`, got `{}`'.format(type(ignore_values)))
+
+        self.crop_height = crop_height
+        self.crop_width = crop_width
+        self.ignore_values = ignore_values
+        self.ignore_channels = ignore_channels
+
+    def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop(img, x_min, y_min, x_max, y_max)
+
+    @property
+    def targets_as_params(self):
+        return ['mask']
+
+    def get_params_dependent_on_targets(self, params):
+        mask = params['mask']
+        h, w = mask.shape[:2]
+
+        if self.ignore_indexes is not None:
+            ignore_values_np = np.array(self.ignore_values)
+            mask = np.where(mask.isin(ignore_values_np), mask, 0)
+
+        if mask.ndim == 3 and self.ignore_channels is not None:
+            target_channels = np.array([ch for ch in range(mask.shape[-1])
+                                        if ch not in  self.ignore_indexes])
+            mask = np.take(mask, target_channels, axis=-1)
+
+        if self.crop_height > h or self.crop_width > w:
+            raise ValueError('Crop size ({},{}) is larger than image ({},{})'.format(
+                self.crop_height, self.crop_width, h, w))
+
+        if mask.sum() == 0:
+            x_min = np.random.randint(w - self.crop_width + 1)
+            y_min = np.random.randint(h - self.crop_height + 1)
+        else:
+            mask = mask.sum(axis=-1) if mask.ndim == 3 else mask
+            non_zero_yx = np.argwhere(mask)
+            y, x = random.choice(non_zero_yx)
+            x_min = x - np.random.randint(self.crop_width)
+            y_min = y - np.random.randint(self.crop_height)
+            x_min = np.clip(x_min, 0, w - self.crop_width)
+            y_min = np.clip(y_min, 0, h - self.crop_height)
+
+        x_max = x_min + self.crop_width
+        y_max = y_min + self.crop_height
+
+        return {
+            'x_min': x_min,
+            'x_max': x_max,
+            'y_min': y_min,
+            'y_max': y_max,
+        }
+
+    def get_transform_init_args_names(self):
+        return ('crop_height', 'crop_width', 'ignore_values', 'ignore_channels')
 
 
 class PadIfNeeded(DualTransform):
