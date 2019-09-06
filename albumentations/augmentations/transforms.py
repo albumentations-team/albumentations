@@ -882,8 +882,8 @@ class CropNonEmptyMaskIfExists(DualTransform):
     """Crop area with mask if mask is non-empty, else make random crop.
 
     Args:
-        crop_height (int): vertical size of crop in pixels
-        crop_width (int): horizontal size of crop in pixels
+        height (int): vertical size of crop in pixels
+        width (int): horizontal size of crop in pixels
         ignore_values (list of int): values to ignore in mask, `0` values are always ignored
             (e.g. if background value is 5 set `ignore_values=[5]` to ignore)
         ignore_channels (list of int): channels to ignore in mask
