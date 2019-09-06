@@ -898,7 +898,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
     """
 
     def __init__(self, height, width, ignore_values=None,
-                 ignore_channels=None, always_apply=True, p=1.):
+                 ignore_channels=None, always_apply=False, p=1.0):
         super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p)
 
         if ignore_values is not None and not isinstance(ignore_values, list):
@@ -920,7 +920,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     def get_params_dependent_on_targets(self, params):
         mask = params['mask']
-        h, w = mask.shape[:2]
+        mask_height, mask_width = mask.shape[:2]
 
         if self.ignore_values is not None:
             ignore_values_np = np.array(self.ignore_values)
@@ -931,21 +931,21 @@ class CropNonEmptyMaskIfExists(DualTransform):
                                         if ch not in self.ignore_channels])
             mask = np.take(mask, target_channels, axis=-1)
 
-        if self.height > h or self.width > w:
+        if self.height > mask_height or self.width > mask_width:
             raise ValueError('Crop size ({},{}) is larger than image ({},{})'.format(
-                self.height, self.width, h, w))
+                self.height, self.width, mask_height, mask_width))
 
         if mask.sum() == 0:
-            x_min = random.randint(0, w - self.width + 1)
-            y_min = random.randint(0, h - self.height + 1)
+            x_min = random.randint(0, mask_width - self.width)
+            y_min = random.randint(0, mask_height - self.height)
         else:
             mask = mask.sum(axis=-1) if mask.ndim == 3 else mask
             non_zero_yx = np.argwhere(mask)
             y, x = random.choice(non_zero_yx)
-            x_min = x - random.randint(0, self.width)
-            y_min = y - random.randint(0, self.height)
-            x_min = np.clip(x_min, 0, w - self.width)
-            y_min = np.clip(y_min, 0, h - self.height)
+            x_min = x - random.randint(0, self.width - 1)
+            y_min = y - random.randint(0, self.height - 1)
+            x_min = np.clip(x_min, 0, mask_width - self.width)
+            y_min = np.clip(y_min, 0, mask_height - self.height)
 
         x_max = x_min + self.width
         y_max = y_min + self.height
