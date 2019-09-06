@@ -76,11 +76,11 @@ class CropWithMaskIfExist(DualTransform):
 
         if self.ignore_indexes is not None:
             ignore_values_np = np.array(self.ignore_values)
-            mask = np.where(mask.isin(ignore_values_np), mask, 0)
+            mask = np.where(np.isin(mask, ignore_values_np), 0, mask)
 
         if mask.ndim == 3 and self.ignore_channels is not None:
             target_channels = np.array([ch for ch in range(mask.shape[-1])
-                                        if ch not in  self.ignore_indexes])
+                                        if ch not in  self.ignore_channels])
             mask = np.take(mask, target_channels, axis=-1)
 
         if self.crop_height > h or self.crop_width > w:
