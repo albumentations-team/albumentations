@@ -896,7 +896,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     def __init__(self, crop_height, crop_width, ignore_values=None,
                  ignore_channels=None, always_apply=True, p=1.):
-        super(CropWithMaskIfExist, self).__init__(always_apply, p)
+        super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p)
 
         if ignore_values is not None and not isinstance(ignore_values, list):
             raise ValueError('Expected `ignore_values` of type `list`, got `{}`'.format(type(ignore_values)))
