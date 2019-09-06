@@ -353,8 +353,14 @@ def test_crop_non_empty_mask():
     crop_5 = mask_5
     aug_5 = A.CropNonEmptyMaskIfExists(10, 10)
 
+    mask_6 = np.zeros([10, 10, 3])
+    mask_6[0, 0, 0] = 0
+    crop_6 = mask_6
+    aug_6 = A.CropNonEmptyMaskIfExists(10, 10, ignore_values=[1])
+
     _test_crop(mask_1, crop_1, aug_1, n=1)
     _test_crop(mask_2, crop_2, aug_2, n=1)
     _test_crop(mask_3, crop_3, aug_3, n=5)
     _test_crop(mask_4, crop_4, aug_4, n=5)
     _test_crop(mask_5, crop_5, aug_5, n=1)
+    _test_crop(mask_6, crop_6, aug_6, n=10)
