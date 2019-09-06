@@ -877,24 +877,27 @@ class RandomSizedBBoxSafeCrop(DualTransform):
     def get_transform_init_args_names(self):
         return ('height', 'width', 'erosion_rate', 'interpolation')
 
-    
+
 class CropNonEmptyMaskIfExists(DualTransform):
     """Crop area with mask if mask is non-empty, else make random crop.
+
     Args:
         crop_height (int): vertical size of crop in pixels
         crop_width (int): horizontal size of crop in pixels
-        ignore_values (list of int): values to ignore in mask
-            (e.g. if background value is 0 set `ignore_values=[0]` to ignore)
+        ignore_values (list of int): values to ignore in mask, `0` values are always ignored
+            (e.g. if background value is 5 set `ignore_values=[5]` to ignore)
         ignore_channels (list of int): channels to ignore in mask
             (e.g. if background is a first channel set `ignore_channels=[0]` to ignore)
         p (float): probability of applying the transform. Default: 1.0.
+
     Targets:
         image, mask
+
     Image types:
         uint8, float32
     """
 
-    def __init__(self, crop_height, crop_width, ignore_values=None,
+    def __init__(self, height, width, ignore_values=None,
                  ignore_channels=None, always_apply=True, p=1.):
         super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p)
 
@@ -903,8 +906,8 @@ class CropNonEmptyMaskIfExists(DualTransform):
         if ignore_channels is not None and not isinstance(ignore_channels, list):
             raise ValueError('Expected `ignore_channels` of type `list`, got `{}`'.format(type(ignore_channels)))
 
-        self.crop_height = crop_height
-        self.crop_width = crop_width
+        self.height = height
+        self.width = width
         self.ignore_values = ignore_values
         self.ignore_channels = ignore_channels
 
@@ -925,27 +928,27 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
         if mask.ndim == 3 and self.ignore_channels is not None:
             target_channels = np.array([ch for ch in range(mask.shape[-1])
-                                        if ch not in  self.ignore_channels])
+                                        if ch not in self.ignore_channels])
             mask = np.take(mask, target_channels, axis=-1)
 
-        if self.crop_height > h or self.crop_width > w:
+        if self.height > h or self.width > w:
             raise ValueError('Crop size ({},{}) is larger than image ({},{})'.format(
-                self.crop_height, self.crop_width, h, w))
+                self.height, self.width, h, w))
 
         if mask.sum() == 0:
-            x_min = np.random.randint(w - self.crop_width + 1)
-            y_min = np.random.randint(h - self.crop_height + 1)
+            x_min = random.randint(0, w - self.width + 1)
+            y_min = random.randint(0, h - self.height + 1)
         else:
             mask = mask.sum(axis=-1) if mask.ndim == 3 else mask
             non_zero_yx = np.argwhere(mask)
             y, x = random.choice(non_zero_yx)
-            x_min = x - np.random.randint(self.crop_width)
-            y_min = y - np.random.randint(self.crop_height)
-            x_min = np.clip(x_min, 0, w - self.crop_width)
-            y_min = np.clip(y_min, 0, h - self.crop_height)
+            x_min = x - random.randint(0, self.width)
+            y_min = y - random.randint(0, self.height)
+            x_min = np.clip(x_min, 0, w - self.width)
+            y_min = np.clip(y_min, 0, h - self.height)
 
-        x_max = x_min + self.crop_width
-        y_max = y_min + self.crop_height
+        x_max = x_min + self.width
+        y_max = y_min + self.height
 
         return {
             'x_min': x_min,
@@ -955,9 +958,9 @@ class CropNonEmptyMaskIfExists(DualTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ('crop_height', 'crop_width', 'ignore_values', 'ignore_channels')
-    
-    
+        return ('height', 'width', 'ignore_values', 'ignore_channels')
+
+
 class OpticalDistortion(DualTransform):
     """
     Targets:
