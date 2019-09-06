@@ -878,7 +878,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         return ('height', 'width', 'erosion_rate', 'interpolation')
 
     
-class CropNonEmptyMaskIfExists(A.DualTransform):
+class CropNonEmptyMaskIfExists(DualTransform):
     """Crop area with mask if mask is non-empty, else make random crop.
     Args:
         crop_height (int): vertical size of crop in pixels
