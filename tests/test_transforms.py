@@ -314,3 +314,44 @@ def test_equalize():
         return mask
     aug = A.Equalize(mask=mask_func, mask_params=['test'], p=1)
     assert np.all(aug(image=img, test=mask)['image'] == F.equalize(img, mask=mask))
+    
+    
+def test_crop_non_empty_mask():
+    
+    def _test_crop(mask, crop, aug, n=1):
+        for _ in range(n):
+            augmented = aug(image=mask, mask=mask)
+            np.testing.assert_array_equal(augmented['image'], crop)
+            np.testing.assert_array_equal(augmented['mask'], crop)
+    
+    mask_1 = np.zeros([128, 128])
+    mask_1[127, 127] = 1
+    crop_1 = np.array([[1]])
+    aug_1 = A.CropNonEmptyMaskIfExists(1, 1)
+    
+    mask_2 = np.zeros([128, 128])
+    crop_2 = np.array([[0]])
+    aug_2 = A.CropNonEmptyMaskIfExists(1, 1)
+    
+    mask_3 = np.zeros([128, 128])
+    mask_3[0, 0] = 1
+    mask_3[65, 65] = 2
+    crop_3 = np.array([[1]])
+    aug_3 = A.CropNonEmptyMaskIfExists(1, 1, ignore_values=[2])
+    
+    mask_4 = np.zeros([128, 128, 2])
+    mask_4[64, 64, 0] = 1
+    mask_4[65, 65, 1] = 2
+    crop_4 = np.array([[[1, 0]]])
+    aug_4 = A.CropNonEmptyMaskIfExists(1, 1, ignore_channels=[1])
+    
+    mask_5 = np.random.random([10, 10, 3])
+    crop_5 = mask_5
+    aug_5 = A.CropNonEmptyMaskIfExists(10, 10)
+    
+    _test_crop(mask_1, crop_1, aug_1, n=1)
+    _test_crop(mask_2, crop_2, aug_2, n=1)
+    _test_crop(mask_3, crop_3, aug_3, n=4)
+    _test_crop(mask_4, crop_4, aug_4, n=4)
+    _test_crop(mask_5, crop_5, aug_5, n=1)
+    
