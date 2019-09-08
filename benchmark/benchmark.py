@@ -284,6 +284,21 @@ class Solarize(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.solarize(img)
 
+    def pillow(self, img):
+        return ImageOps.solarize(img)
+
+
+class Equalize(BenchmarkTest):
+
+    def __init__(self):
+        pass
+
+    def albumentations(self, img):
+        return albumentations.equalize(img)
+
+    def pillow(self, img):
+        return ImageOps.equalize(img)
+
 
 class RandomCrop64(BenchmarkTest):
 
@@ -395,6 +410,7 @@ def main():
     paths = paths[:args.images]
     imgs_cv2 = [read_img_cv2(os.path.join(data_dir, path)) for path in paths]
     imgs_pillow = [read_img_pillow(os.path.join(data_dir, path)) for path in paths]
+
     benchmarks = [
         HorizontalFlip(),
         VerticalFlip(),
@@ -411,6 +427,8 @@ def main():
         PadToSize512(),
         Resize512(),
         Posterize(),
+        Solarize(),
+        Equalize(),
     ]
     for library in libraries:
         imgs = imgs_pillow if library in ('torchvision', 'augmentor', 'pillow') else imgs_cv2

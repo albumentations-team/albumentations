@@ -55,6 +55,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
     [A.RandomGridShuffle, {}],
     [A.Solarize, {}],
     [A.Posterize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -164,6 +165,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     [A.RandomGridShuffle, {'grid': (5, 5)}],
     [A.Solarize, {'threshold': 32}],
     [A.Posterize, {'num_bits': 1}],
+    [A.Equalize, {'mode': 'pil', 'by_channels': False}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -234,6 +236,7 @@ def test_augmentations_serialization_with_custom_parameters(
     [A.RandomSizedBBoxSafeCrop, {'height': 50, 'width': 50}],
     [A.Solarize, {}],
     [A.Posterize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -290,6 +293,7 @@ def test_augmentations_for_bboxes_serialization(augmentation_cls, params, p, see
     [A.RandomScale, {}],
     [A.Solarize, {}],
     [A.Posterize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('p', [0.5, 1])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
@@ -464,6 +468,8 @@ def test_transform_pipeline_serialization(seed, image, mask):
     [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], 'coco', [1, 2]],
     [[[20, 30, 60, 80]], 'pascal_voc', [2]],
     [[[20, 30, 60, 80, 99]], 'pascal_voc', [1]],
+    [[[0.2, 0.3, 0.4, 0.5]], 'yolo', [2]],
+    [[[0.2, 0.3, 0.4, 0.5, 99]], 'yolo', [1]],
 ])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
 def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_format, labels):
@@ -565,6 +571,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     [A.RandomGridShuffle, {}],
     [A.Solarize, {}],
     [A.Posterize, {}],
+    [A.Equalize, {}],
 ])
 @pytest.mark.parametrize('seed', TEST_SEEDS)
 def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):

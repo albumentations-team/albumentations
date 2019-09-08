@@ -234,6 +234,7 @@ def test_force_apply():
     [A.ChannelDropout, {}],
     [A.Solarize, {}],
     [A.Posterize, {}],
+    [A.Equalize, {}],
 ])
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose(
@@ -294,3 +295,23 @@ def test_channel_droput():
     transformed = aug(image=img)['image']
 
     assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 1
+
+
+def test_equalize():
+    aug = A.Equalize(p=1)
+
+    img = np.random.randint(0, 256, 256 * 256 * 3, np.uint8).reshape((256, 256, 3))
+    a = aug(image=img)['image']
+    b = F.equalize(img)
+    assert np.all(a == b)
+
+    mask = np.random.randint(0, 2, 256 * 256, np.uint8).reshape((256, 256))
+    aug = A.Equalize(mask=mask, p=1)
+    a = aug(image=img)['image']
+    b = F.equalize(img, mask=mask)
+    assert np.all(a == b)
+
+    def mask_func(image, test):
+        return mask
+    aug = A.Equalize(mask=mask_func, mask_params=['test'], p=1)
+    assert np.all(aug(image=img, test=mask)['image'] == F.equalize(img, mask=mask))
