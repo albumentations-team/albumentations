@@ -2251,12 +2251,13 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), always_apply=False, p=0.5):
+    def __init__(self, gamma_limit=(80, 120), eps=1e-7, always_apply=False, p=0.5):
         super(RandomGamma, self).__init__(always_apply, p)
-        self.gamma_limit = gamma_limit
+        self.gamma_limit = to_tuple(gamma_limit)
+        self.eps = eps
 
     def apply(self, img, gamma=1, **params):
-        return F.gamma_transform(img, gamma=gamma)
+        return F.gamma_transform(img, gamma=gamma, eps=self.eps)
 
     def get_params(self):
         return {
@@ -2264,7 +2265,7 @@ class RandomGamma(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ('gamma_limit',)
+        return ('gamma_limit', 'eps',)
 
 
 class ToGray(ImageOnlyTransform):
