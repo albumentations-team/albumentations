@@ -9,7 +9,7 @@ from collections import defaultdict
 import pkg_resources
 
 from Augmentor import Operations, Pipeline
-from PIL import Image
+from PIL import Image, ImageOps
 import cv2
 from tqdm import tqdm
 import numpy as np
@@ -284,6 +284,21 @@ class Solarize(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.solarize(img)
 
+    def pillow(self, img):
+        return ImageOps.solarize(img)
+
+
+class Equalize(BenchmarkTest):
+
+    def __init__(self):
+        pass
+
+    def albumentations(self, img):
+        return albumentations.equalize(img)
+
+    def pillow(self, img):
+        return ImageOps.equalize(img)
+
 
 class RandomCrop64(BenchmarkTest):
 
@@ -379,30 +394,35 @@ def main():
         'keras',
         'augmentor',
         'solt',
+        'pillow',
     ]
     data_dir = args.data_dir
     paths = list(sorted(os.listdir(data_dir)))
     paths = paths[:args.images]
     imgs_cv2 = [read_img_cv2(os.path.join(data_dir, path)) for path in paths]
     imgs_pillow = [read_img_pillow(os.path.join(data_dir, path)) for path in paths]
+
+    benchmarks = [
+        HorizontalFlip(),
+        VerticalFlip(),
+        Rotate(),
+        ShiftScaleRotate(),
+        Brightness(),
+        Contrast(),
+        BrightnessContrast(),
+        ShiftRGB(),
+        ShiftHSV(),
+        Gamma(),
+        Grayscale(),
+        RandomCrop64(),
+        PadToSize512(),
+        Resize512(),
+        Solarize(),
+        Equalize(),
+    ]
     for library in libraries:
-        imgs = imgs_pillow if library in ('torchvision', 'augmentor') else imgs_cv2
-        benchmarks = [
-            HorizontalFlip(),
-            VerticalFlip(),
-            Rotate(),
-            ShiftScaleRotate(),
-            Brightness(),
-            Contrast(),
-            BrightnessContrast(),
-            ShiftRGB(),
-            ShiftHSV(),
-            Gamma(),
-            Grayscale(),
-            RandomCrop64(),
-            PadToSize512(),
-            Resize512(),
-        ]
+        imgs = imgs_pillow if library in ('torchvision', 'augmentor', 'pillow') else imgs_cv2
+
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description('Current benchmark: {} | {}'.format(library, benchmark))
@@ -418,9 +438,7 @@ def main():
     df = pd.DataFrame.from_dict(images_per_second)
     df = df.applymap(lambda r: format_results(r, args.show_std))
     df = df[libraries]
-    augmentations = ['RandomCrop64', 'PadToSize512', 'Resize512', 'HorizontalFlip', 'VerticalFlip', 'Rotate',
-                     'ShiftScaleRotate', 'Brightness', 'Contrast', 'BrightnessContrast', 'ShiftHSV', 'ShiftRGB',
-                     'Gamma', 'Grayscale']
+    augmentations = [str(i) for i in benchmarks]
     df = df.reindex(augmentations)
     print(df.head(len(augmentations)))
 
