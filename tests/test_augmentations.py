@@ -13,8 +13,8 @@ from albumentations import (
     IAASharpen, IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective,
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
-    RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop,
-    ChannelDropout, ISONoise, Solarize)
+    RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop, RandomResizedCrop,
+    ChannelDropout, ISONoise, Solarize, Equalize)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -43,6 +43,7 @@ from albumentations import (
     [ChannelDropout, {}],
     [ISONoise, {}],
     [Solarize, {}],
+    [Equalize, {}],
 ])
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -75,7 +76,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [RandomSunFlare, {}],
     [RandomShadow, {}],
     [ChannelDropout, {}],
-    [Solarize, {}]
+    [Solarize, {}],
 ])
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -99,6 +100,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomResizedCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [ISONoise, {}],
     [RandomGridShuffle, {}]
@@ -124,6 +126,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomResizedCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [RandomGridShuffle, {}]
 ])
@@ -183,6 +186,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomResizedCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [Normalize, {}],
     [GaussNoise, {}],
@@ -197,6 +201,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [ISONoise, {}],
     [RandomGridShuffle, {}],
     [Solarize, {}],
+    [Equalize, {}],
 ])
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
@@ -236,6 +241,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [RandomResizedCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [Normalize, {}],
     [GaussNoise, {}],
@@ -283,6 +289,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     [FromFloat, {}],
     [RandomGridShuffle, {}],
     [Solarize, {}],
+    [Equalize, {}],
 ])
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -350,6 +357,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [ISONoise, {}],
     [RandomGridShuffle, {}],
     [Solarize, {}],
+    [Equalize, {}],
 ])
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
