@@ -183,7 +183,7 @@ class Brightness(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.ImageRandomBrightness(p=1, brightness_range=(127, 127))])
 
     def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, beta=0.5, beta_by_max=True)
+        return albumentations.brightness_contrast_adjust(img, beta=0.5)
 
     def torchvision(self, img):
         return torchvision.adjust_brightness(img, brightness_factor=1.5)
@@ -226,7 +226,7 @@ class BrightnessContrast(BenchmarkTest):
         ])
 
     def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5, beta_by_max=True)
+        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5)
 
     def torchvision(self, img):
         img = torchvision.adjust_brightness(img, brightness_factor=1.5)
