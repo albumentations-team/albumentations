@@ -151,6 +151,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     }],
     [A.CenterCrop, {'height': 10, 'width': 10}],
     [A.RandomCrop, {'height': 10, 'width': 10}],
+    [A.CropNonEmptyMaskIfExists, {'height': 10, 'width': 10}],
     [A.RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [A.Crop, {'x_max': 64, 'y_max': 64}],
     [A.ToFloat, {'max_value': 16536}],
