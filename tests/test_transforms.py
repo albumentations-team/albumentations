@@ -208,7 +208,7 @@ def test_force_apply():
     [A.GaussNoise, {}],
     [A.Cutout, {}],
     [A.CoarseDropout, {}],
-    [A.JpegCompression, {}],
+    [A.ImageCompression, {}],
     [A.HueSaturationValue, {}],
     [A.RGBShift, {}],
     [A.RandomBrightnessContrast, {}],

@@ -4,6 +4,7 @@ from types import LambdaType
 import math
 import random
 import warnings
+from enum import Enum
 
 import cv2
 import numpy as np
@@ -20,7 +21,7 @@ __all__ = [
     'ElasticTransform', 'RandomGridShuffle', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
     'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
     'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
-    'ToGray', 'JpegCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
+    'ToGray', 'JpegCompression', 'ImageCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
     'FromFloat', 'Crop', 'CropNonEmptyMaskIfExists', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
     'Resize', 'RandomSizedCrop', 'RandomResizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
@@ -1329,7 +1330,59 @@ class CoarseDropout(ImageOnlyTransform):
                 'min_height', 'min_width')
 
 
-class JpegCompression(ImageOnlyTransform):
+class ImageCompression(ImageOnlyTransform):
+    """Decrease Jpeg, WebP compression of an image.
+
+    Args:
+        quality_lower (float): lower bound on the image quality.
+                               Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        quality_upper (float): upper bound on the image quality.
+                               Should be in [0, 100] range for jpeg and [1, 100] for webp.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    class ImageCompressionType(Enum):
+        JPEG = 0
+        WEBP = 1
+
+    def __init__(self, quality_lower=99, quality_upper=100, compression_type=ImageCompressionType.JPEG,
+                 always_apply=False, p=0.5):
+        super(ImageCompression, self).__init__(always_apply, p)
+
+        self.compression_type = compression_type
+        low_thresh_quality_assert = 0
+
+        if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
+            low_thresh_quality_assert = 1
+
+        assert low_thresh_quality_assert <= quality_lower <= 100
+        assert low_thresh_quality_assert <= quality_upper <= 100
+
+        self.quality_lower = quality_lower
+        self.quality_upper = quality_upper
+
+    def apply(self, image, quality=100, image_type='.jpg', **params):
+        return F.image_compression(image, quality, image_type)
+
+    def get_params(self):
+        image_type = '.jpg'
+
+        if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
+            image_type = '.webp'
+
+        return {'quality': random.randint(self.quality_lower, self.quality_upper),
+                'image_type': image_type}
+
+    def get_transform_init_args_names(self):
+        return ('quality_lower', 'quality_upper', 'compression_type')
+
+
+class JpegCompression(ImageCompression):
     """Decrease Jpeg compression of an image.
 
     Args:
@@ -1344,22 +1397,16 @@ class JpegCompression(ImageOnlyTransform):
     """
 
     def __init__(self, quality_lower=99, quality_upper=100, always_apply=False, p=0.5):
-        super(JpegCompression, self).__init__(always_apply, p)
+        super(JpegCompression, self).__init__(quality_lower=quality_lower, quality_upper=quality_upper,
+                                              compression_type=ImageCompression.ImageCompressionType.JPEG,
+                                              always_apply=always_apply, p=p)
+        warnings.warn("This class has been deprecated. Please use ImageCompression", DeprecationWarning)
 
-        assert 0 <= quality_lower <= 100
-        assert 0 <= quality_upper <= 100
-
-        self.quality_lower = quality_lower
-        self.quality_upper = quality_upper
-
-    def apply(self, image, quality=100, **params):
-        return F.jpeg_compression(image, quality)
-
-    def get_params(self):
-        return {'quality': random.randint(self.quality_lower, self.quality_upper)}
-
-    def get_transform_init_args_names(self):
-        return ('quality_lower', 'quality_upper')
+    def get_transform_init_args(self):
+        return {
+            'quality_lower': self.quality_lower,
+            'quality_upper': self.quality_upper
+        }
 
 
 class RandomSnow(ImageOnlyTransform):
