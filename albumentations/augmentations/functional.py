@@ -291,12 +291,34 @@ def clamping_crop(img, x_min, y_min, x_max, y_max):
     return img[int(y_min):int(y_max), int(x_min):int(x_max)]
 
 
-def shift_hsv(img, hue_shift, sat_shift, val_shift):
+def _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift):
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    if dtype == np.uint8:
-        img = img.astype(np.int32)
     hue, sat, val = cv2.split(img)
+
+    lut_hue = np.arange(0, 256, dtype=np.int16)
+    lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
+
+    lut_sat = np.arange(0, 256, dtype=np.int16)
+    lut_sat = np.clip(lut_sat + sat_shift, 0, 255).astype(dtype)
+
+    lut_val = np.arange(0, 256, dtype=np.int16)
+    lut_val = np.clip(lut_val + val_shift, 0, 255).astype(dtype)
+
+    hue = cv2.LUT(hue, lut_hue)
+    sat = cv2.LUT(sat, lut_sat)
+    val = cv2.LUT(val, lut_val)
+
+    img = cv2.merge((hue, sat, val)).astype(dtype)
+    img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+    return img
+
+
+def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
+    dtype = img.dtype
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    hue, sat, val = cv2.split(img)
+
     hue = cv2.add(hue, hue_shift)
     hue = np.where(hue < 0, hue + 180, hue)
     hue = np.where(hue > 180, hue - 180, hue)
@@ -306,6 +328,13 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
+
+
+def shift_hsv(img, hue_shift, sat_shift, val_shift):
+    if img.dtype == np.uint8:
+        return _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
+
+    return _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
 
 
 def solarize(img, threshold=128):
@@ -338,18 +367,159 @@ def solarize(img, threshold=128):
     return result_img
 
 
+def _equalize_pil(img, mask=None):
+    histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
+    h = [_f for _f in histogram if _f]
+
+    if len(h) <= 1:
+        return img.copy()
+
+    step = np.sum(h[:-1]) // 255
+    if not step:
+        return img.copy()
+
+    lut = np.empty(256, dtype=np.uint8)
+    n = step // 2
+    for i in range(256):
+        lut[i] = min(n // step, 255)
+        n += histogram[i]
+
+    return cv2.LUT(img, np.array(lut))
+
+
+def _equalize_cv(img, mask=None):
+    if mask is None:
+        return cv2.equalizeHist(img)
+
+    histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
+    i = 0
+    for val in histogram:
+        if val > 0:
+            break
+        i += 1
+    i = min(i, 255)
+
+    total = np.sum(histogram)
+    if histogram[i] == total:
+        return np.full_like(img, i)
+
+    scale = 255 / (total - histogram[i])
+    _sum = 0
+
+    lut = np.zeros(256, dtype=np.uint8)
+    i += 1
+    for i in range(i, len(histogram)):
+        _sum += histogram[i]
+        lut[i] = clip(round(_sum * scale), np.dtype('uint8'), 255)
+
+    return cv2.LUT(img, lut)
+
+
+@preserve_channel_dim
+def equalize(img, mask=None, mode='cv', by_channels=True):
+    """Equalize the image histogram.
+
+    Args:
+        img (np.ndarray): RGB or grayscale image.
+        mask (np.ndarray): An optional mask.  If given, only the pixels selected by
+            the mask are included in the analysis. Maybe 1 channel or 3 channel array.
+        mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
+        by_channels (bool): If True, use equalization by channels separately,
+            else convert image to YCbCr representation and use equalization by `Y` channel.
+
+    Returns:
+        Equalized image.
+
+    """
+    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+
+    modes = ['cv', 'pil']
+
+    if mode not in modes:
+        raise ValueError('Unsupported equalization mode. Supports: {}. '
+                         'Got: {}'.format(modes, mode))
+    if mask is not None:
+        if is_rgb_image(mask) and is_grayscale_image(img):
+            raise ValueError('Wrong mask shape. Image shape: {}. '
+                             'Mask shape: {}'.format(img.shape, mask.shape))
+        if not by_channels and not is_grayscale_image(mask):
+            raise ValueError('When by_channels=False only 1-channel mask supports. '
+                             'Mask shape: {}'.format(mask.shape))
+
+    if mode == 'pil':
+        function = _equalize_pil
+    else:
+        function = _equalize_cv
+
+    if mask is not None:
+        mask = mask.astype(np.uint8)
+
+    if is_grayscale_image(img):
+        return function(img, mask)
+
+    if not by_channels:
+        result_img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
+        result_img[..., 0] = function(result_img[..., 0], mask)
+        return cv2.cvtColor(result_img, cv2.COLOR_YCrCb2RGB)
+
+    result_img = np.empty_like(img)
+    for i in range(3):
+        if mask is None:
+            _mask = None
+        elif is_grayscale_image(mask):
+            _mask = mask
+        else:
+            _mask = mask[..., i]
+
+        result_img[..., i] = function(img[..., i], _mask)
+
+    return result_img
+
+
 @clipped
+def _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift):
+    if r_shift == g_shift == b_shift:
+        return img + r_shift
+
+    result_img = np.empty_like(img)
+    shifts = [r_shift, g_shift, b_shift]
+    for i, shift in enumerate(shifts):
+        result_img[..., i] = img[..., i] + shift
+
+    return result_img
+
+
+def _shift_image_uint8(img, value):
+    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+
+    lut = np.arange(0, max_value + 1).astype('float32')
+    lut += value
+
+    lut = np.clip(lut, 0, max_value).astype(img.dtype)
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def _shift_rgb_uint8(img, r_shift, g_shift, b_shift):
+    if r_shift == g_shift == b_shift:
+        h, w, c = img.shape
+        img = img.reshape([h, w * c])
+
+        return _shift_image_uint8(img, r_shift)
+
+    result_img = np.empty_like(img)
+    shifts = [r_shift, g_shift, b_shift]
+    for i, shift in enumerate(shifts):
+        result_img[..., i] = _shift_image_uint8(img[..., i], shift)
+
+    return result_img
+
+
 def shift_rgb(img, r_shift, g_shift, b_shift):
     if img.dtype == np.uint8:
-        img = img.astype('int32')
-        r_shift, g_shift, b_shift = np.int32(r_shift), np.int32(g_shift), np.int32(b_shift)
-    else:
-        # Make a copy of the input image since we don't want to modify it directly
-        img = img.copy()
-    img[..., 0] += r_shift
-    img[..., 1] += g_shift
-    img[..., 2] += b_shift
-    return img
+        return _shift_rgb_uint8(img, r_shift, g_shift, b_shift)
+
+    return _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift)
 
 
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
@@ -914,11 +1084,11 @@ def channel_dropout(img, channels_to_drop, fill_value=0):
 
 
 @preserve_shape
-def gamma_transform(img, gamma):
+def gamma_transform(img, gamma, eps=1e-7):
     if img.dtype == np.uint8:
-        invGamma = 1.0 / gamma
-        table = np.array([((i / 255.0) ** invGamma) * 255 for i in np.arange(0, 256)]).astype("uint8")
-        img = cv2.LUT(img, table)
+        invGamma = 1.0 / (gamma + eps)
+        table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** invGamma) * 255
+        img = cv2.LUT(img, table.astype(np.uint8))
     else:
         img = np.power(img, gamma)
 
@@ -1263,3 +1433,22 @@ def py3round(number):
 
 def noop(input_obj, **params):
     return input_obj
+
+
+def swap_tiles_on_image(image, tiles):
+    """
+    Swap tiles on image.
+
+    Args:
+        image (np.ndarray): Input image.
+        tiles (np.ndarray): array of tuples(current_left_up_corner_row, current_left_up_corner_col,
+                                            old_left_up_corner_row, old_left_up_corner_col,
+                                            height_tile, width_tile)
+    """
+    new_image = image.copy()
+
+    for idx, tile in enumerate(tiles):
+        new_image[tile[0]:tile[0] + tile[4], tile[1]:tile[1] + tile[5]] = \
+            image[tile[2]:tile[2] + tile[4], tile[3]:tile[3] + tile[5]]
+
+    return new_image

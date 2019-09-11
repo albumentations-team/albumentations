@@ -1,10 +1,40 @@
 from __future__ import division
+from albumentations.core.utils import DataProcessor
 
 import numpy as np
 
 __all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormalize_bboxes', 'calculate_bbox_area',
            'filter_bboxes_by_visibility', 'convert_bbox_to_albumentations', 'convert_bbox_from_albumentations',
-           'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations']
+           'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations', 'BboxProcessor']
+
+
+class BboxProcessor(DataProcessor):
+    @property
+    def default_data_name(self):
+        return "bboxes"
+
+    def ensure_data_valid(self, data):
+        for data_name in self.data_fields:
+            if data.get(data_name) and len(data[data_name][0]) < 5:
+                if self.params.label_fields is None:
+                    raise ValueError("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
+                                     "because bboxes must have labels")
+        if self.params.label_fields:
+            if not all(l in data.keys() for l in self.params.label_fields):
+                raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
+
+    def filter(self, data, rows, cols):
+        return filter_bboxes(data, rows, cols,
+                             min_area=self.params.min_area, min_visibility=self.params.min_visibility)
+
+    def check(self, data, rows, cols):
+        return check_bboxes(data)
+
+    def convert_from_albumentations(self, data, rows, cols):
+        return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
+
+    def convert_to_albumentations(self, data, rows, cols):
+        return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
 def normalize_bbox(bbox, rows, cols):
@@ -89,7 +119,7 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
 
     Args:
         bbox (list): bounding box
-        source_format (str): format of the bounding box. Should be 'coco' or 'pascal_voc'.
+        source_format (str): format of the bounding box. Should be 'coco', 'pascal_voc', or 'yolo'.
         check_validity (bool): check if all boxes are valid boxes
         rows (int): image height
         cols (int): image width
@@ -97,21 +127,35 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
     Note:
         The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
         The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
+        The `yolo` format of a bounding box looks like `[x, y, width, height]`, e.g. [0.3, 0.1, 0.05, 0.07];
+        where `x`, `y` coordinates of the center of the box, all values normalized to 1 by image height and width.
 
     Raises:
-        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`.
+        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`, ot `yolo`.
 
     """
-    if source_format not in {'coco', 'pascal_voc'}:
+    if source_format not in {'coco', 'pascal_voc', 'yolo'}:
         raise ValueError(
-            "Unknown source_format {}. Supported formats are: 'coco' and 'pascal_voc'".format(source_format)
+            "Unknown source_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(source_format)
         )
     if source_format == 'coco':
         x_min, y_min, width, height = bbox[:4]
         x_max = x_min + width
         y_max = y_min + height
+    elif source_format == 'yolo':
+        # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
+        _bbox = np.array(bbox[:4])
+        assert np.all((0 < _bbox) & (_bbox < 1)), "In YOLO format all labels must be float and in range (0, 1)"
+
+        x, y, width, height = denormalize_bbox(_bbox, rows, cols)
+
+        x_min = x - width / 2 + 1
+        x_max = x_min + width
+        y_min = y - height / 2 + 1
+        y_max = y_min + height
     else:
         x_min, y_min, x_max, y_max = bbox[:4]
+
     bbox = [x_min, y_min, x_max, y_max] + list(bbox[4:])
     bbox = normalize_bbox(bbox, rows, cols)
     if check_validity:
@@ -124,7 +168,7 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
 
     Args:
         bbox (list): bounding box with coordinates in the format used by albumentations
-        target_format (str): required format of the output bounding box. Should be 'coco' or 'pascal_voc'.
+        target_format (str): required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
         rows (int): image height
         cols (int): image width
         check_validity (bool): check if all boxes are valid boxes
@@ -132,14 +176,15 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
     Note:
         The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
         The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
+        The `yolo` format of a bounding box looks like `[x, y, width, height]`, e.g. [0.3, 0.1, 0.05, 0.07].
 
     Raises:
-        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`.
+        ValueError: if `target_format` is not equal to `coco`, `pascal_voc` or `yolo`.
 
     """
-    if target_format not in {'coco', 'pascal_voc'}:
+    if target_format not in {'coco', 'pascal_voc', 'yolo'}:
         raise ValueError(
-            "Unknown target_format {}. Supported formats are: 'coco' and 'pascal_voc'".format(target_format)
+            "Unknown target_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(target_format)
         )
     if check_validity:
         check_bbox(bbox)
@@ -149,6 +194,14 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
         width = x_max - x_min
         height = y_max - y_min
         bbox = [x_min, y_min, width, height] + list(bbox[4:])
+    elif target_format == 'yolo':
+        # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
+        x_min, y_min, x_max, y_max = bbox[:4]
+        x = (x_min + x_max) / 2 - 1
+        y = (y_min + y_max) / 2 - 1
+        width = x_max - x_min
+        height = y_max - y_min
+        bbox = normalize_bbox([x, y, width, height], rows, cols) + list(bbox[4:])
     return bbox
 
 
@@ -164,7 +217,7 @@ def convert_bboxes_from_albumentations(bboxes, target_format, rows, cols, check_
 
     Args:
         bboxes (list): List of bounding box with coordinates in the format used by albumentations
-        target_format (str): required format of the output bounding box. Should be 'coco' or 'pascal_voc'.
+        target_format (str): required format of the output bounding box. Should be 'coco', 'pascal_voc' ror 'yolo'.
         rows (int): image height
         cols (int): image width
         check_validity (bool): check if all boxes are valid boxes

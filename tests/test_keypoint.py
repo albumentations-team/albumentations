@@ -2,13 +2,13 @@ import math
 
 import numpy as np
 import pytest
-from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud
+from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 
 from albumentations.augmentations.keypoints_utils import convert_keypoint_from_albumentations, \
     convert_keypoints_from_albumentations, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop
+from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
 import albumentations.augmentations.functional as F
 
 
@@ -129,7 +129,16 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, la
 def test_random_sized_crop_size():
     image = np.ones((100, 100, 3))
     keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
-    aug = RandomSizedCrop((70, 90), 50, 50, p=1.)
+    aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.)
+    transformed = aug(image=image, keypoints=keypoints)
+    assert transformed['image'].shape == (50, 50, 3)
+    assert len(keypoints) == len(transformed['keypoints'])
+
+
+def test_random_resized_crop_size():
+    image = np.ones((100, 100, 3))
+    keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    aug = RandomResizedCrop(height=50, width=50, p=1.)
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed['image'].shape == (50, 50, 3)
     assert len(keypoints) == len(transformed['keypoints'])
@@ -240,3 +249,13 @@ def test_keypoint_scale(keypoint, expected, scale):
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
     actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
     np.testing.assert_allclose(actual, expected, rtol=1e-4)
+
+
+def test_compose_with_additional_targets():
+    image = np.ones((100, 100, 3))
+    keypoints = [[10, 10], [50, 50]]
+    kp1 = [[15, 15], [55, 55]]
+    aug = Compose([CenterCrop(50, 50)], keypoint_params={'format': 'xy'}, additional_targets={'kp1': 'keypoints'})
+    transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
+    assert transformed['keypoints'] == [[25, 25]]
+    assert transformed['kp1'] == [[30, 30]]

@@ -18,15 +18,15 @@ __all__ = [
     'Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose',
     'RandomCrop', 'RandomGamma', 'RandomRotate90', 'Rotate',
     'ShiftScaleRotate', 'CenterCrop', 'OpticalDistortion', 'GridDistortion',
-    'ElasticTransform', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
+    'ElasticTransform', 'RandomGridShuffle', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
     'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
     'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
     'ToGray', 'JpegCompression', 'ImageCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
-    'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
-    'Resize', 'RandomSizedCrop', 'RandomBrightnessContrast',
+    'FromFloat', 'Crop', 'CropNonEmptyMaskIfExists', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
+    'Resize', 'RandomSizedCrop', 'RandomResizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
-    'ChannelDropout', 'ISONoise', 'Solarize'
+    'ChannelDropout', 'ISONoise', 'Solarize', 'Equalize'
 ]
 
 
@@ -667,7 +667,31 @@ class RandomCropNearBBox(DualTransform):
         return ('max_part_shift',)
 
 
-class RandomSizedCrop(DualTransform):
+class _BaseRandomSizedCrop(DualTransform):
+    # Base class for RandomSizedCrop and RandomResizedCrop
+
+    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0):
+        super(_BaseRandomSizedCrop, self).__init__(always_apply, p)
+        self.height = height
+        self.width = width
+        self.interpolation = interpolation
+
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
+        return F.resize(crop, self.height, self.width, interpolation)
+
+    def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
+        return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
+
+    def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
+        keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
+        scale_x = self.width / crop_height
+        scale_y = self.height / crop_height
+        keypoint = F.keypoint_scale(keypoint, scale_x, scale_y)
+        return keypoint
+
+
+class RandomSizedCrop(_BaseRandomSizedCrop):
     """Crop a random part of the input and rescale it to some size.
 
     Args:
@@ -689,16 +713,11 @@ class RandomSizedCrop(DualTransform):
 
     def __init__(self, min_max_height, height, width, w2h_ratio=1., interpolation=cv2.INTER_LINEAR,
                  always_apply=False, p=1.0):
-        super(RandomSizedCrop, self).__init__(always_apply, p)
-        self.height = height
-        self.width = width
-        self.interpolation = interpolation
+        super(RandomSizedCrop, self).__init__(height=height, width=width,
+                                              interpolation=interpolation,
+                                              always_apply=always_apply, p=p)
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
-
-    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
-        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
-        return F.resize(crop, self.height, self.width, interpolation)
 
     def get_params(self):
         crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
@@ -707,18 +726,91 @@ class RandomSizedCrop(DualTransform):
                 'crop_height': crop_height,
                 'crop_width': int(crop_height * self.w2h_ratio)}
 
-    def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
-        return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
+    def get_transform_init_args_names(self):
+        return 'min_max_height', 'height', 'width', 'w2h_ratio', 'interpolation'
 
-    def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
-        keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
-        scale_x = self.width / crop_height
-        scale_y = self.height / crop_height
-        keypoint = F.keypoint_scale(keypoint, scale_x, scale_y)
-        return keypoint
+
+class RandomResizedCrop(_BaseRandomSizedCrop):
+    """Torchvision's variant of crop a random part of the input and rescale it to some size.
+
+    Args:
+        height (int): height after crop and resize.
+        width (int): width after crop and resize.
+        scale ((float, float)): range of size of the origin size cropped
+        ratio ((float, float)): range of aspect ratio of the origin aspect ratio cropped
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p (float): probability of applying the transform. Default: 1.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, height, width, scale=(0.08, 1.0), ratio=(0.75, 1.3333333333333333),
+                 interpolation=cv2.INTER_LINEAR,
+                 always_apply=False, p=1.0):
+
+        super(RandomResizedCrop, self).__init__(height=height, width=width,
+                                                interpolation=interpolation,
+                                                always_apply=always_apply, p=p)
+        self.scale = scale
+        self.ratio = ratio
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+        area = img.shape[0] * img.shape[1]
+
+        for attempt in range(10):
+            target_area = random.uniform(*self.scale) * area
+            log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
+            aspect_ratio = math.exp(random.uniform(*log_ratio))
+
+            w = int(round(math.sqrt(target_area * aspect_ratio)))
+            h = int(round(math.sqrt(target_area / aspect_ratio)))
+
+            if w <= img.shape[1] and h <= img.shape[0]:
+                i = random.randint(0, img.shape[0] - h)
+                j = random.randint(0, img.shape[1] - w)
+                return {
+                    'crop_height': h,
+                    'crop_width': w,
+                    'h_start': i * 1.0 / (img.shape[0] - h + 1e-10),
+                    'w_start': j * 1.0 / (img.shape[1] - w + 1e-10)
+                }
+
+        # Fallback to central crop
+        in_ratio = img.shape[1] / img.shape[0]
+        if in_ratio < min(self.ratio):
+            w = img.shape[1]
+            h = w / min(self.ratio)
+        elif in_ratio > max(self.ratio):
+            h = img.shape[0]
+            w = h * max(self.ratio)
+        else:  # whole image
+            w = img.shape[1]
+            h = img.shape[0]
+        i = (img.shape[0] - h) // 2
+        j = (img.shape[1] - w) // 2
+        return {
+            'crop_height': h,
+            'crop_width': w,
+            'h_start': i * 1.0 / (img.shape[0] - h + 1e-10),
+            'w_start': j * 1.0 / (img.shape[1] - w + 1e-10)
+        }
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return ['image']
 
     def get_transform_init_args_names(self):
-        return ('min_max_height', 'height', 'width', 'w2h_ratio', 'interpolation')
+        return 'height', 'width', 'scale', 'ratio', 'interpolation'
 
 
 class RandomSizedBBoxSafeCrop(DualTransform):
@@ -785,6 +877,89 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     def get_transform_init_args_names(self):
         return ('height', 'width', 'erosion_rate', 'interpolation')
+
+
+class CropNonEmptyMaskIfExists(DualTransform):
+    """Crop area with mask if mask is non-empty, else make random crop.
+
+    Args:
+        height (int): vertical size of crop in pixels
+        width (int): horizontal size of crop in pixels
+        ignore_values (list of int): values to ignore in mask, `0` values are always ignored
+            (e.g. if background value is 5 set `ignore_values=[5]` to ignore)
+        ignore_channels (list of int): channels to ignore in mask
+            (e.g. if background is a first channel set `ignore_channels=[0]` to ignore)
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, height, width, ignore_values=None,
+                 ignore_channels=None, always_apply=False, p=1.0):
+        super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p)
+
+        if ignore_values is not None and not isinstance(ignore_values, list):
+            raise ValueError('Expected `ignore_values` of type `list`, got `{}`'.format(type(ignore_values)))
+        if ignore_channels is not None and not isinstance(ignore_channels, list):
+            raise ValueError('Expected `ignore_channels` of type `list`, got `{}`'.format(type(ignore_channels)))
+
+        self.height = height
+        self.width = width
+        self.ignore_values = ignore_values
+        self.ignore_channels = ignore_channels
+
+    def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop(img, x_min, y_min, x_max, y_max)
+
+    @property
+    def targets_as_params(self):
+        return ['mask']
+
+    def get_params_dependent_on_targets(self, params):
+        mask = params['mask']
+        mask_height, mask_width = mask.shape[:2]
+
+        if self.ignore_values is not None:
+            ignore_values_np = np.array(self.ignore_values)
+            mask = np.where(np.isin(mask, ignore_values_np), 0, mask)
+
+        if mask.ndim == 3 and self.ignore_channels is not None:
+            target_channels = np.array([ch for ch in range(mask.shape[-1])
+                                        if ch not in self.ignore_channels])
+            mask = np.take(mask, target_channels, axis=-1)
+
+        if self.height > mask_height or self.width > mask_width:
+            raise ValueError('Crop size ({},{}) is larger than image ({},{})'.format(
+                self.height, self.width, mask_height, mask_width))
+
+        if mask.sum() == 0:
+            x_min = random.randint(0, mask_width - self.width)
+            y_min = random.randint(0, mask_height - self.height)
+        else:
+            mask = mask.sum(axis=-1) if mask.ndim == 3 else mask
+            non_zero_yx = np.argwhere(mask)
+            y, x = random.choice(non_zero_yx)
+            x_min = x - random.randint(0, self.width - 1)
+            y_min = y - random.randint(0, self.height - 1)
+            x_min = np.clip(x_min, 0, mask_width - self.width)
+            y_min = np.clip(y_min, 0, mask_height - self.height)
+
+        x_max = x_min + self.width
+        y_max = y_min + self.height
+
+        return {
+            'x_min': x_min,
+            'x_max': x_max,
+            'y_min': y_min,
+            'y_max': y_max,
+        }
+
+    def get_transform_init_args_names(self):
+        return ('height', 'width', 'ignore_values', 'ignore_channels')
 
 
 class OpticalDistortion(DualTransform):
@@ -911,6 +1086,96 @@ class ElasticTransform(DualTransform):
     def get_transform_init_args_names(self):
         return ('alpha', 'sigma', 'alpha_affine', 'interpolation', 'border_mode', 'value',
                 'mask_value', 'approximate')
+
+
+class RandomGridShuffle(DualTransform):
+    """
+    Random shuffle grid's cells on image.
+
+    Args:
+        grid ((int, int)): size of grid for splitting image.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, grid=(3, 3), always_apply=False, p=1.0):
+        super(RandomGridShuffle, self).__init__(always_apply, p)
+        self.grid = grid
+
+    def apply(self, img, tiles=None, **params):
+        if tiles is None:
+            tiles = []
+
+        return F.swap_tiles_on_image(img, tiles)
+
+    def apply_to_mask(self, img, tiles=None, **params):
+        if tiles is None:
+            tiles = []
+
+        return F.swap_tiles_on_image(img, tiles)
+
+    def get_params_dependent_on_targets(self, params):
+        height, width = params['image'].shape[:2]
+        n, m = self.grid
+
+        if n <= 0 or m <= 0:
+            raise ValueError("Grid's values must be positive. Current grid [%s, %s]" % (n, m))
+
+        if n > height // 2 or m > width // 2:
+            raise ValueError("Incorrect size cell of grid. Just shuffle pixels of image")
+
+        random_state = np.random.RandomState(random.randint(0, 10000))
+
+        height_split = np.linspace(0, height, n + 1, dtype=np.int)
+        width_split = np.linspace(0, width, m + 1, dtype=np.int)
+
+        height_matrix, width_matrix = np.meshgrid(height_split, width_split, indexing='ij')
+
+        index_height_matrix = height_matrix[:-1, :-1]
+        index_width_matrix = width_matrix[:-1, :-1]
+
+        shifted_index_height_matrix = height_matrix[1:, 1:]
+        shifted_index_width_matrix = width_matrix[1:, 1:]
+
+        height_tile_sizes = shifted_index_height_matrix - index_height_matrix
+        width_tile_sizes = shifted_index_width_matrix - index_width_matrix
+
+        tiles_sizes = np.stack((height_tile_sizes, width_tile_sizes), axis=2)
+
+        index_matrix = np.indices((n, m))
+        new_index_matrix = np.stack(index_matrix, axis=2)
+
+        for bbox_size in np.unique(tiles_sizes.reshape(-1, 2), axis=0):
+            eq_mat = np.all(tiles_sizes == bbox_size, axis=2)
+            new_index_matrix[eq_mat] = random_state.permutation(new_index_matrix[eq_mat])
+
+        new_index_matrix = np.split(new_index_matrix, 2, axis=2)
+
+        old_x = index_height_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
+        old_y = index_width_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
+
+        shift_x = height_tile_sizes.reshape(-1)
+        shift_y = width_tile_sizes.reshape(-1)
+
+        curr_x = index_height_matrix.reshape(-1)
+        curr_y = index_width_matrix.reshape(-1)
+
+        tiles = np.stack([curr_x, curr_y, old_x, old_y, shift_x, shift_y], axis=1)
+
+        return {
+            "tiles": tiles,
+        }
+
+    @property
+    def targets_as_params(self):
+        return ['image']
+
+    def get_transform_init_args_names(self):
+        return ('grid',)
 
 
 class Normalize(ImageOnlyTransform):
@@ -1610,7 +1875,7 @@ class Solarize(ImageOnlyTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-    image
+        image
 
     Image types:
         any
@@ -1632,6 +1897,55 @@ class Solarize(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ('threshold', )
+
+
+class Equalize(ImageOnlyTransform):
+    """Equalize the image histogram.
+
+    Args:
+        mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
+        by_channels (bool): If True, use equalization by channels separately,
+            else convert image to YCbCr representation and use equalization by `Y` channel.
+        mask (np.ndarray, callable): If given, only the pixels selected by
+            the mask are included in the analysis. Maybe 1 channel or 3 channel array or callable.
+            Function signature must include `image` argument.
+        mask_params (list of str): Params for mask function.
+
+    Targets:
+        image
+
+    Image types:
+        uint8
+
+    """
+
+    def __init__(self, mode='cv', by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5):
+        modes = ['cv', 'pil']
+        if mode not in modes:
+            raise ValueError('Unsupported equalization mode. Supports: {}. '
+                             'Got: {}'.format(modes, mode))
+
+        super(Equalize, self).__init__(always_apply, p)
+        self.mode = mode
+        self.by_channels = by_channels
+        self.mask = mask
+        self.mask_params = mask_params
+
+    def apply(self, image, mask=None, **params):
+        return F.equalize(image, mode=self.mode, by_channels=self.by_channels, mask=mask)
+
+    def get_params_dependent_on_targets(self, params):
+        if not callable(self.mask):
+            return {'mask': self.mask}
+
+        return {'mask': self.mask(**params)}
+
+    @property
+    def targets_as_params(self):
+        return ['image'] + list(self.mask_params)
+
+    def get_transform_init_args_names(self):
+        return ('mode', 'by_channels')
 
 
 class RGBShift(ImageOnlyTransform):
@@ -1838,19 +2152,32 @@ class GaussNoise(ImageOnlyTransform):
 
     Args:
         var_limit ((float, float) or float): variance range for noise. If var_limit is a single float, the range
-            will be (-var_limit, var_limit). Default: (10., 50.).
+            will be (0, var_limit). Default: (10.0, 50.0).
+        mean (float): mean of the noise. Default: 0
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
-        uint8
+        uint8, float32
     """
 
-    def __init__(self, var_limit=(10., 50.), always_apply=False, p=0.5):
+    def __init__(self, var_limit=(10.0, 50.0), mean=None, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
-        self.var_limit = to_tuple(var_limit)
+        if isinstance(var_limit, tuple):
+            if var_limit[0] < 0:
+                raise ValueError("Lower var_limit should be non negative.")
+            if var_limit[1] < 0:
+                raise ValueError("Upper var_limit should be non negative.")
+            self.var_limit = var_limit
+        elif isinstance(var_limit, (int, float)):
+            if var_limit < 0:
+                raise ValueError(" var_limit should be non negative.")
+
+            self.var_limit = (0, var_limit)
+
+        self.mean = mean
 
     def apply(self, img, gauss=None, **params):
         return F.gauss_noise(img, gauss=gauss)
@@ -1858,10 +2185,14 @@ class GaussNoise(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         image = params['image']
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        mean = var
         sigma = var ** 0.5
         random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-        gauss = random_state.normal(mean, sigma, image.shape)
+
+        if self.mean is None:
+            DeprecationWarning('In the version 0.4.0 default behavior of GaussNoise mean will be changed to 0.')
+            self.mean = var
+
+        gauss = random_state.normal(self.mean, sigma, image.shape)
         return {
             'gauss': gauss
         }
@@ -2050,12 +2381,13 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), always_apply=False, p=0.5):
+    def __init__(self, gamma_limit=(80, 120), eps=1e-7, always_apply=False, p=0.5):
         super(RandomGamma, self).__init__(always_apply, p)
-        self.gamma_limit = gamma_limit
+        self.gamma_limit = to_tuple(gamma_limit)
+        self.eps = eps
 
     def apply(self, img, gamma=1, **params):
-        return F.gamma_transform(img, gamma=gamma)
+        return F.gamma_transform(img, gamma=gamma, eps=self.eps)
 
     def get_params(self):
         return {
@@ -2063,7 +2395,7 @@ class RandomGamma(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ('gamma_limit',)
+        return ('gamma_limit', 'eps',)
 
 
 class ToGray(ImageOnlyTransform):
