@@ -75,6 +75,10 @@ def is_multispectral_image(image):
     return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
 
 
+def num_channels(image):
+    return image.shape[2] if len(image.shape) == 3 else 1
+
+
 def non_rgb_warning(image):
     if not is_rgb_image(image):
         message = 'This transformation expects 3-channel images'
@@ -139,7 +143,19 @@ def cutout(img, holes, fill_value=0):
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
-    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
+
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation,
+                                  borderMode=border_mode, borderValue=value)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation,
+                             borderMode=border_mode, borderValue=value)
     return img
 
 
@@ -147,13 +163,32 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
-    img = cv2.resize(img, (new_width, new_height), interpolation=interpolation)
+
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.resize(view, (new_width, new_height), interpolation=interpolation)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.resize(img, (new_width, new_height), interpolation=interpolation)
     return img
 
 
 @preserve_channel_dim
 def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
-    img = cv2.resize(img, (width, height), interpolation=interpolation)
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.resize(view, (width, height), interpolation=interpolation)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.resize(img, (width, height), interpolation=interpolation)
     return img
 
 
@@ -165,7 +200,19 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
-    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
+
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation,
+                                  borderMode=border_mode, borderValue=value)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation,
+                             borderMode=border_mode, borderValue=value)
     return img
 
 
@@ -573,13 +620,35 @@ def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, borde
 
 @preserve_shape
 def blur(img, ksize):
-    return cv2.blur(img, (ksize, ksize))
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.blur(view, (ksize, ksize))
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.blur(img, (ksize, ksize))
+
+    return img
 
 
 @preserve_shape
 def gaussian_blur(img, ksize):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    return cv2.GaussianBlur(img, (ksize, ksize), sigmaX=0)
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.GaussianBlur(view, (ksize, ksize), sigmaX=0)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.GaussianBlur(img, (ksize, ksize), sigmaX=0)
+
+    return img
 
 
 def _func_max_size(img, max_size, interpolation, func):
@@ -588,8 +657,8 @@ def _func_max_size(img, max_size, interpolation, func):
     scale = max_size / float(func(width, height))
 
     if scale != 1.0:
-        out_size = tuple(py3round(dim * scale) for dim in (width, height))
-        img = cv2.resize(img, out_size, interpolation=interpolation)
+        new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
+        img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
     return img
 
 
@@ -608,12 +677,32 @@ def median_blur(img, ksize):
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(
             'Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5'.format(ksize))
-    return cv2.medianBlur(img, ksize)
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.medianBlur(view, ksize)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.medianBlur(img, ksize)
+    return img
 
 
 @preserve_shape
 def motion_blur(img, kernel):
-    return cv2.filter2D(img, -1, kernel / np.sum(kernel))
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.filter2D(view, -1, kernel / np.sum(kernel))
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.filter2D(img, -1, kernel / np.sum(kernel))
+    return img
 
 
 @preserve_shape
@@ -958,12 +1047,25 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
     map_x, map_y = np.meshgrid(xx, yy)
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
-    img = cv2.remap(img, map_x, map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value)
+
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.remap(view, map_x, map_y, interpolation=interpolation,
+                             borderMode=border_mode, borderValue=value)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.remap(img, map_x, map_y, interpolation=interpolation,
+                        borderMode=border_mode, borderValue=value)
+
     return img
 
 
 @preserve_shape
-def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
+def elastic_transform(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
                       border_mode=cv2.BORDER_REFLECT_101, value=None, random_state=None, approximate=False):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
@@ -976,7 +1078,7 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     if random_state is None:
         random_state = np.random.RandomState(1234)
 
-    height, width = image.shape[:2]
+    height, width = img.shape[:2]
 
     # Random affine
     center_square = np.float32((height, width)) // 2
@@ -990,8 +1092,18 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode,
-                           borderValue=value)
+    nc = num_channels(img)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation, borderMode=border_mode,
+                                  borderValue=value)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode,
+                             borderValue=value)
 
     if approximate:
         # Approximate computation smooth displacement map with a large enough kernel.
@@ -1012,7 +1124,17 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     mapx = np.float32(x + dx)
     mapy = np.float32(y + dy)
 
-    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
+    if nc > 4:
+        views = []
+        for index in range(0, nc, 4):
+            view = img[:, :, index:index + 4]
+            view = cv2.remap(view, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
+            views.append(view)
+        img = np.concatenate(views, axis=2)
+    else:
+        img = cv2.remap(img, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
+
+    return img
 
 
 @preserve_shape

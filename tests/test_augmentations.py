@@ -14,7 +14,8 @@ from albumentations import (
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
     RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop, RandomResizedCrop,
-    ChannelDropout, ISONoise, Solarize, Equalize, CropNonEmptyMaskIfExists)
+    ChannelDropout, ISONoise, Solarize, Equalize, CropNonEmptyMaskIfExists,
+    LongestMaxSize)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
@@ -400,3 +401,25 @@ def test_mask_fill_value(augmentation_cls, params):
     output = aug(**input)
     assert (output['image'] == 100).all()
     assert (output['mask'] == 1).all()
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [Blur, {}],
+    [MotionBlur, {}],
+    [MedianBlur, {}],
+    [GaussianBlur, {}],
+    [GaussNoise, {}],
+    [RandomSizedCrop, {'min_max_height': (384, 512), 'height': 512, 'width': 512}],
+    [ShiftScaleRotate, {}],
+    [PadIfNeeded, {'min_height': 514, 'min_width': 516}],
+    [LongestMaxSize, {'max_size': 256}],
+    [GridDistortion, {}],
+    [ElasticTransform, {}],
+    [RandomBrightnessContrast, {}]
+])
+def test_multichannel_image_augmentations(augmentation_cls, params):
+    image = np.zeros((512, 512, 6), dtype=np.uint8)
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image=image)
+    assert data['image'].dtype == np.uint8
+    assert data['image'].shape[2] == 6
