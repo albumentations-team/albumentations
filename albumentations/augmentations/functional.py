@@ -1223,18 +1223,24 @@ def gauss_noise(image, gauss):
     return image + gauss
 
 
-def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0):
+@clipped
+def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0, beta_by_max=False):
+    dtype = img.dtype
     img = img.astype('float32')
 
     if alpha != 1:
         img *= alpha
     if beta != 0:
-        img += beta * np.mean(img)
+        if beta_by_max:
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
+            img += beta * max_value
+        else:
+            img += beta * np.mean(img)
     return img
 
 
 @preserve_shape
-def _brightness_contrast_adjust_uint(img, alpha=1, beta=0):
+def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
     dtype = np.dtype('uint8')
 
     max_value = MAX_VALUES_BY_DTYPE[dtype]
@@ -1244,19 +1250,21 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0):
     if alpha != 1:
         lut *= alpha
     if beta != 0:
-        lut += beta * np.mean(img)
+        if beta_by_max:
+            lut += beta * max_value
+        else:
+            lut += beta * np.mean(img)
 
     lut = np.clip(lut, 0, max_value).astype(dtype)
     img = cv2.LUT(img, lut)
     return img
 
 
-@clipped
-def brightness_contrast_adjust(img, alpha=1, beta=0):
+def brightness_contrast_adjust(img, alpha=1, beta=0, beta_by_max=False):
     if img.dtype == np.uint8:
-        return _brightness_contrast_adjust_uint(img, alpha, beta)
+        return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
     else:
-        return _brightness_contrast_adjust_non_uint(img, alpha, beta)
+        return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
 
 
 @clipped
