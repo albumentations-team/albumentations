@@ -772,7 +772,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             w = int(round(math.sqrt(target_area * aspect_ratio)))
             h = int(round(math.sqrt(target_area / aspect_ratio)))
 
-            if w <= img.shape[1] and h <= img.shape[0]:
+            if 0 < w <= img.shape[1] and 0 < h <= img.shape[0]:
                 i = random.randint(0, img.shape[0] - h)
                 j = random.randint(0, img.shape[1] - w)
                 return {
@@ -786,10 +786,10 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         in_ratio = img.shape[1] / img.shape[0]
         if in_ratio < min(self.ratio):
             w = img.shape[1]
-            h = w / min(self.ratio)
+            h = int(round(w / min(self.ratio)))
         elif in_ratio > max(self.ratio):
             h = img.shape[0]
-            w = h * max(self.ratio)
+            w = int(round(h * max(self.ratio)))
         else:  # whole image
             w = img.shape[1]
             h = img.shape[0]
