@@ -1,5 +1,7 @@
 from __future__ import absolute_import
 
+import warnings
+
 import numpy as np
 import torch
 from torchvision.transforms import functional as F
@@ -7,7 +9,7 @@ from torchvision.transforms import functional as F
 from ..core.transforms_interface import BasicTransform
 
 
-__all__ = ['ToTensor']
+__all__ = ['ToTensor', 'ToTensorV2']
 
 
 def img_to_tensor(im, normalize=None):
@@ -53,6 +55,8 @@ class ToTensor(BasicTransform):
         self.num_classes = num_classes
         self.sigmoid = sigmoid
         self.normalize = normalize
+        warnings.warn("ToTensor is deprecated and will be replaced by ToTensorV2 "
+                      "in albumentations 0.5.0", DeprecationWarning)
 
     def __call__(self, force_apply=True, **kwargs):
         kwargs.update({'image': img_to_tensor(kwargs['image'], self.normalize)})
@@ -71,4 +75,31 @@ class ToTensor(BasicTransform):
         raise NotImplementedError
 
     def get_transform_init_args_names(self):
-        return ('num_classes', 'sigmoid', 'normalize')
+        return 'num_classes', 'sigmoid', 'normalize'
+
+
+class ToTensorV2(BasicTransform):
+    """Convert image and mask to `torch.Tensor`.
+    """
+
+    def __init__(self):
+        super(ToTensorV2, self).__init__(always_apply=True)
+
+    @property
+    def targets(self):
+        return {
+            'image': self.apply,
+            'mask': self.apply_to_mask
+        }
+
+    def apply(self, img, **params):
+        return torch.from_numpy(img.transpose(2, 0, 1))
+
+    def apply_to_mask(self, mask, **params):
+        return torch.from_numpy(mask)
+
+    def get_transform_init_args_names(self):
+        return []
+
+    def get_params_dependent_on_targets(self, params):
+        return {}
