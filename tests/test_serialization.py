@@ -13,6 +13,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [A.ImageCompression, {}],
     [A.JpegCompression, {}],
     [A.HueSaturationValue, {}],
     [A.RGBShift, {}],
@@ -73,6 +74,8 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [A.ImageCompression, {'quality_lower': 10, 'quality_upper': 80,
+                          'compression_type': A.ImageCompression.ImageCompressionType.WEBP}],
     [A.JpegCompression, {'quality_lower': 10, 'quality_upper': 80}],
     [A.HueSaturationValue, {'hue_shift_limit': 70, 'sat_shift_limit': 95, 'val_shift_limit': 55}],
     [A.RGBShift, {'r_shift_limit': 70, 'g_shift_limit': 80, 'b_shift_limit': 40}],
@@ -152,6 +155,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     }],
     [A.CenterCrop, {'height': 10, 'width': 10}],
     [A.RandomCrop, {'height': 10, 'width': 10}],
+    [A.CropNonEmptyMaskIfExists, {'height': 10, 'width': 10}],
     [A.RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [A.Crop, {'x_max': 64, 'y_max': 64}],
     [A.ToFloat, {'max_value': 16536}],
@@ -191,6 +195,7 @@ def test_augmentations_serialization_with_custom_parameters(
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [A.ImageCompression, {}],
     [A.JpegCompression, {}],
     [A.HueSaturationValue, {}],
     [A.RGBShift, {}],
@@ -254,6 +259,7 @@ def test_augmentations_for_bboxes_serialization(augmentation_cls, params, p, see
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [A.ImageCompression, {}],
     [A.JpegCompression, {}],
     [A.HueSaturationValue, {}],
     [A.RGBShift, {}],
@@ -545,6 +551,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     [A.ChannelShuffle, {}],
     [A.GaussNoise, {}],
     [A.Cutout, {}],
+    [A.ImageCompression, {}],
     [A.JpegCompression, {}],
     [A.HueSaturationValue, {}],
     [A.RGBShift, {}],

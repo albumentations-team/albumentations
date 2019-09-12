@@ -208,7 +208,7 @@ def test_force_apply():
     [A.GaussNoise, {}],
     [A.Cutout, {}],
     [A.CoarseDropout, {}],
-    [A.JpegCompression, {}],
+    [A.ImageCompression, {}],
     [A.HueSaturationValue, {}],
     [A.RGBShift, {}],
     [A.RandomBrightnessContrast, {}],
@@ -315,3 +315,53 @@ def test_equalize():
         return mask
     aug = A.Equalize(mask=mask_func, mask_params=['test'], p=1)
     assert np.all(aug(image=img, test=mask)['image'] == F.equalize(img, mask=mask))
+
+
+def test_crop_non_empty_mask():
+
+    def _test_crop(mask, crop, aug, n=1):
+        for _ in range(n):
+            augmented = aug(image=mask, mask=mask)
+            np.testing.assert_array_equal(augmented['image'], crop)
+            np.testing.assert_array_equal(augmented['mask'], crop)
+
+    # test general case
+    mask_1 = np.zeros([10, 10])
+    mask_1[0, 0] = 1
+    crop_1 = np.array([[1]])
+    aug_1 = A.CropNonEmptyMaskIfExists(1, 1)
+
+    # test empty mask
+    mask_2 = np.zeros([10, 10])
+    crop_2 = np.array([[0]])
+    aug_2 = A.CropNonEmptyMaskIfExists(1, 1)
+
+    # test ignore values
+    mask_3 = np.ones([2, 2])
+    mask_3[0, 0] = 2
+    crop_3 = np.array([[2]])
+    aug_3 = A.CropNonEmptyMaskIfExists(1, 1, ignore_values=[1])
+
+    # test ignore channels
+    mask_4 = np.zeros([2, 2, 2])
+    mask_4[0, 0, 0] = 1
+    mask_4[1, 1, 1] = 2
+    crop_4 = np.array([[[1, 0]]])
+    aug_4 = A.CropNonEmptyMaskIfExists(1, 1, ignore_channels=[1])
+
+    # test full size crop
+    mask_5 = np.random.random([10, 10, 3])
+    crop_5 = mask_5
+    aug_5 = A.CropNonEmptyMaskIfExists(10, 10)
+
+    mask_6 = np.zeros([10, 10, 3])
+    mask_6[0, 0, 0] = 0
+    crop_6 = mask_6
+    aug_6 = A.CropNonEmptyMaskIfExists(10, 10, ignore_values=[1])
+
+    _test_crop(mask_1, crop_1, aug_1, n=1)
+    _test_crop(mask_2, crop_2, aug_2, n=1)
+    _test_crop(mask_3, crop_3, aug_3, n=5)
+    _test_crop(mask_4, crop_4, aug_4, n=5)
+    _test_crop(mask_5, crop_5, aug_5, n=1)
+    _test_crop(mask_6, crop_6, aug_6, n=10)
