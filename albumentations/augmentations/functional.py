@@ -139,23 +139,46 @@ def cutout(img, holes, fill_value=0):
     return img
 
 
+def _maybe_process_in_chunks(process_fn, **kwargs):
+    """
+    Wrap OpenCV function to enable processing images with more than 4 channels.
+
+    Limitations: This wrapper requires image to be the first argument and rest must be sent via named arguments.
+    :param process_fn: Transform function (e.g cv2.resize)
+    :param kwargs: Additional parameters
+    :return: Transformed image
+    """
+    def __process_fn(img):
+        num_channels = get_num_channels(img)
+        if num_channels > 4:
+            chunks = []
+            for index in range(0, num_channels, 4):
+                chunk = img[:, :, index:index + 4]
+                chunk = process_fn(chunk, **kwargs)
+                chunks.append(chunk)
+            img = np.concatenate(chunks, axis=2)
+        else:
+            img = process_fn(img, **kwargs)
+        return img
+
+    return __process_fn
+
+
 @preserve_channel_dim
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
 
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation,
-                                  borderMode=border_mode, borderValue=value)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation,
-                             borderMode=border_mode, borderValue=value)
+    warp_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                       borderMode=border_mode, borderValue=value)
+    img = warp_fn(img)
+    return img
+
+
+@preserve_channel_dim
+def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+    resize = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
+    img = resize(img)
     return img
 
 
@@ -163,33 +186,7 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
-
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.resize(view, (new_width, new_height), interpolation=interpolation)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.resize(img, (new_width, new_height), interpolation=interpolation)
-    return img
-
-
-@preserve_channel_dim
-def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.resize(view, (width, height), interpolation=interpolation)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.resize(img, (width, height), interpolation=interpolation)
-    return img
+    return resize(img, new_height, new_width, interpolation)
 
 
 @preserve_channel_dim
@@ -201,18 +198,9 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
 
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation,
-                                  borderMode=border_mode, borderValue=value)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation,
-                             borderMode=border_mode, borderValue=value)
+    warp_affine = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                           borderMode=border_mode, borderValue=value)
+    img = warp_affine(img)
     return img
 
 
@@ -620,34 +608,16 @@ def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, borde
 
 @preserve_shape
 def blur(img, ksize):
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.blur(view, (ksize, ksize))
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.blur(img, (ksize, ksize))
-
+    blur_fn = _maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
+    img = blur_fn(img)
     return img
 
 
 @preserve_shape
 def gaussian_blur(img, ksize):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.GaussianBlur(view, (ksize, ksize), sigmaX=0)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.GaussianBlur(img, (ksize, ksize), sigmaX=0)
-
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=0)
+    img = blur_fn(img)
     return img
 
 
@@ -677,31 +647,16 @@ def median_blur(img, ksize):
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(
             'Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5'.format(ksize))
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.medianBlur(view, ksize)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.medianBlur(img, ksize)
+
+    blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
+    img = blur_fn(img)
     return img
 
 
 @preserve_shape
 def motion_blur(img, kernel):
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.filter2D(view, -1, kernel / np.sum(kernel))
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.filter2D(img, -1, kernel / np.sum(kernel))
+    blur_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
+    img = blur_fn(img)
     return img
 
 
@@ -1048,19 +1003,9 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
 
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.remap(view, map_x, map_y, interpolation=interpolation,
-                             borderMode=border_mode, borderValue=value)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.remap(img, map_x, map_y, interpolation=interpolation,
-                        borderMode=border_mode, borderValue=value)
-
+    remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
+                                        borderMode=border_mode, borderValue=value)
+    img = remap_fn(img)
     return img
 
 
@@ -1092,18 +1037,10 @@ def elastic_transform(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_L
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    num_channels = get_num_channels(img)
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation, borderMode=border_mode,
-                                  borderValue=value)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode,
-                             borderValue=value)
+    warp_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                       borderMode=border_mode,
+                                       borderValue=value)
+    img = warp_fn(img)
 
     if approximate:
         # Approximate computation smooth displacement map with a large enough kernel.
@@ -1121,24 +1058,17 @@ def elastic_transform(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_L
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
 
-    mapx = np.float32(x + dx)
-    mapy = np.float32(y + dy)
+    map_x = np.float32(x + dx)
+    map_y = np.float32(y + dy)
 
-    if num_channels > 4:
-        views = []
-        for index in range(0, num_channels, 4):
-            view = img[:, :, index:index + 4]
-            view = cv2.remap(view, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
-            views.append(view)
-        img = np.concatenate(views, axis=2)
-    else:
-        img = cv2.remap(img, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
-
+    remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
+                                        borderMode=border_mode, borderValue=value)
+    img = remap_fn(img)
     return img
 
 
 @preserve_shape
-def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
+def elastic_transform_approx(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
                              border_mode=cv2.BORDER_REFLECT_101, value=None, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
@@ -1151,7 +1081,7 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
     if random_state is None:
         random_state = np.random.RandomState(1234)
 
-    height, width = image.shape[:2]
+    height, width = img.shape[:2]
 
     # Random affine
     center_square = np.float32((height, width)) // 2
@@ -1165,8 +1095,10 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation,
-                           borderMode=border_mode, value=value)
+    warp_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                       borderMode=border_mode,
+                                       borderValue=value)
+    img = warp_fn(img)
 
     dx = (random_state.rand(height, width).astype(np.float32) * 2 - 1)
     cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
@@ -1178,10 +1110,13 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
 
-    mapx = np.float32(x + dx)
-    mapy = np.float32(y + dy)
+    map_x = np.float32(x + dx)
+    map_y = np.float32(y + dy)
 
-    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
+    remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
+                                        borderMode=border_mode, borderValue=value)
+    img = remap_fn(img)
+    return img
 
 
 def invert(img):
