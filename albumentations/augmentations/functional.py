@@ -171,15 +171,13 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 
     warp_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
                                        borderMode=border_mode, borderValue=value)
-    img = warp_fn(img)
-    return img
+    return warp_fn(img)
 
 
 @preserve_channel_dim
 def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
-    resize = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
-    img = resize(img)
-    return img
+    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
+    return resize_fn(img)
 
 
 @preserve_channel_dim
@@ -198,10 +196,9 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
 
-    warp_affine = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
-                                           borderMode=border_mode, borderValue=value)
-    img = warp_affine(img)
-    return img
+    warp_affine_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                              borderMode=border_mode, borderValue=value)
+    return warp_affine_fn(img)
 
 
 def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
@@ -609,16 +606,14 @@ def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, borde
 @preserve_shape
 def blur(img, ksize):
     blur_fn = _maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
-    img = blur_fn(img)
-    return img
+    return blur_fn(img)
 
 
 @preserve_shape
 def gaussian_blur(img, ksize):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
     blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=0)
-    img = blur_fn(img)
-    return img
+    return blur_fn(img)
 
 
 def _func_max_size(img, max_size, interpolation, func):
@@ -649,15 +644,13 @@ def median_blur(img, ksize):
             'Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5'.format(ksize))
 
     blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
-    img = blur_fn(img)
-    return img
+    return blur_fn(img)
 
 
 @preserve_shape
 def motion_blur(img, kernel):
     blur_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
-    img = blur_fn(img)
-    return img
+    return blur_fn(img)
 
 
 @preserve_shape
@@ -1005,8 +998,7 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
 
     remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
                                         borderMode=border_mode, borderValue=value)
-    img = remap_fn(img)
-    return img
+    return remap_fn(img)
 
 
 @preserve_shape
@@ -1063,8 +1055,7 @@ def elastic_transform(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_L
 
     remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
                                         borderMode=border_mode, borderValue=value)
-    img = remap_fn(img)
-    return img
+    return remap_fn(img)
 
 
 @preserve_shape
@@ -1115,8 +1106,7 @@ def elastic_transform_approx(img, alpha, sigma, alpha_affine, interpolation=cv2.
 
     remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
                                         borderMode=border_mode, borderValue=value)
-    img = remap_fn(img)
-    return img
+    return remap_fn(img)
 
 
 def invert(img):
