@@ -4,6 +4,7 @@ from types import LambdaType
 import math
 import random
 import warnings
+from enum import Enum
 
 import cv2
 import numpy as np
@@ -20,8 +21,8 @@ __all__ = [
     'ElasticTransform', 'RandomGridShuffle', 'HueSaturationValue', 'PadIfNeeded', 'RGBShift',
     'RandomBrightness', 'RandomContrast', 'MotionBlur', 'MedianBlur',
     'GaussianBlur', 'GaussNoise', 'CLAHE', 'ChannelShuffle', 'InvertImg',
-    'ToGray', 'JpegCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
-    'FromFloat', 'Crop', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
+    'ToGray', 'JpegCompression', 'ImageCompression', 'Cutout', 'CoarseDropout', 'ToFloat',
+    'FromFloat', 'Crop', 'CropNonEmptyMaskIfExists', 'RandomScale', 'LongestMaxSize', 'SmallestMaxSize',
     'Resize', 'RandomSizedCrop', 'RandomResizedCrop', 'RandomBrightnessContrast',
     'RandomCropNearBBox', 'RandomSizedBBoxSafeCrop', 'RandomSnow',
     'RandomRain', 'RandomFog', 'RandomSunFlare', 'RandomShadow', 'Lambda',
@@ -878,6 +879,89 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         return ('height', 'width', 'erosion_rate', 'interpolation')
 
 
+class CropNonEmptyMaskIfExists(DualTransform):
+    """Crop area with mask if mask is non-empty, else make random crop.
+
+    Args:
+        height (int): vertical size of crop in pixels
+        width (int): horizontal size of crop in pixels
+        ignore_values (list of int): values to ignore in mask, `0` values are always ignored
+            (e.g. if background value is 5 set `ignore_values=[5]` to ignore)
+        ignore_channels (list of int): channels to ignore in mask
+            (e.g. if background is a first channel set `ignore_channels=[0]` to ignore)
+        p (float): probability of applying the transform. Default: 1.0.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, height, width, ignore_values=None,
+                 ignore_channels=None, always_apply=False, p=1.0):
+        super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p)
+
+        if ignore_values is not None and not isinstance(ignore_values, list):
+            raise ValueError('Expected `ignore_values` of type `list`, got `{}`'.format(type(ignore_values)))
+        if ignore_channels is not None and not isinstance(ignore_channels, list):
+            raise ValueError('Expected `ignore_channels` of type `list`, got `{}`'.format(type(ignore_channels)))
+
+        self.height = height
+        self.width = width
+        self.ignore_values = ignore_values
+        self.ignore_channels = ignore_channels
+
+    def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop(img, x_min, y_min, x_max, y_max)
+
+    @property
+    def targets_as_params(self):
+        return ['mask']
+
+    def get_params_dependent_on_targets(self, params):
+        mask = params['mask']
+        mask_height, mask_width = mask.shape[:2]
+
+        if self.ignore_values is not None:
+            ignore_values_np = np.array(self.ignore_values)
+            mask = np.where(np.isin(mask, ignore_values_np), 0, mask)
+
+        if mask.ndim == 3 and self.ignore_channels is not None:
+            target_channels = np.array([ch for ch in range(mask.shape[-1])
+                                        if ch not in self.ignore_channels])
+            mask = np.take(mask, target_channels, axis=-1)
+
+        if self.height > mask_height or self.width > mask_width:
+            raise ValueError('Crop size ({},{}) is larger than image ({},{})'.format(
+                self.height, self.width, mask_height, mask_width))
+
+        if mask.sum() == 0:
+            x_min = random.randint(0, mask_width - self.width)
+            y_min = random.randint(0, mask_height - self.height)
+        else:
+            mask = mask.sum(axis=-1) if mask.ndim == 3 else mask
+            non_zero_yx = np.argwhere(mask)
+            y, x = random.choice(non_zero_yx)
+            x_min = x - random.randint(0, self.width - 1)
+            y_min = y - random.randint(0, self.height - 1)
+            x_min = np.clip(x_min, 0, mask_width - self.width)
+            y_min = np.clip(y_min, 0, mask_height - self.height)
+
+        x_max = x_min + self.width
+        y_max = y_min + self.height
+
+        return {
+            'x_min': x_min,
+            'x_max': x_max,
+            'y_min': y_min,
+            'y_max': y_max,
+        }
+
+    def get_transform_init_args_names(self):
+        return ('height', 'width', 'ignore_values', 'ignore_channels')
+
+
 class OpticalDistortion(DualTransform):
     """
     Targets:
@@ -1246,7 +1330,59 @@ class CoarseDropout(ImageOnlyTransform):
                 'min_height', 'min_width')
 
 
-class JpegCompression(ImageOnlyTransform):
+class ImageCompression(ImageOnlyTransform):
+    """Decrease Jpeg, WebP compression of an image.
+
+    Args:
+        quality_lower (float): lower bound on the image quality.
+                               Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        quality_upper (float): upper bound on the image quality.
+                               Should be in [0, 100] range for jpeg and [1, 100] for webp.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    class ImageCompressionType(Enum):
+        JPEG = 0
+        WEBP = 1
+
+    def __init__(self, quality_lower=99, quality_upper=100, compression_type=ImageCompressionType.JPEG,
+                 always_apply=False, p=0.5):
+        super(ImageCompression, self).__init__(always_apply, p)
+
+        self.compression_type = compression_type
+        low_thresh_quality_assert = 0
+
+        if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
+            low_thresh_quality_assert = 1
+
+        assert low_thresh_quality_assert <= quality_lower <= 100
+        assert low_thresh_quality_assert <= quality_upper <= 100
+
+        self.quality_lower = quality_lower
+        self.quality_upper = quality_upper
+
+    def apply(self, image, quality=100, image_type='.jpg', **params):
+        return F.image_compression(image, quality, image_type)
+
+    def get_params(self):
+        image_type = '.jpg'
+
+        if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
+            image_type = '.webp'
+
+        return {'quality': random.randint(self.quality_lower, self.quality_upper),
+                'image_type': image_type}
+
+    def get_transform_init_args_names(self):
+        return ('quality_lower', 'quality_upper', 'compression_type')
+
+
+class JpegCompression(ImageCompression):
     """Decrease Jpeg compression of an image.
 
     Args:
@@ -1261,22 +1397,16 @@ class JpegCompression(ImageOnlyTransform):
     """
 
     def __init__(self, quality_lower=99, quality_upper=100, always_apply=False, p=0.5):
-        super(JpegCompression, self).__init__(always_apply, p)
+        super(JpegCompression, self).__init__(quality_lower=quality_lower, quality_upper=quality_upper,
+                                              compression_type=ImageCompression.ImageCompressionType.JPEG,
+                                              always_apply=always_apply, p=p)
+        warnings.warn("This class has been deprecated. Please use ImageCompression", DeprecationWarning)
 
-        assert 0 <= quality_lower <= 100
-        assert 0 <= quality_upper <= 100
-
-        self.quality_lower = quality_lower
-        self.quality_upper = quality_upper
-
-    def apply(self, image, quality=100, **params):
-        return F.jpeg_compression(image, quality)
-
-    def get_params(self):
-        return {'quality': random.randint(self.quality_lower, self.quality_upper)}
-
-    def get_transform_init_args_names(self):
-        return ('quality_lower', 'quality_upper')
+    def get_transform_init_args(self):
+        return {
+            'quality_lower': self.quality_lower,
+            'quality_upper': self.quality_upper
+        }
 
 
 class RandomSnow(ImageOnlyTransform):
@@ -1863,6 +1993,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             If limit is a single float, the range will be (-limit, limit). Default: 0.2.
         contrast_limit ((float, float) or float): factor range for changing contrast.
             If limit is a single float, the range will be (-limit, limit). Default: 0.2.
+        brightness_by_max (Boolean): If True adjust contrast by image dtype maximum,
+            else adjust contrast by image mean.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1872,13 +2004,18 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, always_apply=False, p=0.5):
+    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, brightness_by_max=None, always_apply=False, p=0.5):
         super(RandomBrightnessContrast, self).__init__(always_apply, p)
         self.brightness_limit = to_tuple(brightness_limit)
         self.contrast_limit = to_tuple(contrast_limit)
+        self.brightness_by_max = brightness_by_max
+
+        if brightness_by_max is None:
+            DeprecationWarning('In the version 0.4.0 default behavior of RandomBrightnessContrast '
+                               'brightness_by_max will be changed to True.')
 
     def apply(self, img, alpha=1., beta=0., **params):
-        return F.brightness_contrast_adjust(img, alpha, beta)
+        return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
 
     def get_params(self):
         return {
@@ -1887,7 +2024,7 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ('brightness_limit', 'contrast_limit')
+        return ('brightness_limit', 'contrast_limit', 'brightness_by_max')
 
 
 class RandomBrightness(RandomBrightnessContrast):
@@ -2251,12 +2388,13 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), always_apply=False, p=0.5):
+    def __init__(self, gamma_limit=(80, 120), eps=1e-7, always_apply=False, p=0.5):
         super(RandomGamma, self).__init__(always_apply, p)
-        self.gamma_limit = gamma_limit
+        self.gamma_limit = to_tuple(gamma_limit)
+        self.eps = eps
 
     def apply(self, img, gamma=1, **params):
-        return F.gamma_transform(img, gamma=gamma)
+        return F.gamma_transform(img, gamma=gamma, eps=self.eps)
 
     def get_params(self):
         return {
@@ -2264,7 +2402,7 @@ class RandomGamma(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ('gamma_limit',)
+        return ('gamma_limit', 'eps',)
 
 
 class ToGray(ImageOnlyTransform):

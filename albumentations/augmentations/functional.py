@@ -472,21 +472,54 @@ def equalize(img, mask=None, mode='cv', by_channels=True):
             _mask = mask[..., i]
 
         result_img[..., i] = function(img[..., i], _mask)
+
     return result_img
 
 
 @clipped
+def _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift):
+    if r_shift == g_shift == b_shift:
+        return img + r_shift
+
+    result_img = np.empty_like(img)
+    shifts = [r_shift, g_shift, b_shift]
+    for i, shift in enumerate(shifts):
+        result_img[..., i] = img[..., i] + shift
+
+    return result_img
+
+
+def _shift_image_uint8(img, value):
+    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+
+    lut = np.arange(0, max_value + 1).astype('float32')
+    lut += value
+
+    lut = np.clip(lut, 0, max_value).astype(img.dtype)
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def _shift_rgb_uint8(img, r_shift, g_shift, b_shift):
+    if r_shift == g_shift == b_shift:
+        h, w, c = img.shape
+        img = img.reshape([h, w * c])
+
+        return _shift_image_uint8(img, r_shift)
+
+    result_img = np.empty_like(img)
+    shifts = [r_shift, g_shift, b_shift]
+    for i, shift in enumerate(shifts):
+        result_img[..., i] = _shift_image_uint8(img[..., i], shift)
+
+    return result_img
+
+
 def shift_rgb(img, r_shift, g_shift, b_shift):
     if img.dtype == np.uint8:
-        img = img.astype('int32')
-        r_shift, g_shift, b_shift = np.int32(r_shift), np.int32(g_shift), np.int32(b_shift)
-    else:
-        # Make a copy of the input image since we don't want to modify it directly
-        img = img.copy()
-    img[..., 0] += r_shift
-    img[..., 1] += g_shift
-    img[..., 2] += b_shift
-    return img
+        return _shift_rgb_uint8(img, r_shift, g_shift, b_shift)
+
+    return _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift)
 
 
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
@@ -584,21 +617,28 @@ def motion_blur(img, kernel):
 
 
 @preserve_shape
-def jpeg_compression(img, quality):
+def image_compression(img, quality, image_type):
+    if image_type == '.jpeg' or image_type == '.jpg':
+        quality_flag = cv2.IMWRITE_JPEG_QUALITY
+    elif image_type == '.webp':
+        quality_flag = cv2.IMWRITE_WEBP_QUALITY
+    else:
+        NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
+
     input_dtype = img.dtype
     needs_float = False
 
     if input_dtype == np.float32:
-        warn('Jpeg compression augmentation '
+        warn('Image compression augmentation '
              'is most effective with uint8 inputs, '
              '{} is used as input.'.format(input_dtype),
              UserWarning)
         img = from_float(img, dtype=np.dtype('uint8'))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError('Unexpected dtype {} for Jpeg augmentation'.format(input_dtype))
+        raise ValueError('Unexpected dtype {} for image augmentation'.format(input_dtype))
 
-    _, encoded_img = cv2.imencode('.jpg', img, (cv2.IMWRITE_JPEG_QUALITY, quality))
+    _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
 
     if needs_float:
@@ -1044,9 +1084,9 @@ def channel_dropout(img, channels_to_drop, fill_value=0):
 
 
 @preserve_shape
-def gamma_transform(img, gamma):
+def gamma_transform(img, gamma, eps=1e-7):
     if img.dtype == np.uint8:
-        invGamma = 1.0 / gamma
+        invGamma = 1.0 / (gamma + eps)
         table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** invGamma) * 255
         img = cv2.LUT(img, table.astype(np.uint8))
     else:
@@ -1061,18 +1101,24 @@ def gauss_noise(image, gauss):
     return image + gauss
 
 
-def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0):
+@clipped
+def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0, beta_by_max=False):
+    dtype = img.dtype
     img = img.astype('float32')
 
     if alpha != 1:
         img *= alpha
     if beta != 0:
-        img += beta * np.mean(img)
+        if beta_by_max:
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
+            img += beta * max_value
+        else:
+            img += beta * np.mean(img)
     return img
 
 
 @preserve_shape
-def _brightness_contrast_adjust_uint(img, alpha=1, beta=0):
+def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
     dtype = np.dtype('uint8')
 
     max_value = MAX_VALUES_BY_DTYPE[dtype]
@@ -1082,19 +1128,21 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0):
     if alpha != 1:
         lut *= alpha
     if beta != 0:
-        lut += beta * np.mean(img)
+        if beta_by_max:
+            lut += beta * max_value
+        else:
+            lut += beta * np.mean(img)
 
     lut = np.clip(lut, 0, max_value).astype(dtype)
     img = cv2.LUT(img, lut)
     return img
 
 
-@clipped
-def brightness_contrast_adjust(img, alpha=1, beta=0):
+def brightness_contrast_adjust(img, alpha=1, beta=0, beta_by_max=False):
     if img.dtype == np.uint8:
-        return _brightness_contrast_adjust_uint(img, alpha, beta)
+        return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
     else:
-        return _brightness_contrast_adjust_non_uint(img, alpha, beta)
+        return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
 
 
 @clipped
