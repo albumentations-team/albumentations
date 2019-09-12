@@ -75,7 +75,7 @@ def is_multispectral_image(image):
     return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
 
 
-def num_channels(image):
+def get_num_channels(image):
     return image.shape[2] if len(image.shape) == 3 else 1
 
 
@@ -144,10 +144,10 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
 
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation,
                                   borderMode=border_mode, borderValue=value)
@@ -164,10 +164,10 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
 
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.resize(view, (new_width, new_height), interpolation=interpolation)
             views.append(view)
@@ -179,10 +179,10 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
 
 @preserve_channel_dim
 def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.resize(view, (width, height), interpolation=interpolation)
             views.append(view)
@@ -201,10 +201,10 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
 
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation,
                                   borderMode=border_mode, borderValue=value)
@@ -620,10 +620,10 @@ def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, borde
 
 @preserve_shape
 def blur(img, ksize):
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.blur(view, (ksize, ksize))
             views.append(view)
@@ -637,10 +637,10 @@ def blur(img, ksize):
 @preserve_shape
 def gaussian_blur(img, ksize):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.GaussianBlur(view, (ksize, ksize), sigmaX=0)
             views.append(view)
@@ -677,10 +677,10 @@ def median_blur(img, ksize):
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(
             'Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5'.format(ksize))
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.medianBlur(view, ksize)
             views.append(view)
@@ -692,10 +692,10 @@ def median_blur(img, ksize):
 
 @preserve_shape
 def motion_blur(img, kernel):
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.filter2D(view, -1, kernel / np.sum(kernel))
             views.append(view)
@@ -1048,10 +1048,10 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
 
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.remap(view, map_x, map_y, interpolation=interpolation,
                              borderMode=border_mode, borderValue=value)
@@ -1092,10 +1092,10 @@ def elastic_transform(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_L
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    nc = num_channels(img)
-    if nc > 4:
+    num_channels = get_num_channels(img)
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.warpAffine(view, matrix, (width, height), flags=interpolation, borderMode=border_mode,
                                   borderValue=value)
@@ -1124,9 +1124,9 @@ def elastic_transform(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_L
     mapx = np.float32(x + dx)
     mapy = np.float32(y + dy)
 
-    if nc > 4:
+    if num_channels > 4:
         views = []
-        for index in range(0, nc, 4):
+        for index in range(0, num_channels, 4):
             view = img[:, :, index:index + 4]
             view = cv2.remap(view, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
             views.append(view)
