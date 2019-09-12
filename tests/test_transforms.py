@@ -233,6 +233,7 @@ def test_force_apply():
     [A.FromFloat, {}],
     [A.ChannelDropout, {}],
     [A.Solarize, {}],
+    [A.Posterize, {}],
     [A.Equalize, {}],
 ])
 def test_additional_targets_for_image_only(augmentation_cls, params):
