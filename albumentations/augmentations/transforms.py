@@ -685,7 +685,7 @@ class _BaseRandomSizedCrop(DualTransform):
 
     def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
         keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
-        scale_x = self.width / crop_height
+        scale_x = self.width / crop_width
         scale_y = self.height / crop_height
         keypoint = F.keypoint_scale(keypoint, scale_x, scale_y)
         return keypoint
