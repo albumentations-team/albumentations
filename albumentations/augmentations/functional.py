@@ -367,6 +367,51 @@ def solarize(img, threshold=128):
     return result_img
 
 
+@preserve_shape
+def posterize(img, bits):
+    """Reduce the number of bits for each color channel.
+
+    Args:
+        img: image to posterize.
+        bits: number of high bits. Must be in range [0, 8]
+    """
+    bits = np.uint8(bits)
+
+    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+    assert np.all((0 <= bits) & (bits <= 8)), "bits must be in range [0, 8]"
+
+    if not bits.shape or len(bits) == 1:
+        if bits == 0:
+            return np.zeros_like(img)
+        elif bits == 8:
+            return img.copy()
+
+        lut = np.arange(0, 256, dtype=np.uint8)
+        mask = ~np.uint8(2 ** (8 - bits) - 1)
+        lut &= mask
+
+        return cv2.LUT(img, lut)
+
+    assert is_rgb_image(img), 'If bits is iterable image must be RGB'
+
+    result_img = np.empty_like(img)
+    for i, channel_bits in enumerate(bits):
+        if channel_bits == 0:
+            result_img[..., i] = np.zeros_like(img[..., i])
+            continue
+        elif channel_bits == 8:
+            result_img[..., i] = img[..., i].copy()
+            continue
+
+        lut = np.arange(0, 256, dtype=np.uint8)
+        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+        lut &= mask
+
+        result_img[..., i] = cv2.LUT(img[..., i], lut)
+
+    return result_img
+
+
 def _equalize_pil(img, mask=None):
     histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
     h = [_f for _f in histogram if _f]
