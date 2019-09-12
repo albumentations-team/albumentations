@@ -4,7 +4,6 @@ import re
 import sys
 from setuptools import setup, find_packages
 from pkg_resources import DistributionNotFound, get_distribution
-from packaging.requirements import Requirement
 
 
 INSTALL_REQUIRES = [
@@ -44,10 +43,9 @@ def choose_requirement(main, secondary):
     else return secondary.
 
     """
-    main = Requirement(main)
-
     try:
-        get_distribution(main.name)
+        name = re.split(r'[!<>=]', main)[0]
+        get_distribution(name)
     except DistributionNotFound:
         return secondary
 
