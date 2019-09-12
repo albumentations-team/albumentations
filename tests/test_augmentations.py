@@ -14,9 +14,8 @@ from albumentations import (
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
     RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop, RandomResizedCrop,
-    ChannelDropout, ISONoise, Solarize, Equalize, CropNonEmptyMaskIfExists, 
-    LongestMaxSize, ChannelDropout, ISONoise, Solarize, Equalize, CropNonEmptyMaskIfExists, 
-    Posterize)
+    ChannelDropout, ISONoise, Solarize, Posterize, Equalize, CropNonEmptyMaskIfExists,
+    LongestMaxSize)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
