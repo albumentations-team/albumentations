@@ -31,7 +31,7 @@ setup(
     description='Fast image augmentation library and easy to use wrapper around other libraries',
     long_description=get_long_description(),
     long_description_content_type='text/markdown',
-    author='Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov, Eugene Khvedchenya',
+    author='Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov, Eugene Khvedchenya, Druzhinin Mikhail',
     license='MIT',
     url='https://github.com/albu/albumentations',
     packages=find_packages(exclude=['tests']),
