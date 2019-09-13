@@ -75,6 +75,8 @@ to adjust image augmentation parameters and see the resulting images.
 
 [Evegene Khvedchenya](https://www.linkedin.com/in/cvtalks/)
 
+[Druzhinin Mikhail](https://www.linkedin.com/in/mikhail-druzhinin-548229100/)
+
 ## Installation
 
 ### PyPI
