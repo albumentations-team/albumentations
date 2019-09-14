@@ -75,6 +75,10 @@ def is_multispectral_image(image):
     return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
 
 
+def get_num_channels(image):
+    return image.shape[2] if len(image.shape) == 3 else 1
+
+
 def non_rgb_warning(image):
     if not is_rgb_image(image):
         message = 'This transformation expects 3-channel images'
@@ -135,26 +139,52 @@ def cutout(img, holes, fill_value=0):
     return img
 
 
+def _maybe_process_in_chunks(process_fn, **kwargs):
+    """
+    Wrap OpenCV function to enable processing images with more than 4 channels.
+
+    Limitations: This wrapper requires image to be the first argument and rest must be sent via named arguments.
+    :param process_fn: Transform function (e.g cv2.resize)
+    :param kwargs: Additional parameters
+    :return: Transformed image
+    """
+    def __process_fn(img):
+        num_channels = get_num_channels(img)
+        if num_channels > 4:
+            chunks = []
+            for index in range(0, num_channels, 4):
+                chunk = img[:, :, index:index + 4]
+                chunk = process_fn(chunk, **kwargs)
+                chunks.append(chunk)
+            img = np.concatenate(chunks, axis=2)
+        else:
+            img = process_fn(img, **kwargs)
+        return img
+
+    return __process_fn
+
+
 @preserve_channel_dim
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
-    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
-    return img
+
+    warp_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                       borderMode=border_mode, borderValue=value)
+    return warp_fn(img)
+
+
+@preserve_channel_dim
+def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
+    return resize_fn(img)
 
 
 @preserve_channel_dim
 def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
-    img = cv2.resize(img, (new_width, new_height), interpolation=interpolation)
-    return img
-
-
-@preserve_channel_dim
-def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
-    img = cv2.resize(img, (width, height), interpolation=interpolation)
-    return img
+    return resize(img, new_height, new_width, interpolation)
 
 
 @preserve_channel_dim
@@ -165,8 +195,10 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
-    img = cv2.warpAffine(img, matrix, (width, height), flags=interpolation, borderMode=border_mode, borderValue=value)
-    return img
+
+    warp_affine_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                              borderMode=border_mode, borderValue=value)
+    return warp_affine_fn(img)
 
 
 def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
@@ -364,6 +396,51 @@ def solarize(img, threshold=128):
     result_img = img.copy()
     cond = img >= threshold
     result_img[cond] = max_val - result_img[cond]
+    return result_img
+
+
+@preserve_shape
+def posterize(img, bits):
+    """Reduce the number of bits for each color channel.
+
+    Args:
+        img: image to posterize.
+        bits: number of high bits. Must be in range [0, 8]
+    """
+    bits = np.uint8(bits)
+
+    assert img.dtype == np.uint8, 'Image must have uint8 channel type'
+    assert np.all((0 <= bits) & (bits <= 8)), "bits must be in range [0, 8]"
+
+    if not bits.shape or len(bits) == 1:
+        if bits == 0:
+            return np.zeros_like(img)
+        elif bits == 8:
+            return img.copy()
+
+        lut = np.arange(0, 256, dtype=np.uint8)
+        mask = ~np.uint8(2 ** (8 - bits) - 1)
+        lut &= mask
+
+        return cv2.LUT(img, lut)
+
+    assert is_rgb_image(img), 'If bits is iterable image must be RGB'
+
+    result_img = np.empty_like(img)
+    for i, channel_bits in enumerate(bits):
+        if channel_bits == 0:
+            result_img[..., i] = np.zeros_like(img[..., i])
+            continue
+        elif channel_bits == 8:
+            result_img[..., i] = img[..., i].copy()
+            continue
+
+        lut = np.arange(0, 256, dtype=np.uint8)
+        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+        lut &= mask
+
+        result_img[..., i] = cv2.LUT(img[..., i], lut)
+
     return result_img
 
 
@@ -573,13 +650,15 @@ def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, borde
 
 @preserve_shape
 def blur(img, ksize):
-    return cv2.blur(img, (ksize, ksize))
+    blur_fn = _maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
+    return blur_fn(img)
 
 
 @preserve_shape
 def gaussian_blur(img, ksize):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    return cv2.GaussianBlur(img, (ksize, ksize), sigmaX=0)
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=0)
+    return blur_fn(img)
 
 
 def _func_max_size(img, max_size, interpolation, func):
@@ -588,8 +667,8 @@ def _func_max_size(img, max_size, interpolation, func):
     scale = max_size / float(func(width, height))
 
     if scale != 1.0:
-        out_size = tuple(py3round(dim * scale) for dim in (width, height))
-        img = cv2.resize(img, out_size, interpolation=interpolation)
+        new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
+        img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
     return img
 
 
@@ -608,30 +687,40 @@ def median_blur(img, ksize):
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(
             'Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5'.format(ksize))
-    return cv2.medianBlur(img, ksize)
+
+    blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
+    return blur_fn(img)
 
 
 @preserve_shape
 def motion_blur(img, kernel):
-    return cv2.filter2D(img, -1, kernel / np.sum(kernel))
+    blur_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
+    return blur_fn(img)
 
 
 @preserve_shape
-def jpeg_compression(img, quality):
+def image_compression(img, quality, image_type):
+    if image_type == '.jpeg' or image_type == '.jpg':
+        quality_flag = cv2.IMWRITE_JPEG_QUALITY
+    elif image_type == '.webp':
+        quality_flag = cv2.IMWRITE_WEBP_QUALITY
+    else:
+        NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
+
     input_dtype = img.dtype
     needs_float = False
 
     if input_dtype == np.float32:
-        warn('Jpeg compression augmentation '
+        warn('Image compression augmentation '
              'is most effective with uint8 inputs, '
              '{} is used as input.'.format(input_dtype),
              UserWarning)
         img = from_float(img, dtype=np.dtype('uint8'))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError('Unexpected dtype {} for Jpeg augmentation'.format(input_dtype))
+        raise ValueError('Unexpected dtype {} for image augmentation'.format(input_dtype))
 
-    _, encoded_img = cv2.imencode('.jpg', img, (cv2.IMWRITE_JPEG_QUALITY, quality))
+    _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
 
     if needs_float:
@@ -951,12 +1040,14 @@ def grid_distortion(img, num_steps=10, xsteps=[], ysteps=[], interpolation=cv2.I
     map_x, map_y = np.meshgrid(xx, yy)
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
-    img = cv2.remap(img, map_x, map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value)
-    return img
+
+    remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
+                                        borderMode=border_mode, borderValue=value)
+    return remap_fn(img)
 
 
 @preserve_shape
-def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
+def elastic_transform(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
                       border_mode=cv2.BORDER_REFLECT_101, value=None, random_state=None, approximate=False):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
@@ -969,7 +1060,7 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     if random_state is None:
         random_state = np.random.RandomState(1234)
 
-    height, width = image.shape[:2]
+    height, width = img.shape[:2]
 
     # Random affine
     center_square = np.float32((height, width)) // 2
@@ -983,8 +1074,10 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation, borderMode=border_mode,
-                           borderValue=value)
+    warp_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                       borderMode=border_mode,
+                                       borderValue=value)
+    img = warp_fn(img)
 
     if approximate:
         # Approximate computation smooth displacement map with a large enough kernel.
@@ -1002,14 +1095,16 @@ def elastic_transform(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
 
-    mapx = np.float32(x + dx)
-    mapy = np.float32(y + dy)
+    map_x = np.float32(x + dx)
+    map_y = np.float32(y + dy)
 
-    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
+    remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
+                                        borderMode=border_mode, borderValue=value)
+    return remap_fn(img)
 
 
 @preserve_shape
-def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
+def elastic_transform_approx(img, alpha, sigma, alpha_affine, interpolation=cv2.INTER_LINEAR,
                              border_mode=cv2.BORDER_REFLECT_101, value=None, random_state=None):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
@@ -1022,7 +1117,7 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
     if random_state is None:
         random_state = np.random.RandomState(1234)
 
-    height, width = image.shape[:2]
+    height, width = img.shape[:2]
 
     # Random affine
     center_square = np.float32((height, width)) // 2
@@ -1036,8 +1131,10 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
     pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    image = cv2.warpAffine(image, matrix, (width, height), flags=interpolation,
-                           borderMode=border_mode, value=value)
+    warp_fn = _maybe_process_in_chunks(cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation,
+                                       borderMode=border_mode,
+                                       borderValue=value)
+    img = warp_fn(img)
 
     dx = (random_state.rand(height, width).astype(np.float32) * 2 - 1)
     cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
@@ -1049,10 +1146,12 @@ def elastic_transform_approx(image, alpha, sigma, alpha_affine, interpolation=cv
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
 
-    mapx = np.float32(x + dx)
-    mapy = np.float32(y + dy)
+    map_x = np.float32(x + dx)
+    map_y = np.float32(y + dy)
 
-    return cv2.remap(image, mapx, mapy, interpolation, borderMode=border_mode, borderValue=value)
+    remap_fn = _maybe_process_in_chunks(cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation,
+                                        borderMode=border_mode, borderValue=value)
+    return remap_fn(img)
 
 
 def invert(img):
@@ -1077,9 +1176,9 @@ def channel_dropout(img, channels_to_drop, fill_value=0):
 
 
 @preserve_shape
-def gamma_transform(img, gamma):
+def gamma_transform(img, gamma, eps=1e-7):
     if img.dtype == np.uint8:
-        invGamma = 1.0 / gamma
+        invGamma = 1.0 / (gamma + eps)
         table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** invGamma) * 255
         img = cv2.LUT(img, table.astype(np.uint8))
     else:
@@ -1094,18 +1193,24 @@ def gauss_noise(image, gauss):
     return image + gauss
 
 
-def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0):
+@clipped
+def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0, beta_by_max=False):
+    dtype = img.dtype
     img = img.astype('float32')
 
     if alpha != 1:
         img *= alpha
     if beta != 0:
-        img += beta * np.mean(img)
+        if beta_by_max:
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
+            img += beta * max_value
+        else:
+            img += beta * np.mean(img)
     return img
 
 
 @preserve_shape
-def _brightness_contrast_adjust_uint(img, alpha=1, beta=0):
+def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
     dtype = np.dtype('uint8')
 
     max_value = MAX_VALUES_BY_DTYPE[dtype]
@@ -1115,19 +1220,21 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0):
     if alpha != 1:
         lut *= alpha
     if beta != 0:
-        lut += beta * np.mean(img)
+        if beta_by_max:
+            lut += beta * max_value
+        else:
+            lut += beta * np.mean(img)
 
     lut = np.clip(lut, 0, max_value).astype(dtype)
     img = cv2.LUT(img, lut)
     return img
 
 
-@clipped
-def brightness_contrast_adjust(img, alpha=1, beta=0):
+def brightness_contrast_adjust(img, alpha=1, beta=0, beta_by_max=False):
     if img.dtype == np.uint8:
-        return _brightness_contrast_adjust_uint(img, alpha, beta)
+        return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
     else:
-        return _brightness_contrast_adjust_non_uint(img, alpha, beta)
+        return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
 
 
 @clipped

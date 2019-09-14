@@ -7,18 +7,19 @@ import pytest
 from albumentations import (
     RandomCrop, PadIfNeeded, VerticalFlip, HorizontalFlip, Flip, Transpose,
     RandomRotate90, Rotate, ShiftScaleRotate, CenterCrop, OpticalDistortion,
-    GridDistortion, ElasticTransform, RandomGridShuffle, ToGray, RandomGamma, JpegCompression,
+    GridDistortion, ElasticTransform, RandomGridShuffle, ToGray, RandomGamma, ImageCompression,
     HueSaturationValue, RGBShift, Blur, MotionBlur, MedianBlur, GaussianBlur,
     GaussNoise, CLAHE, ChannelShuffle, InvertImg, IAAEmboss, IAASuperpixels,
     IAASharpen, IAAAdditiveGaussianNoise, IAAPiecewiseAffine, IAAPerspective,
     Cutout, CoarseDropout, Normalize, ToFloat, FromFloat,
     RandomBrightnessContrast, RandomSnow, RandomRain, RandomFog,
     RandomSunFlare, RandomCropNearBBox, RandomShadow, RandomSizedCrop, RandomResizedCrop,
-    ChannelDropout, ISONoise, Solarize, Equalize)
+    ChannelDropout, ISONoise, Solarize, Posterize, Equalize, CropNonEmptyMaskIfExists,
+    LongestMaxSize)
 
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
-    [JpegCompression, {}],
+    [ImageCompression, {}],
     [HueSaturationValue, {}],
     [RGBShift, {}],
     [RandomBrightnessContrast, {}],
@@ -43,6 +44,7 @@ from albumentations import (
     [ChannelDropout, {}],
     [ISONoise, {}],
     [Solarize, {}],
+    [Posterize, {}],
     [Equalize, {}],
 ])
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -65,7 +67,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     [ChannelShuffle, {}],
     [InvertImg, {}],
     [RandomGamma, {}],
-    [JpegCompression, {}],
+    [ImageCompression, {}],
     [ToGray, {}],
     [Cutout, {}],
     [CoarseDropout, {}],
@@ -100,6 +102,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [CropNonEmptyMaskIfExists, {'height': 10, 'width': 10}],
     [RandomResizedCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [ISONoise, {}],
@@ -126,6 +129,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [CropNonEmptyMaskIfExists, {'height': 10, 'width': 10}],
     [RandomResizedCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [RandomGridShuffle, {}]
@@ -156,7 +160,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
 
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [Cutout, {}],
-    [JpegCompression, {}],
+    [ImageCompression, {}],
     [HueSaturationValue, {}],
     [RGBShift, {}],
     [RandomBrightnessContrast, {}],
@@ -186,6 +190,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [ElasticTransform, {}],
     [CenterCrop, {'height': 10, 'width': 10}],
     [RandomCrop, {'height': 10, 'width': 10}],
+    [CropNonEmptyMaskIfExists, {'height': 10, 'width': 10}],
     [RandomResizedCrop, {'height': 10, 'width': 10}],
     [RandomSizedCrop, {'min_max_height': (4, 8), 'height': 10, 'width': 10}],
     [Normalize, {}],
@@ -201,6 +206,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     [ISONoise, {}],
     [RandomGridShuffle, {}],
     [Solarize, {}],
+    [Posterize, {}],
     [Equalize, {}],
 ])
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -266,7 +272,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [Cutout, {}],
     [CoarseDropout, {}],
-    [JpegCompression, {}],
+    [ImageCompression, {}],
     [RandomBrightnessContrast, {}],
     [Blur, {}],
     [MotionBlur, {}],
@@ -289,6 +295,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     [FromFloat, {}],
     [RandomGridShuffle, {}],
     [Solarize, {}],
+    [Posterize, {}],
     [Equalize, {}],
 ])
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -321,7 +328,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
 @pytest.mark.parametrize(['augmentation_cls', 'params'], [
     [Cutout, {}],
     [CoarseDropout, {}],
-    [JpegCompression, {}],
+    [ImageCompression, {}],
     [HueSaturationValue, {}],
     [RGBShift, {}],
     [RandomBrightnessContrast, {}],
@@ -357,6 +364,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     [ISONoise, {}],
     [RandomGridShuffle, {}],
     [Solarize, {}],
+    [Posterize, {}],
     [Equalize, {}],
 ])
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -397,3 +405,25 @@ def test_mask_fill_value(augmentation_cls, params):
     output = aug(**input)
     assert (output['image'] == 100).all()
     assert (output['mask'] == 1).all()
+
+
+@pytest.mark.parametrize(['augmentation_cls', 'params'], [
+    [Blur, {}],
+    [MotionBlur, {}],
+    [MedianBlur, {}],
+    [GaussianBlur, {}],
+    [GaussNoise, {}],
+    [RandomSizedCrop, {'min_max_height': (384, 512), 'height': 512, 'width': 512}],
+    [ShiftScaleRotate, {}],
+    [PadIfNeeded, {'min_height': 514, 'min_width': 516}],
+    [LongestMaxSize, {'max_size': 256}],
+    [GridDistortion, {}],
+    [ElasticTransform, {}],
+    [RandomBrightnessContrast, {}]
+])
+def test_multichannel_image_augmentations(augmentation_cls, params):
+    image = np.zeros((512, 512, 6), dtype=np.uint8)
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image=image)
+    assert data['image'].dtype == np.uint8
+    assert data['image'].shape[2] == 6

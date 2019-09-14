@@ -963,6 +963,34 @@ def test_solarize_equal_to_pillow():
         assert np.all(result_albu == result_pil)
 
 
+def test_posterize():
+    img_cv = np.random.randint(0, 256, [256, 256, 3], dtype=np.uint8)
+    img_pil = Image.fromarray(img_cv)
+
+    assert np.all(F.posterize(img_cv, 4)) == np.all(np.array(ImageOps.posterize(img_pil, 4)))
+
+    bits = [3, 4, 5]
+    img_pil = []
+    for i, b in enumerate(bits):
+        img = Image.fromarray(img_cv[..., i])
+        img_pil.append(np.array(ImageOps.posterize(img, b)))
+    img_pil = cv2.merge(img_pil).astype(np.uint8)
+
+    assert np.all(F.posterize(img_cv, bits) == img_pil)
+
+
+def test_posterize_checks():
+    img = np.random.random([256, 256, 3])
+    with pytest.raises(AssertionError) as exc_info:
+        F.posterize(img, 4)
+    assert str(exc_info.value) == 'Image must have uint8 channel type'
+
+    img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
+    with pytest.raises(AssertionError) as exc_info:
+        F.posterize(img, [1, 2, 3])
+    assert str(exc_info.value) == 'If bits is iterable image must be RGB'
+
+
 def test_equalize_checks():
     img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
 

@@ -382,6 +382,15 @@ class Grayscale(BenchmarkTest):
         return torchvision.to_grayscale(img, num_output_channels=3)
 
 
+class Posterize(BenchmarkTest):
+
+    def albumentations(self, img):
+        return albumentations.posterize(img, 4)
+
+    def pillow(self, img):
+        return ImageOps.posterize(img, 4)
+
+
 def main():
     args = parse_args()
     if args.print_package_versions:
@@ -394,7 +403,7 @@ def main():
         'keras',
         'augmentor',
         'solt',
-        'pillow',
+        'pillow'
     ]
     data_dir = args.data_dir
     paths = list(sorted(os.listdir(data_dir)))
@@ -417,12 +426,12 @@ def main():
         RandomCrop64(),
         PadToSize512(),
         Resize512(),
+        Posterize(),
         Solarize(),
         Equalize(),
     ]
     for library in libraries:
         imgs = imgs_pillow if library in ('torchvision', 'augmentor', 'pillow') else imgs_cv2
-
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description('Current benchmark: {} | {}'.format(library, benchmark))
