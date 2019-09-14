@@ -1,4 +1,6 @@
 from __future__ import division
+from functools import partial
+from copy import deepcopy
 
 import random
 
@@ -245,6 +247,26 @@ class PerChannel(BaseCompose):
             data['image'] = image
 
         return data
+
+
+class DebugCompose(Compose):
+    def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0,
+                 save_key='debug'):
+        super(DebugCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
+
+        self.save_key = save_key
+
+        for transform in self.transforms:
+            transform.set_deterministic(True, save_key=self.save_key)
+
+    def replay(self, *args, **kwargs):
+        transforms_backup = deepcopy(self.transforms)
+        for idx, t in enumerate(self.transforms):
+            t.__call__ = partial(t.apply_with_params, kwargs[self.save_key][idx].get('params'))
+
+        result = super(DebugCompose, self).__call__(*args, **kwargs)
+        self.transforms = transforms_backup
+        return result
 
 
 class BboxParams(Params):

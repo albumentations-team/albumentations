@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import random
+from collections import OrderedDict
 
 import cv2
 
@@ -49,7 +50,13 @@ class BasicTransform(object):
         self.always_apply = always_apply
         self._additional_targets = {}
 
+        self.deterministic = False
+        self.save_key = "debug"
+
     def __call__(self, force_apply=False, **kwargs):
+        if self.deterministic:
+            transform_description = self._to_dict()
+            kwargs.setdefault(self.save_key, [])
         if (random.random() < self.p) or self.always_apply or force_apply:
             params = self.get_params()
             params = self.update_params(params, **kwargs)
@@ -59,16 +66,35 @@ class BasicTransform(object):
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
-            res = {}
-            for key, arg in kwargs.items():
-                if arg is not None:
-                    target_function = self._get_target_function(key)
-                    target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
-                    res[key] = target_function(arg, **dict(params, **target_dependencies))
-                else:
-                    res[key] = None
-            return res
+            if self.deterministic:
+                transform_description['params'] = params
+                transform_description['applied'] = True
+                kwargs[self.save_key].append(transform_description)
+            return self.apply_with_params(params, **kwargs)
+
+        if self.deterministic:
+            transform_description['applied'] = False
+            kwargs[self.save_key].append(transform_description)
         return kwargs
+
+    def apply_with_params(self, params, force_apply=False, **kwargs):
+        if params is None:
+            return kwargs
+        res = {}
+        for key, arg in kwargs.items():
+            if arg is not None:
+                target_function = self._get_target_function(key)
+                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
+                res[key] = target_function(arg, **dict(params, **target_dependencies))
+            else:
+                res[key] = None
+        return res
+
+    def set_deterministic(self, flag, save_key='debug'):
+        assert save_key != 'params', 'params save_key is reserved'
+        self.deterministic = flag
+        self.save_key = save_key
+        return self
 
     def __repr__(self):
         state = self.get_base_init_args()
