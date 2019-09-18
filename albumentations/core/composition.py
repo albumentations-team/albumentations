@@ -144,6 +144,7 @@ class Compose(BaseCompose):
         self.add_targets(additional_targets)
 
     def __call__(self, force_apply=False, **data):
+        assert isinstance(force_apply, (bool, int)), 'force_apply must have bool or int type'
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
             p.ensure_data_valid(data)
