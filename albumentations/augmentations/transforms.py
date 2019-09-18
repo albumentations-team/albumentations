@@ -38,7 +38,9 @@ class PadIfNeeded(DualTransform):
         min_width (int): minimal result image width.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of int, lisft of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of int,
+                    lisft of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -395,7 +397,9 @@ class Rotate(DualTransform):
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
         value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -494,7 +498,9 @@ class ShiftScaleRotate(DualTransform):
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
         value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        mask_value (int, float,
+                    list of int,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -981,7 +987,9 @@ class OpticalDistortion(DualTransform):
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
         value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
 
     Targets:
         image, mask
@@ -1028,7 +1036,9 @@ class GridDistortion(DualTransform):
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
         value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
 
     Targets:
         image, mask
@@ -1089,7 +1099,9 @@ class ElasticTransform(DualTransform):
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
         value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         approximate (boolean): Whether to smooth displacement map with fixed kernel size.
                                Enabling this option gives ~2X speedup on large images.
 
@@ -2137,6 +2149,7 @@ class RandomBrightness(RandomBrightnessContrast):
     Image types:
         uint8, float32
     """
+
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
         super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0,
                                                always_apply=always_apply, p=p)
@@ -2162,6 +2175,7 @@ class RandomContrast(RandomBrightnessContrast):
     Image types:
         uint8, float32
     """
+
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
         super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
         warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
