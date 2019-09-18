@@ -56,7 +56,7 @@ class KeypointsProcessor(DataProcessor):
 
 
 def check_keypoint(kp, rows, cols):
-    """Check if keypoint coordinates are in range [0, 1)"""
+    """Check if keypoint coordinates are less than image shapes"""
     for name, value, size in zip(['x', 'y'], kp[:2], [cols, rows]):
         if not 0 <= value < size:
             raise ValueError(
@@ -71,7 +71,7 @@ def check_keypoint(kp, rows, cols):
 
 
 def check_keypoints(keypoints, rows, cols):
-    """Check if keypoints boundaries are in range [0, 1)"""
+    """Check if keypoints boundaries are less than image shapes"""
     for kp in keypoints:
         check_keypoint(kp, rows, cols)
 

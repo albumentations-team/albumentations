@@ -217,7 +217,7 @@ def convert_bboxes_from_albumentations(bboxes, target_format, rows, cols, check_
 
     Args:
         bboxes (list): List of bounding box with coordinates in the format used by albumentations
-        target_format (str): required format of the output bounding box. Should be 'coco', 'pascal_voc' ror 'yolo'.
+        target_format (str): required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
         rows (int): image height
         cols (int): image width
         check_validity (bool): check if all boxes are valid boxes
