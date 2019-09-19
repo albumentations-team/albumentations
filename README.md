@@ -218,23 +218,25 @@ Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0
 
 
 ## Contributing
-1. Clone the repository:
-   ```
-   git clone git@github.com:albu/albumentations.git
-   cd albumentations
-   ```
-2. Install the library in development mode:
-   ```
-   pip install -e .[tests]
-   ```
-3. Run tests:
-   ```
-   pytest
-   ```
-4. Run flake8 to perform PEP8 and PEP257 style checks and to check code for lint errors.
-   ```
-   flake8
-   ```
+0. Install pre-commit hook
+```
+pip install pre-commit
+pre-commit install
+```
+
+1. Fork the repository:
+2. Clone it.
+3. Modify it.
+4. Install the library in development mode:
+```
+pip install -e .[tests]
+```
+5. Run tests:
+```
+pytest
+```
+6. Push code to your foked repo.
+7. Create pull request.
 
 ### Adding new transforms
 If you are contributing a new transformation, make sure to update ["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections of this file (`README.md`). To do this, simply run (with python3 only):
@@ -285,6 +287,6 @@ If you find this library useful for your research, please consider citing:
      title = "{Albumentations: fast and flexible image augmentations}",
    journal = {ArXiv e-prints},
     eprint = {1809.06839},
-      year = 2018      
+      year = 2018
 }
 ```
