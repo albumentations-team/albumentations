@@ -218,25 +218,25 @@ Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0
 
 
 ## Contributing
-0. Install pre-commit hook
+
+1. Fork the repository:
+2. Clone it.
+3. Install pre-commit hook:
 ```
 pip install pre-commit
 pre-commit install
 ```
-
-1. Fork the repository:
-2. Clone it.
-3. Modify it.
-4. Install the library in development mode:
+4. Modify it.
+5. Install the library in development mode:
 ```
 pip install -e .[tests]
 ```
-5. Run tests:
+6. Run tests:
 ```
 pytest
 ```
-6. Push code to your foked repo.
-7. Create pull request.
+7. Push code to your foked repo.
+8. Create pull request.
 
 ### Adding new transforms
 If you are contributing a new transformation, make sure to update ["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections of this file (`README.md`). To do this, simply run (with python3 only):
