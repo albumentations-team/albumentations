@@ -41,6 +41,11 @@ def mask():
 
 @pytest.fixture
 def bboxes():
+    return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
+
+
+@pytest.fixture
+def albumentations_bboxes():
     return [[0.15, 0.12, 0.75, 0.30, 1], [0.55, 0.25, 0.90, 0.90, 2]]
 
 
