@@ -235,7 +235,7 @@ pip install -e .[tests]
 ```
 pytest
 ```
-7. Push code to your foked repo.
+7. Push code to your forked repo.
 8. Create pull request.
 
 ### Adding new transforms
