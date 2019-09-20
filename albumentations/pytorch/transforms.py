@@ -9,11 +9,11 @@ from torchvision.transforms import functional as F
 from ..core.transforms_interface import BasicTransform
 
 
-__all__ = ['ToTensor', 'ToTensorV2']
+__all__ = ["ToTensor", "ToTensorV2"]
 
 
 def img_to_tensor(im, normalize=None):
-    tensor = torch.from_numpy(np.moveaxis(im / (255. if im.dtype == np.uint8 else 1), -1, 0).astype(np.float32))
+    tensor = torch.from_numpy(np.moveaxis(im / (255.0 if im.dtype == np.uint8 else 1), -1, 0).astype(np.float32))
     if normalize is not None:
         return F.normalize(tensor, **normalize)
     return tensor
@@ -33,9 +33,9 @@ def mask_to_tensor(mask, num_classes, sigmoid):
                 long_mask[mask == 0] = 0
             mask = long_mask
         else:
-            mask = np.moveaxis(mask / (255. if mask.dtype == np.uint8 else 1), -1, 0).astype(np.float32)
+            mask = np.moveaxis(mask / (255.0 if mask.dtype == np.uint8 else 1), -1, 0).astype(np.float32)
     else:
-        mask = np.expand_dims(mask / (255. if mask.dtype == np.uint8 else 1), 0).astype(np.float32)
+        mask = np.expand_dims(mask / (255.0 if mask.dtype == np.uint8 else 1), 0).astype(np.float32)
     return torch.from_numpy(mask)
 
 
@@ -51,22 +51,23 @@ class ToTensor(BasicTransform):
     """
 
     def __init__(self, num_classes=1, sigmoid=True, normalize=None):
-        super(ToTensor, self).__init__(always_apply=True, p=1.)
+        super(ToTensor, self).__init__(always_apply=True, p=1.0)
         self.num_classes = num_classes
         self.sigmoid = sigmoid
         self.normalize = normalize
-        warnings.warn("ToTensor is deprecated and will be replaced by ToTensorV2 "
-                      "in albumentations 0.5.0", DeprecationWarning)
+        warnings.warn(
+            "ToTensor is deprecated and will be replaced by ToTensorV2 " "in albumentations 0.5.0", DeprecationWarning
+        )
 
     def __call__(self, force_apply=True, **kwargs):
-        kwargs.update({'image': img_to_tensor(kwargs['image'], self.normalize)})
-        if 'mask' in kwargs.keys():
-            kwargs.update({'mask': mask_to_tensor(kwargs['mask'], self.num_classes, sigmoid=self.sigmoid)})
+        kwargs.update({"image": img_to_tensor(kwargs["image"], self.normalize)})
+        if "mask" in kwargs.keys():
+            kwargs.update({"mask": mask_to_tensor(kwargs["mask"], self.num_classes, sigmoid=self.sigmoid)})
 
         for k, v in kwargs.items():
-            if self._additional_targets.get(k) == 'image':
+            if self._additional_targets.get(k) == "image":
                 kwargs.update({k: img_to_tensor(kwargs[k], self.normalize)})
-            if self._additional_targets.get(k) == 'mask':
+            if self._additional_targets.get(k) == "mask":
                 kwargs.update({k: mask_to_tensor(kwargs[k], self.num_classes, sigmoid=self.sigmoid)})
         return kwargs
 
@@ -75,7 +76,7 @@ class ToTensor(BasicTransform):
         raise NotImplementedError
 
     def get_transform_init_args_names(self):
-        return 'num_classes', 'sigmoid', 'normalize'
+        return "num_classes", "sigmoid", "normalize"
 
 
 class ToTensorV2(BasicTransform):
@@ -87,10 +88,7 @@ class ToTensorV2(BasicTransform):
 
     @property
     def targets(self):
-        return {
-            'image': self.apply,
-            'mask': self.apply_to_mask
-        }
+        return {"image": self.apply, "mask": self.apply_to_mask}
 
     def apply(self, img, **params):
         return torch.from_numpy(img.transpose(2, 0, 1))

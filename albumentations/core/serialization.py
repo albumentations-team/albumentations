@@ -5,6 +5,7 @@ import warnings
 
 try:
     import yaml
+
     yaml_available = True
 except ImportError:
     yaml_available = False
@@ -13,7 +14,7 @@ except ImportError:
 from albumentations import __version__
 
 
-__all__ = ['to_dict', 'from_dict', 'save', 'load']
+__all__ = ["to_dict", "from_dict", "save", "load"]
 
 
 SERIALIZABLE_REGISTRY = {}
@@ -31,7 +32,7 @@ class SerializableMeta(type):
         return cls
 
 
-def to_dict(transform, on_not_implemented_error='raise'):
+def to_dict(transform, on_not_implemented_error="raise"):
     """
     Take a transform pipeline and convert it to a serializable representation that uses only standard
     python data types: dictionaries, lists, strings, integers, and floats.
@@ -42,7 +43,7 @@ def to_dict(transform, on_not_implemented_error='raise'):
             If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
             but no transform parameters will be serialized.
     """
-    if on_not_implemented_error not in {'raise', 'warn'}:
+    if on_not_implemented_error not in {"raise", "warn"}:
         raise ValueError(
             "Unknown on_not_implemented_error value: {}. Supported values are: 'raise' and 'warn'".format(
                 on_not_implemented_error
@@ -51,7 +52,7 @@ def to_dict(transform, on_not_implemented_error='raise'):
     try:
         transform_dict = transform._to_dict()
     except NotImplementedError as e:
-        if on_not_implemented_error == 'raise':
+        if on_not_implemented_error == "raise":
             raise e
         else:
             transform_dict = {}
@@ -59,14 +60,10 @@ def to_dict(transform, on_not_implemented_error='raise'):
                 "Got NotImplementedError while trying to serialize {obj}. Object arguments are not preserved. "
                 "Implement either '{cls_name}.get_transform_init_args_names' or '{cls_name}.get_transform_init_args' "
                 "method to make the transform serializable".format(
-                    obj=transform,
-                    cls_name=transform.__class__.__name__,
+                    obj=transform, cls_name=transform.__class__.__name__
                 )
             )
-    return {
-        '__version__': __version__,
-        'transform': transform_dict,
-    }
+    return {"__version__": __version__, "transform": transform_dict}
 
 
 def from_dict(transform_dict, lambda_transforms=None):
@@ -78,36 +75,34 @@ def from_dict(transform_dict, lambda_transforms=None):
             in that dictionary should be named same as `name` arguments in respective lambda transforms from
             a serialized pipeline.
     """
-    transform = transform_dict['transform']
-    if transform.get('__type__') == 'Lambda':
-        name = transform['__name__']
+    transform = transform_dict["transform"]
+    if transform.get("__type__") == "Lambda":
+        name = transform["__name__"]
         if lambda_transforms is None:
             raise ValueError(
-                'To deserialize a Lambda transform with name {name} you need to pass a dict with this transform '
-                'as the `lambda_transforms` argument'.format(name=name)
+                "To deserialize a Lambda transform with name {name} you need to pass a dict with this transform "
+                "as the `lambda_transforms` argument".format(name=name)
             )
         transform = lambda_transforms.get(name)
         if transform is None:
-            raise ValueError('Lambda transform with {name} was not found in `lambda_transforms`'.format(name=name))
+            raise ValueError("Lambda transform with {name} was not found in `lambda_transforms`".format(name=name))
         return transform
-    name = transform['__class_fullname__']
-    args = {k: v for k, v in transform.items() if k != '__class_fullname__'}
+    name = transform["__class_fullname__"]
+    args = {k: v for k, v in transform.items() if k != "__class_fullname__"}
     cls = SERIALIZABLE_REGISTRY[name]
-    if 'transforms' in args:
-        args['transforms'] = [
-            from_dict({'transform': t}, lambda_transforms=lambda_transforms) for t in args['transforms']
+    if "transforms" in args:
+        args["transforms"] = [
+            from_dict({"transform": t}, lambda_transforms=lambda_transforms) for t in args["transforms"]
         ]
     return cls(**args)
 
 
 def check_data_format(data_format):
-    if data_format not in {'json', 'yaml'}:
-        raise ValueError(
-            "Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(data_format)
-        )
+    if data_format not in {"json", "yaml"}:
+        raise ValueError("Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(data_format))
 
 
-def save(transform, filepath, data_format='json', on_not_implemented_error='raise'):
+def save(transform, filepath, data_format="json", on_not_implemented_error="raise"):
     """
     Take a transform pipeline, serialize it and save a serialized version to a file
     using either json or yaml format.
@@ -122,12 +117,12 @@ def save(transform, filepath, data_format='json', on_not_implemented_error='rais
     """
     check_data_format(data_format)
     transform_dict = to_dict(transform, on_not_implemented_error=on_not_implemented_error)
-    dump_fn = json.dump if data_format == 'json' else yaml.safe_dump
-    with open(filepath, 'w') as f:
+    dump_fn = json.dump if data_format == "json" else yaml.safe_dump
+    with open(filepath, "w") as f:
         dump_fn(transform_dict, f)
 
 
-def load(filepath, data_format='json', lambda_transforms=None):
+def load(filepath, data_format="json", lambda_transforms=None):
     """
     Load a serialized pipeline from a json or yaml file and construct a transform pipeline.
 
@@ -141,7 +136,7 @@ def load(filepath, data_format='json', lambda_transforms=None):
             a serialized pipeline.
     """
     check_data_format(data_format)
-    load_fn = json.load if data_format == 'json' else yaml.safe_load
+    load_fn = json.load if data_format == "json" else yaml.safe_load
     with open(filepath) as f:
         transform_dict = load_fn(f)
     return from_dict(transform_dict, lambda_transforms=lambda_transforms)

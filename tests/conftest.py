@@ -5,24 +5,22 @@ import numpy as np
 import pytest
 
 
-skip_appveyor = pytest.mark.skipif(
-    'APPVEYOR' in os.environ,
-    reason='Skipping test in AppVeyor',
-)
+skip_appveyor = pytest.mark.skipif("APPVEYOR" in os.environ, reason="Skipping test in AppVeyor")
 
 try:
     import torch
     import torchvision
+
     torch_available = True
 except ImportError:
     torch_available = False
 
 
 def pytest_ignore_collect(path):
-    if not torch_available and path.fnmatch('test_pytorch.py'):
+    if not torch_available and path.fnmatch("test_pytorch.py"):
         warnings.warn(
             UserWarning(
-                'Tests that require PyTorch and torchvision were skipped because those libraries are not installed.'
+                "Tests that require PyTorch and torchvision were skipped because those libraries are not installed."
             )
         )
         return True
@@ -56,4 +54,4 @@ def keypoints():
 
 @pytest.fixture
 def float_image():
-    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype('float32')
+    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
