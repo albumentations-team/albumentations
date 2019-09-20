@@ -54,6 +54,8 @@ class BasicTransform(object):
             params = self.get_params()
             params = self.update_params(params, **kwargs)
             if self.targets_as_params:
+                assert all(key in kwargs for key in self.targets_as_params), \
+                    '{} requires {}'.format(self.__class__.__name__, self.targets_as_params)
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)

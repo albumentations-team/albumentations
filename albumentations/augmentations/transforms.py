@@ -857,7 +857,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     def get_params_dependent_on_targets(self, params):
         img_h, img_w = params['image'].shape[:2]
-        if 'bboxes' not in params:  # less likely, this class is for use with bboxes.
+        if len(params['bboxes']) == 0:  # less likely, this class is for use with bboxes.
             erosive_h = int(img_h * (1.0 - self.erosion_rate))
             crop_height = img_h if erosive_h >= img_h else random.randint(erosive_h, img_h)
             return {'h_start': random.random(),
@@ -884,7 +884,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     @property
     def targets_as_params(self):
-        return ['image']
+        return ['image', 'bboxes']
 
     def get_transform_init_args_names(self):
         return ('height', 'width', 'erosion_rate', 'interpolation')

@@ -45,6 +45,11 @@ def bboxes():
 
 
 @pytest.fixture
+def albumentations_bboxes():
+    return [[0.15, 0.12, 0.75, 0.30, 1], [0.55, 0.25, 0.90, 0.90, 2]]
+
+
+@pytest.fixture
 def keypoints():
     return [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]]
 
