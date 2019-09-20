@@ -221,7 +221,7 @@ Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0
 
 1. Fork the repository:
 2. Clone it.
-3. Install pre-commit hook:
+3. Install pre-commit hook. Run from a repository folder:
 ```
 pip install pre-commit
 pre-commit install
