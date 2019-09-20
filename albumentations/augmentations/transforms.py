@@ -1663,7 +1663,7 @@ class RandomFog(ImageOnlyTransform):
 
         height, width = imshape = img.shape[:2]
 
-        hw = int(width // 3 * fog_coef)
+        hw = max(1, int(width // 3 * fog_coef))
 
         haze_list = []
         midx = width // 2 - 2 * hw
