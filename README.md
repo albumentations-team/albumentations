@@ -226,7 +226,7 @@ Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0
 pip install pre-commit
 pre-commit install
 ```
-4. Modify it.
+4. Make desired changes to the code.
 5. Install the library in development mode:
 ```
 pip install -e .[tests]
