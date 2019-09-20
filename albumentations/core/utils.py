@@ -9,8 +9,8 @@ def format_args(args_dict):
     for k, v in args_dict.items():
         if isinstance(v, string_types):
             v = "'{}'".format(v)
-        formatted_args.append('{}={}'.format(k, v))
-    return ', '.join(formatted_args)
+        formatted_args.append("{}={}".format(k, v))
+    return ", ".join(formatted_args)
 
 
 @add_metaclass(ABCMeta)
@@ -20,10 +20,7 @@ class Params:
         self.label_fields = label_fields
 
     def _to_dict(self):
-        return {
-            "format": self.format,
-            "label_fields": self.label_fields
-        }
+        return {"format": self.format, "label_fields": self.label_fields}
 
 
 @add_metaclass(ABCMeta)
@@ -49,11 +46,11 @@ class DataProcessor:
         pass
 
     def postprocess(self, data):
-        rows, cols = data['image'].shape[:2]
+        rows, cols = data["image"].shape[:2]
 
         for data_name in self.data_fields:
             data[data_name] = self.filter(data[data_name], rows, cols)
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction='from')
+            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
 
         data = self.remove_label_fields_from_data(data)
         return data
@@ -61,16 +58,16 @@ class DataProcessor:
     def preprocess(self, data):
         data = self.add_label_fields_to_data(data)
 
-        rows, cols = data['image'].shape[:2]
+        rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction='to')
+            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(self, data, rows, cols, direction='to'):
-        if self.params.format == 'albumentations':
+    def check_and_convert(self, data, rows, cols, direction="to"):
+        if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
         else:
-            if direction == 'to':
+            if direction == "to":
                 return self.convert_to_albumentations(data, rows, cols)
             else:
                 return self.convert_from_albumentations(data, rows, cols)
@@ -113,5 +110,5 @@ class DataProcessor:
                     field_values.append(bbox[self.data_length + idx])
                 data[field] = field_values
 
-            data[data_name] = [d[:self.data_length] for d in data[data_name]]
+            data[data_name] = [d[: self.data_length] for d in data[data_name]]
         return data
