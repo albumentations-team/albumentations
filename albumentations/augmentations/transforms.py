@@ -1,18 +1,30 @@
-from __future__ import absolute_import, division
+from __future__ import (
+    absolute_import,
+    division,
+)
 
-from types import LambdaType
 import math
 import random
 import warnings
 from enum import Enum
+from types import LambdaType
 
 import cv2
 import numpy as np
 
-from . import functional as F
-from .bbox_utils import union_of_bboxes, denormalize_bbox, normalize_bbox
-from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform, NoOp
+from ..core.transforms_interface import (
+    DualTransform,
+    ImageOnlyTransform,
+    NoOp,
+    to_tuple,
+)
 from ..core.utils import format_args
+from . import functional as F
+from .bbox_utils import (
+    denormalize_bbox,
+    normalize_bbox,
+    union_of_bboxes,
+)
 
 __all__ = [
     'Blur', 'VerticalFlip', 'HorizontalFlip', 'Flip', 'Normalize', 'Transpose',

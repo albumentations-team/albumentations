@@ -8,7 +8,10 @@ import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
-from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.augmentations.bbox_utils import (
+    denormalize_bbox,
+    normalize_bbox,
+)
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype('uint8'): 255,

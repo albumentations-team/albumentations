@@ -1,7 +1,8 @@
 from __future__ import division
-from albumentations.core.utils import DataProcessor
 
 import numpy as np
+
+from albumentations.core.utils import DataProcessor
 
 __all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormalize_bboxes', 'calculate_bbox_area',
            'filter_bboxes_by_visibility', 'convert_bbox_to_albumentations', 'convert_bbox_from_albumentations',

@@ -2,14 +2,28 @@ import math
 
 import numpy as np
 import pytest
-from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 
-from albumentations.augmentations.keypoints_utils import convert_keypoint_from_albumentations, \
-    convert_keypoints_from_albumentations, convert_keypoint_to_albumentations, convert_keypoints_to_albumentations
+import albumentations.augmentations.functional as F
+from albumentations import (
+    CenterCrop,
+    Flip,
+    HorizontalFlip,
+    IAAFliplr,
+    IAAFlipud,
+    VerticalFlip,
+)
+from albumentations.augmentations.keypoints_utils import (
+    convert_keypoint_from_albumentations,
+    convert_keypoint_to_albumentations,
+    convert_keypoints_from_albumentations,
+    convert_keypoints_to_albumentations,
+)
+from albumentations.augmentations.transforms import (
+    RandomResizedCrop,
+    RandomSizedCrop,
+)
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
-import albumentations.augmentations.functional as F
 
 
 @pytest.mark.parametrize(['kp', 'source_format', 'expected'], [

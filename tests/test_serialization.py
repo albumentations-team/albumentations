@@ -1,13 +1,12 @@
 import random
 
 import cv2
-import pytest
-import numpy as np
 import imgaug as ia
+import numpy as np
+import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
-
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 

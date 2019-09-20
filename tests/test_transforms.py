@@ -1,12 +1,13 @@
 from functools import partial
 from multiprocessing.pool import Pool
 
-import numpy as np
 import cv2
+import numpy as np
 import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+
 from .conftest import skip_appveyor
 
 

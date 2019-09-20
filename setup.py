@@ -2,9 +2,15 @@ import io
 import os
 import re
 import sys
-from setuptools import setup, find_packages
-from pkg_resources import DistributionNotFound, get_distribution
 
+from pkg_resources import (
+    DistributionNotFound,
+    get_distribution,
+)
+from setuptools import (
+    find_packages,
+    setup,
+)
 
 INSTALL_REQUIRES = [
     'numpy>=1.11.1',

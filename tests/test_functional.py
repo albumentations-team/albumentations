@@ -2,14 +2,17 @@ from __future__ import absolute_import
 
 import cv2
 import numpy as np
-from numpy.testing import assert_array_almost_equal_nulp
 import pytest
+from numpy.testing import assert_array_almost_equal_nulp
+from PIL import (
+    Image,
+    ImageOps,
+)
 
-from albumentations.augmentations.bbox_utils import filter_bboxes
 import albumentations.augmentations.functional as F
-from .utils import convert_2d_to_target_format
+from albumentations.augmentations.bbox_utils import filter_bboxes
 
-from PIL import Image, ImageOps
+from .utils import convert_2d_to_target_format
 
 
 @pytest.mark.parametrize('target', ['image', 'mask'])

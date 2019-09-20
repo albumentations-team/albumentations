@@ -1,9 +1,16 @@
 import numpy as np
 import pytest
 
-from albumentations.imgaug.transforms import IAAPiecewiseAffine, IAAPerspective, IAAFliplr, IAAFlipud
-from albumentations.augmentations.bbox_utils import convert_bboxes_from_albumentations, \
-    convert_bboxes_to_albumentations
+from albumentations.augmentations.bbox_utils import (
+    convert_bboxes_from_albumentations,
+    convert_bboxes_to_albumentations,
+)
+from albumentations.imgaug.transforms import (
+    IAAFliplr,
+    IAAFlipud,
+    IAAPerspective,
+    IAAPiecewiseAffine,
+)
 
 
 @pytest.mark.parametrize('augmentation_cls', [IAAPiecewiseAffine, IAAPerspective, IAAFliplr])

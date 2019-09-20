@@ -1,14 +1,25 @@
 import imgaug as ia
+
+from ..augmentations.bbox_utils import (
+    convert_bboxes_from_albumentations,
+    convert_bboxes_to_albumentations,
+)
+from ..augmentations.keypoints_utils import (
+    convert_keypoints_from_albumentations,
+    convert_keypoints_to_albumentations,
+)
+from ..core.transforms_interface import (
+    BasicTransform,
+    DualTransform,
+    ImageOnlyTransform,
+    to_tuple,
+)
+
 try:
     from imgaug import augmenters as iaa
 except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
-from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, \
-    convert_bboxes_to_albumentations
-from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, \
-    convert_keypoints_to_albumentations
-from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
 
 __all__ = ['BasicIAATransform', 'DualIAATransform', 'ImageOnlyIAATransform', 'IAAEmboss', 'IAASuperpixels',
            'IAASharpen', 'IAAAdditiveGaussianNoise', 'IAACropAndPad', 'IAAFliplr', 'IAAFlipud', 'IAAAffine',

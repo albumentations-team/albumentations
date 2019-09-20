@@ -1,10 +1,12 @@
-import pytest
-
 import numpy as np
+import pytest
 import torch
 
 import albumentations as A
-from albumentations.pytorch.transforms import ToTensor, ToTensorV2
+from albumentations.pytorch.transforms import (
+    ToTensor,
+    ToTensorV2,
+)
 
 
 def test_torch_to_tensor_v2_augmentations(image, mask):

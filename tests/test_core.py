@@ -4,11 +4,31 @@ import cv2
 import numpy as np
 import pytest
 
-from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
 from albumentations.augmentations.bbox_utils import check_bboxes
-from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel
-from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
-from .compat import mock, MagicMock, Mock, call
+from albumentations.augmentations.transforms import (
+    Blur,
+    HorizontalFlip,
+    MedianBlur,
+    Rotate,
+)
+from albumentations.core.composition import (
+    Compose,
+    OneOf,
+    OneOrOther,
+    PerChannel,
+)
+from albumentations.core.transforms_interface import (
+    DualTransform,
+    ImageOnlyTransform,
+    to_tuple,
+)
+
+from .compat import (
+    MagicMock,
+    Mock,
+    call,
+    mock,
+)
 
 
 def test_one_or_other():

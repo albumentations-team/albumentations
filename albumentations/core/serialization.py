@@ -10,9 +10,6 @@ except ImportError:
     yaml_available = False
 
 
-from albumentations import __version__
-
-
 __all__ = ['to_dict', 'from_dict', 'save', 'load']
 
 
@@ -42,6 +39,8 @@ def to_dict(transform, on_not_implemented_error='raise'):
             If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
             but no transform parameters will be serialized.
     """
+    from albumentations import __version__  # Get rid of a cyclic import from __init__
+
     if on_not_implemented_error not in {'raise', 'warn'}:
         raise ValueError(
             "Unknown on_not_implemented_error value: {}. Supported values are: 'raise' and 'warn'".format(
