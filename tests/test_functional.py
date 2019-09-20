@@ -1102,3 +1102,12 @@ def test_equalize_rgb_mask():
         _img[..., i] = np.array(ImageOps.equalize(Image.fromarray(_img[..., i]),
                                                   Image.fromarray(mask[..., i])))
     assert np.all(_img == F.equalize(img, mask=mask, mode='pil'))
+
+
+def test_maybe_process_in_chunks():
+    image = np.random.randint(0, 256, (100, 100, 6), np.uint8)
+
+    for i in range(1, image.shape[-1] + 1):
+        before = image[:, :, :i]
+        after = F.rotate(before, angle=1)
+        assert before.shape == after.shape
