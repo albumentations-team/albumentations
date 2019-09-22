@@ -219,7 +219,7 @@ Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0
 
 ## Contributing
 
-To create pull request to the repsitory follow the the documentation at [docs/contributing.rst](docs/contributing.rst)
+To create pull request to the repository follow the documentation at [docs/contributing.rst](docs/contributing.rst)
 
 ### Adding new transforms
 If you are contributing a new transformation, make sure to update ["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections of this file (`README.md`). To do this, simply run (with python3 only):
