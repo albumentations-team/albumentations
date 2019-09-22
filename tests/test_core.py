@@ -6,7 +6,7 @@ import pytest
 
 from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
 from albumentations.augmentations.bbox_utils import check_bboxes
-from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel, DebugCompose
+from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel, ReplayCompose
 from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
 from .compat import mock, MagicMock, Mock, call
 
@@ -147,19 +147,23 @@ def test_per_channel_multi():
 
 
 def test_deterministic():
-    aug = DebugCompose([
+    aug = ReplayCompose([
         HorizontalFlip(),
         HorizontalFlip(),
-        Rotate(),
+        Rotate(p=0.8),
         HorizontalFlip(),
-        Blur(),
+        Blur(p=0.9),
+        OneOf([
+            HorizontalFlip(),
+            Blur()
+        ]),
         HorizontalFlip(),
-        ], p=1)
-    for i in range(10):
+    ], p=1)
+    for i in range(1):
         image = np.random.random((8, 8))
         image2 = np.copy(image)
         data = aug(image=image)
-        assert 'debug' in data
-        data2 = aug.replay(image=image2, debug=data['debug'])
-        np.array_equal(data['image'], data2['image'])
-
+        assert 'replay' in data
+        print(data['replay'])
+        # data2 = aug.replay(image=image2, replay=data['replay'])
+        # np.array_equal(data['image'], data2['image'])

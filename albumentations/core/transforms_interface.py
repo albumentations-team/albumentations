@@ -1,7 +1,6 @@
 from __future__ import absolute_import
 
 import random
-from collections import OrderedDict
 
 import cv2
 
@@ -51,12 +50,9 @@ class BasicTransform(object):
         self._additional_targets = {}
 
         self.deterministic = False
-        self.save_key = "debug"
+        self.save_key = "replay"
 
     def __call__(self, force_apply=False, **kwargs):
-        if self.deterministic:
-            transform_description = self._to_dict()
-            kwargs.setdefault(self.save_key, [])
         if (random.random() < self.p) or self.always_apply or force_apply:
             params = self.get_params()
             params = self.update_params(params, **kwargs)
@@ -67,14 +63,9 @@ class BasicTransform(object):
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
             if self.deterministic:
-                transform_description['params'] = params
-                transform_description['applied'] = True
-                kwargs[self.save_key].append(transform_description)
+                kwargs[self.save_key][id(self)] = params
             return self.apply_with_params(params, **kwargs)
 
-        if self.deterministic:
-            transform_description['applied'] = False
-            kwargs[self.save_key].append(transform_description)
         return kwargs
 
     def apply_with_params(self, params, force_apply=False, **kwargs):
@@ -90,7 +81,7 @@ class BasicTransform(object):
                 res[key] = None
         return res
 
-    def set_deterministic(self, flag, save_key='debug'):
+    def set_deterministic(self, flag, save_key='replay'):
         assert save_key != 'params', 'params save_key is reserved'
         self.deterministic = flag
         self.save_key = save_key
@@ -183,6 +174,11 @@ class BasicTransform(object):
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
         return state
+
+    def get_dict_with_id(self):
+        d = self._to_dict()
+        d['id'] = id(self)
+        return d
 
 
 class DualTransform(BasicTransform):

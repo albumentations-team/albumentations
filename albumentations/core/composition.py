@@ -1,6 +1,5 @@
 from __future__ import division
-from functools import partial
-from copy import deepcopy
+from collections import defaultdict
 
 import random
 
@@ -13,7 +12,7 @@ from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 
-__all__ = ['Compose', 'OneOf', 'OneOrOther', 'BboxParams', 'KeypointParams']
+__all__ = ['Compose', 'OneOf', 'OneOrOther', 'BboxParams', 'KeypointParams', 'ReplayCompose']
 
 
 REPR_INDENT_STEP = 2
@@ -96,10 +95,21 @@ class BaseCompose(object):
             'transforms': [t._to_dict() for t in self.transforms],
         }
 
+    def get_dict_with_id(self):
+        d = self._to_dict()
+        d['id'] = id(self)
+        d['params'] = None
+        d['transforms'] = [t.get_dict_with_id() for t in self.transforms]
+        return d
+
     def add_targets(self, additional_targets):
         if additional_targets:
             for t in self.transforms:
                 t.add_targets(additional_targets)
+
+    def set_deterministic(self, flag, save_key='replay'):
+        for t in self.transforms:
+            t.set_deterministic(flag, save_key)
 
 
 class Compose(BaseCompose):
@@ -249,24 +259,44 @@ class PerChannel(BaseCompose):
         return data
 
 
-class DebugCompose(Compose):
+class ReplayCompose(Compose):
     def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0,
-                 save_key='debug'):
-        super(DebugCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
-
+                 save_key='replay'):
+        super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
+        self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
 
-        for transform in self.transforms:
-            transform.set_deterministic(True, save_key=self.save_key)
-
-    def replay(self, *args, **kwargs):
-        transforms_backup = deepcopy(self.transforms)
-        for idx, t in enumerate(self.transforms):
-            t.__call__ = partial(t.apply_with_params, kwargs[self.save_key][idx].get('params'))
-
-        result = super(DebugCompose, self).__call__(*args, **kwargs)
-        self.transforms = transforms_backup
+    def __call__(self, *args, **kwargs):
+        kwargs[self.save_key] = defaultdict(dict)
+        result = super(ReplayCompose, self).__call__(*args, **kwargs)
+        serialized = self.get_dict_with_id()
+        self.fill_with_params(serialized, result[self.save_key])
+        self.fill_applied(serialized)
+        result[self.save_key] = serialized
         return result
+
+    # def replay(self, *args, **kwargs):
+    #     transforms_backup = deepcopy(self.transforms)
+    #     prepare_for_replay(self.transforms, kwargs[self.save_key], 0)
+    #
+    #     result = self.__call__(*args, **kwargs)
+    #     self.transforms = transforms_backup
+    #     return result
+
+    def fill_with_params(self, serialized, all_params):
+        params = all_params.get(serialized.get('id'))
+        serialized['params'] = params
+        del serialized['id']
+        for transform in serialized.get('transforms', []):
+            self.fill_with_params(transform, all_params)
+
+    def fill_applied(self, serialized):
+        if 'transforms' in serialized:
+            applied = [self.fill_applied(t) for t in serialized['transforms']]
+            serialized['applied'] = any(applied)
+        else:
+            serialized['applied'] = serialized.get('params') is not None
+        return serialized['applied']
 
 
 class BboxParams(Params):
