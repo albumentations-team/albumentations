@@ -2770,7 +2770,7 @@ class Downscale(ImageOnlyTransform):
     """
 
     def __init__(self, scale_min=0.25, scale_max=0.25, interpolation=cv2.INTER_NEAREST, always_apply=False, p=0.5):
-        super().__init__(always_apply, p)
+        super(Downscale, self).__init__(always_apply, p)
         assert scale_min <= scale_max, "Expected scale_min be less or equal scale_max, got {} {}".format(
             scale_min, scale_max
         )

@@ -1317,7 +1317,7 @@ def to_gray(img):
 
 @preserve_shape
 def downscale(img, scale, interpolation=cv2.INTER_NEAREST):
-    h, w, *_ = img.shape
+    h, w = img.shape[:2]
 
     need_cast = interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
     if need_cast:
