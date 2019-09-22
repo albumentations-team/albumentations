@@ -14,6 +14,11 @@ To create pull request:
 .. code-block:: bash
 
     pip install pre-commit
+
+4. Initialize it from the folder with the repo:
+
+.. code-block:: bash
+
     pre-commit install
 
 
