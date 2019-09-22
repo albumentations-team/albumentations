@@ -11,7 +11,7 @@ from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 
-__all__ = ['Compose', 'OneOf', 'OneOrOther', 'BboxParams', 'KeypointParams']
+__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams"]
 
 
 REPR_INDENT_STEP = 2
@@ -71,27 +71,27 @@ class BaseCompose(object):
         return self.indented_repr()
 
     def indented_repr(self, indent=REPR_INDENT_STEP):
-        args = {k: v for k, v in self._to_dict().items() if not (k.startswith('__') or k == 'transforms')}
-        repr_string = self.__class__.__name__ + '(['
+        args = {k: v for k, v in self._to_dict().items() if not (k.startswith("__") or k == "transforms")}
+        repr_string = self.__class__.__name__ + "(["
         for t in self.transforms:
-            repr_string += '\n'
-            if hasattr(t, 'indented_repr'):
+            repr_string += "\n"
+            if hasattr(t, "indented_repr"):
                 t_repr = t.indented_repr(indent + REPR_INDENT_STEP)
             else:
                 t_repr = repr(t)
-            repr_string += ' ' * indent + t_repr + ','
-        repr_string += '\n' + ' ' * (indent - REPR_INDENT_STEP) + '], {args})'.format(args=format_args(args))
+            repr_string += " " * indent + t_repr + ","
+        repr_string += "\n" + " " * (indent - REPR_INDENT_STEP) + "], {args})".format(args=format_args(args))
         return repr_string
 
     @classmethod
     def get_class_fullname(cls):
-        return '{cls.__module__}.{cls.__name__}'.format(cls=cls)
+        return "{cls.__module__}.{cls.__name__}".format(cls=cls)
 
     def _to_dict(self):
         return {
-            '__class_fullname__': self.get_class_fullname(),
-            'p': self.p,
-            'transforms': [t._to_dict() for t in self.transforms],
+            "__class_fullname__": self.get_class_fullname(),
+            "p": self.p,
+            "transforms": [t._to_dict() for t in self.transforms],
         }
 
     def add_targets(self, additional_targets):
@@ -122,7 +122,7 @@ class Compose(BaseCompose):
                 params = bbox_params
             else:
                 raise ValueError("unknown format of bbox_params, please use `dict` or `BboxParams`")
-            self.processors['bboxes'] = BboxProcessor(params, additional_targets)
+            self.processors["bboxes"] = BboxProcessor(params, additional_targets)
 
         if keypoint_params:
             if isinstance(keypoint_params, dict):
@@ -131,7 +131,7 @@ class Compose(BaseCompose):
                 params = keypoint_params
             else:
                 raise ValueError("unknown format of keypoint_params, please use `dict` or `KeypointParams`")
-            self.processors['keypoints'] = KeypointsProcessor(params, additional_targets)
+            self.processors["keypoints"] = KeypointsProcessor(params, additional_targets)
 
         if additional_targets is None:
             additional_targets = {}
@@ -144,7 +144,7 @@ class Compose(BaseCompose):
         self.add_targets(additional_targets)
 
     def __call__(self, force_apply=False, **data):
-        assert isinstance(force_apply, (bool, int)), 'force_apply must have bool or int type'
+        assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
             p.ensure_data_valid(data)
@@ -166,13 +166,15 @@ class Compose(BaseCompose):
 
     def _to_dict(self):
         dictionary = super(Compose, self)._to_dict()
-        bbox_processor = self.processors.get('bboxes')
-        keypoints_processor = self.processors.get('keypoints')
-        dictionary.update({
-            'bbox_params': bbox_processor.params._to_dict() if bbox_processor else None,
-            'keypoint_params': keypoints_processor.params._to_dict() if keypoints_processor else None,
-            'additional_targets': self.additional_targets,
-        })
+        bbox_processor = self.processors.get("bboxes")
+        keypoints_processor = self.processors.get("keypoints")
+        dictionary.update(
+            {
+                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,
+                "keypoint_params": keypoints_processor.params._to_dict() if keypoints_processor else None,
+                "additional_targets": self.additional_targets,
+            }
+        )
         return dictionary
 
 
@@ -199,7 +201,6 @@ class OneOf(BaseCompose):
 
 
 class OneOrOther(BaseCompose):
-
     def __init__(self, first=None, second=None, transforms=None, p=0.5):
         if transforms is None:
             transforms = [first, second]
@@ -229,7 +230,7 @@ class PerChannel(BaseCompose):
     def __call__(self, force_apply=False, **data):
         if force_apply or random.random() < self.p:
 
-            image = data['image']
+            image = data["image"]
 
             # Expan mono images to have a single channel
             if len(image.shape) == 2:
@@ -240,9 +241,9 @@ class PerChannel(BaseCompose):
 
             for c in self.channels:
                 for t in self.transforms:
-                    image[:, :, c] = t(image=image[:, :, c])['image']
+                    image[:, :, c] = t(image=image[:, :, c])["image"]
 
-            data['image'] = image
+            data["image"] = image
 
         return data
 
@@ -279,8 +280,7 @@ class BboxParams(Params):
 
     def _to_dict(self):
         data = super(BboxParams, self)._to_dict()
-        data.update({"min_area": self.min_area,
-                     "min_visibility": self.min_visibility})
+        data.update({"min_area": self.min_area, "min_visibility": self.min_visibility})
         return data
 
 
@@ -311,6 +311,5 @@ class KeypointParams(Params):
 
     def _to_dict(self):
         data = super(KeypointParams, self)._to_dict()
-        data.update({"remove_invisible": self.remove_invisible,
-                     "angle_in_degrees": self.angle_in_degrees})
+        data.update({"remove_invisible": self.remove_invisible, "angle_in_degrees": self.angle_in_degrees})
         return data
