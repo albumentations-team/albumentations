@@ -21,11 +21,7 @@ class Mock(MagicMock):
         return MagicMock()
 
 
-MOCK_MODULES = [
-    "pytorch",
-    "torchvision.transforms",
-    "torchvision.transforms.functional",
-]
+MOCK_MODULES = ["pytorch", "torchvision.transforms", "torchvision.transforms.functional"]
 for module_name in MOCK_MODULES:
     sys.modules[module_name] = Mock()
 
@@ -47,12 +43,7 @@ def get_version():
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.viewcode",
-    "sphinx.ext.mathjax",
-    "sphinx.ext.napoleon",
-]
+extensions = ["sphinx.ext.autodoc", "sphinx.ext.viewcode", "sphinx.ext.mathjax", "sphinx.ext.napoleon"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -69,7 +60,7 @@ master_doc = "index"
 # General information about the project.
 project = "albumentations"
 copyright = (
-    "{}, Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya Mikhail Druzhinin".format(
+    "{}, Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin".format(
         datetime.datetime.now().year
     ),
 )
@@ -163,9 +154,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, "albumentations", "albumentations Documentation", [author], 1)
-]
+man_pages = [(master_doc, "albumentations", "albumentations Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output -------------------------------------------
