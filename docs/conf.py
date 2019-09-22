@@ -59,12 +59,10 @@ master_doc = "index"
 
 # General information about the project.
 project = "albumentations"
-copyright = (
-    "{}, Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin".format(
-        datetime.datetime.now().year
-    ),
-)
-author = "Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin"
+
+authors = "Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin"
+
+copyright = ("{}, {}".format(datetime.datetime.now().year, authors),)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -139,22 +137,14 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (
-        master_doc,
-        "albumentations.tex",
-        "albumentations Documentation",
-        "Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin",
-        "manual",
-    )
-]
+latex_documents = [(master_doc, "albumentations.tex", "albumentations Documentation", authors, "manual")]
 
 
 # -- Options for manual page output ---------------------------------------
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "albumentations", "albumentations Documentation", [author], 1)]
+man_pages = [(master_doc, "albumentations", "albumentations Documentation", [authors], 1)]
 
 
 # -- Options for Texinfo output -------------------------------------------
@@ -167,7 +157,7 @@ texinfo_documents = [
         master_doc,
         "albumentations",
         "albumentations Documentation",
-        author,
+        authors,
         "albumentations",
         "One line description of project.",
         "Miscellaneous",
