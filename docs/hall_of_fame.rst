@@ -2,7 +2,7 @@ Hall of Fame
 ============
 Albumentations are widely used in Computer Vision Competitions as Kaggle an other platforms.
 
-Here are the links to the competttions, names of the winners and to their solutions.
+Here are the links to the competitions, names of the winners and to their solutions.
 
 
 Kaggle
