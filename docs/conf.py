@@ -69,13 +69,11 @@ master_doc = "index"
 # General information about the project.
 project = "albumentations"
 copyright = (
-    "{}, Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, " "Evegene Khvedchenya",
-    "Mikhail Druzhinin".format(datetime.datetime.now().year),
+    "{}, Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya Mikhail Druzhinin".format(
+        datetime.datetime.now().year
+    ),
 )
-author = (
-    "Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, "
-    "Mikhail Druzhinin"
-)
+author = "Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
