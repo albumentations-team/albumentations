@@ -12,7 +12,7 @@ from albumentations.augmentations.bbox_utils import (
 def test_imagaug_dual_augmentations_are_deterministic(augmentation_cls, image):
     aug = augmentation_cls(p=1)
     mask = np.copy(image)
-    for i in range(10):
+    for _i in range(10):
         data = aug(image=image, mask=mask)
         assert np.array_equal(data["image"], data["mask"])
 

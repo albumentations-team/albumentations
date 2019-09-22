@@ -852,7 +852,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         img = params["image"]
         area = img.shape[0] * img.shape[1]
 
-        for attempt in range(10):
+        for _attempt in range(10):
             target_area = random.uniform(*self.scale) * area
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
             aspect_ratio = math.exp(random.uniform(*log_ratio))
@@ -1410,7 +1410,7 @@ class Cutout(ImageOnlyTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for n in range(self.num_holes):
+        for _n in range(self.num_holes):
             y = random.randint(0, height)
             x = random.randint(0, width)
 
@@ -1490,7 +1490,7 @@ class CoarseDropout(ImageOnlyTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for n in range(random.randint(self.min_holes, self.max_holes + 1)):
+        for _n in range(random.randint(self.min_holes, self.max_holes + 1)):
             hole_height = random.randint(self.min_height, self.max_height + 1)
             hole_width = random.randint(self.min_width, self.max_width + 1)
 
@@ -1727,7 +1727,7 @@ class RandomRain(ImageOnlyTransform):
 
         rain_drops = []
 
-        for i in range(num_drops):  # If You want heavy rain, try increasing this
+        for _i in range(num_drops):  # If You want heavy rain, try increasing this
             if slant < 0:
                 x = random.randint(slant, width)
             else:
@@ -1800,7 +1800,7 @@ class RandomFog(ImageOnlyTransform):
         index = 1
 
         while midx > -hw or midy > -hw:
-            for i in range(hw // 10 * index):
+            for _i in range(hw // 10 * index):
                 x = random.randint(midx, width - midx - hw)
                 y = random.randint(midy, height - midy - hw)
                 haze_list.append((x, y))
@@ -1906,7 +1906,7 @@ class RandomSunFlare(ImageOnlyTransform):
             x.append(rand_x)
             y.append(2 * flare_center_y - rand_y)
 
-        for i in range(num_circles):
+        for _i in range(num_circles):
             alpha = random.uniform(0.05, 0.2)
             r = random.randint(0, len(x) - 1)
             rad = random.randint(1, max(height // 100 - 2, 2))
@@ -2003,9 +2003,9 @@ class RandomShadow(ImageOnlyTransform):
 
         vertices_list = []
 
-        for index in range(num_shadows):
+        for _index in range(num_shadows):
             vertex = []
-            for dimensions in range(self.shadow_dimension):
+            for _dimension in range(self.shadow_dimension):
                 vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
 
             vertices = np.array([vertex], dtype=np.int32)

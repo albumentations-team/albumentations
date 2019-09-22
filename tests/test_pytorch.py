@@ -18,7 +18,7 @@ def test_torch_to_tensor_v2_augmentations(image, mask):
 
 def test_additional_targets_for_totensorv2():
     aug = A.Compose([ToTensorV2()], additional_targets={"image2": "image", "mask2": "mask"})
-    for i in range(10):
+    for _i in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = image1.copy()
         mask1 = np.random.randint(low=0, high=256, size=(100, 100, 4), dtype=np.uint8)
@@ -43,7 +43,7 @@ def test_torch_to_tensor_augmentations(image, mask):
 def test_additional_targets_for_totensor():
     with pytest.warns(DeprecationWarning):
         aug = A.Compose([ToTensor(num_classes=4)], additional_targets={"image2": "image", "mask2": "mask"})
-    for i in range(10):
+    for _i in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = image1.copy()
         mask1 = np.random.randint(low=0, high=256, size=(100, 100, 4), dtype=np.uint8)

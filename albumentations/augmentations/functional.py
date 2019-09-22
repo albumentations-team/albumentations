@@ -1578,7 +1578,7 @@ def swap_tiles_on_image(image, tiles):
     """
     new_image = image.copy()
 
-    for idx, tile in enumerate(tiles):
+    for tile in tiles:
         new_image[tile[0] : tile[0] + tile[4], tile[1] : tile[1] + tile[5]] = image[
             tile[2] : tile[2] + tile[4], tile[3] : tile[3] + tile[5]
         ]

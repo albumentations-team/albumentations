@@ -64,7 +64,7 @@ class ToTensor(BasicTransform):
         if "mask" in kwargs.keys():
             kwargs.update({"mask": mask_to_tensor(kwargs["mask"], self.num_classes, sigmoid=self.sigmoid)})
 
-        for k, v in kwargs.items():
+        for k, _v in kwargs.items():
             if self._additional_targets.get(k) == "image":
                 kwargs.update({k: img_to_tensor(kwargs[k], self.normalize)})
             if self._additional_targets.get(k) == "mask":

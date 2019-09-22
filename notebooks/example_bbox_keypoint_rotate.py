@@ -36,7 +36,7 @@ def main():
         keypoint_params=A.KeypointParams(format="xy"),
     )
 
-    for i in range(10):
+    for _i in range(10):
         data = aug(image=image, keypoints=keypoints, bboxes=bboxes, bbox_labels=np.ones(len(bboxes)))
 
         aug_image = data["image"]

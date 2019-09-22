@@ -15,7 +15,6 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import torchvision.transforms.functional as torchvision
-import keras as _
 import keras_preprocessing.image as keras
 from imgaug import augmenters as iaa
 import solt.core as slc
