@@ -156,7 +156,7 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
                 chunk = img[:, :, index:index + 4]
                 chunk = process_fn(chunk, **kwargs)
                 chunks.append(chunk)
-            img = np.concatenate(chunks, axis=2)
+            img = np.dstack(chunks)
         else:
             img = process_fn(img, **kwargs)
         return img

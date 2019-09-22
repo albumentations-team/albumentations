@@ -34,9 +34,14 @@ class PadIfNeeded(DualTransform):
     """Pad side of the image / max if side is less than desired number.
 
     Args:
+        min_height (int): minimal result image height.
+        min_width (int): minimal result image width.
+        border_mode (OpenCV flag): OpenCV border mode.
+        value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of int,
+                    lisft of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
         p (float): probability of applying the transform. Default: 1.0.
-        value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
 
     Targets:
         image, mask, bbox, keypoints
@@ -105,10 +110,10 @@ class Crop(DualTransform):
     """Crop region from image.
 
     Args:
-        x_min (int): minimum upper left x coordinate
-        y_min (int): minimum upper left y coordinate
-        x_max (int): maximum lower right x coordinate
-        y_max (int): maximum lower right y coordinate
+        x_min (int): minimum upper left x coordinate.
+        y_min (int): minimum upper left y coordinate.
+        x_max (int): maximum lower right x coordinate.
+        y_max (int): maximum lower right y coordinate.
 
     Targets:
         image, mask, bboxes
@@ -253,8 +258,9 @@ class LongestMaxSize(DualTransform):
     """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
+        max_size (int): maximum size of the image after the transformation.
+        interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
-        max_size (int): maximum size of the image after the transformation
 
     Targets:
         image, mask, bboxes
@@ -283,8 +289,9 @@ class SmallestMaxSize(DualTransform):
     """Rescale an image so that minimum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
+        max_size (int): maximum size of smallest side of the image after the transformation.
+        interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
-        max_size (int): maximum size of smallest side of the image after the transformation
 
     Targets:
         image, mask, bboxes
@@ -312,12 +319,12 @@ class Resize(DualTransform):
     """Resize the input to the given height and width.
 
     Args:
-        p (float): probability of applying the transform. Default: 1.
         height (int): desired height of the output.
         width (int): desired width of the output.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
+        p (float): probability of applying the transform. Default: 1.
 
     Targets:
         image, mask, bboxes
@@ -382,15 +389,17 @@ class Rotate(DualTransform):
 
     Args:
         limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
-            an angle is picked from (-limit, limit). Default: 90
+            an angle is picked from (-limit, limit). Default: (-90, 90)
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
         border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
-        value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (scalar or list of ints): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -433,7 +442,7 @@ class RandomScale(DualTransform):
 
     Args:
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (1 - scale_limit, 1 + scale_limit). Default: 0.1.
+            range will be (1 - scale_limit, 1 + scale_limit). Default: (0.9, 1.1).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
@@ -477,19 +486,21 @@ class ShiftScaleRotate(DualTransform):
     Args:
         shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
-            upper bounds should lie in range [0, 1]. Default: 0.0625.
+            upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (-scale_limit, scale_limit). Default: 0.1.
+            range will be (-scale_limit, scale_limit). Default: (-0.1, 0.1).
         rotate_limit ((int, int) or int): rotation range. If rotate_limit is a single int value, the
-            range will be (-rotate_limit, rotate_limit). Default: 45.
+            range will be (-rotate_limit, rotate_limit). Default: (-45, 45).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
         border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
             Default: cv2.BORDER_REFLECT_101
-        value (list of ints [r, g, b]): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (scalar or list of ints): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of int,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -846,7 +857,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     def get_params_dependent_on_targets(self, params):
         img_h, img_w = params['image'].shape[:2]
-        if 'bboxes' not in params:  # less likely, this class is for use with bboxes.
+        if len(params['bboxes']) == 0:  # less likely, this class is for use with bboxes.
             erosive_h = int(img_h * (1.0 - self.erosion_rate))
             crop_height = img_h if erosive_h >= img_h else random.randint(erosive_h, img_h)
             return {'h_start': random.random(),
@@ -873,7 +884,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     @property
     def targets_as_params(self):
-        return ['image']
+        return ['image', 'bboxes']
 
     def get_transform_init_args_names(self):
         return ('height', 'width', 'erosion_rate', 'interpolation')
@@ -964,6 +975,22 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
 class OpticalDistortion(DualTransform):
     """
+    Args:
+        distort_limit (float, (float, float)): If distort_limit is a single float, the range
+            will be (-distort_limit, distort_limit). Default: (-0.05, 0.05).
+        shift_limit (float, (float, float))): If shift_limit is a single float, the range
+            will be (-shift_limit, shift_limit). Default: (-0.05, 0.05).
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+
     Targets:
         image, mask
 
@@ -998,6 +1025,21 @@ class OpticalDistortion(DualTransform):
 
 class GridDistortion(DualTransform):
     """
+    Args:
+        num_steps (int): count of grid cells on each side.
+        distort_limit (float, (float, float)): If distort_limit is a single float, the range
+            will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+
     Targets:
         image, mask
 
@@ -1047,6 +1089,19 @@ class ElasticTransform(DualTransform):
          Recognition, 2003.
 
     Args:
+        alpha (float):
+        sigma (float): Gaussian filter parameter.
+        alpha_affine (float): The range will be (-alpha_affine, alpha_affine)
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float,
+                    list of ints,
+                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         approximate (boolean): Whether to smooth displacement map with fixed kernel size.
                                Enabling this option gives ~2X speedup on large images.
 
@@ -1182,8 +1237,8 @@ class Normalize(ImageOnlyTransform):
     """Divide pixel values by 255 = 2**8 - 1, subtract mean per channel and divide by std per channel.
 
     Args:
-        mean (float, float, float): mean values
-        std  (float, float, float): std values
+        mean (float, list of float): mean values
+        std  (float, list of float): std values
         max_pixel_value (float): maximum possible pixel value
 
     Targets:
@@ -1209,14 +1264,19 @@ class Normalize(ImageOnlyTransform):
 
 class Cutout(ImageOnlyTransform):
     """CoarseDropout of the square regions in the image.
+
     Args:
         num_holes (int): number of regions to zero out
         max_h_size (int): maximum height of the hole
         max_w_size (int): maximum width of the hole
+        fill_value (int, float, lisf of int, list of float): value for dropped pixels.
+
     Targets:
         image
+
     Image types:
         uint8, float32
+
     Reference:
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
@@ -1272,6 +1332,7 @@ class CoarseDropout(ImageOnlyTransform):
             `min_height` is set to `max_height`. Default: `None`.
         min_width (int): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
+        fill_value (int, float, lisf of int, list of float): value for dropped pixels.
 
     Targets:
         image
@@ -1338,6 +1399,8 @@ class ImageCompression(ImageOnlyTransform):
                                Should be in [0, 100] range for jpeg and [1, 100] for webp.
         quality_upper (float): upper bound on the image quality.
                                Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
+            Defaul: ImageCompressionType.JPEG
 
     Targets:
         image
@@ -1452,14 +1515,14 @@ class RandomRain(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        slant_lower:
-        slant_upper:
-        drop_length:
-        drop_width:
-        drop_color:
+        slant_lower: should be in range [-20, 20].
+        slant_upper: should be in range [-20, 20].
+        drop_length: should be in range [0, 100].
+        drop_width: should be in range [1, 5].
+        drop_color (list of (r, g, b)): rain lines color.
         blur_value (int): rainy view are blurry
-        brightness_coefficient (float): rainy days are usually shady
-        rain_type: [None, "drizzle", "heavy", "torrestial"]
+        brightness_coefficient (float): rainy days are usually shady. Should be in range [0, 1].
+        rain_type: One of [None, "drizzle", "heavy", "torrestial"]
 
 
     Targets:
@@ -1600,7 +1663,7 @@ class RandomFog(ImageOnlyTransform):
 
         height, width = imshape = img.shape[:2]
 
-        hw = int(width // 3 * fog_coef)
+        hw = max(1, int(width // 3 * fog_coef))
 
         haze_list = []
         midx = width // 2 - 2 * hw
@@ -1631,13 +1694,15 @@ class RandomSunFlare(ImageOnlyTransform):
 
     Args:
         flare_roi (float, float, float, float): region of the image where flare will
-                                                    appear (x_min, y_min, x_max, y_max)
-        angle_lower (float):
-        angle_upper (float):
+            appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
+        angle_lower (float): should be in range [0, `angle_upper`].
+        angle_upper (float): should be in range [`angle_lower`, 1].
         num_flare_circles_lower (int): lower limit for the number of flare circles.
+            Should be in range [0, `num_flare_circles_upper`].
         num_flare_circles_upper (int): upper limit for the number of flare circles.
+            Should be in range [`num_flare_circles_lower`, inf].
         src_radius (int):
-        src_color (int, int, int): color of the flare
+        src_color ((int, int, int)): color of the flare
 
     Targets:
         image
@@ -1759,9 +1824,11 @@ class RandomShadow(ImageOnlyTransform):
 
     Args:
         shadow_roi (float, float, float, float): region of the image where shadows
-            will appear (x_min, y_min, x_max, y_max)
+            will appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
         num_shadows_lower (int): Lower limit for the possible number of shadows.
+            Should be in range [0, `num_shadows_upper`].
         num_shadows_upper (int): Lower limit for the possible number of shadows.
+            Should be in range [`num_shadows_lower`, inf].
         shadow_dimension (int): number of edges in the shadow polygons
 
     Targets:
@@ -1834,11 +1901,11 @@ class HueSaturationValue(ImageOnlyTransform):
 
     Args:
         hue_shift_limit ((int, int) or int): range for changing hue. If hue_shift_limit is a single int, the range
-            will be (-hue_shift_limit, hue_shift_limit). Default: 20.
+            will be (-hue_shift_limit, hue_shift_limit). Default: (-20, 20).
         sat_shift_limit ((int, int) or int): range for changing saturation. If sat_shift_limit is a single int,
-            the range will be (-sat_shift_limit, sat_shift_limit). Default: 30.
+            the range will be (-sat_shift_limit, sat_shift_limit). Default: (-30, 30).
         val_shift_limit ((int, int) or int): range for changing value. If val_shift_limit is a single int, the range
-            will be (-val_shift_limit, val_shift_limit). Default: 20.
+            will be (-val_shift_limit, val_shift_limit). Default: (-20, 20).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1994,11 +2061,11 @@ class RGBShift(ImageOnlyTransform):
 
     Args:
         r_shift_limit ((int, int) or int): range for changing values for the red channel. If r_shift_limit is a single
-            int, the range will be (-r_shift_limit, r_shift_limit). Default: 20.
+            int, the range will be (-r_shift_limit, r_shift_limit). Default: (-20, 20).
         g_shift_limit ((int, int) or int): range for changing values for the green channel. If g_shift_limit is a
-            single int, the range  will be (-g_shift_limit, g_shift_limit). Default: 20.
+            single int, the range  will be (-g_shift_limit, g_shift_limit). Default: (-20, 20).
         b_shift_limit ((int, int) or int): range for changing values for the blue channel. If b_shift_limit is a single
-            int, the range will be (-b_shift_limit, b_shift_limit). Default: 20.
+            int, the range will be (-b_shift_limit, b_shift_limit). Default: (-20, 20).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2031,9 +2098,9 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     Args:
         brightness_limit ((float, float) or float): factor range for changing brightness.
-            If limit is a single float, the range will be (-limit, limit). Default: 0.2.
+            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
         contrast_limit ((float, float) or float): factor range for changing contrast.
-            If limit is a single float, the range will be (-limit, limit). Default: 0.2.
+            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
         brightness_by_max (Boolean): If True adjust contrast by image dtype maximum,
             else adjust contrast by image mean.
         p (float): probability of applying the transform. Default: 0.5.
@@ -2069,6 +2136,20 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
 
 class RandomBrightness(RandomBrightnessContrast):
+    """Randomly change brightness of the input image.
+
+    Args:
+        limit ((float, float) or float): factor range for changing brightness.
+            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
         super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0,
                                                always_apply=always_apply, p=p)
@@ -2081,6 +2162,20 @@ class RandomBrightness(RandomBrightnessContrast):
 
 
 class RandomContrast(RandomBrightnessContrast):
+    """Randomly change contrast of the input image.
+
+    Args:
+        limit ((float, float) or float): factor range for changing contrast.
+            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
         super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
         warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
@@ -2095,7 +2190,8 @@ class Blur(ImageOnlyTransform):
     """Blur the input image using a random-sized kernel.
 
     Args:
-        blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
+        blur_limit (int, (int, int)): maximum kernel size for blurring the input image.
+            Should be in range [3, inf). Default: (3, 7).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2125,7 +2221,8 @@ class MotionBlur(Blur):
     """Apply motion blur to the input image using a random-sized kernel.
 
     Args:
-        blur_limit (int): maximum kernel size for blurring the input image. Default: 7.
+        blur_limit (int): maximum kernel size for blurring the input image.
+            Should be in range [3, inf). Default: (3, 7).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2157,7 +2254,8 @@ class MedianBlur(Blur):
     """Blur the input image using using a median filter with a random aperture linear size.
 
     Args:
-        blur_limit (int): maximum aperture linear size for blurring the input image. Default: 7.
+        blur_limit (int): maximum aperture linear size for blurring the input image.
+            Must be odd and in range [3, inf). Default: (3, 7).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2178,7 +2276,8 @@ class GaussianBlur(Blur):
     """Blur the input image using using a Gaussian filter with a random kernel size.
 
     Args:
-        blur_limit (int): maximum Gaussian kernel size for blurring the input image. Default: 7.
+        blur_limit (int): maximum Gaussian kernel size for blurring the input image.
+            Must be zero or odd and in range [3, inf). Default: (3, 7).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2294,8 +2393,9 @@ class CLAHE(ImageOnlyTransform):
     """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
 
     Args:
-        clip_limit (float): upper threshold value for contrast limiting. Default: 4.0.
-            tile_grid_size ((int, int)): size of grid for histogram equalization. Default: (8, 8).
+        clip_limit (float or (float, float)): upper threshold value for contrast limiting.
+            If clip_limit is a single float value, the range will be (1, clip_limit). Default: (1, 4).
+        tile_grid_size ((int, int)): size of grid for histogram equalization. Default: (8, 8).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2325,7 +2425,7 @@ class ChannelDropout(ImageOnlyTransform):
 
     Args:
         channel_drop_range (int, int): range from which we choose the number of channels to drop.
-        fill_value : pixel value for the dropped channel.
+        fill_value (int, float): pixel value for the dropped channel.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2422,6 +2522,11 @@ class InvertImg(ImageOnlyTransform):
 
 class RandomGamma(ImageOnlyTransform):
     """
+    Args:
+        gamma_limit (float or (float, float)): If gamma_limit is a single float value,
+            the range will be (-gamma_limit, gamma_limit). Default: (80, 120).
+        eps (float): value for exclude division by zero.
+
     Targets:
         image
 
