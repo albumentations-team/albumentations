@@ -1,5 +1,6 @@
 from __future__ import division
 from collections import defaultdict
+from functools import partial
 
 import random
 
@@ -11,6 +12,7 @@ from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
+from albumentations.core.serialization import SERIALIZABLE_REGISTRY
 
 __all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose"]
 
@@ -96,11 +98,12 @@ class BaseCompose(object):
         }
 
     def get_dict_with_id(self):
-        d = self._to_dict()
-        d["id"] = id(self)
-        d["params"] = None
-        d["transforms"] = [t.get_dict_with_id() for t in self.transforms]
-        return d
+        return {
+            "__class_fullname__": self.get_class_fullname(),
+            "id": id(self),
+            "params": None,
+            "transforms": [t.get_dict_with_id() for t in self.transforms],
+        }
 
     def add_targets(self, additional_targets):
         if additional_targets:
@@ -277,13 +280,54 @@ class ReplayCompose(Compose):
         result[self.save_key] = serialized
         return result
 
-    # def replay(self, *args, **kwargs):
-    #     transforms_backup = deepcopy(self.transforms)
-    #     prepare_for_replay(self.transforms, kwargs[self.save_key], 0)
-    #
-    #     result = self.__call__(*args, **kwargs)
-    #     self.transforms = transforms_backup
-    #     return result
+    @staticmethod
+    def replay(saved_augmentations, **kwargs):
+        augs = ReplayCompose.from_dict(saved_augmentations)
+        return augs(**kwargs)
+
+    @staticmethod
+    def from_dict(transform_dict, lambda_transforms=None):
+        """
+        Args:
+            transform (dict): A dictionary with serialized transform pipeline.
+            lambda_transforms (dict): A dictionary that contains lambda transforms, that
+            is instances of the Lambda class.
+                This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
+                in that dictionary should be named same as `name` arguments in respective lambda transforms from
+                a serialized pipeline.
+        """
+        transform = transform_dict
+        applied = transform["applied"]
+        params = transform["params"]
+        if transform.get("__type__") == "Lambda":
+            name = transform["__name__"]
+            if lambda_transforms is None:
+                raise ValueError(
+                    "To deserialize a Lambda transform with name {name} you need to pass a dict with this transform "
+                    "as the `lambda_transforms` argument".format(name=name)
+                )
+            transform = lambda_transforms.get(name)
+            if transform is None:
+                raise ValueError("Lambda transform with {name} was not found in `lambda_transforms`".format(name=name))
+
+            # todo not sure about lambda
+
+        else:
+            name = transform["__class_fullname__"]
+            args = {k: v for k, v in transform.items() if k not in ["__class_fullname__", "applied", "params"]}
+            cls = SERIALIZABLE_REGISTRY[name]
+            if "transforms" in args:
+                args["transforms"] = [
+                    ReplayCompose.from_dict(t, lambda_transforms=lambda_transforms) for t in args["transforms"]
+                ]
+            transform = cls(**args)
+
+        if not applied:
+            transform.__call__ = lambda *args, **kwargs: kwargs
+        else:
+            if not isinstance(transform, BaseCompose):  # todo oneorother
+                transform.__call__ = partial(transform.apply_with_params, params)
+        return transform
 
     def fill_with_params(self, serialized, all_params):
         params = all_params.get(serialized.get("id"))
@@ -299,6 +343,9 @@ class ReplayCompose(Compose):
         else:
             serialized["applied"] = serialized.get("params") is not None
         return serialized["applied"]
+
+    def _to_dict(self):
+        raise NotImplementedError("You cannot serialize ReplayCompose")
 
 
 class BboxParams(Params):

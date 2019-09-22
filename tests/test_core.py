@@ -153,11 +153,10 @@ def test_deterministic():
         ],
         p=1,
     )
-    for i in range(1):
+    for i in range(10):
         image = np.random.random((8, 8))
         image2 = np.copy(image)
         data = aug(image=image)
         assert "replay" in data
-        print(data["replay"])
-        # data2 = aug.replay(image=image2, replay=data['replay'])
-        # np.array_equal(data['image'], data2['image'])
+        data2 = ReplayCompose.replay(data["replay"], image=image2)
+        np.array_equal(data["image"], data2["image"])
