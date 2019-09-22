@@ -219,24 +219,7 @@ Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0
 
 ## Contributing
 
-1. Fork the repository:
-2. Clone it.
-3. Install pre-commit hook. Run from a repository folder:
-```
-pip install pre-commit
-pre-commit install
-```
-4. Make desired changes to the code.
-5. Install the library in development mode:
-```
-pip install -e .[tests]
-```
-6. Run tests:
-```
-pytest
-```
-7. Push code to your forked repo.
-8. Create pull request.
+To create pull request to the repsitory follow the the documentation at [docs/contributing.rst](docs/contributing.rst)
 
 ### Adding new transforms
 If you are contributing a new transformation, make sure to update ["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections of this file (`README.md`). To do this, simply run (with python3 only):
