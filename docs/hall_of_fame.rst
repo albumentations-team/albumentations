@@ -1,6 +1,6 @@
 Hall of Fame
 ============
-Albumentations are widely used in Computer Vision Competitions as Kaggle an other platforms.
+Albumentations are widely used in Computer Vision Competitions at Kaggle an other platforms.
 
 Here are the links to the competitions, names of the winners and to their solutions.
 

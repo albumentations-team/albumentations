@@ -252,9 +252,9 @@ Alternatively, you can start a web server that rebuilds the documentation
 automatically when a change is detected by running `make livehtml`
 
 ## Hall of fame
-Albumentation are widely used in a various Computer Vision competitions.
+Albumentations are widely used in Computer Vision Competitions at Kaggle an other platforms.
 
-You can find their names and links t otheir solutions [here](docs/hall_of_fame.rst).
+You can find their names and links to the solutions [here](docs/hall_of_fame.rst).
 
 
 ## Comments
