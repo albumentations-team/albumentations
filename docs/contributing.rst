@@ -7,7 +7,7 @@ If you find a bug or have a feature request file an issue at https://github.com/
 To create pull request:
 =======================
 
-1. Fork the repository:
+1. Fork the repository.
 2. Clone it.
 3. Install pre-commit hook:
 
