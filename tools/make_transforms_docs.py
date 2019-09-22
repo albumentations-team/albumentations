@@ -18,7 +18,9 @@ IGNORED_CLASSES = {
 }
 
 
-READTHEDOCS_TEMPLATE_ALBU = '[{name}](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations'
+READTHEDOCS_TEMPLATE_ALBU = (
+    '[{name}](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations'
+)
 READTHEDOCS_TEMPLATE_IMGAUG = '[{name}](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations'
 TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_ALBU + '.augmentations.transforms.{name})'
 IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_IMGAUG + '.imgaug.transforms.{name})'
