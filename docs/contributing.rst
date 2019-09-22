@@ -13,7 +13,7 @@ To create pull request:
 
 .. code-block:: bash
 
-    pip install pre-commit
+    pip install pre-commit black flake8
 
 4. Initialize it from the folder with the repo:
 
