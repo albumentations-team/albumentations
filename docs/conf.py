@@ -153,7 +153,7 @@ latex_documents = [
         master_doc,
         "albumentations.tex",
         "albumentations Documentation",
-        "Alexander Buslaev, Alexander Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin",
+        "Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin",
         "manual",
     )
 ]
