@@ -63,10 +63,10 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'albumentations'
-copyright = ('{}, Buslaev Alexander, Alex Parinov, Vladimir Iglovikov, '
-             'Evegene Khvedchenya', 'Druzhinin Mikhail').format(datetime.datetime.now().year)
-author = 'Buslaev Alexander, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, ' \
-         'Druzhinin Mikhail'
+copyright = '{}, Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, ' \
+            'Evegene Khvedchenya', 'Mikhail Druzhinin'.format(datetime.datetime.now().year)
+author = 'Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, ' \
+         'Mikhail Druzhinin'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -146,7 +146,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'albumentations.tex', 'albumentations Documentation',
-     'Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov', 'manual'),
+     'Alexander Buslaev , Alexander Parinov, Vladimir Iglovikov', 'Evegene Khvedchenya', 'Druzhinin Mikhail', 'manual'),
 ]
 
 
