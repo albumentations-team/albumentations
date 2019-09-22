@@ -3,9 +3,19 @@ from albumentations.core.utils import DataProcessor
 
 import numpy as np
 
-__all__ = ['normalize_bbox', 'denormalize_bbox', 'normalize_bboxes', 'denormalize_bboxes', 'calculate_bbox_area',
-           'filter_bboxes_by_visibility', 'convert_bbox_to_albumentations', 'convert_bbox_from_albumentations',
-           'convert_bboxes_to_albumentations', 'convert_bboxes_from_albumentations', 'BboxProcessor']
+__all__ = [
+    "normalize_bbox",
+    "denormalize_bbox",
+    "normalize_bboxes",
+    "denormalize_bboxes",
+    "calculate_bbox_area",
+    "filter_bboxes_by_visibility",
+    "convert_bbox_to_albumentations",
+    "convert_bbox_from_albumentations",
+    "convert_bboxes_to_albumentations",
+    "convert_bboxes_from_albumentations",
+    "BboxProcessor",
+]
 
 
 class BboxProcessor(DataProcessor):
@@ -17,15 +27,18 @@ class BboxProcessor(DataProcessor):
         for data_name in self.data_fields:
             if data.get(data_name) and len(data[data_name][0]) < 5:
                 if self.params.label_fields is None:
-                    raise ValueError("Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
-                                     "because bboxes must have labels")
+                    raise ValueError(
+                        "Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
+                        "because bboxes must have labels"
+                    )
         if self.params.label_fields:
             if not all(l in data.keys() for l in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
     def filter(self, data, rows, cols):
-        return filter_bboxes(data, rows, cols,
-                             min_area=self.params.min_area, min_visibility=self.params.min_visibility)
+        return filter_bboxes(
+            data, rows, cols, min_area=self.params.min_area, min_visibility=self.params.min_visibility
+        )
 
     def check(self, data, rows, cols):
         return check_bboxes(data)
@@ -42,9 +55,9 @@ def normalize_bbox(bbox, rows, cols):
     by image height.
     """
     if rows == 0:
-        raise ValueError('Argument rows cannot be zero')
+        raise ValueError("Argument rows cannot be zero")
     if cols == 0:
-        raise ValueError('Argument cols cannot be zero')
+        raise ValueError("Argument cols cannot be zero")
     x_min, y_min, x_max, y_max = bbox[:4]
     normalized_bbox = [x_min / cols, y_min / rows, x_max / cols, y_max / rows]
     return normalized_bbox + list(bbox[4:])
@@ -55,9 +68,9 @@ def denormalize_bbox(bbox, rows, cols):
     by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
     """
     if rows == 0:
-        raise ValueError('Argument rows cannot be zero')
+        raise ValueError("Argument rows cannot be zero")
     if cols == 0:
-        raise ValueError('Argument cols cannot be zero')
+        raise ValueError("Argument cols cannot be zero")
 
     x_min, y_min, x_max, y_max = bbox[:4]
     denormalized_bbox = [x_min * cols, y_min * rows, x_max * cols, y_max * rows]
@@ -82,8 +95,9 @@ def calculate_bbox_area(bbox, rows, cols):
     return area
 
 
-def filter_bboxes_by_visibility(original_shape, bboxes, transformed_shape, transformed_bboxes,
-                                threshold=0., min_area=0.):
+def filter_bboxes_by_visibility(
+    original_shape, bboxes, transformed_shape, transformed_bboxes, threshold=0.0, min_area=0.0
+):
     """Filter bounding boxes and return only those boxes whose visibility after transformation is above
     the threshold and minimal area of bounding box in pixels is more then min_area.
 
@@ -134,15 +148,15 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         ValueError: if `target_format` is not equal to `coco` or `pascal_voc`, ot `yolo`.
 
     """
-    if source_format not in {'coco', 'pascal_voc', 'yolo'}:
+    if source_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
             "Unknown source_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(source_format)
         )
-    if source_format == 'coco':
+    if source_format == "coco":
         x_min, y_min, width, height = bbox[:4]
         x_max = x_min + width
         y_max = y_min + height
-    elif source_format == 'yolo':
+    elif source_format == "yolo":
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         _bbox = np.array(bbox[:4])
         assert np.all((0 < _bbox) & (_bbox < 1)), "In YOLO format all labels must be float and in range (0, 1)"
@@ -182,19 +196,19 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
         ValueError: if `target_format` is not equal to `coco`, `pascal_voc` or `yolo`.
 
     """
-    if target_format not in {'coco', 'pascal_voc', 'yolo'}:
+    if target_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
             "Unknown target_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(target_format)
         )
     if check_validity:
         check_bbox(bbox)
     bbox = denormalize_bbox(bbox, rows, cols)
-    if target_format == 'coco':
+    if target_format == "coco":
         x_min, y_min, x_max, y_max = bbox[:4]
         width = x_max - x_min
         height = y_max - y_min
         bbox = [x_min, y_min, width, height] + list(bbox[4:])
-    elif target_format == 'yolo':
+    elif target_format == "yolo":
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         x_min, y_min, x_max, y_max = bbox[:4]
         x = (x_min + x_max) / 2 - 1
@@ -227,25 +241,17 @@ def convert_bboxes_from_albumentations(bboxes, target_format, rows, cols, check_
 
 def check_bbox(bbox):
     """Check if bbox boundaries are in range 0, 1 and minimums are lesser then maximums"""
-    for name, value in zip(['x_min', 'y_min', 'x_max', 'y_max'], bbox[:4]):
+    for name, value in zip(["x_min", "y_min", "x_max", "y_max"], bbox[:4]):
         if not 0 <= value <= 1:
             raise ValueError(
-                'Expected {name} for bbox {bbox} '
-                'to be in the range [0.0, 1.0], got {value}.'.format(
-                    bbox=bbox,
-                    name=name,
-                    value=value,
-                )
+                "Expected {name} for bbox {bbox} "
+                "to be in the range [0.0, 1.0], got {value}.".format(bbox=bbox, name=name, value=value)
             )
     x_min, y_min, x_max, y_max = bbox[:4]
     if x_max <= x_min:
-        raise ValueError('x_max is less than or equal to x_min for bbox {bbox}.'.format(
-            bbox=bbox,
-        ))
+        raise ValueError("x_max is less than or equal to x_min for bbox {bbox}.".format(bbox=bbox))
     if y_max <= y_min:
-        raise ValueError('y_max is less than or equal to y_min for bbox {bbox}.'.format(
-            bbox=bbox,
-        ))
+        raise ValueError("y_max is less than or equal to y_min for bbox {bbox}.".format(bbox=bbox))
 
 
 def check_bboxes(bboxes):
@@ -254,7 +260,7 @@ def check_bboxes(bboxes):
         check_bbox(bbox)
 
 
-def filter_bboxes(bboxes, rows, cols, min_area=0., min_visibility=0.):
+def filter_bboxes(bboxes, rows, cols, min_area=0.0, min_visibility=0.0):
     """Remove bounding boxes that either lie outside of the visible area by more then min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
@@ -269,12 +275,12 @@ def filter_bboxes(bboxes, rows, cols, min_area=0., min_visibility=0.):
     resulting_boxes = []
     for bbox in bboxes:
         transformed_box_area = calculate_bbox_area(bbox, rows, cols)
-        bbox[:4] = np.clip(bbox[:4], 0, 1.)
+        bbox[:4] = np.clip(bbox[:4], 0, 1.0)
         clipped_box_area = calculate_bbox_area(bbox, rows, cols)
         if not transformed_box_area or clipped_box_area / transformed_box_area <= min_visibility:
             continue
         else:
-            bbox[:4] = np.clip(bbox[:4], 0, 1.)
+            bbox[:4] = np.clip(bbox[:4], 0, 1.0)
         if calculate_bbox_area(bbox, rows, cols) <= min_area:
             continue
         resulting_boxes.append(bbox)
