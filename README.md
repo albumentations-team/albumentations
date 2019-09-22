@@ -183,6 +183,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [SmallestMaxSize](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.SmallestMaxSize)                   | ✓     | ✓     | ✓      |           |
 | [Transpose](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Transpose)                               | ✓     | ✓     | ✓      |           |
 | [VerticalFlip](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.VerticalFlip)                         | ✓     | ✓     | ✓      | ✓         |
+
 ## Migrating from torchvision to albumentations
 
 Migrating from torchvision to albumentations is simple - you just need to change a few lines of code.
