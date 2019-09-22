@@ -82,8 +82,8 @@ class BasicTransform(object):
                 res[key] = None
         return res
 
-    def set_deterministic(self, flag, save_key='replay'):
-        assert save_key != 'params', 'params save_key is reserved'
+    def set_deterministic(self, flag, save_key="replay"):
+        assert save_key != "params", "params save_key is reserved"
         self.deterministic = flag
         self.save_key = save_key
         return self
@@ -170,7 +170,7 @@ class BasicTransform(object):
 
     def get_dict_with_id(self):
         d = self._to_dict()
-        d['id'] = id(self)
+        d["id"] = id(self)
         return d
 
 
