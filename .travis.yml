@@ -9,7 +9,9 @@ cache:
     - $HOME/.cache/pip
 
 env:
-  - IMGAUG_NO_CV2_INSTALLED_CHECK=TRUE
+  global:
+    - IMGAUG_NO_CV2_INSTALLED_CHECK=TRUE
+    - TEST_MODE=DEFAULT
 
 matrix:
   include:
@@ -19,21 +21,25 @@ matrix:
       env: PYTORCH_WHEEL=https://download.pytorch.org/whl/cpu/torch-1.0.1.post2-cp35-cp35m-linux_x86_64.whl
     - python: 3.6
       env: PYTORCH_WHEEL=https://download.pytorch.org/whl/cpu/torch-1.0.1.post2-cp36-cp36m-linux_x86_64.whl
-    - python: 3.6
-      env: TEST_MODE=DOCS
     - python: 3.7
       env: PYTORCH_WHEEL=https://download.pytorch.org/whl/cpu/torch-1.0.1.post2-cp37-cp37m-linux_x86_64.whl
       dist: xenial
       sudo: true
+    - python: 3.7
+      env: TEST_MODE=DOCS
+    - python: 3.7
+      env: TEST_MODE=BLACK
 
 install:
 - pip install --upgrade pip pytest
 - if [[ "$TEST_MODE" == "DOCS" ]]; then pip install .; fi
+- if [[ "$TEST_MODE" == "BLACK" ]]; then pip install black; fi
 - if [[ -n "$PYTORCH_WHEEL" ]]; then pip install "$PYTORCH_WHEEL" torchvision; fi
-- if [[ "$TEST_MODE" != "DOCS" ]]; then pip install .[tests]; fi
-- if [[ "$TEST_MODE" != "DOCS" ]]; then pip install "pydocstyle<4.0.0" flake8 flake8-docstrings; fi
+- if [[ "$TEST_MODE" == "DEFAULT" ]]; then pip install .[tests]; fi
+- if [[ "$TEST_MODE" == "DEFAULT" ]]; then pip install "pydocstyle<4.0.0" flake8 flake8-docstrings; fi
 
 script:
   - if [[ "$TEST_MODE" == "DOCS" ]]; then python tools/make_transforms_docs.py check README.md; fi
-  - if [[ "$TEST_MODE" != "DOCS" ]]; then pytest; fi
-  - if [[ "$TEST_MODE" != "DOCS" ]]; then flake8; fi
+  - if [[ "$TEST_MODE" == "BLACK" ]]; then black --check .; fi
+  - if [[ "$TEST_MODE" == "DEFAULT" ]]; then pytest; fi
+  - if [[ "$TEST_MODE" == "DEFAULT" ]]; then flake8; fi
