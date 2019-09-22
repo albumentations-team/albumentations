@@ -123,8 +123,8 @@ def make_transforms_targets_links(transforms_info):
 
 
 def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
-    with open(args.filepath, 'rb') as f:
-        text = f.read().decode('utf8')
+    with open(args.filepath, 'r', encoding='utf8') as f:
+        text = f.read()
     outdated_docs = set()
     image_only_lines_not_in_text = []
     dual_lines_not_in_text = []
