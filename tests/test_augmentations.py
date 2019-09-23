@@ -59,6 +59,7 @@ from albumentations import (
     Equalize,
     CropNonEmptyMaskIfExists,
     LongestMaxSize,
+    Downscale,
 )
 
 
@@ -92,6 +93,7 @@ from albumentations import (
         [Solarize, {}],
         [Posterize, {}],
         [Equalize, {}],
+        [Downscale, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):

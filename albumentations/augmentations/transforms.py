@@ -1,17 +1,17 @@
 from __future__ import absolute_import, division
 
-from types import LambdaType
 import math
 import random
 import warnings
 from enum import Enum
+from types import LambdaType
 
 import cv2
 import numpy as np
 
 from . import functional as F
-from .bbox_utils import union_of_bboxes, denormalize_bbox, normalize_bbox
-from ..core.transforms_interface import to_tuple, DualTransform, ImageOnlyTransform, NoOp
+from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
+from ..core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp, to_tuple
 from ..core.utils import format_args
 
 __all__ = [
@@ -72,6 +72,7 @@ __all__ = [
     "Solarize",
     "Equalize",
     "Posterize",
+    "Downscale",
 ]
 
 
@@ -2751,6 +2752,41 @@ class FromFloat(ImageOnlyTransform):
 
     def get_transform_init_args(self):
         return {"dtype": self.dtype.name, "max_value": self.max_value}
+
+
+class Downscale(ImageOnlyTransform):
+    """Decreases image quality by downscaling and upscaling back.
+
+    Args:
+        scale_min (float): lower bound on the image scale. Should be < 1.
+        scale_max (float):  lower bound on the image scale. Should be .
+        interpolation: cv2 interpolation method. cv2.INTER_NEAREST by default
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, scale_min=0.25, scale_max=0.25, interpolation=cv2.INTER_NEAREST, always_apply=False, p=0.5):
+        super(Downscale, self).__init__(always_apply, p)
+        assert scale_min <= scale_max, "Expected scale_min be less or equal scale_max, got {} {}".format(
+            scale_min, scale_max
+        )
+        assert scale_max < 1, "Expected scale_max to be less than 1, got {}".format(scale_max)
+        self.scale_min = scale_min
+        self.scale_max = scale_max
+        self.interpolation = interpolation
+
+    def apply(self, image, scale, interpolation, **params):
+        return F.downscale(image, scale=scale, interpolation=interpolation)
+
+    def get_params(self):
+        return {"scale": np.random.uniform(self.scale_min, self.scale_max), "interpolation": self.interpolation}
+
+    def get_transform_init_args_names(self):
+        return "scale_min", "scale_max", "interpolation"
 
 
 class Lambda(NoOp):

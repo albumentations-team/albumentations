@@ -2,11 +2,11 @@ from __future__ import absolute_import
 
 import cv2
 import numpy as np
-from numpy.testing import assert_array_almost_equal_nulp
 import pytest
+from numpy.testing import assert_array_almost_equal_nulp
 
-from albumentations.augmentations.bbox_utils import filter_bboxes
 import albumentations.augmentations.functional as F
+from albumentations.augmentations.bbox_utils import filter_bboxes
 from .utils import convert_2d_to_target_format
 
 
@@ -877,6 +877,21 @@ def test_equalize_rgb_mask():
     assert np.all(img_r == result_img[:10, :10, 0])
     assert np.all(img_g == result_img[10:20, 10:20, 1])
     assert np.all(img_b == result_img[20:30, 20:30, 2])
+
+
+@pytest.mark.parametrize("dtype", ["float32", "uint8"])
+def test_downscale_ones(dtype):
+    img = np.ones((100, 100, 3), dtype=dtype)
+    downscaled = F.downscale(img, scale=0.5)
+    assert np.all(downscaled == img)
+
+
+def test_downscale_random():
+    img = np.random.rand(100, 100, 3)
+    downscaled = F.downscale(img, scale=0.5)
+    assert downscaled.shape == img.shape
+    downscaled = F.downscale(img, scale=1)
+    assert np.all(img == downscaled)
 
 
 def test_maybe_process_in_chunks():
