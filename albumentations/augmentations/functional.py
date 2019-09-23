@@ -472,7 +472,7 @@ def _equalize_cv(img, mask=None):
     if histogram[i] == total:
         return np.full_like(img, i)
 
-    scale = 255 / (total - histogram[i])
+    scale = 255.0 / (total - histogram[i])
     _sum = 0
 
     lut = np.zeros(256, dtype=np.uint8)
@@ -1313,6 +1313,20 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
 def to_gray(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+
+@preserve_shape
+def downscale(img, scale, interpolation=cv2.INTER_NEAREST):
+    h, w = img.shape[:2]
+
+    need_cast = interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
+    if need_cast:
+        img = to_float(img)
+    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=interpolation)
+    upscaled = cv2.resize(downscaled, (w, h), interpolation=interpolation)
+    if need_cast:
+        upscaled = from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
+    return upscaled
 
 
 def to_float(img, max_value=None):

@@ -59,6 +59,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.Downscale, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])

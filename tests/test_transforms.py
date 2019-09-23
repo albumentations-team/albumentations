@@ -1,8 +1,8 @@
 from functools import partial
 from multiprocessing.pool import Pool
 
-import numpy as np
 import cv2
+import numpy as np
 import pytest
 
 import albumentations as A
@@ -398,3 +398,16 @@ def test_crop_non_empty_mask():
     _test_crop(mask_4, crop_4, aug_4, n=5)
     _test_crop(mask_5, crop_5, aug_5, n=1)
     _test_crop(mask_6, crop_6, aug_6, n=10)
+
+
+@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
+def test_downscale(interpolation):
+    img_float = np.random.rand(100, 100, 3)
+    img_uint = (img_float * 255).astype("uint8")
+
+    aug = A.Downscale(scale_min=0.5, scale_max=0.5, interpolation=interpolation, always_apply=True)
+
+    for img in (img_float, img_uint):
+        transformed = aug(image=img)["image"]
+        func_applied = F.downscale(img, scale=0.5, interpolation=interpolation)
+        np.testing.assert_almost_equal(transformed, func_applied)
