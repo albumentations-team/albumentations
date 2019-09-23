@@ -12,7 +12,7 @@ from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
-from albumentations.core.serialization import SERIALIZABLE_REGISTRY
+from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
 __all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose"]
 
@@ -192,6 +192,9 @@ class Compose(BaseCompose):
         )
         return dictionary
 
+    def apply_with_params(self, *args, **kwargs):
+        return self.__call__(*args, **kwargs)
+
 
 class OneOf(BaseCompose):
     """Select one of transforms to apply
@@ -214,6 +217,11 @@ class OneOf(BaseCompose):
             data = t(force_apply=True, **data)
         return data
 
+    def apply_with_params(self, *args, **kwargs):
+        for t in self.transforms:
+            kwargs = t(**kwargs)
+        return kwargs
+
 
 class OneOrOther(BaseCompose):
     def __init__(self, first=None, second=None, transforms=None, p=0.5):
@@ -226,6 +234,11 @@ class OneOrOther(BaseCompose):
             return self.transforms[0](force_apply=True, **data)
         else:
             return self.transforms[-1](force_apply=True, **data)
+
+    def apply_with_params(self, *args, **kwargs):
+        for t in self.transforms:
+            kwargs = t(**kwargs)
+        return kwargs
 
 
 class PerChannel(BaseCompose):
@@ -282,11 +295,11 @@ class ReplayCompose(Compose):
 
     @staticmethod
     def replay(saved_augmentations, **kwargs):
-        augs = ReplayCompose.from_dict(saved_augmentations)
+        augs = ReplayCompose._restore_for_replay(saved_augmentations)
         return augs(**kwargs)
 
     @staticmethod
-    def from_dict(transform_dict, lambda_transforms=None):
+    def _restore_for_replay(transform_dict, lambda_transforms=None):
         """
         Args:
             transform (dict): A dictionary with serialized transform pipeline.
@@ -299,34 +312,24 @@ class ReplayCompose(Compose):
         transform = transform_dict
         applied = transform["applied"]
         params = transform["params"]
-        if transform.get("__type__") == "Lambda":
-            name = transform["__name__"]
-            if lambda_transforms is None:
-                raise ValueError(
-                    "To deserialize a Lambda transform with name {name} you need to pass a dict with this transform "
-                    "as the `lambda_transforms` argument".format(name=name)
-                )
-            transform = lambda_transforms.get(name)
-            if transform is None:
-                raise ValueError("Lambda transform with {name} was not found in `lambda_transforms`".format(name=name))
-
-            # todo not sure about lambda
-
+        lmbd = instantiate_lambda(transform, lambda_transforms)
+        if lmbd:
+            transform = lmbd
         else:
             name = transform["__class_fullname__"]
             args = {k: v for k, v in transform.items() if k not in ["__class_fullname__", "applied", "params"]}
             cls = SERIALIZABLE_REGISTRY[name]
             if "transforms" in args:
                 args["transforms"] = [
-                    ReplayCompose.from_dict(t, lambda_transforms=lambda_transforms) for t in args["transforms"]
+                    ReplayCompose._restore_for_replay(t, lambda_transforms=lambda_transforms)
+                    for t in args["transforms"]
                 ]
             transform = cls(**args)
 
         if not applied:
             transform.__call__ = lambda *args, **kwargs: kwargs
         else:
-            if not isinstance(transform, BaseCompose):  # todo oneorother
-                transform.__call__ = partial(transform.apply_with_params, params)
+            transform.__call__ = partial(transform.apply_with_params, params)
         return transform
 
     def fill_with_params(self, serialized, all_params):

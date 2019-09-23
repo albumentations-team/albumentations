@@ -141,18 +141,7 @@ def test_per_channel_multi():
 
 
 def test_deterministic():
-    aug = ReplayCompose(
-        [
-            HorizontalFlip(),
-            HorizontalFlip(),
-            Rotate(p=0.8),
-            HorizontalFlip(),
-            Blur(p=0.9),
-            OneOf([HorizontalFlip(), Blur()]),
-            HorizontalFlip(),
-        ],
-        p=1,
-    )
+    aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
     for i in range(10):
         image = np.random.random((8, 8))
         image2 = np.copy(image)
