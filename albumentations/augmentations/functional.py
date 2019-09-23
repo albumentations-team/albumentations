@@ -472,7 +472,7 @@ def _equalize_cv(img, mask=None):
     if histogram[i] == total:
         return np.full_like(img, i)
 
-    scale = 255 / (total - histogram[i])
+    scale = 255.0 / (total - histogram[i])
     _sum = 0
 
     lut = np.zeros(256, dtype=np.uint8)
