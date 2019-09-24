@@ -62,7 +62,7 @@ project = "albumentations"
 
 authors = "Alexander Buslaev, Alex Parinov, Vladimir Iglovikov, Evegene Khvedchenya, Mikhail Druzhinin"
 
-copyright = ("{}, {}".format(datetime.datetime.now().year, authors),)
+copyright = "{}, {}".format(datetime.datetime.now().year, authors)
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
