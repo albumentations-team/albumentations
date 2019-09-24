@@ -2606,11 +2606,16 @@ class ChannelShuffle(ImageOnlyTransform):
         uint8, float32
     """
 
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
     def apply(self, img, channels_shuffled=[0, 1, 2], **params):
         return F.channel_shuffle(img, channels_shuffled)
 
-    def get_params(self):
-        ch_arr = [0, 1, 2]
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        ch_arr = list(range(img.shape[2]))
         random.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
