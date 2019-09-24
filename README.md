@@ -252,6 +252,11 @@ python3 tools/make_transforms_docs.py check README.md
 Alternatively, you can start a web server that rebuilds the documentation
 automatically when a change is detected by running `make livehtml`
 
+## Hall of fame
+Albumentations are widely used in Computer Vision Competitions at Kaggle an other platforms.
+
+You can find their names and links to the solutions [here](docs/hall_of_fame.rst).
+
 
 ## Comments
 In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355)

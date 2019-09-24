@@ -50,3 +50,4 @@ to adjust image augmentation parameters and see the resulting images.
    api/index
    probabilities
    writing_tests
+   hall_of_fame
