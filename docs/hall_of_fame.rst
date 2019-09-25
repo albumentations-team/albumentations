@@ -21,6 +21,11 @@ Kaggle
     `solution <https://www.kaggle.com/c/tgs-salt-identification-challenge/discussion/69291>`__,
     `code <https://github.com/ybabakhin/kaggle_salt_bes_phalanx>`__,
     `pre-print <https://arxiv.org/abs/1904.04445>`__
+    
+`SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
+---------------------------------------------------------------------------------------------------
+50. `AlexeyK <https://www.kaggle.com/akuritsyn>`__, `wayfarer <https://www.kaggle.com/joven1997>`__, `Kudaibergen R <https://www.kaggle.com/kudaibergenu>`__
+   `code and solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
 
 Topcoder
 ========
