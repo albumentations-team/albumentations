@@ -22,5 +22,10 @@ Kaggle
     `code <https://github.com/ybabakhin/kaggle_salt_bes_phalanx>`__,
     `pre-print <https://arxiv.org/abs/1904.04445>`__
 
+`SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
+------------------------------------------------------------------------------------------------
+33. `Alimbekov Renat <https://www.kaggle.com/alimbekovkz>`__, `Vassilenko Ivan <https://www.kaggle.com/jovannv>`__
+    `kaggle post <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation/discussion/107546>`__
+
 Topcoder
 ========
