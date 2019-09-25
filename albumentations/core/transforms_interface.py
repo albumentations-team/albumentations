@@ -48,26 +48,30 @@ class BasicTransform(object):
         self.p = p
         self.always_apply = always_apply
         self._additional_targets = {}
+        self.params = {}
+        self.was_applied = False
 
     def __call__(self, force_apply=False, **kwargs):
+        self.was_applied = False
         if (random.random() < self.p) or self.always_apply or force_apply:
-            params = self.get_params()
-            params = self.update_params(params, **kwargs)
+            self.params = self.get_params()
+            self.params = self.update_params(self.params, **kwargs)
             if self.targets_as_params:
                 assert all(key in kwargs for key in self.targets_as_params), "{} requires {}".format(
                     self.__class__.__name__, self.targets_as_params
                 )
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
-                params.update(params_dependent_on_targets)
+                self.params.update(params_dependent_on_targets)
             res = {}
             for key, arg in kwargs.items():
                 if arg is not None:
                     target_function = self._get_target_function(key)
                     target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
-                    res[key] = target_function(arg, **dict(params, **target_dependencies))
+                    res[key] = target_function(arg, **dict(self.params, **target_dependencies))
                 else:
                     res[key] = None
+            self.was_applied = True
             return res
         return kwargs
 
