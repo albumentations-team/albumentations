@@ -140,12 +140,23 @@ def test_per_channel_multi():
     assert data
 
 
-def test_deterministic():
+def test_deterministic_oneof():
     aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
     for i in range(10):
-        image = np.random.random((8, 8))
+        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
         data = aug(image=image)
         assert "replay" in data
         data2 = ReplayCompose.replay(data["replay"], image=image2)
-        np.array_equal(data["image"], data2["image"])
+        assert np.array_equal(data["image"], data2["image"])
+
+
+def test_deterministic_one_or_other():
+    aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
+    for i in range(10):
+        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
+        image2 = np.copy(image)
+        data = aug(image=image)
+        assert "replay" in data
+        data2 = ReplayCompose.replay(data["replay"], image=image2)
+        assert np.array_equal(data["image"], data2["image"])

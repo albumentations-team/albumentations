@@ -1,6 +1,5 @@
 from __future__ import division
 from collections import defaultdict
-from functools import partial
 
 import random
 
@@ -66,6 +65,9 @@ class BaseCompose(object):
     def __init__(self, transforms, p):
         self.transforms = Transforms(transforms)
         self.p = p
+
+        self.replay_mode = False
+        self.applied_in_replay = False
 
     def __getitem__(self, item):
         return self.transforms[item]
@@ -192,9 +194,6 @@ class Compose(BaseCompose):
         )
         return dictionary
 
-    def apply_with_params(self, *args, **kwargs):
-        return self.__call__(*args, **kwargs)
-
 
 class OneOf(BaseCompose):
     """Select one of transforms to apply
@@ -211,16 +210,16 @@ class OneOf(BaseCompose):
         self.transforms_ps = [t / s for t in transforms_ps]
 
     def __call__(self, force_apply=False, **data):
+        if self.replay_mode:
+            for t in self.transforms:
+                data = t(**data)
+            return data
+
         if force_apply or random.random() < self.p:
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
             data = t(force_apply=True, **data)
         return data
-
-    def apply_with_params(self, *args, **kwargs):
-        for t in self.transforms:
-            kwargs = t(**kwargs)
-        return kwargs
 
 
 class OneOrOther(BaseCompose):
@@ -230,15 +229,15 @@ class OneOrOther(BaseCompose):
         super(OneOrOther, self).__init__(transforms, p)
 
     def __call__(self, force_apply=False, **data):
+        if self.replay_mode:
+            for t in self.transforms:
+                data = t(**data)
+            return data
+
         if random.random() < self.p:
             return self.transforms[0](force_apply=True, **data)
         else:
             return self.transforms[-1](force_apply=True, **data)
-
-    def apply_with_params(self, *args, **kwargs):
-        for t in self.transforms:
-            kwargs = t(**kwargs)
-        return kwargs
 
 
 class PerChannel(BaseCompose):
@@ -284,9 +283,9 @@ class ReplayCompose(Compose):
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, force_apply=False, **kwargs):
         kwargs[self.save_key] = defaultdict(dict)
-        result = super(ReplayCompose, self).__call__(*args, **kwargs)
+        result = super(ReplayCompose, self).__call__(force_apply=force_apply, **kwargs)
         serialized = self.get_dict_with_id()
         self.fill_with_params(serialized, result[self.save_key])
         self.fill_applied(serialized)
@@ -296,7 +295,7 @@ class ReplayCompose(Compose):
     @staticmethod
     def replay(saved_augmentations, **kwargs):
         augs = ReplayCompose._restore_for_replay(saved_augmentations)
-        return augs(**kwargs)
+        return augs(force_apply=True, **kwargs)
 
     @staticmethod
     def _restore_for_replay(transform_dict, lambda_transforms=None):
@@ -326,10 +325,9 @@ class ReplayCompose(Compose):
                 ]
             transform = cls(**args)
 
-        if not applied:
-            transform.__call__ = lambda *args, **kwargs: kwargs
-        else:
-            transform.__call__ = partial(transform.apply_with_params, params)
+        transform.params = params
+        transform.replay_mode = True
+        transform.applied_in_replay = applied
         return transform
 
     def fill_with_params(self, serialized, all_params):
