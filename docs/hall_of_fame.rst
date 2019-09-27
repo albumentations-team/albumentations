@@ -22,5 +22,11 @@ Kaggle
     `code <https://github.com/ybabakhin/kaggle_salt_bes_phalanx>`__,
     `pre-print <https://arxiv.org/abs/1904.04445>`__
 
+`APTOS 2019 Blindness Detection <https://www.kaggle.com/c/aptos2019-blindness-detection>`_
+------------------------------------------------------------------------------------------------
+1. `Eugene Khvedchenya <https://www.kaggle.com/bloodaxe>`__
+    `solution <https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108058>`__,
+    `code <https://github.com/BloodAxe/Kaggle-2019-Cellular-Image-Classification>`__,
+
 Topcoder
 ========
