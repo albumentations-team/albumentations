@@ -24,7 +24,7 @@ Kaggle
 
 `APTOS 2019 Blindness Detection <https://www.kaggle.com/c/aptos2019-blindness-detection>`_
 ------------------------------------------------------------------------------------------------
-1. `Eugene Khvedchenya <https://www.kaggle.com/bloodaxe>`__
+7. `Eugene Khvedchenya <https://www.kaggle.com/bloodaxe>`__
     `solution <https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108058>`__,
     `code <https://github.com/BloodAxe/Kaggle-2019-Cellular-Image-Classification>`__,
 
