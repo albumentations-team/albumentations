@@ -1,4 +1,5 @@
 from __future__ import division
+from collections import defaultdict
 
 import random
 
@@ -10,8 +11,9 @@ from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
+from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams"]
+__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose"]
 
 
 REPR_INDENT_STEP = 2
@@ -64,6 +66,9 @@ class BaseCompose(object):
         self.transforms = Transforms(transforms)
         self.p = p
 
+        self.replay_mode = False
+        self.applied_in_replay = False
+
     def __getitem__(self, item):
         return self.transforms[item]
 
@@ -94,10 +99,22 @@ class BaseCompose(object):
             "transforms": [t._to_dict() for t in self.transforms],
         }
 
+    def get_dict_with_id(self):
+        return {
+            "__class_fullname__": self.get_class_fullname(),
+            "id": id(self),
+            "params": None,
+            "transforms": [t.get_dict_with_id() for t in self.transforms],
+        }
+
     def add_targets(self, additional_targets):
         if additional_targets:
             for t in self.transforms:
                 t.add_targets(additional_targets)
+
+    def set_deterministic(self, flag, save_key="replay"):
+        for t in self.transforms:
+            t.set_deterministic(flag, save_key)
 
 
 class Compose(BaseCompose):
@@ -193,6 +210,11 @@ class OneOf(BaseCompose):
         self.transforms_ps = [t / s for t in transforms_ps]
 
     def __call__(self, force_apply=False, **data):
+        if self.replay_mode:
+            for t in self.transforms:
+                data = t(**data)
+            return data
+
         if force_apply or random.random() < self.p:
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
@@ -207,6 +229,11 @@ class OneOrOther(BaseCompose):
         super(OneOrOther, self).__init__(transforms, p)
 
     def __call__(self, force_apply=False, **data):
+        if self.replay_mode:
+            for t in self.transforms:
+                data = t(**data)
+            return data
+
         if random.random() < self.p:
             return self.transforms[0](force_apply=True, **data)
         else:
@@ -246,6 +273,80 @@ class PerChannel(BaseCompose):
             data["image"] = image
 
         return data
+
+
+class ReplayCompose(Compose):
+    def __init__(
+        self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0, save_key="replay"
+    ):
+        super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
+        self.set_deterministic(True, save_key=save_key)
+        self.save_key = save_key
+
+    def __call__(self, force_apply=False, **kwargs):
+        kwargs[self.save_key] = defaultdict(dict)
+        result = super(ReplayCompose, self).__call__(force_apply=force_apply, **kwargs)
+        serialized = self.get_dict_with_id()
+        self.fill_with_params(serialized, result[self.save_key])
+        self.fill_applied(serialized)
+        result[self.save_key] = serialized
+        return result
+
+    @staticmethod
+    def replay(saved_augmentations, **kwargs):
+        augs = ReplayCompose._restore_for_replay(saved_augmentations)
+        return augs(force_apply=True, **kwargs)
+
+    @staticmethod
+    def _restore_for_replay(transform_dict, lambda_transforms=None):
+        """
+        Args:
+            transform (dict): A dictionary with serialized transform pipeline.
+            lambda_transforms (dict): A dictionary that contains lambda transforms, that
+            is instances of the Lambda class.
+                This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
+                in that dictionary should be named same as `name` arguments in respective lambda transforms from
+                a serialized pipeline.
+        """
+        transform = transform_dict
+        applied = transform["applied"]
+        params = transform["params"]
+        lmbd = instantiate_lambda(transform, lambda_transforms)
+        if lmbd:
+            transform = lmbd
+        else:
+            name = transform["__class_fullname__"]
+            args = {k: v for k, v in transform.items() if k not in ["__class_fullname__", "applied", "params"]}
+            cls = SERIALIZABLE_REGISTRY[name]
+            if "transforms" in args:
+                args["transforms"] = [
+                    ReplayCompose._restore_for_replay(t, lambda_transforms=lambda_transforms)
+                    for t in args["transforms"]
+                ]
+            transform = cls(**args)
+
+        transform.params = params
+        transform.replay_mode = True
+        transform.applied_in_replay = applied
+        return transform
+
+    def fill_with_params(self, serialized, all_params):
+        params = all_params.get(serialized.get("id"))
+        serialized["params"] = params
+        del serialized["id"]
+        for transform in serialized.get("transforms", []):
+            self.fill_with_params(transform, all_params)
+
+    def fill_applied(self, serialized):
+        if "transforms" in serialized:
+            applied = [self.fill_applied(t) for t in serialized["transforms"]]
+            serialized["applied"] = any(applied)
+        else:
+            serialized["applied"] = serialized.get("params") is not None
+        return serialized["applied"]
+
+    def _to_dict(self):
+        raise NotImplementedError("You cannot serialize ReplayCompose")
 
 
 class BboxParams(Params):

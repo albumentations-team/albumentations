@@ -6,7 +6,7 @@ import pytest
 
 from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
 from albumentations.augmentations.bbox_utils import check_bboxes
-from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel
+from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel, ReplayCompose
 from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
 from .compat import mock, MagicMock, Mock, call
 
@@ -138,3 +138,25 @@ def test_per_channel_multi():
     image = np.ones((8, 8, 5))
     data = augmentation(image=image)
     assert data
+
+
+def test_deterministic_oneof():
+    aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
+    for i in range(10):
+        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
+        image2 = np.copy(image)
+        data = aug(image=image)
+        assert "replay" in data
+        data2 = ReplayCompose.replay(data["replay"], image=image2)
+        assert np.array_equal(data["image"], data2["image"])
+
+
+def test_deterministic_one_or_other():
+    aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
+    for i in range(10):
+        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
+        image2 = np.copy(image)
+        data = aug(image=image)
+        assert "replay" in data
+        data2 = ReplayCompose.replay(data["replay"], image=image2)
+        assert np.array_equal(data["image"], data2["image"])

@@ -66,16 +66,7 @@ def to_dict(transform, on_not_implemented_error="raise"):
     return {"__version__": __version__, "transform": transform_dict}
 
 
-def from_dict(transform_dict, lambda_transforms=None):
-    """
-    Args:
-        transform (dict): A dictionary with serialized transform pipeline.
-        lambda_transforms (dict): A dictionary that contains lambda transforms, that is instances of the Lambda class.
-            This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
-            in that dictionary should be named same as `name` arguments in respective lambda transforms from
-            a serialized pipeline.
-    """
-    transform = transform_dict["transform"]
+def instantiate_lambda(transform, lambda_transforms=None):
     if transform.get("__type__") == "Lambda":
         name = transform["__name__"]
         if lambda_transforms is None:
@@ -87,6 +78,21 @@ def from_dict(transform_dict, lambda_transforms=None):
         if transform is None:
             raise ValueError("Lambda transform with {name} was not found in `lambda_transforms`".format(name=name))
         return transform
+
+
+def from_dict(transform_dict, lambda_transforms=None):
+    """
+    Args:
+        transform (dict): A dictionary with serialized transform pipeline.
+        lambda_transforms (dict): A dictionary that contains lambda transforms, that is instances of the Lambda class.
+            This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
+            in that dictionary should be named same as `name` arguments in respective lambda transforms from
+            a serialized pipeline.
+    """
+    transform = transform_dict["transform"]
+    lmbd = instantiate_lambda(transform, lambda_transforms)
+    if lmbd:
+        return lmbd
     name = transform["__class_fullname__"]
     args = {k: v for k, v in transform.items() if k != "__class_fullname__"}
     cls = SERIALIZABLE_REGISTRY[name]
