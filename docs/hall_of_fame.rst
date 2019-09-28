@@ -35,5 +35,10 @@ Kaggle
 
 
 
+`SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
+---------------------------------------------------------------------------------------------------------
+33. `Renat Alimbekov <https://www.linkedin.com/in/alimbekovkz/>`__, `Ivan Vassilenko <https://www.linkedin.com/in/ivannvassilenko/>`__
+     `solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
+
 Topcoder
 ========
