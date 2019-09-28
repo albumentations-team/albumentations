@@ -27,6 +27,13 @@ Kaggle
 7. `Eugene Khvedchenya <https://www.kaggle.com/bloodaxe>`__
     `solution <https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108058>`__,
     `code <https://github.com/BloodAxe/Kaggle-2019-Cellular-Image-Classification>`__,
+    
+`SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
+---------------------------------------------------------------------------------------------------------
+50. `AlexeyK <https://www.kaggle.com/akuritsyn>`__, `wayfarer <https://www.kaggle.com/joven1997>`__, `Kudaibergen R <https://www.kaggle.com/kudaibergenu>`__
+     `code and solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
+
+
 
 Topcoder
 ========
