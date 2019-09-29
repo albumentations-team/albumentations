@@ -8,6 +8,12 @@ Here are the links to the competitions, names of the winners and to their soluti
 Kaggle
 ======
 
+`Carvana Image Masking Challenge <https://www.kaggle.com/c/carvana-image-masking-challenge>`_
+---------------------------------------------------------------------------------------------
+1. `Vladimir Iglovikov <https://www.linkedin.com/in/iglovikov/>`__, `Alexander Buslaev <https://www.kaggle.com/albuslaev>`__, `Artem Sanakoev <https://www.kaggle.com/asanakoev>`__
+    `solution <http://blog.kaggle.com/2017/12/22/carvana-image-masking-first-place-interview/>`_
+
+
 `Humpback Whale Identification <https://www.kaggle.com/c/humpback-whale-identification>`_
 -----------------------------------------------------------------------------------------
 
@@ -23,22 +29,36 @@ Kaggle
     `pre-print <https://arxiv.org/abs/1904.04445>`__
 
 `APTOS 2019 Blindness Detection <https://www.kaggle.com/c/aptos2019-blindness-detection>`_
-------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------
 7. `Eugene Khvedchenya <https://www.kaggle.com/bloodaxe>`__
     `solution <https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108058>`__,
     `code <https://github.com/BloodAxe/Kaggle-2019-Cellular-Image-Classification>`__,
-    
+
 `SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
----------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
+33. `Renat Alimbekov <https://www.linkedin.com/in/alimbekovkz/>`__, `Ivan Vassilenko <https://www.linkedin.com/in/ivannvassilenko/>`__
+     `solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
+
 50. `AlexeyK <https://www.kaggle.com/akuritsyn>`__, `wayfarer <https://www.kaggle.com/joven1997>`__, `Kudaibergen R <https://www.kaggle.com/kudaibergenu>`__
      `code and solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
 
 
+CVPR
+====
+2018
+----
 
-`SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
----------------------------------------------------------------------------------------------------------
-33. `Renat Alimbekov <https://www.linkedin.com/in/alimbekovkz/>`__, `Ivan Vassilenko <https://www.linkedin.com/in/ivannvassilenko/>`__
-     `solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
+`DeepGlobe: Road Extraction <https://competitions.codalab.org/competitions/18467>`__
+----------------------------------------------------------------------------------------
+2. `Vladimir Iglovikov <https://www.linkedin.com/in/iglovikov/>`__, `Alexander Buslaev <https://www.kaggle.com/albuslaev>`__, `Selim Seferbekov <https://www.kaggle.com/selimsef>`__
+    `paper <http://openaccess.thecvf.com/content_cvpr_2018_workshops/papers/w4/Buslaev_Fully_Convolutional_Network_CVPR_2018_paper.pdf>`__
 
-Topcoder
-========
+`Deepglobe: Building detection <https://competitions.codalab.org/competitions/18544>`__
+---------------------------------------------------------------------------------------
+2. `Vladimir Iglovikov <https://www.linkedin.com/in/iglovikov/>`__, `Alexander Buslaev <https://www.kaggle.com/albuslaev>`__, `Selim Seferbekov <https://www.kaggle.com/selimsef>`__
+    `paper <http://openaccess.thecvf.com/content_cvpr_2018_workshops/papers/w4/Iglovikov_TernausNetV2_Fully_Convolutional_CVPR_2018_paper.pdf>`__
+
+`Deepglobe: Land Cover Classification <https://competitions.codalab.org/competitions/18468>`__
+----------------------------------------------------------------------------------------------
+3. `Vladimir Iglovikov <https://www.linkedin.com/in/iglovikov/>`__, `Alexander Buslaev <https://www.kaggle.com/albuslaev>`__, `Selim Seferbekov <https://www.kaggle.com/selimsef>`__
+    `paper <http://openaccess.thecvf.com/content_cvpr_2018_workshops/papers/w4/Seferbekov_Feature_Pyramid_Network_CVPR_2018_paper.pdf>`__
