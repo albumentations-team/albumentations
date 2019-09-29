@@ -28,11 +28,20 @@ Kaggle
     `code <https://github.com/ybabakhin/kaggle_salt_bes_phalanx>`__,
     `pre-print <https://arxiv.org/abs/1904.04445>`__
 
+27. `Insaf Ashrapov <https://www.linkedin.com/in/iashrapov/>`__, `Mikhail Karchevskiy <https://www.linkedin.com/in/mikhail-karchevskiy-aa46245a/>`__, `Leonid Kozinkin <https://www.linkedin.com/in/lkozinkin/>`__,
+    `blog post <https://towardsdatascience.com/kaggle-salt-identification-challenge-7fc502d1c3c3>`__,
+    `code <https://github.com/K-Mike/Automatic-salt-deposits-segmentation>`__,
+    `pre-print <https://github.com/K-Mike/Automatic-salt-deposits-segmentation>`__
+
 `APTOS 2019 Blindness Detection <https://www.kaggle.com/c/aptos2019-blindness-detection>`_
 ------------------------------------------------------------------------------------------
 7. `Eugene Khvedchenya <https://www.kaggle.com/bloodaxe>`__
     `solution <https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108058>`__,
     `code <https://github.com/BloodAxe/Kaggle-2019-Cellular-Image-Classification>`__,
+
+76. `Insaf Ashrapov <https://www.linkedin.com/in/iashrapov/>`__, `Mamat Shamshiev <https://www.kaggle.com/mamatml/>`__, `Mishunyayev Nikita <https://www.kaggle.com/mnikita/>`__,
+    `solution <https://www.kaggle.com/c/aptos2019-blindness-detection/discussion/108057>`__,
+    `code <https://github.com/MamatShamshiev/Kaggle-APTOS-2019-Blindness-Detection>`__,
 
 `SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
 ----------------------------------------------------------------------------------------------------
