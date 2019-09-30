@@ -6,6 +6,13 @@ Here are the links to the competitions, names of the winners and to their soluti
 
 We follow these rules, when adding a solution to the "Hall of Fame":
 
+1. There should be a description of the solution: post at the forum / code / blog post / paper / pre-print.
+
+2. Solution should have some value:
+
+* For Kaggle: gold or silver medal solutions.
+* For Topcoder and other platforms: in money.
+* For competitions held as a part of the academic conferences: there is a paper or pre-print describing the solution.
 
 
 Kaggle
