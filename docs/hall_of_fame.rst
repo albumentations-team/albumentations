@@ -59,12 +59,35 @@ Kaggle
 
 `SIIM-ACR Pneumothorax Segmentation <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation>`_
 ----------------------------------------------------------------------------------------------------
+4. `Miras Amir <https://www.linkedin.com/in/amirassov/>`__
+     `solution <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation/discussion/108397#latest-626947>`__,
+     `code <https://github.com/amirassov/kaggle-pneumothorax>`__
+
 33. `Renat Alimbekov <https://www.linkedin.com/in/alimbekovkz/>`__, `Ivan Vassilenko <https://www.linkedin.com/in/ivannvassilenko/>`__
      `solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
 
 50. `AlexeyK <https://www.kaggle.com/akuritsyn>`__, `wayfarer <https://www.kaggle.com/joven1997>`__, `Kudaibergen R <https://www.kaggle.com/kudaibergenu>`__
      `code and solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
 
+`iMaterialist (Fashion) 2019 at FGVC6 <https://www.kaggle.com/c/imaterialist-fashion-2019-FGVC6>`_
+----------------------------------------------------------------------------------------------------
+1. `Miras Amir <https://www.linkedin.com/in/amirassov/>`__
+     `solution <https://www.kaggle.com/c/imaterialist-fashion-2019-FGVC6/discussion/95247#latest-626701>`__,
+     `code <https://github.com/amirassov/kaggle-imaterialist>`__
+
+Topcoder
+========
+2019
+----
+`Neptune - Facial Detection Marathon Match <https://www.topcoder.com/challenges/30086997>`__
+----------------------------------------------------------------------------------------------------------------
+2. `Miras Amir <https://www.linkedin.com/in/amirassov/>`__
+     `solution <https://github.com/amirassov/topcoder-facial-marathon>`__
+
+`Neptune - Facial Re-Identification Marathon Match <https://www.topcoder.com/challenges/30086998>`__
+----------------------------------------------------------------------------------------------------------------
+2. `Miras Amir <https://www.linkedin.com/in/amirassov/>`__
+     `solution <https://github.com/amirassov/topcoder-facial-marathon>`__
 
 CVPR
 ====
