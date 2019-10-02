@@ -74,6 +74,12 @@ Kaggle
      `solution <https://www.kaggle.com/c/imaterialist-fashion-2019-FGVC6/discussion/95247#latest-626701>`__,
      `code <https://github.com/amirassov/kaggle-imaterialist>`__
 
+`Google Landmark Recognition 2019 <https://www.kaggle.com/c/landmark-recognition-2019>`_
+----------------------------------------------------------------------------------------------------
+20. `Artyom Palvelev <https://www.linkedin.com/in/artyompp/>`__
+     `solution <https://www.kaggle.com/c/landmark-recognition-2019/discussion/94645#latest-549974>`__,
+     `code <https://github.com/artyompal/google_landmark_2019>`__
+
 `Inclusive Images Challenge <https://www.kaggle.com/c/inclusive-images-challenge/>`_
 ----------------------------------------------------------------------------------------------------
 3. `Roman Solovyev <https://www.kaggle.com/zfturbo>`_, `Weimin Wang <https://www.kaggle.com/weimin>`__
