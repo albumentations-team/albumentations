@@ -194,8 +194,8 @@ class Crop(DualTransform):
         return F.crop_keypoint_by_coords(
             keypoint,
             crop_coords=[self.x_min, self.y_min, self.x_max, self.y_max],
-            crop_height=self.y_max - self.y_min + 1,
-            crop_width=self.x_max - self.x_min + 1,
+            crop_height=self.y_max - self.y_min,
+            crop_width=self.x_max - self.x_min,
             rows=params["rows"],
             cols=params["cols"],
         )
@@ -1014,7 +1014,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -1035,6 +1035,21 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.crop(img, x_min, y_min, x_max, y_max)
+
+    def apply_to_bbox(self, bbox, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.bbox_crop(
+            bbox, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, rows=params["rows"], cols=params["cols"]
+        )
+
+    def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=[x_min, y_min, x_max, y_max],
+            crop_height=y_max - y_min,
+            crop_width=x_max - x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     @property
     def targets_as_params(self):
