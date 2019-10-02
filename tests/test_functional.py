@@ -609,6 +609,12 @@ def test_bbox_random_crop():
     assert cropped_bbox == [0.6, 0.2, 1.1, 0.825]
 
 
+def test_bbox_random_crop_with_large_crop_size():
+    bbox = [0.5, 0.2, 0.9, 0.7]
+    cropped_bbox = F.bbox_random_crop(bbox, crop_height=100, crop_width=100, h_start=0, w_start=0, rows=50, cols=10)
+    assert cropped_bbox == [0.05, 0.1, 0.09, 0.35]
+
+
 def test_bbox_rot90():
     assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 0, 100, 200) == [0.1, 0.2, 0.3, 0.4]
     assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 1, 100, 200) == [0.2, 0.7, 0.4, 0.9]
