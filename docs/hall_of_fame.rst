@@ -30,8 +30,7 @@ Kaggle
 
 `Humpback Whale Identification <https://www.kaggle.com/c/humpback-whale-identification>`_
 -----------------------------------------------------------------------------------------
-
-5. `Roman Solovyov <https://www.kaggle.com/zfturbo>`__, `Weimin Wang <https://www.kaggle.com/weimin>`__
+5. `Roman Solovyev <https://www.kaggle.com/zfturbo>`__, `Weimin Wang <https://www.kaggle.com/weimin>`__
     `blog post <https://weiminwang.blog/2019/03/01/whale-identification-5th-place-approach-using-siamese-networks-with-adversarial-training/>`__,
     `code <https://github.com/aaxwaz/Humpback-whale-identification-challenge>`__
 
@@ -65,6 +64,10 @@ Kaggle
 50. `AlexeyK <https://www.kaggle.com/akuritsyn>`__, `wayfarer <https://www.kaggle.com/joven1997>`__, `Kudaibergen R <https://www.kaggle.com/kudaibergenu>`__
      `code and solution <https://github.com/jovenwayfarer/kaggle-pneumothorax>`__
 
+`Inclusive Images Challenge <https://www.kaggle.com/c/inclusive-images-challenge/>`_
+----------------------------------------------------------------------------------------------------
+3. `Roman Solovyev <https://www.kaggle.com/zfturbo>`_, `Weimin Wang <https://www.kaggle.com/weimin>`__
+    `solution <https://www.kaggle.com/c/inclusive-images-challenge/discussion/71433>`__
 
 CVPR
 ====
