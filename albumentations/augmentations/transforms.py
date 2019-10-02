@@ -328,7 +328,7 @@ class LongestMaxSize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -345,6 +345,13 @@ class LongestMaxSize(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
         return bbox
+
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+
+        scale = self.max_size / max([height, width])
+        return F.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args_names(self):
         return ("max_size", "interpolation")

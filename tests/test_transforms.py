@@ -424,3 +424,20 @@ def test_crop_keypoints():
     aug = A.Crop(50, 50, 100, 100, p=1)
     result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [[0, 0, 0, 0]]
+
+
+def test_longest_max_size_keypoints():
+    img = np.random.randint(0, 256, [10, 10], np.uint8)
+    keypoints = [[9, 5, 0, 0]]
+
+    aug = A.LongestMaxSize(max_size=100, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[90, 50, 0, 0]]
+
+    aug = A.LongestMaxSize(max_size=5, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[4.5, 2.5, 0, 0]]
+
+    aug = A.LongestMaxSize(max_size=10, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[9, 5, 0, 0]]
