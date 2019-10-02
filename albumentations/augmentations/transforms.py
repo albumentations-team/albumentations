@@ -749,14 +749,25 @@ class RandomCropNearBBox(DualTransform):
 class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
 
-    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0):
+    def __init__(
+        self,
+        height,
+        width,
+        interpolation=cv2.INTER_LINEAR,
+        always_apply=False,
+        p=1.0,
+        border_mode=cv2.BORDER_CONSTANT,
+        border_value=0,
+    ):
         super(_BaseRandomSizedCrop, self).__init__(always_apply, p)
         self.height = height
         self.width = width
         self.interpolation = interpolation
+        self.border_mode = border_mode
+        self.border_value = border_value
 
     def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
-        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
+        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start, self.border_mode, self.border_value)
         return F.resize(crop, self.height, self.width, interpolation)
 
     def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
@@ -782,6 +793,10 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_CONSTANT
+        border_value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -791,10 +806,25 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     """
 
     def __init__(
-        self, min_max_height, height, width, w2h_ratio=1.0, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0
+        self,
+        min_max_height,
+        height,
+        width,
+        w2h_ratio=1.0,
+        interpolation=cv2.INTER_LINEAR,
+        always_apply=False,
+        p=1.0,
+        border_mode=cv2.BORDER_CONSTANT,
+        border_value=0,
     ):
         super(RandomSizedCrop, self).__init__(
-            height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p
+            height=height,
+            width=width,
+            interpolation=interpolation,
+            always_apply=always_apply,
+            p=p,
+            border_mode=border_mode,
+            border_value=border_value,
         )
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
@@ -809,7 +839,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         }
 
     def get_transform_init_args_names(self):
-        return "min_max_height", "height", "width", "w2h_ratio", "interpolation"
+        return "min_max_height", "height", "width", "w2h_ratio", "interpolation", "border_mode", "border_value"
 
 
 class RandomResizedCrop(_BaseRandomSizedCrop):
@@ -824,6 +854,10 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_CONSTANT
+        border_value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -841,10 +875,18 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         interpolation=cv2.INTER_LINEAR,
         always_apply=False,
         p=1.0,
+        border_mode=cv2.BORDER_CONSTANT,
+        border_value=0,
     ):
 
         super(RandomResizedCrop, self).__init__(
-            height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p
+            height=height,
+            width=width,
+            interpolation=interpolation,
+            always_apply=always_apply,
+            p=p,
+            border_mode=border_mode,
+            border_value=border_value,
         )
         self.scale = scale
         self.ratio = ratio
@@ -899,7 +941,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         return ["image"]
 
     def get_transform_init_args_names(self):
-        return "height", "width", "scale", "ratio", "interpolation"
+        return "height", "width", "scale", "ratio", "interpolation", "border_mode", "border_value"
 
 
 class RandomSizedBBoxSafeCrop(DualTransform):

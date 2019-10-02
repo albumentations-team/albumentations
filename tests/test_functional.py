@@ -168,11 +168,12 @@ def test_random_crop_float(target):
     assert_array_almost_equal_nulp(cropped_img, expected)
 
 
-def test_random_crop_with_incorrectly_large_crop_size():
-    img = np.ones((4, 4), dtype=np.uint8)
-    with pytest.raises(ValueError) as exc_info:
-        F.random_crop(img, crop_height=8, crop_width=8, h_start=0, w_start=0)
-    assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
+def test_random_crop_with_large_crop_size():
+    img = np.random.randint(0, 256, (100, 100), np.uint8)
+
+    assert F.random_crop(img, 200, 10, 0, 0).shape == (200, 10)
+    assert F.random_crop(img, 10, 200, 0, 0).shape == (10, 200)
+    assert F.random_crop(img, 200, 200, 0, 0).shape == (200, 200)
 
 
 def test_clip():

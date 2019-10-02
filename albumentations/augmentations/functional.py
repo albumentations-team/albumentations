@@ -288,15 +288,12 @@ def get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_st
     return x1, y1, x2, y2
 
 
-def random_crop(img, crop_height, crop_width, h_start, w_start):
+def random_crop(img, crop_height, crop_width, h_start, w_start, border_mode=cv2.BORDER_CONSTANT, border_value=0):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
-        raise ValueError(
-            "Requested crop size ({crop_height}, {crop_width}) is "
-            "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
-            )
-        )
+        pad_h = max(crop_height - height, 0)
+        pad_w = max(crop_width - width, 0)
+        img = cv2.copyMakeBorder(img, 0, pad_h, 0, pad_w, border_mode, value=border_value)
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
     img = img[y1:y2, x1:x2]
     return img
@@ -1389,9 +1386,9 @@ def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
     required height and width of the crop.
     """
     bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = bbox
+    x_min, y_min, x_max, y_max = bbox[:4]
     x1, y1, x2, y2 = crop_coords
-    cropped_bbox = [x_min - x1, y_min - y1, x_max - x1, y_max - y1]
+    cropped_bbox = [x_min - x1, y_min - y1, x_max - x1, y_max - y1] + list(bbox[4:])
     return normalize_bbox(cropped_bbox, crop_height, crop_width)
 
 
@@ -1407,7 +1404,16 @@ def bbox_center_crop(bbox, crop_height, crop_width, rows, cols):
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
+def _bbox_pad_for_crop(bbox, rows, cols, crop_height, crop_width):
+    if crop_height <= rows and crop_width <= cols:
+        return bbox
+
+    bbox = denormalize_bbox(bbox, rows, cols)
+    return normalize_bbox(bbox, max(rows, crop_height), max(cols, crop_width))
+
+
 def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols):
+    bbox = _bbox_pad_for_crop(bbox, rows, cols, crop_height, crop_width)
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
