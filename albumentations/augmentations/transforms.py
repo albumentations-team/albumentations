@@ -316,8 +316,7 @@ class Transpose(DualTransform):
         return F.bbox_transpose(bbox, 0, **params)
 
     def apply_to_keypoint(self, keypoint, **params):
-        x, y, a, s = keypoint
-        return [y, x, a, s]
+        return F.keypoint_transpose(keypoint)
 
     def get_transform_init_args_names(self):
         return ()
