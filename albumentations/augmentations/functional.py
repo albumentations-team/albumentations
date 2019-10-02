@@ -1386,9 +1386,9 @@ def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
     required height and width of the crop.
     """
     bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = bbox[:4]
+    x_min, y_min, x_max, y_max = bbox
     x1, y1, x2, y2 = crop_coords
-    cropped_bbox = [x_min - x1, y_min - y1, x_max - x1, y_max - y1] + list(bbox[4:])
+    cropped_bbox = [x_min - x1, y_min - y1, x_max - x1, y_max - y1]
     return normalize_bbox(cropped_bbox, crop_height, crop_width)
 
 
