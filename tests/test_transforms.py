@@ -458,3 +458,16 @@ def test_smallest_max_size_keypoints():
     aug = A.SmallestMaxSize(max_size=10, p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["keypoints"] == [[9, 5, 0, 0]]
+
+
+def test_resize_keypoints():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [[9, 5, 0, 0]]
+
+    aug = A.Resize(height=100, width=5, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[18, 2.5, 0, 0]]
+
+    aug = A.Resize(height=50, width=10, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[9, 5, 0, 0]]
