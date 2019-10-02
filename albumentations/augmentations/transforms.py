@@ -741,7 +741,7 @@ class RandomCropNearBBox(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -771,6 +771,16 @@ class RandomCropNearBBox(DualTransform):
         h_start = y_min
         w_start = x_min
         return F.bbox_crop(bbox, y_max - y_min, x_max - x_min, h_start, w_start, **params)
+
+    def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=[x_min, y_min, x_max, y_max],
+            crop_height=y_max - y_min,
+            crop_width=x_max - x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     @property
     def targets_as_params(self):
