@@ -171,7 +171,7 @@ class Crop(DualTransform):
         y_max (int): maximum lower right y coordinate.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -189,6 +189,16 @@ class Crop(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_crop(bbox, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=[self.x_min, self.y_min, self.x_max, self.y_max],
+            crop_height=self.y_max - self.y_min + 1,
+            crop_width=self.x_max - self.x_min + 1,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     def get_transform_init_args_names(self):
         return ("x_min", "y_min", "x_max", "y_max")
