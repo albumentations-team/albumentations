@@ -303,7 +303,7 @@ class Transpose(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -314,6 +314,10 @@ class Transpose(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_transpose(bbox, 0, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        x, y, a, s = keypoint
+        return [y, x, a, s]
 
     def get_transform_init_args_names(self):
         return ()
