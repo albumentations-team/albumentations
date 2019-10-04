@@ -32,6 +32,8 @@
 - [Building the documentation](#building-the-documentation)
 - [Comments](#comments)
 - [Citing](#citing)
+- [Competitions won with the library](#competitions-won-with-the-library)
+- [Industry users](#used-by)
 
 ## How to use
 
@@ -254,10 +256,14 @@ python3 tools/make_transforms_docs.py check README.md
 Alternatively, you can start a web server that rebuilds the documentation
 automatically when a change is detected by running `make livehtml`
 
-## Hall of fame
+## Competitions won with the library
 Albumentations are widely used in Computer Vision Competitions at Kaggle an other platforms.
 
 You can find their names and links to the solutions [here](docs/hall_of_fame.rst).
+
+## Used by
+<a href="https://www.lyft.com/" target="_blank"><img src="https://habrastorage.org/webt/ce/bs/sa/cebssajf_5asst5yshmyykqjhcg.png" width="100"/></a>
+<a href="https://www.x5.ru/en" target="_blank"><img src="https://habrastorage.org/webt/9y/dv/f1/9ydvf1fbxotkl6nyhydrn9v8cqw.png" width="100"/></a>
 
 
 ## Comments
