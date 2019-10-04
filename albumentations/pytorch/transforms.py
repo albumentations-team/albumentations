@@ -83,7 +83,7 @@ class ToTensorV2(BasicTransform):
     """Convert image and mask to `torch.Tensor`.
     """
 
-    def __init__(self, always_apply=False, p=1.0):
+    def __init__(self, always_apply=True, p=1.0):
         super(ToTensorV2, self).__init__(always_apply=always_apply, p=p)
 
     @property
