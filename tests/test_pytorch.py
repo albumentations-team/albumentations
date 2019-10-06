@@ -51,3 +51,19 @@ def test_additional_targets_for_totensor():
         res = aug(image=image1, image2=image2, mask=mask1, mask2=mask2)
         assert np.array_equal(res["image"], res["image2"])
         assert np.array_equal(res["mask"], res["mask2"])
+
+
+def test_with_replaycompose():
+    aug = A.ReplayCompose([ToTensorV2()])
+    kwargs = {
+        "image": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+        "mask": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+    }
+    res = aug(**kwargs)
+    res2 = A.ReplayCompose.replay(res["replay"], **kwargs)
+    assert np.array_equal(res["image"], res2["image"])
+    assert np.array_equal(res["mask"], res2["mask"])
+    assert res["image"].dtype == torch.uint8
+    assert res["mask"].dtype == torch.uint8
+    assert res2["image"].dtype == torch.uint8
+    assert res2["mask"].dtype == torch.uint8
