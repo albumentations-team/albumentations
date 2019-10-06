@@ -1008,35 +1008,23 @@ def grid_distortion(
     """
     height, width = img.shape[:2]
 
-    x_step = width // num_steps
-    xx = np.zeros(width, np.float32)
+    x_split = np.array_split(range(width), num_steps)
     prev = 0
-    for idx, x in enumerate(range(0, width, x_step)):
-        start = x
-        end = x + x_step
-        if end > width:
-            end = width
-            cur = width
-        else:
-            cur = prev + x_step * xsteps[idx]
-
-        xx[start:end] = np.linspace(prev, cur, end - start)
+    for i, chunk in enumerate(x_split):
+        cur = prev + len(chunk) * xsteps[i]
+        split = np.linspace(prev, cur, len(chunk))
+        x_split[i] = split
         prev = cur
+    xx = np.concatenate(x_split)
 
-    y_step = height // num_steps
-    yy = np.zeros(height, np.float32)
+    y_split = np.array_split(range(height), num_steps)
     prev = 0
-    for idx, y in enumerate(range(0, height, y_step)):
-        start = y
-        end = y + y_step
-        if end > height:
-            end = height
-            cur = height
-        else:
-            cur = prev + y_step * ysteps[idx]
-
-        yy[start:end] = np.linspace(prev, cur, end - start)
+    for i, chunk in enumerate(y_split):
+        cur = prev + len(chunk) * xsteps[i]
+        split = np.linspace(prev, cur, len(chunk))
+        y_split[i] = split
         prev = cur
+    yy = np.concatenate(y_split)
 
     map_x, map_y = np.meshgrid(xx, yy)
     map_x = map_x.astype(np.float32)
