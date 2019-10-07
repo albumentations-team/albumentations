@@ -1421,19 +1421,7 @@ def bbox_center_crop(bbox, crop_height, crop_width, rows, cols):
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
-def _bbox_pad_for_crop(bbox, rows, cols, crop_height, crop_width):
-    if crop_height <= rows and crop_width <= cols:
-        return bbox, rows, cols
-
-    bbox = denormalize_bbox(bbox, rows, cols)
-    new_rows = max(rows, crop_height)
-    new_cols = max(cols, crop_width)
-    new_bbox = normalize_bbox(bbox, new_rows, new_cols)
-    return new_bbox, new_rows, new_cols
-
-
 def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols):
-    bbox, rows, cols = _bbox_pad_for_crop(bbox, rows, cols, crop_height, crop_width)
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
