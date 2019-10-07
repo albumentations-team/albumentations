@@ -51,3 +51,4 @@ to adjust image augmentation parameters and see the resulting images.
    probabilities
    writing_tests
    hall_of_fame
+   citations

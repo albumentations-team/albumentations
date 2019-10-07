@@ -287,3 +287,5 @@ If you find this library useful for your research, please consider citing:
       year = 2018
 }
 ```
+
+You can find the full list of papers that cites Albumentations [here](docs/citations.rst).
