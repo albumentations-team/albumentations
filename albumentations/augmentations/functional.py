@@ -288,12 +288,29 @@ def get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_st
     return x1, y1, x2, y2
 
 
-def random_crop(img, crop_height, crop_width, h_start, w_start, border_mode=cv2.BORDER_CONSTANT, border_value=0):
+def random_crop(
+    img,
+    crop_height,
+    crop_width,
+    h_start,
+    w_start,
+    accept_large_crop=False,
+    border_mode=cv2.BORDER_CONSTANT,
+    border_value=0,
+):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
-        pad_h = max(crop_height - height, 0)
-        pad_w = max(crop_width - width, 0)
-        img = cv2.copyMakeBorder(img, 0, pad_h, 0, pad_w, border_mode, value=border_value)
+        if accept_large_crop:
+            pad_h = max(crop_height - height, 0)
+            pad_w = max(crop_width - width, 0)
+            img = cv2.copyMakeBorder(img, 0, pad_h, 0, pad_w, border_mode, value=border_value)
+        else:
+            raise ValueError(
+                "Requested crop size ({crop_height}, {crop_width}) is "
+                "larger than the image size ({height}, {width})".format(
+                    crop_height=crop_height, crop_width=crop_width, height=height, width=width
+                )
+            )
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
     img = img[y1:y2, x1:x2]
     return img

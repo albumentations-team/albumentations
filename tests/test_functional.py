@@ -171,9 +171,9 @@ def test_random_crop_float(target):
 def test_random_crop_with_large_crop_size():
     img = np.random.randint(0, 256, (100, 100), np.uint8)
 
-    assert F.random_crop(img, 200, 10, 0, 0).shape == (200, 10)
-    assert F.random_crop(img, 10, 200, 0, 0).shape == (10, 200)
-    assert F.random_crop(img, 200, 200, 0, 0).shape == (200, 200)
+    assert F.random_crop(img, 200, 10, 0, 0, accept_large_crop=True).shape == (200, 10)
+    assert F.random_crop(img, 10, 200, 0, 0, accept_large_crop=True).shape == (10, 200)
+    assert F.random_crop(img, 200, 200, 0, 0, accept_large_crop=True).shape == (200, 200)
 
 
 def test_clip():
