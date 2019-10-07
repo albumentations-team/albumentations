@@ -32,12 +32,12 @@ def clipped(func):
     return wrapped_function
 
 
-def angle_to_2pi(angle):
+def angle_to_2pi_range(angle):
     if 0 <= angle <= 2 * np.pi:
         return angle
 
     if angle < 0:
-        angle += abs(angle // (2 * np.pi) + 1) * 2 * np.pi
+        angle += (abs(angle) // (2 * np.pi) + 1) * 2 * np.pi
 
     return angle % (2 * np.pi)
 
@@ -1612,7 +1612,7 @@ def swap_tiles_on_image(image, tiles):
 
 def keypoint_transpose(keypoint):
     x, y, angle, scale = keypoint
-    angle = angle_to_2pi(angle)
+    angle = angle_to_2pi_range(angle)
 
     if angle <= np.pi:
         angle = np.pi - angle
