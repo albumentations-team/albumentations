@@ -60,8 +60,8 @@ Kaggle
 ----------------------------------------------------------------------------------------------------
 1. `Anuar Aimoldin <https://www.linkedin.com/in/anuar-aimoldin/>`__
      `solution <https://www.kaggle.com/c/siim-acr-pneumothorax-segmentation/discussion/107824>`__,
-     `code <https://github.com/sneddy/pneumothorax-segmentation>`__
-     `video <https://youtu.be/Wuf0wE3Mrxg>`__
+     `code <https://github.com/sneddy/pneumothorax-segmentation>`__,
+     `video <https://youtu.be/Wuf0wE3Mrxg>`__,
      `presentation <https://yadi.sk/i/oDYnpvMhqi8a7w>`__
 
 4. `Miras Amir <https://www.linkedin.com/in/amirassov/>`__
