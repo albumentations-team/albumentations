@@ -411,3 +411,63 @@ def test_downscale(interpolation):
         transformed = aug(image=img)["image"]
         func_applied = F.downscale(img, scale=0.5, interpolation=interpolation)
         np.testing.assert_almost_equal(transformed, func_applied)
+
+
+def test_crop_keypoints():
+    image = np.random.randint(0, 256, (100, 100), np.uint8)
+    keypoints = [[50, 50, 0, 0]]
+
+    aug = A.Crop(0, 0, 80, 80, p=1)
+    result = aug(image=image, keypoints=keypoints)
+    assert result["keypoints"] == keypoints
+
+    aug = A.Crop(50, 50, 100, 100, p=1)
+    result = aug(image=image, keypoints=keypoints)
+    assert result["keypoints"] == [[0, 0, 0, 0]]
+
+
+def test_longest_max_size_keypoints():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [[9, 5, 0, 0]]
+
+    aug = A.LongestMaxSize(max_size=100, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[18, 10, 0, 0]]
+
+    aug = A.LongestMaxSize(max_size=5, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[0.9, 0.5, 0, 0]]
+
+    aug = A.LongestMaxSize(max_size=50, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[9, 5, 0, 0]]
+
+
+def test_smallest_max_size_keypoints():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [[9, 5, 0, 0]]
+
+    aug = A.SmallestMaxSize(max_size=100, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[90, 50, 0, 0]]
+
+    aug = A.SmallestMaxSize(max_size=5, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[4.5, 2.5, 0, 0]]
+
+    aug = A.SmallestMaxSize(max_size=10, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[9, 5, 0, 0]]
+
+
+def test_resize_keypoints():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [[9, 5, 0, 0]]
+
+    aug = A.Resize(height=100, width=5, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[18, 2.5, 0, 0]]
+
+    aug = A.Resize(height=50, width=10, p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["keypoints"] == [[9, 5, 0, 0]]

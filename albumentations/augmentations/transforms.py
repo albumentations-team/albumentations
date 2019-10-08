@@ -171,7 +171,7 @@ class Crop(DualTransform):
         y_max (int): maximum lower right y coordinate.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -189,6 +189,16 @@ class Crop(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_crop(bbox, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=[self.x_min, self.y_min, self.x_max, self.y_max],
+            crop_height=self.y_max - self.y_min,
+            crop_width=self.x_max - self.x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     def get_transform_init_args_names(self):
         return ("x_min", "y_min", "x_max", "y_max")
@@ -293,7 +303,7 @@ class Transpose(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -304,6 +314,9 @@ class Transpose(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_transpose(bbox, 0, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_transpose(keypoint)
 
     def get_transform_init_args_names(self):
         return ()
@@ -318,7 +331,7 @@ class LongestMaxSize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -336,6 +349,13 @@ class LongestMaxSize(DualTransform):
         # Bounding box coordinates are scale invariant
         return bbox
 
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+
+        scale = self.max_size / max([height, width])
+        return F.keypoint_scale(keypoint, scale, scale)
+
     def get_transform_init_args_names(self):
         return ("max_size", "interpolation")
 
@@ -349,7 +369,7 @@ class SmallestMaxSize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -365,6 +385,13 @@ class SmallestMaxSize(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return bbox
+
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+
+        scale = self.max_size / min([height, width])
+        return F.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args_names(self):
         return ("max_size", "interpolation")
@@ -382,7 +409,7 @@ class Resize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -400,6 +427,12 @@ class Resize(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
         return bbox
+
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+
+        return F.keypoint_scale(keypoint, self.height / height, self.width / width)
 
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
@@ -707,7 +740,7 @@ class RandomCropNearBBox(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -737,6 +770,16 @@ class RandomCropNearBBox(DualTransform):
         h_start = y_min
         w_start = x_min
         return F.bbox_crop(bbox, y_max - y_min, x_max - x_min, h_start, w_start, **params)
+
+    def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=[x_min, y_min, x_max, y_max],
+            crop_height=y_max - y_min,
+            crop_width=x_max - x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     @property
     def targets_as_params(self):
@@ -980,7 +1023,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -1001,6 +1044,21 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.crop(img, x_min, y_min, x_max, y_max)
+
+    def apply_to_bbox(self, bbox, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.bbox_crop(
+            bbox, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, rows=params["rows"], cols=params["cols"]
+        )
+
+    def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=[x_min, y_min, x_max, y_max],
+            crop_height=y_max - y_min,
+            crop_width=x_max - x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     @property
     def targets_as_params(self):
