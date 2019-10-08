@@ -80,8 +80,7 @@ class ToTensor(BasicTransform):
 
 
 class ToTensorV2(BasicTransform):
-    """Convert image and mask to `torch.Tensor`.
-    """
+    """Convert image and mask to `torch.Tensor`."""
 
     def __init__(self, always_apply=True, p=1.0):
         super(ToTensorV2, self).__init__(always_apply=always_apply, p=p)

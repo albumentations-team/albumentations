@@ -1819,7 +1819,7 @@ class RandomFog(ImageOnlyTransform):
     Args:
         fog_coef_lower (float): lower limit for fog intensity coefficient. Should be in [0, 1] range.
         fog_coef_upper (float): upper limit for fog intensity coefficient. Should be in [0, 1] range.
-        alpha_coef (float): transparence of the fog circles. Should be in [0, 1] range.
+        alpha_coef (float): transparency of the fog circles. Should be in [0, 1] range.
 
     Targets:
         image
@@ -2295,17 +2295,11 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, brightness_by_max=None, always_apply=False, p=0.5):
+    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, brightness_by_max=True, always_apply=False, p=0.5):
         super(RandomBrightnessContrast, self).__init__(always_apply, p)
         self.brightness_limit = to_tuple(brightness_limit)
         self.contrast_limit = to_tuple(contrast_limit)
         self.brightness_by_max = brightness_by_max
-
-        if brightness_by_max is None:
-            DeprecationWarning(
-                "In the version 0.4.0 default behavior of RandomBrightnessContrast "
-                "brightness_by_max will be changed to True."
-            )
 
     def apply(self, img, alpha=1.0, beta=0.0, **params):
         return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
@@ -2488,7 +2482,7 @@ class GaussNoise(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, var_limit=(10.0, 50.0), mean=None, always_apply=False, p=0.5):
+    def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
         if isinstance(var_limit, tuple):
             if var_limit[0] < 0:
@@ -2512,10 +2506,6 @@ class GaussNoise(ImageOnlyTransform):
         var = random.uniform(self.var_limit[0], self.var_limit[1])
         sigma = var ** 0.5
         random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-
-        if self.mean is None:
-            DeprecationWarning("In the version 0.4.0 default behavior of GaussNoise mean will be changed to 0.")
-            self.mean = var
 
         gauss = random_state.normal(self.mean, sigma, image.shape)
         return {"gauss": gauss}
