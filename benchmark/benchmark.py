@@ -10,7 +10,12 @@ import pkg_resources
 
 from Augmentor import Operations, Pipeline
 from PIL import Image, ImageOps
+
 import cv2
+
+cv2.setNumThreads(0)  # noqa E402
+cv2.ocl.setUseOpenCL(False)  # noqa E402
+
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
