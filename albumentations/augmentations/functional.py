@@ -1320,9 +1320,12 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     return image.astype(np.uint8)
 
 
-def to_gray(img):
+def to_gray(img, preserve_channels=False):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+    if preserve_channels:
+        return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+    return gray
 
 
 @preserve_shape

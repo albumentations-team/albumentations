@@ -2725,6 +2725,7 @@ class ToGray(ImageOnlyTransform):
     than 127, invert the resulting grayscale image.
 
     Args:
+        preserve_channels (bool): If True transform return 3 channel image, else 1 channel. Default: True.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2734,11 +2735,24 @@ class ToGray(ImageOnlyTransform):
         uint8, float32
     """
 
+    def __init__(self, preserve_channels=None, always_apply=False, p=0.5):
+        super(ImageOnlyTransform, self).__init__(always_apply=always_apply, p=p)
+
+        if preserve_channels is None:
+            # !!! When you will remove this lines do not forget update docstrings.
+            self.preserve_channels = True
+            warnings.warn(
+                "In the version 0.5.0 default behavior of ToGray preserve_channels will be changed to False.",
+                DeprecationWarning,
+            )
+        else:
+            self.preserve_channels = preserve_channels
+
     def apply(self, img, **params):
-        return F.to_gray(img)
+        return F.to_gray(img, preserve_channels=self.preserve_channels)
 
     def get_transform_init_args_names(self):
-        return ()
+        return ("preserve_channels",)
 
 
 class ToFloat(ImageOnlyTransform):
