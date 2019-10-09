@@ -185,7 +185,7 @@ class Brightness(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.ImageRandomBrightness(p=1, brightness_range=(127, 127))])
 
     def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, beta=0.5)
+        return albumentations.brightness_contrast_adjust(img, beta=0.5, beta_by_max=True)
 
     def torchvision(self, img):
         return torchvision.adjust_brightness(img, brightness_factor=1.5)
@@ -225,7 +225,7 @@ class BrightnessContrast(BenchmarkTest):
         )
 
     def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5)
+        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5, beta_by_max=True)
 
     def torchvision(self, img):
         img = torchvision.adjust_brightness(img, brightness_factor=1.5)
@@ -282,7 +282,8 @@ class Solarize(BenchmarkTest):
 
 class Equalize(BenchmarkTest):
     def __init__(self):
-        pass
+        self.imgaug_transform = iaa.AllChannelsHistogramEqualization()
+        self.augmentor_op = Operations.HistogramEqualisation(probability=1)
 
     def albumentations(self, img):
         return albumentations.equalize(img)
@@ -302,6 +303,26 @@ class RandomCrop64(BenchmarkTest):
 
     def torchvision(self, img):
         return torchvision.crop(img, i=0, j=0, h=64, w=64)
+
+
+class RandomSizedCrop_64_512(BenchmarkTest):
+    def __init__(self):
+        self.imgaug_transform = iaa.Sequential(
+            [iaa.CropToFixedSize(width=64, height=64), iaa.Scale(size=512, interpolation="linear")]
+        )
+        self.solt_stream = slc.Stream(
+            [slt.CropTransform(crop_size=(64, 64), crop_mode="r"), slt.ResizeTransform(resize_to=(512, 512))]
+        )
+
+    def albumentations(self, img):
+        img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        return albumentations.resize(img, height=512, width=512)
+
+    def augmentor(self, img):
+        crop_operation = Operations.Crop(probability=1, width=64, height=64, centre=False)
+        resize_operation = Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
+        img = crop_operation.perform_operation([img])[0]
+        return resize_operation.perform_operation([img])
 
 
 class ShiftRGB(BenchmarkTest):
@@ -402,6 +423,7 @@ def main():
         RandomCrop64(),
         PadToSize512(),
         Resize512(),
+        RandomSizedCrop_64_512(),
         Posterize(),
         Solarize(),
         Equalize(),
