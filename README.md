@@ -200,26 +200,29 @@ Albumentations has equivalents for common torchvision transforms as well as plen
 To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albu/albumentations/blob/master/benchmark/README.md)
 
 Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Xeon Gold 6140 CPU.
+For libraries that work with NumPy arrays, the uint8 data type is used to represent an image.
 The table shows how many images per second can be processed on a single core, higher is better.
 
-|                    | albumentations <br><small>0.3.0</small> | imgaug <br><small>0.2.9</small> | torchvision (Pillow backend) <br><small>0.3.0</small> | torchvision (Pillow-SIMD backend) <br><small>0.3.0</small> | Keras <br><small>2.2.4</small> | Augmentor <br><small>0.2.3</small> | <br><small>solt 0.1.6</small> |
-|--------------------|:--------------------:|:------------:|:----------------------------------:|:---------------------------------------:|:-----------:|:---------------:|:----------:|
-| RandomCrop64       |        **271641**    |     3373     |                26538               |                  83251                  |      -      |      22535      |    21383   |
-| PadToSize512       |         **2818**     |       -      |                 414                |                   422                   |      -      |        -        |    2539    |
-| Resize512          |         **2168**     |      696     |                 296                |                   1046                  |      -      |       297       |    1907    |
-| HorizontalFlip     |          991         |      162     |                **4881**            |                   4595                  |     167     |       4595      |     166    |
-| VerticalFlip       |         **4244**     |     2278     |                3066                |                   3598                  |     4162    |       2985      |    3486    |
-| Rotate             |         **702**      |      475     |                 82                 |                   110                   |      7      |        37       |     239    |
-| ShiftScaleRotate   |         **1761**     |      761     |                 81                 |                   105                   |      9      |        -        |       -    |
-| Brightness         |          652         |     1520     |                 316                |                   408                   |     149     |       308       |    **2506**|
-| Contrast           |         1059         |     1539     |                 231                |                   316                   |      -      |       241       |    **2524**|
-| BrightnessContrast |          646         |      861     |                 128                |                   174                   |      -      |       130       |    **1305**|
-| ShiftHSV           |          168         |    **208**   |                 32                 |                    42                   |      -      |        -        |     107    |
-| ShiftRGB           |          555         |   **1521**   |                  -                 |                    -                    |     477     |        -        |      -     |
-| Gamma              |          483         |       -      |                 801                |                   **858**               |      -      |        -        |     447    |
-| Grayscale          |         **12097**    |      88      |                 728                |                   915                   |      -      |       2182      |    9140    |
+|                    | albumentations <br><small>0.4.0</small> |  imgaug <br><small>0.2.9</small> | torchvision (Pillow backend) <br><small>0.4.0</small>  | torchvision (Pillow-SIMD backend) <br><small>0.4.0</small> | keras  <br><small>2.3.1</small> | augmentor  <br><small>0.2.6</small> | solt  <br><small>0.1.8</small>  |
+|------------------------|:--------------:|:------:|:--------------------:|:-------------------------:|:-----:|:---------:|:-----:|
+| HorizontalFlip         |      1393      |   880  |         **3799**     |            3670           |  543  |    3744   |  190  |
+| VerticalFlip           |      **3908**  |  2120  |         2856         |            3294           |  3901 |    2752   |  3178 |
+| Rotate                 |      **296**   |   251  |          82          |            104            |   10  |     37    |   74  |
+| ShiftScaleRotate       |      **640**   |   428  |          78          |            109            |   13  |     -     |   -   |
+| Brightness             |      **1723**  |  1010  |          303         |            373            |  132  |    292    |  1535 |
+| Contrast               |      **1753**  |  1126  |          215         |            261            |   -   |    209    |  1535 |
+| BrightnessContrast     |      **1698**  |   566  |          125         |            152            |   -   |    118    |  794  |
+| ShiftRGB               |      **1698**  |  1022  |           -          |             -             |  507  |     -     |   -   |
+| ShiftHSV               |      **341**   |   339  |          34          |             45            |   -   |     -     |  106  |
+| Gamma                  |      **1809**  |    -   |          725         |            775            |   -   |     -     |  571  |
+| Grayscale              |      3564      |   225  |          662         |            800            |   -   |    2042   |**4723**|
+| RandomCrop64           |     **296061** |  2354  |         25418        |           49619           |   -   |   19515   | 38583 |
+| PadToSize512           |     **2690**   |    -   |          396         |            433            |   -   |     -     |  2381 |
+| Resize512              |       573      |   413  |          247         |            **1009**       |   -   |    232    |  552  |
+| RandomSizedCrop_64_512 |      **1865**  |   782  |          421         |            1714           |   -   |    409    |  1751 |
+| Equalize               |      **535**   |   463  |           -          |             -             |   -   |    298    |   -   |
 
-Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0, pillow-simd 5.3.0.post1, opencv-python 4.1.0.25, scikit-image 0.15.0, scipy 1.3.0.
+Python and library versions: Python 3.7.3, numpy 1.17.2, pillow 6.2.0, pillow-simd 6.0.0.post0, opencv-python 4.1.1.26, scikit-image 0.15.0, scipy 1.3.0.
 
 
 ## Contributing
