@@ -307,6 +307,11 @@ class RandomCrop64(BenchmarkTest):
 
 class RandomSizedCrop_64_512(BenchmarkTest):
     def __init__(self):
+
+        self.augmentor_op = [
+            Operations.Crop(probability=1, width=64, height=64, centre=False),
+            Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR"),
+        ]
         self.imgaug_transform = iaa.Sequential(
             [iaa.CropToFixedSize(width=64, height=64), iaa.Scale(size=512, interpolation="linear")]
         )
@@ -319,10 +324,12 @@ class RandomSizedCrop_64_512(BenchmarkTest):
         return albumentations.resize(img, height=512, width=512)
 
     def augmentor(self, img):
-        crop_operation = Operations.Crop(probability=1, width=64, height=64, centre=False)
-        resize_operation = Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
-        img = crop_operation.perform_operation([img])[0]
-        return resize_operation.perform_operation([img])
+        img = self.augmentor_op[0].perform_operation([img])[0]
+        return self.augmentor_op[1].perform_operation([img])
+
+    def torchvision(self, img):
+        img = torchvision.crop(img, i=0, j=0, h=64, w=64)
+        return torchvision.resize(img, (512, 512))
 
 
 class ShiftRGB(BenchmarkTest):
