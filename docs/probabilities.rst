@@ -8,8 +8,8 @@ About probabilities.
 Default probability values
 ******************************
 
-**Compose**, **PadIfNeeded**, **CenterCrop**, **RandomCrop**, **Crop**, **Normalize**, **ToFloat**, **FromFloat**, **ToTensor**, **LongestMaxSize** have default
-probability values equal to **1**. All other are equal to **0.5**
+All pre / post processing transforms: **Compose**, **PadIfNeeded**, **CenterCrop**, **RandomCrop**, **Crop**, **RandomCropNearBBox**, **RandomSizedCrop**, **RandomResizedCrop**, **RandomSizedBBoxSafeCrop**, **CropNonEmptyMaskIfExists**, **Lambda**,  **Normalize**, **ToFloat**, **FromFloat**, **ToTensor**, **LongestMaxSize** have default
+probability values equal to **1**. All others are equal to **0.5**
 
 
 .. code-block:: python
