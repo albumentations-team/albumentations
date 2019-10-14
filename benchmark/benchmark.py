@@ -182,7 +182,8 @@ class Rotate(BenchmarkTest):
         return torchvision.rotate(img, angle=-45, resample=Image.BILINEAR)
 
     def keras(self, img):
-        return keras.apply_affine_transform(img, theta=45, channel_axis=2, fill_mode="reflect")
+        img = keras.apply_affine_transform(img, theta=45, channel_axis=2, fill_mode="reflect")
+        return np.ascontiguousarray(img)
 
 
 class Brightness(BenchmarkTest):
@@ -258,7 +259,8 @@ class ShiftScaleRotate(BenchmarkTest):
         return torchvision.affine(img, angle=45, translate=(50, 50), scale=2, shear=0, resample=Image.BILINEAR)
 
     def keras(self, img):
-        return keras.apply_affine_transform(img, theta=45, tx=50, ty=50, zx=0.5, zy=0.5, fill_mode="reflect")
+        img = keras.apply_affine_transform(img, theta=45, tx=50, ty=50, zx=0.5, zy=0.5, fill_mode="reflect")
+        return np.ascontiguousarray(img)
 
 
 class ShiftHSV(BenchmarkTest):
@@ -298,6 +300,10 @@ class Equalize(BenchmarkTest):
     def pillow(self, img):
         return ImageOps.equalize(img)
 
+    def imgaug(self, img):
+        img = self.imgaug_transform.augment_image(img)
+        return np.ascontiguousarray(img)
+
 
 class RandomCrop64(BenchmarkTest):
     def __init__(self):
@@ -306,10 +312,16 @@ class RandomCrop64(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.CropTransform(crop_size=(64, 64), crop_mode="r")])
 
     def albumentations(self, img):
-        return albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        return np.ascontiguousarray(img)
 
     def torchvision_transform(self, img):
         return torchvision.crop(img, i=0, j=0, h=64, w=64)
+
+    def solt(self, img):
+        dc = sld.DataContainer(img, "I")
+        dc = self.solt_stream(dc)
+        return np.ascontiguousarray(dc.data[0])
 
 
 class RandomSizedCrop_64_512(BenchmarkTest):
@@ -348,7 +360,8 @@ class ShiftRGB(BenchmarkTest):
         return albumentations.shift_rgb(img, r_shift=100, g_shift=100, b_shift=100)
 
     def keras(self, img):
-        return keras.apply_channel_shift(img, intensity=100, channel_axis=2)
+        img = keras.apply_channel_shift(img, intensity=100, channel_axis=2)
+        return np.ascontiguousarray(img)
 
 
 class PadToSize512(BenchmarkTest):
