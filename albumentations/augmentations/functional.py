@@ -1490,18 +1490,14 @@ def bbox_transpose(bbox, axis, rows, cols):
 def keypoint_vflip(kp, rows, cols):
     """Flip a keypoint vertically around the x-axis."""
     x, y, angle, scale = kp
-    c = math.cos(angle)
-    s = math.sin(angle)
-    angle = math.atan2(-s, c)
+    angle = -angle
     return [x, (rows - 1) - y, angle, scale]
 
 
 def keypoint_hflip(kp, rows, cols):
     """Flip a keypoint horizontally around the y-axis."""
     x, y, angle, scale = kp
-    c = math.cos(angle)
-    s = math.sin(angle)
-    angle = math.atan2(s, -c)
+    angle = math.pi - angle
     return [(cols - 1) - x, y, angle, scale]
 
 
