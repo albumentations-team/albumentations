@@ -16,6 +16,12 @@ import cv2
 cv2.setNumThreads(0)  # noqa E402
 cv2.ocl.setUseOpenCL(False)  # noqa E402
 
+os.environ["OMP_NUM_THREADS"] = "1"  # noqa E402
+os.environ["OPENBLAS_NUM_THREADS"] = "1"  # noqa E402
+os.environ["MKL_NUM_THREADS"] = "1"  # noqa E402
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # noqa E402
+os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
+
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
