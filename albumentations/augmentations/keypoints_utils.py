@@ -17,10 +17,11 @@ keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
 
 
 def angle_to_2pi_range(angle):
-    if 0 <= angle <= 2 * math.pi:
+    two_pi = 2 * math.pi
+    if 0 <= angle < two_pi:
         return angle
 
-    return angle % (2 * math.pi)
+    return angle % two_pi
 
 
 class KeypointsProcessor(DataProcessor):
@@ -90,8 +91,8 @@ def check_keypoint(kp, rows, cols):
             )
 
     angle = kp[2]
-    if not (0 <= angle <= 2 * math.pi):
-        raise ValueError("Keypoint angle must be in range [0, 2 * PI]. Got: {angle}".format(angle=angle))
+    if not (0 <= angle < 2 * math.pi):
+        raise ValueError("Keypoint angle must be in range [0, 2 * PI). Got: {angle}".format(angle=angle))
 
 
 def check_keypoints(keypoints, rows, cols):
