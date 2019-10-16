@@ -36,9 +36,6 @@ def angle_to_2pi_range(angle):
     if 0 <= angle <= 2 * np.pi:
         return angle
 
-    if angle < 0:
-        angle += (abs(angle) // (2 * np.pi) + 1) * 2 * np.pi
-
     return angle % (2 * np.pi)
 
 
