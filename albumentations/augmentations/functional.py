@@ -9,6 +9,7 @@ import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
 from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype("uint8"): 255,
@@ -16,6 +17,15 @@ MAX_VALUES_BY_DTYPE = {
     np.dtype("uint32"): 4294967295,
     np.dtype("float32"): 1.0,
 }
+
+
+def angle_2pi_range(func):
+    @wraps(func)
+    def wrapped_function(keypoints, *args, **kwargs):
+        [x, y, a, s] = func(keypoints, *args, **kwargs)
+        return [x, y, angle_to_2pi_range(a), s]
+
+    return wrapped_function
 
 
 def clip(img, dtype, maxval):
@@ -30,13 +40,6 @@ def clipped(func):
         return clip(func(img, *args, **kwargs), dtype, maxval)
 
     return wrapped_function
-
-
-def angle_to_2pi_range(angle):
-    if 0 <= angle <= 2 * np.pi:
-        return angle
-
-    return angle % (2 * np.pi)
 
 
 def preserve_shape(func):
@@ -243,6 +246,7 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, col
     return x_min, y_min, x_max, y_max
 
 
+@angle_2pi_range
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
     x, y, a, s, = keypoint[:4]
     height, width = rows, cols
@@ -1582,6 +1586,7 @@ def bbox_transpose(bbox, axis, rows, cols):
     return bbox
 
 
+@angle_2pi_range
 def keypoint_vflip(keypoint, rows, cols):
     """Flip a keypoint vertically around the x-axis.
 
@@ -1601,6 +1606,7 @@ def keypoint_vflip(keypoint, rows, cols):
     return x, (rows - 1) - y, angle, scale
 
 
+@angle_2pi_range
 def keypoint_hflip(keypoint, rows, cols):
     """Flip a keypoint horizontally around the y-axis.
 
@@ -1651,6 +1657,7 @@ def keypoint_flip(keypoint, d, rows, cols):
     return keypoint
 
 
+@angle_2pi_range
 def keypoint_rot90(keypoint, factor, rows, cols, **params):
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
@@ -1682,6 +1689,7 @@ def keypoint_rot90(keypoint, factor, rows, cols, **params):
     return x, y, angle, scale
 
 
+@angle_2pi_range
 def keypoint_rotate(keypoint, angle, rows, cols, **params):
     """Rotate a keypoint by angle.
 
@@ -1826,7 +1834,6 @@ def keypoint_transpose(keypoint):
 
     """
     x, y, angle, scale = keypoint[:4]
-    angle = angle_to_2pi_range(angle)
 
     if angle <= np.pi:
         angle = np.pi - angle
