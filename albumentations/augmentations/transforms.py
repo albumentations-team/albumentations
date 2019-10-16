@@ -1328,7 +1328,7 @@ class RandomGridShuffle(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, grid=(3, 3), always_apply=False, p=1.0):
+    def __init__(self, grid=(3, 3), always_apply=False, p=0.5):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
