@@ -227,14 +227,14 @@ Python and library versions: Python 3.7.3, numpy 1.17.2, pillow 6.2.0, pillow-si
 
 ## Contributing
 
-To create pull request to the repository follow the documentation at [docs/contributing.rst](docs/contributing.rst)
+To create a pull request to the repository follow the documentation at [docs/contributing.rst](docs/contributing.rst)
 
 ### Adding new transforms
 If you are contributing a new transformation, make sure to update ["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections of this file (`README.md`). To do this, simply run (with python3 only):
 ```
 python3 tools/make_transforms_docs.py make
 ```
-and copy/paste the results in the corresponding sections. To validate your modifications, you
+and copy/paste the results into the corresponding sections. To validate your modifications, you
 can run:
 ```
 python3 tools/make_transforms_docs.py check README.md
@@ -291,4 +291,4 @@ If you find this library useful for your research, please consider citing:
 }
 ```
 
-You can find the full list of papers that cites Albumentations [here](docs/citations.rst).
+You can find the full list of papers that cite Albumentations [here](docs/citations.rst).
