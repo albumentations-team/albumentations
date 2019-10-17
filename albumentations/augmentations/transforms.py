@@ -431,8 +431,9 @@ class Resize(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         height = params["rows"]
         width = params["cols"]
-
-        return F.keypoint_scale(keypoint, self.height / height, self.width / width)
+        scale_x = self.width / width
+        scale_y = self.height / height
+        return F.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
