@@ -20,7 +20,7 @@ from albumentations.augmentations.transforms import RandomSizedCrop, RandomResiz
 
 @pytest.mark.parametrize(
     ["bbox", "expected"],
-    [[[15, 25, 100, 200], [0.0375, 0.125, 0.25, 1.0]], [[15, 25, 100, 200, 99], [0.0375, 0.125, 0.25, 1.0, 99]]],
+    [((15, 25, 100, 200), (0.0375, 0.125, 0.25, 1.0)), ((15, 25, 100, 200, 99), (0.0375, 0.125, 0.25, 1.0, 99))],
 )
 def test_normalize_bbox(bbox, expected):
     normalized_bbox = normalize_bbox(bbox, 200, 400)
@@ -29,21 +29,21 @@ def test_normalize_bbox(bbox, expected):
 
 @pytest.mark.parametrize(
     ["bbox", "expected"],
-    [[[0.0375, 0.125, 0.25, 1.0], [15, 25, 100, 200]], [[0.0375, 0.125, 0.25, 1.0, 99], [15, 25, 100, 200, 99]]],
+    [((0.0375, 0.125, 0.25, 1.0), (15, 25, 100, 200)), ((0.0375, 0.125, 0.25, 1.0, 99), (15, 25, 100, 200, 99))],
 )
 def test_denormalize_bbox(bbox, expected):
     denormalized_bbox = denormalize_bbox(bbox, 200, 400)
     assert denormalized_bbox == expected
 
 
-@pytest.mark.parametrize("bbox", [[15, 25, 100, 200], [15, 25, 100, 200, 99]])
+@pytest.mark.parametrize("bbox", [(15, 25, 100, 200), (15, 25, 100, 200, 99)])
 def test_normalize_denormalize_bbox(bbox):
     normalized_bbox = normalize_bbox(bbox, 200, 400)
     denormalized_bbox = denormalize_bbox(normalized_bbox, 200, 400)
     assert denormalized_bbox == bbox
 
 
-@pytest.mark.parametrize("bbox", [[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0, 99]])
+@pytest.mark.parametrize("bbox", [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)])
 def test_denormalize_normalize_bbox(bbox):
     denormalized_bbox = denormalize_bbox(bbox, 200, 400)
     normalized_bbox = normalize_bbox(denormalized_bbox, 200, 400)
@@ -51,21 +51,21 @@ def test_denormalize_normalize_bbox(bbox):
 
 
 def test_normalize_bboxes():
-    bboxes = [[15, 25, 100, 200], [15, 25, 100, 200, 99]]
+    bboxes = [(15, 25, 100, 200), (15, 25, 100, 200, 99)]
     normalized_bboxes_1 = normalize_bboxes(bboxes, 200, 400)
     normalized_bboxes_2 = [normalize_bbox(bboxes[0], 200, 400), normalize_bbox(bboxes[1], 200, 400)]
     assert normalized_bboxes_1 == normalized_bboxes_2
 
 
 def test_denormalize_bboxes():
-    bboxes = [[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0, 99]]
+    bboxes = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
     denormalized_bboxes_1 = denormalize_bboxes(bboxes, 200, 400)
     denormalized_bboxes_2 = [denormalize_bbox(bboxes[0], 200, 400), denormalize_bbox(bboxes[1], 200, 400)]
     assert denormalized_bboxes_1 == denormalized_bboxes_2
 
 
 @pytest.mark.parametrize(
-    ["bbox", "rows", "cols", "expected"], [[[0, 0, 1, 1], 50, 100, 5000], [[0.2, 0.2, 1, 1, 99], 50, 50, 1600]]
+    ["bbox", "rows", "cols", "expected"], [((0, 0, 1, 1), 50, 100, 5000), ((0.2, 0.2, 1, 1, 99), 50, 50, 1600)]
 )
 def test_calculate_bbox_area(bbox, rows, cols, expected):
     area = calculate_bbox_area(bbox, rows, cols)
@@ -75,12 +75,12 @@ def test_calculate_bbox_area(bbox, rows, cols, expected):
 @pytest.mark.parametrize(
     ["bbox", "source_format", "expected"],
     [
-        [[20, 30, 40, 50], "coco", [0.2, 0.3, 0.6, 0.8]],
-        [[20, 30, 40, 50, 99], "coco", [0.2, 0.3, 0.6, 0.8, 99]],
-        [[20, 30, 60, 80], "pascal_voc", [0.2, 0.3, 0.6, 0.8]],
-        [[20, 30, 60, 80, 99], "pascal_voc", [0.2, 0.3, 0.6, 0.8, 99]],
-        [[0.2, 0.3, 0.4, 0.5], "yolo", [0.01, 0.06, 0.41, 0.56]],
-        [[0.2, 0.3, 0.4, 0.5, 99], "yolo", [0.01, 0.06, 0.41, 0.56, 99]],
+        ((20, 30, 40, 50), "coco", (0.2, 0.3, 0.6, 0.8)),
+        ((20, 30, 40, 50, 99), "coco", (0.2, 0.3, 0.6, 0.8, 99)),
+        ((20, 30, 60, 80), "pascal_voc", (0.2, 0.3, 0.6, 0.8)),
+        ((20, 30, 60, 80, 99), "pascal_voc", (0.2, 0.3, 0.6, 0.8, 99)),
+        ((0.2, 0.3, 0.4, 0.5), "yolo", (0.01, 0.06, 0.41, 0.56)),
+        ((0.2, 0.3, 0.4, 0.5, 99), "yolo", (0.01, 0.06, 0.41, 0.56, 99)),
     ],
 )
 def test_convert_bbox_to_albumentations(bbox, source_format, expected):
@@ -95,12 +95,12 @@ def test_convert_bbox_to_albumentations(bbox, source_format, expected):
 @pytest.mark.parametrize(
     ["bbox", "target_format", "expected"],
     [
-        [[0.2, 0.3, 0.6, 0.8], "coco", [20, 30, 40, 50]],
-        [[0.2, 0.3, 0.6, 0.8, 99], "coco", [20, 30, 40, 50, 99]],
-        [[0.2, 0.3, 0.6, 0.8], "pascal_voc", [20, 30, 60, 80]],
-        [[0.2, 0.3, 0.6, 0.8, 99], "pascal_voc", [20, 30, 60, 80, 99]],
-        [[0.01, 0.06, 0.41, 0.56], "yolo", [0.2, 0.3, 0.4, 0.5]],
-        [[0.01, 0.06, 0.41, 0.56, 99], "yolo", [0.2, 0.3, 0.4, 0.5, 99]],
+        ((0.2, 0.3, 0.6, 0.8), "coco", (20, 30, 40, 50)),
+        ((0.2, 0.3, 0.6, 0.8, 99), "coco", (20, 30, 40, 50, 99)),
+        ((0.2, 0.3, 0.6, 0.8), "pascal_voc", (20, 30, 60, 80)),
+        ((0.2, 0.3, 0.6, 0.8, 99), "pascal_voc", (20, 30, 60, 80, 99)),
+        ((0.01, 0.06, 0.41, 0.56), "yolo", (0.2, 0.3, 0.4, 0.5)),
+        ((0.01, 0.06, 0.41, 0.56, 99), "yolo", (0.2, 0.3, 0.4, 0.5, 99)),
     ],
 )
 def test_convert_bbox_from_albumentations(bbox, target_format, expected):
@@ -114,12 +114,12 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected):
 @pytest.mark.parametrize(
     ["bbox", "bbox_format"],
     [
-        [[20, 30, 40, 50], "coco"],
-        [[20, 30, 40, 50, 99], "coco"],
-        [[20, 30, 60, 80], "pascal_voc"],
-        [[20, 30, 60, 80, 99], "pascal_voc"],
-        [[0.01, 0.06, 0.41, 0.56], "yolo"],
-        [[0.01, 0.06, 0.41, 0.56, 99], "yolo"],
+        ((20, 30, 40, 50), "coco"),
+        ((20, 30, 40, 50, 99), "coco"),
+        ((20, 30, 60, 80), "pascal_voc"),
+        ((20, 30, 60, 80, 99), "pascal_voc"),
+        ((0.01, 0.06, 0.41, 0.56), "yolo"),
+        ((0.01, 0.06, 0.41, 0.56, 99), "yolo"),
     ],
 )
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
@@ -134,7 +134,7 @@ def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
 
 
 def test_convert_bboxes_to_albumentations():
-    bboxes = [[20, 30, 40, 50], [30, 40, 50, 60, 99]]
+    bboxes = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
     image = np.ones((100, 100, 3))
     converted_bboxes = convert_bboxes_to_albumentations(
         bboxes, rows=image.shape[0], cols=image.shape[1], source_format="coco"
@@ -149,7 +149,7 @@ def test_convert_bboxes_to_albumentations():
 
 
 def test_convert_bboxes_from_albumentations():
-    bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     image = np.ones((100, 100, 3))
     converted_bboxes = convert_bboxes_to_albumentations(
         bboxes, rows=image.shape[0], cols=image.shape[1], source_format="coco"
@@ -166,12 +166,12 @@ def test_convert_bboxes_from_albumentations():
 @pytest.mark.parametrize(
     ["bboxes", "bbox_format", "labels"],
     [
-        [[[20, 30, 40, 50]], "coco", [1]],
-        [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], "coco", None],
-        [[[20, 30, 60, 80]], "pascal_voc", [2]],
-        [[[20, 30, 60, 80, 99]], "pascal_voc", None],
-        [[[0.1, 0.2, 0.1, 0.2]], "yolo", [2]],
-        [[[0.1, 0.2, 0.1, 0.2, 99]], "yolo", None],
+        ([(20, 30, 40, 50)], "coco", [1]),
+        ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "coco", None),
+        ([(20, 30, 60, 80)], "pascal_voc", [2]),
+        ([(20, 30, 60, 80, 99)], "pascal_voc", None),
+        ([(0.1, 0.2, 0.1, 0.2)], "yolo", [2]),
+        ([(0.1, 0.2, 0.1, 0.2, 99)], "yolo", None),
     ],
 )
 def test_compose_with_bbox_noop(bboxes, bbox_format, labels):
@@ -197,11 +197,11 @@ def test_compose_with_bbox_noop_error_label_fields(bboxes, bbox_format):
 @pytest.mark.parametrize(
     ["bboxes", "bbox_format", "labels"],
     [
-        [[[20, 30, 60, 80]], "pascal_voc", {"label": [1]}],
+        [[(20, 30, 60, 80)], "pascal_voc", {"label": [1]}],
         [[], "pascal_voc", {}],
         [[], "pascal_voc", {"label": []}],
-        [[[20, 30, 60, 80]], "pascal_voc", {"id": [3]}],
-        [[[20, 30, 60, 80], [30, 40, 40, 50]], "pascal_voc", {"id": [3, 1]}],
+        [[(20, 30, 60, 80)], "pascal_voc", {"id": [3]}],
+        [[(20, 30, 60, 80), (30, 40, 40, 50)], "pascal_voc", {"id": [3, 1]}],
     ],
 )
 def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
@@ -216,7 +216,7 @@ def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
 
 def test_random_sized_crop_size():
     image = np.ones((100, 100, 3))
-    bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
@@ -225,7 +225,7 @@ def test_random_sized_crop_size():
 
 def test_random_resized_crop_size():
     image = np.ones((100, 100, 3))
-    bboxes = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomResizedCrop(height=50, width=50, p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
@@ -234,7 +234,7 @@ def test_random_resized_crop_size():
 
 def test_random_rotate():
     image = np.ones((192, 192, 3))
-    bboxes = [[78, 42, 142, 80]]
+    bboxes = [(78, 42, 142, 80)]
     aug = Rotate(limit=15, p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed["bboxes"])
