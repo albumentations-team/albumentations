@@ -466,7 +466,7 @@ def test_resize_keypoints():
 
     aug = A.Resize(height=100, width=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[18, 2.5, 0, 0]]
+    assert result["keypoints"] == [[4.5, 10, 0, 0]]
 
     aug = A.Resize(height=50, width=10, p=1)
     result = aug(image=img, keypoints=keypoints)
