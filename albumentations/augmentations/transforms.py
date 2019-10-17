@@ -1433,7 +1433,9 @@ class Normalize(ImageOnlyTransform):
 
 
 class Cutout(ImageOnlyTransform):
-    """CoarseDropout of the square regions in the image.
+    """Deprecated:: Please use CoarseDropout.
+
+    CoarseDropout of the square regions in the image.
 
     Args:
         num_holes (int): number of regions to zero out
@@ -1629,7 +1631,9 @@ class ImageCompression(ImageOnlyTransform):
 
 
 class JpegCompression(ImageCompression):
-    """Decrease Jpeg compression of an image.
+    """Deprecated:: Please use ImageCompression.
+
+    Decrease Jpeg compression of an image.
 
     Args:
         quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
@@ -2315,7 +2319,9 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
 
 class RandomBrightness(RandomBrightnessContrast):
-    """Randomly change brightness of the input image.
+    """Deprecated:: Please use RandomBrightnessContrast.
+
+    Randomly change brightness of the input image.
 
     Args:
         limit ((float, float) or float): factor range for changing brightness.
@@ -2340,7 +2346,9 @@ class RandomBrightness(RandomBrightnessContrast):
 
 
 class RandomContrast(RandomBrightnessContrast):
-    """Randomly change contrast of the input image.
+    """Deprecated:: Please use RandomBrightnessContrast.
+
+    Randomly change contrast of the input image.
 
     Args:
         limit ((float, float) or float): factor range for changing contrast.
