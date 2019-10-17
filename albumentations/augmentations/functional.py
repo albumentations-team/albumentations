@@ -9,7 +9,7 @@ import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
-from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox, Bbox
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype("uint8"): 255,
@@ -18,7 +18,6 @@ MAX_VALUES_BY_DTYPE = {
     np.dtype("float32"): 1.0,
 }
 
-Bbox = namedtuple("Bbox", "x_min y_min x_max y_max")
 KeyPoint = namedtuple("KeyPoint", "x y angle scale")
 
 def clip(img, dtype, maxval):
@@ -227,8 +226,8 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, col
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
-    x = np.array([bbox.x_min, bbox.x_max, bbox.x_max, bbox.x_min)
-    y = np.array([bbox.y_min, bbox.y_min, bbox.y_max, bbox.y_max)
+    x = np.array([bbox.x_min, bbox.x_max, bbox.x_max, bbox.x_min])
+    y = np.array([bbox.y_min, bbox.y_min, bbox.y_max, bbox.y_max])
     ones = np.ones(shape=(len(x)))
     points_ones = np.vstack([x, y, ones]).transpose()
     points_ones[:, 0] *= width
@@ -1370,13 +1369,13 @@ def from_float(img, dtype, max_value=None):
 def bbox_vflip(bbox, rows, cols):
     """Flip a bounding box vertically around the x-axis."""
     x_min, y_min, x_max, y_max = bbox
-    return x_min, 1 - y_max, x_max, 1 - y_min
+    return Bbox(x_min, 1 - y_max, x_max, 1 - y_min)
 
 
 def bbox_hflip(bbox, rows, cols):
     """Flip a bounding box horizontally around the y-axis."""
     x_min, y_min, x_max, y_max = bbox
-    return 1 - x_max, y_min, 1 - x_min, y_max
+    return Bbox(1 - x_max, y_min, 1 - x_min, y_max)
 
 
 def bbox_flip(bbox, d, rows, cols):
@@ -1459,9 +1458,10 @@ def bbox_rotate(bbox, angle, rows, cols, interpolation):
 
         return a tuple (x_min, y_min, x_max, y_max)
     """
+    bbox = Bbox(*bbox)
     scale = cols / float(rows)
-    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
-    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
+    x = np.array([bbox.x_min, bbox.x_max, bbox.x_max, bbox.x_min])
+    y = np.array([bbox.y_min, bbox.y_min, bbox.y_max, bbox.y_max])
     x = x - 0.5
     y = y - 0.5
     angle = np.deg2rad(angle)
@@ -1469,7 +1469,7 @@ def bbox_rotate(bbox, angle, rows, cols, interpolation):
     y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
     x_t = x_t + 0.5
     y_t = y_t + 0.5
-    return [min(x_t), min(y_t), max(x_t), max(y_t)]
+    return Bbox(min(x_t), min(y_t), max(x_t), max(y_t))
 
 
 def bbox_transpose(bbox, axis, rows, cols):
@@ -1481,13 +1481,13 @@ def bbox_transpose(bbox, axis, rows, cols):
         rows (int): Image rows.
         cols (int): Image cols.
     """
-    x_min, y_min, x_max, y_max = bbox
-    if axis != 0 and axis != 1:
+    bbox = Bbox(*bbox)
+    if axis not in {0, 1}:
         raise ValueError("Axis must be either 0 or 1.")
     if axis == 0:
-        bbox = [y_min, x_min, y_max, x_max]
+        bbox = Bbox(bbox.y_min, bbox.x_min, bbox.y_max, bbox.x_max)
     if axis == 1:
-        bbox = [1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min]
+        bbox = Bbox(1 - bbox.y_max, 1 - bbox.x_max, 1 - bbox.y_min, 1 - bbox.x_min)
     return bbox
 
 
