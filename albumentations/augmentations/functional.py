@@ -3,13 +3,13 @@ from __future__ import division
 import math
 from functools import wraps
 from warnings import warn
-from collections import namedtuple
 
 import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
 
 from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox, Bbox
+from albumentations.augmentations.keypoints_utils import KeyPoint
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype("uint8"): 255,
@@ -17,8 +17,6 @@ MAX_VALUES_BY_DTYPE = {
     np.dtype("uint32"): 4294967295,
     np.dtype("float32"): 1.0,
 }
-
-KeyPoint = namedtuple("KeyPoint", "x y angle scale")
 
 def clip(img, dtype, maxval):
     return np.clip(img, 0, maxval).astype(dtype)
