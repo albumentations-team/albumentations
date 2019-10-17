@@ -3,6 +3,7 @@ from __future__ import division
 import math
 from functools import wraps
 from warnings import warn
+from collections import namedtuple
 
 import cv2
 import numpy as np
@@ -17,6 +18,8 @@ MAX_VALUES_BY_DTYPE = {
     np.dtype("float32"): 1.0,
 }
 
+Bbox = namedtuple("Bbox", "x_min y_min x_max y_max")
+KeyPoint = namedtuple("KeyPoint", "x y angle scale")
 
 def clip(img, dtype, maxval):
     return np.clip(img, 0, maxval).astype(dtype)
@@ -218,13 +221,14 @@ def shift_scale_rotate(
 
 
 def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
+    bbox = Bbox(*bbox)
     height, width = rows, cols
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
-    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
-    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
+    x = np.array([bbox.x_min, bbox.x_max, bbox.x_max, bbox.x_min)
+    y = np.array([bbox.y_min, bbox.y_min, bbox.y_max, bbox.y_max)
     ones = np.ones(shape=(len(x)))
     points_ones = np.vstack([x, y, ones]).transpose()
     points_ones[:, 0] *= width
@@ -232,18 +236,18 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, col
     tr_points = matrix.dot(points_ones.T).T
     tr_points[:, 0] /= width
     tr_points[:, 1] /= height
-    return [min(tr_points[:, 0]), min(tr_points[:, 1]), max(tr_points[:, 0]), max(tr_points[:, 1])]
+    return Bbox(min(tr_points[:, 0]), min(tr_points[:, 1]), max(tr_points[:, 0]), max(tr_points[:, 1]))
 
 
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
+    kp = KeyPoint(*keypoint)
     height, width = rows, cols
     center = (width / 2, height / 2)
-    x, y, a, s = keypoint
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    return [x, y, a + math.radians(angle), s * scale]
+    x, y = cv2.transform(np.array([[[kp.x, kp.y]]]), matrix).squeeze()
+    return KeyPoint(x, y, kp.angle + math.radians(angle), kp.scale * scale)
 
 
 def crop(img, x_min, y_min, x_max, y_max):
@@ -273,7 +277,7 @@ def get_center_crop_coords(height, width, crop_height, crop_width):
     y2 = y1 + crop_height
     x1 = (width - crop_width) // 2
     x2 = x1 + crop_width
-    return x1, y1, x2, y2
+    return Bbox(x1, y1, x2, y2)
 
 
 def center_crop(img, crop_height, crop_width):
@@ -295,7 +299,7 @@ def get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_st
     y2 = y1 + crop_height
     x1 = int((width - crop_width) * w_start)
     x2 = x1 + crop_width
-    return x1, y1, x2, y2
+    return Bbox(x1, y1, x2, y2)
 
 
 def random_crop(img, crop_height, crop_width, h_start, w_start):
@@ -1366,13 +1370,13 @@ def from_float(img, dtype, max_value=None):
 def bbox_vflip(bbox, rows, cols):
     """Flip a bounding box vertically around the x-axis."""
     x_min, y_min, x_max, y_max = bbox
-    return [x_min, 1 - y_max, x_max, 1 - y_min]
+    return x_min, 1 - y_max, x_max, 1 - y_min
 
 
 def bbox_hflip(bbox, rows, cols):
     """Flip a bounding box horizontally around the y-axis."""
     x_min, y_min, x_max, y_max = bbox
-    return [1 - x_max, y_min, 1 - x_min, y_max]
+    return 1 - x_max, y_min, 1 - x_min, y_max
 
 
 def bbox_flip(bbox, d, rows, cols):
@@ -1487,41 +1491,46 @@ def bbox_transpose(bbox, axis, rows, cols):
     return bbox
 
 
-def keypoint_vflip(kp, rows, cols):
+def keypoint_vflip(keypoint, rows, cols):
     """Flip a keypoint vertically around the x-axis."""
-    x, y, angle, scale = kp
-    c = math.cos(angle)
-    s = math.sin(angle)
+    kp = KeyPoint(*keypoint)
+    c = math.cos(kp.angle)
+    s = math.sin(kp.angle)
     angle = math.atan2(-s, c)
-    return [x, (rows - 1) - y, angle, scale]
+    return KeyPoint(kp.x, (rows - 1) - kp.y, angle, kp.scale)
 
 
-def keypoint_hflip(kp, rows, cols):
+def keypoint_hflip(keypoint, rows, cols):
     """Flip a keypoint horizontally around the y-axis."""
-    x, y, angle, scale = kp
-    c = math.cos(angle)
-    s = math.sin(angle)
+    kp = KeyPoint(*keypoint)
+    c = math.cos(kp.angle)
+    s = math.sin(kp.angle)
     angle = math.atan2(s, -c)
-    return [(cols - 1) - x, y, angle, scale]
+    return KeyPoint((cols - 1) - kp.x, kp.y, angle, kp.scale)
 
 
-def keypoint_flip(bbox, d, rows, cols):
+def keypoint_flip(keypoint, d, rows, cols):
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
 
+    Args:
+        keypoint (tuple): A tuple (x, y, angle, scale).
+        d (int): flip type (0 - vertical, 1 - horizontal, -1 - all)
+        rows (int): Image rows.
+        cols (int): Image cols.
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
     if d == 0:
-        bbox = keypoint_vflip(bbox, rows, cols)
+        keypoint = keypoint_vflip(keypoint, rows, cols)
     elif d == 1:
-        bbox = keypoint_hflip(bbox, rows, cols)
+        keypoint = keypoint_hflip(keypoint, rows, cols)
     elif d == -1:
-        bbox = keypoint_hflip(bbox, rows, cols)
-        bbox = keypoint_vflip(bbox, rows, cols)
+        keypoint = keypoint_hflip(keypoint, rows, cols)
+        keypoint = keypoint_vflip(keypoint, rows, cols)
     else:
         raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
-    return bbox
+    return keypoint
 
 
 def keypoint_rot90(keypoint, factor, rows, cols, **params):
@@ -1533,29 +1542,29 @@ def keypoint_rot90(keypoint, factor, rows, cols, **params):
         rows (int): Image rows.
         cols (int): Image cols.
     """
-    if factor < 0 or factor > 3:
-        raise ValueError("Parameter n must be in range [0;3]")
-    x, y, angle, scale = keypoint
+    kp = KeyPoint(*keypoint)
+    if factor not in {1, 2, 3}:
+        raise ValueError("Parameter n must be in set {1, 2, 3}")
     if factor == 1:
-        keypoint = [y, (cols - 1) - x, angle - math.pi / 2, scale]
+        keypoint = KeyPoint(kp.y, (cols - 1) - kp.x, kp.angle - math.pi / 2, kp.scale)
     if factor == 2:
-        keypoint = [(cols - 1) - x, (rows - 1) - y, angle - math.pi, scale]
+        keypoint = KeyPoint((cols - 1) - kp.x, (rows - 1) - kp.y, kp.angle - math.pi, kp.scale)
     if factor == 3:
-        keypoint = [(rows - 1) - y, x, angle + math.pi / 2, scale]
+        keypoint = KeyPoint((rows - 1) - kp.y, kp.x, kp.angle + math.pi / 2, kp.scale)
     return keypoint
 
 
 def keypoint_rotate(keypoint, angle, rows, cols, **params):
+    kp = KeyPoint(*keypoint)
     matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, 1.0)
-    x, y, a, s = keypoint
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    return [x, y, a + math.radians(angle), s]
+    x, y = cv2.transform(np.array([[[kp.x, kp.y]]]), matrix).squeeze()
+    return KeyPoint(x, y, kp.angle + math.radians(angle), kp.scale)
 
 
 def keypoint_scale(keypoint, scale_x, scale_y, **params):
     """Scales a keypoint by scale_x and scale_y."""
-    x, y, a, s = keypoint
-    return [x * scale_x, y * scale_y, a, s * max(scale_x, scale_y)]
+    kp = KeyPoint(*keypoint)
+    return KeyPoint(kp.x * scale_x, kp.y * scale_y, kp.angle, kp.scale * max(scale_x, scale_y))
 
 
 def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):
@@ -1563,9 +1572,9 @@ def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows
     required height and width of the crop.
     """
     x, y, a, s = keypoint
+    kp = KeyPoint(*keypoint)
     x1, y1, x2, y2 = crop_coords
-    cropped_keypoint = [x - x1, y - y1, a, s]
-    return cropped_keypoint
+    return KeyPoint(kp.x - x1, kp.y - y1, kp.angle, kp.scale)
 
 
 def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols):
@@ -1611,12 +1620,12 @@ def swap_tiles_on_image(image, tiles):
 
 
 def keypoint_transpose(keypoint):
-    x, y, angle, scale = keypoint
-    angle = angle_to_2pi_range(angle)
+    kp = KeyPoint(*keypoint)
+    angle = angle_to_2pi_range(kp.angle)
 
     if angle <= np.pi:
         angle = np.pi - angle
     else:
         angle = 3 * np.pi - angle
 
-    return y, x, angle, scale
+    return KeyPoint(kp.y, kp.x, angle, kp.scale)
