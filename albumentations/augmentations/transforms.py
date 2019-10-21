@@ -1551,8 +1551,8 @@ class CoarseDropout(ImageOnlyTransform):
 
         holes = []
         for _n in range(random.randint(self.min_holes, self.max_holes)):
-            hole_height = random.randint(self.min_height, self.max_height + 1)
-            hole_width = random.randint(self.min_width, self.max_width + 1)
+            hole_height = random.randint(self.min_height, self.max_height)
+            hole_width = random.randint(self.min_width, self.max_width)
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
