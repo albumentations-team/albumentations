@@ -1622,16 +1622,34 @@ def keypoint_transpose(keypoint):
     return y, x, angle, scale
 
 
-@preserve_shape
+@clipped
 def _multiply_uint8(img, multiplier):
-    channels = 1 if is_grayscale_image(img) else img.shape[-1]
+    img = img.astype(np.float32)
+    return img * multiplier
+
+
+@preserve_shape
+def _multiply_uint8_optimized(img, multiplier):
+    if is_grayscale_image(img) or len(multiplier) == 1:
+        multiplier = multiplier[0]
+        lut = np.arange(0, 256, dtype=np.float32)
+        lut *= multiplier
+        lut = clip(lut, np.uint8, MAX_VALUES_BY_DTYPE[img.dtype])
+        func = _maybe_process_in_chunks(cv2.LUT, lut=lut)
+        return func(img)
+
+    channels = img.shape[-1]
     lut = [np.arange(0, 256, dtype=np.float32)] * channels
+    lut = np.stack(lut, axis=-1)
 
     lut *= multiplier
-    lut = clip(lut, np.uint8, MAX_VALUES_BY_DTYPE[np.uint8])
+    lut = clip(lut, np.uint8, MAX_VALUES_BY_DTYPE[img.dtype])
 
-    func = _maybe_process_in_chunks(cv2.LUT, lut=lut)
-    return func(img)
+    images = []
+    for i in range(channels):
+        func = _maybe_process_in_chunks(cv2.LUT, lut=lut[:, i])
+        images.append(func(img[:, :, i]))
+    return np.stack(images, axis=-1)
 
 
 @clipped
@@ -1641,6 +1659,9 @@ def _multiply_non_uint8(img, multiplier):
 
 def multiply(img, multiplier):
     if img.dtype == np.uint8:
-        return _multiply_uint8(img, multiplier)
+        if len(multiplier.shape) == 1:
+            return _multiply_uint8_optimized(img, multiplier)
+        else:
+            return _multiply_uint8(img, multiplier)
     else:
         return _multiply_non_uint8(img, multiplier)

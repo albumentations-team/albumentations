@@ -2913,9 +2913,8 @@ class MultiplicativeNoise(ImageOnlyTransform):
     def __init__(
         self,
         multiplier=(0.9, 1.1),
-        per_channel=1.0,
-        elementwise=1.0,
-        random_func=np.random.uniform,
+        per_channel=False,
+        elementwise=False,
         always_apply=False,
         p=0.5,
     ):
@@ -2923,21 +2922,27 @@ class MultiplicativeNoise(ImageOnlyTransform):
         self.multiplier = to_tuple(multiplier)
         self.per_channel = per_channel
         self.elementwise = elementwise
-        self.random_func = random_func
 
-    def apply(self, img, **kwargs):
+    def apply(self, img, multiplier=1, **kwargs):
+        return F.multiply(img, multiplier)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params['image']
+
         h, w = img.shape[:2]
 
-        if np.random.random() > self.per_channel:
+        if self.per_channel:
             c = 1 if F.is_grayscale_image(img) else img.shape[-1]
         else:
             c = 1
 
-        if np.random.random() > self.elementwise:
+        if self.elementwise:
             shape = [h, w, c]
         else:
             shape = [c]
 
-        multiplier = self.random_func(low=self.multiplier[0], high=self.multiplier[1], size=shape)
+        multiplier = np.random.uniform(self.multiplier[0], self.multiplier[1], shape)
+        return multiplier
 
-        return F.multiply(img, multiplier)
+    def get_transform_init_args_names(self):
+        return "multiplier", "per_channel", "elementwise"
