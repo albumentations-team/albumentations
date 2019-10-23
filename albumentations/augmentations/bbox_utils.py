@@ -57,7 +57,7 @@ def normalize_bbox(bbox, rows, cols):
     Args:
         bbox (tuple): Denormalized bounding box `(x_min, y_min, x_max, y_max)`.
         rows (int): Image height.
-        width (int): Image width.
+        cols (int): Image width.
 
     Returns:
         tuple: Normalized bounding box `(x_min, y_min, x_max, y_max)`.
