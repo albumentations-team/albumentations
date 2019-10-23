@@ -19,11 +19,12 @@ import albumentations.augmentations.functional as F
 @pytest.mark.parametrize(
     ["kp", "source_format", "expected"],
     [
-        [[20, 30], "xy", [20, 30, 0, 0]],
-        [[20, 30], "yx", [30, 20, 0, 0]],
-        [[20, 30, 60], "xys", [20, 30, 0, 60]],
-        [[20, 30, 60], "xya", [20, 30, math.radians(60), 0]],
-        [[20, 30, 60, 80], "xyas", [20, 30, math.radians(60), 80]],
+        ((20, 30), "xy", (20, 30, 0, 0)),
+        (np.array([20, 30]), "xy", (20, 30, 0, 0)),
+        ((20, 30), "yx", (30, 20, 0, 0)),
+        ((20, 30, 60), "xys", (20, 30, 0, 60)),
+        ((20, 30, 60), "xya", (20, 30, math.radians(60), 0)),
+        ((20, 30, 60, 80), "xyas", (20, 30, math.radians(60), 80)),
     ],
 )
 def test_convert_keypoint_to_albumentations(kp, source_format, expected):
@@ -38,11 +39,11 @@ def test_convert_keypoint_to_albumentations(kp, source_format, expected):
 @pytest.mark.parametrize(
     ["kp", "target_format", "expected"],
     [
-        [[20, 30, 0, 0], "xy", [20, 30]],
-        [[20, 30, 0, 0], "yx", [30, 20]],
-        [[20, 30, 0.6, 0], "xya", [20, 30, math.degrees(0.6)]],
-        [[20, 30, 0, 0.6], "xys", [20, 30, 0.6]],
-        [[20, 30, 0.6, 80], "xyas", [20, 30, math.degrees(0.6), 80]],
+        ((20, 30, 0, 0), "xy", (20, 30)),
+        ((20, 30, 0, 0), "yx", (30, 20)),
+        ((20, 30, 0.6, 0), "xya", (20, 30, math.degrees(0.6))),
+        ((20, 30, 0, 0.6), "xys", (20, 30, 0.6)),
+        ((20, 30, 0.6, 80), "xyas", (20, 30, math.degrees(0.6), 80)),
     ],
 )
 def test_convert_keypoint_from_albumentations(kp, target_format, expected):
@@ -56,10 +57,10 @@ def test_convert_keypoint_from_albumentations(kp, target_format, expected):
 @pytest.mark.parametrize(
     ["kp", "keypoint_format"],
     [
-        [[20, 30, 40, 50], "xy"],
-        [[20, 30, 40, 50, 99], "xyas"],
-        [[20, 30, 60, 80], "xysa"],
-        [[20, 30, 60, 80, 99], "yx"],
+        ((20, 30, 40, 50), "xy"),
+        ((20, 30, 40, 50, 99), "xyas"),
+        ((20, 30, 60, 80), "xysa"),
+        ((20, 30, 60, 80, 99), "yx"),
     ],
 )
 def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format):
@@ -74,7 +75,7 @@ def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format):
 
 
 def test_convert_keypoints_to_albumentations():
-    keypoints = [[20, 30, 40, 50], [30, 40, 50, 60, 99]]
+    keypoints = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
     image = np.ones((100, 100, 3))
     converted_keypoints = convert_keypoints_to_albumentations(
         keypoints, rows=image.shape[0], cols=image.shape[1], source_format="xyas"
@@ -89,7 +90,7 @@ def test_convert_keypoints_to_albumentations():
 
 
 def test_convert_keypoints_from_albumentations():
-    keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     image = np.ones((100, 100, 3))
     converted_keypointes = convert_keypoints_from_albumentations(
         keypoints, rows=image.shape[0], cols=image.shape[1], target_format="xyas"
@@ -106,10 +107,10 @@ def test_convert_keypoints_from_albumentations():
 @pytest.mark.parametrize(
     ["keypoints", "keypoint_format", "labels"],
     [
-        [[[20, 30, 40, 50]], "xyas", [1]],
-        [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], "xy", None],
-        [[[20, 30, 60, 80]], "yx", [2]],
-        [[[20, 30, 60, 80, 99]], "xys", None],
+        ([(20, 30, 40, 50)], "xyas", [1]),
+        ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "xy", None),
+        ([(20, 30, 60, 80)], "yx", [2]),
+        ([(20, 30, 60, 80, 99)], "xys", None),
     ],
 )
 def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
@@ -135,11 +136,11 @@ def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_forma
 @pytest.mark.parametrize(
     ["keypoints", "keypoint_format", "labels"],
     [
-        [[[20, 30, 60, 80]], "xy", {"label": [1]}],
-        [[], "xy", {}],
-        [[], "xy", {"label": []}],
-        [[[20, 30, 60, 80]], "xy", {"id": [3]}],
-        [[[20, 30, 60, 80], [30, 40, 40, 50]], "xy", {"id": [3, 1]}],
+        ([(20, 30, 60, 80)], "xy", {"label": [1]}),
+        ([], "xy", {}),
+        ([], "xy", {"label": []}),
+        ([(20, 30, 60, 80)], "xy", {"id": [3]}),
+        ([(20, 30, 60, 80), (30, 40, 40, 50)], "xy", {"id": [3, 1]}),
     ],
 )
 def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, labels):
@@ -154,7 +155,7 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, la
 
 def test_random_sized_crop_size():
     image = np.ones((100, 100, 3))
-    keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.0)
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed["image"].shape == (50, 50, 3)
@@ -163,7 +164,7 @@ def test_random_sized_crop_size():
 
 def test_random_resized_crop_size():
     image = np.ones((100, 100, 3))
-    keypoints = [[0.2, 0.3, 0.6, 0.8], [0.3, 0.4, 0.7, 0.9, 99]]
+    keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomResizedCrop(height=50, width=50, p=1.0)
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed["image"].shape == (50, 50, 3)
@@ -220,13 +221,13 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected):
 @pytest.mark.parametrize(
     ["aug", "keypoints", "expected"],
     [
-        [IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]],
-        [IAAFliplr, [[20, 30, 45, 0]], [[79, 30, 45, 0]]],
-        [IAAFliplr, [[20, 30, 90, 0]], [[79, 30, 90, 0]]],
+        [IAAFliplr, [(20, 30, 0, 0)], [(79, 30, 0, 0)]],
+        [IAAFliplr, [(20, 30, 45, 0)], [(79, 30, 45, 0)]],
+        [IAAFliplr, [(20, 30, 90, 0)], [(79, 30, 90, 0)]],
         #
-        [IAAFlipud, [[20, 30, 0, 0]], [[20, 69, 0, 0]]],
-        [IAAFlipud, [[20, 30, 45, 0]], [[20, 69, 45, 0]]],
-        [IAAFlipud, [[20, 30, 90, 0]], [[20, 69, 90, 0]]],
+        [IAAFlipud, [(20, 30, 0, 0)], [(20, 69, 0, 0)]],
+        [IAAFlipud, [(20, 30, 45, 0)], [(20, 69, 45, 0)]],
+        [IAAFlipud, [(20, 30, 90, 0)], [(20, 69, 90, 0)]],
     ],
 )
 def test_keypoint_transform_format_xy(aug, keypoints, expected):
@@ -246,10 +247,10 @@ def test_iaa_transforms_emit_warning(aug, keypoints, expected):
 @pytest.mark.parametrize(
     ["keypoint", "expected", "factor"],
     [
-        [[20, 30, math.pi / 2, 0], [20, 30, math.pi / 2, 0], 0],
-        [[20, 30, math.pi / 2, 0], [30, 179, 0, 0], 1],
-        [[20, 30, math.pi / 2, 0], [179, 69, -math.pi / 2, 0], 2],
-        [[20, 30, math.pi / 2, 0], [69, 20, math.pi, 0], 3],
+        ((20, 30, math.pi / 2, 0), (20, 30, math.pi / 2, 0), 0),
+        ((20, 30, math.pi / 2, 0), (30, 179, 0, 0), 1),
+        ((20, 30, math.pi / 2, 0), (179, 69, -math.pi / 2, 0), 2),
+        ((20, 30, math.pi / 2, 0), (69, 20, math.pi, 0), 3),
     ],
 )
 def test_keypoint_rotate90(keypoint, expected, factor):
@@ -297,9 +298,9 @@ def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
 
 def test_compose_with_additional_targets():
     image = np.ones((100, 100, 3))
-    keypoints = [[10, 10], [50, 50]]
-    kp1 = [[15, 15], [55, 55]]
+    keypoints = [(10, 10), (50, 50)]
+    kp1 = [(15, 15), (55, 55)]
     aug = Compose([CenterCrop(50, 50)], keypoint_params={"format": "xy"}, additional_targets={"kp1": "keypoints"})
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
-    assert transformed["keypoints"] == [[25, 25]]
-    assert transformed["kp1"] == [[30, 30]]
+    assert transformed["keypoints"] == [(25, 25)]
+    assert transformed["kp1"] == [(30, 30)]
