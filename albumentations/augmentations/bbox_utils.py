@@ -69,9 +69,9 @@ def normalize_bbox(bbox, rows, cols):
     (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
     if rows <= 0:
-        raise ValueError("Argument height must be positive integer")
+        raise ValueError("Argument rows must be positive integer")
     if cols <= 0:
-        raise ValueError("Argument width must be positive integer")
+        raise ValueError("Argument cols must be positive integer")
 
     x_min, x_max = x_min / cols, x_max / cols
     y_min, y_max = y_min / rows, y_max / rows
