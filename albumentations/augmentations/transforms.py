@@ -2907,3 +2907,37 @@ class Lambda(NoOp):
         state.update(self.custom_apply_fns.items())
         state.update(self.get_base_init_args())
         return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+
+
+class MultiplicativeNoise(ImageOnlyTransform):
+    def __init__(
+        self,
+        multiplier=(0.9, 1.1),
+        per_channel=1.0,
+        elementwise=1.0,
+        random_func=np.random.uniform,
+        always_apply=False,
+        p=0.5,
+    ):
+        super(MultiplicativeNoise, self).__init__(always_apply, p)
+        self.multiplier = to_tuple(multiplier)
+        self.per_channel = per_channel
+        self.elementwise = elementwise
+        self.random_func = random_func
+
+    def apply(self, img, **kwargs):
+        h, w = img.shape[:2]
+
+        if np.random.random() > self.per_channel:
+            c = 1 if F.is_grayscale_image(img) else img.shape[-1]
+        else:
+            c = 1
+
+        if np.random.random() > self.elementwise:
+            shape = [h, w, c]
+        else:
+            shape = [c]
+
+        multiplier = self.random_func(low=self.multiplier[0], high=self.multiplier[1], size=shape)
+
+        return F.multiply(img, multiplier)

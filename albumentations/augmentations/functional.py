@@ -1620,3 +1620,27 @@ def keypoint_transpose(keypoint):
         angle = 3 * np.pi - angle
 
     return y, x, angle, scale
+
+
+@preserve_shape
+def _multiply_uint8(img, multiplier):
+    channels = 1 if is_grayscale_image(img) else img.shape[-1]
+    lut = [np.arange(0, 256, dtype=np.float32)] * channels
+
+    lut *= multiplier
+    lut = clip(lut, np.uint8, MAX_VALUES_BY_DTYPE[np.uint8])
+
+    func = _maybe_process_in_chunks(cv2.LUT, lut=lut)
+    return func(img)
+
+
+@clipped
+def _multiply_non_uint8(img, multiplier):
+    return img * multiplier
+
+
+def multiply(img, multiplier):
+    if img.dtype == np.uint8:
+        return _multiply_uint8(img, multiplier)
+    else:
+        return _multiply_non_uint8(img, multiplier)
