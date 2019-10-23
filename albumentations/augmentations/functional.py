@@ -1526,8 +1526,6 @@ def bbox_rot90(bbox, factor, rows, cols):
         bbox = 1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min
     elif factor == 3:
         bbox = 1 - y_max, x_min, 1 - y_min, x_max
-    else:
-        bbox = x_min, y_min, x_max, y_max
     return bbox
 
 
