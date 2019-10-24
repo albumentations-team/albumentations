@@ -1842,7 +1842,7 @@ def keypoint_transpose(keypoint):
 @clipped
 def _multiply_uint8(img, multiplier):
     img = img.astype(np.float32)
-    return np.multiply(img, multiplier).astype(np.uint8)
+    return np.multiply(img, multiplier)
 
 
 @preserve_shape

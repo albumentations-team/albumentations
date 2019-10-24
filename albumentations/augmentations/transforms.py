@@ -2934,7 +2934,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         self.per_channel = per_channel
         self.elementwise = elementwise
 
-    def apply(self, img, multiplier=1, **kwargs):
+    def apply(self, img, multiplier=np.array([1]), **kwargs):
         return F.multiply(img, multiplier)
 
     def get_params_dependent_on_targets(self, params):
