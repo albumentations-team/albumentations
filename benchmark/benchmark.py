@@ -27,6 +27,7 @@ import solt.transforms as slt
 import solt.data as sld
 
 import albumentations.augmentations.functional as albumentations
+import albumentations as A
 
 
 def parse_args():
@@ -431,10 +432,11 @@ class Multiply(BenchmarkTest):
 
 class MultiplyElementwise(BenchmarkTest):
     def __init__(self):
-        self.imgaug_transform = iaa.MultiplyElementwise(mul=1.5, per_channel=True)
+        self.aug = A.MultiplicativeNoise((0, 1), per_channel=True, elementwise=True, p=1)
+        self.imgaug_transform = iaa.MultiplyElementwise(mul=(0, 1), per_channel=True)
 
     def albumentations(self, img):
-        return albumentations.multiply(img, np.random.random(img.shape))
+        return self.aug(image=img)['image']
 
 
 def main():
