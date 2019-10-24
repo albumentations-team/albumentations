@@ -436,7 +436,7 @@ class MultiplyElementwise(BenchmarkTest):
         self.imgaug_transform = iaa.MultiplyElementwise(mul=(0, 1), per_channel=True)
 
     def albumentations(self, img):
-        return self.aug(image=img)['image']
+        return self.aug(image=img)["image"]
 
 
 def main():
