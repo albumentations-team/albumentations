@@ -272,6 +272,7 @@ def test_force_apply():
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):

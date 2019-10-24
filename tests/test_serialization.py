@@ -60,6 +60,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.Downscale, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -209,6 +210,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
         [A.Solarize, {"threshold": 32}],
         [A.Posterize, {"num_bits": 1}],
         [A.Equalize, {"mode": "pil", "by_channels": False}],
+        [A.MultiplicativeNoise, {"mul": (0.7, 2.3), "per_channel": True, "elementwise": True}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -278,6 +280,7 @@ def test_augmentations_serialization_with_custom_parameters(
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -341,6 +344,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -621,6 +625,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

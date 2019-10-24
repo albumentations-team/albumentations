@@ -421,6 +421,22 @@ class Posterize(BenchmarkTest):
         return ImageOps.posterize(img, 4)
 
 
+class Multiply(BenchmarkTest):
+    def __init__(self):
+        self.imgaug_transform = iaa.Multiply(mul=1.5)
+
+    def albumentations(self, img):
+        return albumentations.multiply(img, np.array([1.5]))
+
+
+class MultiplyElementwise(BenchmarkTest):
+    def __init__(self):
+        self.imgaug_transform = iaa.MultiplyElementwise(mul=1.5, per_channel=True)
+
+    def albumentations(self, img):
+        return albumentations.multiply(img, np.random.random(img.shape))
+
+
 def main():
     args = parse_args()
     if args.print_package_versions:
@@ -434,24 +450,26 @@ def main():
     imgs_pillow = [read_img_pillow(os.path.join(data_dir, path)) for path in paths]
 
     benchmarks = [
-        HorizontalFlip(),
-        VerticalFlip(),
-        Rotate(),
-        ShiftScaleRotate(),
-        Brightness(),
-        Contrast(),
-        BrightnessContrast(),
-        ShiftRGB(),
-        ShiftHSV(),
-        Gamma(),
-        Grayscale(),
-        RandomCrop64(),
-        PadToSize512(),
-        Resize512(),
-        RandomSizedCrop_64_512(),
-        Posterize(),
-        Solarize(),
-        Equalize(),
+        # HorizontalFlip(),
+        # VerticalFlip(),
+        # Rotate(),
+        # ShiftScaleRotate(),
+        # Brightness(),
+        # Contrast(),
+        # BrightnessContrast(),
+        # ShiftRGB(),
+        # ShiftHSV(),
+        # Gamma(),
+        # Grayscale(),
+        # RandomCrop64(),
+        # PadToSize512(),
+        # Resize512(),
+        # RandomSizedCrop_64_512(),
+        # Posterize(),
+        # Solarize(),
+        # Equalize(),
+        Multiply(),
+        MultiplyElementwise(),
     ]
     for library in libraries:
         imgs = imgs_pillow if library in ("torchvision", "augmentor", "pillow") else imgs_cv2

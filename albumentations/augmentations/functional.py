@@ -1625,7 +1625,7 @@ def keypoint_transpose(keypoint):
 @clipped
 def _multiply_uint8(img, multiplier):
     img = img.astype(np.float32)
-    return img * multiplier
+    return np.multiply(img, multiplier).astype(np.uint8)
 
 
 @preserve_shape
@@ -1658,6 +1658,15 @@ def _multiply_non_uint8(img, multiplier):
 
 
 def multiply(img, multiplier):
+    """
+    Args:
+        img (numpy.ndarray): Image.
+        multiplier (numpy.ndarray): Multiplier coefficient.
+
+    Returns:
+        numpy.ndarray: Image multiplied by `multiplier` coefficient.
+
+    """
     if img.dtype == np.uint8:
         if len(multiplier.shape) == 1:
             return _multiply_uint8_optimized(img, multiplier)
