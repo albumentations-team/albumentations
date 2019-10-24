@@ -73,6 +73,7 @@ __all__ = [
     "Equalize",
     "Posterize",
     "Downscale",
+    "MultiplicativeNoise",
 ]
 
 
@@ -2910,16 +2911,9 @@ class Lambda(NoOp):
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
-    def __init__(
-        self,
-        multiplier=(0.9, 1.1),
-        per_channel=False,
-        elementwise=False,
-        always_apply=False,
-        p=0.5,
-    ):
+    def __init__(self, multiplier=(0.9, 1.1), per_channel=False, elementwise=False, always_apply=False, p=0.5):
         super(MultiplicativeNoise, self).__init__(always_apply, p)
-        self.multiplier = to_tuple(multiplier)
+        self.multiplier = to_tuple(multiplier, multiplier)
         self.per_channel = per_channel
         self.elementwise = elementwise
 
@@ -2927,7 +2921,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return F.multiply(img, multiplier)
 
     def get_params_dependent_on_targets(self, params):
-        img = params['image']
+        img = params["image"]
 
         h, w = img.shape[:2]
 
@@ -2942,7 +2936,14 @@ class MultiplicativeNoise(ImageOnlyTransform):
             shape = [c]
 
         multiplier = np.random.uniform(self.multiplier[0], self.multiplier[1], shape)
-        return multiplier
+        if F.is_grayscale_image(img):
+            multiplier = np.squeeze(multiplier)
+
+        return {"multiplier": multiplier}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
 
     def get_transform_init_args_names(self):
         return "multiplier", "per_channel", "elementwise"
