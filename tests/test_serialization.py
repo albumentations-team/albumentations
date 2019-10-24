@@ -11,6 +11,7 @@ import albumentations.augmentations.functional as F
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 
+
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)

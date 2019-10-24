@@ -2939,7 +2939,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params):
         if self.multiplier[0] == self.multiplier[1]:
-            return np.array([self.multiplier[0]])
+            return {"multiplier": np.array([self.multiplier[0]])}
 
         img = params["image"]
 
