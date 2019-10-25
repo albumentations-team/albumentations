@@ -25,7 +25,8 @@ class BboxProcessor(DataProcessor):
 
     def ensure_data_valid(self, data):
         for data_name in self.data_fields:
-            if data.get(data_name) and len(data[data_name][0]) < 5:
+            data_exists = data_name in data and len(data[data_name])
+            if data_exists and len(data[data_name][0]) < 5:
                 if self.params.label_fields is None:
                     raise ValueError(
                         "Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
@@ -221,6 +222,9 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         raise ValueError(
             "Unknown source_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(source_format)
         )
+    if isinstance(bbox, np.ndarray):
+        bbox = bbox.tolist()
+
     if source_format == "coco":
         (x_min, y_min, width, height), tail = bbox[:4], tuple(bbox[4:])
         x_max = x_min + width
