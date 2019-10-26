@@ -136,7 +136,7 @@ class MarkdownGenerator:
         writer = MarkdownTableWriter()
         writer.headers = self._make_headers()
         writer.value_matrix = self._make_value_matrix()
-        writer.styles = [Style(align="left"), *(Style(align="center") for _ in range(len(writer.headers) - 1))]
+        writer.styles = [Style(align="left")] + [Style(align="center") for _ in range(len(writer.headers) - 1)]
         writer.write_table()
         print("\n" + self._make_versions_text())
 
