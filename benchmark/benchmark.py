@@ -10,7 +10,12 @@ import pkg_resources
 
 from Augmentor import Operations, Pipeline
 from PIL import Image, ImageOps
+
 import cv2
+
+cv2.setNumThreads(0)  # noqa E402
+cv2.ocl.setUseOpenCL(False)  # noqa E402
+
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
@@ -93,12 +98,17 @@ class BenchmarkTest(ABC):
         return self.imgaug_transform.augment_image(img)
 
     def augmentor(self, img):
-        return self.augmentor_op.perform_operation([img])
+        img = self.augmentor_op.perform_operation([img])[0]
+        return np.array(img, np.uint8, copy=True)
 
     def solt(self, img):
         dc = sld.DataContainer(img, "I")
         dc = self.solt_stream(dc)
         return dc.data[0]
+
+    def torchvision(self, img):
+        img = self.torchvision_transform(img)
+        return np.array(img, np.uint8, copy=True)
 
     def is_supported_by(self, library):
         if library == "imgaug":
@@ -107,6 +117,8 @@ class BenchmarkTest(ABC):
             return hasattr(self, "augmentor_op") or hasattr(self, "augmentor_pipeline")
         elif library == "solt":
             return hasattr(self, "solt_stream")
+        elif library == "torchvision":
+            return hasattr(self, "torchvision_transform")
         else:
             return hasattr(self, library)
 
@@ -128,7 +140,7 @@ class HorizontalFlip(BenchmarkTest):
         else:
             return albumentations.hflip(img)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.hflip(img)
 
     def keras(self, img):
@@ -147,7 +159,7 @@ class VerticalFlip(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.vflip(img)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.vflip(img)
 
     def keras(self, img):
@@ -166,7 +178,7 @@ class Rotate(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.rotate(img, angle=-45)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.rotate(img, angle=-45, resample=Image.BILINEAR)
 
     def keras(self, img):
@@ -180,9 +192,9 @@ class Brightness(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.ImageRandomBrightness(p=1, brightness_range=(127, 127))])
 
     def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, beta=0.5)
+        return albumentations.brightness_contrast_adjust(img, beta=0.5, beta_by_max=True)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.adjust_brightness(img, brightness_factor=1.5)
 
     def keras(self, img):
@@ -198,7 +210,7 @@ class Contrast(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.brightness_contrast_adjust(img, alpha=1.5)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.adjust_contrast(img, contrast_factor=1.5)
 
 
@@ -220,9 +232,9 @@ class BrightnessContrast(BenchmarkTest):
         )
 
     def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5)
+        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5, beta_by_max=True)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         img = torchvision.adjust_brightness(img, brightness_factor=1.5)
         img = torchvision.adjust_contrast(img, contrast_factor=1.5)
         return img
@@ -230,7 +242,7 @@ class BrightnessContrast(BenchmarkTest):
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
             img, = operation.perform_operation([img])
-        return img
+        return np.array(img, np.uint8, copy=True)
 
 
 class ShiftScaleRotate(BenchmarkTest):
@@ -242,7 +254,7 @@ class ShiftScaleRotate(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.affine(img, angle=45, translate=(50, 50), scale=2, shear=0, resample=Image.BILINEAR)
 
     def keras(self, img):
@@ -257,7 +269,7 @@ class ShiftHSV(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.shift_hsv(img, hue_shift=20, sat_shift=20, val_shift=20)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         img = torchvision.adjust_hue(img, hue_factor=0.1)
         img = torchvision.adjust_saturation(img, saturation_factor=1.2)
         img = torchvision.adjust_brightness(img, brightness_factor=1.2)
@@ -277,7 +289,8 @@ class Solarize(BenchmarkTest):
 
 class Equalize(BenchmarkTest):
     def __init__(self):
-        pass
+        self.imgaug_transform = iaa.AllChannelsHistogramEqualization()
+        self.augmentor_op = Operations.HistogramEqualisation(probability=1)
 
     def albumentations(self, img):
         return albumentations.equalize(img)
@@ -295,8 +308,36 @@ class RandomCrop64(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.crop(img, i=0, j=0, h=64, w=64)
+
+
+class RandomSizedCrop_64_512(BenchmarkTest):
+    def __init__(self):
+        self.augmentor_pipeline = Pipeline()
+        self.augmentor_pipeline.add_operation(Operations.Crop(probability=1, width=64, height=64, centre=False))
+        self.augmentor_pipeline.add_operation(
+            Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
+        )
+        self.imgaug_transform = iaa.Sequential(
+            [iaa.CropToFixedSize(width=64, height=64), iaa.Scale(size=512, interpolation="linear")]
+        )
+        self.solt_stream = slc.Stream(
+            [slt.CropTransform(crop_size=(64, 64), crop_mode="r"), slt.ResizeTransform(resize_to=(512, 512))]
+        )
+
+    def albumentations(self, img):
+        img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        return albumentations.resize(img, height=512, width=512)
+
+    def augmentor(self, img):
+        for operation in self.augmentor_pipeline.operations:
+            img, = operation.perform_operation([img])
+        return np.array(img, np.uint8, copy=True)
+
+    def torchvision_transform(self, img):
+        img = torchvision.crop(img, i=0, j=0, h=64, w=64)
+        return torchvision.resize(img, (512, 512))
 
 
 class ShiftRGB(BenchmarkTest):
@@ -317,7 +358,7 @@ class PadToSize512(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.pad(img, min_height=512, min_width=512)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         if img.size[0] < 512:
             img = torchvision.pad(img, (int((1 + 512 - img.size[0]) / 2), 0), padding_mode="reflect")
         if img.size[1] < 512:
@@ -334,7 +375,7 @@ class Resize512(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.resize(img, height=512, width=512)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.resize(img, (512, 512))
 
 
@@ -345,7 +386,7 @@ class Gamma(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.gamma_transform(img, gamma=0.5)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.adjust_gamma(img, gamma=0.5)
 
 
@@ -358,8 +399,18 @@ class Grayscale(BenchmarkTest):
     def albumentations(self, img):
         return albumentations.to_gray(img)
 
-    def torchvision(self, img):
+    def torchvision_transform(self, img):
         return torchvision.to_grayscale(img, num_output_channels=3)
+
+    def solt(self, img):
+        dc = sld.DataContainer(img, "I")
+        dc = self.solt_stream(dc)
+        return cv2.cvtColor(dc.data[0], cv2.COLOR_GRAY2RGB)
+
+    def augmentor(self, img):
+        img = self.augmentor_op.perform_operation([img])[0]
+        img = np.array(img, np.uint8, copy=True)
+        return np.dstack([img, img, img])
 
 
 class Posterize(BenchmarkTest):
@@ -397,6 +448,7 @@ def main():
         RandomCrop64(),
         PadToSize512(),
         Resize512(),
+        RandomSizedCrop_64_512(),
         Posterize(),
         Solarize(),
         Equalize(),

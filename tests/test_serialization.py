@@ -524,12 +524,12 @@ def test_transform_pipeline_serialization(seed, image, mask):
 @pytest.mark.parametrize(
     ["bboxes", "bbox_format", "labels"],
     [
-        [[[20, 30, 40, 50]], "coco", [1]],
-        [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], "coco", [1, 2]],
-        [[[20, 30, 60, 80]], "pascal_voc", [2]],
-        [[[20, 30, 60, 80, 99]], "pascal_voc", [1]],
-        [[[0.2, 0.3, 0.4, 0.5]], "yolo", [2]],
-        [[[0.2, 0.3, 0.4, 0.5, 99]], "yolo", [1]],
+        ([(20, 30, 40, 50)], "coco", [1]),
+        ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "coco", [1, 2]),
+        ([(20, 30, 60, 80)], "pascal_voc", [2]),
+        ([(20, 30, 60, 80, 99)], "pascal_voc", [1]),
+        ([(0.2, 0.3, 0.4, 0.5)], "yolo", [2]),
+        ([(0.2, 0.3, 0.4, 0.5, 99)], "yolo", [1]),
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -558,10 +558,10 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
 @pytest.mark.parametrize(
     ["keypoints", "keypoint_format", "labels"],
     [
-        [[[20, 30, 40, 50]], "xyas", [1]],
-        [[[20, 30, 40, 50, 99], [10, 40, 30, 20, 9]], "xy", [1, 2]],
-        [[[20, 30, 60, 80]], "yx", [2]],
-        [[[20, 30, 60, 80, 99]], "xys", [1]],
+        ([(20, 30, 40, 50)], "xyas", [1]),
+        ([(20, 30, 40, 50, 99), (10, 40, 30, 20, 9)], "xy", [1, 2]),
+        ([(20, 30, 60, 80)], "yx", [2]),
+        ([(20, 30, 60, 80, 99)], "xys", [1]),
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

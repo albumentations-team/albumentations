@@ -568,11 +568,11 @@ def test_resize_nearest_interpolation_float(target):
 
 
 def test_bbox_vflip():
-    assert F.bbox_vflip([0.1, 0.2, 0.6, 0.5], 100, 200) == [0.1, 0.5, 0.6, 0.8]
+    assert F.bbox_vflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.1, 0.5, 0.6, 0.8)
 
 
 def test_bbox_hflip():
-    assert F.bbox_hflip([0.1, 0.2, 0.6, 0.5], 100, 200) == [0.4, 0.2, 0.9, 0.5]
+    assert F.bbox_hflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.4, 0.2, 0.9, 0.5)
 
 
 @pytest.mark.parametrize(
@@ -590,49 +590,49 @@ def test_bbox_flip(code, func):
 
 
 def test_crop_bbox_by_coords():
-    cropped_bbox = F.crop_bbox_by_coords([0.5, 0.2, 0.9, 0.7], (18, 18, 82, 82), 64, 64, 100, 100)
-    assert cropped_bbox == [0.5, 0.03125, 1.125, 0.8125]
+    cropped_bbox = F.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 64, 64, 100, 100)
+    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
 
 
 def test_bbox_center_crop():
-    cropped_bbox = F.bbox_center_crop([0.5, 0.2, 0.9, 0.7], 64, 64, 100, 100)
-    assert cropped_bbox == [0.5, 0.03125, 1.125, 0.8125]
+    cropped_bbox = F.bbox_center_crop((0.5, 0.2, 0.9, 0.7), 64, 64, 100, 100)
+    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
 
 
 def test_bbox_crop():
     cropped_bbox = F.bbox_crop([0.5, 0.2, 0.9, 0.7], 24, 24, 64, 64, 100, 100)
-    assert cropped_bbox == [0.65, -0.1, 1.65, 1.15]
+    assert cropped_bbox == (0.65, -0.1, 1.65, 1.15)
 
 
 def test_bbox_random_crop():
     cropped_bbox = F.bbox_random_crop([0.5, 0.2, 0.9, 0.7], 80, 80, 0.2, 0.1, 100, 100)
-    assert cropped_bbox == [0.6, 0.2, 1.1, 0.825]
+    assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
 
 
 def test_bbox_rot90():
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 0, 100, 200) == [0.1, 0.2, 0.3, 0.4]
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 1, 100, 200) == [0.2, 0.7, 0.4, 0.9]
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 2, 100, 200) == [0.7, 0.6, 0.9, 0.8]
-    assert F.bbox_rot90([0.1, 0.2, 0.3, 0.4], 3, 100, 200) == [0.6, 0.1, 0.8, 0.3]
+    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0, 100, 200) == (0.1, 0.2, 0.3, 0.4)
+    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1, 100, 200) == (0.2, 0.7, 0.4, 0.9)
+    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2, 100, 200) == (0.7, 0.6, 0.9, 0.8)
+    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3, 100, 200) == (0.6, 0.1, 0.8, 0.3)
 
 
 def test_bbox_transpose():
-    assert np.allclose(F.bbox_transpose([0.7, 0.1, 0.8, 0.4], 0, 100, 200), [0.1, 0.7, 0.4, 0.8])
-    assert np.allclose(F.bbox_transpose([0.7, 0.1, 0.8, 0.4], 1, 100, 200), [0.6, 0.2, 0.9, 0.3])
+    assert np.allclose(F.bbox_transpose((0.7, 0.1, 0.8, 0.4), 0, 100, 200), (0.1, 0.7, 0.4, 0.8))
+    assert np.allclose(F.bbox_transpose((0.7, 0.1, 0.8, 0.4), 1, 100, 200), (0.6, 0.2, 0.9, 0.3))
 
 
 @pytest.mark.parametrize(
     ["bboxes", "min_area", "min_visibility", "target"],
     [
-        [
-            [[0.1, 0.5, 1.1, 0.9], [-0.1, 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]],
+        (
+            [(0.1, 0.5, 1.1, 0.9), (-0.1, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
             0,
             0,
-            [[0.1, 0.5, 1.0, 0.9], [0.0, 0.5, 0.8, 0.9], [0.1, 0.5, 0.8, 0.9]],
-        ],
-        [[[0.1, 0.5, 0.8, 0.9], [0.4, 0.5, 0.5, 0.6]], 150, 0, [[0.1, 0.5, 0.8, 0.9]]],
-        [[[0.1, 0.5, 0.8, 0.9], [0.4, 0.9, 0.5, 1.6]], 0, 0.75, [[0.1, 0.5, 0.8, 0.9]]],
-        [[[0.1, 0.5, 0.8, 0.9], [0.4, 0.7, 0.5, 1.1]], 0, 0.7, [[0.1, 0.5, 0.8, 0.9], [0.4, 0.7, 0.5, 1.0]]],
+            [(0.1, 0.5, 1.0, 0.9), (0.0, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
+        ),
+        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.5, 0.5, 0.6)], 150, 0, [(0.1, 0.5, 0.8, 0.9)]),
+        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.9, 0.5, 1.6)], 0, 0.75, [(0.1, 0.5, 0.8, 0.9)]),
+        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 1.1)], 0, 0.7, [(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 1.0)]),
     ],
 )
 def test_filter_bboxes(bboxes, min_area, min_visibility, target):

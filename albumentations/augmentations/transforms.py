@@ -150,12 +150,12 @@ class PadIfNeeded(DualTransform):
 
     def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
-        bbox = [x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top]
+        bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
         return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
     def apply_to_keypoint(self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
-        x, y, a, s = keypoint
-        return [x + pad_left, y + pad_top, a, s]
+        x, y, angle, scale = keypoint
+        return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
         return ("min_height", "min_width", "border_mode", "value", "mask_value")
@@ -165,13 +165,13 @@ class Crop(DualTransform):
     """Crop region from image.
 
     Args:
-        x_min (int): minimum upper left x coordinate.
-        y_min (int): minimum upper left y coordinate.
-        x_max (int): maximum lower right x coordinate.
-        y_max (int): maximum lower right y coordinate.
+        x_min (int): Minimum upper left x coordinate.
+        y_min (int): Minimum upper left y coordinate.
+        x_max (int): Maximum lower right x coordinate.
+        y_max (int): Maximum lower right y coordinate.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -189,6 +189,16 @@ class Crop(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_crop(bbox, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max),
+            crop_height=self.y_max - self.y_min,
+            crop_width=self.x_max - self.x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     def get_transform_init_args_names(self):
         return ("x_min", "y_min", "x_max", "y_max")
@@ -293,7 +303,7 @@ class Transpose(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -304,6 +314,9 @@ class Transpose(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_transpose(bbox, 0, **params)
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return F.keypoint_transpose(keypoint)
 
     def get_transform_init_args_names(self):
         return ()
@@ -318,7 +331,7 @@ class LongestMaxSize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -336,6 +349,13 @@ class LongestMaxSize(DualTransform):
         # Bounding box coordinates are scale invariant
         return bbox
 
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+
+        scale = self.max_size / max([height, width])
+        return F.keypoint_scale(keypoint, scale, scale)
+
     def get_transform_init_args_names(self):
         return ("max_size", "interpolation")
 
@@ -349,7 +369,7 @@ class SmallestMaxSize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -365,6 +385,13 @@ class SmallestMaxSize(DualTransform):
 
     def apply_to_bbox(self, bbox, **params):
         return bbox
+
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+
+        scale = self.max_size / min([height, width])
+        return F.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args_names(self):
         return ("max_size", "interpolation")
@@ -382,7 +409,7 @@ class Resize(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -400,6 +427,13 @@ class Resize(DualTransform):
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
         return bbox
+
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+        scale_x = self.width / width
+        scale_y = self.height / height
+        return F.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
@@ -735,7 +769,7 @@ class RandomCropNearBBox(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -765,6 +799,16 @@ class RandomCropNearBBox(DualTransform):
         h_start = y_min
         w_start = x_min
         return F.bbox_crop(bbox, y_max - y_min, x_max - x_min, h_start, w_start, **params)
+
+    def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=(x_min, y_min, x_max, y_max),
+            crop_height=y_max - y_min,
+            crop_width=x_max - x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     @property
     def targets_as_params(self):
@@ -1101,7 +1145,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -1122,6 +1166,21 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.crop(img, x_min, y_min, x_max, y_max)
+
+    def apply_to_bbox(self, bbox, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.bbox_crop(
+            bbox, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, rows=params["rows"], cols=params["cols"]
+        )
+
+    def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop_keypoint_by_coords(
+            keypoint,
+            crop_coords=[x_min, y_min, x_max, y_max],
+            crop_height=y_max - y_min,
+            crop_width=x_max - x_min,
+            rows=params["rows"],
+            cols=params["cols"],
+        )
 
     @property
     def targets_as_params(self):
@@ -1391,7 +1450,7 @@ class RandomGridShuffle(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, grid=(3, 3), always_apply=False, p=1.0):
+    def __init__(self, grid=(3, 3), always_apply=False, p=0.5):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
@@ -1612,9 +1671,9 @@ class CoarseDropout(ImageOnlyTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for _n in range(random.randint(self.min_holes, self.max_holes + 1)):
-            hole_height = random.randint(self.min_height, self.max_height + 1)
-            hole_width = random.randint(self.min_width, self.max_width + 1)
+        for _n in range(random.randint(self.min_holes, self.max_holes)):
+            hole_height = random.randint(self.min_height, self.max_height)
+            hole_width = random.randint(self.min_width, self.max_width)
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
@@ -1882,7 +1941,7 @@ class RandomFog(ImageOnlyTransform):
     Args:
         fog_coef_lower (float): lower limit for fog intensity coefficient. Should be in [0, 1] range.
         fog_coef_upper (float): upper limit for fog intensity coefficient. Should be in [0, 1] range.
-        alpha_coef (float): transparence of the fog circles. Should be in [0, 1] range.
+        alpha_coef (float): transparency of the fog circles. Should be in [0, 1] range.
 
     Targets:
         image
@@ -2358,17 +2417,11 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, brightness_by_max=None, always_apply=False, p=0.5):
+    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, brightness_by_max=True, always_apply=False, p=0.5):
         super(RandomBrightnessContrast, self).__init__(always_apply, p)
         self.brightness_limit = to_tuple(brightness_limit)
         self.contrast_limit = to_tuple(contrast_limit)
         self.brightness_by_max = brightness_by_max
-
-        if brightness_by_max is None:
-            DeprecationWarning(
-                "In the version 0.4.0 default behavior of RandomBrightnessContrast "
-                "brightness_by_max will be changed to True."
-            )
 
     def apply(self, img, alpha=1.0, beta=0.0, **params):
         return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
@@ -2454,7 +2507,7 @@ class Blur(ImageOnlyTransform):
         return F.blur(image, ksize)
 
     def get_params(self):
-        return {"ksize": random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))}
+        return {"ksize": int(random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
 
     def get_transform_init_args_names(self):
         return ("blur_limit",)
@@ -2551,7 +2604,7 @@ class GaussNoise(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, var_limit=(10.0, 50.0), mean=None, always_apply=False, p=0.5):
+    def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
         if isinstance(var_limit, tuple):
             if var_limit[0] < 0:
@@ -2575,10 +2628,6 @@ class GaussNoise(ImageOnlyTransform):
         var = random.uniform(self.var_limit[0], self.var_limit[1])
         sigma = var ** 0.5
         random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-
-        if self.mean is None:
-            DeprecationWarning("In the version 0.4.0 default behavior of GaussNoise mean will be changed to 0.")
-            self.mean = var
 
         gauss = random_state.normal(self.mean, sigma, image.shape)
         return {"gauss": gauss}
