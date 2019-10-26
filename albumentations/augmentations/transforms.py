@@ -8,6 +8,7 @@ from types import LambdaType
 
 import cv2
 import numpy as np
+from skimage.measure import label
 
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
@@ -73,6 +74,7 @@ __all__ = [
     "Equalize",
     "Posterize",
     "Downscale",
+    "MaskDropout",
 ]
 
 
@@ -2907,3 +2909,69 @@ class Lambda(NoOp):
         state.update(self.custom_apply_fns.items())
         state.update(self.get_base_init_args())
         return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+
+
+class MaskDropout(DualTransform):
+    """
+    Image & mask augmentation that zero out mask and image corresponding
+    to randomly chosed object instance from mask.
+
+    Mask must be single-channel images, zero values treated as background.
+    Image can be any number of channels.
+
+    """
+
+    def __init__(self, max_objects=1, image_fill_value=0, mask_fill_value=0, always_apply=False, p=0.5):
+        super(MaskDropout, self).__init__(always_apply, p)
+        self.max_objects = int(max_objects)
+        self.image_fill_value = image_fill_value
+        self.mask_fill_value = mask_fill_value
+
+    @property
+    def targets_as_params(self):
+        return ["mask"]
+
+    def get_params_dependent_on_targets(self, params):
+        mask = params["mask"]
+
+        label_image = label(mask)
+        num_labels = label_image.max()
+
+        if num_labels == 0:
+            dropout_mask = None
+        else:
+            objects_to_drop = random.randint(1, self.max_objects)
+            if objects_to_drop == num_labels:
+                dropout_mask = mask > 0
+            else:
+                labels_index = random.sample(range(1, num_labels + 1), objects_to_drop)
+                dropout_mask = np.zeros((mask.shape[1], mask.shape[2]), dtype=np.bool)
+                for label_index in labels_index:
+                    dropout_mask |= label_image == label_index
+
+        return params.update({"dropout_mask": dropout_mask})
+
+    def apply(self, img, dropout_mask: np.ndarray = None, **params):
+        if dropout_mask is None:
+            return img
+
+        if self.image_fill_value == "inpaint":
+            dropout_mask = dropout_mask.astype(np.uint8)
+            _, _, w, h = cv2.boundingRect(dropout_mask)
+            radius = min(3, max(w, h) // 2)
+            img = cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
+        else:
+            img = img.copy()
+            img[dropout_mask] = self.image_fill_value
+        return img
+
+    def apply_to_mask(self, img, dropout_mask=None, **params):
+        if dropout_mask is None:
+            return img
+
+        img = img.copy()
+        img[dropout_mask] = self.mask_fill_value
+        return img
+
+    def get_transform_init_args_names(self):
+        return ("max_objects", "image_fill_value", "mask_fill_value")
