@@ -2736,18 +2736,9 @@ class ToGray(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, preserve_channels=None, always_apply=False, p=0.5):
+    def __init__(self, preserve_channels=True, always_apply=False, p=0.5):
         super(ImageOnlyTransform, self).__init__(always_apply=always_apply, p=p)
-
-        if preserve_channels is None:
-            # !!! When you will remove this lines do not forget update docstrings.
-            self.preserve_channels = True
-            warnings.warn(
-                "In the version 0.5.0 default behavior of ToGray preserve_channels will be changed to False.",
-                DeprecationWarning,
-            )
-        else:
-            self.preserve_channels = preserve_channels
+        self.preserve_channels = preserve_channels
 
     def apply(self, img, **params):
         return F.to_gray(img, preserve_channels=self.preserve_channels)
