@@ -10,6 +10,8 @@ import pkg_resources
 
 from Augmentor import Operations, Pipeline
 from PIL import Image, ImageOps
+from pytablewriter import MarkdownTableWriter
+from pytablewriter.style import Style
 
 import cv2
 
@@ -35,11 +37,19 @@ import solt.data as sld
 import albumentations.augmentations.functional as albumentations
 
 
+DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt"]
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Augmentation libraries performance benchmark")
-    parser.add_argument("-d", "--data-dir", required=True, metavar="DIR", help="path to a directory with images")
+    parser.add_argument(
+        "-d", "--data-dir", metavar="DIR", default=os.environ.get("DATA_DIR"), help="path to a directory with images"
+    )
     parser.add_argument(
         "-i", "--images", default=2000, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
+    )
+    parser.add_argument(
+        "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
     )
     parser.add_argument(
         "-r", "--runs", default=5, type=int, metavar="N", help="number of runs for each benchmark (default: 5)"
@@ -48,10 +58,11 @@ def parse_args():
         "--show-std", dest="show_std", action="store_true", help="show standard deviation for benchmark runs"
     )
     parser.add_argument("-p", "--print-package-versions", action="store_true", help="print versions of packages")
+    parser.add_argument("-m", "--markdown", action="store_true", help="print benchmarking results as a markdown table")
     return parser.parse_args()
 
 
-def print_package_versions():
+def get_package_versions():
     packages = [
         "albumentations",
         "imgaug",
@@ -63,16 +74,71 @@ def print_package_versions():
         "scipy",
         "pillow",
         "pillow-simd",
-        "Augmentor",
+        "augmentor",
         "solt",
     ]
-    package_versions = {"python": sys.version}
+    package_versions = {"Python": sys.version}
     for package in packages:
         try:
             package_versions[package] = pkg_resources.get_distribution(package).version
         except pkg_resources.DistributionNotFound:
             pass
-    print(package_versions)
+    return package_versions
+
+
+class MarkdownGenerator:
+    def __init__(self, df, package_versions):
+        self._df = df
+        self._package_versions = package_versions
+        self._libraries_description = {"torchvision": "(Pillow-SIMD backend)"}
+
+    def _highlight_best_result(self, results):
+        best_result = float("-inf")
+        for result in results:
+            try:
+                result = int(result)
+            except ValueError:
+                continue
+            if result > best_result:
+                best_result = result
+        return ["**{}**".format(r) if r == str(best_result) else r for r in results]
+
+    def _make_headers(self):
+        libraries = self._df.columns.to_list()
+        columns = []
+        for library in libraries:
+            version = self._package_versions[library]
+            library_description = self._libraries_description.get(library)
+            if library_description:
+                library += " {}".format(library_description)
+
+            columns.append("{library}<br><small>{version}</small>".format(library=library, version=version))
+        return [""] + columns
+
+    def _make_value_matrix(self):
+        index = self._df.index.tolist()
+        values = self._df.values.tolist()
+        value_matrix = []
+        for transform, results in zip(index, values):
+            row = [transform] + self._highlight_best_result(results)
+            value_matrix.append(row)
+        return value_matrix
+
+    def _make_versions_text(self):
+        libraries = ["Python", "numpy", "pillow-simd", "opencv-python", "scikit-image", "scipy"]
+        libraries_with_versions = [
+            "{library} {version}".format(library=library, version=self._package_versions[library].replace("\n", ""))
+            for library in libraries
+        ]
+        return "Python and library versions: {}.".format(", ".join(libraries_with_versions))
+
+    def print(self):
+        writer = MarkdownTableWriter()
+        writer.headers = self._make_headers()
+        writer.value_matrix = self._make_value_matrix()
+        writer.styles = [Style(align="left"), *(Style(align="center") for _ in range(len(writer.headers) - 1))]
+        writer.write_table()
+        print("\n" + self._make_versions_text())
 
 
 def read_img_pillow(path):
@@ -442,10 +508,11 @@ class Posterize(BenchmarkTest):
 
 def main():
     args = parse_args()
+    package_versions = get_package_versions()
     if args.print_package_versions:
-        print_package_versions()
+        print(package_versions)
     images_per_second = defaultdict(dict)
-    libraries = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt", "pillow"]
+    libraries = args.libraries
     data_dir = args.data_dir
     paths = list(sorted(os.listdir(data_dir)))
     paths = paths[: args.images]
@@ -491,7 +558,11 @@ def main():
     df = df[libraries]
     augmentations = [str(i) for i in benchmarks]
     df = df.reindex(augmentations)
-    print(df.head(len(augmentations)))
+    if args.markdown:
+        makedown_generator = MarkdownGenerator(df, package_versions)
+        makedown_generator.print()
+    else:
+        print(df.head(len(augmentations)))
 
 
 if __name__ == "__main__":
