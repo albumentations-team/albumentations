@@ -43,7 +43,7 @@ install:
 
 script:
   - if [[ "$TEST_MODE" == "DOCS" ]]; then python tools/make_transforms_docs.py check README.md; fi
-  - if [[ "$TEST_MODE" == "BLACK" ]]; then black --check .; fi
+  - if [[ "$TEST_MODE" == "BLACK" ]]; then black --config=black.toml --check .; fi
   - if [[ "$TEST_MODE" == "SPHINX" ]]; then sphinx-build -b html docs /tmp/_docs_build; fi
   - if [[ "$TEST_MODE" == "DEFAULT" ]]; then pytest; fi
   - if [[ "$TEST_MODE" == "DEFAULT" ]]; then flake8; fi

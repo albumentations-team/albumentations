@@ -150,12 +150,12 @@ class PadIfNeeded(DualTransform):
 
     def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
-        bbox = [x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top]
+        bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
         return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
     def apply_to_keypoint(self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
-        x, y, a, s = keypoint
-        return [x + pad_left, y + pad_top, a, s]
+        x, y, angle, scale = keypoint
+        return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
         return ("min_height", "min_width", "border_mode", "value", "mask_value")
@@ -165,10 +165,10 @@ class Crop(DualTransform):
     """Crop region from image.
 
     Args:
-        x_min (int): minimum upper left x coordinate.
-        y_min (int): minimum upper left y coordinate.
-        x_max (int): maximum lower right x coordinate.
-        y_max (int): maximum lower right y coordinate.
+        x_min (int): Minimum upper left x coordinate.
+        y_min (int): Minimum upper left y coordinate.
+        x_max (int): Maximum lower right x coordinate.
+        y_max (int): Maximum lower right y coordinate.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -193,7 +193,7 @@ class Crop(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         return F.crop_keypoint_by_coords(
             keypoint,
-            crop_coords=[self.x_min, self.y_min, self.x_max, self.y_max],
+            crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max),
             crop_height=self.y_max - self.y_min,
             crop_width=self.x_max - self.x_min,
             rows=params["rows"],
@@ -431,8 +431,9 @@ class Resize(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         height = params["rows"]
         width = params["cols"]
-
-        return F.keypoint_scale(keypoint, self.height / height, self.width / width)
+        scale_x = self.width / width
+        scale_y = self.height / height
+        return F.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
@@ -774,7 +775,7 @@ class RandomCropNearBBox(DualTransform):
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.crop_keypoint_by_coords(
             keypoint,
-            crop_coords=[x_min, y_min, x_max, y_max],
+            crop_coords=(x_min, y_min, x_max, y_max),
             crop_height=y_max - y_min,
             crop_width=x_max - x_min,
             rows=params["rows"],
@@ -1328,7 +1329,7 @@ class RandomGridShuffle(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, grid=(3, 3), always_apply=False, p=1.0):
+    def __init__(self, grid=(3, 3), always_apply=False, p=0.5):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
@@ -1549,9 +1550,9 @@ class CoarseDropout(ImageOnlyTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for _n in range(random.randint(self.min_holes, self.max_holes + 1)):
-            hole_height = random.randint(self.min_height, self.max_height + 1)
-            hole_width = random.randint(self.min_width, self.max_width + 1)
+        for _n in range(random.randint(self.min_holes, self.max_holes)):
+            hole_height = random.randint(self.min_height, self.max_height)
+            hole_width = random.randint(self.min_width, self.max_width)
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
@@ -2385,7 +2386,7 @@ class Blur(ImageOnlyTransform):
         return F.blur(image, ksize)
 
     def get_params(self):
-        return {"ksize": random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))}
+        return {"ksize": int(random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
 
     def get_transform_init_args_names(self):
         return ("blur_limit",)

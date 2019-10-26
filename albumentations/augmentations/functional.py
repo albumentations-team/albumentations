@@ -155,10 +155,16 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
     """
     Wrap OpenCV function to enable processing images with more than 4 channels.
 
-    Limitations: This wrapper requires image to be the first argument and rest must be sent via named arguments.
-    :param process_fn: Transform function (e.g cv2.resize)
-    :param kwargs: Additional parameters
-    :return: Transformed image
+    Limitations:
+        This wrapper requires image to be the first argument and rest must be sent via named arguments.
+
+    Args:
+        process_fn: Transform function (e.g cv2.resize).
+        kwargs: Additional parameters.
+
+    Returns:
+        numpy.ndarray: Transformed image.
+
     """
 
     def __process_fn(img):
@@ -218,13 +224,14 @@ def shift_scale_rotate(
 
 
 def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
+    x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
-    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
-    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
+    x = np.array([x_min, x_max, x_max, x_min])
+    y = np.array([y_min, y_min, y_max, y_max])
     ones = np.ones(shape=(len(x)))
     points_ones = np.vstack([x, y, ones]).transpose()
     points_ones[:, 0] *= width
@@ -232,18 +239,26 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, col
     tr_points = matrix.dot(points_ones.T).T
     tr_points[:, 0] /= width
     tr_points[:, 1] /= height
-    return [min(tr_points[:, 0]), min(tr_points[:, 1]), max(tr_points[:, 0]), max(tr_points[:, 1])]
+
+    x_min, x_max = min(tr_points[:, 0]), max(tr_points[:, 0])
+    y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
+
+    return x_min, y_min, x_max, y_max
 
 
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
+    x, y, a, s, = keypoint[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
-    x, y, a, s = keypoint
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
+
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    return [x, y, a + math.radians(angle), s * scale]
+    angle = a + math.radians(angle)
+    scale = s * scale
+
+    return x, y, angle, scale
 
 
 def crop(img, x_min, y_min, x_max, y_max):
@@ -375,11 +390,11 @@ def solarize(img, threshold=128):
     """Invert all pixel values above a threshold.
 
     Args:
-        img: The image to solarize.
-        threshold: All pixels above this greyscale level are inverted.
+        img (numpy.ndarray): The image to solarize.
+        threshold (int): All pixels above this greyscale level are inverted.
 
     Returns:
-        Solarized image.
+        numpy.ndarray: Solarized image.
 
     """
     dtype = img.dtype
@@ -406,8 +421,12 @@ def posterize(img, bits):
     """Reduce the number of bits for each color channel.
 
     Args:
-        img: image to posterize.
-        bits: number of high bits. Must be in range [0, 8]
+        img (numpy.ndarray): image to posterize.
+        bits (int): number of high bits. Must be in range [0, 8]
+
+    Returns:
+        numpy.ndarray: Image with reduced color channels.
+
     """
     bits = np.uint8(bits)
 
@@ -499,15 +518,15 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
     """Equalize the image histogram.
 
     Args:
-        img (np.ndarray): RGB or grayscale image.
-        mask (np.ndarray): An optional mask.  If given, only the pixels selected by
+        img (numpy.ndarray): RGB or grayscale image.
+        mask (numpy.ndarray): An optional mask.  If given, only the pixels selected by
             the mask are included in the analysis. Maybe 1 channel or 3 channel array.
         mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
         by_channels (bool): If True, use equalization by channels separately,
             else convert image to YCbCr representation and use equalization by `Y` channel.
 
     Returns:
-        Equalized image.
+        numpy.ndarray: Equalized image.
 
     """
     assert img.dtype == np.uint8, "Image must have uint8 channel type"
@@ -735,16 +754,17 @@ def image_compression(img, quality, image_type):
 
 @preserve_shape
 def add_snow(img, snow_point, brightness_coeff):
-    """Bleaches out pixels, mitation snow.
+    """Bleaches out pixels, imitation snow.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        img:
-        snow_point:
-        brightness_coeff:
+        img (numpy.ndarray): Image.
+        snow_point: Number of show points.
+        brightness_coeff: Brightness coefficient.
 
     Returns:
+        numpy.ndarray: Image.
 
     """
     non_rgb_warning(img)
@@ -785,16 +805,17 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        img (np.uint8):
+        img (numpy.ndarray): Image.
         slant (int):
         drop_length:
         drop_width:
         drop_color:
-        blur_value (int): rainy view are blurry
-        brightness_coefficient (float): rainy days are usually shady
+        blur_value (int): Rainy view are blurry.
+        brightness_coefficient (float): Rainy days are usually shady.
         rain_drops:
 
     Returns:
+        numpy.ndarray: Image.
 
     """
     non_rgb_warning(img)
@@ -835,11 +856,13 @@ def add_fog(img, fog_coef, alpha_coef, haze_list):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        img (np.array):
-        fog_coef (float):
-        alpha_coef (float):
+        img (numpy.ndarray): Image.
+        fog_coef (float): Fog coefficient.
+        alpha_coef (float): Alpha coefficient.
         haze_list (list):
+
     Returns:
+        numpy.ndarray: Image.
 
     """
     non_rgb_warning(img)
@@ -884,7 +907,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        img (np.array):
+        img (numpy.ndarray):
         flare_center_x (float):
         flare_center_y (float):
         src_radius:
@@ -892,6 +915,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
         circles (list):
 
     Returns:
+        numpy.ndarray:
 
     """
     non_rgb_warning(img)
@@ -939,10 +963,11 @@ def add_shadow(img, vertices_list):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        img (np.array):
+        img (numpy.ndarray):
         vertices_list (list):
 
     Returns:
+        numpy.ndarray:
 
     """
     non_rgb_warning(img)
@@ -1284,14 +1309,15 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     Apply poisson noise to image to simulate camera sensor noise.
 
     Args:
-        image: Input image, currently, only RGB, uint8 images are supported.
-        intensity: Multiplication factor for noise values. Values of ~0.5 are produce noticeable,
+        image (numpy.ndarray): Input image, currently, only RGB, uint8 images are supported.
+        color_shift (float):
+        intensity (float): Multiplication factor for noise values. Values of ~0.5 are produce noticeable,
                    yet acceptable level of noise.
         random_state:
         **kwargs:
 
     Returns:
-        Noised image
+        numpy.ndarray: Noised image
 
     """
     assert image.dtype == np.uint8, "Image must have uint8 channel type"
@@ -1364,19 +1390,48 @@ def from_float(img, dtype, max_value=None):
 
 
 def bbox_vflip(bbox, rows, cols):
-    """Flip a bounding box vertically around the x-axis."""
-    x_min, y_min, x_max, y_max = bbox
-    return [x_min, 1 - y_max, x_max, 1 - y_min]
+    """Flip a bounding box vertically around the x-axis.
+
+    Args:
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows (int): Image rows.
+        cols (int): Image cols.
+
+    Returns:
+        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
+
+    """
+    x_min, y_min, x_max, y_max = bbox[:4]
+    return x_min, 1 - y_max, x_max, 1 - y_min
 
 
 def bbox_hflip(bbox, rows, cols):
-    """Flip a bounding box horizontally around the y-axis."""
-    x_min, y_min, x_max, y_max = bbox
-    return [1 - x_max, y_min, 1 - x_min, y_max]
+    """Flip a bounding box horizontally around the y-axis.
+
+    Args:
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows (int): Image rows.
+        cols (int): Image cols.
+
+    Returns:
+        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
+
+    """
+    x_min, y_min, x_max, y_max = bbox[:4]
+    return 1 - x_max, y_min, 1 - x_min, y_max
 
 
 def bbox_flip(bbox, d, rows, cols):
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
+
+    Args:
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        d (int):
+        rows (int): Image rows.
+        cols (int): Image cols.
+
+    Returns:
+        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
@@ -1397,16 +1452,43 @@ def bbox_flip(bbox, d, rows, cols):
 def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
     """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
+
+    Args:
+        bbox (tuple): A cropped box `(x_min, y_min, x_max, y_max)`.
+        crop_coords (tuple): Crop coordinates `(x1, y1, x2, y2)`.
+        crop_height (int):
+        crop_width (int):
+        rows (int): Image rows.
+        cols (int): Image cols.
+
+    Returns:
+        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
+
     """
     bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = bbox
+    x_min, y_min, x_max, y_max = bbox[:4]
     x1, y1, x2, y2 = crop_coords
-    cropped_bbox = [x_min - x1, y_min - y1, x_max - x1, y_max - y1]
+    cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
     return normalize_bbox(cropped_bbox, crop_height, crop_width)
 
 
 def bbox_crop(bbox, x_min, y_min, x_max, y_max, rows, cols):
-    crop_coords = [x_min, y_min, x_max, y_max]
+    """Crop a bounding box.
+
+    Args:
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        x_min (int):
+        y_min (int):
+        x_max (int):
+        y_max (int):
+        rows (int): Image rows.
+        cols (int): Image cols.
+
+    Returns:
+        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
+
+    """
+    crop_coords = x_min, y_min, x_max, y_max
     crop_height = y_max - y_min
     crop_width = x_max - x_min
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
@@ -1426,156 +1508,277 @@ def bbox_rot90(bbox, factor, rows, cols):
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
-        bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
-        factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
+        bbox (tuple): A bounding box tuple (x_min, y_min, x_max, y_max).
+        factor (int): Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
         rows (int): Image rows.
         cols (int): Image cols.
+
+    Returns:
+        tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
+
     """
-    if factor < 0 or factor > 3:
-        raise ValueError("Parameter n must be in range [0;3]")
-    x_min, y_min, x_max, y_max = bbox
+    if factor not in {0, 1, 2, 3}:
+        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
+    x_min, y_min, x_max, y_max = bbox[:4]
     if factor == 1:
-        bbox = [y_min, 1 - x_max, y_max, 1 - x_min]
-    if factor == 2:
-        bbox = [1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min]
-    if factor == 3:
-        bbox = [1 - y_max, x_min, 1 - y_min, x_max]
+        bbox = y_min, 1 - x_max, y_max, 1 - x_min
+    elif factor == 2:
+        bbox = 1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min
+    elif factor == 3:
+        bbox = 1 - y_max, x_min, 1 - y_min, x_max
     return bbox
 
 
 def bbox_rotate(bbox, angle, rows, cols, interpolation):
-    """Rotates a bounding box by angle degrees
+    """Rotates a bounding box by angle degrees.
 
     Args:
-        bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
-        angle (int): Angle of rotation in degrees
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        angle (int): Angle of rotation in degrees.
         rows (int): Image rows.
         cols (int): Image cols.
-        interpolation (int): interpolation method.
+        interpolation (int): Interpolation method. TODO: Fix this, tt's not used in function
 
-        return a tuple (x_min, y_min, x_max, y_max)
+    Returns:
+        A bounding box `(x_min, y_min, x_max, y_max)`.
+
     """
+    x_min, y_min, x_max, y_max = bbox[:4]
     scale = cols / float(rows)
-    x = np.array([bbox[0], bbox[2], bbox[2], bbox[0]])
-    y = np.array([bbox[1], bbox[1], bbox[3], bbox[3]])
-    x = x - 0.5
-    y = y - 0.5
+    x = np.array([x_min, x_max, x_max, x_min]) - 0.5
+    y = np.array([y_min, y_min, y_max, y_max]) - 0.5
     angle = np.deg2rad(angle)
     x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
     y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
     x_t = x_t + 0.5
     y_t = y_t + 0.5
-    return [min(x_t), min(y_t), max(x_t), max(y_t)]
+
+    x_min, x_max = min(x_t), max(x_t)
+    y_min, y_max = min(y_t), max(y_t)
+
+    return x_min, y_min, x_max, y_max
 
 
 def bbox_transpose(bbox, axis, rows, cols):
     """Transposes a bounding box along given axis.
 
     Args:
-        bbox (tuple): A tuple (x_min, y_min, x_max, y_max).
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
         axis (int): 0 - main axis, 1 - secondary axis.
         rows (int): Image rows.
         cols (int): Image cols.
+
+    Returns:
+        tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
+
+    Raises:
+        ValueError: If axis not equal to 0 or 1.
+
     """
-    x_min, y_min, x_max, y_max = bbox
-    if axis != 0 and axis != 1:
+    x_min, y_min, x_max, y_max = bbox[:4]
+    if axis not in {0, 1}:
         raise ValueError("Axis must be either 0 or 1.")
     if axis == 0:
-        bbox = [y_min, x_min, y_max, x_max]
+        bbox = (y_min, x_min, y_max, x_max)
     if axis == 1:
-        bbox = [1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min]
+        bbox = (1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min)
     return bbox
 
 
-def keypoint_vflip(kp, rows, cols):
-    """Flip a keypoint vertically around the x-axis."""
-    x, y, angle, scale = kp
+def keypoint_vflip(keypoint, rows, cols):
+    """Flip a keypoint vertically around the x-axis.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        rows (int): Image height.
+        cols( int): Image width.
+
+    Returns:
+        tuple: A keypoint `(x, y, angle, scale)`.
+
+    """
+    x, y, angle, scale = keypoint[:4]
     c = math.cos(angle)
     s = math.sin(angle)
     angle = math.atan2(-s, c)
-    return [x, (rows - 1) - y, angle, scale]
+    return x, (rows - 1) - y, angle, scale
 
 
-def keypoint_hflip(kp, rows, cols):
-    """Flip a keypoint horizontally around the y-axis."""
-    x, y, angle, scale = kp
+def keypoint_hflip(keypoint, rows, cols):
+    """Flip a keypoint horizontally around the y-axis.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        tuple: A keypoint `(x, y, angle, scale)`.
+
+    """
+    x, y, angle, scale = keypoint[:4]
     c = math.cos(angle)
     s = math.sin(angle)
     angle = math.atan2(s, -c)
-    return [(cols - 1) - x, y, angle, scale]
+    return (cols - 1) - x, y, angle, scale
 
 
-def keypoint_flip(bbox, d, rows, cols):
+def keypoint_flip(keypoint, d, rows, cols):
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        d (int): Number of flip. Must be -1, 0 or 1:
+            * 0 - vertical flip,
+            * 1 - horizontal flip,
+            * -1 - vertical and horizontal flip.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        tuple: A keypoint `(x, y, angle, scale)`.
 
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
     if d == 0:
-        bbox = keypoint_vflip(bbox, rows, cols)
+        keypoint = keypoint_vflip(keypoint, rows, cols)
     elif d == 1:
-        bbox = keypoint_hflip(bbox, rows, cols)
+        keypoint = keypoint_hflip(keypoint, rows, cols)
     elif d == -1:
-        bbox = keypoint_hflip(bbox, rows, cols)
-        bbox = keypoint_vflip(bbox, rows, cols)
+        keypoint = keypoint_hflip(keypoint, rows, cols)
+        keypoint = keypoint_vflip(keypoint, rows, cols)
     else:
         raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
-    return bbox
+    return keypoint
 
 
 def keypoint_rot90(keypoint, factor, rows, cols, **params):
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
     Args:
-        keypoint (tuple): A tuple (x, y, angle, scale).
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
         factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
-        rows (int): Image rows.
-        cols (int): Image cols.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        tuple: A keypoint `(x, y, angle, scale)`.
+
+    Raises:
+        ValueError: if factor not in set {0, 1, 2, 3}
+
     """
-    if factor < 0 or factor > 3:
-        raise ValueError("Parameter n must be in range [0;3]")
-    x, y, angle, scale = keypoint
+    x, y, angle, scale = keypoint[:4]
+
+    if factor not in {0, 1, 2, 3}:
+        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
+
     if factor == 1:
-        keypoint = [y, (cols - 1) - x, angle - math.pi / 2, scale]
-    if factor == 2:
-        keypoint = [(cols - 1) - x, (rows - 1) - y, angle - math.pi, scale]
-    if factor == 3:
-        keypoint = [(rows - 1) - y, x, angle + math.pi / 2, scale]
-    return keypoint
+        x, y, angle = y, (cols - 1) - x, angle - math.pi / 2
+    elif factor == 2:
+        x, y, angle = (cols - 1) - x, (rows - 1) - y, angle - math.pi
+    elif factor == 3:
+        x, y, angle = (rows - 1) - y, x, angle + math.pi / 2
+
+    return x, y, angle, scale
 
 
 def keypoint_rotate(keypoint, angle, rows, cols, **params):
+    """Rotate a keypoint by angle.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        angle (float): Rotation angle.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        tuple: A keypoint `(x, y, angle, scale)`.
+
+    """
     matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, 1.0)
-    x, y, a, s = keypoint
+    x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    return [x, y, a + math.radians(angle), s]
+    return x, y, a + math.radians(angle), s
 
 
 def keypoint_scale(keypoint, scale_x, scale_y, **params):
-    """Scales a keypoint by scale_x and scale_y."""
-    x, y, a, s = keypoint
-    return [x * scale_x, y * scale_y, a, s * max(scale_x, scale_y)]
+    """Scales a keypoint by scale_x and scale_y.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        scale_x (int): Scale coefficient x-axis.
+        scale_y (int): Scale coefficient y-axis.
+
+    Returns:
+        A keypoint `(x, y, angle, scale)`.
+
+    """
+    x, y, angle, scale = keypoint[:4]
+    return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
 def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):
     """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
+        crop height (int): Crop height.
+        crop_width (int): Crop width.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        A keypoint `(x, y, angle, scale)`.
+
     """
-    x, y, a, s = keypoint
+    x, y, angle, scale = keypoint[:4]
     x1, y1, x2, y2 = crop_coords
-    cropped_keypoint = [x - x1, y - y1, a, s]
-    return cropped_keypoint
+    return x - x1, y - y1, angle, scale
 
 
 def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols):
+    """Keypoint random crop.
+
+    Args:
+        keypoint: (tuple): A keypoint `(x, y, angle, scale)`.
+        crop_height (int): Crop height.
+        crop_width (int): Crop width.
+        h_start (int): Crop height start.
+        w_start (int): Crop width start.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        A keypoint `(x, y, angle, scale)`.
+
+    """
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
 
 
-def keypoint_center_crop(bbox, crop_height, crop_width, rows, cols):
+def keypoint_center_crop(keypoint, crop_height, crop_width, rows, cols):
+    """Keypoint center crop.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        crop_height (int): Crop height.
+        crop_width (int): Crop width.
+        h_start (int): Crop height start.
+        w_start (int): Crop width start.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        tuple: A keypoint `(x, y, angle, scale)`.
+
+    """
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_keypoint_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
+    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
 
 
 def py3round(number):
@@ -1596,9 +1799,14 @@ def swap_tiles_on_image(image, tiles):
 
     Args:
         image (np.ndarray): Input image.
-        tiles (np.ndarray): array of tuples(current_left_up_corner_row, current_left_up_corner_col,
-                                            old_left_up_corner_row, old_left_up_corner_col,
-                                            height_tile, width_tile)
+        tiles (np.ndarray): array of tuples(
+            current_left_up_corner_row, current_left_up_corner_col,
+            old_left_up_corner_row, old_left_up_corner_col,
+            height_tile, width_tile)
+
+    Returns:
+        np.ndarray: Output image.
+
     """
     new_image = image.copy()
 
@@ -1611,7 +1819,16 @@ def swap_tiles_on_image(image, tiles):
 
 
 def keypoint_transpose(keypoint):
-    x, y, angle, scale = keypoint
+    """Rotate a keypoint by angle.
+
+    Args:
+        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+
+    Returns:
+        tuple: A keypoint `(x, y, angle, scale)`.
+
+    """
+    x, y, angle, scale = keypoint[:4]
     angle = angle_to_2pi_range(angle)
 
     if angle <= np.pi:
