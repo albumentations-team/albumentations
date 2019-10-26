@@ -200,38 +200,41 @@ Albumentations has equivalents for common torchvision transforms as well as plen
 To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albu/albumentations/blob/master/benchmark/README.md)
 
 Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Xeon Gold 6140 CPU.
+For libraries that work with NumPy arrays, the uint8 data type is used to represent an image.
 The table shows how many images per second can be processed on a single core, higher is better.
 
-|                    | albumentations <br><small>0.3.0</small> | imgaug <br><small>0.2.9</small> | torchvision (Pillow backend) <br><small>0.3.0</small> | torchvision (Pillow-SIMD backend) <br><small>0.3.0</small> | Keras <br><small>2.2.4</small> | Augmentor <br><small>0.2.3</small> | <br><small>solt 0.1.6</small> |
-|--------------------|:--------------------:|:------------:|:----------------------------------:|:---------------------------------------:|:-----------:|:---------------:|:----------:|
-| RandomCrop64       |        **271641**    |     3373     |                26538               |                  83251                  |      -      |      22535      |    21383   |
-| PadToSize512       |         **2818**     |       -      |                 414                |                   422                   |      -      |        -        |    2539    |
-| Resize512          |         **2168**     |      696     |                 296                |                   1046                  |      -      |       297       |    1907    |
-| HorizontalFlip     |          991         |      162     |                **4881**            |                   4595                  |     167     |       4595      |     166    |
-| VerticalFlip       |         **4244**     |     2278     |                3066                |                   3598                  |     4162    |       2985      |    3486    |
-| Rotate             |         **702**      |      475     |                 82                 |                   110                   |      7      |        37       |     239    |
-| ShiftScaleRotate   |         **1761**     |      761     |                 81                 |                   105                   |      9      |        -        |       -    |
-| Brightness         |          652         |     1520     |                 316                |                   408                   |     149     |       308       |    **2506**|
-| Contrast           |         1059         |     1539     |                 231                |                   316                   |      -      |       241       |    **2524**|
-| BrightnessContrast |          646         |      861     |                 128                |                   174                   |      -      |       130       |    **1305**|
-| ShiftHSV           |          168         |    **208**   |                 32                 |                    42                   |      -      |        -        |     107    |
-| ShiftRGB           |          555         |   **1521**   |                  -                 |                    -                    |     477     |        -        |      -     |
-| Gamma              |          483         |       -      |                 801                |                   **858**               |      -      |        -        |     447    |
-| Grayscale          |         **12097**    |      88      |                 728                |                   915                   |      -      |       2182      |    9140    |
+|                    | albumentations <br><small>0.4.0</small> |  imgaug <br><small>0.2.9</small> | torchvision (Pillow backend) <br><small>0.4.0</small>  | torchvision (Pillow-SIMD backend) <br><small>0.4.0</small> | keras  <br><small>2.3.1</small> | augmentor  <br><small>0.2.6</small> | solt  <br><small>0.1.8</small>  |
+|------------------------|:--------------:|:------:|:--------------------:|:-------------------------:|:-----:|:---------:|:-----:|
+| HorizontalFlip         |       961      |   754  |         **1246**     |            1251           |  669  |    1154   |  619  |
+| VerticalFlip           |     **3941**   |  2069  |         1105         |            1150           |  3884 |    1054   |  3540 |
+| Rotate                 |     **375**    |   300  |          83          |            120            |   18  |     36    |   91  |
+| ShiftScaleRotate       |     **664**    |   454  |          75          |            116            |   23  |     -     |   -   |
+| Brightness             |     **1806**   |  1067  |          260         |            320            |  133  |    252    |  1694 |
+| Contrast               |     **1701**   |  1123  |          190         |            241            |   -   |    184    |  1699 |
+| BrightnessContrast     |     **1749**   |   577  |          114         |            143            |   -   |    112    |  880  |
+| ShiftRGB               |     **1813**   |   984  |           -          |             -             |  509  |     -     |   -   |
+| ShiftHSV               |     **349**    |   340  |          35          |             45            |   -   |     -     |  106  |
+| Gamma                  |     **1926**   |    -   |          549         |            580            |   -   |     -     |  701  |
+| Grayscale              |     **3688**   |   307  |          487         |            574            |   -   |    872    |  2927 |
+| RandomCrop64           |     **602010** |  2908  |         22398        |           33850           |   -   |   14267   | 38450 |
+| PadToSize512           |     **2749**   |    -   |          350         |            378            |   -   |     -     |  2370 |
+| Resize512              |       576      |   427  |          211         |            **648**        |   -   |    213    |  568  |
+| RandomSizedCrop_64_512 |     **2223**   |   715  |          334         |            1023           |   -   |    339    |  1949 |
+| Equalize               |     **466**    |  460   |           -          |             -             |   -   |    256    |   -   |
 
-Python and library versions: Python 3.7.3 | Anaconda, numpy 1.16.4, pillow 6.0.0, pillow-simd 5.3.0.post1, opencv-python 4.1.0.25, scikit-image 0.15.0, scipy 1.3.0.
+Python and library versions: Python 3.7.3, numpy 1.17.2, pillow 6.2.0, pillow-simd 6.0.0.post0, opencv-python 4.1.1.26, scikit-image 0.15.0, scipy 1.3.0.
 
 
 ## Contributing
 
-To create pull request to the repository follow the documentation at [docs/contributing.rst](docs/contributing.rst)
+To create a pull request to the repository follow the documentation at [docs/contributing.rst](docs/contributing.rst)
 
 ### Adding new transforms
 If you are contributing a new transformation, make sure to update ["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections of this file (`README.md`). To do this, simply run (with python3 only):
 ```
 python3 tools/make_transforms_docs.py make
 ```
-and copy/paste the results in the corresponding sections. To validate your modifications, you
+and copy/paste the results into the corresponding sections. To validate your modifications, you
 can run:
 ```
 python3 tools/make_transforms_docs.py check README.md
@@ -288,4 +291,4 @@ If you find this library useful for your research, please consider citing:
 }
 ```
 
-You can find the full list of papers that cites Albumentations [here](docs/citations.rst).
+You can find the full list of papers that cite Albumentations [here](docs/citations.rst).
