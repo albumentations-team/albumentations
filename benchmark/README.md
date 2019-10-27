@@ -28,7 +28,7 @@ docker build -t albumentations-benchmark -f ./benchmark/Dockerfile .
 docker run -v <path to a directory with images on the host machine>:/images albumentations-benchmark <args>
 ```
 
-[Benchmarking results in README.md](../README.md##benchmarking-results) were obtained by running the following command:
+[Benchmarking results in README.md](../README.md#benchmarking-results) were obtained by running the following command:
 ```
 docker run -v /hdd/ILSVRC2012_img_val:/images albumentations-benchmark --runs 10 --markdown
 ```
