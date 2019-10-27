@@ -471,3 +471,23 @@ def test_resize_keypoints():
     aug = A.Resize(height=50, width=10, p=1)
     result = aug(image=img, keypoints=keypoints)
     assert result["keypoints"] == [(9, 5, 0, 0)]
+
+
+def test_mask_dropout():
+    # In this case we have mask with all ones, so MaskDropout wipe entire mask and image
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    mask = np.ones([50, 10], dtype=np.long)
+
+    aug = A.MaskDropout(p=1)
+    result = aug(image=img, mask=mask)
+    assert np.all(result["image"] == 0)
+    assert np.all(result["mask"] == 0)
+
+    # In this case we have mask with zeros , so MaskDropout will make no changes
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    mask = np.zeros([50, 10], dtype=np.long)
+
+    aug = A.MaskDropout(p=1)
+    result = aug(image=img, mask=mask)
+    assert np.all(result["image"] == img)
+    assert np.all(result["mask"] == 0)

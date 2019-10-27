@@ -2913,15 +2913,29 @@ class Lambda(NoOp):
 
 class MaskDropout(DualTransform):
     """
-    Image & mask augmentation that zero out mask and image corresponding
-    to randomly chosed object instance from mask.
+    Image & mask augmentation that zero out mask and image regions corresponding
+    to randomly chosen object instance from mask.
 
-    Mask must be single-channel images, zero values treated as background.
+    Mask must be single-channel image, zero values treated as background.
     Image can be any number of channels.
 
+    Inspired by https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
     """
 
     def __init__(self, max_objects=1, image_fill_value=0, mask_fill_value=0, always_apply=False, p=0.5):
+        """
+        Args:
+            max_objects: Maximum number of labels that can be zeroed out.
+            image_fill_value: Fill value to use when filling image.
+                Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
+            mask_fill_value: Fill value to use when filling mask.
+
+        Targets:
+            image, mask
+
+        Image types:
+            uint8, float32
+        """
         super(MaskDropout, self).__init__(always_apply, p)
         self.max_objects = int(max_objects)
         self.image_fill_value = image_fill_value
@@ -2949,7 +2963,8 @@ class MaskDropout(DualTransform):
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index
 
-        return params.update({"dropout_mask": dropout_mask})
+        params.update({"dropout_mask": dropout_mask})
+        return params
 
     def apply(self, img, dropout_mask: np.ndarray = None, **params):
         if dropout_mask is None:
