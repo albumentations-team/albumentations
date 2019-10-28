@@ -2980,6 +2980,7 @@ class MaskDropout(DualTransform):
         else:
             img = img.copy()
             img[dropout_mask] = self.image_fill_value
+
         return img
 
     def apply_to_mask(self, img, dropout_mask=None, **params):
