@@ -1692,6 +1692,7 @@ class RandomSnow(ImageOnlyTransform):
         self.brightness_coeff = brightness_coeff
 
     def apply(self, image, snow_point=0.1, **params):
+        print(snow_point, self.brightness_coeff)
         return F.add_snow(image, snow_point, self.brightness_coeff)
 
     def get_params(self):

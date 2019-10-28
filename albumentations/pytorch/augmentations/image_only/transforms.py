@@ -1,6 +1,5 @@
 import albumentations as A
 from . import functional as F
-import kornia as K
 import torch
 
 import random
@@ -18,12 +17,12 @@ class NormalizeTorch(A.Normalize):
         self.std = torch.tensor(self.std) * self.max_pixel_value
 
     def apply(self, image, **params):
-        return K.normalize(image.type(torch.float32), self.mean, self.std)
+        return F.normalize(image.type(torch.float32), self.mean, self.std)
 
 
 class CoarseDropoutTorch(A.CoarseDropout):
-    def apply(self, image, fill_value=0, holes=(), **params):
-        return F.cutout(image, holes, fill_value)
+    def apply(self, image, holes=(), **params):
+        return F.cutout(image, holes, self.fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
@@ -45,4 +44,5 @@ class CoarseDropoutTorch(A.CoarseDropout):
 
 class RandomSnowTorch(A.RandomSnow):
     def apply(self, image, snow_point=0.1, **params):
+        print(snow_point, self.brightness_coeff)
         return F.add_snow(image, snow_point, self.brightness_coeff)

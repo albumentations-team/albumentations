@@ -4,12 +4,13 @@ import warnings
 
 import numpy as np
 import torch
+from albumentations.augmentations.functional import is_grayscale_image
 from torchvision.transforms import functional as F
 
 from ..core.transforms_interface import BasicTransform
 
 
-__all__ = ["ToTensor", "ToTensorV2"]
+__all__ = ["ToTensor", "ToTensorV2", "FromTensorV2"]
 
 
 def img_to_tensor(im, normalize=None):
@@ -90,10 +91,36 @@ class ToTensorV2(BasicTransform):
         return {"image": self.apply, "mask": self.apply_to_mask}
 
     def apply(self, img, **params):
+        if is_grayscale_image(img):
+            img = img.reshape((1,) + img.shape[:2])
+
         return torch.from_numpy(img.transpose(2, 0, 1))
 
     def apply_to_mask(self, mask, **params):
         return torch.from_numpy(mask)
+
+    def get_transform_init_args_names(self):
+        return []
+
+    def get_params_dependent_on_targets(self, params):
+        return {}
+
+
+class FromTensorV2(BasicTransform):
+    """Convert image nad mask from `torch.Tensor` to `numpy.ndarray`"""
+
+    def __init__(self, always_apply=True, p=1.0):
+        super(FromTensorV2, self).__init__(always_apply=always_apply, p=p)
+
+    @property
+    def targets(self):
+        return {"image": self.apply, "mask": self.apply_to_mask}
+
+    def apply(self, img, **params):
+        return img.detach().cpu().numpy().transpose(1, 2, 0).sequzee()
+
+    def apply_to_mask(self, mask, **params):
+        return mask.detach().cpu().numpy()
 
     def get_transform_init_args_names(self):
         return []

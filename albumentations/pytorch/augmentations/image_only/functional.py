@@ -67,18 +67,29 @@ def add_snow(img, snow_point, brightness_coeff):
     elif input_dtype not in (torch.uint8, torch.float32):
         raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
 
-    image_HLS = K.rgb_to_hls(img)
-    image_HLS = image_HLS.type(torch.float32)
+    image_HLS = K.rgb_to_hls(img.float())
 
     image_HLS[1][image_HLS[1] < snow_point] *= brightness_coeff
-
     image_HLS[1] = clip(image_HLS[1], torch.uint8, 255)
 
-    image_HLS = image_HLS.type(torch.uint8)
-
     image_RGB = K.hls_to_rgb(image_HLS)
+    image_RGB = image_RGB.to(torch.uint8)
 
     if needs_float:
         image_RGB = to_float(image_RGB, max_value=255)
 
     return image_RGB
+
+
+def normalize(img, mean, std):
+    if mean.shape:
+        mean = mean[..., :, None, None]
+    if std.shape:
+        std = std[..., :, None, None]
+
+    denominator = torch.reciprocal(std)
+
+    img = img.float()
+    img -= mean
+    img *= denominator
+    return img
