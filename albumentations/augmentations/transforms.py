@@ -2925,7 +2925,7 @@ class MaskDropout(DualTransform):
     def __init__(self, max_objects=1, image_fill_value=0, mask_fill_value=0, always_apply=False, p=0.5):
         """
         Args:
-            max_objects: Maximum number of labels that can be zeroed out.
+            max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
             image_fill_value: Fill value to use when filling image.
                 Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
             mask_fill_value: Fill value to use when filling mask.
@@ -2937,7 +2937,7 @@ class MaskDropout(DualTransform):
             uint8, float32
         """
         super(MaskDropout, self).__init__(always_apply, p)
-        self.max_objects = int(max_objects)
+        self.max_objects = to_tuple(max_objects, 1)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
 
@@ -2954,12 +2954,14 @@ class MaskDropout(DualTransform):
         if num_labels == 0:
             dropout_mask = None
         else:
-            objects_to_drop = random.randint(1, self.max_objects)
+            objects_to_drop = random.randint(self.max_objects[0], self.max_objects[1])
+            objects_to_drop = min(num_labels, objects_to_drop)
+
             if objects_to_drop == num_labels:
                 dropout_mask = mask > 0
             else:
                 labels_index = random.sample(range(1, num_labels + 1), objects_to_drop)
-                dropout_mask = np.zeros((mask.shape[1], mask.shape[2]), dtype=np.bool)
+                dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=np.bool)
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index
 
