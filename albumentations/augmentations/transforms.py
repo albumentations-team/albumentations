@@ -8,7 +8,6 @@ from types import LambdaType
 
 import cv2
 import numpy as np
-from skimage.measure import label
 
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
@@ -2948,8 +2947,7 @@ class MaskDropout(DualTransform):
     def get_params_dependent_on_targets(self, params):
         mask = params["mask"]
 
-        label_image = label(mask)
-        num_labels = label_image.max()
+        num_labels, label_image = cv2.connectedComponents(mask)
 
         if num_labels == 0:
             dropout_mask = None
@@ -2968,7 +2966,7 @@ class MaskDropout(DualTransform):
         params.update({"dropout_mask": dropout_mask})
         return params
 
-    def apply(self, img, dropout_mask: np.ndarray = None, **params):
+    def apply(self, img, dropout_mask=None, **params):
         if dropout_mask is None:
             return img
 
