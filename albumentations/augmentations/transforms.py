@@ -2420,6 +2420,9 @@ class MotionBlur(Blur):
         else:
             ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
         cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
+
+        # Normalize kernel
+        kernel = kernel.astype(np.float32) / np.sum(kernel)
         return {"kernel": kernel}
 
 
