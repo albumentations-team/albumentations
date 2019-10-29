@@ -2948,8 +2948,7 @@ class MaskDropout(DualTransform):
     def get_params_dependent_on_targets(self, params):
         mask = params["mask"]
 
-        label_image = label(mask)
-        num_labels = label_image.max() + 1
+        label_image, num_labels = label(mask, return_num=True)
 
         if num_labels == 0:
             dropout_mask = None
