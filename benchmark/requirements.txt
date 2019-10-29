@@ -5,7 +5,8 @@ keras
 numpy
 opencv-python
 pandas
-pillow
+pillow-simd
+pytablewriter
 solt
 tensorflow # required for keras
 torchvision
