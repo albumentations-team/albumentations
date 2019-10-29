@@ -73,6 +73,7 @@ __all__ = [
     "Equalize",
     "Posterize",
     "Downscale",
+    "MultiplicativeNoise",
 ]
 
 
@@ -2910,3 +2911,62 @@ class Lambda(NoOp):
         state.update(self.custom_apply_fns.items())
         state.update(self.get_base_init_args())
         return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+
+
+class MultiplicativeNoise(ImageOnlyTransform):
+    """Multiply image to random number or array of numbers.
+
+    Args:
+        multiplier (float or tuple of floats): If single float image will be multiplied to this number.
+            If tuple of float multiplier will be in range `[multiplier[0], multiplier[1])`. Default: (0.9, 1.1).
+        per_channel (bool): If `False`, same values for all channels will be used.
+            If `True` use sample values for each channels. Default False.
+        elementwise (bool): If `False` multiply multiply all pixels in an image with a random value sampled once.
+            If `True` Multiply image pixels with values that are pixelwise randomly sampled. Defaule: False.
+
+    Targets:
+        image
+
+    Image types:
+        Any
+    """
+
+    def __init__(self, multiplier=(0.9, 1.1), per_channel=False, elementwise=False, always_apply=False, p=0.5):
+        super(MultiplicativeNoise, self).__init__(always_apply, p)
+        self.multiplier = to_tuple(multiplier, multiplier)
+        self.per_channel = per_channel
+        self.elementwise = elementwise
+
+    def apply(self, img, multiplier=np.array([1]), **kwargs):
+        return F.multiply(img, multiplier)
+
+    def get_params_dependent_on_targets(self, params):
+        if self.multiplier[0] == self.multiplier[1]:
+            return {"multiplier": np.array([self.multiplier[0]])}
+
+        img = params["image"]
+
+        h, w = img.shape[:2]
+
+        if self.per_channel:
+            c = 1 if F.is_grayscale_image(img) else img.shape[-1]
+        else:
+            c = 1
+
+        if self.elementwise:
+            shape = [h, w, c]
+        else:
+            shape = [c]
+
+        multiplier = np.random.uniform(self.multiplier[0], self.multiplier[1], shape)
+        if F.is_grayscale_image(img):
+            multiplier = np.squeeze(multiplier)
+
+        return {"multiplier": multiplier}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_transform_init_args_names(self):
+        return "multiplier", "per_channel", "elementwise"

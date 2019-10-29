@@ -35,6 +35,7 @@ import solt.transforms as slt
 import solt.data as sld
 
 import albumentations.augmentations.functional as albumentations
+import albumentations as A
 
 
 DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt"]
@@ -506,6 +507,23 @@ class Posterize(BenchmarkTest):
         return ImageOps.posterize(img, 4)
 
 
+class Multiply(BenchmarkTest):
+    def __init__(self):
+        self.imgaug_transform = iaa.Multiply(mul=1.5)
+
+    def albumentations(self, img):
+        return albumentations.multiply(img, np.array([1.5]))
+
+
+class MultiplyElementwise(BenchmarkTest):
+    def __init__(self):
+        self.aug = A.MultiplicativeNoise((0, 1), per_channel=True, elementwise=True, p=1)
+        self.imgaug_transform = iaa.MultiplyElementwise(mul=(0, 1), per_channel=True)
+
+    def albumentations(self, img):
+        return self.aug(image=img)["image"]
+
+
 def main():
     args = parse_args()
     package_versions = get_package_versions()
@@ -538,6 +556,8 @@ def main():
         Posterize(),
         Solarize(),
         Equalize(),
+        Multiply(),
+        MultiplyElementwise(),
     ]
     for library in libraries:
         imgs = imgs_pillow if library in ("torchvision", "augmentor", "pillow") else imgs_cv2
