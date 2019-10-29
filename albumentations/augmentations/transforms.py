@@ -5,6 +5,7 @@ import random
 import warnings
 from enum import Enum
 from types import LambdaType
+from skimage.measure import label
 
 import cv2
 import numpy as np
@@ -2947,7 +2948,8 @@ class MaskDropout(DualTransform):
     def get_params_dependent_on_targets(self, params):
         mask = params["mask"]
 
-        num_labels, label_image = cv2.connectedComponents(mask)
+        label_image = label(mask)
+        num_labels = label_image.max() + 1
 
         if num_labels == 0:
             dropout_mask = None
