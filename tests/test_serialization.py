@@ -12,6 +12,11 @@ import albumentations.augmentations.functional as F
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 
 
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+
+
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
@@ -60,6 +65,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.Downscale, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -69,9 +75,9 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, mask=mask)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
@@ -209,6 +215,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
         [A.Solarize, {"threshold": 32}],
         [A.Posterize, {"num_bits": 1}],
         [A.Equalize, {"mode": "pil", "by_channels": False}],
+        [A.MultiplicativeNoise, {"multiplier": (0.7, 2.3), "per_channel": True, "elementwise": True}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -220,9 +227,9 @@ def test_augmentations_serialization_with_custom_parameters(
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, mask=mask)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
@@ -278,6 +285,7 @@ def test_augmentations_serialization_with_custom_parameters(
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -289,9 +297,9 @@ def test_augmentations_for_bboxes_serialization(
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, bboxes=albumentations_bboxes)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
@@ -341,6 +349,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -350,9 +359,9 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, keypoints=keypoints)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
@@ -380,10 +389,10 @@ def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, i
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     ia.seed(seed)
     aug_data = aug(image=image, mask=mask)
-    random.seed(seed)
+    set_seed(seed)
     ia.seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -414,10 +423,10 @@ def test_imgaug_augmentations_for_bboxes_serialization(
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     ia.seed(seed)
     aug_data = aug(image=image, bboxes=albumentations_bboxes)
-    random.seed(seed)
+    set_seed(seed)
     ia.seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -448,10 +457,10 @@ def test_imgaug_augmentations_for_keypoints_serialization(
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     ia.seed(seed)
     aug_data = aug(image=image, keypoints=keypoints)
-    random.seed(seed)
+    set_seed(seed)
     ia.seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
@@ -466,9 +475,9 @@ def test_image_only_crop_around_bbox_augmentation_serialization(p, seed, image, 
     annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(**annotations)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(**annotations)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 
@@ -513,9 +522,9 @@ def test_transform_pipeline_serialization(seed, image, mask):
     )
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, mask=mask)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
@@ -547,9 +556,9 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
     )
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, bboxes=bboxes, labels=labels)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, bboxes=bboxes, labels=labels)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
@@ -579,9 +588,9 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     )
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, keypoints=keypoints, labels=labels)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints, labels=labels)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
@@ -621,6 +630,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -630,9 +640,9 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, image2=image2)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, image2=image2)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["image2"], deserialized_aug_data["image2"])
@@ -657,9 +667,9 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"vflip": aug})
-    random.seed(seed)
+    set_seed(seed)
     aug_data = aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
-    random.seed(seed)
+    set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])

@@ -1837,3 +1837,57 @@ def keypoint_transpose(keypoint):
         angle = 3 * np.pi - angle
 
     return y, x, angle, scale
+
+
+@clipped
+def _multiply_uint8(img, multiplier):
+    img = img.astype(np.float32)
+    return np.multiply(img, multiplier)
+
+
+@preserve_shape
+def _multiply_uint8_optimized(img, multiplier):
+    if is_grayscale_image(img) or len(multiplier) == 1:
+        multiplier = multiplier[0]
+        lut = np.arange(0, 256, dtype=np.float32)
+        lut *= multiplier
+        lut = clip(lut, np.uint8, MAX_VALUES_BY_DTYPE[img.dtype])
+        func = _maybe_process_in_chunks(cv2.LUT, lut=lut)
+        return func(img)
+
+    channels = img.shape[-1]
+    lut = [np.arange(0, 256, dtype=np.float32)] * channels
+    lut = np.stack(lut, axis=-1)
+
+    lut *= multiplier
+    lut = clip(lut, np.uint8, MAX_VALUES_BY_DTYPE[img.dtype])
+
+    images = []
+    for i in range(channels):
+        func = _maybe_process_in_chunks(cv2.LUT, lut=lut[:, i])
+        images.append(func(img[:, :, i]))
+    return np.stack(images, axis=-1)
+
+
+@clipped
+def _multiply_non_uint8(img, multiplier):
+    return img * multiplier
+
+
+def multiply(img, multiplier):
+    """
+    Args:
+        img (numpy.ndarray): Image.
+        multiplier (numpy.ndarray): Multiplier coefficient.
+
+    Returns:
+        numpy.ndarray: Image multiplied by `multiplier` coefficient.
+
+    """
+    if img.dtype == np.uint8:
+        if len(multiplier.shape) == 1:
+            return _multiply_uint8_optimized(img, multiplier)
+        else:
+            return _multiply_uint8(img, multiplier)
+    else:
+        return _multiply_non_uint8(img, multiplier)

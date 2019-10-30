@@ -7,7 +7,7 @@ from numpy.testing import assert_array_almost_equal_nulp
 
 import albumentations.augmentations.functional as F
 from albumentations.augmentations.bbox_utils import filter_bboxes
-from .utils import convert_2d_to_target_format
+from tests.utils import convert_2d_to_target_format
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -901,3 +901,23 @@ def test_maybe_process_in_chunks():
         before = image[:, :, :i]
         after = F.rotate(before, angle=1)
         assert before.shape == after.shape
+
+
+def test_multiply_uint8_optimized():
+    image = np.random.randint(0, 256, [256, 320], np.uint8)
+    m = 1.5
+
+    result = F._multiply_uint8_optimized(image, [m])
+    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+    assert np.all(tmp == result)
+
+    image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
+    result = F._multiply_uint8_optimized(image, [m])
+    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+    assert np.all(tmp == result)
+
+    m = np.array([1.5, 0.75, 1.1])
+    image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
+    result = F._multiply_uint8_optimized(image, m)
+    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+    assert np.all(tmp == result)
