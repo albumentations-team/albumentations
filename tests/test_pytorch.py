@@ -1,19 +1,35 @@
 import pytest
 
-import random
-import numpy as np
+import cv2
 import torch
+import random
+import itertools
+import numpy as np
 
 import albumentations as A
 import albumentations.pytorch as ATorch
 
-import itertools
+import albumentations.augmentations.functional as F
+import albumentations.pytorch.augmentations.image_only.functional as FTorch
 
 
 def set_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
     torch.manual_seed(seed)
+
+
+def to_torch_image(image, device="cpu"):
+    if F.is_grayscale_image(image):
+        image = image.reshape(image.shape + (1,))
+
+    image = np.transpose(image, [2, 0, 1])
+    return torch.from_numpy(image).to(device)
+
+
+def from_torch_image(image):
+    image = image.detach().cpu().numpy()
+    return np.transpose(image, [1, 2, 0]).squeeze()
 
 
 def test_torch_to_tensor_v2_augmentations(image, mask):
@@ -90,17 +106,18 @@ def test_with_replaycompose():
     ),
 )
 def test_image_transforms_rgb(image, augs):
+    image_cuda = to_torch_image(image)
+
     aug_cpu = A.Compose([augs[0]])
     aug_cuda = A.Compose([augs[1]])
-
-    image_cuda = torch.from_numpy(np.transpose(image, [2, 0, 1]))
 
     set_seed(0)
     image_cpu = aug_cpu(image=image)["image"]
     set_seed(0)
     image_cuda = aug_cuda(image=image_cuda)["image"]
-    image_cuda = np.transpose(image_cuda.numpy(), [1, 2, 0])
-    assert np.allclose(image_cpu, image_cuda)
+
+    image_cuda = from_torch_image(image_cuda)
+    assert np.allclose(image_cpu, image_cuda, atol=1e-6)
 
 
 @pytest.mark.parametrize(
@@ -118,21 +135,69 @@ def test_image_transforms_grayscale(image, augs):
     aug_cpu = A.Compose([augs[0]])
     aug_cuda = A.Compose([augs[1]])
 
-    image_cuda = torch.from_numpy(image.reshape((1,) + image.shape))
+    image_cuda = to_torch_image(image)
 
     set_seed(0)
     image_cpu = aug_cpu(image=image)["image"]
     set_seed(0)
     image_cuda = aug_cuda(image=image_cuda)["image"]
-    assert np.allclose(image_cpu, image_cuda.detach().numpy().squeeze())
+
+    image_cuda = from_torch_image(image_cuda)
+    assert np.allclose(image_cpu, image_cuda)
+
+
+def test_rgb_to_hls_float():
+    image = np.random.random([1000, 1000, 3]).astype(np.float32)
+    torch_img = to_torch_image(image)
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
+    torch_img = FTorch.rgb_to_hls(torch_img)
+
+    torch_img = from_torch_image(torch_img)
+    assert np.allclose(cv_img, torch_img, atol=1e-6)
+
+
+def test_rgb_to_hls_uint8():
+    image = np.random.randint(0, 256, [1000, 1000, 3], np.uint8)
+    torch_img = to_torch_image(image)
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
+    torch_img = FTorch.rgb_to_hls(torch_img)
+
+    torch_img = from_torch_image(torch_img)
+    assert np.all(np.abs(cv_img.astype(float) - torch_img.astype(float)) <= 1)
+
+
+def test_hls_to_rgb_float():
+    image = np.random.random([1000, 1000, 3]).astype(np.float32)
+    image[..., 0] *= 360
+
+    torch_img = to_torch_image(image)
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_HLS2RGB)
+    torch_img = FTorch.hls_to_rgb(torch_img)
+
+    torch_img = from_torch_image(torch_img)
+    assert np.allclose(cv_img, torch_img, atol=1e-6)
+
+
+def test_hls_to_rgb_uint8():
+    image = np.random.randint(0, 256, [1000, 1000, 3], np.uint8)
+    torch_img = to_torch_image(image)
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_HLS2RGB)
+    torch_img = FTorch.hls_to_rgb(torch_img)
+
+    torch_img = from_torch_image(torch_img)
+    assert np.all(np.abs(cv_img.astype(float) - torch_img.astype(float)) <= 1)
 
 
 args = itertools.product(
     [np.random.randint(0, 256, (128, 323, 3), np.uint8), np.random.random([256, 111, 3]).astype(np.float32)],
     [
-        [A.Normalize(p=1), ATorch.NormalizeTorch(p=1)],
+        # [A.Normalize(p=1), ATorch.NormalizeTorch(p=1)],
         [A.RandomSnow(p=1), ATorch.RandomSnowTorch(p=1)],
-        [A.CoarseDropout(p=1), ATorch.CoarseDropoutTorch(p=1)],
+        # [A.CoarseDropout(p=1), ATorch.CoarseDropoutTorch(p=1)],
     ],
 )
 
@@ -143,9 +208,9 @@ for a in args:
 args = itertools.product(
     [np.random.randint(0, 256, (128, 323), np.uint8), np.random.random([256, 111]).astype(np.float32)],
     [
-        [A.Normalize(mean=0.5, std=0.1, p=1), ATorch.NormalizeTorch(mean=0.5, std=0.1, p=1)],
+        # [A.Normalize(mean=0.5, std=0.1, p=1), ATorch.NormalizeTorch(mean=0.5, std=0.1, p=1)],
         [A.RandomSnow(p=1), ATorch.RandomSnowTorch(p=1)],
-        [A.CoarseDropout(p=1), ATorch.CoarseDropoutTorch(p=1)],
+        # [A.CoarseDropout(p=1), ATorch.CoarseDropoutTorch(p=1)],
     ],
 )
 

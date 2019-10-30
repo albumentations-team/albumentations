@@ -44,5 +44,4 @@ class CoarseDropoutTorch(A.CoarseDropout):
 
 class RandomSnowTorch(A.RandomSnow):
     def apply(self, image, snow_point=0.1, **params):
-        print(snow_point, self.brightness_coeff)
         return F.add_snow(image, snow_point, self.brightness_coeff)
