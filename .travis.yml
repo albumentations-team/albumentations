@@ -35,7 +35,7 @@ matrix:
 install:
 - pip install --upgrade pip pytest
 - if [[ "$TEST_MODE" == "DOCS" ]]; then pip install .; fi
-- if [[ "$TEST_MODE" == "BLACK" ]]; then pip install black; fi
+- if [[ "$TEST_MODE" == "BLACK" ]]; then pip install black==19.3b0; fi
 - if [[ "$TEST_MODE" == "SPHINX" ]]; then pip install -r docs/requirements.txt; fi
 - if [[ -n "$PYTORCH_WHEEL" ]]; then pip install "$PYTORCH_WHEEL" torchvision; fi
 - if [[ "$TEST_MODE" == "DEFAULT" ]] || [[ "$TEST_MODE" == "SPHINX" ]]; then pip install .[tests]; fi
