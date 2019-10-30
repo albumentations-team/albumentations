@@ -22,8 +22,8 @@ MAX_VALUES_BY_DTYPE = {
 def angle_2pi_range(func):
     @wraps(func)
     def wrapped_function(keypoint, *args, **kwargs):
-        [x, y, a, s] = func(keypoint, *args, **kwargs)
-        return [x, y, angle_to_2pi_range(a), s]
+        (x, y, a, s) = func(keypoint, *args, **kwargs)
+        return (x, y, angle_to_2pi_range(a), s)
 
     return wrapped_function
 
