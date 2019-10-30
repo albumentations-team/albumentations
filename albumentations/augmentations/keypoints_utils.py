@@ -18,9 +18,6 @@ keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
 
 def angle_to_2pi_range(angle):
     two_pi = 2 * math.pi
-    if 0 <= angle < two_pi:
-        return angle
-
     return angle % two_pi
 
 
