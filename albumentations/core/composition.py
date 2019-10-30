@@ -356,16 +356,23 @@ class BboxParams(Params):
     Args:
         format (str): format of bounding boxes. Should be 'coco', 'pascal_voc', 'albumentations' or 'yolo'.
 
-            The `coco` format
+            The `coco` and `xywh` format
                 `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
-            The `pascal_voc` format
+            The `pascal_voc` and `xyxy` format
                 `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
-            The `albumentations` format
+            The `albumentations` and `xyxy_norm` format
                 is like `pascal_voc`, but normalized,
-                in other words: [x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
-            The `yolo` format
+                in other words: `[x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
+            The `yolo` and `xywh_center_norm` format
                 `[x, y, width, height]`, e.g. [0.1, 0.2, 0.3, 0.4];
                 `x`, `y` - normalized bbox center; `width`, `height` - normalized bbox width and height.
+            The `xywh_norm` format
+                is like `coco`, but normalized,
+                in other words: `[x_min, y_min, width, height]`, e.g. [0.2, 0.3, 0.2, 0.2].
+            The `xywh_center` format
+                is like `yolo`, but not normalized,
+                in other words: `[x, y, width, height]`, e.g. [24, 48, 96, 120].
+
         label_fields (list): list of fields that are joined with boxes, e.g labels.
             Should be same type as boxes.
         min_area (float): minimum area of a bounding box. All bounding boxes whose

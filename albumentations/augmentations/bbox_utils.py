@@ -199,7 +199,7 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
 
     Args:
         bbox (tuple): A bounding box tuple.
-        source_format (str): format of the bounding box. Should be 'coco', 'pascal_voc', or 'yolo'.
+        source_format (str): format of the bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
         check_validity (bool): Check if all boxes are valid boxes.
         rows (int): Image height.
         cols (int): Image width.
@@ -218,25 +218,39 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         ValueError: If in YOLO format all labels not in range (0, 1).
 
     """
-    if source_format not in {"coco", "pascal_voc", "yolo"}:
+    if source_format not in {
+        "coco",
+        "pascal_voc",
+        "yolo",
+        "xyxy",
+        "xywh",
+        "xywh_center_norm",
+        "xywh_norm",
+        "xywh_center",
+    }:
         raise ValueError(
             "Unknown source_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(source_format)
         )
     if isinstance(bbox, np.ndarray):
         bbox = bbox.tolist()
 
-    if source_format == "coco":
+    if source_format in ["coco", "xywh", "xywh_norm"]:
         (x_min, y_min, width, height), tail = bbox[:4], tuple(bbox[4:])
         x_max = x_min + width
         y_max = y_min + height
-    elif source_format == "yolo":
+        if source_format == "xywh_norm":
+            x_min, y_min, x_max, y_max = denormalize_bbox((x_min, y_min, x_max, y_max), rows, cols)
+    elif source_format in ["yolo", "xywh_center_norm", "xywh_center"]:
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         bbox, tail = bbox[:4], tuple(bbox[4:])
         _bbox = np.array(bbox[:4])
-        if not np.all((0 < _bbox) & (_bbox < 1)):
-            raise ValueError("In YOLO format all labels must be float and in range (0, 1)")
+        if source_format == "xywh_center":
+            x, y, width, height = bbox[:4]
+        else:
+            if not np.all((0 < _bbox) & (_bbox < 1)):
+                raise ValueError("In YOLO format all labels must be float and in range (0, 1)")
 
-        x, y, width, height = denormalize_bbox(bbox, rows, cols)
+            x, y, width, height = denormalize_bbox(bbox, rows, cols)
 
         x_min = x - width / 2 + 1
         x_max = x_min + width
@@ -246,7 +260,9 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
     bbox = (x_min, y_min, x_max, y_max) + tail
+
     bbox = normalize_bbox(bbox, rows, cols)
+
     if check_validity:
         check_bbox(bbox)
     return bbox
@@ -274,26 +290,40 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
         ValueError: if `target_format` is not equal to `coco`, `pascal_voc` or `yolo`.
 
     """
-    if target_format not in {"coco", "pascal_voc", "yolo"}:
+    if target_format not in {
+        "coco",
+        "pascal_voc",
+        "yolo",
+        "xyxy",
+        "xywh",
+        "xywh_center_norm",
+        "xywh_norm",
+        "xywh_center",
+    }:
         raise ValueError(
             "Unknown target_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(target_format)
         )
     if check_validity:
         check_bbox(bbox)
     bbox = denormalize_bbox(bbox, rows, cols)
-    if target_format == "coco":
+    if target_format in ["coco", "xywh", "xywh_norm"]:
+        if target_format == "xywh_norm":
+            bbox = normalize_bbox(bbox, rows, cols)
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
         width = x_max - x_min
         height = y_max - y_min
         bbox = (x_min, y_min, width, height) + tail
-    elif target_format == "yolo":
+    elif target_format in ["yolo", "xywh_center_norm", "xywh_center"]:
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
         x = (x_min + x_max) / 2 - 1
         y = (y_min + y_max) / 2 - 1
         width = x_max - x_min
         height = y_max - y_min
-        bbox = normalize_bbox((x, y, width, height) + tail, rows, cols)
+        if target_format == "xywh_center":
+            bbox = (x, y, width, height) + tail
+        else:
+            bbox = normalize_bbox((x, y, width, height) + tail, rows, cols)
     return bbox
 
 

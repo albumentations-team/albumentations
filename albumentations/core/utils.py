@@ -63,7 +63,7 @@ class DataProcessor:
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
     def check_and_convert(self, data, rows, cols, direction="to"):
-        if self.params.format == "albumentations":
+        if self.params.format == "albumentations" or self.params.format == "xyxy_norm":
             self.check(data, rows, cols)
             return data
         else:
