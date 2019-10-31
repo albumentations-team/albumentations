@@ -79,6 +79,17 @@
   {%- for cssfile in extra_css_files %}
     <link rel="stylesheet" href="{{ pathto(cssfile, 1) }}" type="text/css" />
   {%- endfor %}
+  <style>
+    .wy-side-nav-search {
+      background-color: #ffffff;
+    }
+    .wy-side-nav-search>a, .wy-side-nav-search .wy-dropdown>a {
+      color: #222;
+    }
+    .wy-side-nav-search>div.version {
+      color: #222;
+    }
+  </style>
 
   {%- block linktags %}
     {%- if hasdoc('about') %}
@@ -145,8 +156,8 @@
 
         {% block navigation %}
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
-          <div style="padding: 5px 10px 10px 10px">
-            <iframe src="https://ghbtns.com/github-btn.html?user=albu&repo=albumentations&type=star&count=true&size=large" frameborder="0" scrolling="0" width="360px" height="30px"></iframe>
+          <div style="padding: 5px 10px 10px 10px; text-align: center; width: 100%">
+            <iframe src="https://ghbtns.com/github-btn.html?user=albu&repo=albumentations&type=star&count=true&size=large" frameborder="0" scrolling="0" width="150px" height="30px"></iframe>
           </div>
           {% block menu %}
             {#
