@@ -17,6 +17,8 @@ __all__ = [
     "BboxProcessor",
 ]
 
+BBOX_FORMATS = ["coco", "pascal_voc", "yolo", "xyxy", "xywh", "xywh_center_norm", "xywh_norm", "xywh_center"]
+
 
 class BboxProcessor(DataProcessor):
     @property
@@ -218,16 +220,7 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         ValueError: If in YOLO format all labels not in range (0, 1).
 
     """
-    if source_format not in {
-        "coco",
-        "pascal_voc",
-        "yolo",
-        "xyxy",
-        "xywh",
-        "xywh_center_norm",
-        "xywh_norm",
-        "xywh_center",
-    }:
+    if source_format not in BBOX_FORMATS:
         raise ValueError(
             "Unknown source_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(source_format)
         )
@@ -290,16 +283,7 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
         ValueError: if `target_format` is not equal to `coco`, `pascal_voc` or `yolo`.
 
     """
-    if target_format not in {
-        "coco",
-        "pascal_voc",
-        "yolo",
-        "xyxy",
-        "xywh",
-        "xywh_center_norm",
-        "xywh_norm",
-        "xywh_center",
-    }:
+    if target_format not in BBOX_FORMATS:
         raise ValueError(
             "Unknown target_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(target_format)
         )
