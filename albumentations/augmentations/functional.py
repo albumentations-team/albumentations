@@ -1894,9 +1894,8 @@ def multiply(img, multiplier):
 
 
 def fancy_pca(img, alpha=0.1):
-    """
-    This is 'Fancy PCA' from:
-    # http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+    """Perform 'Fancy PCA' augmentation from:
+    http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
 
     Args:
         img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
