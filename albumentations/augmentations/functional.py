@@ -1894,7 +1894,7 @@ def multiply(img, multiplier):
 
 
 def fancy_pca(img, alpha=0.1):
-    '''
+    """
     INPUTS:
     img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
     alpha_std:  how much to perturb/scale the eigen vecs and vals
@@ -1922,10 +1922,10 @@ def fancy_pca(img, alpha=0.1):
     variable drawn from a Gaussian with mean zero and standard deviation 0.1.
     Therefore to each RGB image pixel Ixy = [I_R_xy, I_G_xy, I_B_xy].T
     we add the following quantity:
-    [p1, p2, p3][α1λ1, α2λ2, α3λ3].T
-    Where pi and λi are ith eigenvector and eigenvalue of the 3 × 3 covariance
-    matrix of RGB pixel values, respectively, and αi is the aforementioned
-    random variable. Each αi is drawn only once for all the pixels of a
+    [p1, p2, p3][a1l1, a2l2, a3l3].T
+    Where pi and li are ith eigenvector and eigenvalue of the 3 × 3 covariance
+    matrix of RGB pixel values, respectively, and ai is the aforementioned
+    random variable. Each ai is drawn only once for all the pixels of a
     particular training image until that image is used for training again, at
     which point it is re-drawn. This scheme approximately captures an important
     property of natural images, namely, that object identity is invariant to
@@ -1934,7 +1934,7 @@ def fancy_pca(img, alpha=0.1):
     Other useful resources for getting this working:
     # https://groups.google.com/forum/#!topic/lasagne-users/meCDNeA9Ud4
     # https://gist.github.com/akemisetti/ecf156af292cd2a0e4eb330757f415d2
-    '''
+    """
 
     orig_img = img.astype(float).copy()
 
