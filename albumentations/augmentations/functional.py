@@ -1904,6 +1904,7 @@ def fancy_pca(img, alpha=0.1):
 
     Returns:
         numpy image-like array as float range(0, 1)
+
     """
     assert is_rgb_image(img) and img.dtype == np.uint8
 
