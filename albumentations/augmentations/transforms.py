@@ -2989,8 +2989,8 @@ class FancyPCA(ImageOnlyTransform):
         https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
     """
 
-    def __init__(self, alpha_std=0.1, p=0.5):
-        super(FancyPCA, self).__init__(p=p)
+    def __init__(self, alpha_std=0.1, always_apply=False, p=0.5):
+        super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
         self.alpha_std = alpha_std
 
     def apply(self, img, alpha=0.1, **params):
