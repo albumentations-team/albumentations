@@ -2977,13 +2977,20 @@ class FancyPCA(ImageOnlyTransform):
     """Augment RGB image using FancyPCA from Krizhevsky's paper
     "ImageNet Classification with Deep Convolutional Neural Networks"
 
+    Targets:
+        image
+
+    Image types:
+        3-channel uint8 images only
+
     Credit:
+        http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
         https://deshanadesai.github.io/notes/Fancy-PCA-with-Scikit-Image
         https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
     """
 
     def __init__(self, alpha_std=0.1, p=0.5):
-        super().__init__(p=p)
+        super(FancyPCA, self).__init__(p=p)
         self.alpha_std = alpha_std
 
     def apply(self, img, alpha=0.1, **params):
