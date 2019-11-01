@@ -74,6 +74,7 @@ __all__ = [
     "Posterize",
     "Downscale",
     "MultiplicativeNoise",
+    "FancyPCA",
 ]
 
 
@@ -2970,3 +2971,27 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return "multiplier", "per_channel", "elementwise"
+
+
+class FancyPCA(ImageOnlyTransform):
+    """Augment RGB image using FancyPCA from Krizhevsky's paper
+    "ImageNet Classification with Deep Convolutional Neural Networks"
+
+    Credit:
+        https://deshanadesai.github.io/notes/Fancy-PCA-with-Scikit-Image
+        https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
+    """
+
+    def __init__(self, alpha_std=0.1, p=0.5):
+        super().__init__(p=p)
+        self.alpha_std = alpha_std
+
+    def apply(self, img, alpha=0.1, **params):
+        img = F.fancy_pca(img, alpha)
+        return img
+
+    def get_params(self):
+        return {"alpha": random.gauss(0, self.alpha_std)}
+
+    def get_transform_init_args_names(self):
+        return ("alpha_std",)
