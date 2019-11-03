@@ -189,7 +189,7 @@ def __test_multiprocessing_support_proc(args):
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
         [A.IAASharpen, {}],
-        [A.FancyPCA, {}]
+        [A.FancyPCA, {}],
     ],
 )
 @skip_appveyor
@@ -274,7 +274,7 @@ def test_force_apply():
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
-        [A.FancyPCA, {}]
+        [A.FancyPCA, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
