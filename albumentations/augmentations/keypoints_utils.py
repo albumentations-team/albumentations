@@ -5,6 +5,7 @@ import warnings
 from albumentations.core.utils import DataProcessor
 
 __all__ = [
+    "angle_to_2pi_range",
     "check_keypoints",
     "convert_keypoints_from_albumentations",
     "convert_keypoints_to_albumentations",
@@ -13,6 +14,11 @@ __all__ = [
 ]
 
 keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
+
+
+def angle_to_2pi_range(angle):
+    two_pi = 2 * math.pi
+    return angle % two_pi
 
 
 class KeypointsProcessor(DataProcessor):
@@ -81,6 +87,10 @@ def check_keypoint(kp, rows, cols):
                 "to be in the range [0.0, {size}], got {value}.".format(kp=kp, name=name, value=value, size=size)
             )
 
+    angle = kp[2]
+    if not (0 <= angle < 2 * math.pi):
+        raise ValueError("Keypoint angle must be in range [0, 2 * PI). Got: {angle}".format(angle=angle))
+
 
 def check_keypoints(keypoints, rows, cols):
     """Check if keypoints boundaries are less than image shapes"""
@@ -133,19 +143,10 @@ def convert_keypoint_to_albumentations(
     if angle_in_degrees:
         a = math.radians(a)
 
-    keypoint = (x, y, a, s) + tail
+    keypoint = (x, y, angle_to_2pi_range(a), s) + tail
     if check_validity:
         check_keypoint(keypoint, rows, cols)
     return keypoint
-
-
-def normalize_angle(a):
-    two_pi = 2.0 * math.pi
-    while a < 0:
-        a += two_pi
-    while a > two_pi:
-        a -= two_pi
-    return a
 
 
 def convert_keypoint_from_albumentations(
@@ -158,7 +159,7 @@ def convert_keypoint_from_albumentations(
         check_keypoint(keypoint, rows, cols)
 
     (x, y, angle, scale), tail = keypoint[:4], tuple(keypoint[4:])
-    angle = normalize_angle(angle)
+    angle = angle_to_2pi_range(angle)
     if angle_in_degrees:
         angle = math.degrees(angle)
 
