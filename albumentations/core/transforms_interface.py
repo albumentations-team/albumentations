@@ -248,3 +248,6 @@ class NoOp(DualTransform):
 
     def apply_to_mask(self, img, **params):
         return img
+
+    def get_transform_init_args_names(self):
+        return tuple()
