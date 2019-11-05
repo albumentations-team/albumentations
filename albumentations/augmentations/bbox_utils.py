@@ -236,7 +236,7 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         if not np.all((0 < _bbox) & (_bbox <= 1)):
             raise ValueError("In YOLO format all labels must be float and in range (0, 1]")
 
-        x, y, width, height = denormalize_bbox(bbox, rows, cols)
+        x, y, width, height = np.round(denormalize_bbox(bbox, rows, cols))
 
         x_min = x - width / 2 + 1
         x_max = x_min + width
@@ -321,10 +321,10 @@ def convert_bboxes_from_albumentations(bboxes, target_format, rows, cols, check_
     return [convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_validity) for bbox in bboxes]
 
 
-def check_bbox(bbox, eps=1e-6):
+def check_bbox(bbox):
     """Check if bbox boundaries are in range 0, 1 and minimums are lesser then maximums"""
     for name, value in zip(["x_min", "y_min", "x_max", "y_max"], bbox[:4]):
-        if not 0 - eps <= value <= 1 + eps:
+        if not 0 <= value <= 1:
             raise ValueError(
                 "Expected {name} for bbox {bbox} "
                 "to be in the range [0.0, 1.0], got {value}.".format(bbox=bbox, name=name, value=value)
