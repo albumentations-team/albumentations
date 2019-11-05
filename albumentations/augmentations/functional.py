@@ -1599,10 +1599,8 @@ def keypoint_vflip(keypoint, rows, cols):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
-    c = math.cos(angle)
-    s = math.sin(angle)
-    angle = math.atan2(-s, c)
+    x, y, angle, scale = keypoint
+    angle = -angle
     return x, (rows - 1) - y, angle, scale
 
 
@@ -1619,10 +1617,8 @@ def keypoint_hflip(keypoint, rows, cols):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
-    c = math.cos(angle)
-    s = math.sin(angle)
-    angle = math.atan2(s, -c)
+    x, y, angle, scale = keypoint
+    angle = math.pi - angle
     return (cols - 1) - x, y, angle, scale
 
 
