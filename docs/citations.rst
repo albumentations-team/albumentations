@@ -13,7 +13,7 @@ If you find this library useful for your research, please consider citing:
     year = 2018
   }
 
-List of papers that cites Albumentations
+List of papers that cite Albumentations
 ----------------------------------------
 1. `Camera Model Identification Using Convolutional Neural Networks <https://ieeexplore.ieee.org/abstract/document/8622031/>`_.
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

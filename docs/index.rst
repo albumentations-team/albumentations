@@ -47,6 +47,7 @@ to adjust image augmentation parameters and see the resulting images.
 
    examples
    contributing
+   augs_overview/index
    api/index
    probabilities
    writing_tests

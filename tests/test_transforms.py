@@ -272,6 +272,7 @@ def test_force_apply():
         [A.Solarize, {}],
         [A.Posterize, {}],
         [A.Equalize, {}],
+        [A.MultiplicativeNoise, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
@@ -306,13 +307,13 @@ def test_lambda_transform():
     output = aug(
         image=np.ones((10, 10, 3), dtype=np.float32),
         mask=np.tile(np.arange(0, 10), (10, 1)),
-        bboxes=[[10, 15, 25, 35]],
-        keypoints=[[20, 30, 40, 50]],
+        bboxes=[(10, 15, 25, 35)],
+        keypoints=[(20, 30, 40, 50)],
     )
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [F.bbox_vflip([10, 15, 25, 35], 10, 10)]
-    assert output["keypoints"] == [F.keypoint_vflip([20, 30, 40, 50], 10, 10)]
+    assert output["bboxes"] == [F.bbox_vflip((10, 15, 25, 35), 10, 10)]
+    assert output["keypoints"] == [F.keypoint_vflip((20, 30, 40, 50), 10, 10)]
 
 
 def test_channel_droput():
@@ -415,7 +416,7 @@ def test_downscale(interpolation):
 
 def test_crop_keypoints():
     image = np.random.randint(0, 256, (100, 100), np.uint8)
-    keypoints = [[50, 50, 0, 0]]
+    keypoints = [(50, 50, 0, 0)]
 
     aug = A.Crop(0, 0, 80, 80, p=1)
     result = aug(image=image, keypoints=keypoints)
@@ -423,51 +424,109 @@ def test_crop_keypoints():
 
     aug = A.Crop(50, 50, 100, 100, p=1)
     result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == [[0, 0, 0, 0]]
+    assert result["keypoints"] == [(0, 0, 0, 0)]
 
 
 def test_longest_max_size_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [[9, 5, 0, 0]]
+    keypoints = [(9, 5, 0, 0)]
 
     aug = A.LongestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[18, 10, 0, 0]]
+    assert result["keypoints"] == [(18, 10, 0, 0)]
 
     aug = A.LongestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[0.9, 0.5, 0, 0]]
+    assert result["keypoints"] == [(0.9, 0.5, 0, 0)]
 
     aug = A.LongestMaxSize(max_size=50, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[9, 5, 0, 0]]
+    assert result["keypoints"] == [(9, 5, 0, 0)]
 
 
 def test_smallest_max_size_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [[9, 5, 0, 0]]
+    keypoints = [(9, 5, 0, 0)]
 
     aug = A.SmallestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[90, 50, 0, 0]]
+    assert result["keypoints"] == [(90, 50, 0, 0)]
 
     aug = A.SmallestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[4.5, 2.5, 0, 0]]
+    assert result["keypoints"] == [(4.5, 2.5, 0, 0)]
 
     aug = A.SmallestMaxSize(max_size=10, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[9, 5, 0, 0]]
+    assert result["keypoints"] == [(9, 5, 0, 0)]
 
 
 def test_resize_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    keypoints = [[9, 5, 0, 0]]
+    keypoints = [(9, 5, 0, 0)]
 
     aug = A.Resize(height=100, width=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[18, 2.5, 0, 0]]
+    assert result["keypoints"] == [(4.5, 10, 0, 0)]
 
     aug = A.Resize(height=50, width=10, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [[9, 5, 0, 0]]
+    assert result["keypoints"] == [(9, 5, 0, 0)]
+
+
+@pytest.mark.parametrize(
+    "image", [np.random.randint(0, 256, [256, 320], np.uint8), np.random.random([256, 320]).astype(np.float32)]
+)
+def test_multiplicative_noise_grayscale(image):
+    m = 0.5
+    aug = A.MultiplicativeNoise(m, p=1)
+    result = aug(image=image)["image"]
+    image = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+    assert np.allclose(image, result)
+
+    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": image})
+    mul = params["multiplier"]
+    assert mul.shape == image.shape
+    result = aug.apply(image, mul)
+    dtype = image.dtype
+    image = image.astype(np.float32) * mul
+    image = F.clip(image, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(image, result)
+
+
+@pytest.mark.parametrize(
+    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+)
+def test_multiplicative_noise_rgb(image):
+    dtype = image.dtype
+
+    m = 0.5
+    aug = A.MultiplicativeNoise(m, p=1)
+    result = aug(image=image)["image"]
+    image = F.clip(image * m, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(image, result)
+
+    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": image})
+    mul = params["multiplier"]
+    assert mul.shape == image.shape[:2] + (1,)
+    result = aug.apply(image, mul)
+    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(image, result)
+
+    aug = A.MultiplicativeNoise(per_channel=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": image})
+    mul = params["multiplier"]
+    assert mul.shape == (3,)
+    result = aug.apply(image, mul)
+    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(image, result)
+
+    aug = A.MultiplicativeNoise(elementwise=True, per_channel=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": image})
+    mul = params["multiplier"]
+    assert mul.shape == image.shape
+    result = aug.apply(image, mul)
+    image = F.clip(image.astype(np.float32) * mul, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+    assert np.allclose(image, result)

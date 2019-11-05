@@ -73,6 +73,7 @@ __all__ = [
     "Equalize",
     "Posterize",
     "Downscale",
+    "MultiplicativeNoise",
 ]
 
 
@@ -150,12 +151,12 @@ class PadIfNeeded(DualTransform):
 
     def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
-        bbox = [x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top]
+        bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
         return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
     def apply_to_keypoint(self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
-        x, y, a, s = keypoint
-        return [x + pad_left, y + pad_top, a, s]
+        x, y, angle, scale = keypoint
+        return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
         return ("min_height", "min_width", "border_mode", "value", "mask_value")
@@ -165,10 +166,10 @@ class Crop(DualTransform):
     """Crop region from image.
 
     Args:
-        x_min (int): minimum upper left x coordinate.
-        y_min (int): minimum upper left y coordinate.
-        x_max (int): maximum lower right x coordinate.
-        y_max (int): maximum lower right y coordinate.
+        x_min (int): Minimum upper left x coordinate.
+        y_min (int): Minimum upper left y coordinate.
+        x_max (int): Maximum lower right x coordinate.
+        y_max (int): Maximum lower right y coordinate.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -193,7 +194,7 @@ class Crop(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         return F.crop_keypoint_by_coords(
             keypoint,
-            crop_coords=[self.x_min, self.y_min, self.x_max, self.y_max],
+            crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max),
             crop_height=self.y_max - self.y_min,
             crop_width=self.x_max - self.x_min,
             rows=params["rows"],
@@ -431,8 +432,9 @@ class Resize(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         height = params["rows"]
         width = params["cols"]
-
-        return F.keypoint_scale(keypoint, self.height / height, self.width / width)
+        scale_x = self.width / width
+        scale_y = self.height / height
+        return F.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
@@ -774,7 +776,7 @@ class RandomCropNearBBox(DualTransform):
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.crop_keypoint_by_coords(
             keypoint,
-            crop_coords=[x_min, y_min, x_max, y_max],
+            crop_coords=(x_min, y_min, x_max, y_max),
             crop_height=y_max - y_min,
             crop_width=x_max - x_min,
             rows=params["rows"],
@@ -1328,7 +1330,7 @@ class RandomGridShuffle(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, grid=(3, 3), always_apply=False, p=1.0):
+    def __init__(self, grid=(3, 3), always_apply=False, p=0.5):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
@@ -1549,9 +1551,9 @@ class CoarseDropout(ImageOnlyTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for _n in range(random.randint(self.min_holes, self.max_holes + 1)):
-            hole_height = random.randint(self.min_height, self.max_height + 1)
-            hole_width = random.randint(self.min_width, self.max_width + 1)
+        for _n in range(random.randint(self.min_holes, self.max_holes)):
+            hole_height = random.randint(self.min_height, self.max_height)
+            hole_width = random.randint(self.min_width, self.max_width)
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
@@ -2385,7 +2387,7 @@ class Blur(ImageOnlyTransform):
         return F.blur(image, ksize)
 
     def get_params(self):
-        return {"ksize": random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))}
+        return {"ksize": int(random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
 
     def get_transform_init_args_names(self):
         return ("blur_limit",)
@@ -2419,6 +2421,9 @@ class MotionBlur(Blur):
         else:
             ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
         cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
+
+        # Normalize kernel
+        kernel = kernel.astype(np.float32) / np.sum(kernel)
         return {"kernel": kernel}
 
 
@@ -2906,3 +2911,62 @@ class Lambda(NoOp):
         state.update(self.custom_apply_fns.items())
         state.update(self.get_base_init_args())
         return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+
+
+class MultiplicativeNoise(ImageOnlyTransform):
+    """Multiply image to random number or array of numbers.
+
+    Args:
+        multiplier (float or tuple of floats): If single float image will be multiplied to this number.
+            If tuple of float multiplier will be in range `[multiplier[0], multiplier[1])`. Default: (0.9, 1.1).
+        per_channel (bool): If `False`, same values for all channels will be used.
+            If `True` use sample values for each channels. Default False.
+        elementwise (bool): If `False` multiply multiply all pixels in an image with a random value sampled once.
+            If `True` Multiply image pixels with values that are pixelwise randomly sampled. Defaule: False.
+
+    Targets:
+        image
+
+    Image types:
+        Any
+    """
+
+    def __init__(self, multiplier=(0.9, 1.1), per_channel=False, elementwise=False, always_apply=False, p=0.5):
+        super(MultiplicativeNoise, self).__init__(always_apply, p)
+        self.multiplier = to_tuple(multiplier, multiplier)
+        self.per_channel = per_channel
+        self.elementwise = elementwise
+
+    def apply(self, img, multiplier=np.array([1]), **kwargs):
+        return F.multiply(img, multiplier)
+
+    def get_params_dependent_on_targets(self, params):
+        if self.multiplier[0] == self.multiplier[1]:
+            return {"multiplier": np.array([self.multiplier[0]])}
+
+        img = params["image"]
+
+        h, w = img.shape[:2]
+
+        if self.per_channel:
+            c = 1 if F.is_grayscale_image(img) else img.shape[-1]
+        else:
+            c = 1
+
+        if self.elementwise:
+            shape = [h, w, c]
+        else:
+            shape = [c]
+
+        multiplier = np.random.uniform(self.multiplier[0], self.multiplier[1], shape)
+        if F.is_grayscale_image(img):
+            multiplier = np.squeeze(multiplier)
+
+        return {"multiplier": multiplier}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_transform_init_args_names(self):
+        return "multiplier", "per_channel", "elementwise"

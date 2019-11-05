@@ -214,12 +214,10 @@ class DualTransform(BasicTransform):
         raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
 
     def apply_to_bboxes(self, bboxes, **params):
-        bboxes = [list(bbox) for bbox in bboxes]
-        return [self.apply_to_bbox(bbox[:4], **params) + bbox[4:] for bbox in bboxes]
+        return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]
 
     def apply_to_keypoints(self, keypoints, **params):
-        keypoints = [list(keypoint) for keypoint in keypoints]
-        return [self.apply_to_keypoint(keypoint[:4], **params) + keypoint[4:] for keypoint in keypoints]
+        return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
 
     def apply_to_mask(self, img, **params):
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
@@ -250,3 +248,6 @@ class NoOp(DualTransform):
 
     def apply_to_mask(self, img, **params):
         return img
+
+    def get_transform_init_args_names(self):
+        return tuple()

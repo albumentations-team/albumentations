@@ -60,6 +60,7 @@ from albumentations import (
     CropNonEmptyMaskIfExists,
     LongestMaxSize,
     Downscale,
+    MultiplicativeNoise,
 )
 
 
@@ -94,6 +95,7 @@ from albumentations import (
         [Posterize, {}],
         [Equalize, {}],
         [Downscale, {}],
+        [MultiplicativeNoise, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -130,6 +132,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         [RandomShadow, {}],
         [ChannelDropout, {}],
         [Solarize, {}],
+        [MultiplicativeNoise, {}],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -268,6 +271,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Solarize, {}],
         [Posterize, {}],
         [Equalize, {}],
+        [MultiplicativeNoise, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -324,6 +328,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [ChannelDropout, {}],
         [RandomGridShuffle, {}],
         [Solarize, {}],
+        [MultiplicativeNoise, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -363,6 +368,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [Solarize, {}],
         [Posterize, {}],
         [Equalize, {}],
+        [MultiplicativeNoise, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -435,6 +441,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Solarize, {}],
         [Posterize, {}],
         [Equalize, {}],
+        [MultiplicativeNoise, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -495,6 +502,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [GridDistortion, {}],
         [ElasticTransform, {}],
         [RandomBrightnessContrast, {}],
+        [MultiplicativeNoise, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
