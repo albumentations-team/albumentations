@@ -1599,7 +1599,7 @@ def keypoint_vflip(keypoint, rows, cols):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = kp
+    x, y, angle, scale = keypoint
     angle = -angle
     return x, (rows - 1) - y, angle, scale
 
@@ -1617,7 +1617,7 @@ def keypoint_hflip(keypoint, rows, cols):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = kp
+    x, y, angle, scale = keypoint
     angle = math.pi - angle
     return (cols - 1) - x, y, angle, scale
 
