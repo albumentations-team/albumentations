@@ -91,6 +91,11 @@ Kaggle
 3. `Roman Solovyev <https://www.kaggle.com/zfturbo>`_, `Weimin Wang <https://www.kaggle.com/weimin>`__
     `solution <https://www.kaggle.com/c/inclusive-images-challenge/discussion/71433>`__
 
+`Airbus Ship Detection Challenge <https://www.kaggle.com/c/airbus-ship-detection/>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+30. `Konstantin Maksimov <https://www.kaggle.com/maksimovka>`__
+     `paper <https://ieeexplore.ieee.org/document/8783822/authors#authors>`__
+
 Topcoder
 --------
 2019
@@ -104,6 +109,13 @@ Topcoder
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 2. `Miras Amir <https://www.linkedin.com/in/amirassov/>`__
      `solution <https://github.com/amirassov/topcoder-facial-marathon>`__
+
+2018
+^^^^
+`SpaceNet Challenge Round 4: Off-Nadir Buildings <https://spacenet.ai/off-nadir-building-detection/>`__
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3. `Konstantin Maksimov <https://www.linkedin.com/in/konstantin-maksimov/>`__
+     `solution <https://github.com/SpaceNetChallenge/SpaceNet_Off_Nadir_Solutions/tree/master/MaksimovKA_solution>`__
 
 CVPR
 ----

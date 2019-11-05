@@ -9,6 +9,7 @@ from albumentations.augmentations.keypoints_utils import (
     convert_keypoints_from_albumentations,
     convert_keypoint_to_albumentations,
     convert_keypoints_to_albumentations,
+    angle_to_2pi_range,
 )
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
@@ -249,7 +250,7 @@ def test_iaa_transforms_emit_warning(aug, keypoints, expected):
     [
         ((20, 30, math.pi / 2, 0), (20, 30, math.pi / 2, 0), 0),
         ((20, 30, math.pi / 2, 0), (30, 179, 0, 0), 1),
-        ((20, 30, math.pi / 2, 0), (179, 69, -math.pi / 2, 0), 2),
+        ((20, 30, math.pi / 2, 0), (179, 69, 3 * math.pi / 2, 0), 2),
         ((20, 30, math.pi / 2, 0), (69, 20, math.pi, 0), 3),
     ],
 )
@@ -263,8 +264,8 @@ def test_keypoint_rotate90(keypoint, expected, factor):
     [
         [[20, 30, math.pi / 2, 0], [20, 30, math.pi / 2, 0], 0],
         [[20, 30, math.pi / 2, 0], [30, 79, math.pi, 0], 90],
-        [[20, 30, math.pi / 2, 0], [79, 69, math.pi + math.pi / 2, 0], 180],
-        [[20, 30, math.pi / 2, 0], [69, 20, math.pi * 2, 0], 270],
+        [[20, 30, math.pi / 2, 0], [79, 69, 3 * math.pi / 2, 0], 180],
+        [[20, 30, math.pi / 2, 0], [69, 20, 0, 0], 270],
         [[0, 0, 0, 0], [99, 99, math.pi, 0], 180],
         [[99, 99, 0, 0], [0, 0, math.pi, 0], 180],
     ],
@@ -304,3 +305,21 @@ def test_compose_with_additional_targets():
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
     assert transformed["keypoints"] == [(25, 25)]
     assert transformed["kp1"] == [(30, 30)]
+
+
+@pytest.mark.parametrize(
+    ["angle", "expected"],
+    [
+        [0, 0],
+        [np.pi / 2, np.pi / 2],
+        [np.pi, np.pi],
+        [3 * np.pi / 2, 3 * np.pi / 2],
+        [2 * np.pi, 0],
+        [-np.pi / 2, 3 * np.pi / 2],
+        [-np.pi, np.pi],
+        [-3 * np.pi / 2, np.pi / 2],
+        [-2 * np.pi, 0],
+    ],
+)
+def test_angle_to_2pi_range(angle, expected):
+    assert np.isclose(angle_to_2pi_range(angle), expected)
