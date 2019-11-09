@@ -1262,8 +1262,8 @@ def gauss_noise(image, gauss):
 
 @clipped
 def _brightness_contrast_adjust_non_uint(img, alpha=1, beta=0, beta_by_max=False):
-    dtype = img.dtype
     img = img.astype("float32")
+    dtype = img.dtype
 
     if alpha != 1:
         img *= alpha
