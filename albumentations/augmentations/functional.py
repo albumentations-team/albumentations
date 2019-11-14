@@ -621,11 +621,8 @@ def shift_rgb(img, r_shift, g_shift, b_shift):
 
 
 @clipped
-def linear_transformation_rgb(img, transformation_matrix, shifts=None):
-    result_img = cv2.transform(img, transformation_matrix.astype(np.float32))
-    if shifts is not None:
-        for i, shift in enumerate(shifts):
-            result_img[..., i] += shift
+def linear_transformation_rgb(img, transformation_matrix):
+    result_img = cv2.transform(img, transformation_matrix)
 
     return result_img
 
