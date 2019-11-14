@@ -16,3 +16,16 @@ API link: :class:`~albumentations.augmentations.transforms.MultiplicativeNoise`
 
 .. figure:: ./images/MultiplicativeNoise.jpg
     :alt: MultiplicativeNoise image
+
+
+ToSepia
+-------------------
+
+API link: :class:`~albumentations.augmentations.transforms.ToSepia`
+
+
+1. Original image
+2. :code:`ToSepia(p=1)`
+
+.. figure:: ./images/ToSepia.jpg
+    :alt: ToSepia image
