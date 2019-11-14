@@ -620,6 +620,13 @@ def shift_rgb(img, r_shift, g_shift, b_shift):
     return _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift)
 
 
+@clipped
+def linear_transformation_rgb(img, transformation_matrix):
+    result_img = cv2.transform(img, transformation_matrix)
+
+    return result_img
+
+
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     if img.dtype != np.uint8:
         raise TypeError("clahe supports only uint8 inputs")
