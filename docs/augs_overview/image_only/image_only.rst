@@ -197,3 +197,36 @@ API link: :class:`~albumentations.augmentations.transforms.RandomGridShuffle`
 
 .. figure:: ./images/RandomGridShuffle.jpg
     :alt: RandomGridShuffle image
+
+
+RandomContrast
+-------------------
+
+
+API link: :class:`~albumentations.augmentations.transforms.RandomContrast`
+
+
+1. Original image
+2. :code:`RandomContrast(limit=0.2, p=1.0)`
+3. :code:`RandomContrast(limit=0.5, p=1.0)`
+4. :code:`RandomContrast(limit=0.9, p=1.0)`
+
+.. figure:: ./images/RandomContrast.jpg
+    :alt: RandomContrast image
+
+RGBShift
+-------------------
+
+
+API link: :class:`~albumentations.augmentations.transforms.RGBShift`
+
+
+1. Original image
+2. :code:`RGBShift(r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, p=1.0)`
+3. :code:`RGBShift(r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, p=1.0)`
+4. :code:`RGBShift(r_shift_limit=(20,21) , g_shift_limit=0, b_shift_limit=0, p=1.0)`
+5. :code:`RGBShift(r_shift_limit=0 , g_shift_limit=(-21,-20), b_shift_limit=0, p=1.0)`
+6. :code:`RGBShift(r_shift_limit=0, g_shift_limit=0, b_shift_limit=(30,31), p=1.0)`
+
+.. figure:: ./images/RGBShift.jpg
+    :alt: RGBShift image
