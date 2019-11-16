@@ -5,5 +5,6 @@ graft benchmark
 graft tests
 graft docs
 prune docs/_build
+global-exclude docs/augs_overview/*/images/*.jpg
 
 global-exclude *.py[co] .DS_Store
