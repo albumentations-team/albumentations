@@ -233,10 +233,10 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         bbox, tail = bbox[:4], tuple(bbox[4:])
         _bbox = np.array(bbox[:4])
-        if not np.all((0 < _bbox) & (_bbox < 1)):
-            raise ValueError("In YOLO format all labels must be float and in range (0, 1)")
+        if not np.all((0 < _bbox) & (_bbox <= 1)):
+            raise ValueError("In YOLO format all labels must be float and in range (0, 1]")
 
-        x, y, width, height = denormalize_bbox(bbox, rows, cols)
+        x, y, width, height = np.round(denormalize_bbox(bbox, rows, cols))
 
         x_min = x - width / 2 + 1
         x_max = x_min + width
