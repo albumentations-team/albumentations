@@ -532,3 +532,23 @@ def test_multiplicative_noise_rgb(image):
     result = aug.apply(image, mul)
     image = F.clip(image.astype(np.float32) * mul, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.allclose(image, result)
+
+
+def test_mask_dropout():
+    # In this case we have mask with all ones, so MaskDropout wipe entire mask and image
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    mask = np.ones([50, 10], dtype=np.long)
+
+    aug = A.MaskDropout(p=1)
+    result = aug(image=img, mask=mask)
+    assert np.all(result["image"] == 0)
+    assert np.all(result["mask"] == 0)
+
+    # In this case we have mask with zeros , so MaskDropout will make no changes
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    mask = np.zeros([50, 10], dtype=np.long)
+
+    aug = A.MaskDropout(p=1)
+    result = aug(image=img, mask=mask)
+    assert np.all(result["image"] == img)
+    assert np.all(result["mask"] == 0)
