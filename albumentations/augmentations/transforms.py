@@ -2977,6 +2977,10 @@ class FancyPCA(ImageOnlyTransform):
     """Augment RGB image using FancyPCA from Krizhevsky's paper
     "ImageNet Classification with Deep Convolutional Neural Networks"
 
+    Args:
+        alpha (float):  how much to perturb/scale the eigen vecs and vals
+            the paper used std=0.1
+
     Targets:
         image
 
@@ -2989,16 +2993,19 @@ class FancyPCA(ImageOnlyTransform):
         https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
     """
 
-    def __init__(self, alpha_std=0.1, always_apply=False, p=0.5):
+    def __init__(self, alpha=0.1, always_apply=False, p=0.5):
+        """
+
+        """
         super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
-        self.alpha_std = alpha_std
+        self.alpha = alpha
 
     def apply(self, img, alpha=0.1, **params):
         img = F.fancy_pca(img, alpha)
         return img
 
     def get_params(self):
-        return {"alpha": random.gauss(0, self.alpha_std)}
+        return {"alpha": random.gauss(0, self.alpha)}
 
     def get_transform_init_args_names(self):
-        return ("alpha_std",)
+        return ("alpha",)

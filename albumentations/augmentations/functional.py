@@ -1899,8 +1899,8 @@ def fancy_pca(img, alpha=0.1):
 
     Args:
         img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
-        alpha_std:  how much to perturb/scale the eigen vecs and vals
-                    the paper used std=0.1
+        alpha:  how much to perturb/scale the eigen vecs and vals
+                the paper used std=0.1
 
     Returns:
         numpy image-like array as float range(0, 1)
