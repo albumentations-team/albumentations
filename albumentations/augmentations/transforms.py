@@ -3007,8 +3007,8 @@ class FancyPCA(ImageOnlyTransform):
     "ImageNet Classification with Deep Convolutional Neural Networks"
 
     Args:
-        alpha (float):  how much to perturb/scale the eigen vecs and vals
-            the paper used std=0.1
+        alpha (float):  how much to perturb/scale the eigen vecs and vals.
+            scale is samples from gaussian distribution (mu=0, sigma=alpha)
 
     Targets:
         image
