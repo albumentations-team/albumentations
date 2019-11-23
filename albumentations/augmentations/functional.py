@@ -1901,7 +1901,7 @@ def multiply(img, multiplier):
 
 
 def bbox_for_mask(mask):
-    """ Create bounding box for binary mask (fast version)
+    """Create bounding box for binary mask (fast version)
 
     Args:
         mask (numpy.ndarray): binary mask.
