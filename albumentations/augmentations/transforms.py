@@ -1243,6 +1243,18 @@ class OpticalDistortion(DualTransform):
     def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
+    def apply_to_bbox(self, bbox, k=0, dx=0, dy=0, **params):
+        rows, cols = params['rows'], params['cols']
+        mask = np.zeros((rows, cols), dtype=np.uint8)
+        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_denorm[:4]
+        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        mask[y_min:y_max, x_min:x_max] = 1
+        mask = F.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        bbox_returned = F.bbox_for_mask(mask)
+        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
+        return bbox_returned
+
     def get_params(self):
         return {
             "k": random.uniform(self.distort_limit[0], self.distort_limit[1]),
@@ -1304,6 +1316,20 @@ class GridDistortion(DualTransform):
         return F.grid_distortion(
             img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
+
+    def apply_to_bbox(self, bbox, stepsx=[], stepsy=[], **params):
+        rows, cols = params['rows'], params['cols']
+        mask = np.zeros((rows, cols), dtype=np.uint8)
+        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_denorm[:4]
+        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        mask[y_min:y_max, x_min:x_max] = 1
+        mask = F.grid_distortion(
+            mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+        )
+        bbox_returned = F.bbox_for_mask(mask)
+        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
+        return bbox_returned
 
     def get_params(self):
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
@@ -1395,6 +1421,28 @@ class ElasticTransform(DualTransform):
             np.random.RandomState(random_state),
             self.approximate,
         )
+
+    def apply_to_bbox(self, bbox, random_state=None, **params):
+        rows, cols = params['rows'], params['cols']
+        mask = np.zeros((rows, cols), dtype=np.uint8)
+        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_denorm[:4]
+        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        mask[y_min:y_max, x_min:x_max] = 1
+        mask = F.elastic_transform(
+            mask,
+            self.alpha,
+            self.sigma,
+            self.alpha_affine,
+            cv2.INTER_NEAREST,
+            self.border_mode,
+            self.mask_value,
+            np.random.RandomState(random_state),
+            self.approximate,
+        )
+        bbox_returned = F.bbox_for_mask(mask)
+        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
+        return bbox_returned
 
     def get_params(self):
         return {"random_state": random.randint(0, 10000)}
