@@ -813,7 +813,16 @@ class RandomCropFromBorders(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, crop_value=None, crop_left=None, crop_right=None, crop_top=None, crop_bottom=None, always_apply=False, p=1.0):
+    def __init__(
+            self,
+            crop_value=None,
+            crop_left=None,
+            crop_right=None,
+            crop_top=None,
+            crop_bottom=None,
+            always_apply=False,
+            p=1.0
+    ):
         super(RandomCropFromBorders, self).__init__(always_apply, p)
         self.crop_left = 0.1
         self.crop_right = 0.1
