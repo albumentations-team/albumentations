@@ -1916,4 +1916,4 @@ def bbox_for_mask(mask):
     cols = np.any(mask, axis=0)
     y_min, y_max = np.where(rows)[0][[0, -1]]
     x_min, x_max = np.where(cols)[0][[0, -1]]
-    return x_min, y_min, x_max, y_max
+    return x_min, y_min, x_max + 1, y_max + 1
