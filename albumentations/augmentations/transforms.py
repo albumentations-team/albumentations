@@ -814,14 +814,14 @@ class RandomCropFromBorders(DualTransform):
     """
 
     def __init__(
-            self,
-            crop_value=None,
-            crop_left=None,
-            crop_right=None,
-            crop_top=None,
-            crop_bottom=None,
-            always_apply=False,
-            p=1.0
+        self,
+        crop_value=None,
+        crop_left=None,
+        crop_right=None,
+        crop_top=None,
+        crop_bottom=None,
+        always_apply=False,
+        p=1.0,
     ):
         super(RandomCropFromBorders, self).__init__(always_apply, p)
         self.crop_left = 0.1
@@ -857,7 +857,7 @@ class RandomCropFromBorders(DualTransform):
         return F.clamping_crop(mask, x_min, y_min, x_max, y_max)
 
     def apply_to_bbox(self, bbox, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        rows, cols = params["rows"], params['cols']
+        rows, cols = params["rows"], params["cols"]
         return F.bbox_crop(bbox, x_min, y_min, x_max, y_max, rows, cols)
 
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
@@ -1244,7 +1244,7 @@ class OpticalDistortion(DualTransform):
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
     def apply_to_bbox(self, bbox, k=0, dx=0, dy=0, **params):
-        rows, cols = params['rows'], params['cols']
+        rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
@@ -1318,7 +1318,7 @@ class GridDistortion(DualTransform):
         )
 
     def apply_to_bbox(self, bbox, stepsx=[], stepsy=[], **params):
-        rows, cols = params['rows'], params['cols']
+        rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
@@ -1423,7 +1423,7 @@ class ElasticTransform(DualTransform):
         )
 
     def apply_to_bbox(self, bbox, random_state=None, **params):
-        rows, cols = params['rows'], params['cols']
+        rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
