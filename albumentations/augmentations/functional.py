@@ -1900,8 +1900,8 @@ def multiply(img, multiplier):
         return _multiply_non_uint8(img, multiplier)
 
 
-def bbox_for_mask(mask):
-    """Create bounding box for binary mask (fast version)
+def bbox_from_mask(mask):
+    """Create bounding box from binary mask (fast version)
 
     Args:
         mask (numpy.ndarray): binary mask.
@@ -1917,3 +1917,21 @@ def bbox_for_mask(mask):
     y_min, y_max = np.where(rows)[0][[0, -1]]
     x_min, x_max = np.where(cols)[0][[0, -1]]
     return x_min, y_min, x_max + 1, y_max + 1
+
+
+def mask_from_bbox(img, bbox):
+    """Create binary mask from bounding box
+
+    Args:
+        img (numpy.ndarray): input image
+        bbox: A bounding box tuple `(x_min, y_min, x_max, y_max)`
+
+    Returns:
+        mask (numpy.ndarray): binary mask
+
+    """
+
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    x_min, y_min, x_max, y_max = bbox
+    mask[y_min:y_max, x_min:x_max] = 1
+    return mask

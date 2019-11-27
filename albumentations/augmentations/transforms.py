@@ -1251,7 +1251,7 @@ class OpticalDistortion(DualTransform):
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
-        bbox_returned = F.bbox_for_mask(mask)
+        bbox_returned = F.bbox_from_mask(mask)
         bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
         return bbox_returned
 
@@ -1327,7 +1327,7 @@ class GridDistortion(DualTransform):
         mask = F.grid_distortion(
             mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
-        bbox_returned = F.bbox_for_mask(mask)
+        bbox_returned = F.bbox_from_mask(mask)
         bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
         return bbox_returned
 
@@ -1440,7 +1440,7 @@ class ElasticTransform(DualTransform):
             np.random.RandomState(random_state),
             self.approximate,
         )
-        bbox_returned = F.bbox_for_mask(mask)
+        bbox_returned = F.bbox_from_mask(mask)
         bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
         return bbox_returned
 
