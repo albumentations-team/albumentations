@@ -799,11 +799,16 @@ class RandomCropFromBorders(DualTransform):
     """Crop bbox from image randomly cut parts from borders without resize at the end
 
     Args:
-        crop_value (float): float value in (0.0, 0.5) range. Default 0.1
-        crop_left (float): float value in (0.0, 1.0) range. Default 0.1
-        crop_right (float): float value in (0.0, 1.0) range. Default 0.1
-        crop_top (float): float value in (0.0, 1.0) range. Default 0.1
-        crop_bottom (float): float value in (0.0, 1.0) range. Default 0.1
+        crop_value (float): single float value in (0.0, 0.5) range. Default 0.1. Value of crop_value set
+        all crop_left, crop_right, crop_top and crop_bottom parameters.
+        crop_left (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
+        from left side in range [0, crop_left * width)
+        crop_right (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
+        from right side in range [(1 - crop_right) * width, width)
+        crop_top (float): singlefloat value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
+        from top side in range [0, crop_top * height)
+        crop_bottom (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
+        from bottom side in range [(1 - crop_bottom) * height, height)
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
