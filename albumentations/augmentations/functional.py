@@ -1964,3 +1964,9 @@ def fancy_pca(img, alpha=0.1):
     orig_img = orig_img.astype(np.uint8)
 
     return orig_img
+
+
+@clipped
+def shot_noise(image, shotnoise):
+
+    return shotnoise

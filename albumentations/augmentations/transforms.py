@@ -41,6 +41,7 @@ __all__ = [
     "MedianBlur",
     "GaussianBlur",
     "GaussNoise",
+    "ShotNoise",
     "CLAHE",
     "ChannelShuffle",
     "InvertImg",
@@ -3122,3 +3123,46 @@ class MaskDropout(DualTransform):
 
     def get_transform_init_args_names(self):
         return ("max_objects", "image_fill_value", "mask_fill_value")
+
+
+class ShotNoise(ImageOnlyTransform):
+    """Apply shot   noise to the input image.
+    Args:
+        noise_severity (int): severity of added noise. Lower values mean higher distortion.
+            Should be in range [3, inf). Default: (12).
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    Image types:
+        uint8, float32
+
+    Reference:
+    |  https://arxiv.org/abs/1903.12261
+    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+    """
+
+    def __init__(self, noise_severity=12, always_apply=False, p=0.5):
+        super(ShotNoise, self).__init__(always_apply, p)
+
+        if noise_severity < 3:
+            raise ValueError("Noise Severity should be more or equal to 3, but we got {}".format(noise_severity))
+
+        self.noise_severity = noise_severity
+
+    def apply(self, img, shotnoise=None, **params):
+        return F.shot_noise(img, shotnoise=shotnoise)
+
+    def get_params_dependent_on_targets(self, params):
+        image = params["image"]
+        coef = 255.0 if image.dtype == np.uint8 else 1
+        image = np.array(image) / coef
+
+        shotnoise = (np.random.poisson(image * self.noise_severity) / self.noise_severity) * coef
+        return {"shotnoise": shotnoise}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_transform_init_args_names(self):
+        return ("noise_severity",)
