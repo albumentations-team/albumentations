@@ -1,5 +1,5 @@
 # Albumentations
-[![Build Status](https://travis-ci.org/albu/albumentations.svg?branch=master)](https://travis-ci.org/albu/albumentations)
+[![Build Status](https://travis-ci.org/albumentations-team/albumentations.svg?branch=master)](https://travis-ci.org/albu/albumentations)
 [![Documentation Status](https://readthedocs.org/projects/albumentations/badge/?version=latest)](https://albumentations.readthedocs.io/en/latest/?badge=latest)
 
 
