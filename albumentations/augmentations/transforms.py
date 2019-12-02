@@ -999,7 +999,8 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         bx, by = x * random.random(), y * random.random()
         bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
         bw, bh = bx2 - bx, by2 - by
-        crop_height, crop_width = int(img_h * bh), int(img_w * bw)
+        crop_height = img_h if bh >= 1.0 else int(img_h * bh)
+        crop_width = img_w if bw >= 1.0 else int(img_w * bw)
         h_start = np.clip(0.0 if bh >= 1.0 else by / (1.0 - bh), 0.0, 1.0)
         w_start = np.clip(0.0 if bw >= 1.0 else bx / (1.0 - bw), 0.0, 1.0)
         return {"h_start": h_start, "w_start": w_start, "crop_height": crop_height, "crop_width": crop_width}
