@@ -76,6 +76,7 @@ __all__ = [
     "Posterize",
     "Downscale",
     "MultiplicativeNoise",
+    "FancyPCA",
     "MaskDropout",
 ]
 
@@ -3000,6 +3001,44 @@ class MultiplicativeNoise(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return "multiplier", "per_channel", "elementwise"
+
+
+class FancyPCA(ImageOnlyTransform):
+    """Augment RGB image using FancyPCA from Krizhevsky's paper
+    "ImageNet Classification with Deep Convolutional Neural Networks"
+
+    Args:
+        alpha (float):  how much to perturb/scale the eigen vecs and vals.
+            scale is samples from gaussian distribution (mu=0, sigma=alpha)
+
+    Targets:
+        image
+
+    Image types:
+        3-channel uint8 images only
+
+    Credit:
+        http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+        https://deshanadesai.github.io/notes/Fancy-PCA-with-Scikit-Image
+        https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
+    """
+
+    def __init__(self, alpha=0.1, always_apply=False, p=0.5):
+        """
+
+        """
+        super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
+        self.alpha = alpha
+
+    def apply(self, img, alpha=0.1, **params):
+        img = F.fancy_pca(img, alpha)
+        return img
+
+    def get_params(self):
+        return {"alpha": random.gauss(0, self.alpha)}
+
+    def get_transform_init_args_names(self):
+        return ("alpha",)
 
 
 class MaskDropout(DualTransform):
