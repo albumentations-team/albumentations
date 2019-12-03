@@ -8,6 +8,36 @@ from functools import wraps
 MAX_VALUES_BY_DTYPE = {torch.uint8: 255, torch.float32: 1.0, torch.float64: 1.0}
 
 
+def preserve_shape(func):
+    """
+    Preserve shape of the image
+
+    """
+
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        shape = img.shape
+        result = func(img, *args, **kwargs)
+        result = result.view(*shape)
+        return result
+
+    return wrapped_function
+
+
+def on_float_image(func):
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        if img.dtype != torch.uint8:
+            return func(img, *args, **kwargs)
+
+        tmp = img.to(torch.float32) / 255.0
+        result = func(tmp, *args, **kwargs)
+        result = torch.clamp(torch.round(result * 255.0), 0, 255).to(img.dtype)
+        return result
+
+    return wrapped_function
+
+
 def clip(img, dtype, maxval):
     return torch.clamp(img, 0, maxval).type(dtype)
 
@@ -173,3 +203,11 @@ def normalize(img, mean, std):
     img -= mean
     img *= denominator
     return img
+
+
+@preserve_shape
+@on_float_image
+def blur(image, ksize):
+    image = image.view(1, *image.shape)
+    image = K.box_blur(image, ksize)
+    return image

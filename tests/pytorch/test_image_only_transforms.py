@@ -1,4 +1,5 @@
 import cv2
+import torch
 import pytest
 import itertools
 import numpy as np
@@ -12,6 +13,20 @@ import albumentations.pytorch.augmentations.image_only.functional as FTorch
 from torch.testing import assert_allclose
 
 from ..utils import set_seed, to_tensor, from_tensor
+
+
+def get_images(shape=(512, 512, 3), dtype=np.uint8):
+    if dtype == np.uint8:
+        image = np.random.randint(0, 256, shape, dtype=dtype)
+    else:
+        image = np.random.random(shape).astype(np.float32)
+
+    return image, to_tensor(image)
+
+
+def assert_images(cv_img, torch_img):
+    cv_img = cv_img.transpose(2, 0, 1)
+    assert_allclose(cv_img, torch_img)
 
 
 @pytest.mark.parametrize(
@@ -106,3 +121,17 @@ def test_hls_to_rgb_uint8():
 
     torch_img = from_tensor(torch_img)
     assert np.all(cv_img == torch_img)
+
+
+def test_blur_float():
+    image, torch_image = get_images(dtype=np.float32)
+    cv_img = F.blur(image, 3)
+    torch_image = FTorch.blur(torch_image, [3, 3])
+    assert_images(cv_img, torch_image)
+
+
+def test_blur_uint8():
+    image, torch_image = get_images()
+    cv_img = F.blur(image, 3)
+    torch_image = FTorch.blur(torch_image, [3, 3])
+    assert_images(cv_img, torch_image)
