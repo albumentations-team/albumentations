@@ -5,7 +5,7 @@ import torch
 import random
 
 
-__all__ = ["NormalizeTorch", "CoarseDropoutTorch", "RandomSnowTorch"]
+__all__ = ["NormalizeTorch", "CoarseDropoutTorch", "RandomSnowTorch", "BlurTorch"]
 
 
 class NormalizeTorch(A.Normalize):
@@ -47,7 +47,7 @@ class RandomSnowTorch(A.RandomSnow):
         return F.add_snow(image, snow_point, self.brightness_coeff)
 
 
-class BlurTroch(A.Blur):
+class BlurTorch(A.Blur):
     def apply(self, image, ksize=3, **params):
         ksize = A.to_tuple(ksize, ksize)
         return F.blur(image, ksize)
