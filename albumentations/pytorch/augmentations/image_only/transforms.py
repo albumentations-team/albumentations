@@ -5,7 +5,7 @@ import torch
 import random
 
 
-__all__ = ["NormalizeTorch", "CoarseDropoutTorch", "RandomSnowTorch", "BlurTorch"]
+__all__ = ["NormalizeTorch", "CoarseDropoutTorch", "RandomSnowTorch", "BlurTorch", "HueSaturationValueTorch"]
 
 
 class NormalizeTorch(A.Normalize):
@@ -51,3 +51,8 @@ class BlurTorch(A.Blur):
     def apply(self, image, ksize=3, **params):
         ksize = A.to_tuple(ksize, ksize)
         return F.blur(image, ksize)
+
+
+class HueSaturationValueTorch(A.HueSaturationValue):
+    def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
+        return F.shift_hsv(image, hue_shift, sat_shift, val_shift)

@@ -8,6 +8,25 @@ from functools import wraps
 MAX_VALUES_BY_DTYPE = {torch.uint8: 255, torch.float32: 1.0, torch.float64: 1.0}
 
 
+def grayscale_to_rgb(image):
+    assert image.size(0) <= 3, "Supports only rgb and grayscale images."
+
+    if image.size(0) == 3:
+        return image
+
+    return torch.cat([image] * 3)
+
+
+def rgb_image(func):
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        img = grayscale_to_rgb(img)
+        result = func(img, *args, **kwargs)
+        return result
+
+    return wrapped_function
+
+
 def preserve_shape(func):
     """
     Preserve shape of the image
@@ -148,6 +167,58 @@ def hls_to_rgb(img):
     raise ValueError("hls_to_rgb support only uint8, float32 and float64 dtypes. Got: {}".format(img.dtype))
 
 
+def _rbg_to_hsv_float(img):
+    img = K.rgb_to_hsv(img)
+    img[0] *= 360.0 / (2.0 * np.pi)
+    return img
+
+
+@clipped
+def _rbg_to_hsv_uint8(img):
+    img = K.rgb_to_hsv(img.float() * (1.0 / 255.0))
+    img[0] *= 180.0 / (2.0 * np.pi)
+    img[1:] *= 255.0
+
+    img = round_opencv(img)
+    img[0] %= 180.0
+    return img
+
+
+def rgb_to_hsv(img):
+    if img.dtype in [torch.float32, torch.float64]:
+        return _rbg_to_hsv_float(img)
+    elif img.dtype == torch.uint8:
+        return _rbg_to_hsv_uint8(img)
+
+    raise ValueError("rbg_to_hls support only uint8, float32 and float64 dtypes. Got: {}".format(img.dtype))
+
+
+@clipped
+def _hsv_to_rgb_uint8(img):
+    img = img.float()
+    img[0] *= 2.0 * np.pi / 180.0
+    img[1:] /= 255.0
+
+    img = K.hsv_to_rgb(img)
+    img *= 255.0
+    return round_opencv(img)
+
+
+def _hsv_to_rgb_float(img):
+    img = img.clone()
+    img[0] *= 2.0 * np.pi / 360.0
+    return K.hsv_to_rgb(img)
+
+
+def hsv_to_rgb(img):
+    if img.dtype in [torch.float32, torch.float64]:
+        return _hsv_to_rgb_float(img)
+    elif img.dtype == torch.uint8:
+        return _hsv_to_rgb_uint8(img)
+
+    raise ValueError("hls_to_rgb support only uint8, float32 and float64 dtypes. Got: {}".format(img.dtype))
+
+
 def add_snow(img, snow_point, brightness_coeff):
     """Bleaches out pixels, imitation snow.
 
@@ -211,3 +282,24 @@ def blur(image, ksize):
     image = image.view(1, *image.shape)
     image = K.box_blur(image, ksize)
     return image
+
+
+@rgb_image
+def shift_hsv(img, hue_shift, sat_shift, val_shift):
+    dtype = img.dtype
+
+    img = rgb_to_hsv(img)
+    hue, sat, val = img
+
+    hue = hue + hue_shift
+    hue = torch.where(hue < 0, hue + 180, hue)
+    hue = torch.where(hue > 180, hue - 180, hue)
+    hue = hue.to(dtype)
+
+    sat = clip(sat + sat_shift, dtype, 255 if dtype == torch.uint8 else 1.0)
+    val = clip(val + val_shift, dtype, 255 if dtype == torch.uint8 else 1.0)
+
+    img = torch.stack((hue, sat, val)).to(dtype)
+    img = hsv_to_rgb(img)
+
+    return img

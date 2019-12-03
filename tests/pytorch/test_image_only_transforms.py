@@ -123,6 +123,53 @@ def test_hls_to_rgb_uint8():
     assert np.all(cv_img == torch_img)
 
 
+def test_rgb_to_hsv_float():
+    image, torch_img = get_images(dtype=np.float32)
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    torch_img = FTorch.rgb_to_hsv(torch_img)
+
+    torch_img = from_tensor(torch_img)
+
+    cv_img = (cv_img * 255).astype(int)
+    torch_img = (torch_img * 255).astype(int)
+
+    assert np.abs(cv_img - torch_img).max() <= 3
+
+
+def test_rgb_to_hsv_uint8():
+    image, torch_img = get_images()
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+    torch_img = FTorch.rgb_to_hsv(torch_img)
+
+    torch_img = from_tensor(torch_img)
+
+    val = np.abs(cv_img.astype(int) - torch_img.astype(int)).max()
+    assert val <= 3 or val == 179
+
+
+def test_hsv_to_rgb_float():
+    image = np.random.random([1000, 1000, 3]).astype(np.float32)
+    image[..., 0] *= 360
+
+    torch_img = to_tensor(image)
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_HSV2RGB)
+    torch_img = FTorch.hsv_to_rgb(torch_img)
+
+    assert_images(cv_img, torch_img)
+
+
+def test_hsv_to_rgb_uint8():
+    image, torch_img = get_images()
+
+    cv_img = cv2.cvtColor(image, cv2.COLOR_HLS2RGB)
+    torch_img = FTorch.hls_to_rgb(torch_img)
+
+    assert_images(cv_img, torch_img)
+
+
 def test_blur_float():
     image, torch_image = get_images(dtype=np.float32)
     cv_img = F.blur(image, 3)
