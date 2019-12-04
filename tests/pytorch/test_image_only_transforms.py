@@ -192,3 +192,15 @@ def test_solarize(images):
     torch_image = FTorch.solarize(torch_image, 33)
 
     assert_images(image, torch_image)
+
+
+@pytest.mark.parametrize(
+    ["images", "shifts"], [[get_images(), [12, 250, 133]], [get_images(dtype=np.float32), [0.11, 0.3, 0.77]]]
+)
+def test_rgb_shift(images, shifts):
+    image, torch_image = images
+
+    image = F.shift_rgb(image, *shifts)
+    torch_image = FTorch.shift_rgb(torch_image, *shifts)
+
+    assert_images(image, torch_image)

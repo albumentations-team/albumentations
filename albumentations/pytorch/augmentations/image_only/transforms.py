@@ -61,3 +61,8 @@ class HueSaturationValueTorch(A.HueSaturationValue):
 class SolarizeTorch(A.Solarize):
     def apply(self, image, threshold=0, **params):
         return F.solarize(image, threshold)
+
+
+class RGBShiftTorch(A.RGBShift):
+    def apply(self, image, r_shift=0, g_shift=0, b_shift=0, **params):
+        return F.shift_rgb(image, r_shift, g_shift, b_shift)

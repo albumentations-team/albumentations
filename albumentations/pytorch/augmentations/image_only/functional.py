@@ -27,6 +27,10 @@ def rgb_image(func):
     return wrapped_function
 
 
+def is_rgb_image(image):
+    return image.size(0) == 3
+
+
 def preserve_shape(func):
     """
     Preserve shape of the image
@@ -312,4 +316,19 @@ def solarize(img, threshold=128):
     result_img = img.clone()
     cond = img >= threshold
     result_img[cond] = max_val - result_img[cond]
+    return result_img
+
+
+@clipped
+def shift_rgb(img, r_shift, g_shift, b_shift):
+    img = img.float()
+
+    if r_shift == g_shift == b_shift:
+        return img + r_shift
+
+    result_img = torch.empty_like(img)
+    shifts = [r_shift, g_shift, b_shift]
+    for i, shift in enumerate(shifts):
+        result_img[i] = img[i] + shift
+
     return result_img
