@@ -204,3 +204,13 @@ def test_rgb_shift(images, shifts):
     torch_image = FTorch.shift_rgb(torch_image, *shifts)
 
     assert_images(image, torch_image)
+
+
+@pytest.mark.parametrize("images", [get_images(dtype=np.float32)])
+def test_brightness_contrast_adjust(images):
+    image, torch_image = images
+
+    image = F.brightness_contrast_adjust(image, 1.33, 0.77)
+    torch_image = FTorch.brightness_contrast_adjust(torch_image, 1.33, 0.77)
+
+    assert_images(image, torch_image)

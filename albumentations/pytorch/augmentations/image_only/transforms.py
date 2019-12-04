@@ -66,3 +66,8 @@ class SolarizeTorch(A.Solarize):
 class RGBShiftTorch(A.RGBShift):
     def apply(self, image, r_shift=0, g_shift=0, b_shift=0, **params):
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
+
+
+class RandomBrightnessContrastTorch(A.RandomBrightnessContrast):
+    def apply(self, img, alpha=1.0, beta=0.0, **params):
+        return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)

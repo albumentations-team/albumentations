@@ -332,3 +332,19 @@ def shift_rgb(img, r_shift, g_shift, b_shift):
         result_img[i] = img[i] + shift
 
     return result_img
+
+
+@clipped
+def brightness_contrast_adjust(img, alpha=1, beta=0, beta_by_max=False):
+    dtype = img.dtype
+    img = img.float()
+
+    if alpha != 1:
+        img *= alpha
+    if beta != 0:
+        if beta_by_max:
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
+            img += beta * max_value
+        else:
+            img += beta * torch.mean(img)
+    return img
