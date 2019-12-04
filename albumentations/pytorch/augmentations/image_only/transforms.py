@@ -56,3 +56,8 @@ class BlurTorch(A.Blur):
 class HueSaturationValueTorch(A.HueSaturationValue):
     def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
+
+
+class SolarizeTorch(A.Solarize):
+    def apply(self, image, threshold=0, **params):
+        return F.solarize(image, threshold)

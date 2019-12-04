@@ -303,3 +303,13 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
     img = hsv_to_rgb(img)
 
     return img
+
+
+def solarize(img, threshold=128):
+    dtype = img.dtype
+    max_val = MAX_VALUES_BY_DTYPE[dtype]
+
+    result_img = img.clone()
+    cond = img >= threshold
+    result_img[cond] = max_val - result_img[cond]
+    return result_img

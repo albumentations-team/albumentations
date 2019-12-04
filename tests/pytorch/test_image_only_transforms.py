@@ -182,3 +182,13 @@ def test_blur_uint8():
     cv_img = F.blur(image, 3)
     torch_image = FTorch.blur(torch_image, [3, 3])
     assert_images(cv_img, torch_image)
+
+
+@pytest.mark.parametrize("images", [get_images(), get_images(dtype=np.float32)])
+def test_solarize(images):
+    image, torch_image = images
+
+    image = F.solarize(image, 33)
+    torch_image = FTorch.solarize(torch_image, 33)
+
+    assert_images(image, torch_image)
