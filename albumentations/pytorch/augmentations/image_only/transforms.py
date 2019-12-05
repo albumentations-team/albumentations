@@ -21,6 +21,7 @@ __all__ = [
     "MedianBlurTorch",
     "GaussianBlurTorch",
     "ISONoiseTorch",
+    "ChannelDropoutTorch",
 ]
 
 
@@ -119,3 +120,8 @@ class GaussianBlurTorch(A.GaussianBlur):
 class ISONoiseTorch(A.ISONoise):
     def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
         return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_state))
+
+
+class ChannelDropoutTorch(A.ChannelDropout):
+    def apply(self, img, channels_to_drop=(0,), **params):
+        return F.channel_dropout(img, channels_to_drop, self.fill_value)

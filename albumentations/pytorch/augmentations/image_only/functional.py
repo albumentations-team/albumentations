@@ -424,3 +424,13 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **_):
 
     image = hls_to_rgb(hls) * 255.0
     return image
+
+
+@preserve_shape
+def channel_dropout(img, channels_to_drop, fill_value=0):
+    if img.size(0) == 1:
+        raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
+
+    img = img.clone()
+    img[channels_to_drop] = fill_value
+    return img

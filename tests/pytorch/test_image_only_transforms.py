@@ -42,6 +42,7 @@ def assert_images(img, torch_img, rtol=None):
                 A.RandomBrightnessContrast((1.33, 1.33), (0.77, 0.77), True),
                 ATorch.RandomBrightnessContrastTorch((1.33, 1.33), (0.77, 0.77), True),
             ],
+            [A.ChannelDropout(), ATorch.ChannelDropoutTorch()],
         ],
     ),
 )
