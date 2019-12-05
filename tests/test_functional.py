@@ -942,3 +942,19 @@ def test_multiply_uint8_optimized():
 )
 def test_shift_hsv_gray(img):
     F.shift_hsv(img, 0.5, 0.5, 0.5)
+
+
+@pytest.mark.parametrize("beta_by_max", [True, False])
+def test_brightness_contrast_adjust_equal(beta_by_max):
+    image_int = np.random.randint(0, 256, [512, 512, 3], dtype=np.uint8)
+    image_float = image_int.astype(np.float32) / 255
+
+    alpha = 1.3
+    beta = 0.14
+
+    image_int = F.brightness_contrast_adjust(image_int, alpha, beta, beta_by_max)
+    image_float = F.brightness_contrast_adjust(image_float, alpha, beta, beta_by_max)
+
+    image_float = (image_float * 255).astype(int)
+
+    assert np.abs(image_int.astype(int) - image_float).max() <= 1
