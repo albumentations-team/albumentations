@@ -434,3 +434,8 @@ def channel_dropout(img, channels_to_drop, fill_value=0):
     img = img.clone()
     img[channels_to_drop] = fill_value
     return img
+
+
+def invert(img):
+    max_val = MAX_VALUES_BY_DTYPE[img.dtype]
+    return max_val - img

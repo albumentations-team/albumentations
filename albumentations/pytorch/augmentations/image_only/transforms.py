@@ -22,6 +22,7 @@ __all__ = [
     "GaussianBlurTorch",
     "ISONoiseTorch",
     "ChannelDropoutTorch",
+    "InvertImgTorch",
 ]
 
 
@@ -125,3 +126,8 @@ class ISONoiseTorch(A.ISONoise):
 class ChannelDropoutTorch(A.ChannelDropout):
     def apply(self, img, channels_to_drop=(0,), **params):
         return F.channel_dropout(img, channels_to_drop, self.fill_value)
+
+
+class InvertImgTorch(A.InvertImg):
+    def apply(self, img, **params):
+        return F.invert(img)
