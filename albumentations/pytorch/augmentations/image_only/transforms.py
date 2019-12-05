@@ -26,6 +26,7 @@ __all__ = [
     "RandomGammaTorch",
     "ChannelShuffleTorch",
     "ToGrayTorch",
+    "ToFloatTorch",
 ]
 
 
@@ -172,3 +173,8 @@ class ChannelShuffleTorch(A.ChannelShuffle):
 class ToGrayTorch(A.ToGray):
     def apply(self, img, **params):
         return F.to_gray(img)
+
+
+class ToFloatTorch(A.ToFloat):
+    def apply(self, img, **params):
+        return F.to_float(img, torch.float32, max_value=self.max_value)
