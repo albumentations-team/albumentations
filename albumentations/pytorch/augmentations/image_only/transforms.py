@@ -17,6 +17,7 @@ __all__ = [
     "RandomBrightnessTorch",
     "RandomContrastTorch",
     "MotionBlurTorch",
+    "MedianBlurTorch",
 ]
 
 
@@ -98,3 +99,9 @@ class RandomContrastTorch(A.RandomContrast):
 class MotionBlurTorch(A.MotionBlur):
     def apply(self, img, kernel=None, **params):
         return F.motion_blur(img, kernel)
+
+
+class MedianBlurTorch(A.MedianBlur):
+    def apply(self, image, ksize=3, **params):
+        ksize = A.to_tuple(ksize, ksize)
+        return F.median_blur(image, ksize)

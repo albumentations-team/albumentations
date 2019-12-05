@@ -12,7 +12,7 @@ import albumentations.pytorch.augmentations.image_only.functional as FTorch
 
 from torch.testing import assert_allclose
 
-from ..utils import set_seed, to_tensor, from_tensor
+from tests.utils import set_seed, to_tensor, from_tensor
 
 
 def get_images(shape=(512, 512, 3), dtype=np.uint8):
@@ -24,56 +24,73 @@ def get_images(shape=(512, 512, 3), dtype=np.uint8):
     return image, to_tensor(image)
 
 
-def assert_images(cv_img, torch_img):
-    cv_img = cv_img.transpose(2, 0, 1)
-    assert_allclose(cv_img, torch_img)
+def assert_images(img, torch_img, rtol=None):
+    torch_img = torch_img.permute(1, 2, 0).squeeze()
+    assert_allclose(img, torch_img, rtol=rtol, atol=rtol)
 
 
 @pytest.mark.parametrize(
-    ["image", "augs"],
+    ["images", "augs"],
     itertools.product(
-        [np.random.randint(0, 256, (128, 323, 3), np.uint8), np.random.random([256, 111, 3]).astype(np.float32)],
-        [[A.Normalize(p=1), ATorch.NormalizeTorch(p=1)], [A.CoarseDropout(p=1), ATorch.CoarseDropoutTorch(p=1)]],
-    ),
-)
-def test_image_transforms_rgb(image, augs):
-    image_torch = to_tensor(image)
-
-    aug_cpu = A.Compose([augs[0]])
-    aug_torch = A.Compose([augs[1]])
-
-    set_seed(0)
-    image_cpu = aug_cpu(image=image)["image"]
-    set_seed(0)
-    image_torch = aug_torch(image=image_torch)["image"]
-
-    image_torch = from_tensor(image_torch)
-    assert_allclose(image_cpu, image_torch)
-
-
-@pytest.mark.parametrize(
-    ["image", "augs"],
-    itertools.product(
-        [np.random.randint(0, 256, (128, 323), np.uint8), np.random.random([256, 111]).astype(np.float32)],
+        [get_images((128, 323, 3), np.uint8), get_images([256, 111, 3], np.float32)],
         [
-            [A.Normalize(mean=0.5, std=0.1, p=1), ATorch.NormalizeTorch(mean=0.5, std=0.1, p=1)],
-            [A.CoarseDropout(p=1), ATorch.CoarseDropoutTorch(p=1)],
+            [A.Normalize(), ATorch.NormalizeTorch()],
+            [A.CoarseDropout(), ATorch.CoarseDropoutTorch()],
+            [A.Blur([3, 3]), ATorch.BlurTorch([3, 3])],
+            [A.Solarize(33), ATorch.SolarizeTorch(33)],
+            [
+                A.RandomBrightnessContrast((1.33, 1.33), (0.77, 0.77), True),
+                ATorch.RandomBrightnessContrastTorch((1.33, 1.33), (0.77, 0.77), True),
+            ],
         ],
     ),
 )
-def test_image_transforms_grayscale(image, augs):
-    aug_cpu = A.Compose([augs[0]])
-    aug_torch = A.Compose([augs[1]])
+def test_image_transforms_rgb(images, augs):
+    image, image_torch = images
 
-    image_torch = to_tensor(image)
+    aug_cpu, aug_torch = augs
+    aug_cpu.p = 1
+    aug_torch.p = 1
+
+    aug_cpu = A.Compose([aug_cpu])
+    aug_torch = A.Compose([aug_torch])
 
     set_seed(0)
-    image_cpu = aug_cpu(image=image)["image"]
+    image = aug_cpu(image=image)["image"]
     set_seed(0)
     image_torch = aug_torch(image=image_torch)["image"]
 
-    image_torch = from_tensor(image_torch)
-    assert_allclose(image_cpu, image_torch)
+    assert_images(image, image_torch)
+
+
+@pytest.mark.parametrize(
+    ["images", "augs"],
+    itertools.product(
+        [get_images((128, 323), np.uint8), get_images([256, 111], np.float32)],
+        [
+            [A.Normalize(mean=0.5, std=0.1, p=1), ATorch.NormalizeTorch(mean=0.5, std=0.1, p=1)],
+            [A.CoarseDropout(p=1), ATorch.CoarseDropoutTorch(p=1)],
+            [A.Blur([3, 3], p=1), ATorch.BlurTorch([3, 3], p=1)],
+            [A.Solarize(33), ATorch.SolarizeTorch(33)],
+            [
+                A.RandomBrightnessContrast((1.33, 1.33), (0.77, 0.77), True),
+                ATorch.RandomBrightnessContrastTorch((1.33, 1.33), (0.77, 0.77), True),
+            ],
+        ],
+    ),
+)
+def test_image_transforms_grayscale(images, augs):
+    image, image_torch = images
+
+    aug_cpu = A.Compose([augs[0]])
+    aug_torch = A.Compose([augs[1]])
+
+    set_seed(0)
+    image = aug_cpu(image=image)["image"]
+    set_seed(0)
+    image_torch = aug_torch(image=image_torch)["image"]
+
+    assert_images(image, image_torch)
 
 
 def test_rgb_to_hls_float():
@@ -170,30 +187,6 @@ def test_hsv_to_rgb_uint8():
     assert_images(cv_img, torch_img)
 
 
-def test_blur_float():
-    image, torch_image = get_images(dtype=np.float32)
-    cv_img = F.blur(image, 3)
-    torch_image = FTorch.blur(torch_image, [3, 3])
-    assert_images(cv_img, torch_image)
-
-
-def test_blur_uint8():
-    image, torch_image = get_images()
-    cv_img = F.blur(image, 3)
-    torch_image = FTorch.blur(torch_image, [3, 3])
-    assert_images(cv_img, torch_image)
-
-
-@pytest.mark.parametrize("images", [get_images(), get_images(dtype=np.float32)])
-def test_solarize(images):
-    image, torch_image = images
-
-    image = F.solarize(image, 33)
-    torch_image = FTorch.solarize(torch_image, 33)
-
-    assert_images(image, torch_image)
-
-
 @pytest.mark.parametrize(
     ["images", "shifts"], [[get_images(), [12, 250, 133]], [get_images(dtype=np.float32), [0.11, 0.3, 0.77]]]
 )
@@ -206,21 +199,25 @@ def test_rgb_shift(images, shifts):
     assert_images(image, torch_image)
 
 
-@pytest.mark.parametrize("images", [get_images(dtype=np.float32)])
-def test_brightness_contrast_adjust(images):
-    image, torch_image = images
-
-    image = F.brightness_contrast_adjust(image, 1.33, 0.77)
-    torch_image = FTorch.brightness_contrast_adjust(torch_image, 1.33, 0.77)
-
-    assert_images(image, torch_image)
-
-
 def test_motion_blur():
     image, torch_image = get_images()
     kernel = 5
 
-    image = A.MotionBlur(blur_limit=[kernel, kernel])(image=image)["image"]
-    torch_image = ATorch.MotionBlurTorch(blur_limit=[kernel, kernel])(image=torch_image)["image"]
+    set_seed(0)
+    image = A.MotionBlur(blur_limit=[kernel, kernel], p=1)(image=image)["image"]
+    set_seed(0)
+    torch_image = ATorch.MotionBlurTorch(blur_limit=[kernel, kernel], p=1)(image=torch_image)["image"]
 
     assert_images(image, torch_image)
+
+
+def test_median_blur():
+    image, torch_image = get_images(dtype=np.float32)
+    kernel = 5
+
+    set_seed(0)
+    image = A.MedianBlur(blur_limit=kernel, p=1)(image=image)["image"]
+    set_seed(0)
+    torch_image = ATorch.MedianBlurTorch(blur_limit=kernel, p=1)(image=torch_image)["image"]
+
+    assert_images(image, torch_image, 1)
