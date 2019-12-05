@@ -454,3 +454,8 @@ def gamma_transform(img, gamma, eps):
         img = torch.pow(img, gamma)
 
     return img.to(dtype)
+
+
+def channel_shuffle(img, channels_shuffled):
+    img = img[channels_shuffled]
+    return img

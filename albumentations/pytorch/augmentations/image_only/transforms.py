@@ -24,6 +24,7 @@ __all__ = [
     "ChannelDropoutTorch",
     "InvertImgTorch",
     "RandomGammaTorch",
+    "ChannelShuffleTorch",
 ]
 
 
@@ -154,3 +155,14 @@ class InvertImgTorch(A.InvertImg):
 class RandomGammaTorch(A.RandomGamma):
     def apply(self, img, gamma=1, **params):
         return F.gamma_transform(img, gamma=gamma, eps=self.eps)
+
+
+class ChannelShuffleTorch(A.ChannelShuffle):
+    def apply(self, img, channels_shuffled=(0, 1, 2), **params):
+        return F.channel_shuffle(img, channels_shuffled)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        ch_arr = list(range(img.size(0)))
+        random.shuffle(ch_arr)
+        return {"channels_shuffled": ch_arr}
