@@ -25,6 +25,7 @@ __all__ = [
     "InvertImgTorch",
     "RandomGammaTorch",
     "ChannelShuffleTorch",
+    "ToGrayTorch",
 ]
 
 
@@ -166,3 +167,8 @@ class ChannelShuffleTorch(A.ChannelShuffle):
         ch_arr = list(range(img.size(0)))
         random.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
+
+
+class ToGrayTorch(A.ToGray):
+    def apply(self, img, **params):
+        return F.to_gray(img)

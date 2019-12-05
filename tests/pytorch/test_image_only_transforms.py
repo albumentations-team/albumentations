@@ -45,6 +45,7 @@ def assert_images(img, torch_img, rtol=None):
             [A.ChannelDropout(), ATorch.ChannelDropoutTorch()],
             [A.RandomGamma(), ATorch.RandomGammaTorch()],
             [A.ChannelShuffle(), ATorch.ChannelShuffleTorch()],
+            [A.ToGray(), ATorch.ToGrayTorch()],
         ],
     ),
 )

@@ -459,3 +459,14 @@ def gamma_transform(img, gamma, eps):
 def channel_shuffle(img, channels_shuffled):
     img = img[channels_shuffled]
     return img
+
+
+def to_gray(img):
+    dtype = img.dtype
+
+    if len(img.shape) < 3 and img.shape[0] != 3:
+        raise ValueError("Image size must have a shape of (3, H, W). Got {}".format(img.shape))
+
+    r, g, b = torch.chunk(img, chunks=3, dim=-3)
+    gray = 0.299 * r + 0.587 * g + 0.114 * b
+    return torch.cat([gray] * 3, 0).to(dtype)
