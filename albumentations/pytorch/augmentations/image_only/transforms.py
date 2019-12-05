@@ -5,7 +5,19 @@ import torch
 import random
 
 
-__all__ = ["NormalizeTorch", "CoarseDropoutTorch", "RandomSnowTorch", "BlurTorch", "HueSaturationValueTorch"]
+__all__ = [
+    "NormalizeTorch",
+    "CoarseDropoutTorch",
+    "RandomSnowTorch",
+    "BlurTorch",
+    "HueSaturationValueTorch",
+    "SolarizeTorch",
+    "RGBShiftTorch",
+    "RandomBrightnessContrastTorch",
+    "RandomBrightnessTorch",
+    "RandomContrastTorch",
+    "MotionBlurTorch",
+]
 
 
 class NormalizeTorch(A.Normalize):
@@ -81,3 +93,8 @@ class RandomBrightnessTorch(A.RandomBrightness):
 class RandomContrastTorch(A.RandomContrast):
     def apply(self, img, alpha=1.0, beta=0.0, **params):
         return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
+
+
+class MotionBlurTorch(A.MotionBlur):
+    def apply(self, img, kernel=None, **params):
+        return F.motion_blur(img, kernel)

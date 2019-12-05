@@ -214,3 +214,13 @@ def test_brightness_contrast_adjust(images):
     torch_image = FTorch.brightness_contrast_adjust(torch_image, 1.33, 0.77)
 
     assert_images(image, torch_image)
+
+
+def test_motion_blur():
+    image, torch_image = get_images()
+    kernel = 5
+
+    image = A.MotionBlur(blur_limit=[kernel, kernel])(image=image)["image"]
+    torch_image = ATorch.MotionBlurTorch(blur_limit=[kernel, kernel])(image=torch_image)["image"]
+
+    assert_images(image, torch_image)

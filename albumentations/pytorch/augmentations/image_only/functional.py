@@ -348,3 +348,18 @@ def brightness_contrast_adjust(img, alpha=1, beta=0, beta_by_max=False):
         else:
             img += beta * torch.mean(img)
     return img
+
+
+@clipped
+@preserve_shape
+def motion_blur(img, kernel):
+    kernel = torch.from_numpy(kernel.reshape([1, *kernel.shape]))
+
+    dtype = img.dtype
+    img = img.view(1, *img.shape)
+    img = K.filter2D(img.float(), kernel.float())
+
+    if dtype == torch.uint8:
+        img = round_opencv(img)
+
+    return img
