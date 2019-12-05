@@ -47,6 +47,7 @@ def assert_images(img, torch_img, rtol=None):
             [A.ChannelShuffle(), ATorch.ChannelShuffleTorch()],
             [A.ToGray(), ATorch.ToGrayTorch()],
             [A.ToFloat(), ATorch.ToFloatTorch()],
+            [A.FromFloat("uint8"), ATorch.FromFloatTorch()],
         ],
     ),
 )
@@ -84,6 +85,7 @@ def test_image_transforms_rgb(images, augs):
             ],
             [A.RandomGamma(), ATorch.RandomGammaTorch()],
             [A.ToFloat(), ATorch.ToFloatTorch()],
+            [A.FromFloat("uint8"), ATorch.FromFloatTorch()],
         ],
     ),
 )

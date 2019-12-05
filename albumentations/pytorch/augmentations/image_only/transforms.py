@@ -27,6 +27,7 @@ __all__ = [
     "ChannelShuffleTorch",
     "ToGrayTorch",
     "ToFloatTorch",
+    "FromFloatTorch",
 ]
 
 
@@ -178,3 +179,15 @@ class ToGrayTorch(A.ToGray):
 class ToFloatTorch(A.ToFloat):
     def apply(self, img, **params):
         return F.to_float(img, torch.float32, max_value=self.max_value)
+
+
+class FromFloatTorch(A.ImageOnlyTransform):
+    def __init__(self, max_value=None, always_apply=False, p=1.0):
+        super().__init__(always_apply, p)
+        self.max_value = max_value
+
+    def apply(self, img, **params):
+        return F.from_float(img, torch.uint8, self.max_value)
+
+    def get_transform_init_args(self):
+        return {"max_value": self.max_value}
