@@ -71,3 +71,13 @@ class RGBShiftTorch(A.RGBShift):
 class RandomBrightnessContrastTorch(A.RandomBrightnessContrast):
     def apply(self, img, alpha=1.0, beta=0.0, **params):
         return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
+
+
+class RandomBrightnessTorch(A.RandomBrightness):
+    def apply(self, img, alpha=1.0, beta=0.0, **params):
+        return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
+
+
+class RandomContrastTorch(A.RandomContrast):
+    def apply(self, img, alpha=1.0, beta=0.0, **params):
+        return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
