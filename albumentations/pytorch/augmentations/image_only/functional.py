@@ -137,6 +137,7 @@ def _rbg_to_hls_uint8(img):
 
 
 def rgb_to_hls(img):
+    # TODO add tests after fix nans in kornia.rgb_to_hls
     if img.dtype in [torch.float32, torch.float64]:
         return _rbg_to_hls_float(img)
     elif img.dtype == torch.uint8:
@@ -391,3 +392,35 @@ def gaussian_blur(img, ksize):
         img = round_opencv(img)
 
     return img.to(dtype)
+
+
+@clipped
+@rgb_image
+def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **_):
+    # TODO add tests after fix nans in kornia.rgb_to_hls
+    assert image.dtype == torch.uint8, "Image must have uint8 channel type"
+
+    if random_state is None:
+        random_state = np.random.RandomState(42)
+
+    image = image.float() / 255.0
+    hls = rgb_to_hls(image)
+    std = torch.std(hls[1])
+
+    # TODO use pytorch random geterator
+    luminance_noise = torch.from_numpy(random_state.poisson(std * intensity * 255.0, size=hls.shape[1:]))
+    color_noise = torch.from_numpy(random_state.normal(0, color_shift * 360.0 * intensity, size=hls.shape[1:]))
+
+    luminance_noise = luminance_noise.to(image.device)
+    color_noise = color_noise.to(image.device)
+
+    hue = hls[0]
+    hue += color_noise
+    hue[hue < 0] += 360.0
+    hue[hue > 360] -= 360.0
+
+    luminance = hls[1]
+    luminance += (luminance_noise / 255.0) * (1.0 - luminance)
+
+    image = hls_to_rgb(hls) * 255.0
+    return image

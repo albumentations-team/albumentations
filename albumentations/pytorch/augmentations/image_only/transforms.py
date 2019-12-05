@@ -3,6 +3,7 @@ from . import functional as F
 import torch
 
 import random
+import numpy as np
 
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "MotionBlurTorch",
     "MedianBlurTorch",
     "GaussianBlurTorch",
+    "ISONoiseTorch",
 ]
 
 
@@ -112,3 +114,8 @@ class GaussianBlurTorch(A.GaussianBlur):
     def apply(self, image, ksize=3, **params):
         ksize = A.to_tuple(ksize, ksize)
         return F.gaussian_blur(image, ksize)
+
+
+class ISONoiseTorch(A.ISONoise):
+    def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
+        return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_state))
