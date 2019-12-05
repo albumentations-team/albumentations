@@ -6,6 +6,8 @@ from warnings import warn
 import cv2
 from copy import deepcopy
 
+import numpy as np
+
 from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
@@ -28,7 +30,7 @@ def to_tuple(param, low=None, bias=None):
     if param is None:
         return param
 
-    if isinstance(param, (int, float)):
+    if isinstance(param, (int, float, np.number)):
         if low is None:
             param = -param, +param
         else:
