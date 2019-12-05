@@ -43,11 +43,13 @@ def assert_images(img, torch_img, rtol=None):
                 ATorch.RandomBrightnessContrastTorch((1.33, 1.33), (0.77, 0.77), True),
             ],
             [A.ChannelDropout(), ATorch.ChannelDropoutTorch()],
+            [A.RandomGamma(), ATorch.RandomGammaTorch()],
         ],
     ),
 )
 def test_image_transforms_rgb(images, augs):
     image, image_torch = images
+    dtype = image.dtype
 
     aug_cpu, aug_torch = augs
     aug_cpu.p = 1
@@ -61,7 +63,7 @@ def test_image_transforms_rgb(images, augs):
     set_seed(0)
     image_torch = aug_torch(image=image_torch)["image"]
 
-    assert_images(image, image_torch)
+    assert_images(image, image_torch, 1 if dtype == np.uint8 else None)
 
 
 @pytest.mark.parametrize(
@@ -77,21 +79,27 @@ def test_image_transforms_rgb(images, augs):
                 A.RandomBrightnessContrast((1.33, 1.33), (0.77, 0.77), True),
                 ATorch.RandomBrightnessContrastTorch((1.33, 1.33), (0.77, 0.77), True),
             ],
+            [A.RandomGamma(), ATorch.RandomGammaTorch()],
         ],
     ),
 )
 def test_image_transforms_grayscale(images, augs):
     image, image_torch = images
+    dtype = image.dtype
 
-    aug_cpu = A.Compose([augs[0]])
-    aug_torch = A.Compose([augs[1]])
+    aug_cpu, aug_torch = augs
+    aug_cpu.p = 1
+    aug_torch.p = 1
+
+    aug_cpu = A.Compose([aug_cpu])
+    aug_torch = A.Compose([aug_torch])
 
     set_seed(0)
     image = aug_cpu(image=image)["image"]
     set_seed(0)
     image_torch = aug_torch(image=image_torch)["image"]
 
-    assert_images(image, image_torch)
+    assert_images(image, image_torch, 1 if dtype == np.uint8 else None)
 
 
 def test_rgb_to_hls_float():

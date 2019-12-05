@@ -439,3 +439,18 @@ def channel_dropout(img, channels_to_drop, fill_value=0):
 def invert(img):
     max_val = MAX_VALUES_BY_DTYPE[img.dtype]
     return max_val - img
+
+
+@clipped
+def gamma_transform(img, gamma, eps):
+    dtype = img.dtype
+    img = img.float()
+
+    if dtype == torch.uint8:
+        invGamma = 1.0 / (gamma + eps)
+        img = img / 255.0
+        img = torch.pow(img, invGamma) * 255.0
+    else:
+        img = torch.pow(img, gamma)
+
+    return img.to(dtype)

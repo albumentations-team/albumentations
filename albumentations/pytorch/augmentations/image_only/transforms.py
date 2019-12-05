@@ -23,6 +23,7 @@ __all__ = [
     "ISONoiseTorch",
     "ChannelDropoutTorch",
     "InvertImgTorch",
+    "RandomGammaTorch",
 ]
 
 
@@ -127,7 +128,29 @@ class ChannelDropoutTorch(A.ChannelDropout):
     def apply(self, img, channels_to_drop=(0,), **params):
         return F.channel_dropout(img, channels_to_drop, self.fill_value)
 
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+
+        num_channels = img.size(0)
+
+        if num_channels == 1:
+            raise NotImplementedError("Images has one channel. ChannelDropout is not defined.")
+
+        if self.max_channels >= num_channels:
+            raise ValueError("Can not drop all channels in ChannelDropout.")
+
+        num_drop_channels = random.randint(self.min_channels, self.max_channels)
+
+        channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
+
+        return {"channels_to_drop": channels_to_drop}
+
 
 class InvertImgTorch(A.InvertImg):
     def apply(self, img, **params):
         return F.invert(img)
+
+
+class RandomGammaTorch(A.RandomGamma):
+    def apply(self, img, gamma=1, **params):
+        return F.gamma_transform(img, gamma=gamma, eps=self.eps)
