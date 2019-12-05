@@ -18,6 +18,7 @@ __all__ = [
     "RandomContrastTorch",
     "MotionBlurTorch",
     "MedianBlurTorch",
+    "GaussianBlurTorch",
 ]
 
 
@@ -105,3 +106,9 @@ class MedianBlurTorch(A.MedianBlur):
     def apply(self, image, ksize=3, **params):
         ksize = A.to_tuple(ksize, ksize)
         return F.median_blur(image, ksize)
+
+
+class GaussianBlurTorch(A.GaussianBlur):
+    def apply(self, image, ksize=3, **params):
+        ksize = A.to_tuple(ksize, ksize)
+        return F.gaussian_blur(image, ksize)

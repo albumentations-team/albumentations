@@ -376,3 +376,18 @@ def median_blur(img, ksize):
         img = round_opencv(img)
 
     return img
+
+
+@preserve_shape
+def gaussian_blur(img, ksize):
+    ksize = np.array(ksize).astype(float)
+    sigma = 0.3 * ((ksize - 1.0) * 0.5 - 1.0) + 0.8
+
+    dtype = img.dtype
+    img = img.view(1, *img.shape)
+    img = K.gaussian_blur2d(img.float(), tuple(int(i) for i in ksize), sigma=tuple(sigma))
+
+    if dtype == torch.uint8:
+        img = round_opencv(img)
+
+    return img.to(dtype)
