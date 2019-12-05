@@ -28,6 +28,7 @@ __all__ = [
     "ToGrayTorch",
     "ToFloatTorch",
     "FromFloatTorch",
+    "DownscaleTorch",
 ]
 
 
@@ -191,3 +192,43 @@ class FromFloatTorch(A.ImageOnlyTransform):
 
     def get_transform_init_args(self):
         return {"max_value": self.max_value}
+
+
+class DownscaleTorch(A.ImageOnlyTransform):
+    """Decreases image quality by downscaling and upscaling back.
+
+        Args:
+            scale_min (float): lower bound on the image scale. Should be < 1.
+            scale_max (float):  lower bound on the image scale. Should be .
+            interpolation (str): algorithm used for upsampling:
+                ``'nearest'`` | ``'bilinear'`` | ``'bicubic'`` | ``'area'``. Default: ``'nearest'``
+
+        Targets:
+            image
+
+        Image types:
+            uint8, float32
+        """
+
+    def __init__(self, scale_min=0.25, scale_max=0.25, interpolation="nearest", always_apply=False, p=0.5):
+        super().__init__(always_apply, p)
+        assert scale_min <= scale_max, "Expected scale_min be less or equal scale_max, got {} {}".format(
+            scale_min, scale_max
+        )
+        assert scale_max < 1, "Expected scale_max to be less than 1, got {}".format(scale_max)
+        assert interpolation in [
+            "nearest",
+            "bilinear",
+            "bicubic",
+            "area",
+        ], "Unsupported interpolation mode, got {}".format(interpolation)
+
+        self.scale_min = scale_min
+        self.scale_max = scale_max
+        self.interpolation = interpolation
+
+    def apply(self, image, scale=1, interpolation="nearest", **params):
+        return F.downscale(image, scale=scale, interpolation=interpolation)
+
+    def get_params(self):
+        return {"scale": np.random.uniform(self.scale_min, self.scale_max), "interpolation": self.interpolation}

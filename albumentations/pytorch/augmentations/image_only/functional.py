@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import kornia as K
 
+import torch.nn.functional as TorchFunctional
+
 from functools import wraps
 
 
@@ -102,7 +104,7 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).to(dtype)
 
 
-def to_float(img, dtype, max_value=None):
+def to_float(img, dtype=torch.float32, max_value=None):
     if max_value is None:
         try:
             max_value = MAX_VALUES_BY_DTYPE[img.dtype]
@@ -470,3 +472,22 @@ def to_gray(img):
     r, g, b = torch.chunk(img, chunks=3, dim=-3)
     gray = 0.299 * r + 0.587 * g + 0.114 * b
     return torch.cat([gray] * 3, 0).to(dtype)
+
+
+@clipped
+@preserve_shape
+def downscale(img, scale, interpolation="nearest"):
+    dtype = img.dtype
+    h, w = img.shape[1:]
+    new_h = int(round(h * scale))
+    new_w = int(round(w * scale))
+
+    img = img.view(1, *img.shape).float()
+
+    downscaled = TorchFunctional.interpolate(img, (new_h, new_w), mode=interpolation)
+    if dtype == torch.uint8 and interpolation == "nearest":
+        downscaled = torch.clamp(downscaled, 0, 255).int().float()
+
+    upscaled = TorchFunctional.interpolate(downscaled, (h, w), mode=interpolation)
+
+    return upscaled
