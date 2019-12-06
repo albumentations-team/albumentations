@@ -51,6 +51,7 @@ def assert_images_and_masks(result, torch_result, rtol=None):
             [A.Crop(11, 5, 72, 36), ATorch.CropTorch(11, 5, 72, 36)],
             [A.VerticalFlip(), ATorch.VerticalFlipTorch()],
             [A.HorizontalFlip(), ATorch.HorizontalFlipTorch()],
+            [A.Flip(), ATorch.FlipTorch()],
         ],
     ),
 )
@@ -65,9 +66,10 @@ def test_image_transforms(images_and_masks, augs):
     aug_cpu = A.Compose([aug_cpu])
     aug_torch = A.Compose([aug_torch])
 
-    set_seed(0)
+    seed = 0
+    set_seed(seed)
     result = aug_cpu(image=image, mask=mask)
-    set_seed(0)
+    set_seed(seed)
     torch_result = aug_torch(image=torch_image, mask=torch_mask)
 
     assert_images_and_masks(result, torch_result, 1 if dtype == np.uint8 else None)

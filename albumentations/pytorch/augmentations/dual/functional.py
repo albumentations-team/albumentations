@@ -60,4 +60,15 @@ def vflip(img):
 
 
 def hflip(img):
-    return torch.flip(img, [-1])
+    return torch.flip(img, [-1]).contiguous()
+
+
+def random_flip(img, code):
+    if code == 0:
+        code = [-2]
+    elif code == 1:
+        code = [-1]
+    else:
+        code = [-2, -1]
+
+    return torch.flip(img, code).contiguous()
