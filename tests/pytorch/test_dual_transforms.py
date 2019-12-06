@@ -52,6 +52,7 @@ def assert_images_and_masks(result, torch_result, rtol=None):
             [A.VerticalFlip(), ATorch.VerticalFlipTorch()],
             [A.HorizontalFlip(), ATorch.HorizontalFlipTorch()],
             [A.Flip(), ATorch.FlipTorch()],
+            [A.Transpose(), ATorch.TransposeTorch()],
         ],
     ),
 )

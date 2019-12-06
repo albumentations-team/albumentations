@@ -72,3 +72,7 @@ def random_flip(img, code):
         code = [-2, -1]
 
     return torch.flip(img, code).contiguous()
+
+
+def transpose(img):
+    return img.permute(0, 2, 1)
