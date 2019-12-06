@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import kornia as K
 import torch.nn.functional as FTorch
 
 from ..utils import on_4d_image, get_interpolation_mode
@@ -106,3 +107,9 @@ def smallest_max_size(img, max_size, interpolation):
 
 def rot90(img, factor):
     return torch.rot90(img, factor, [-2, -1]).contiguous()
+
+
+@on_4d_image(torch.float32)
+def rotate(img, angle):
+    height, width = img.shape[-2:]
+    return K.rotate(img, torch.tensor(angle), torch.tensor([width / 2, height / 2]))

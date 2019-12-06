@@ -13,6 +13,7 @@ __all__ = [
     "SmallestMaxSizeTorch",
     "ResizeTorch",
     "RandomRotate90Torch",
+    "RotateTorch",
 ]
 
 
@@ -136,3 +137,31 @@ class ResizeTorch(BasicTransformTorch, A.Resize):
 class RandomRotate90Torch(BasicTransformTorch, A.RandomRotate90):
     def apply(self, img, factor=0, **params):
         return F.rot90(img, factor)
+
+
+class RotateTorch(BasicTransformTorch, A.Rotate):
+    """Rotate the input by an angle selected randomly from the uniform distribution.
+
+        Args:
+            limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
+                an angle is picked from (-limit, limit). Default: (-90, 90)
+            p (float): probability of applying the transform. Default: 0.5.
+
+        Targets:
+            image, mask, bboxes, keypoints
+
+        Image types:
+            uint8, float32
+        """
+
+    def __init__(self, limit=90, always_apply=False, p=0.5):
+        # TODO add interpolation and border mode when kornia will add it
+        # TODO add test when will be added interpolation and border mode
+        super().__init__(always_apply=always_apply, p=p)
+        self.limit = A.to_tuple(limit)
+
+    def apply(self, img, angle=0, interpolation=None, **params):
+        return F.rotate(img, angle)
+
+    def apply_to_mask(self, img, angle=0, **params):
+        return F.rotate(img, angle)
