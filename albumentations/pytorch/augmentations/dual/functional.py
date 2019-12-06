@@ -57,3 +57,7 @@ def crop(img, x_min, y_min, x_max, y_max):
 
 def vflip(img):
     return torch.flip(img, [-2]).contiguous()
+
+
+def hflip(img):
+    return torch.flip(img, [-1])
