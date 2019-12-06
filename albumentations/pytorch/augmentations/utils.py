@@ -1,9 +1,16 @@
+import cv2
 import torch
 
 from functools import wraps
 
 
 MAX_VALUES_BY_DTYPE = {torch.uint8: 255, torch.float32: 1.0, torch.float64: 1.0}
+OPENCV_TO_TORCH_INTERPOLATION = {
+    cv2.INTER_LINEAR: "bilinear",
+    cv2.INTER_NEAREST: "nearest",
+    cv2.INTER_AREA: "area",
+    cv2.INTER_CUBIC: "cicubic",
+}
 
 
 def grayscale_to_rgb(image):
@@ -86,3 +93,28 @@ def round_opencv(img):
     result[~cond] = int_part[~cond]
 
     return result.to(torch.int32)
+
+
+def on_4d_image(dtype=None):
+    def callable(func):
+        @wraps(func)
+        def wrapped_function(img, *args, **kwargs):
+            old_dtype = img.dtype
+            if dtype is not None:
+                img = img.to(dtype)
+            img = img.view(1, *img.shape)
+            result = func(img, *args, **kwargs)
+            result = result.view(*result.shape[1:])
+            result = result.to(old_dtype)
+            return result
+
+        return wrapped_function
+
+    return callable
+
+
+def get_interpolation_mode(mode):
+    if not isinstance(mode, str):
+        return OPENCV_TO_TORCH_INTERPOLATION[mode]
+
+    return mode

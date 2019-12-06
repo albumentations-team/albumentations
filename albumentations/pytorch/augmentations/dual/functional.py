@@ -2,6 +2,8 @@ import torch
 import numpy as np
 import torch.nn.functional as FTorch
 
+from ..utils import on_4d_image, get_interpolation_mode
+
 
 def copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode="constant", value=0):
     """
@@ -76,3 +78,23 @@ def random_flip(img, code):
 
 def transpose(img):
     return img.permute(0, 2, 1)
+
+
+@on_4d_image(torch.float32)
+def resize(img, height, width, interpolation="nearest"):
+    return FTorch.interpolate(img.float(), [height, width], mode=get_interpolation_mode(interpolation))
+
+
+def _func_max_size(img, max_size, interpolation, func):
+    height, width = img.shape[-2:]
+
+    scale = max_size / float(func(width, height))
+
+    if scale != 1.0:
+        new_height, new_width = tuple(round(dim * scale) for dim in (height, width))
+        img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
+    return img
+
+
+def longest_max_size(img, max_size, interpolation):
+    return _func_max_size(img, max_size, interpolation, max)

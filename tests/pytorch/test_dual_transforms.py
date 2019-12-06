@@ -53,6 +53,10 @@ def assert_images_and_masks(result, torch_result, rtol=None):
             [A.HorizontalFlip(), ATorch.HorizontalFlipTorch()],
             [A.Flip(), ATorch.FlipTorch()],
             [A.Transpose(), ATorch.TransposeTorch()],
+            [
+                A.LongestMaxSize(interpolation=cv2.INTER_NEAREST),
+                ATorch.LongestMaxSizeTorch(interpolation=cv2.INTER_NEAREST),
+            ],
         ],
     ),
 )
