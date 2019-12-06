@@ -197,18 +197,18 @@ class FromFloatTorch(A.ImageOnlyTransform):
 class DownscaleTorch(A.ImageOnlyTransform):
     """Decreases image quality by downscaling and upscaling back.
 
-        Args:
-            scale_min (float): lower bound on the image scale. Should be < 1.
-            scale_max (float):  lower bound on the image scale. Should be .
-            interpolation (str): algorithm used for upsampling:
-                ``'nearest'`` | ``'bilinear'`` | ``'bicubic'`` | ``'area'``. Default: ``'nearest'``
+    Args:
+        scale_min (float): lower bound on the image scale. Should be < 1.
+        scale_max (float):  lower bound on the image scale. Should be .
+        interpolation (str): algorithm used for upsampling:
+            ``'nearest'`` | ``'bilinear'`` | ``'bicubic'`` | ``'area'``. Default: ``'nearest'``
 
-        Targets:
-            image
+    Targets:
+        image
 
-        Image types:
-            uint8, float32
-        """
+    Image types:
+        uint8, float32
+    """
 
     def __init__(self, scale_min=0.25, scale_max=0.25, interpolation="nearest", always_apply=False, p=0.5):
         super().__init__(always_apply, p)

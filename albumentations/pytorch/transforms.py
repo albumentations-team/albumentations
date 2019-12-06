@@ -10,7 +10,21 @@ from torchvision.transforms import functional as F
 from ..core.transforms_interface import BasicTransform
 
 
-__all__ = ["ToTensor", "ToTensorV2", "FromTensorV2"]
+__all__ = ["ToTensor", "ToTensorV2", "FromTensorV2", "BasicTransformTorch"]
+
+
+class BasicTransformTorch(BasicTransform):
+    def update_params(self, params, **kwargs):
+        if hasattr(self, "interpolation"):
+            params["interpolation"] = self.interpolation
+        if hasattr(self, "fill_value"):
+            params["fill_value"] = self.fill_value
+
+        if isinstance(kwargs["image"], np.ndarray):
+            params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
+        else:
+            params.update({"cols": kwargs["image"].shape[2], "rows": kwargs["image"].shape[1]})
+        return params
 
 
 def img_to_tensor(im, normalize=None):
