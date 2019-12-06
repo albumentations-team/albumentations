@@ -98,3 +98,7 @@ def _func_max_size(img, max_size, interpolation, func):
 
 def longest_max_size(img, max_size, interpolation):
     return _func_max_size(img, max_size, interpolation, max)
+
+
+def smallest_max_size(img, max_size, interpolation):
+    return _func_max_size(img, max_size, interpolation, min)

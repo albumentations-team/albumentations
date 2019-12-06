@@ -57,6 +57,10 @@ def assert_images_and_masks(result, torch_result, rtol=None):
                 A.LongestMaxSize(interpolation=cv2.INTER_NEAREST),
                 ATorch.LongestMaxSizeTorch(interpolation=cv2.INTER_NEAREST),
             ],
+            [
+                A.SmallestMaxSize(interpolation=cv2.INTER_NEAREST),
+                ATorch.SmallestMaxSizeTorch(interpolation=cv2.INTER_NEAREST),
+            ],
         ],
     ),
 )

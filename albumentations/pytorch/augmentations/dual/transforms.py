@@ -10,6 +10,7 @@ __all__ = [
     "FlipTorch",
     "TransposeTorch",
     "LongestMaxSizeTorch",
+    "SmallestMaxSizeTorch",
 ]
 
 
@@ -116,25 +117,10 @@ class TransposeTorch(BasicTransformTorch, A.Transpose):
 
 
 class LongestMaxSizeTorch(BasicTransformTorch, A.LongestMaxSize):
-    """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
-
-        Args:
-            max_size (int): maximum size of the image after the transformation.
-            interpolation (str): algorithm used for upsampling:
-                ``'nearest'`` | ``'bilinear'`` | ``'bicubic'`` | ``'area'``. Default: ``'nearest'``
-            p (float): probability of applying the transform. Default: 1.
-
-        Targets:
-            image, mask, bboxes, keypoints
-
-        Image types:
-            uint8, float32
-        """
-
-    def __init__(self, max_size=1024, interpolation="nearest", always_apply=False, p=1):
-        super(LongestMaxSizeTorch, self).__init__(always_apply, p)
-        self.interpolation = interpolation
-        self.max_size = max_size
-
     def apply(self, img, interpolation="nearest", **params):
         return F.longest_max_size(img, max_size=self.max_size, interpolation=interpolation)
+
+
+class SmallestMaxSizeTorch(BasicTransformTorch, A.SmallestMaxSize):
+    def apply(self, img, interpolation="nearest", **params):
+        return F.smallest_max_size(img, max_size=self.max_size, interpolation=interpolation)
