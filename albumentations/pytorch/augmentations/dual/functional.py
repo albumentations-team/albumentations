@@ -102,3 +102,7 @@ def longest_max_size(img, max_size, interpolation):
 
 def smallest_max_size(img, max_size, interpolation):
     return _func_max_size(img, max_size, interpolation, min)
+
+
+def rot90(img, factor):
+    return torch.rot90(img, factor, [-2, -1]).contiguous()

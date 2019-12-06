@@ -12,6 +12,7 @@ __all__ = [
     "LongestMaxSizeTorch",
     "SmallestMaxSizeTorch",
     "ResizeTorch",
+    "RandomRotate90Torch",
 ]
 
 
@@ -130,3 +131,8 @@ class SmallestMaxSizeTorch(BasicTransformTorch, A.SmallestMaxSize):
 class ResizeTorch(BasicTransformTorch, A.Resize):
     def apply(self, img, interpolation="nearest", **params):
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
+
+
+class RandomRotate90Torch(BasicTransformTorch, A.RandomRotate90):
+    def apply(self, img, factor=0, **params):
+        return F.rot90(img, factor)
