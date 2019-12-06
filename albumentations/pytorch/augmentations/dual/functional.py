@@ -113,3 +113,9 @@ def rot90(img, factor):
 def rotate(img, angle):
     height, width = img.shape[-2:]
     return K.rotate(img, torch.tensor(angle), torch.tensor([width / 2, height / 2]))
+
+
+def scale(img, scale, interpolation="linear"):
+    height, width = img.shape[-2:]
+    new_height, new_width = int(height * scale), int(width * scale)
+    return resize(img, new_height, new_width, interpolation)

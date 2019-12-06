@@ -14,6 +14,7 @@ __all__ = [
     "ResizeTorch",
     "RandomRotate90Torch",
     "RotateTorch",
+    "RandomScaleTorch",
 ]
 
 
@@ -165,3 +166,8 @@ class RotateTorch(BasicTransformTorch, A.Rotate):
 
     def apply_to_mask(self, img, angle=0, **params):
         return F.rotate(img, angle)
+
+
+class RandomScaleTorch(BasicTransformTorch, A.RandomScale):
+    def apply(self, img, scale=0, interpolation="linear", **params):
+        return F.scale(img, scale, interpolation)
