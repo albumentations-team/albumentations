@@ -2,13 +2,7 @@ import albumentations as A
 from . import functional as F
 from ...transforms import BasicTransformTorch
 
-import torch
-
-import random
-import numpy as np
-
-
-__all__ = ["PadIfNeededTorch"]
+__all__ = ["PadIfNeededTorch", "CropTorch"]
 
 
 class PadIfNeededTorch(BasicTransformTorch, A.PadIfNeeded):
@@ -86,3 +80,8 @@ class PadIfNeededTorch(BasicTransformTorch, A.PadIfNeeded):
             {"pad_top": h_pad_top, "pad_bottom": h_pad_bottom, "pad_left": w_pad_left, "pad_right": w_pad_right}
         )
         return params
+
+
+class CropTorch(BasicTransformTorch, A.Crop):
+    def apply(self, img, **params):
+        return F.crop(img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max)
