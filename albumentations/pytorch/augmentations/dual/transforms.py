@@ -11,6 +11,7 @@ __all__ = [
     "TransposeTorch",
     "LongestMaxSizeTorch",
     "SmallestMaxSizeTorch",
+    "ResizeTorch",
 ]
 
 
@@ -124,3 +125,8 @@ class LongestMaxSizeTorch(BasicTransformTorch, A.LongestMaxSize):
 class SmallestMaxSizeTorch(BasicTransformTorch, A.SmallestMaxSize):
     def apply(self, img, interpolation="nearest", **params):
         return F.smallest_max_size(img, max_size=self.max_size, interpolation=interpolation)
+
+
+class ResizeTorch(BasicTransformTorch, A.Resize):
+    def apply(self, img, interpolation="nearest", **params):
+        return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)

@@ -61,6 +61,10 @@ def assert_images_and_masks(result, torch_result, rtol=None):
                 A.SmallestMaxSize(interpolation=cv2.INTER_NEAREST),
                 ATorch.SmallestMaxSizeTorch(interpolation=cv2.INTER_NEAREST),
             ],
+            [
+                A.Resize(100, 100, interpolation=cv2.INTER_NEAREST),
+                ATorch.ResizeTorch(100, 100, interpolation=cv2.INTER_NEAREST),
+            ],
         ],
     ),
 )
