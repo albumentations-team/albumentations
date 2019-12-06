@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 import torch.nn.functional as FTorch
 
@@ -52,3 +53,7 @@ def crop(img, x_min, y_min, x_max, y_max):
         )
 
     return img[..., y_min:y_max, x_min:x_max]
+
+
+def vflip(img):
+    return torch.flip(img, [-2]).contiguous()

@@ -2,7 +2,7 @@ import albumentations as A
 from . import functional as F
 from ...transforms import BasicTransformTorch
 
-__all__ = ["PadIfNeededTorch", "CropTorch"]
+__all__ = ["PadIfNeededTorch", "CropTorch", "VerticalFlipTorch"]
 
 
 class PadIfNeededTorch(BasicTransformTorch, A.PadIfNeeded):
@@ -85,3 +85,8 @@ class PadIfNeededTorch(BasicTransformTorch, A.PadIfNeeded):
 class CropTorch(BasicTransformTorch, A.Crop):
     def apply(self, img, **params):
         return F.crop(img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max)
+
+
+class VerticalFlipTorch(BasicTransformTorch, A.VerticalFlip):
+    def apply(self, img, **params):
+        return F.vflip(img)

@@ -49,6 +49,7 @@ def assert_images_and_masks(result, torch_result, rtol=None):
         [
             [A.PadIfNeeded(333, 512), ATorch.PadIfNeededTorch(333, 512)],
             [A.Crop(11, 5, 72, 36), ATorch.CropTorch(11, 5, 72, 36)],
+            [A.VerticalFlip(), ATorch.VerticalFlipTorch()],
         ],
     ),
 )
