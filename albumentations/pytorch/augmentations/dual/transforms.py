@@ -16,6 +16,7 @@ __all__ = [
     "RotateTorch",
     "RandomScaleTorch",
     "ShiftScaleRotateTorch",
+    "CenterCropTorch",
 ]
 
 
@@ -182,3 +183,8 @@ class ShiftScaleRotateTorch(BasicTransformTorch, A.ShiftScaleRotate):
 
     def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, "nearest", self.border_mode)
+
+
+class CenterCropTorch(BasicTransformTorch, A.CenterCrop):
+    def apply(self, img, **params):
+        return F.center_crop(img, self.height, self.width)
