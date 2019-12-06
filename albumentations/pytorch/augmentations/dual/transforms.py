@@ -15,6 +15,7 @@ __all__ = [
     "RandomRotate90Torch",
     "RotateTorch",
     "RandomScaleTorch",
+    "ShiftScaleRotateTorch",
 ]
 
 
@@ -169,5 +170,15 @@ class RotateTorch(BasicTransformTorch, A.Rotate):
 
 
 class RandomScaleTorch(BasicTransformTorch, A.RandomScale):
-    def apply(self, img, scale=0, interpolation="linear", **params):
+    def apply(self, img, scale=0, interpolation="nearest", **params):
         return F.scale(img, scale, interpolation)
+
+
+class ShiftScaleRotateTorch(BasicTransformTorch, A.ShiftScaleRotate):
+    # TODO add interpolation and border mode when kornia will add it
+    # TODO add test when will be added interpolation and border mode
+    def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation="nearest", **params):
+        return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode)
+
+    def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
+        return F.shift_scale_rotate(img, angle, scale, dx, dy, "nearest", self.border_mode)

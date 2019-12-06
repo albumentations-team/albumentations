@@ -115,7 +115,24 @@ def rotate(img, angle):
     return K.rotate(img, torch.tensor(angle), torch.tensor([width / 2, height / 2]))
 
 
-def scale(img, scale, interpolation="linear"):
+def scale(img, scale, interpolation="nearest"):
     height, width = img.shape[-2:]
     new_height, new_width = int(height * scale), int(width * scale)
     return resize(img, new_height, new_width, interpolation)
+
+
+@on_4d_image(torch.float32)
+def shift_scale_rotate(img, angle, scale, dx, dy, interpolation="nearest", border_mode="reflect"):
+    # TODO add interpolation and border mode when kornia will add it
+    # TODO add test when will be added interpolation and border mode
+    interpolation = get_interpolation_mode(interpolation)
+
+    height, width = img.shape[-2:]
+    center = (width / 2, height / 2)
+    matrix = K.get_rotation_matrix2d(
+        torch.tensor(center).view(1, 2), torch.tensor(angle).view(1), torch.tensor(scale).view(1)
+    )
+    matrix[:, 0, 2] += dx * width
+    matrix[:, 1, 2] += dy * height
+
+    return K.warp_affine(img, matrix, (width, height), interpolation, border_mode)
