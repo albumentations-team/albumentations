@@ -7,7 +7,7 @@ from itertools import product
 import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
-from skimage.filters import gaussian
+from numba import jit
 
 from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
@@ -1967,10 +1967,18 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
+@jit(nopython=True)
+def _shuffle(x, i, h, w, md):
+    dx, dy = np.random.randint(-md, md, size=(2,))
+    h_prime, w_prime = h + dy, w + dx
+    x[h, w], x[h_prime, w_prime] = x[h_prime, w_prime], x[h, w]
+    return x
+
+
 @clipped
 def glass_blur(img, sigma, max_delta, iterations):
     coef = MAX_VALUES_BY_DTYPE[img.dtype]
-    x = np.uint8(gaussian(np.array(img) / coef, sigma=sigma, multichannel=True) * coef)
+    x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
 
     # locally shuffle pixels
     for i, h, w in product(
@@ -1978,9 +1986,6 @@ def glass_blur(img, sigma, max_delta, iterations):
         range(img.shape[0] - max_delta, max_delta, -1),
         range(img.shape[1] - max_delta, max_delta, -1),
     ):
-        dx, dy = np.random.randint(-max_delta, max_delta, size=(2,))
-        h_prime, w_prime = h + dy, w + dx
-        # swap
-        x[h, w], x[h_prime, w_prime] = x[h_prime, w_prime], x[h, w]
+        x = _shuffle(x, i, h, w, max_delta)
 
-    return np.clip(gaussian(x / coef, sigma=sigma, multichannel=True), 0, 1) * coef
+    return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
