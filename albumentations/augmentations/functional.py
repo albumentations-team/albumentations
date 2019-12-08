@@ -3,10 +3,11 @@ from __future__ import division
 import math
 from functools import wraps
 from warnings import warn
-
+from itertools import product
 import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
+from skimage.filters import gaussian
 
 from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
@@ -1967,6 +1968,19 @@ def fancy_pca(img, alpha=0.1):
 
 
 @clipped
-def shot_noise(image, shotnoise):
+def glass_blur(img, sigma, max_delta, iterations):
+    coef = MAX_VALUES_BY_DTYPE[img.dtype]
+    x = np.uint8(gaussian(np.array(img) / coef, sigma=sigma, multichannel=True) * coef)
 
-    return shotnoise
+    # locally shuffle pixels
+    for i, h, w in product(
+        range(iterations),
+        range(img.shape[0] - max_delta, max_delta, -1),
+        range(img.shape[1] - max_delta, max_delta, -1),
+    ):
+        dx, dy = np.random.randint(-max_delta, max_delta, size=(2,))
+        h_prime, w_prime = h + dy, w + dx
+        # swap
+        x[h, w], x[h_prime, w_prime] = x[h_prime, w_prime], x[h, w]
+
+    return np.clip(gaussian(x / coef, sigma=sigma, multichannel=True), 0, 1) * coef
