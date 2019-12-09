@@ -45,9 +45,9 @@ def preserve_shape(func):
     @wraps(func)
     def wrapped_function(img, *args, **kwargs):
         shape = img.shape
-        result = func(img, *args, **kwargs)
-        result = result.view(*shape)
-        return result
+        img = func(img, *args, **kwargs)
+        img = img.view(*shape)
+        return img
 
     return wrapped_function
 

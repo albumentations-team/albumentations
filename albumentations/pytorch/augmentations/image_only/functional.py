@@ -201,8 +201,8 @@ def normalize(img, mean, std):
     denominator = torch.reciprocal(std)
 
     img = img.float()
-    img -= mean
-    img *= denominator
+    img -= mean.to(img.device)
+    img *= denominator.to(img.device)
     return img
 
 
@@ -311,7 +311,8 @@ def gaussian_blur(img, ksize):
 
     dtype = img.dtype
     img = img.view(1, *img.shape)
-    img = K.gaussian_blur2d(img.float(), tuple(int(i) for i in ksize), sigma=tuple(sigma))
+    img = img.float()
+    img = K.gaussian_blur2d(img, tuple(int(i) for i in ksize), sigma=tuple(sigma))
 
     if dtype == torch.uint8:
         img = round_opencv(img)
