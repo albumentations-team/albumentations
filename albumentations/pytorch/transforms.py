@@ -97,8 +97,9 @@ class ToTensor(BasicTransform):
 class ToTensorV2(BasicTransform):
     """Convert image and mask to `torch.Tensor`."""
 
-    def __init__(self, always_apply=True, p=1.0):
+    def __init__(self, always_apply=True, device="cpu", p=1.0):
         super(ToTensorV2, self).__init__(always_apply=always_apply, p=p)
+        self.device = device
 
     @property
     def targets(self):
@@ -108,13 +109,13 @@ class ToTensorV2(BasicTransform):
         if is_grayscale_image(img):
             img = img.reshape((1,) + img.shape[:2])
 
-        return torch.from_numpy(img.transpose(2, 0, 1))
+        return torch.from_numpy(img.transpose(2, 0, 1)).to(self.device)
 
     def apply_to_mask(self, mask, **params):
-        return torch.from_numpy(mask)
+        return torch.from_numpy(mask).to(self.device)
 
     def get_transform_init_args_names(self):
-        return []
+        return ("device",)
 
     def get_params_dependent_on_targets(self, params):
         return {}

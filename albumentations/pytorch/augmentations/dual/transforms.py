@@ -145,17 +145,17 @@ class RandomRotate90Torch(BasicTransformTorch, A.RandomRotate90):
 class RotateTorch(BasicTransformTorch, A.Rotate):
     """Rotate the input by an angle selected randomly from the uniform distribution.
 
-        Args:
-            limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
-                an angle is picked from (-limit, limit). Default: (-90, 90)
-            p (float): probability of applying the transform. Default: 0.5.
+    Args:
+        limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
+            an angle is picked from (-limit, limit). Default: (-90, 90)
+        p (float): probability of applying the transform. Default: 0.5.
 
-        Targets:
-            image, mask, bboxes, keypoints
+    Targets:
+        image, mask, bboxes, keypoints
 
-        Image types:
-            uint8, float32
-        """
+    Image types:
+        uint8, float32
+    """
 
     def __init__(self, limit=90, always_apply=False, p=0.5):
         # TODO add interpolation and border mode when kornia will add it
