@@ -372,6 +372,7 @@ def median_blur(img, ksize):
     return img
 
 
+@preserve_shape
 def gaussian_blur(img, ksize):
     ksize = np.array(ksize).astype(float)
     sigma = 0.3 * ((ksize - 1.0) * 0.5 - 1.0) + 0.8
