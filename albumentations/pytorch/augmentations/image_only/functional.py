@@ -184,8 +184,6 @@ def add_snow(img, snow_point, brightness_coeff):
     image_HLS = image_HLS.to(torch.uint8)
     image_RGB = hls_to_rgb(image_HLS)
 
-    image_HLS.numpy().transpose([1, 2, 0]).tofile("torch_hls_")
-    image_RGB.numpy().transpose([1, 2, 0]).tofile("torch_hls_A")
     if needs_float:
         image_RGB = to_float(image_RGB, torch.float32)
 
