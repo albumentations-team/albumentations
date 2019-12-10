@@ -47,16 +47,51 @@ def cutout(img, holes, fill_value=0):
     return img
 
 
+def __rgb_to_hls(image):
+    if not torch.is_tensor(image):
+        raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(image)))
+
+    if len(image.shape) < 3 or image.shape[0] != 3:
+        raise ValueError("Input size must have a shape of (3, H, W). Got {}".format(image.shape))
+
+    r, g, b = image
+
+    maxc: torch.Tensor = image.max(-3)[0]
+    minc: torch.Tensor = image.min(-3)[0]
+
+    imax: torch.Tensor = image.max(-3)[1]
+
+    sum_max_min = maxc + minc
+
+    l: torch.Tensor = sum_max_min / 2  # luminance
+
+    deltac: torch.Tensor = maxc - minc
+
+    s: torch.Tensor = torch.where(l < 0.5, deltac / sum_max_min, deltac / (2 - sum_max_min))  # saturation
+
+    hi: torch.Tensor = torch.zeros_like(deltac)
+
+    r /= deltac
+    g /= deltac
+    b /= deltac
+
+    hi = torch.where(imax == 0, (g - b) % 6, hi)
+    hi = torch.where(imax == 1, (b - r) + 2, hi)
+    hi = torch.where(imax == 2, (r - g) + 4, hi)
+
+    h: torch.Tensor = hi * 60.0
+
+    return torch.stack([h, l, s], dim=-3)
+
+
 def _rbg_to_hls_float(img):
-    img = K.rgb_to_hls(img)
-    img[0] *= 360.0 / (2.0 * np.pi)
-    return img
+    return __rgb_to_hls(img)
 
 
 @clipped
 def _rbg_to_hls_uint8(img):
-    img = K.rgb_to_hls(img.float() * (1.0 / 255.0))
-    img[0] *= 180.0 / (2.0 * np.pi)
+    img = __rgb_to_hls(img.float() * (1.0 / 255.0))
+    img[0] *= 180.0 / 360.0
     img[1:] *= 255.0
     return round_opencv(img)
 
@@ -71,21 +106,62 @@ def rgb_to_hls(img):
     raise ValueError("rbg_to_hls support only uint8, float32 and float64 dtypes. Got: {}".format(img.dtype))
 
 
+def __hls_to_rgb(image):
+    if not torch.is_tensor(image):
+        raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(image)))
+
+    if len(image.shape) < 3 or image.shape[-3] != 3:
+        raise ValueError("Input size must have a shape of (3, H, W). Got {}".format(image.shape))
+
+    h: torch.Tensor = image[0, :, :]
+    l: torch.Tensor = image[1, :, :]
+    s: torch.Tensor = image[2, :, :]
+
+    h_div = h / 30
+    kr = h_div % 12
+
+    h_div += 4
+    kb = h_div % 12
+
+    h_div += 4
+    kg = h_div % 12
+
+    a = s * torch.min(l, 1 - l)
+
+    torch.min(kr - 3, 9 - kr, out=kr)
+    torch.min(kg - 3, 9 - kg, out=kg)
+    torch.min(kb - 3, 9 - kb, out=kb)
+
+    torch.clamp(kr, -1, 1, out=kr)
+    torch.clamp(kg, -1, 1, out=kg)
+    torch.clamp(kb, -1, 1, out=kb)
+
+    kr *= a
+    kg *= a
+    kb *= a
+
+    torch.sub(l, kr, out=kr)
+    torch.sub(l, kg, out=kg)
+    torch.sub(l, kb, out=kb)
+
+    out: torch.Tensor = torch.stack([kr, kg, kb], dim=-3)
+
+    return out
+
+
 @clipped
 def _hls_to_rgb_uint8(img):
     img = img.float()
-    img[0] *= 2.0 * np.pi / 180.0
+    img[0] *= 360 / 180.0
     img[1:] /= 255.0
 
-    img = K.hls_to_rgb(img)
+    img = __hls_to_rgb(img)
     img *= 255.0
     return round_opencv(img)
 
 
 def _hls_to_rgb_float(img):
-    img = img.clone()
-    img[0] *= 2.0 * np.pi / 360.0
-    return K.hls_to_rgb(img)
+    return __hls_to_rgb(img)
 
 
 def hls_to_rgb(img):

@@ -41,7 +41,7 @@ class NormalizeTorch(A.Normalize):
         self.std = torch.tensor(self.std) * self.max_pixel_value
 
     def apply(self, image, **params):
-        return F.normalize(image.type(torch.float32), self.mean, self.std)
+        return F.normalize(image.to(torch.float32), self.mean, self.std)
 
 
 class CoarseDropoutTorch(A.CoarseDropout):
