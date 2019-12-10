@@ -164,28 +164,22 @@ def add_snow(img, snow_point, brightness_coeff):
 
     """
     input_dtype = img.dtype
-    needs_float = False
 
-    snow_point *= 127.5  # = 255 / 2
-    snow_point += 85  # = 255 / 3
-
-    if input_dtype == torch.float32:
-        img = from_float(img, torch.uint8)
-        needs_float = True
-    elif input_dtype not in (torch.uint8, torch.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+    if input_dtype == torch.uint8:
+        snow_point *= 127.5  # = 255 / 2
+        snow_point += 85  # = 255 / 3
+    else:
+        snow_point *= 0.5
+        snow_point += 1.0 / 3.0
 
     image_HLS = rgb_to_hls(img)
     image_HLS = image_HLS.float()
 
     image_HLS[1][image_HLS[1] < snow_point] *= brightness_coeff
-    image_HLS[1] = clip(image_HLS[1], torch.uint8, 255)
+    image_HLS[1] = clip(image_HLS[1], input_dtype, MAX_VALUES_BY_DTYPE[input_dtype])
 
-    image_HLS = image_HLS.to(torch.uint8)
+    image_HLS = image_HLS.to(input_dtype)
     image_RGB = hls_to_rgb(image_HLS)
-
-    if needs_float:
-        image_RGB = to_float(image_RGB, torch.float32)
 
     return image_RGB
 
@@ -302,7 +296,6 @@ def median_blur(img, ksize):
     return img
 
 
-@preserve_shape
 def gaussian_blur(img, ksize):
     ksize = np.array(ksize).astype(float)
     sigma = 0.3 * ((ksize - 1.0) * 0.5 - 1.0) + 0.8
@@ -313,7 +306,7 @@ def gaussian_blur(img, ksize):
     img = K.gaussian_blur2d(img, tuple(int(i) for i in ksize), sigma=tuple(sigma))
 
     if dtype == torch.uint8:
-        img = round_opencv(img)
+        img = torch.clamp(round_opencv(img), 0, 255)
 
     return img.to(dtype)
 
