@@ -48,40 +48,31 @@ def cutout(img, holes, fill_value=0):
 
 
 def __rgb_to_hls(image):
-    if not torch.is_tensor(image):
-        raise TypeError("Input type is not a torch.Tensor. Got {}".format(type(image)))
-
     if len(image.shape) < 3 or image.shape[0] != 3:
         raise ValueError("Input size must have a shape of (3, H, W). Got {}".format(image.shape))
+    maxc = image.max(-3)[0]
+    minc = image.min(-3)[0]
 
-    r, g, b = image
-
-    maxc: torch.Tensor = image.max(-3)[0]
-    minc: torch.Tensor = image.min(-3)[0]
-
-    imax: torch.Tensor = image.max(-3)[1]
+    imax = image.max(-3)[1]
 
     sum_max_min = maxc + minc
 
-    l: torch.Tensor = sum_max_min / 2  # luminance
+    luminance = sum_max_min / 2.0  # luminance
 
-    deltac: torch.Tensor = maxc - minc
+    deltac = maxc - minc
 
-    s: torch.Tensor = torch.where(l < 0.5, deltac / sum_max_min, deltac / (2 - sum_max_min))  # saturation
+    s = torch.where(luminance < 0.5, deltac / sum_max_min, deltac / (2.0 - sum_max_min))  # saturation
 
-    hi: torch.Tensor = torch.zeros_like(deltac)
+    r, g, b = image / deltac
 
-    r /= deltac
-    g /= deltac
-    b /= deltac
-
+    hi = torch.empty_like(deltac)
     hi = torch.where(imax == 0, (g - b) % 6, hi)
     hi = torch.where(imax == 1, (b - r) + 2, hi)
     hi = torch.where(imax == 2, (r - g) + 4, hi)
 
-    h: torch.Tensor = hi * 60.0
+    hi *= 60.0
 
-    return torch.stack([h, l, s], dim=-3)
+    return torch.stack([hi, luminance, s], dim=-3)
 
 
 def _rbg_to_hls_float(img):
@@ -97,7 +88,6 @@ def _rbg_to_hls_uint8(img):
 
 
 def rgb_to_hls(img):
-    # TODO add tests after fix nans in kornia.rgb_to_hls
     if img.dtype in [torch.float32, torch.float64]:
         return _rbg_to_hls_float(img)
     elif img.dtype == torch.uint8:
@@ -113,9 +103,7 @@ def __hls_to_rgb(image):
     if len(image.shape) < 3 or image.shape[-3] != 3:
         raise ValueError("Input size must have a shape of (3, H, W). Got {}".format(image.shape))
 
-    h: torch.Tensor = image[0, :, :]
-    l: torch.Tensor = image[1, :, :]
-    s: torch.Tensor = image[2, :, :]
+    h, l, s = image
 
     h_div = h / 30
     kr = h_div % 12
@@ -126,15 +114,15 @@ def __hls_to_rgb(image):
     h_div += 4
     kg = h_div % 12
 
-    a = s * torch.min(l, 1 - l)
+    a = s * torch.min(l, 1.0 - l)
 
-    torch.min(kr - 3, 9 - kr, out=kr)
-    torch.min(kg - 3, 9 - kg, out=kg)
-    torch.min(kb - 3, 9 - kb, out=kb)
+    torch.min(kr - 3.0, 9.0 - kr, out=kr)
+    torch.min(kg - 3.0, 9.0 - kg, out=kg)
+    torch.min(kb - 3.0, 9.0 - kb, out=kb)
 
-    torch.clamp(kr, -1, 1, out=kr)
-    torch.clamp(kg, -1, 1, out=kg)
-    torch.clamp(kb, -1, 1, out=kb)
+    torch.clamp(kr, -1.0, 1.0, out=kr)
+    torch.clamp(kg, -1.0, 1.0, out=kg)
+    torch.clamp(kb, -1.0, 1.0, out=kb)
 
     kr *= a
     kg *= a
@@ -144,9 +132,7 @@ def __hls_to_rgb(image):
     torch.sub(l, kg, out=kg)
     torch.sub(l, kb, out=kb)
 
-    out: torch.Tensor = torch.stack([kr, kg, kb], dim=-3)
-
-    return out
+    return torch.stack([kr, kg, kb], dim=-3)
 
 
 @clipped
@@ -173,16 +159,50 @@ def hls_to_rgb(img):
     raise ValueError("hls_to_rgb support only uint8, float32 and float64 dtypes. Got: {}".format(img.dtype))
 
 
+def __rgb_to_hsv(image):
+    if len(image.shape) < 3 or image.shape[-3] != 3:
+        raise ValueError("Input size must have a shape of (3, H, W). Got {}".format(image.shape))
+
+    r, g, b = image
+
+    maxc = image.max(-3)[0]
+    minc = image.min(-3)[0]
+
+    v = maxc  # brightness
+
+    deltac: torch.Tensor = maxc - minc
+
+    s = deltac / v
+    s = torch.where(torch.isnan(s), torch.zeros_like(s), s)
+
+    # avoid division by zero
+    deltac = torch.where(deltac == 0, torch.ones_like(deltac), deltac)
+
+    maxg = g == maxc
+    maxr = r == maxc
+
+    r, g, b = (torch.stack([maxc] * 3) - image) / deltac
+
+    h = 4.0 + g - r
+    h = torch.where(maxg, 2.0 + r - b, h)
+    h = torch.where(maxr, b - g, h)
+    h = torch.where(minc == maxc, torch.zeros_like(h), h)
+
+    h *= 60.0
+    h %= 360.0
+
+    return torch.stack([h, s, v], dim=-3)
+
+
 def _rbg_to_hsv_float(img):
-    img = K.rgb_to_hsv(img)
-    img[0] *= 360.0 / (2.0 * np.pi)
-    return img
+    return __rgb_to_hsv(img)
 
 
 @clipped
 def _rbg_to_hsv_uint8(img):
-    img = K.rgb_to_hsv(img.float() * (1.0 / 255.0))
-    img[0] *= 180.0 / (2.0 * np.pi)
+    img = __rgb_to_hsv(img.float() / 255.0)
+
+    img[0] *= 180.0 / 360
     img[1:] *= 255.0
 
     img = round_opencv(img)
@@ -199,21 +219,48 @@ def rgb_to_hsv(img):
     raise ValueError("rbg_to_hls support only uint8, float32 and float64 dtypes. Got: {}".format(img.dtype))
 
 
+def __hsv_to_rgb(image):
+    if len(image.shape) < 3 or image.shape[0] != 3:
+        raise ValueError("Input size must have a shape of (3, H, W). Got {}".format(image.shape))
+
+    h, s, v = image.clone()
+    h = h / 60.0
+
+    hi = torch.floor(h) % 6
+    h = (h % 6) - hi
+
+    sv = s * v
+    svh = sv * h
+
+    p: torch.Tensor = v - sv
+    q: torch.Tensor = v - svh
+    t: torch.Tensor = v - sv + svh
+
+    out: torch.Tensor = torch.stack([hi, hi, hi])
+
+    out = torch.where(out == 0, torch.stack((v, t, p), dim=-3), out)
+    out = torch.where(out == 1, torch.stack((q, v, p), dim=-3), out)
+    out = torch.where(out == 2, torch.stack((p, v, t), dim=-3), out)
+    out = torch.where(out == 3, torch.stack((p, q, v), dim=-3), out)
+    out = torch.where(out == 4, torch.stack((t, p, v), dim=-3), out)
+    out = torch.where(out == 5, torch.stack((v, p, q), dim=-3), out)
+
+    return out
+
+
 @clipped
 def _hsv_to_rgb_uint8(img):
     img = img.float()
-    img[0] *= 2.0 * np.pi / 180.0
+    img[0] *= 2.0
     img[1:] /= 255.0
 
-    img = K.hsv_to_rgb(img)
+    img = __hsv_to_rgb(img)
     img *= 255.0
     return round_opencv(img)
 
 
 def _hsv_to_rgb_float(img):
-    img = img.clone()
-    img[0] *= 2.0 * np.pi / 360.0
-    return K.hsv_to_rgb(img)
+    return __hsv_to_rgb(img)
 
 
 def hsv_to_rgb(img):
