@@ -87,10 +87,8 @@ def round_opencv(img):
     cond = (fract_part != 0.5) & (fract_part != -0.5)
     cond |= (int_part % 2) != 0
 
-    result = torch.empty_like(img)
-    tmp = img[cond]
-    result[cond] = tmp + torch.where(tmp >= 0, torch.full_like(tmp, 0.5), torch.full_like(tmp, -0.5))
-    result[~cond] = int_part[~cond]
+    tmp = torch.where(img >= 0, torch.full_like(img, 0.5), torch.full_like(img, -0.5))
+    result = torch.where(cond, img + tmp, int_part)
 
     return result.to(torch.int32)
 

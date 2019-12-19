@@ -116,7 +116,7 @@ def test_rgb_to_hls_float():
     torch_img = FTorch.rgb_to_hls(torch_img)
 
     torch_img = from_tensor(torch_img)
-    assert_allclose(cv_img, torch_img)
+    assert_allclose(cv_img, torch_img, 1e-3, 1e-4)
 
 
 def test_rgb_to_hls_uint8():
