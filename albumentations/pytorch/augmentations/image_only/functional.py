@@ -26,7 +26,7 @@ def from_float(img, dtype, max_value=None):
                 "Can't infer the maximum value for dtype {}. You need to specify the maximum value manually by "
                 "passing the max_value argument".format(dtype)
             )
-    return (img * max_value).to(dtype)
+    return (img * max_value).to(dtype, non_blocking=True)
 
 
 def to_float(img, dtype=torch.float32, max_value=None):
@@ -303,7 +303,7 @@ def add_snow(img, snow_point, brightness_coeff):
     image_HLS[1][image_HLS[1] < snow_point] *= brightness_coeff
     image_HLS[1] = clip(image_HLS[1], input_dtype, MAX_VALUES_BY_DTYPE[input_dtype])
 
-    image_HLS = image_HLS.to(input_dtype)
+    image_HLS = image_HLS.to(input_dtype, non_blocking=True)
     image_RGB = hls_to_rgb(image_HLS)
 
     return image_RGB
@@ -318,8 +318,8 @@ def normalize(img, mean, std):
     denominator = torch.reciprocal(std)
 
     img = img.float()
-    img -= mean.to(img.device)
-    img *= denominator.to(img.device)
+    img -= mean.to(img.device, non_blocking=True)
+    img *= denominator.to(img.device, non_blocking=True)
     return img
 
 
@@ -346,12 +346,12 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
     hue = hue + hue_shift
     hue = torch.where(hue < 0, hue + 180, hue)
     hue = torch.where(hue > 180, hue - 180, hue)
-    hue = hue.to(dtype)
+    hue = hue.to(dtype, non_blocking=True)
 
     sat = clip(sat + sat_shift, dtype, 255 if dtype == torch.uint8 else 1.0)
     val = clip(val + val_shift, dtype, 255 if dtype == torch.uint8 else 1.0)
 
-    img = torch.stack((hue, sat, val)).to(dtype)
+    img = torch.stack((hue, sat, val)).to(dtype, non_blocking=True)
     img = hsv_to_rgb(img)
 
     return img
@@ -465,7 +465,11 @@ def gaussian_blur(img, ksize):
         _ks = ksize
         ksize = np.array(ksize).astype(float)
         sigma = 0.3 * ((ksize - 1.0) * 0.5 - 1.0) + 0.8
-        kernel = torch.from_numpy(_gaussian_kernel2d(ksize, sigma)).to(img.device).to(dtype)
+        kernel = (
+            torch.from_numpy(_gaussian_kernel2d(ksize, sigma))
+            .to(img.device, non_blocking=True)
+            .to(dtype, non_blocking=True)
+        )
         GAUS_KERNELS[_ks] = kernel
 
     img = K.filter2D(img, kernel)
@@ -473,38 +477,37 @@ def gaussian_blur(img, ksize):
     if dtype == torch.uint8:
         img = torch.clamp(torch.round(img), 0, 255)
 
-    return img.to(dtype)
+    return img.to(dtype, non_blocking=True)
 
 
-@clipped
 @rgb_image
-def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **_):
-    # TODO add tests after fix nans in kornia.rgb_to_hls
-    assert image.dtype == torch.uint8, "Image must have uint8 channel type"
+def iso_noise(image, color_shift=0.05, intensity=0.5, **_):
+    # TODO add tests
+    dtype = image.dtype
+    if dtype == torch.uint8:
+        image = image.float() / 255.0
 
-    if random_state is None:
-        random_state = np.random.RandomState(42)
-
-    image = image.float() / 255.0
     hls = rgb_to_hls(image)
-    std = torch.std(hls[1])
+    std = torch.std(hls[1]).cpu()
 
-    # TODO use pytorch random geterator
-    luminance_noise = torch.from_numpy(random_state.poisson(std * intensity * 255.0, size=hls.shape[1:]))
-    color_noise = torch.from_numpy(random_state.normal(0, color_shift * 360.0 * intensity, size=hls.shape[1:]))
-
-    luminance_noise = luminance_noise.to(image.device)
-    color_noise = color_noise.to(image.device)
+    # TODO use pytorch random generator
+    luminance_noise = torch.full(hls.shape[1:], std * intensity * 255.0, dtype=dtype, device=image.device)
+    luminance_noise = torch.poisson(luminance_noise)
+    color_noise = torch.normal(
+        0, color_shift * 360.0 * intensity, size=hls.shape[1:], dtype=dtype, device=image.device
+    )
 
     hue = hls[0]
     hue += color_noise
-    hue[hue < 0] += 360.0
-    hue[hue > 360] -= 360.0
+    hue %= 360
 
     luminance = hls[1]
     luminance += (luminance_noise / 255.0) * (1.0 - luminance)
 
-    image = hls_to_rgb(hls) * 255.0
+    image = hls_to_rgb(hls)
+    if dtype == torch.uint8:
+        image = clip(image, dtype, MAX_VALUES_BY_DTYPE[dtype])
+
     return image
 
 
@@ -535,7 +538,7 @@ def gamma_transform(img, gamma, eps):
     else:
         img = torch.pow(img, gamma)
 
-    return img.to(dtype)
+    return img.to(dtype, non_blocking=True)
 
 
 def channel_shuffle(img, channels_shuffled):
@@ -551,7 +554,7 @@ def to_gray(img):
 
     r, g, b = torch.chunk(img, chunks=3, dim=-3)
     gray = 0.299 * r + 0.587 * g + 0.114 * b
-    return torch.cat([gray] * 3, 0).to(dtype)
+    return torch.cat([gray] * 3, 0).to(dtype, non_blocking=True)
 
 
 @clipped
