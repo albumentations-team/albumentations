@@ -324,7 +324,12 @@ def normalize(img, mean, std):
 @on_float_image
 def blur(image, ksize):
     image = image.view(1, *image.shape)
-    image = K.box_blur(image, ksize)
+
+    scale = 1.0 / (ksize[0] * ksize[1])
+    kernel = torch.full(ksize, scale, dtype=torch.float32, device=image.device)
+    kernel = kernel.view(1, *ksize)
+
+    image = K.filter2D(image, kernel)
     return image
 
 
