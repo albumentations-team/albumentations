@@ -14,6 +14,9 @@ from albumentations.pytorch.augmentations.utils import (
 )
 
 
+GAUS_KERNELS = {}  # Cache
+
+
 def from_float(img, dtype, max_value=None):
     if max_value is None:
         try:
@@ -398,7 +401,7 @@ def motion_blur(img, kernel):
 
     dtype = img.dtype
     img = img.view(1, *img.shape)
-    img = K.filter2D(img.float(), kernel.float())
+    img = K.filter2D(img.float(), kernel)
 
     if dtype == torch.uint8:
         img = torch.round(img)
@@ -411,7 +414,19 @@ def motion_blur(img, kernel):
 def median_blur(img, ksize):
     dtype = img.dtype
     img = img.view(1, *img.shape)
-    img = K.median_blur(img.float(), ksize)
+
+    wrange = ksize[0] * ksize[1]
+    kernel = torch.diag(torch.zeros(wrange, dtype=dtype, device=img.device))
+    kernel = kernel.view(wrange, 1, ksize[0], ksize[1])
+
+    padding = tuple([(k - 1) // 2 for k in ksize])
+
+    b, c, h, w = img.shape
+    # map the local window to single vector
+    features = torch.nn.functional.conv2d(img.view(b * c, 1, h, w), kernel, padding=padding, stride=1)
+    features = features.view(b, c, -1, h, w)  # BxCx(K_h * K_w)xHxW
+
+    img = torch.median(features, dim=2)[0]
 
     if dtype == torch.uint8:
         img = torch.round(img)
@@ -419,15 +434,41 @@ def median_blur(img, ksize):
     return img
 
 
+def _gaussian_kernel1d(window_size, sigma):
+    x = np.arange(window_size) - window_size // 2
+    if window_size % 2 == 0:
+        x += 0.5
+    gauss = np.exp(-(x ** 2) / (2.0 * (sigma ** 2)))
+    return gauss / gauss.sum()
+
+
+def _gaussian_kernel2d(kernel_size, sigma):
+    ksize_x, ksize_y = kernel_size
+    sigma_x, sigma_y = sigma
+    kernel_x = np.expand_dims(_gaussian_kernel1d(ksize_x, sigma_x), -1)
+    kernel_y = np.expand_dims(_gaussian_kernel1d(ksize_y, sigma_y), -1)
+    kernel_2d = np.matmul(kernel_x, kernel_y.T)
+    return np.expand_dims(kernel_2d, 0)
+
+
 @preserve_shape
 def gaussian_blur(img, ksize):
-    ksize = np.array(ksize).astype(float)
-    sigma = 0.3 * ((ksize - 1.0) * 0.5 - 1.0) + 0.8
+    global GAUS_KERNELS
 
     dtype = img.dtype
-    img = img.view(1, *img.shape)
-    img = img.float()
-    img = K.gaussian_blur2d(img, tuple(int(i) for i in ksize), sigma=tuple(sigma))
+    img = img.view(1, *img.shape).float()
+
+    ksize = tuple(ksize)
+    if ksize in GAUS_KERNELS:
+        kernel = GAUS_KERNELS[ksize]
+    else:
+        _ks = ksize
+        ksize = np.array(ksize).astype(float)
+        sigma = 0.3 * ((ksize - 1.0) * 0.5 - 1.0) + 0.8
+        kernel = torch.from_numpy(_gaussian_kernel2d(ksize, sigma)).to(img.device).to(dtype)
+        GAUS_KERNELS[_ks] = kernel
+
+    img = K.filter2D(img, kernel)
 
     if dtype == torch.uint8:
         img = torch.clamp(torch.round(img), 0, 255)
