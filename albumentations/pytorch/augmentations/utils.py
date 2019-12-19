@@ -80,19 +80,6 @@ def clipped(func):
     return wrapped_function
 
 
-def round_opencv(img):
-    int_part = img.to(torch.int32).float()
-    fract_part = img - int_part
-
-    cond = (fract_part != 0.5) & (fract_part != -0.5)
-    cond |= (int_part % 2) != 0
-
-    tmp = torch.where(img >= 0, torch.full_like(img, 0.5), torch.full_like(img, -0.5))
-    result = torch.where(cond, img + tmp, int_part)
-
-    return result.to(torch.int32)
-
-
 def on_4d_image(dtype=None):
     def callable(func):
         @wraps(func)

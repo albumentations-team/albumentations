@@ -8,7 +8,6 @@ from albumentations.pytorch.augmentations.utils import (
     MAX_VALUES_BY_DTYPE,
     preserve_shape,
     clipped,
-    round_opencv,
     on_float_image,
     clip,
     rgb_image,
@@ -84,7 +83,7 @@ def _rbg_to_hls_uint8(img):
     img = __rgb_to_hls(img.float() * (1.0 / 255.0))
     img[0] *= 180.0 / 360.0
     img[1:] *= 255.0
-    return round_opencv(img)
+    return torch.round(img)
 
 
 def rgb_to_hls(img):
@@ -143,7 +142,7 @@ def _hls_to_rgb_uint8(img):
 
     img = __hls_to_rgb(img)
     img *= 255.0
-    return round_opencv(img)
+    return torch.round(img)
 
 
 def _hls_to_rgb_float(img):
@@ -205,7 +204,7 @@ def _rbg_to_hsv_uint8(img):
     img[0] *= 180.0 / 360
     img[1:] *= 255.0
 
-    img = round_opencv(img)
+    img = torch.round(img)
     img[0] %= 180.0
     return img
 
@@ -256,7 +255,7 @@ def _hsv_to_rgb_uint8(img):
 
     img = __hsv_to_rgb(img)
     img *= 255.0
-    return round_opencv(img)
+    return torch.round(img)
 
 
 def _hsv_to_rgb_float(img):
@@ -401,7 +400,7 @@ def motion_blur(img, kernel):
     img = K.filter2D(img.float(), kernel.float())
 
     if dtype == torch.uint8:
-        img = round_opencv(img)
+        img = torch.round(img)
 
     return img
 
@@ -414,7 +413,7 @@ def median_blur(img, ksize):
     img = K.median_blur(img.float(), ksize)
 
     if dtype == torch.uint8:
-        img = round_opencv(img)
+        img = torch.round(img)
 
     return img
 
@@ -430,7 +429,7 @@ def gaussian_blur(img, ksize):
     img = K.gaussian_blur2d(img, tuple(int(i) for i in ksize), sigma=tuple(sigma))
 
     if dtype == torch.uint8:
-        img = torch.clamp(round_opencv(img), 0, 255)
+        img = torch.clamp(torch.round(img), 0, 255)
 
     return img.to(dtype)
 
