@@ -15,7 +15,7 @@ def copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border
     h, w = img.shape[-2:]
     pads = np.array([h_pad_top, h_pad_bottom, w_pad_left, w_pad_right])
 
-    if border_mode not in ["constant", "replicate"] and (pads[:2] > h).any() or (pads[2:] > w).any():
+    if border_mode not in ["constant", "replicate"] and (pads[:2] >= h).any() or (pads[2:] >= w).any():
         while (pads != 0).any():
             top, bot, left, right = [min(a, b) for a, b in zip(pads, [h - 1, h - 1, w - 1, w - 1])]
             img = copyMakeBorder(img, top, bot, left, right, border_mode, value)

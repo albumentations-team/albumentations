@@ -65,7 +65,7 @@ class PadIfNeededTorch(BasicTransformTorch, A.PadIfNeeded):
         self.mask_value = mask_value
 
     def apply(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
-        return F.copyMakeBorder(img, pad_top, pad_bottom, pad_left, pad_right, self.border_mode, self.value)
+        return F.pad_with_params(img, pad_top, pad_bottom, pad_left, pad_right, self.border_mode, self.value)
 
     def apply_to_mask(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
         return F.pad_with_params(
