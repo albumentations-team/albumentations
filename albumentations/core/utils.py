@@ -92,12 +92,14 @@ class DataProcessor:
         if self.params.label_fields is None:
             return data
         for data_name in self.data_fields:
+            data_with_fields = data[data_name]
             for field in self.params.label_fields:
                 data_with_added_field = []
-                for d, field_value in zip(data[data_name], data[field]):
-                    self.data_length = len(list(d))
-                    data_with_added_field.append(list(d) + [field_value])
-                data[data_name] = data_with_added_field
+                for old_d, new_d, field_value in zip(data[data_name], data_with_fields, data[field]):
+                    self.data_length = len(list(old_d))
+                    data_with_added_field.append(list(new_d) + [field_value])
+                data_with_fields = data_with_added_field
+            data[data_name] = data_with_fields
         return data
 
     def remove_label_fields_from_data(self, data):

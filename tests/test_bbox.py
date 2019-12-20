@@ -7,15 +7,14 @@ from albumentations.augmentations.bbox_utils import (
     normalize_bboxes,
     denormalize_bboxes,
     calculate_bbox_area,
-    filter_bboxes_by_visibility,
     convert_bbox_to_albumentations,
     convert_bbox_from_albumentations,
     convert_bboxes_to_albumentations,
-    convert_bboxes_from_albumentations,
+    BboxProcessor,
 )
-from albumentations.core.composition import Compose
+from albumentations.core.composition import Compose, BboxParams
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop, Rotate, RandomRotate90
+from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop, Rotate
 
 
 @pytest.mark.parametrize(
@@ -238,3 +237,15 @@ def test_random_rotate():
     aug = Rotate(limit=15, p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed["bboxes"])
+
+
+def test_multiple_label_fields():
+    bboxes = [[0, 0, 10, 10], [20, 20, 30, 30]]
+    first = [1, 2]
+    second = [3, 4]
+    expected = [[0, 0, 10, 10, 1, 3], [20, 20, 30, 30, 2, 4]]
+
+    processor = BboxProcessor(params=BboxParams(format="pascal_voc", label_fields=["first", "second"]))
+    result = processor.add_label_fields_to_data({"bboxes": bboxes, "first": first, "second": second})
+
+    assert expected == result["bboxes"]
