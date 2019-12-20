@@ -114,7 +114,7 @@ class GaussianBlurTorch(A.GaussianBlur):
 
 class ISONoiseTorch(A.ISONoise):
     def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
-        return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_state))
+        return F.iso_noise(img, color_shift, intensity)
 
 
 class ChannelDropoutTorch(A.ChannelDropout):
