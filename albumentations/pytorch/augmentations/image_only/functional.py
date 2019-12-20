@@ -548,13 +548,13 @@ def channel_shuffle(img, channels_shuffled):
 
 def to_gray(img):
     dtype = img.dtype
+    values = torch.tensor([0.299, 0.587, 0.114], dtype=torch.float32, device=img.device)
+    values = values.view(3, 1, 1)
 
     if len(img.shape) < 3 and img.shape[0] != 3:
         raise ValueError("Image size must have a shape of (3, H, W). Got {}".format(img.shape))
 
-    r, g, b = torch.chunk(img, chunks=3, dim=-3)
-    gray = 0.299 * r + 0.587 * g + 0.114 * b
-    return torch.cat([gray] * 3, 0).to(dtype, non_blocking=True)
+    return (img.float() * values).to(dtype, non_blocking=True)
 
 
 @clipped
