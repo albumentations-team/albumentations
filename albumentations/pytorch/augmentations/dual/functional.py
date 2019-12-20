@@ -1,3 +1,4 @@
+import cv2
 import torch
 import numpy as np
 import kornia as K
@@ -112,7 +113,10 @@ def rot90(img, factor):
 @on_4d_image(torch.float32)
 def rotate(img, angle):
     height, width = img.shape[-2:]
-    return K.rotate(img, torch.tensor(angle), torch.tensor([width / 2, height / 2]))
+    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1).reshape(1, 2, 3).astype(np.float32)
+    matrix = torch.from_numpy(matrix).to(img.device, non_blocking=True)
+
+    return K.warp_affine(img, matrix, (height, width))
 
 
 def scale(img, scale, interpolation="nearest"):
@@ -129,13 +133,14 @@ def shift_scale_rotate(img, angle, scale, dx, dy, interpolation="nearest", borde
 
     height, width = img.shape[-2:]
     center = (width / 2, height / 2)
-    matrix = K.get_rotation_matrix2d(
-        torch.tensor(center).view(1, 2), torch.tensor(angle).view(1), torch.tensor(scale).view(1)
-    )
-    matrix[:, 0, 2] += dx * width
-    matrix[:, 1, 2] += dy * height
+    matrix = cv2.getRotationMatrix2D(center, angle, scale)
 
-    return K.warp_affine(img, matrix, (width, height), interpolation, border_mode)
+    matrix[0, 2] += dx * width
+    matrix[1, 2] += dy * height
+
+    matrix = torch.from_numpy(matrix.astype(np.float32)).unsqueeze(0)
+
+    return K.warp_affine(img, matrix.to(img.device, non_blocking=True), (width, height), interpolation, border_mode)
 
 
 def get_center_crop_coords(height, width, crop_height, crop_width):
