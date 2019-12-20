@@ -952,16 +952,11 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         return "height", "width", "scale", "ratio", "interpolation"
 
 
-class RandomSizedBBoxSafeCrop(DualTransform):
+class BBoxSafeRandomCrop(DualTransform):
     """Crop a random part of the input and rescale it to some size without loss of bboxes.
 
     Args:
-        height (int): height after crop and resize.
-        width (int): width after crop and resize.
         erosion_rate (float): erosion rate applied on input image height before crop.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
@@ -971,16 +966,12 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, erosion_rate=0.0, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0):
-        super(RandomSizedBBoxSafeCrop, self).__init__(always_apply, p)
-        self.height = height
-        self.width = width
-        self.interpolation = interpolation
+    def __init__(self, erosion_rate=0.0, always_apply=False, p=1.0):
+        super(BBoxSafeRandomCrop, self).__init__(always_apply, p)
         self.erosion_rate = erosion_rate
 
-    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
-        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
-        return F.resize(crop, self.height, self.width, interpolation)
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, **params):
+        return F.random_crop(img, crop_height, crop_width, h_start, w_start)
 
     def get_params_dependent_on_targets(self, params):
         img_h, img_w = params["image"].shape[:2]
@@ -1016,6 +1007,36 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     def get_transform_init_args_names(self):
         return ("height", "width", "erosion_rate", "interpolation")
+
+
+class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
+    """Crop a random part of the input and rescale it to some size without loss of bboxes.
+
+    Args:
+        height (int): height after crop and resize.
+        width (int): width after crop and resize.
+        erosion_rate (float): erosion rate applied on input image height before crop.
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p (float): probability of applying the transform. Default: 1.
+
+    Targets:
+        image, mask, bboxes
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, height, width, erosion_rate=0.0, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0):
+        super(RandomSizedBBoxSafeCrop, self).__init__(erosion_rate, always_apply, p)
+        self.height = height
+        self.width = width
+        self.interpolation = interpolation
+
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
+        return F.resize(crop, self.height, self.width, interpolation)
 
 
 class CropNonEmptyMaskIfExists(DualTransform):
