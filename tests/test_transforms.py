@@ -278,6 +278,7 @@ def test_force_apply():
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.FancyPCA, {}],
+        [A.GlassBlur, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):

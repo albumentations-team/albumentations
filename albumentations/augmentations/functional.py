@@ -1976,16 +1976,28 @@ def _shuffle(x, i, h, w, md):
 
 
 @clipped
-def glass_blur(img, sigma, max_delta, iterations):
+def glass_blur(img, sigma, max_delta, iterations, mode):
     coef = MAX_VALUES_BY_DTYPE[img.dtype]
     x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
 
-    # locally shuffle pixels
-    for i, h, w in product(
-        range(iterations),
-        range(img.shape[0] - max_delta, max_delta, -1),
-        range(img.shape[1] - max_delta, max_delta, -1),
-    ):
-        x = _shuffle(x, i, h, w, max_delta)
+    if mode == "fast":
+
+        hs = np.arange(img.shape[0] - max_delta, max_delta, -1)
+        ws = np.arange(img.shape[1] - max_delta, max_delta, -1)
+        h = np.tile(hs, ws.shape[0])
+        w = np.repeat(ws, hs.shape[0])
+
+        for i in range(iterations):
+            dy = np.random.randint(-max_delta, max_delta, size=(h.shape[0],))
+            dx = np.random.randint(-max_delta, max_delta, size=(h.shape[0],))
+            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
+
+    elif mode == "exact":
+        for i, h, w in product(
+            range(iterations),
+            range(img.shape[0] - max_delta, max_delta, -1),
+            range(img.shape[1] - max_delta, max_delta, -1),
+        ):
+            x = _shuffle(x, i, h, w, max_delta)
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef

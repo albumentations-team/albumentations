@@ -3132,6 +3132,7 @@ class GlassBlur(Blur):
         max_delta (int): max distance between pixels which are swapped.
         iterations (int): number of repeats.
             Should be in range [1, inf). Default: (2).
+        mode (str): mode of computation: fast or exact. Default: "fast".
         p (float): probability of applying the transform. Default: 0.5.
     Targets:
         image
@@ -3143,14 +3144,18 @@ class GlassBlur(Blur):
     |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
     """
 
-    def __init__(self, sigma=0.7, max_delta=4, iterations=2, always_apply=False, p=0.5):
+    def __init__(self, sigma=0.7, max_delta=4, iterations=2, always_apply=False, mode="fast", p=0.5):
         super(GlassBlur, self).__init__(always_apply, p)
         if iterations < 1:
             raise ValueError("Iterations should be more or equal to 1, but we got {}".format(iterations))
 
+        if mode not in ["fast", "exact"]:
+            raise ValueError("Mode should be 'fast' or 'exact', but we got {}".format(iterations))
+
         self.sigma = sigma
         self.max_delta = max_delta
         self.iterations = iterations
+        self.mode = mode
 
     def apply(self, img, sigma=0.7, max_delta=1, iterations=2, **params):
-        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations)
+        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, self.mode)
