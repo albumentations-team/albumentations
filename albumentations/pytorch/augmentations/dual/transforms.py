@@ -1,6 +1,11 @@
+import cv2
+import math
+import random
 import albumentations as A
 from . import functional as F
 from ...transforms import BasicTransformTorch
+
+from albumentations.augmentations.transforms import _BaseRandomSizedCrop
 
 __all__ = [
     "PadIfNeededTorch",
@@ -19,6 +24,8 @@ __all__ = [
     "CenterCropTorch",
     "RandomCropTorch",
     "RandomCropNearBBoxTorch",
+    "RandomSizedCropTorch",
+    "RandomResizedCropTorch",
 ]
 
 
@@ -200,3 +207,58 @@ class RandomCropTorch(BasicTransformTorch, A.RandomCrop):
 class RandomCropNearBBoxTorch(BasicTransformTorch, A.RandomCropNearBBox):
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.clamping_crop(img, x_min, y_min, x_max, y_max)
+
+
+class _BaseRandomSizedCropTorch(BasicTransformTorch, _BaseRandomSizedCrop):
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
+        return F.resize(crop, self.height, self.width, interpolation)
+
+
+class RandomSizedCropTorch(_BaseRandomSizedCropTorch, A.RandomSizedCrop):
+    pass
+
+
+class RandomResizedCropTorch(_BaseRandomSizedCropTorch, A.RandomResizedCrop):
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        height, width = img.shape[-2:]
+        area = height * width
+
+        for _attempt in range(10):
+            target_area = random.uniform(*self.scale) * area
+            log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
+            aspect_ratio = math.exp(random.uniform(*log_ratio))
+
+            w = int(round(math.sqrt(target_area * aspect_ratio)))
+            h = int(round(math.sqrt(target_area / aspect_ratio)))
+
+            if 0 < w <= width and 0 < h <= height:
+                i = random.randint(0, height - h)
+                j = random.randint(0, width - w)
+                return {
+                    "crop_height": h,
+                    "crop_width": w,
+                    "h_start": i * 1.0 / (height - h + 1e-10),
+                    "w_start": j * 1.0 / (width - w + 1e-10),
+                }
+
+        # Fallback to central crop
+        in_ratio = width / height
+        if in_ratio < min(self.ratio):
+            w = width
+            h = int(round(w / min(self.ratio)))
+        elif in_ratio > max(self.ratio):
+            h = height
+            w = int(round(h * max(self.ratio)))
+        else:  # whole image
+            w = width
+            h = height
+        i = (height - h) // 2
+        j = (width - w) // 2
+        return {
+            "crop_height": h,
+            "crop_width": w,
+            "h_start": i * 1.0 / (height - h + 1e-10),
+            "w_start": j * 1.0 / (width - w + 1e-10),
+        }
