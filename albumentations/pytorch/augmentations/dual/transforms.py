@@ -17,6 +17,7 @@ __all__ = [
     "RandomScaleTorch",
     "ShiftScaleRotateTorch",
     "CenterCropTorch",
+    "RandomCropTorch",
 ]
 
 
@@ -188,3 +189,8 @@ class ShiftScaleRotateTorch(BasicTransformTorch, A.ShiftScaleRotate):
 class CenterCropTorch(BasicTransformTorch, A.CenterCrop):
     def apply(self, img, **params):
         return F.center_crop(img, self.height, self.width)
+
+
+class RandomCropTorch(BasicTransformTorch, A.RandomCrop):
+    def apply(self, img, h_start=0, w_start=0, **params):
+        return F.random_crop(img, self.height, self.width, h_start, w_start)

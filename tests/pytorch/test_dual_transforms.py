@@ -68,6 +68,7 @@ def assert_images_and_masks(result, torch_result, rtol=None):
             [A.RandomRotate90(), ATorch.RandomRotate90Torch()],
             [A.RandomScale(interpolation=cv2.INTER_NEAREST), ATorch.RandomScaleTorch(interpolation=cv2.INTER_NEAREST)],
             [A.CenterCrop(100, 100), ATorch.CenterCropTorch(100, 100)],
+            [A.RandomCrop(50, 50), ATorch.RandomCropTorch(50, 50)],
         ],
     ),
 )

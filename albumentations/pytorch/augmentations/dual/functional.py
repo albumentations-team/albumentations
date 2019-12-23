@@ -4,6 +4,8 @@ import numpy as np
 import kornia as K
 import torch.nn.functional as FTorch
 
+import albumentations.augmentations.functional as AF
+
 from ..utils import on_4d_image, get_interpolation_mode
 
 
@@ -163,3 +165,16 @@ def center_crop(img, crop_height, crop_width):
     x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
     img = img[..., y1:y2, x1:x2]
     return img
+
+
+def random_crop(img, crop_height, crop_width, h_start, w_start):
+    height, width = img.shape[1:]
+    if height < crop_height or width < crop_width:
+        raise ValueError(
+            "Requested crop size ({crop_height}, {crop_width}) is "
+            "larger than the image size ({height}, {width})".format(
+                crop_height=crop_height, crop_width=crop_width, height=height, width=width
+            )
+        )
+    x1, y1, x2, y2 = AF.get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
+    return img[..., y1:y2, x1:x2]
