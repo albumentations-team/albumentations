@@ -1,9 +1,11 @@
 import cv2
 import math
 import random
+import numpy as np
 import albumentations as A
 from . import functional as F
 from ...transforms import BasicTransformTorch
+from albumentations.augmentations.bbox_utils import union_of_bboxes
 
 from albumentations.augmentations.transforms import _BaseRandomSizedCrop
 
@@ -26,6 +28,7 @@ __all__ = [
     "RandomCropNearBBoxTorch",
     "RandomSizedCropTorch",
     "RandomResizedCropTorch",
+    "RandomSizedBBoxSafeCropTorch",
 ]
 
 
@@ -262,3 +265,35 @@ class RandomResizedCropTorch(_BaseRandomSizedCropTorch, A.RandomResizedCrop):
             "h_start": i * 1.0 / (height - h + 1e-10),
             "w_start": j * 1.0 / (width - w + 1e-10),
         }
+
+
+class RandomSizedBBoxSafeCropTorch(_BaseRandomSizedCropTorch, A.RandomSizedBBoxSafeCrop):
+    # TODO add tests
+    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+        crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
+        return F.resize(crop, self.height, self.width, interpolation)
+
+    def get_params_dependent_on_targets(self, params):
+        img_h, img_w = params["image"].shape[-2:]
+        if len(params["bboxes"]) == 0:  # less likely, this class is for use with bboxes.
+            erosive_h = int(img_h * (1.0 - self.erosion_rate))
+            crop_height = img_h if erosive_h >= img_h else random.randint(erosive_h, img_h)
+            return {
+                "h_start": random.random(),
+                "w_start": random.random(),
+                "crop_height": crop_height,
+                "crop_width": int(crop_height * img_w / img_h),
+            }
+        # get union of all bboxes
+        x, y, x2, y2 = union_of_bboxes(
+            width=img_w, height=img_h, bboxes=params["bboxes"], erosion_rate=self.erosion_rate
+        )
+        # find bigger region
+        bx, by = x * random.random(), y * random.random()
+        bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
+        bw, bh = bx2 - bx, by2 - by
+        crop_height = img_h if bh >= 1.0 else int(img_h * bh)
+        crop_width = img_w if bw >= 1.0 else int(img_w * bw)
+        h_start = np.clip(0.0 if bh >= 1.0 else by / (1.0 - bh), 0.0, 1.0)
+        w_start = np.clip(0.0 if bw >= 1.0 else bx / (1.0 - bw), 0.0, 1.0)
+        return {"h_start": h_start, "w_start": w_start, "crop_height": crop_height, "crop_width": crop_width}
