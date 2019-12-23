@@ -74,6 +74,7 @@ def assert_images_and_masks(result, torch_result, rtol=None):
                 A.RandomResizedCrop(40, 50, interpolation=cv2.INTER_NEAREST),
                 ATorch.RandomResizedCropTorch(40, 50, interpolation=cv2.INTER_NEAREST),
             ],
+            [A.CropNonEmptyMaskIfExists(50, 50), ATorch.CropNonEmptyMaskIfExistsTorch(50, 50)],
         ],
     ),
 )

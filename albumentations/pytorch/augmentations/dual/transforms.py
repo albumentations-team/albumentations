@@ -1,5 +1,6 @@
 import cv2
 import math
+import torch
 import random
 import numpy as np
 import albumentations as A
@@ -29,6 +30,7 @@ __all__ = [
     "RandomSizedCropTorch",
     "RandomResizedCropTorch",
     "RandomSizedBBoxSafeCropTorch",
+    "CropNonEmptyMaskIfExistsTorch",
 ]
 
 
@@ -267,7 +269,7 @@ class RandomResizedCropTorch(_BaseRandomSizedCropTorch, A.RandomResizedCrop):
         }
 
 
-class RandomSizedBBoxSafeCropTorch(_BaseRandomSizedCropTorch, A.RandomSizedBBoxSafeCrop):
+class RandomSizedBBoxSafeCropTorch(BasicTransformTorch, A.RandomSizedBBoxSafeCrop):
     # TODO add tests
     def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
@@ -297,3 +299,45 @@ class RandomSizedBBoxSafeCropTorch(_BaseRandomSizedCropTorch, A.RandomSizedBBoxS
         h_start = np.clip(0.0 if bh >= 1.0 else by / (1.0 - bh), 0.0, 1.0)
         w_start = np.clip(0.0 if bw >= 1.0 else bx / (1.0 - bw), 0.0, 1.0)
         return {"h_start": h_start, "w_start": w_start, "crop_height": crop_height, "crop_width": crop_width}
+
+
+class CropNonEmptyMaskIfExistsTorch(BasicTransformTorch, A.CropNonEmptyMaskIfExists):
+    def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
+        return F.crop(img, x_min, y_min, x_max, y_max)
+
+    def get_params_dependent_on_targets(self, params):
+        mask = params["mask"]
+        mask_height, mask_width = mask.shape[-2:]
+
+        if self.ignore_values is not None:
+            zeros = torch.zeros_like(mask)
+            for v in set(self.ignore_values):
+                mask = torch.where(mask == v, zeros, mask)
+
+        if mask.ndim == 3 and self.ignore_channels is not None:
+            target_channels = [ch for ch in range(mask.shape[0]) if ch not in self.ignore_channels]
+            mask = mask[target_channels]
+
+        if self.height > mask_height or self.width > mask_width:
+            raise ValueError(
+                "Crop size ({},{}) is larger than image ({},{})".format(
+                    self.height, self.width, mask_height, mask_width
+                )
+            )
+
+        if mask.sum() == 0:
+            x_min = random.randint(0, mask_width - self.width)
+            y_min = random.randint(0, mask_height - self.height)
+        else:
+            mask = mask.sum(dim=0) if mask.ndim == 3 else mask
+            non_zero_yx = torch.nonzero(mask)
+            y, x = random.choice(non_zero_yx)
+            x_min = x - random.randint(0, self.width - 1)
+            y_min = y - random.randint(0, self.height - 1)
+            x_min = np.clip(x_min, 0, mask_width - self.width)
+            y_min = np.clip(y_min, 0, mask_height - self.height)
+
+        x_max = x_min + self.width
+        y_max = y_min + self.height
+
+        return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
