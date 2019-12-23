@@ -31,6 +31,7 @@ __all__ = [
     "RandomResizedCropTorch",
     "RandomSizedBBoxSafeCropTorch",
     "CropNonEmptyMaskIfExistsTorch",
+    "OpticalDistortionTorch",
 ]
 
 
@@ -341,3 +342,12 @@ class CropNonEmptyMaskIfExistsTorch(BasicTransformTorch, A.CropNonEmptyMaskIfExi
         y_max = y_min + self.height
 
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
+
+
+class OpticalDistortionTorch(BasicTransformTorch, A.OpticalDistortion):
+    # TODO test
+    def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+        return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
+
+    def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
+        return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)

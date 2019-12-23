@@ -11,6 +11,13 @@ OPENCV_TO_TORCH_INTERPOLATION = {
     cv2.INTER_AREA: "area",
     cv2.INTER_CUBIC: "cicubic",
 }
+OPENCV_TO_TORCH_BORDER = {
+    cv2.BORDER_CONSTANT: "zeros",
+    cv2.BORDER_REPLICATE: "border",
+    cv2.BORDER_REFLECT: "reflection",
+    cv2.BORDER_REFLECT101: "reflection",
+    cv2.BORDER_REFLECT_101: "reflection",
+}
 
 
 def grayscale_to_rgb(image):
@@ -101,5 +108,12 @@ def on_4d_image(dtype=None):
 def get_interpolation_mode(mode):
     if not isinstance(mode, str):
         return OPENCV_TO_TORCH_INTERPOLATION[mode]
+
+    return mode
+
+
+def get_border_mode(mode):
+    if not isinstance(mode, str):
+        return OPENCV_TO_TORCH_BORDER[mode]
 
     return mode

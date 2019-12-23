@@ -6,7 +6,7 @@ import torch.nn.functional as FTorch
 
 import albumentations.augmentations.functional as AF
 
-from ..utils import on_4d_image, get_interpolation_mode
+from ..utils import on_4d_image, get_interpolation_mode, get_border_mode
 
 
 def copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode="constant", value=0):
@@ -191,3 +191,30 @@ def clamping_crop(img, x_min, y_min, x_max, y_max):
     if x_max >= w:
         x_max = w - 1
     return img[..., int(y_min) : int(y_max), int(x_min) : int(x_max)]
+
+
+@on_4d_image(torch.float32)
+def optical_distortion(
+    img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+):
+    interpolation = get_interpolation_mode(interpolation)
+    border_mode = get_border_mode(border_mode)
+
+    height, width = img.shape[-2:]
+
+    fx = width
+    fy = width
+
+    cx = width * 0.5 + dx
+    cy = height * 0.5 + dy
+
+    camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
+
+    distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
+    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+    map_xy = np.stack([map1, map2], axis=-1)
+    map_xy = map_xy.reshape((1,) + map_xy.shape)
+    map_xy = torch.from_numpy(map_xy).to(img.device, non_blocking=True)
+
+    img = FTorch.grid_sample(img, map_xy, mode=interpolation, padding_mode=border_mode)
+    return img
