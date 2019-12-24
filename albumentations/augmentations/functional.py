@@ -1968,17 +1968,24 @@ def fancy_pca(img, alpha=0.1):
 
 
 @jit(nopython=True)
-def _shuffle(x, i, h, w, md):
+def _shuffle(x, h, w, md, random_state):
+    np.random.seed(random_state)
     dx, dy = np.random.randint(-md, md, size=(2,))
     h_prime, w_prime = h + dy, w + dx
     x[h, w], x[h_prime, w_prime] = x[h_prime, w_prime], x[h, w]
+
     return x
 
 
 @clipped
-def glass_blur(img, sigma, max_delta, iterations, mode):
+def glass_blur(img, sigma, max_delta, iterations, random_state, mode):
     coef = MAX_VALUES_BY_DTYPE[img.dtype]
     x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
+
+    if random_state is None:
+        state = np.random.RandomState(1234)
+    else:
+        state = np.random.RandomState(random_state)
 
     if mode == "fast":
 
@@ -1988,8 +1995,8 @@ def glass_blur(img, sigma, max_delta, iterations, mode):
         w = np.repeat(ws, hs.shape[0])
 
         for i in range(iterations):
-            dy = np.random.randint(-max_delta, max_delta, size=(h.shape[0],))
-            dx = np.random.randint(-max_delta, max_delta, size=(h.shape[0],))
+            dy = state.randint(-max_delta, max_delta, size=(h.shape[0],))
+            dx = state.randint(-max_delta, max_delta, size=(h.shape[0],))
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     elif mode == "exact":
@@ -1998,6 +2005,6 @@ def glass_blur(img, sigma, max_delta, iterations, mode):
             range(img.shape[0] - max_delta, max_delta, -1),
             range(img.shape[1] - max_delta, max_delta, -1),
         ):
-            x = _shuffle(x, i, h, w, max_delta)
+            x = _shuffle(x, h, w, max_delta, random_state)
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef

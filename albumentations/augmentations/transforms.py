@@ -3145,7 +3145,7 @@ class GlassBlur(Blur):
     """
 
     def __init__(self, sigma=0.7, max_delta=4, iterations=2, always_apply=False, mode="fast", p=0.5):
-        super(GlassBlur, self).__init__(always_apply, p)
+        super(GlassBlur, self).__init__(always_apply=always_apply, p=p)
         if iterations < 1:
             raise ValueError("Iterations should be more or equal to 1, but we got {}".format(iterations))
 
@@ -3157,5 +3157,11 @@ class GlassBlur(Blur):
         self.iterations = iterations
         self.mode = mode
 
-    def apply(self, img, sigma=0.7, max_delta=1, iterations=2, **params):
-        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, self.mode)
+    def apply(self, img, sigma=0.7, max_delta=1, iterations=2, random_state=None, **params):
+        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, random_state, self.mode)
+
+    def get_params(self):
+        return {"random_state": random.randint(0, 10000)}
+
+    def get_transform_init_args_names(self):
+        return ("sigma", "max_delta", "iterations")
