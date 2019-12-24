@@ -1022,7 +1022,7 @@ def optical_distortion(
     height, width = img.shape[:2]
 
     fx = width
-    fy = width
+    fy = height
 
     cx = width * 0.5 + dx
     cy = height * 0.5 + dy
