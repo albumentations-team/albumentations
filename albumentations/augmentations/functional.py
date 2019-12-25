@@ -381,10 +381,19 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
 
 
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
-    if img.dtype == np.uint8:
-        return _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
+    is_gray = is_grayscale_image(img)
+    if is_gray:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-    return _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
+    if img.dtype == np.uint8:
+        img = _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
+    else:
+        img = _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
+
+    if is_gray:
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    return img
 
 
 def solarize(img, threshold=128):
