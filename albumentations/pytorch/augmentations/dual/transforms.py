@@ -32,6 +32,7 @@ __all__ = [
     "RandomSizedBBoxSafeCropTorch",
     "CropNonEmptyMaskIfExistsTorch",
     "OpticalDistortionTorch",
+    "GridDistortionTorch",
 ]
 
 
@@ -351,3 +352,12 @@ class OpticalDistortionTorch(BasicTransformTorch, A.OpticalDistortion):
 
     def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+
+
+class GridDistortionTorch(BasicTransformTorch, A.GridDistortion):
+    # TODO test
+    def apply(self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params):
+        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode)
+
+    def apply_to_mask(self, img, stepsx=(), stepsy=(), **params):
+        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode)

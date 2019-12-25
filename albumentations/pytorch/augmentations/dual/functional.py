@@ -218,3 +218,53 @@ def optical_distortion(
 
     img = FTorch.grid_sample(img, map_xy, mode=interpolation, padding_mode=border_mode)
     return img
+
+
+@on_4d_image(torch.float32)
+def grid_distortion(
+    img, num_steps=10, xsteps=(), ysteps=(), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101
+):
+    interpolation = get_interpolation_mode(interpolation)
+    border_mode = get_border_mode(border_mode)
+
+    height, width = img.shape[-2:]
+
+    x_step = width // num_steps
+    xx = torch.zeros(width, dtype=torch.float32, device=img.device)
+    prev = 0
+    for idx, x in enumerate(range(0, width, x_step)):
+        start = x
+        end = x + x_step
+        if end > width:
+            end = width
+            cur = width
+        else:
+            cur = prev + x_step * xsteps[idx]
+
+        xx[start:end] = torch.linspace(prev, cur, end - start, dtype=img.dtype, device=img.device)
+        prev = cur
+
+    y_step = height // num_steps
+    yy = torch.zeros(height, dtype=torch.float32, device=img.device)
+    prev = 0
+    for idx, y in enumerate(range(0, height, y_step)):
+        start = y
+        end = y + y_step
+        if end > height:
+            end = height
+            cur = height
+        else:
+            cur = prev + y_step * ysteps[idx]
+
+        yy[start:end] = torch.linspace(prev, cur, end - start, dtype=torch.float32, device=img.device)
+        prev = cur
+
+    map_x, map_y = np.meshgrid(xx, yy)
+    map_x = map_x.astype(np.float32)
+    map_y = map_y.astype(np.float32)
+
+    map_xy = np.stack([map_x, map_y], axis=-1)
+    map_xy = map_xy.reshape((1,) + map_xy.shape)
+    map_xy = torch.from_numpy(map_xy).to(img.device, non_blocking=True)
+
+    return FTorch.grid_sample(img, map_xy, mode=interpolation, padding_mode=border_mode)
