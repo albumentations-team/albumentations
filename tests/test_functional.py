@@ -935,3 +935,10 @@ def test_multiply_uint8_optimized():
     result = F._multiply_uint8_optimized(image, m)
     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.all(tmp == result)
+
+
+@pytest.mark.parametrize(
+    "img", [np.random.randint(0, 256, [100, 100], dtype=np.uint8), np.random.random([100, 100]).astype(np.float32)]
+)
+def test_shift_hsv_gray(img):
+    F.shift_hsv(img, 0.5, 0.5, 0.5)
