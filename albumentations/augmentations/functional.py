@@ -369,20 +369,34 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, sat, val = cv2.split(img)
 
-    hue = cv2.add(hue, hue_shift)
-    hue = np.where(hue < 0, hue + 180, hue)
-    hue = np.where(hue > 180, hue - 180, hue)
-    hue = hue.astype(dtype)
-    sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
-    val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+    if hue_shift != 0:
+        hue = cv2.add(hue, hue_shift)
+        hue = np.where(hue < 0, hue + 180, hue)
+        hue = np.where(hue > 180, hue - 180, hue)
+        hue = hue.astype(dtype)
+
+    if sat_shift != 0:
+        sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+
+    if val_shift != 0:
+        val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
 
 
+@preserve_shape
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
     is_gray = is_grayscale_image(img)
     if is_gray:
+        if hue_shift != 0 or sat_shift != 0:
+            hue_shift = 0
+            sat_shift = 0
+            warn(
+                "HueSaturationValue: hue_shift and sat_shift are not applicable to grayscale image. "
+                "Set them to 0 or use RGB image"
+            )
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
     if img.dtype == np.uint8:
