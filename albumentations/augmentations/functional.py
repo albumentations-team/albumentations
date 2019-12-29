@@ -1967,25 +1967,10 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
-@jit(nopython=True)
-def _shuffle(x, h, w, md, random_state):
-    np.random.seed(random_state)
-    dx, dy = np.random.randint(-md, md, size=(2,))
-    h_prime, w_prime = h + dy, w + dx
-    x[h, w], x[h_prime, w_prime] = x[h_prime, w_prime], x[h, w]
-
-    return x
-
-
 @clipped
-def glass_blur(img, sigma, max_delta, iterations, random_state, mode):
+def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
     coef = MAX_VALUES_BY_DTYPE[img.dtype]
     x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
-
-    if random_state is None:
-        state = np.random.RandomState(1234)
-    else:
-        state = np.random.RandomState(random_state)
 
     if mode == "fast":
 
@@ -1995,16 +1980,21 @@ def glass_blur(img, sigma, max_delta, iterations, random_state, mode):
         w = np.repeat(ws, hs.shape[0])
 
         for i in range(iterations):
-            dy = state.randint(-max_delta, max_delta, size=(h.shape[0],))
-            dx = state.randint(-max_delta, max_delta, size=(h.shape[0],))
+            dy = dxy[:, i, 0]
+            dx = dxy[:, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     elif mode == "exact":
-        for i, h, w in product(
-            range(iterations),
-            range(img.shape[0] - max_delta, max_delta, -1),
-            range(img.shape[1] - max_delta, max_delta, -1),
+        for ind, (i, h, w) in enumerate(
+            product(
+                range(iterations),
+                range(img.shape[0] - max_delta, max_delta, -1),
+                range(img.shape[1] - max_delta, max_delta, -1),
+            )
         ):
-            x = _shuffle(x, h, w, max_delta, random_state)
+            ind = ind if ind < len(dxy) else ind % len(dxy)
+            dy = dxy[ind, i, 0]
+            dx = dxy[ind, i, 1]
+            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef

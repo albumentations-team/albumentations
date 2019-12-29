@@ -3157,11 +3157,23 @@ class GlassBlur(Blur):
         self.iterations = iterations
         self.mode = mode
 
-    def apply(self, img, sigma=0.7, max_delta=1, iterations=2, random_state=None, **params):
-        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, random_state, self.mode)
+    def apply(self, img, sigma=0.7, max_delta=4, iterations=2, dxy=0, **params):
+        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
 
-    def get_params(self):
-        return {"random_state": random.randint(0, 10000)}
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+
+        # generate array containing all necessary values for transformations
+        width_pixels = img.shape[0] - self.max_delta * 2
+        height_pixels = img.shape[1] - self.max_delta * 2
+        total_pixels = width_pixels * height_pixels
+        dxy = np.random.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+
+        return {"dxy": dxy}
 
     def get_transform_init_args_names(self):
         return ("sigma", "max_delta", "iterations")
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
