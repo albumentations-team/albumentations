@@ -268,3 +268,14 @@ def grid_distortion(
     map_xy = torch.from_numpy(map_xy).to(img.device, non_blocking=True)
 
     return FTorch.grid_sample(img, map_xy, mode=interpolation, padding_mode=border_mode)
+
+
+def swap_tiles_on_image(image, tiles):
+    new_image = torch.empty_like(image)
+
+    for tile in tiles:
+        new_image[..., tile[0] : tile[0] + tile[4], tile[1] : tile[1] + tile[5]] = image[
+            ..., tile[2] : tile[2] + tile[4], tile[3] : tile[3] + tile[5]
+        ]
+
+    return new_image
