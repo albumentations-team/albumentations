@@ -230,7 +230,7 @@ def grid_distortion(
     height, width = img.shape[-2:]
 
     x_step = width // num_steps
-    xx = torch.zeros(width, dtype=torch.float32, device=img.device)
+    xx = np.zeros(width, dtype=np.float32)
     prev = 0
     for idx, x in enumerate(range(0, width, x_step)):
         start = x
@@ -241,11 +241,11 @@ def grid_distortion(
         else:
             cur = prev + x_step * xsteps[idx]
 
-        xx[start:end] = torch.linspace(prev, cur, end - start, dtype=img.dtype, device=img.device)
+        xx[start:end] = np.linspace(prev, cur, end - start, dtype=np.float32)
         prev = cur
 
     y_step = height // num_steps
-    yy = torch.zeros(height, dtype=torch.float32, device=img.device)
+    yy = np.zeros(height, dtype=np.float32)
     prev = 0
     for idx, y in enumerate(range(0, height, y_step)):
         start = y
@@ -256,7 +256,7 @@ def grid_distortion(
         else:
             cur = prev + y_step * ysteps[idx]
 
-        yy[start:end] = torch.linspace(prev, cur, end - start, dtype=torch.float32, device=img.device)
+        yy[start:end] = np.linspace(prev, cur, end - start, dtype=np.float32)
         prev = cur
 
     map_x, map_y = np.meshgrid(xx, yy)
