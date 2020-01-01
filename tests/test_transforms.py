@@ -572,4 +572,4 @@ def test_symm_keypoints_hflip():
 
     not_symmetric_idx = [x for x in np.arange(n_keypoints) if x not in (idx1, idx2)]
     for idx in not_symmetric_idx:
-        assert new_kpts[idx] == flip.apply_to_keypoint(kpts[idx])
+        assert new_kpts[idx] == flip.apply_to_keypoint(kpts[idx], rows=img_size, cols=img_size)
