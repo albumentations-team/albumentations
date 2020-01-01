@@ -240,6 +240,8 @@ class HorizontalFlip(DualTransform):
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
+        symmetric_keypoints: tuple of pairs containing indices of symmetric keypoints.
+        Keypoints are considered as symmetric if horizontal flip swaps their semantics, e.g. left arm - right arm.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -247,6 +249,10 @@ class HorizontalFlip(DualTransform):
     Image types:
         uint8, float32
     """
+
+    def __init__(self, *args, symmetric_keypoints: tuple = (), **kwargs):
+        super().__init__(*args, **kwargs)
+        self.symmetric_keypoints = {k: v for k, v in symmetric_keypoints}
 
     def apply(self, img, **params):
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
@@ -261,6 +267,14 @@ class HorizontalFlip(DualTransform):
 
     def apply_to_keypoint(self, keypoint, **params):
         return F.keypoint_hflip(keypoint, **params)
+
+    def apply_to_keypoints(self, keypoints, **params):
+        new_keypoints = super().apply_to_keypoints(keypoints, **params)
+        for i in range(len(new_keypoints)):
+            j = self.symmetric_keypoints.get(i)
+            if j is not None:
+                new_keypoints[i], new_keypoints[j] = new_keypoints[j], new_keypoints[i]
+        return new_keypoints
 
     def get_transform_init_args_names(self):
         return ()
