@@ -564,9 +564,9 @@ def test_symm_keypoints_hflip():
     kpts = np.random.randint(0, img_size, size=(n_keypoints, 4))
 
     transformed = flip(image=img, keypoints=kpts)
-    new_kpts = transformed['keypoints']
+    new_kpts = transformed["keypoints"]
 
-    np.testing.assert_allclose(transformed['image'], np.fliplr(img))
+    np.testing.assert_allclose(transformed["image"], np.fliplr(img))
     assert kpts[idx1][1] == new_kpts[idx2][1]
     assert kpts[idx1][0] == (img_size - 1) - new_kpts[idx2][0]
 
