@@ -63,6 +63,7 @@ setup(
     license="MIT",
     url="https://github.com/albu/albumentations",
     packages=find_packages(exclude=["tests"]),
+    python_requires=">=3.5",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
     extras_require={"tests": get_test_requirements()},
     classifiers=[
