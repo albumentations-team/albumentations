@@ -11,7 +11,7 @@
 * Easy to extend the library to wrap around other libraries.
 * Easy to extend to other tasks.
 * Supports transformations on images, masks, key points and bounding boxes.
-* Supports python 2.7-3.7
+* Supports python 3.5-3.7
 * Easy integration with PyTorch.
 * Easy transfer from torchvision.
 * Was used to get top results in many DL competitions at Kaggle, topcoder, CVPR, MICCAI.

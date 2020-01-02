@@ -15,8 +15,6 @@ env:
 
 matrix:
   include:
-    - python: 2.7
-      env: PYTORCH_WHEEL=https://download.pytorch.org/whl/cpu/torch-1.0.1.post2-cp27-cp27mu-linux_x86_64.whl
     - python: 3.5
       env: PYTORCH_WHEEL=https://download.pytorch.org/whl/cpu/torch-1.0.1.post2-cp35-cp35m-linux_x86_64.whl
     - python: 3.6
