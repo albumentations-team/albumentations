@@ -7,7 +7,6 @@ environment:
   IMGAUG_NO_CV2_INSTALLED_CHECK: 'TRUE'
 
   matrix:
-    - PYTHON: 'C:\Python27-x64'
     - PYTHON: 'C:\Python35-x64'
       PYTORCH_WHEEL: 'https://download.pytorch.org/whl/cpu/torch-1.0.1-cp35-cp35m-win_amd64.whl'
     - PYTHON: 'C:\Python36-x64'
