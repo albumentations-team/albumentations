@@ -2905,7 +2905,7 @@ class Lambda(NoOp):
         self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
         for target_name, custom_apply_fn in {"image": image, "mask": mask, "keypoint": keypoint, "bbox": bbox}.items():
             if custom_apply_fn is not None:
-                if isinstance(custom_apply_fn, LambdaType):
+                if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
                     warnings.warn(
                         "Using lambda is incompatible with multiprocessing. "
                         "Consider using regular functions or partial()."
