@@ -41,6 +41,7 @@ __all__ = [
     "MedianBlur",
     "GaussianBlur",
     "GaussNoise",
+    "GlassBlur",
     "CLAHE",
     "ChannelShuffle",
     "InvertImg",
@@ -3122,3 +3123,57 @@ class MaskDropout(DualTransform):
 
     def get_transform_init_args_names(self):
         return ("max_objects", "image_fill_value", "mask_fill_value")
+
+
+class GlassBlur(Blur):
+    """Apply glass noise to the input image.
+    Args:
+        sigma (float): standard deviation for Gaussian kernel.
+        max_delta (int): max distance between pixels which are swapped.
+        iterations (int): number of repeats.
+            Should be in range [1, inf). Default: (2).
+        mode (str): mode of computation: fast or exact. Default: "fast".
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    Image types:
+        uint8, float32
+
+    Reference:
+    |  https://arxiv.org/abs/1903.12261
+    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+    """
+
+    def __init__(self, sigma=0.7, max_delta=4, iterations=2, always_apply=False, mode="fast", p=0.5):
+        super(GlassBlur, self).__init__(always_apply=always_apply, p=p)
+        if iterations < 1:
+            raise ValueError("Iterations should be more or equal to 1, but we got {}".format(iterations))
+
+        if mode not in ["fast", "exact"]:
+            raise ValueError("Mode should be 'fast' or 'exact', but we got {}".format(iterations))
+
+        self.sigma = sigma
+        self.max_delta = max_delta
+        self.iterations = iterations
+        self.mode = mode
+
+    def apply(self, img, sigma=0.7, max_delta=4, iterations=2, dxy=0, **params):
+        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+
+        # generate array containing all necessary values for transformations
+        width_pixels = img.shape[0] - self.max_delta * 2
+        height_pixels = img.shape[1] - self.max_delta * 2
+        total_pixels = width_pixels * height_pixels
+        dxy = np.random.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+
+        return {"dxy": dxy}
+
+    def get_transform_init_args_names(self):
+        return ("sigma", "max_delta", "iterations")
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
