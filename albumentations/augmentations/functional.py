@@ -146,8 +146,9 @@ def normalize(img, mean, std, max_pixel_value=255.0):
 def cutout(img, holes, fill_value=0):
     # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
+    fill_value = np.array(fill_value)[..., None, None]  # for right-size broadcast
     for x1, y1, x2, y2 in holes:
-        img[y1:y2, x1:x2] = fill_value
+        img[:, y1:y2, x1:x2] = fill_value
     return img
 
 
