@@ -1554,7 +1554,7 @@ class CoarseDropout(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
-        height, width = img.shape[:2]
+        *_, height, width = img.shape
 
         holes = []
         for _n in range(random.randint(self.min_holes, self.max_holes)):
