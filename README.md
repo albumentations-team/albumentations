@@ -38,25 +38,25 @@
 
 ## How to use
 
-**All in one showcase notebook** - [`showcase.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/showcase.ipynb)
+**All in one showcase notebook** - [`showcase.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/showcase.ipynb)
 
-**Classification** - [`example.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example.ipynb)
+**Classification** - [`example.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example.ipynb)
 
-**Object detection** - [`example_bboxes.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_bboxes.ipynb)
+**Object detection** - [`example_bboxes.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_bboxes.ipynb)
 
-**Non-8-bit images** - [`example_16_bit_tiff.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_16_bit_tiff.ipynb)
+**Non-8-bit images** - [`example_16_bit_tiff.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_16_bit_tiff.ipynb)
 
-**Image segmentation** [`example_kaggle_salt.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_kaggle_salt.ipynb)
+**Image segmentation** [`example_kaggle_salt.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_kaggle_salt.ipynb)
 
-**Keypoints** [`example_keypoints.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_keypoints.ipynb)
+**Keypoints** [`example_keypoints.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_keypoints.ipynb)
 
-**Custom targets** [`example_multi_target.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_multi_target.ipynb)
+**Custom targets** [`example_multi_target.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_multi_target.ipynb)
 
-**Weather transforms** [`example_weather_transforms.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/example_weather_transforms.ipynb)
+**Weather transforms** [`example_weather_transforms.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_weather_transforms.ipynb)
 
-**Serialization** [`serialization.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/serialization.ipynb)
+**Serialization** [`serialization.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/serialization.ipynb)
 
-**Replay/Deterministic mode** [`replay.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/replay.ipynb)
+**Replay/Deterministic mode** [`replay.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/replay.ipynb)
 
 You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
 to adjust image augmentation parameters and see the resulting images.
@@ -199,7 +199,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 Migrating from torchvision to albumentations is simple - you just need to change a few lines of code.
 Albumentations has equivalents for common torchvision transforms as well as plenty of transforms that are not presented in torchvision.
-[`migrating_from_torchvision_to_albumentations.ipynb`](https://github.com/albu/albumentations/blob/master/notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
+[`migrating_from_torchvision_to_albumentations.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
 
 
 ## Benchmarking results
