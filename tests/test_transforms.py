@@ -86,6 +86,14 @@ def test_grid_distortion_interpolation(interpolation):
     assert np.array_equal(data["mask"], expected_mask)
 
 
+@pytest.mark.parametrize("size", [17, 21, 33])
+def test_grid_distortion_steps(size):
+    image = np.random.rand(size, size, 3)
+    aug = A.GridDistortion(num_steps=size - 2, p=1)
+    data = aug(image=image)
+    assert np.array_equal(data["image"].shape, (size, size, 3))
+
+
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
