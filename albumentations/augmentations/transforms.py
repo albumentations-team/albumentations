@@ -79,6 +79,7 @@ __all__ = [
     "MultiplicativeNoise",
     "FancyPCA",
     "MaskDropout",
+    "GridCutout",
 ]
 
 
@@ -3177,3 +3178,133 @@ class GlassBlur(Blur):
     @property
     def targets_as_params(self):
         return ["image"]
+
+
+class GridCutout(ImageOnlyTransform):
+    """
+    GridCutout, cuts out rectangular regions of an image in a grid fashion.
+
+        Args:
+            ratio (float): the ratio of the mask holes to the unit_size (same for horizental and vertical directions).
+                Must be between 0 and 1. Default: 0.5.
+            unit_size_min (int): minimum size of the grid unit. Must be between 2 and image shorted edge.
+                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+            unit_size_max (int): maximum size of the grid unit. Must be between 2 and image shorted edge.
+                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+            holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
+                If 'None', grid unit width is set as image_width//10. Default: `None`.
+            holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
+                If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
+                Clipped between 0 and grid unit size. Default: (0,0).
+            random_offset (boolean): weather to offset grid randomly between 0 and grid unit size - hole size
+                If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
+            fill_value (int): value to for dropped pixels. Default = 0
+        Targets:
+            image
+        Image types:
+            uint8, float32
+        References:
+            https://arxiv.org/pdf/2001.04086.pdf7
+    """
+
+    def __init__(
+        self,
+        ratio: float = 0.5,
+        unit_size_min: int = None,
+        unit_size_max: int = None,
+        holes_number_x: int = None,
+        holes_number_y: int = None,
+        shift_x: int = 0,
+        shift_y: int = 0,
+        random_offset: bool = False,
+        fill_value: int = 0,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+
+        super(GridCutout, self).__init__(always_apply, p)
+        self.ratio = ratio
+        self.unit_size_min = unit_size_min
+        self.unit_size_max = unit_size_max
+        self.holes_number_x = holes_number_x
+        self.holes_number_y = holes_number_y
+        self.shift_x = shift_x
+        self.shift_y = shift_y
+        self.random_offset = random_offset
+        self.fill_value = fill_value
+        assert 0 < self.ratio < 1, "ratio must be between 0 and 1."
+
+    def apply(self, image, fill_value=0, holes=[], **params):
+        return F.cutout(image, holes, fill_value)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        height, width = img.shape[:2]
+        # set grid using unit size limits
+        if self.unit_size_min and self.unit_size_max:
+            assert (
+                2 <= self.unit_size_min <= self.unit_size_max
+            ), "Max unit size should be >= min size, both at least 2 pixels."
+            assert self.unit_size_max <= min(height, width), "Grid size limits must be within the shortest image edge."
+            self.unit_width = np.random.randint(self.unit_size_min, self.unit_size_max + 1)
+            self.unit_height = self.unit_width
+        else:
+            # set grid using holes numbers
+            if self.holes_number_x is None:
+                self.unit_width = max(2, width // 10)
+            else:
+                assert (
+                    1 <= self.holes_number_x <= width // 2
+                ), "The hole_number_x must be between 1 and image width//2."
+                self.unit_width = width // self.holes_number_x
+            if self.holes_number_y is None:
+                self.unit_height = max(min(self.unit_width, height), 2)
+            else:
+                assert (
+                    1 <= self.holes_number_y <= height // 2
+                ), "The hole_number_y must be between 1 and image height//2."
+                self.unit_height = height // self.holes_number_y
+
+        self.hole_width = int(self.unit_width * self.ratio)
+        self.hole_height = int(self.unit_height * self.ratio)
+        # min 1 pixel and max unit length - 1
+        self.hole_width = min(max(self.hole_width, 1), self.unit_width - 1)
+        self.hole_height = min(max(self.hole_height, 1), self.unit_height - 1)
+        # set offset of the grid
+        if self.shift_x is None:
+            self.shift_x = 0
+        if self.shift_y is None:
+            self.shift_y = 0
+        if self.random_offset:
+            self.shift_x = np.random.randint(0, self.unit_width)
+            self.shift_y = np.random.randint(0, self.unit_height)
+        else:
+            self.shift_x = max(min(0, self.shift_x), self.unit_width)
+            self.shift_y = max(min(0, self.shift_y), self.unit_height)
+
+        holes = []
+        for i in range(width // self.unit_width + 1):
+            for j in range(height // self.unit_height + 1):
+                x1 = min(self.shift_x + self.unit_width * i, width)
+                y1 = min(self.shift_y + self.unit_height * j, height)
+                x2 = min(x1 + self.hole_width, width)
+                y2 = min(y1 + self.hole_height, height)
+                holes.append((x1, y1, x2, y2))
+
+        return {"holes": holes}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_transform_init_args_names(self):
+        return (
+            "ratio",
+            "unit_size_min",
+            "unit_size_max",
+            "holes_number_x",
+            "holes_number_x",
+            "shift_x",
+            "shift_y",
+            "random_offset",
+        )
