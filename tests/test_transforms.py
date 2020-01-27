@@ -563,12 +563,12 @@ def test_mask_dropout():
     "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
 )
 def test_grid_dropout_default(image):
-    aug = A.GridCutout(p=1)
+    aug = A.GridDropout(p=1)
     holes = aug.get_params_dependent_on_targets({"image": image})
     result = aug.apply(image=image, holes=holes)
     # with fill_value = 0 the sum of pixels is smaller
     assert result.sum() < image.sum()
-    # test dropout hole width == image width //10 * ratio (0.5)
+    # test dropout hole width == image width // 10 * ratio (0.5)
     assert holes[0][2] - holes[0][0] == 16
 
 
@@ -584,7 +584,7 @@ def test_grid_dropout_default(image):
 def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y):
     img = np.random.randint(0, 256, [256, 320], np.uint8)
 
-    aug = A.GridCutout(
+    aug = A.GridDropout(
         img=img,
         ratio=ratio,
         unit_size_min=unit_size_min,
@@ -594,6 +594,7 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
         shift_x=shift_x,
         shift_y=shift_y,
         random_offset=False,
+        fill_value = 0,
         p=1,
     )
     holes = aug.get_params_dependent_on_targets({"image": img})
