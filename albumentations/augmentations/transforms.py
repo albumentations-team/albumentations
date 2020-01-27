@@ -79,7 +79,7 @@ __all__ = [
     "MultiplicativeNoise",
     "FancyPCA",
     "MaskDropout",
-    "GridCutout",
+    "GridDropout",
 ]
 
 
@@ -3180,9 +3180,9 @@ class GlassBlur(Blur):
         return ["image"]
 
 
-class GridCutout(ImageOnlyTransform):
+class GridDropout(ImageOnlyTransform):
     """
-    GridCutout, cuts out rectangular regions of an image in a grid fashion.
+    GridDropout, drops out rectangular regions of an image in a grid fashion.
 
         Args:
             ratio (float): the ratio of the mask holes to the unit_size (same for horizental and vertical directions).
@@ -3221,8 +3221,7 @@ class GridCutout(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-
-        super(GridCutout, self).__init__(always_apply, p)
+        super(GridDropout, self).__init__(always_apply, p)
         self.ratio = ratio
         self.unit_size_min = unit_size_min
         self.unit_size_max = unit_size_max
