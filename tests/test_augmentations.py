@@ -61,7 +61,7 @@ from albumentations import (
     LongestMaxSize,
     Downscale,
     MultiplicativeNoise,
-    GridDropout, 
+    GridDropout,
 )
 
 
