@@ -259,7 +259,7 @@ class PerChannel(BaseCompose):
 
             image = data["image"]
 
-            # Expan mono images to have a single channel
+            # Expand mono images to have a single channel
             if len(image.shape) == 2:
                 image = np.expand_dims(image, -1)
 
