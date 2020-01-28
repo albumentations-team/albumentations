@@ -3185,22 +3185,21 @@ class GridDropout(ImageOnlyTransform):
     GridDropout, drops out rectangular regions of an image in a grid fashion.
 
         Args:
-            ratio (float): the ratio of the mask holes to the unit_size (same for horizental and vertical directions).
+            ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
                 Must be between 0 and 1. Default: 0.5.
-            unit_size_min (int): minimum size of the grid unit. Must be between 2 and image shorted edge.
+            unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
                 If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-            unit_size_max (int): maximum size of the grid unit. Must be between 2 and image shorted edge.
+            unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
                 If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
             holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
                 If 'None', grid unit width is set as image_width//10. Default: `None`.
             holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
                 If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
+            shift_x, shift_y (int): offsets of the grid start from (0,0) coordinate.
                 Clipped between 0 and grid unit size. Default: (0,0).
-            shift_x, shift_y (int): offsets for the grid start from (0,0) coordinate.
-                Clipped between 0 and grid unit size. Default: (0,0).
-            random_offset (boolean): weather to offset grid randomly between 0 and grid unit size - hole size
+            random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
                 If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
-            fill_value (int): value to for dropped pixels. Default = 0
+            fill_value (int): value for the dropped pixels. Default = 0
         Targets:
             image
         Image types:
