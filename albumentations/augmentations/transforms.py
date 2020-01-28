@@ -3245,7 +3245,7 @@ class GridDropout(ImageOnlyTransform):
                 2 <= self.unit_size_min <= self.unit_size_max
             ), "Max unit size should be >= min size, both at least 2 pixels."
             assert self.unit_size_max <= min(height, width), "Grid size limits must be within the shortest image edge."
-            self.unit_width = np.random.randint(self.unit_size_min, self.unit_size_max + 1)
+            self.unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
             self.unit_height = self.unit_width
         else:
             # set grid using holes numbers
@@ -3275,11 +3275,11 @@ class GridDropout(ImageOnlyTransform):
         if self.shift_y is None:
             self.shift_y = 0
         if self.random_offset:
-            self.shift_x = np.random.randint(0, self.unit_width)
-            self.shift_y = np.random.randint(0, self.unit_height)
+            self.shift_x = random.randint(0, self.unit_width)
+            self.shift_y = random.randint(0, self.unit_height)
         else:
-            self.shift_x = max(min(0, self.shift_x), self.unit_width)
-            self.shift_y = max(min(0, self.shift_y), self.unit_height)
+            self.shift_x = min(max(0, self.shift_x), self.unit_width)
+            self.shift_y = min(max(0, self.shift_y), self.unit_height)
 
         holes = []
         for i in range(width // self.unit_width + 1):

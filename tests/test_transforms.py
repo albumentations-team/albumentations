@@ -564,12 +564,10 @@ def test_mask_dropout():
 )
 def test_grid_dropout_default(image):
     aug = A.GridDropout(p=1)
-    holes = aug.get_params_dependent_on_targets({"image": image})
-    result = aug.apply(image=image, holes=holes)
+    result = aug(image=image)["image"]
     # with fill_value = 0 the sum of pixels is smaller
     assert result.sum() < image.sum()
-    # test dropout hole width == image width // 10 * ratio (0.5)
-    assert holes[0][2] - holes[0][0] == 16
+    assert result.shape == image.shape
 
 
 @pytest.mark.parametrize(
@@ -585,7 +583,6 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
     img = np.random.randint(0, 256, [256, 320], np.uint8)
 
     aug = A.GridDropout(
-        img=img,
         ratio=ratio,
         unit_size_min=unit_size_min,
         unit_size_max=unit_size_max,
@@ -594,13 +591,16 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
         shift_x=shift_x,
         shift_y=shift_y,
         random_offset=False,
-        fill_value = 0,
+        fill_value=0,
         p=1,
     )
-    holes = aug.get_params_dependent_on_targets({"image": img})
-    result = aug.apply(image=img, holes=holes)
+    result = aug(image=img)["image"]
     # with fill_value = 0 the sum of pixels is smaller
     assert result.sum() < img.sum()
+    assert result.shape == img.shape
+    params = aug.get_params_dependent_on_targets({"image": img})
+    holes = params["holes"]
+    assert len(holes[0]) == 4
     # check grid offsets
     if shift_x:
         assert holes[0][0] == shift_x
@@ -614,6 +614,5 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
     if unit_size_min and unit_size_max:
         assert max(1, unit_size_min * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_max * ratio), 256)
     elif holes_number_x and holes_number_y:
-        # for grid set with holes number
         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_x))
         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_y))
