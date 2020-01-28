@@ -61,10 +61,10 @@ def _gen_random_bboxes(shape):
     bboxes = []
 
     for _ in range(np.random.randint(1, 100)):
-        x1 = np.random.randint(0, w - 1)
-        y1 = np.random.randint(0, h - 1)
-        x2 = np.random.randint(x1, w)
-        y2 = np.random.randint(y1, h)
+        x1 = np.random.randint(0, w - 2)
+        y1 = np.random.randint(0, h - 2)
+        x2 = np.random.randint(x1 + 1, w)
+        y2 = np.random.randint(y1 + 1, h)
         bboxes.append([x1, y1, x2, y2, np.random.randint(100)])
 
     return bboxes
