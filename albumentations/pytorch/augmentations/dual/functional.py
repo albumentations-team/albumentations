@@ -6,9 +6,10 @@ import torch.nn.functional as FTorch
 
 import albumentations.augmentations.functional as AF
 
-from ..utils import on_4d_image, get_interpolation_mode, get_border_mode
+from ..utils import on_4d_image, get_interpolation_mode, get_border_mode, on_3d_image
 
 
+@on_4d_image(torch.float32)
 def copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode="constant", value=0):
     """
     Args:
@@ -29,10 +30,8 @@ def copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border
     if border_mode != "constant":
         value = 0
 
-    dtype = img.dtype
-    img = img.view(1, *img.shape)
-    img = FTorch.pad(img.float(), [w_pad_left, w_pad_right, h_pad_top, h_pad_bottom], mode=border_mode, value=value)
-    return img.to(dtype).view(*img.shape[1:])
+    img = FTorch.pad(img, [w_pad_left, w_pad_right, h_pad_top, h_pad_bottom], mode=border_mode, value=value)
+    return img
 
 
 def pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode="reflect", value=None):
@@ -80,6 +79,7 @@ def random_flip(img, code):
     return torch.flip(img, code).contiguous()
 
 
+@on_3d_image
 def transpose(img):
     return img.permute(0, 2, 1)
 
@@ -168,7 +168,7 @@ def center_crop(img, crop_height, crop_width):
 
 
 def random_crop(img, crop_height, crop_width, h_start, w_start):
-    height, width = img.shape[1:]
+    height, width = img.shape[-2:]
     if height < crop_height or width < crop_width:
         raise ValueError(
             "Requested crop size ({crop_height}, {crop_width}) is "

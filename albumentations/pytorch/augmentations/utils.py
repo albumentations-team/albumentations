@@ -91,18 +91,22 @@ def on_4d_image(dtype=None):
     def callable(func):
         @wraps(func)
         def wrapped_function(img, *args, **kwargs):
-            prev_shape = img.shape
             old_dtype = img.dtype
             if dtype is not None:
                 img = img.to(dtype)
-            if len(prev_shape) < 3:
-                img.view(1, 1, *prev_shape)
-            else:
-                img = img.view(1, *prev_shape)
+
+            shape_len = len(img.shape)
+            if shape_len < 3:
+                img = img.view(1, 1, *img.shape)
+            elif shape_len < 4:
+                img = img.view(1, *img.shape)
+
             result = func(img, *args, **kwargs)
-            result = result.view(*prev_shape)
+            result = result.view(*result.shape[-shape_len:])
+
             if old_dtype is not None:
                 result = result.to(old_dtype)
+
             return result
 
         return wrapped_function
@@ -122,3 +126,16 @@ def get_border_mode(mode):
         return OPENCV_TO_TORCH_BORDER[mode]
 
     return mode
+
+
+def on_3d_image(func):
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        shape_len = len(img.shape)
+        if shape_len < 3:
+            img = img.view(1, *img.shape)
+        result = func(img, *args, **kwargs)
+        result = result.view(result.shape[-shape_len:])
+        return result
+
+    return wrapped_function

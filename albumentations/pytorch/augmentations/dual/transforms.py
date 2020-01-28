@@ -337,8 +337,8 @@ class CropNonEmptyMaskIfExistsTorch(BasicTransformTorch, A.CropNonEmptyMaskIfExi
             y, x = random.choice(non_zero_yx)
             x_min = x - random.randint(0, self.width - 1)
             y_min = y - random.randint(0, self.height - 1)
-            x_min = np.clip(x_min, 0, mask_width - self.width)
-            y_min = np.clip(y_min, 0, mask_height - self.height)
+            x_min = torch.clamp(x_min, 0, mask_width - self.width)
+            y_min = torch.clamp(y_min, 0, mask_height - self.height)
 
         x_max = x_min + self.width
         y_max = y_min + self.height
