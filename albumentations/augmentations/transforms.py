@@ -3196,6 +3196,8 @@ class GridDropout(ImageOnlyTransform):
             holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
                 If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
                 Clipped between 0 and grid unit size. Default: (0,0).
+            shift_x, shift_y (int): offsets for the grid start from (0,0) coordinate.
+                Clipped between 0 and grid unit size. Default: (0,0).
             random_offset (boolean): weather to offset grid randomly between 0 and grid unit size - hole size
                 If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
             fill_value (int): value to for dropped pixels. Default = 0
