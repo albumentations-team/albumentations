@@ -91,13 +91,18 @@ def on_4d_image(dtype=None):
     def callable(func):
         @wraps(func)
         def wrapped_function(img, *args, **kwargs):
+            prev_shape = img.shape
             old_dtype = img.dtype
             if dtype is not None:
                 img = img.to(dtype)
-            img = img.view(1, *img.shape)
+            if len(prev_shape) < 3:
+                img.view(1, 1, *prev_shape)
+            else:
+                img = img.view(1, *prev_shape)
             result = func(img, *args, **kwargs)
-            result = result.view(*result.shape[1:])
-            result = result.to(old_dtype)
+            result = result.view(*prev_shape)
+            if old_dtype is not None:
+                result = result.to(old_dtype)
             return result
 
         return wrapped_function
