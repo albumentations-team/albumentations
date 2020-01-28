@@ -3195,8 +3195,10 @@ class GridDropout(ImageOnlyTransform):
                 If 'None', grid unit width is set as image_width//10. Default: `None`.
             holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
                 If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
-            shift_x, shift_y (int): offsets of the grid start from (0,0) coordinate.
-                Clipped between 0 and grid unit size. Default: (0,0).
+            shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
+                Clipped between 0 and grid unit_width - hole_width. Default: 0.
+            shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
+                Clipped between 0 and grid unit height - hole_height. Default: 0.
             random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
                 If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
             fill_value (int): value for the dropped pixels. Default = 0
@@ -3246,49 +3248,49 @@ class GridDropout(ImageOnlyTransform):
                 2 <= self.unit_size_min <= self.unit_size_max
             ), "Max unit size should be >= min size, both at least 2 pixels."
             assert self.unit_size_max <= min(height, width), "Grid size limits must be within the shortest image edge."
-            self.unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
-            self.unit_height = self.unit_width
+            unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
+            unit_height = unit_width
         else:
             # set grid using holes numbers
             if self.holes_number_x is None:
-                self.unit_width = max(2, width // 10)
+                unit_width = max(2, width // 10)
             else:
                 assert (
                     1 <= self.holes_number_x <= width // 2
                 ), "The hole_number_x must be between 1 and image width//2."
-                self.unit_width = width // self.holes_number_x
+                unit_width = width // self.holes_number_x
             if self.holes_number_y is None:
-                self.unit_height = max(min(self.unit_width, height), 2)
+                unit_height = max(min(unit_width, height), 2)
             else:
                 assert (
                     1 <= self.holes_number_y <= height // 2
                 ), "The hole_number_y must be between 1 and image height//2."
-                self.unit_height = height // self.holes_number_y
+                unit_height = height // self.holes_number_y
 
-        self.hole_width = int(self.unit_width * self.ratio)
-        self.hole_height = int(self.unit_height * self.ratio)
+        hole_width = int(unit_width * self.ratio)
+        hole_height = int(unit_height * self.ratio)
         # min 1 pixel and max unit length - 1
-        self.hole_width = min(max(self.hole_width, 1), self.unit_width - 1)
-        self.hole_height = min(max(self.hole_height, 1), self.unit_height - 1)
+        hole_width = min(max(hole_width, 1), unit_width - 1)
+        hole_height = min(max(hole_height, 1), unit_height - 1)
         # set offset of the grid
         if self.shift_x is None:
-            self.shift_x = 0
-        if self.shift_y is None:
-            self.shift_y = 0
-        if self.random_offset:
-            self.shift_x = random.randint(0, self.unit_width)
-            self.shift_y = random.randint(0, self.unit_height)
+            shift_x = 0
         else:
-            self.shift_x = min(max(0, self.shift_x), self.unit_width)
-            self.shift_y = min(max(0, self.shift_y), self.unit_height)
-
+            shift_x = min(max(0, self.shift_x), unit_width - hole_width)
+        if self.shift_y is None:
+            shift_y = 0
+        else:
+            shift_y = min(max(0, self.shift_y), unit_height - hole_height)
+        if self.random_offset:
+            shift_x = random.randint(0, unit_width - hole_width)
+            shift_y = random.randint(0, unit_height - hole_height)
         holes = []
-        for i in range(width // self.unit_width + 1):
-            for j in range(height // self.unit_height + 1):
-                x1 = min(self.shift_x + self.unit_width * i, width)
-                y1 = min(self.shift_y + self.unit_height * j, height)
-                x2 = min(x1 + self.hole_width, width)
-                y2 = min(y1 + self.hole_height, height)
+        for i in range(width // unit_width + 1):
+            for j in range(height // unit_height + 1):
+                x1 = min(shift_x + unit_width * i, width)
+                y1 = min(shift_y + unit_height * j, height)
+                x2 = min(x1 + hole_width, width)
+                y2 = min(y1 + hole_height, height)
                 holes.append((x1, y1, x2, y2))
 
         return {"holes": holes}
@@ -3303,7 +3305,7 @@ class GridDropout(ImageOnlyTransform):
             "unit_size_min",
             "unit_size_max",
             "holes_number_x",
-            "holes_number_x",
+            "holes_number_y",
             "shift_x",
             "shift_y",
             "random_offset",
