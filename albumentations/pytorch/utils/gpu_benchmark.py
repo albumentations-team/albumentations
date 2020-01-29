@@ -18,6 +18,7 @@ def _bench(n, img, mask, bboxes, additional_targets, transform, desc, file):
         args["mask"] = mask
     for _ in tqdm(range(n), desc=desc, file=file):
         transform(**args)
+        torch.cuda.synchronize()
     e = time.time()
     return n / (e - s)
 
@@ -227,17 +228,18 @@ if __name__ == "__main__":
     gpu_aug = A.Compose([ATorch.ToTensorV2(device="cuda"), ATorch.NormalizeTorch(0, 1)])
 
     shapes = [
-        [3840, 2160, 3],
-        [2048, 2048, 3],
-        [2560, 1440, 3],
-        [1920, 1080, 3],
+        # [3840, 2160, 3],
+        # [2048, 2048, 3],
+        # [2560, 1440, 3],
+        # [1920, 1080, 3],
         [1024, 1024, 3],
-        [1280, 720, 3],
+        # [1280, 720, 3],
         [512, 512, 3],
         [256, 256, 3],
         [128, 128, 3],
     ]
 
     iterations = [100] * 3 + [1000]
+    iterations = [1000]
 
     results = gpu_benchmark(cpu_aug, gpu_aug, shapes, iterations, to_float_gpu=False, silent=False)
