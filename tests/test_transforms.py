@@ -556,7 +556,7 @@ def test_mask_dropout():
     assert np.all(result["image"] == 0)
     assert np.all(result["mask"] == 0)
 
-    # In this case we have mask with zeros , so MaskDropout will make no changes
+    # In this case we have mask with zeros, so MaskDropout will make no changes
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     mask = np.zeros([50, 10], dtype=np.long)
 
@@ -564,3 +564,24 @@ def test_mask_dropout():
     result = aug(image=img, mask=mask)
     assert np.all(result["image"] == img)
     assert np.all(result["mask"] == 0)
+
+
+def test_symm_keypoints_hflip():
+    n_keypoints = 10
+    idx1, idx2 = np.random.randint(0, n_keypoints, size=2)
+    flip = A.HorizontalFlip(always_apply=True, symmetric_keypoints=((idx1, idx2),))
+
+    img_size = 100
+    img = np.random.rand(img_size, img_size, 3)
+    kpts = np.random.randint(0, img_size, size=(n_keypoints, 4))
+
+    transformed = flip(image=img, keypoints=kpts)
+    new_kpts = transformed["keypoints"]
+
+    np.testing.assert_allclose(transformed["image"], np.fliplr(img))
+    assert kpts[idx1][1] == new_kpts[idx2][1]
+    assert kpts[idx1][0] == (img_size - 1) - new_kpts[idx2][0]
+
+    not_symmetric_idx = [x for x in np.arange(n_keypoints) if x not in (idx1, idx2)]
+    for idx in not_symmetric_idx:
+        assert new_kpts[idx] == flip.apply_to_keypoint(kpts[idx], rows=img_size, cols=img_size)
