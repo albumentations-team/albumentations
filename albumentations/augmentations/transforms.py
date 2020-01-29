@@ -1566,6 +1566,7 @@ class GridMask(DualTransform):
     def apply(self, image, mask, rand_h, rand_w, angle, **params):
         h, w = image.shape[:2]
         mask = F.rotate(mask, angle) if self.rotate[1] > 0 else mask
+        mask = mask[:,:,np.newaxis] if image.ndim == 3 else mask
         image *= mask[rand_h:rand_h+h, rand_w:rand_w+w].astype(image.dtype)
         return image
 
