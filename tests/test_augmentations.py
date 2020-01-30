@@ -167,6 +167,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
         [ISONoise, {}],
         [RandomGridShuffle, {}],
+        [GridDropout, {}],
     ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -196,6 +197,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [RandomResizedCrop, {"height": 10, "width": 10}],
         [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
         [RandomGridShuffle, {}],
+        [GridDropout, {}],
     ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -510,6 +512,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [ElasticTransform, {}],
         [RandomBrightnessContrast, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):

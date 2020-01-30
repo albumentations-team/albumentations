@@ -3180,9 +3180,9 @@ class GlassBlur(Blur):
         return ["image"]
 
 
-class GridDropout(ImageOnlyTransform):
+class GridDropout(DualTransform):
     """
-    GridDropout, drops out rectangular regions of an image in a grid fashion.
+    GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
 
         Args:
             ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
@@ -3202,8 +3202,10 @@ class GridDropout(ImageOnlyTransform):
             random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
                 If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
             fill_value (int): value for the dropped pixels. Default = 0
+            mask_fill_value (int): value for the dropped pixels in mask.
+                If `None`, tranformation is not applied to the mask. Default: `None`.
         Targets:
-            image
+            image, mask
         Image types:
             uint8, float32
         References:
@@ -3221,6 +3223,7 @@ class GridDropout(ImageOnlyTransform):
         shift_y: int = 0,
         random_offset: bool = False,
         fill_value: int = 0,
+        mask_fill_value: int = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -3234,10 +3237,17 @@ class GridDropout(ImageOnlyTransform):
         self.shift_y = shift_y
         self.random_offset = random_offset
         self.fill_value = fill_value
+        self.mask_fill_value = mask_fill_value
         assert 0 < self.ratio < 1, "ratio must be between 0 and 1."
 
-    def apply(self, image, fill_value=0, holes=[], **params):
-        return F.cutout(image, holes, fill_value)
+    def apply(self, image, holes=[], **params):
+        return F.cutout(image, holes, self.fill_value)
+
+    def apply_to_mask(self, image, holes=[], **params):
+        if self.mask_fill_value is None:
+            return image
+        else:
+            return F.cutout(image, holes, self.mask_fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
@@ -3308,5 +3318,6 @@ class GridDropout(ImageOnlyTransform):
             "holes_number_y",
             "shift_x",
             "shift_y",
+            "mask_fill_value",
             "random_offset",
         )
