@@ -126,7 +126,6 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [FromFloat](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.FromFloat)
 - [GaussNoise](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.GaussNoise)
 - [GaussianBlur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.GaussianBlur)
-- [GridDropout](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.GridDropout)
 - [HueSaturationValue](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.HueSaturationValue)
 - [IAAAdditiveGaussianNoise](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations.imgaug.transforms.IAAAdditiveGaussianNoise)
 - [IAAEmboss](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations.imgaug.transforms.IAAEmboss)
@@ -168,6 +167,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [ElasticTransform](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ElasticTransform)                 | ✓     | ✓     |        |           |
 | [Flip](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Flip)                                         | ✓     | ✓     | ✓      | ✓         |
 | [GridDistortion](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.GridDistortion)                     | ✓     | ✓     |        |           |
+| [GridDropout](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.GridDropout)                           | ✓     | ✓     |        |           |
 | [HorizontalFlip](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.HorizontalFlip)                     | ✓     | ✓     | ✓      | ✓         |
 | [IAAAffine](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations.imgaug.transforms.IAAAffine)                                             | ✓     | ✓     | ✓      | ✓         |
 | [IAACropAndPad](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations.imgaug.transforms.IAACropAndPad)                                     | ✓     | ✓     | ✓      | ✓         |
