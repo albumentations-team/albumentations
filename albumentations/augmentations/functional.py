@@ -1069,7 +1069,7 @@ def grid_distortion(
     y_step = height // num_steps
     yy = np.zeros(height, np.float32)
     prev = 0
-    for idx, y in enumerate(np.linspace(0, width, num_steps)):
+    for idx, y in enumerate(np.linspace(0, height, num_steps)):
         start = int(y)
         end = int(y) + y_step
         if end > height:
