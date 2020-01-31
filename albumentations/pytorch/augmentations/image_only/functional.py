@@ -527,14 +527,13 @@ def invert(img):
 
 
 @clipped
-def gamma_transform(img, gamma, eps):
+def gamma_transform(img, gamma):
     dtype = img.dtype
     img = img.float()
 
     if dtype == torch.uint8:
-        invGamma = 1.0 / (gamma + eps)
         img = img / 255.0
-        img = torch.pow(img, invGamma) * 255.0
+        img = torch.pow(img, gamma) * 255.0
     else:
         img = torch.pow(img, gamma)
 
@@ -550,11 +549,15 @@ def to_gray(img):
     dtype = img.dtype
     values = torch.tensor([0.299, 0.587, 0.114], dtype=torch.float32, device=img.device)
     values = values.view(3, 1, 1)
+    r, g, b = img
 
     if len(img.shape) < 3 and img.shape[0] != 3:
         raise ValueError("Image size must have a shape of (3, H, W). Got {}".format(img.shape))
 
-    return (img.float() * values).to(dtype, non_blocking=True)
+    img = torch.sum(img.float() * values, dim=0)
+    img = img.to(dtype, non_blocking=True)
+
+    return torch.stack([img] * 3)
 
 
 @clipped

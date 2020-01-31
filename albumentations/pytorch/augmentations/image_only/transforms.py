@@ -146,7 +146,7 @@ class InvertImgTorch(A.InvertImg):
 
 class RandomGammaTorch(A.RandomGamma):
     def apply(self, img, gamma=1, **params):
-        return F.gamma_transform(img, gamma=gamma, eps=self.eps)
+        return F.gamma_transform(img, gamma=gamma)
 
 
 class ChannelShuffleTorch(A.ChannelShuffle):
