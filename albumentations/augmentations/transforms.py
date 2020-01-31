@@ -3209,7 +3209,7 @@ class GridDropout(DualTransform):
         Image types:
             uint8, float32
         References:
-            https://arxiv.org/pdf/2001.04086.pdf7
+            https://arxiv.org/abs/2001.04086
     """
 
     def __init__(
@@ -3238,7 +3238,8 @@ class GridDropout(DualTransform):
         self.random_offset = random_offset
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
-        assert 0 < self.ratio <= 1, "ratio must be between 0 and 1."
+        if not 0 < self.ratio <= 1:
+            raise ValueError("ratio must be between 0 and 1.")
 
     def apply(self, image, holes=[], **params):
         return F.cutout(image, holes, self.fill_value)
@@ -3254,10 +3255,10 @@ class GridDropout(DualTransform):
         height, width = img.shape[:2]
         # set grid using unit size limits
         if self.unit_size_min and self.unit_size_max:
-            assert (
-                2 <= self.unit_size_min <= self.unit_size_max
-            ), "Max unit size should be >= min size, both at least 2 pixels."
-            assert self.unit_size_max <= min(height, width), "Grid size limits must be within the shortest image edge."
+            if not 2 <= self.unit_size_min <= self.unit_size_max:
+                raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
+            if self.unit_size_max > min(height, width):
+                raise ValueError("Grid size limits must be within the shortest image edge.")
             unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
             unit_height = unit_width
         else:
@@ -3265,16 +3266,14 @@ class GridDropout(DualTransform):
             if self.holes_number_x is None:
                 unit_width = max(2, width // 10)
             else:
-                assert (
-                    1 <= self.holes_number_x <= width // 2
-                ), "The hole_number_x must be between 1 and image width//2."
+                if not 1 <= self.holes_number_x <= width // 2:
+                    raise ValueError("The hole_number_x must be between 1 and image width//2.")
                 unit_width = width // self.holes_number_x
             if self.holes_number_y is None:
                 unit_height = max(min(unit_width, height), 2)
             else:
-                assert (
-                    1 <= self.holes_number_y <= height // 2
-                ), "The hole_number_y must be between 1 and image height//2."
+                if not 1 <= self.holes_number_y <= height // 2:
+                    raise ValueError("The hole_number_y must be between 1 and image height//2.")
                 unit_height = height // self.holes_number_y
 
         hole_width = int(unit_width * self.ratio)
