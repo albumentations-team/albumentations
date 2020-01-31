@@ -3238,7 +3238,7 @@ class GridDropout(DualTransform):
         self.random_offset = random_offset
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
-        assert 0 < self.ratio < 1, "ratio must be between 0 and 1."
+        assert 0 < self.ratio <= 1, "ratio must be between 0 and 1."
 
     def apply(self, image, holes=[], **params):
         return F.cutout(image, holes, self.fill_value)
