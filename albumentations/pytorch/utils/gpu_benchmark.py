@@ -29,7 +29,10 @@ def _bench(n, img, mask, bboxes, additional_targets, transform, desc, file):
 
     s = time.time()
     for _ in tqdm(range(n), desc=desc, file=file):
-        transform(**args)
+        res = transform(**args)
+        image = res["image"]
+        if isinstance(image, np.ndarray):
+            image = np.ascontiguousarray(image)
         torch.cuda.synchronize()
     e = time.time()
 
