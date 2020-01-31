@@ -20,6 +20,8 @@ TRANSFORMS_WITH_ARGS = {
     ATorch.CenterCropTorch: dict(height=100, width=100),
     ATorch.CropNonEmptyMaskIfExistsTorch: dict(height=100, width=100),
     ATorch.RandomSizedBBoxSafeCropTorch: dict(height=100, width=100),
+    ATorch.LongestMaxSizeTorch: dict(max_size=716),
+    ATorch.SmallestMaxSizeTorch: dict(max_size=716),
 }
 
 TRANSFORMS_WITH_ADDITIONAL_TARGETS = {

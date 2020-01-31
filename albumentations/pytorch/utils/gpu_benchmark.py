@@ -5,21 +5,34 @@ import os
 import sys
 import time
 import torch
+import random
 import numpy as np
 from tqdm import tqdm
 
 
+def set_seeds(seed=0):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    random.seed(seed)
+    np.random.seed(seed)
+
+
 def _bench(n, img, mask, bboxes, additional_targets, transform, desc, file):
-    s = time.time()
+    set_seeds()
+
     args = dict(image=img, **additional_targets)
     if bboxes is not None:
         args["bboxes"] = bboxes
     if mask is not None:
         args["mask"] = mask
+
+    s = time.time()
     for _ in tqdm(range(n), desc=desc, file=file):
         transform(**args)
         torch.cuda.synchronize()
     e = time.time()
+
     return n / (e - s)
 
 
