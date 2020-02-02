@@ -25,7 +25,7 @@ probability values equal to **1**. All others are equal to **0.5**
            OneOf([
                IAAAdditiveGaussianNoise(p=0.9),
                GaussNoise(p=0.6),
-           ], p3=0.2)
+           ], p=p3)
        ], p=p1)
 
    image = np.ones((300, 300, 3), dtype=np.uint8)
