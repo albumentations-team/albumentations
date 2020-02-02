@@ -12,7 +12,8 @@ Features
 
 Project info
 ------------
-* GitHub repository: https://github.com/albu/albumentations
+* GitHub repository: https://github.com/albumentations-team/albumentations
+* GitHub repository with examples: https://github.com/albumentations-team/albumentations_examples
 * License: MIT
 
 Installation

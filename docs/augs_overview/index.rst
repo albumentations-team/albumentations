@@ -1,8 +1,4 @@
 Augmentations overview
 ======================
 
-.. toctree::
-   :maxdepth: 2
-
-   ./image_only/image_only
-   ./dual/dual
+You can find examples in this `repository <https://github.com/albumentations-team/albumentations_examples#augmentations-examples>`_.

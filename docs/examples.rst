@@ -52,5 +52,6 @@ Examples
    image, mask, whatever_data, additional = augmented["image"], augmented["mask"], augmented["whatever_data"], augmented["additional"]
 
 
-For more examples see `example.ipynb <https://github.com/albu/albumentations/blob/master/notebooks/example.ipynb>`_
-and `example_16_bit_tiff.ipynb <https://github.com/albu/albumentations/blob/master/notebooks/example_16_bit_tiff.ipynb>`_
+For more examples see `repository with examples <https://github.com/albumentations-team/albumentations_examples>`_
+and `example.ipynb <https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example.ipynb>`_
+and `example_16_bit_tiff.ipynb <https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_16_bit_tiff.ipynb>`_
