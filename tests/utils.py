@@ -1,4 +1,29 @@
+import torch
+import random
+
 import numpy as np
+
+
+def set_seed(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+
+
+def to_tensor(image, device="cpu"):
+    if len(image.shape) == 2:
+        image = np.expand_dims(image, -1)
+
+    image = image.transpose([2, 0, 1])
+    image = torch.from_numpy(image)
+
+    return image.to(device)
+
+
+def from_tensor(image):
+    image = image.detach().cpu().numpy()
+    image = image.transpose([1, 2, 0])
+    return np.squeeze(image)
 
 
 def convert_2d_to_3d(arrays, num_channels=3):

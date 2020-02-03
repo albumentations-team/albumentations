@@ -7,9 +7,10 @@ import torch
 from torchvision.transforms import functional as F
 
 from ..core.transforms_interface import BasicTransform
+from ..augmentations.functional import is_grayscale_image
 
 
-__all__ = ["ToTensor", "ToTensorV2"]
+__all__ = ["ToTensor", "ToTensorV2", "BasicTransformTorch"]
 
 
 def img_to_tensor(im, normalize=None):
@@ -82,21 +83,39 @@ class ToTensor(BasicTransform):
 class ToTensorV2(BasicTransform):
     """Convert image and mask to `torch.Tensor`."""
 
-    def __init__(self, always_apply=True, p=1.0):
+    def __init__(self, always_apply=True, device="cpu", p=1.0):
         super(ToTensorV2, self).__init__(always_apply=always_apply, p=p)
+        self.device = device
 
     @property
     def targets(self):
         return {"image": self.apply, "mask": self.apply_to_mask}
 
     def apply(self, img, **params):
-        return torch.from_numpy(img.transpose(2, 0, 1))
+        if is_grayscale_image(img):
+            img = img.reshape((1,) + img.shape[:2])
+
+        return torch.from_numpy(img.transpose(2, 0, 1)).to(self.device)
 
     def apply_to_mask(self, mask, **params):
-        return torch.from_numpy(mask)
+        return torch.from_numpy(mask).to(self.device)
 
     def get_transform_init_args_names(self):
-        return []
+        return ("device",)
 
     def get_params_dependent_on_targets(self, params):
         return {}
+
+
+class BasicTransformTorch(BasicTransform):
+    def update_params(self, params, **kwargs):
+        if hasattr(self, "interpolation"):
+            params["interpolation"] = self.interpolation
+        if hasattr(self, "fill_value"):
+            params["fill_value"] = self.fill_value
+
+        if isinstance(kwargs["image"], np.ndarray):
+            params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
+        else:
+            params.update({"cols": kwargs["image"].shape[2], "rows": kwargs["image"].shape[1]})
+        return params
