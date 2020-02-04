@@ -1230,6 +1230,7 @@ def elastic_transform_approx(
 
 def invert(img):
 	return 255 - img
+	
 
 def channel_shuffle(img, channels_shuffled):
     img = img[..., channels_shuffled]
