@@ -1229,13 +1229,7 @@ def elastic_transform_approx(
 
 
 def invert(img):
-	if img.dtype == np.uint8:
-    	return 255 - img
-    elif img.dtype == np.float32:
-    	return 1 - img
-    else:
-        raise NotImplementedError(f"InvertImg is not implemented for dtype {img.dtype}")
-
+	return 255 - img
 
 def channel_shuffle(img, channels_shuffled):
     img = img[..., channels_shuffled]
