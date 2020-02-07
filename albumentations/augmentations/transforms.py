@@ -1483,9 +1483,9 @@ class Cutout(ImageOnlyTransform):
             x = random.randint(0, width)
 
             y1 = np.clip(y - self.max_h_size // 2, 0, height)
-            y2 = np.clip(y + self.max_h_size // 2, 0, height)
+            y2 = np.clip(y1 + self.max_h_size, 0, height)
             x1 = np.clip(x - self.max_w_size // 2, 0, width)
-            x2 = np.clip(x + self.max_w_size // 2, 0, width)
+            x2 = np.clip(x1 + self.max_w_size, 0, width)
             holes.append((x1, y1, x2, y2))
 
         return {"holes": holes}
