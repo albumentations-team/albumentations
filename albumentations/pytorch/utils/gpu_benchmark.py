@@ -43,7 +43,7 @@ def _format_row(values, max_lengths):
     row = ""
     for value, length in zip(values, max_lengths):
         padding = " " * (length - len(value))
-        row += f"| {padding}{value} "
+        row += "| {}{} ".format(padding, value)
     row += "|"
     return row
 
@@ -58,8 +58,8 @@ def results_to_pretty_string(results):
 
     for result in results:
         shapes.append(str(result["shape"]))
-        cpu_fps.append(f"{result['cpu_fps']:.2f}")
-        gpu_fps.append(f"{result['gpu_fps']:.2f}")
+        cpu_fps.append("{:.2f}".format(result["cpu_fps"]))
+        gpu_fps.append("{:.2f}".format(result["gpu_fps"]))
 
         cols_length[0] = max(cols_length[0], len(shapes[-1]))
         cols_length[1] = max(cols_length[1], len(cpu_fps[-1]))

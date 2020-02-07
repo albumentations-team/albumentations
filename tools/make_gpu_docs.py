@@ -209,9 +209,9 @@ def process_results(results):
             )
 
             tmp_str["shapes"].append(str(without_tensor["shape"]))
-            tmp_str["cpu"].append(f"{cpu_fps:.2f}")
-            tmp_str["gpu_with"].append(f'{with_tensor["gpu_fps"]:.2f}')
-            tmp_str["gpu_without"].append(f'{without_tensor["gpu_fps"]:.2f}')
+            tmp_str["cpu"].append("{:.2f}".format(cpu_fps))
+            tmp_str["gpu_with"].append("{:.2f}".format(with_tensor["gpu_fps"]))
+            tmp_str["gpu_without"].append("{:.2f}".format(without_tensor["gpu_fps"]))
 
             if cpu_fps >= with_tensor["gpu_fps"]:
                 is_faster_with = False
@@ -233,7 +233,7 @@ def make_doc_faster(faster):
     string = ""
 
     for name in sorted(faster):
-        string += f"- [{name}](#{name.lower()})\n"
+        string += "- [{}](#{})\n".format(name, name.lower())
 
     return string + "\n"
 
@@ -242,7 +242,7 @@ def make_doc_results(strings):
     result_string = ""
 
     for name in sorted(strings.keys()):
-        result_string += f"### {name}\n\n" + strings[name] + "\n"
+        result_string += "### {}\n\n".format(name) + strings[name] + "\n"
 
     return result_string + "\n"
 
