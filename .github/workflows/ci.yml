@@ -124,7 +124,7 @@ jobs:
       uses: actions/setup-python@v1.1.1
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Restore cache for heck_transforms_docs
+    - name: Restore cache for check_transforms_docs
       uses: actions/cache@v1
       with:
         path: ~/.cache/pip
