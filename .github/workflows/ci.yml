@@ -129,7 +129,7 @@ jobs:
       with:
         path: ~/.cache/pip
         key: check_transforms_docs-${{ matrix.python-version }}
-        restore-keys: heck_transforms_docs-${{ matrix.python-version }}
+        restore-keys: check_transforms_docs-${{ matrix.python-version }}
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install dependencies
