@@ -67,3 +67,20 @@ def test_with_replaycompose():
     assert res["mask"].dtype == torch.uint8
     assert res2["image"].dtype == torch.uint8
     assert res2["mask"].dtype == torch.uint8
+
+
+def test_to_tensor_v2_shapes():
+    image = np.empty([100, 100])
+
+    aug = ToTensorV2()
+
+    aug_image = aug(image=image)["image"]
+    assert aug_image.shape == (1, 100, 100)
+
+    image = np.empty([100, 100, 1])
+    aug_image = aug(image=image)["image"]
+    assert aug_image.shape == (1, 100, 100)
+
+    image = np.empty([100, 100, 3])
+    aug_image = aug(image=image)["image"]
+    assert aug_image.shape == (3, 100, 100)
