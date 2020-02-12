@@ -32,7 +32,7 @@ class DataProcessor:
             for k, v in additional_targets.items():
                 if v == self.default_data_name:
                     self.data_fields.append(k)
-        self.data_length = 0
+        self.data_length = None
 
     @property
     @abstractmethod
@@ -95,7 +95,8 @@ class DataProcessor:
             for field in self.params.label_fields:
                 data_with_added_field = []
                 for d, field_value in zip(data[data_name], data[field]):
-                    self.data_length = len(list(d))
+                    if self.data_length is None:
+                        self.data_length = len(list(d))
                     data_with_added_field.append(list(d) + [field_value])
                 data[data_name] = data_with_added_field
         return data

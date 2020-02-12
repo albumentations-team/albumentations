@@ -198,6 +198,7 @@ def test_compose_with_bbox_noop_error_label_fields(bboxes, bbox_format):
     ["bboxes", "bbox_format", "labels"],
     [
         [[(20, 30, 60, 80)], "pascal_voc", {"label": [1]}],
+        [[(20, 30, 60, 80)], "pascal_voc", {"label1": [1], "label2": [2]}],
         [[], "pascal_voc", {}],
         [[], "pascal_voc", {"label": []}],
         [[(20, 30, 60, 80)], "pascal_voc", {"id": [3]}],
