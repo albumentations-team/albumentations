@@ -3324,9 +3324,7 @@ class GridDropout(DualTransform):
 
 
 class AugMix(ImageOnlyTransform):
-    """
-    Augmentations mix to Improve Robustness and Uncertainty.
-
+    """Augmentations mix to Improve Robustness and Uncertainty.
     Args:
         image (np.ndarray): Raw input image of shape (h, w, c)
         severity (int): Severity of underlying augmentation operators.
@@ -3335,22 +3333,17 @@ class AugMix(ImageOnlyTransform):
           from [1, 3]
         alpha (float): Probability coefficient for Beta and Dirichlet distributions.
         augmentations (list of augmentations): Augmentations that need to mix and perform.
-
-    Target:
+    Targets:
         image
-
     Image types:
         uint8, float32
 
-    Returns:
-        mixed: Augmented and mixed image.
-
     Reference:
-    |   https://arxiv.org/abs/1912.02781
-    |   https://github.com/google-research/augmix
+    |  https://arxiv.org/abs/1912.02781
+    |  https://github.com/google-research/augmix
     """
 
-    def __init__(self, width=2, depth=2, alpha=0.5, augmentations=[HorizontalFlip(always_apply=True)], always_apply=False, p=0.5):
+    def __init__(self, width=2, depth=2, alpha=0.5, augmentations=[HorizontalFlip()], always_apply=False, p=0.5):
         super(AugMix, self).__init__(always_apply, p)
         self.width = width
         self.depth = depth
