@@ -3350,9 +3350,7 @@ class AugMix(ImageOnlyTransform):
     |   https://github.com/google-research/augmix
     """
 
-    def __init__(self, width=2, depth=2, alpha=0.5, augmentations=[
-                                HorizontalFlip(always_apply=True)
-                                ], always_apply=False, p=0.5):
+    def __init__(self, width=2, depth=2, alpha=0.5, augmentations=[HorizontalFlip(always_apply=True)], always_apply=False, p=0.5):
         super(AugMix, self).__init__(always_apply, p)
         self.width = width
         self.depth = depth
@@ -3369,19 +3367,19 @@ class AugMix(ImageOnlyTransform):
 
         flag_float = 0
         if img.dtype in ['float64', 'float32']:
-          img_format = img.dtype
-          img = np.clip(img * 255., 0, 255).astype(np.uint8)
-          flag_float = 1
-        
+            img_format = img.dtype
+            img = np.clip(img * 255., 0, 255).astype(np.uint8)
+            flag_float = 1
+
         mix = np.zeros_like(img)
         for i in range(self.width):
-          image_aug = img.copy()
+            image_aug = img.copy()
 
-          for _ in range(self.depth):
-            op = np.random.choice(self.augmentations)
-            image_aug = self.apply_op(img, op)
+            for _ in range(self.depth):
+                op = np.random.choice(self.augmentations)
+                image_aug = self.apply_op(img, op)
 
-          mix = np.add(mix, np.clip((ws[i] * image_aug), 0, 255).astype(np.uint8), out=mix, casting="unsafe")
+            mix = np.add(mix, np.clip((ws[i] * image_aug), 0, 255).astype(np.uint8), out=mix, casting="unsafe")
 
         mixed = (1 - m) * img + m * mix
         return np.clip((mixed), 0, 255).astype(np.uint8) if flag_float == 0 else (mixed / 255.).astype(img_format)
