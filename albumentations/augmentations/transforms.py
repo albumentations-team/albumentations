@@ -80,6 +80,7 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "AugMix"
 ]
 
 
@@ -3320,3 +3321,71 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
+        
+class AugMix(ImageOnlyTransform):
+    """Augmentations mix to Improve Robustness and Uncertainty.
+
+    Args:
+        image (np.ndarray): Raw input image of shape (h, w, c)
+        severity (int): Severity of underlying augmentation operators.
+        width (int): Width of augmentation chain
+        depth (int): Depth of augmentation chain. -1 enables stochastic depth uniformly
+          from [1, 3]
+        alpha (float): Probability coefficient for Beta and Dirichlet distributions.
+        augmentations (list of augmentations): Augmentations that need to mix and perform.
+
+    Target:
+        image
+
+    Image types:
+        uint8, float32
+
+    Returns:
+        mixed: Augmented and mixed image.
+      
+    Reference:
+    |   https://arxiv.org/abs/1912.02781
+    |   https://github.com/google-research/augmix
+    """
+
+    def __init__(self, width=2, depth=2, alpha=0.5, augmentations=[
+                                HorizontalFlip(always_apply=True)
+                                ], always_apply=False, p=0.5):
+        super(AugMix, self).__init__(always_apply, p)
+        self.width = width
+        self.depth = depth
+        self.alpha = alpha
+        self.augmentations = augmentations
+
+    def apply_op(self, image, op):
+      image = op(image=image)['image']
+      return image
+
+    def apply(self, img, **params):
+      ws = np.float32(np.random.dirichlet([self.alpha] * self.width))
+      m = np.float32(np.random.beta(self.alpha, self.alpha))
+
+      flag_float = 0
+      if img.dtype in ['float64','float32']:
+        img_format = img.dtype
+        img = np.clip(img * 255., 0, 255).astype(np.uint8)
+        flag_float = 1
+        
+      mix = np.zeros_like(img)
+      for i in range(self.width):
+        image_aug = img.copy()
+
+        for _ in range(self.depth):
+          op = np.random.choice(self.augmentations)
+          image_aug = self.apply_op(img, op)
+
+        mix = np.add(mix, np.clip((ws[i] * image_aug), 0, 255).astype(np.uint8), out=mix, casting="unsafe")
+
+
+      mixed = (1 - m) * img + m * mix
+      return np.clip((mixed), 0, 255).astype(np.uint8)\
+             if flag_float == 0\
+             else (mixed / 255.).astype(img_format)
+ 
+    def get_transform_init_args_names(self):
+        return ('width', 'depth', 'alpha')
