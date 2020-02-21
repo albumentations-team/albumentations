@@ -3373,7 +3373,7 @@ class AugMix(ImageOnlyTransform):
 
             mix = np.add(mix, np.clip((self.ws[i] * image_aug), 0, 255).astype(np.uint8), out=mix, casting="unsafe")
 
-        mixed = (1 - m) * img + self.m * mix
+        mixed = (1 - self.m) * img + self.m * mix
         return np.clip((mixed), 0, 255).astype(np.uint8) if flag_float == 0 else (mixed / 255.0).astype(img_format)
 
     def get_transform_init_args_names(self):
