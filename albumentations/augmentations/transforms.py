@@ -3357,12 +3357,6 @@ class AugMix(ImageOnlyTransform):
         return image
 
     def apply(self, img, **params):
-        flag_float = 0
-        if img.dtype in ["float64", "float32"]:
-            img_format = img.dtype
-            img = np.clip(img * 255.0, 0, 255).astype(np.uint8)
-            flag_float = 1
-
         mix = np.zeros_like(img)
         for i in range(self.width):
             image_aug = img.copy()
@@ -3371,10 +3365,12 @@ class AugMix(ImageOnlyTransform):
                 op = np.random.choice(self.augmentations)
                 image_aug = self.apply_op(img, op)
 
-            mix = np.add(mix, np.clip((self.ws[i] * image_aug), 0, 255).astype(np.uint8), out=mix, casting="unsafe")
+            mix = np.add(mix, self.ws[i] * image_aug, out=mix, casting="unsafe")
 
         mixed = (1 - self.m) * img + self.m * mix
-        return np.clip((mixed), 0, 255).astype(np.uint8) if flag_float == 0 else (mixed / 255.0).astype(img_format)
+        if img.dtype in ["uint8", "uint16", "uint32", "uint64"]:
+          mixed = np.clip((mixed), 0, 255).astype(np.uint8)
+        return mixed
 
     def get_transform_init_args_names(self):
         return ("width", "depth", "alpha")
