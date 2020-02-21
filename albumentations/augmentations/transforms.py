@@ -3363,7 +3363,7 @@ class AugMix(ImageOnlyTransform):
 
             for _ in range(self.depth):
                 op = np.random.choice(self.augmentations)
-                image_aug = self.apply_op(img, op)
+                image_aug = self.apply_op(image_aug, op)
 
             mix = np.add(mix, self.ws[i] * image_aug, out=mix, casting="unsafe")
 
