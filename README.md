@@ -114,6 +114,7 @@ The full documentation is available at [albumentations.readthedocs.io](https://a
 ## Pixel-level transforms
 Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. The list of pixel-level transforms:
 
+- [AugMix](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.AugMix)  
 - [Blur](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Blur)
 - [CLAHE](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CLAHE)
 - [ChannelDropout](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.ChannelDropout)
@@ -161,7 +162,6 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 | Transform                                                                                                                                                           | Image | Masks | BBoxes | Keypoints |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :---: | :----: | :-------: |
-| [AugMix](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.AugMix)                                     | ✓     |       |        |           |
 | [CenterCrop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CenterCrop)                             | ✓     | ✓     | ✓      | ✓         |
 | [Crop](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.Crop)                                         | ✓     | ✓     | ✓      | ✓         |
 | [CropNonEmptyMaskIfExists](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations.augmentations.transforms.CropNonEmptyMaskIfExists) | ✓     | ✓     | ✓      | ✓         |
