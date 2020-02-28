@@ -6,7 +6,6 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
-from .conftest import skip_appveyor
 
 
 def test_transpose_both_image_and_mask():
@@ -202,7 +201,6 @@ def __test_multiprocessing_support_proc(args):
         [A.GlassBlur, {}],
     ],
 )
-@skip_appveyor
 def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
     """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)

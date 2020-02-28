@@ -7,8 +7,6 @@ import numpy as np
 import pytest
 
 
-skip_appveyor = pytest.mark.skipif("APPVEYOR" in os.environ, reason="Skipping test in AppVeyor")
-
 try:
     import torch
     import torchvision
