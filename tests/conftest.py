@@ -59,12 +59,9 @@ def float_image():
 
 @pytest.fixture
 def multiprocessing_context():
-    """
-        Using `fork` as a start method for multiprocessing could lead to deadlocks on Mac OS.
-        Because `fork` was the default start method for Mac OS until Python 3.8
-        we had to manually set the start method to `spawn` to avoid those issues.
-
-    """
+    # Using `fork` as a start method for multiprocessing could lead to deadlocks on Mac OS.
+    # Because `fork` was the default start method for Mac OS until Python 3.8
+    # we had to manually set the start method to `spawn` to avoid those issues.
     if sys.platform == "darwin":
         method = "spawn"
     else:
