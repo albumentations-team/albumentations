@@ -1,5 +1,4 @@
 from functools import partial
-from multiprocessing.pool import Pool
 
 import cv2
 import numpy as np
@@ -204,12 +203,12 @@ def __test_multiprocessing_support_proc(args):
     ],
 )
 @skip_appveyor
-def test_multiprocessing_support(augmentation_cls, params):
-    """Checks whether we can use augmentations in multi-threaded environments"""
+def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
+    """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    pool = Pool(8)
+    pool = multiprocessing_context.Pool(8)
     pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
     pool.close()
     pool.join()
