@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import datetime
-import mock
+from typing import Dict, Any
+from unittest.mock import MagicMock
+
 import re
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../"))
-
-
-try:
-    from unittest.mock import MagicMock
-except ImportError:
-    from mock import Mock as MagicMock
 
 
 class Mock(MagicMock):
@@ -121,7 +117,7 @@ htmlhelp_basename = "albumentationsdoc"
 
 # -- Options for LaTeX output ---------------------------------------------
 
-latex_elements = {
+latex_elements: Dict[str, Any] = {
     # The paper size ('letterpaper' or 'a4paper').
     #
     # 'papersize': 'letterpaper',
