@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest]
+        operating-system: [ubuntu-latest, windows-latest, macos-latest]
         python-version: [3.5, 3.6, 3.7, 3.8]
       fail-fast: false
     steps:
@@ -53,11 +53,13 @@ jobs:
     - name: Install dependencies
       run: pip install .[tests]
     - name: Install linters
-      run: pip install "pydocstyle<4.0.0" flake8 flake8-docstrings
+      run: pip install "pydocstyle<4.0.0" flake8 flake8-docstrings mypy
     - name: Run PyTest
       run: pytest
     - name: Run Flake8
       run: flake8
+    - name: Run mypy
+      run: mypy .
 
   check_code_formatting:
     name: Check code formatting with Black
