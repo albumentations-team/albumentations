@@ -288,15 +288,34 @@ cv2.ocl.setUseOpenCL(False)
 
 # Citing
 
-If you find this library useful for your research, please consider citing:
+If you find this library useful for your research, please consider citing one of the following articles:
 
+
+[Albumentations: Fast and Flexible Image Augmentations](https://www.mdpi.com/2078-2489/11/2/125)
+```
+@Article{info11020125,
+    AUTHOR = {Buslaev, Alexander and Iglovikov, Vladimir I. and Khvedchenya, Eugene and Parinov, Alex and Druzhinin, Mikhail and Kalinin, Alexandr A.},
+    TITLE = {Albumentations: Fast and Flexible Image Augmentations},
+    JOURNAL = {Information},
+    VOLUME = {11},
+    YEAR = {2020},
+    NUMBER = {2},
+    ARTICLE-NUMBER = {125},
+    URL = {https://www.mdpi.com/2078-2489/11/2/125},
+    ISSN = {2078-2489},
+    DOI = {10.3390/info11020125}
+}
+```
+<br />
+
+[Albumentations: fast and flexible image augmentations](https://arxiv.org/abs/1809.06839)
 ```
 @article{2018arXiv180906839B,
     author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and A.~A. Kalinin},
-     title = "{Albumentations: fast and flexible image augmentations}",
-   journal = {ArXiv e-prints},
+    title = "{Albumentations: fast and flexible image augmentations}",
+    journal = {ArXiv e-prints},
     eprint = {1809.06839},
-      year = 2018
+    year = 2018
 }
 ```
 
