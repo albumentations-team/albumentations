@@ -716,9 +716,9 @@ def blur(img, ksize):
 
 
 @preserve_shape
-def gaussian_blur(img, ksize):
+def gaussian_blur(img, ksize, sigma_x=0, sigma_y=0):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=0)
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma_x, sigmaY=sigma_y)
     return blur_fn(img)
 
 
@@ -2032,3 +2032,50 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+
+
+def defocus(img, severity=1):
+    def get_kernel(severity):
+        radius, alias_blur = [(3, 0.1), (4, 0.5), (6, 0.5), (8, 0.5), (10, 0.5)][severity - 1]
+        L = np.arange(-max(8, radius), max(8, radius) + 1)
+        ksize = 3 if radius <= 8 else 5
+
+        X, Y = np.meshgrid(L, L)
+        aliased_disk = np.array((X ** 2 + Y ** 2) <= radius ** 2, dtype=np.float32)
+        aliased_disk /= np.sum(aliased_disk)
+
+        return gaussian_blur(aliased_disk, ksize, sigma_x=alias_blur)
+
+    kernel = get_kernel(severity)
+    return motion_blur(img, kernel=kernel)
+
+
+def central_zoom(img, zoom_factor):
+    from math import ceil
+
+    h, w = img.shape[:2]
+    h_ch, w_ch = ceil(h / zoom_factor), ceil(w / zoom_factor)
+    h_top, w_top = (h - h_ch) // 2, (w - w_ch) // 2
+
+    img = scale(img[h_top : h_top + h_ch, w_top : w_top + w_ch], zoom_factor, cv2.INTER_LINEAR)
+    h_trim_top, w_trim_top = (img.shape[0] - h) // 2, (img.shape[1] - w) // 2
+    return img[h_trim_top : h_trim_top + h, w_trim_top : w_trim_top + w]
+
+
+@clipped
+def zoom_blur(img, severity=1):
+    zoom_factors = [
+        np.arange(1, 1.11, 0.01),
+        np.arange(1, 1.16, 0.01),
+        np.arange(1, 1.21, 0.02),
+        np.arange(1, 1.26, 0.02),
+        np.arange(1, 1.31, 0.03),
+    ][severity - 1]
+
+    out = np.zeros_like(img, dtype=np.float32)
+    for zoom_factor in zoom_factors:
+        out += central_zoom(img, zoom_factor)
+
+    img = ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)
+
+    return img

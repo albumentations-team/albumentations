@@ -80,6 +80,8 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "Defocus",
+    "ZoomBlur",
 ]
 
 
@@ -3371,3 +3373,73 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
+
+
+class Defocus(ImageOnlyTransform):
+    """
+    Apply defocus transform. See arXiv:1903.12261 [cs.LG].
+
+    Args:
+        severity (int, (int, int)): maximum severity for defocusing the input image.
+            Should be in range [1, 5]. Default: [1, 2].
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        Any
+    """
+
+    def __init__(self, severity=3, always_apply=False, p=0.5):
+        super(Defocus, self).__init__(always_apply, p)
+        self.severity = to_tuple(severity, low=1)
+
+        assert self.severity[0] >= 1, "Expected minimal severity greater than or equal to 1, got {}".format(
+            self.severity[0]
+        )
+        assert self.severity[1] <= 5, "Expected maximum severity not greater than 5, got{}".format(self.severity[1])
+
+    def apply(self, img, severity=1, random_state=None, **params):
+        return F.defocus(img, severity)
+
+    def get_params(self):
+        return {"severity": random.choice(np.arange(self.severity[0], self.severity[1] + 1))}
+
+    def get_transform_init_args_names(self):
+        return ("severity",)
+
+
+class ZoomBlur(ImageOnlyTransform):
+    """
+    Apply zoom blur transform. See arXiv:1903.12261 [cs.LG].
+
+    Args:
+        severity (int, (int, int)): maximum severity for zoom blur the input image.
+            Should be in range [1, 5]. Default: [1, 2].
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        Any
+    """
+
+    def __init__(self, severity=3, always_apply=False, p=0.5):
+        super().__init__(always_apply, p)
+        self.severity = to_tuple(severity, low=1)
+
+        assert self.severity[0] >= 1, "Expected minimal severity greater than or equal to 1, got {}".format(
+            self.severity[0]
+        )
+        assert self.severity[1] <= 5, "Expected maximum severity not greater than 5, got{}".format(self.severity[1])
+
+    def apply(self, img, severity=1, random_state=None, **params):
+        return F.zoom_blur(img, severity)
+
+    def get_params(self):
+        return {"severity": random.choice(np.arange(self.severity[0], self.severity[1] + 1))}
+
+    def get_transform_init_args_names(self):
+        return ("severity",)
