@@ -389,7 +389,7 @@ class RandomCrop64(BenchmarkTest):
         return np.ascontiguousarray(img)
 
     def torchvision_transform(self, img):
-        return torchvision.crop(img, i=0, j=0, h=64, w=64)
+        return torchvision.crop(img, top=0, left=0, height=64, width=64)
 
     def solt(self, img):
         dc = sld.DataContainer(img, "I")
@@ -421,7 +421,7 @@ class RandomSizedCrop_64_512(BenchmarkTest):
         return np.array(img, np.uint8, copy=True)
 
     def torchvision_transform(self, img):
-        img = torchvision.crop(img, i=0, j=0, h=64, w=64)
+        img = torchvision.crop(img, top=0, left=0, height=64, width=64)
         return torchvision.resize(img, (512, 512))
 
 
