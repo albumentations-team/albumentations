@@ -385,7 +385,7 @@ def test_random_brightness_float(beta, expected):
     assert_array_almost_equal_nulp(img, expected)
 
 
-@pytest.mark.parametrize(["gamma", "expected"], [(1, 1), (10, 146)])
+@pytest.mark.parametrize(["gamma", "expected"], [(1, 1), (0.8, 3)])
 def test_gamma_transform(gamma, expected):
     img = np.ones((100, 100, 3), dtype=np.uint8)
     img = F.gamma_transform(img, gamma=gamma)
@@ -400,6 +400,20 @@ def test_gamma_transform_float(gamma, expected):
     img = F.gamma_transform(img, gamma=gamma)
     assert img.dtype == np.dtype("float32")
     assert np.allclose(img, expected)
+
+
+def test_gamma_float_equal_uint8():
+    img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    img_f = img.astype(np.float32) / 255.0
+    gamma = 0.5
+
+    img = F.gamma_transform(img, gamma)
+    img_f = F.gamma_transform(img_f, gamma)
+
+    img = img.astype(np.float32)
+    img_f *= 255.0
+
+    assert (np.abs(img - img_f) <= 1).all()
 
 
 @pytest.mark.parametrize(["dtype", "divider"], [(np.uint8, 255), (np.uint16, 65535), (np.uint32, 4294967295)])
@@ -921,3 +935,10 @@ def test_multiply_uint8_optimized():
     result = F._multiply_uint8_optimized(image, m)
     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.all(tmp == result)
+
+
+@pytest.mark.parametrize(
+    "img", [np.random.randint(0, 256, [100, 100], dtype=np.uint8), np.random.random([100, 100]).astype(np.float32)]
+)
+def test_shift_hsv_gray(img):
+    F.shift_hsv(img, 0.5, 0.5, 0.5)

@@ -215,7 +215,7 @@ class OneOf(BaseCompose):
                 data = t(**data)
             return data
 
-        if force_apply or random.random() < self.p:
+        if self.transforms_ps and (force_apply or random.random() < self.p):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
             data = t(force_apply=True, **data)
@@ -259,7 +259,7 @@ class PerChannel(BaseCompose):
 
             image = data["image"]
 
-            # Expan mono images to have a single channel
+            # Expand mono images to have a single channel
             if len(image.shape) == 2:
                 image = np.expand_dims(image, -1)
 

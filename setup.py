@@ -1,7 +1,6 @@
 import io
 import os
 import re
-import sys
 from setuptools import setup, find_packages
 from pkg_resources import DistributionNotFound, get_distribution
 
@@ -17,13 +16,6 @@ def get_version():
     version_file = os.path.join(current_dir, "albumentations", "__init__.py")
     with io.open(version_file, encoding="utf-8") as f:
         return re.search(r'^__version__ = [\'"]([^\'"]*)[\'"]', f.read(), re.M).group(1)
-
-
-def get_test_requirements():
-    requirements = ["pytest"]
-    if sys.version_info < (3, 3):
-        requirements.append("mock")
-    return requirements
 
 
 def get_long_description():
@@ -61,10 +53,11 @@ setup(
     long_description_content_type="text/markdown",
     author="Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov, Eugene Khvedchenya, Druzhinin Mikhail",
     license="MIT",
-    url="https://github.com/albu/albumentations",
+    url="https://github.com/albumentations-team/albumentations",
     packages=find_packages(exclude=["tests"]),
+    python_requires=">=3.5",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
-    extras_require={"tests": get_test_requirements()},
+    extras_require={"tests": ["pytest"]},
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
@@ -72,17 +65,11 @@ setup(
         "Intended Audience :: Science/Research",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2",
-        "Programming Language :: Python :: 2.7",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.0",
-        "Programming Language :: Python :: 3.1",
-        "Programming Language :: Python :: 3.2",
-        "Programming Language :: Python :: 3.3",
-        "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Software Development :: Libraries",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],

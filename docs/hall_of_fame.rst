@@ -96,6 +96,11 @@ Kaggle
 30. `Konstantin Maksimov <https://www.kaggle.com/maksimovka>`__
      `paper <https://ieeexplore.ieee.org/document/8783822/authors#authors>`__
 
+`Severstal: Steel Defect Detection Challenge <https://www.kaggle.com/c/severstal-steel-defect-detection/>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+27. `Ilia Larchenko <https://www.kaggle.com/ilialar>`__
+     `solution <https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/115876>`_
+
 Topcoder
 --------
 2019

@@ -61,6 +61,7 @@ from albumentations import (
     LongestMaxSize,
     Downscale,
     MultiplicativeNoise,
+    GridDropout,
 )
 
 
@@ -96,6 +97,7 @@ from albumentations import (
         [Equalize, {}],
         [Downscale, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -133,6 +135,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         [ChannelDropout, {}],
         [Solarize, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -164,6 +167,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
         [ISONoise, {}],
         [RandomGridShuffle, {}],
+        [GridDropout, {}],
     ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -193,6 +197,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [RandomResizedCrop, {"height": 10, "width": 10}],
         [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
         [RandomGridShuffle, {}],
+        [GridDropout, {}],
     ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -272,6 +277,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Posterize, {}],
         [Equalize, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -329,6 +335,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [RandomGridShuffle, {}],
         [Solarize, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -369,6 +376,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [Posterize, {}],
         [Equalize, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [HueSaturationValue, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -442,6 +451,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Posterize, {}],
         [Equalize, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -503,6 +513,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [ElasticTransform, {}],
         [RandomBrightnessContrast, {}],
         [MultiplicativeNoise, {}],
+        [GridDropout, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):

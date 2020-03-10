@@ -1,5 +1,4 @@
 from functools import partial
-from multiprocessing.pool import Pool
 
 import cv2
 import numpy as np
@@ -7,7 +6,6 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
-from .conftest import skip_appveyor
 
 
 def test_transpose_both_image_and_mask():
@@ -86,6 +84,14 @@ def test_grid_distortion_interpolation(interpolation):
     assert np.array_equal(data["mask"], expected_mask)
 
 
+@pytest.mark.parametrize("size", [17, 21, 33])
+def test_grid_distortion_steps(size):
+    image = np.random.rand(size, size, 3)
+    aug = A.GridDistortion(num_steps=size - 2, p=1)
+    data = aug(image=image)
+    assert np.array_equal(data["image"].shape, (size, size, 3))
+
+
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
@@ -131,6 +137,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         [A.IAAAffine, {"scale": 1.5}],
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
+        [A.GlassBlur, {}],
     ],
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -155,6 +162,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.Resize, {"height": 80, "width": 90}],
         [A.Resize, {"height": 120, "width": 130}],
         [A.OpticalDistortion, {}],
+        [A.GlassBlur, {}],
     ],
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -189,15 +197,16 @@ def __test_multiprocessing_support_proc(args):
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
         [A.IAASharpen, {}],
+        [A.FancyPCA, {}],
+        [A.GlassBlur, {}],
     ],
 )
-@skip_appveyor
-def test_multiprocessing_support(augmentation_cls, params):
-    """Checks whether we can use augmentations in multi-threaded environments"""
+def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
+    """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    pool = Pool(8)
+    pool = multiprocessing_context.Pool(8)
     pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
     pool.close()
     pool.join()
@@ -273,6 +282,9 @@ def test_force_apply():
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.FancyPCA, {}],
+        [A.GlassBlur, {}],
+        [A.GridDropout, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
@@ -550,3 +562,86 @@ def test_mask_dropout():
     result = aug(image=img, mask=mask)
     assert np.all(result["image"] == img)
     assert np.all(result["mask"] == 0)
+
+
+@pytest.mark.parametrize(
+    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+)
+def test_grid_dropout_mask(image):
+    mask = np.ones([256, 320], dtype=np.uint8)
+    aug = A.GridDropout(p=1, mask_fill_value=0)
+    result = aug(image=image, mask=mask)
+    # with mask on ones and fill_value = 0 the sum of pixels is smaller
+    assert result["image"].sum() < image.sum()
+    assert result["image"].shape == image.shape
+    assert result["mask"].sum() < mask.sum()
+    assert result["mask"].shape == mask.shape
+
+    # with mask of zeros and fill_value = 0 mask should not change
+    mask = np.zeros([256, 320], dtype=np.uint8)
+    aug = A.GridDropout(p=1, mask_fill_value=0)
+    result = aug(image=image, mask=mask)
+    assert result["image"].sum() < image.sum()
+    assert np.all(result["mask"] == 0)
+
+    # with mask mask_fill_value=100, mask sum is larger
+    mask = np.random.randint(0, 10, [256, 320], np.uint8)
+    aug = A.GridDropout(p=1, mask_fill_value=100)
+    result = aug(image=image, mask=mask)
+    assert result["image"].sum() < image.sum()
+    assert result["mask"].sum() > mask.sum()
+
+    # with mask mask_fill_value=None, mask is not changed
+    mask = np.ones([256, 320], dtype=np.uint8)
+    aug = A.GridDropout(p=1, mask_fill_value=None)
+    result = aug(image=image, mask=mask)
+    assert result["image"].sum() < image.sum()
+    assert result["mask"].sum() == mask.sum()
+
+
+@pytest.mark.parametrize(
+    ["ratio", "holes_number_x", "holes_number_y", "unit_size_min", "unit_size_max", "shift_x", "shift_y"],
+    [
+        (0.00001, 10, 10, 100, 100, 50, 50),
+        (0.9, 100, None, 200, None, 0, 0),
+        (0.4556, 10, 20, None, 200, 0, 0),
+        (0.00004, None, None, 2, 100, None, None),
+    ],
+)
+def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y):
+    img = np.random.randint(0, 256, [256, 320], np.uint8)
+
+    aug = A.GridDropout(
+        ratio=ratio,
+        unit_size_min=unit_size_min,
+        unit_size_max=unit_size_max,
+        holes_number_x=holes_number_x,
+        holes_number_y=holes_number_y,
+        shift_x=shift_x,
+        shift_y=shift_y,
+        random_offset=False,
+        fill_value=0,
+        p=1,
+    )
+    result = aug(image=img)["image"]
+    # with fill_value = 0 the sum of pixels is smaller
+    assert result.sum() < img.sum()
+    assert result.shape == img.shape
+    params = aug.get_params_dependent_on_targets({"image": img})
+    holes = params["holes"]
+    assert len(holes[0]) == 4
+    # check grid offsets
+    if shift_x:
+        assert holes[0][0] == shift_x
+    else:
+        assert holes[0][0] == 0
+    if shift_y:
+        assert holes[0][1] == shift_y
+    else:
+        assert holes[0][1] == 0
+    # for grid set with limits
+    if unit_size_min and unit_size_max:
+        assert max(1, unit_size_min * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_max * ratio), 256)
+    elif holes_number_x and holes_number_y:
+        assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_x))
+        assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_y))

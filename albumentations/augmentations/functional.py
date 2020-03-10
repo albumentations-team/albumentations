@@ -3,7 +3,7 @@ from __future__ import division
 import math
 from functools import wraps
 from warnings import warn
-
+from itertools import product
 import cv2
 import numpy as np
 from scipy.ndimage.filters import gaussian_filter
@@ -369,22 +369,45 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, sat, val = cv2.split(img)
 
-    hue = cv2.add(hue, hue_shift)
-    hue = np.where(hue < 0, hue + 180, hue)
-    hue = np.where(hue > 180, hue - 180, hue)
-    hue = hue.astype(dtype)
-    sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
-    val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+    if hue_shift != 0:
+        hue = cv2.add(hue, hue_shift)
+        hue = np.where(hue < 0, hue + 180, hue)
+        hue = np.where(hue > 180, hue - 180, hue)
+        hue = hue.astype(dtype)
+
+    if sat_shift != 0:
+        sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+
+    if val_shift != 0:
+        val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
 
 
+@preserve_shape
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
-    if img.dtype == np.uint8:
-        return _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
+    is_gray = is_grayscale_image(img)
+    if is_gray:
+        if hue_shift != 0 or sat_shift != 0:
+            hue_shift = 0
+            sat_shift = 0
+            warn(
+                "HueSaturationValue: hue_shift and sat_shift are not applicable to grayscale image. "
+                "Set them to 0 or use RGB image"
+            )
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-    return _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
+    if img.dtype == np.uint8:
+        img = _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
+    else:
+        img = _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
+
+    if is_gray:
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    return img
 
 
 def solarize(img, threshold=128):
@@ -627,13 +650,14 @@ def linear_transformation_rgb(img, transformation_matrix):
     return result_img
 
 
+@preserve_channel_dim
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     if img.dtype != np.uint8:
         raise TypeError("clahe supports only uint8 inputs")
 
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
-    if len(img.shape) == 2:
+    if len(img.shape) == 2 or img.shape[2] == 1:
         img = clahe.apply(img)
     else:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
@@ -1022,7 +1046,7 @@ def optical_distortion(
     height, width = img.shape[:2]
 
     fx = width
-    fy = width
+    fy = height
 
     cx = width * 0.5 + dx
     cy = height * 0.5 + dy
@@ -1054,9 +1078,10 @@ def grid_distortion(
     x_step = width // num_steps
     xx = np.zeros(width, np.float32)
     prev = 0
-    for idx, x in enumerate(range(0, width, x_step)):
-        start = x
-        end = x + x_step
+    for idx in range(num_steps):
+        x = idx * x_step
+        start = int(x)
+        end = int(x) + x_step
         if end > width:
             end = width
             cur = width
@@ -1069,9 +1094,10 @@ def grid_distortion(
     y_step = height // num_steps
     yy = np.zeros(height, np.float32)
     prev = 0
-    for idx, y in enumerate(range(0, height, y_step)):
-        start = y
-        end = y + y_step
+    for idx in range(num_steps):
+        y = idx * y_step
+        start = int(y)
+        end = int(y) + y_step
         if end > height:
             end = height
             cur = height
@@ -1250,10 +1276,9 @@ def channel_dropout(img, channels_to_drop, fill_value=0):
 
 
 @preserve_shape
-def gamma_transform(img, gamma, eps=1e-7):
+def gamma_transform(img, gamma):
     if img.dtype == np.uint8:
-        invGamma = 1.0 / (gamma + eps)
-        table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** invGamma) * 255
+        table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** gamma) * 255
         img = cv2.LUT(img, table.astype(np.uint8))
     else:
         img = np.power(img, gamma)
@@ -1935,3 +1960,103 @@ def mask_from_bbox(img, bbox):
     x_min, y_min, x_max, y_max = bbox
     mask[y_min:y_max, x_min:x_max] = 1
     return mask
+
+
+def fancy_pca(img, alpha=0.1):
+    """Perform 'Fancy PCA' augmentation from:
+    http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+
+    Args:
+        img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
+        alpha:  how much to perturb/scale the eigen vecs and vals
+                the paper used std=0.1
+
+    Returns:
+        numpy image-like array as float range(0, 1)
+
+    """
+    assert is_rgb_image(img) and img.dtype == np.uint8
+
+    orig_img = img.astype(float).copy()
+
+    img = img / 255.0  # rescale to 0 to 1 range
+
+    # flatten image to columns of RGB
+    img_rs = img.reshape(-1, 3)
+    # img_rs shape (640000, 3)
+
+    # center mean
+    img_centered = img_rs - np.mean(img_rs, axis=0)
+
+    # paper says 3x3 covariance matrix
+    img_cov = np.cov(img_centered, rowvar=False)
+
+    # eigen values and eigen vectors
+    eig_vals, eig_vecs = np.linalg.eigh(img_cov)
+
+    # sort values and vector
+    sort_perm = eig_vals[::-1].argsort()
+    eig_vals[::-1].sort()
+    eig_vecs = eig_vecs[:, sort_perm]
+
+    # get [p1, p2, p3]
+    m1 = np.column_stack((eig_vecs))
+
+    # get 3x1 matrix of eigen values multiplied by random variable draw from normal
+    # distribution with mean of 0 and standard deviation of 0.1
+    m2 = np.zeros((3, 1))
+    # according to the paper alpha should only be draw once per augmentation (not once per channel)
+    # alpha = np.random.normal(0, alpha_std)
+
+    # broad cast to speed things up
+    m2[:, 0] = alpha * eig_vals[:]
+
+    # this is the vector that we're going to add to each pixel in a moment
+    add_vect = np.matrix(m1) * np.matrix(m2)
+
+    for idx in range(3):  # RGB
+        orig_img[..., idx] += add_vect[idx] * 255
+
+    # for image processing it was found that working with float 0.0 to 1.0
+    # was easier than integers between 0-255
+    # orig_img /= 255.0
+    orig_img = np.clip(orig_img, 0.0, 255.0)
+
+    # orig_img *= 255
+    orig_img = orig_img.astype(np.uint8)
+
+    return orig_img
+
+
+@clipped
+def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
+    coef = MAX_VALUES_BY_DTYPE[img.dtype]
+    x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
+
+    if mode == "fast":
+
+        hs = np.arange(img.shape[0] - max_delta, max_delta, -1)
+        ws = np.arange(img.shape[1] - max_delta, max_delta, -1)
+        h = np.tile(hs, ws.shape[0])
+        w = np.repeat(ws, hs.shape[0])
+
+        for i in range(iterations):
+            dy = dxy[:, i, 0]
+            dx = dxy[:, i, 1]
+            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
+
+    elif mode == "exact":
+        for ind, (i, h, w) in enumerate(
+            product(
+                range(iterations),
+                range(img.shape[0] - max_delta, max_delta, -1),
+                range(img.shape[1] - max_delta, max_delta, -1),
+            )
+        ):
+            ind = ind if ind < len(dxy) else ind % len(dxy)
+            dy = dxy[ind, i, 0]
+            dx = dxy[ind, i, 1]
+            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
+
+    return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+

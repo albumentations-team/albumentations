@@ -1,0 +1,140 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test_and_lint:
+    name: Test and lint
+    runs-on: ${{ matrix.operating-system }}
+    strategy:
+      matrix:
+        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: [3.5, 3.6, 3.7, 3.8]
+      fail-fast: false
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v1.1.1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Restore Ubuntu cache
+      uses: actions/cache@v1
+      if: matrix.operating-system == 'ubuntu-latest'
+      with:
+        path: ~/.cache/pip
+        key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/setup.py')}}
+        restore-keys: ${{ matrix.os }}-${{ matrix.python-version }}-
+    - name: Restore MacOS cache
+      uses: actions/cache@v1
+      if:  matrix.operating-system == 'macos-latest'
+      with:
+        path: ~/Library/Caches/pip
+        key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/setup.py')}}
+        restore-keys: ${{ matrix.os }}-${{ matrix.python-version }}-
+    - name: Restore Windows cache
+      uses: actions/cache@v1
+      if: matrix.operating-system == 'windows-latest'
+      with:
+        path: ~\AppData\Local\pip\Cache
+        key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/setup.py')}}
+        restore-keys: ${{ matrix.os }}-${{ matrix.python-version }}-
+    - name: Update pip
+      run: python -m pip install --upgrade pip
+    - name: Install PyTorch on Linux and Windows
+      if: >
+        matrix.operating-system == 'ubuntu-latest' ||
+        matrix.operating-system == 'windows-latest'
+      run: >
+        pip install torch==1.4.0+cpu torchvision==0.5.0+cpu
+        -f https://download.pytorch.org/whl/torch_stable.html
+    - name: Install PyTorch on MacOS
+      if: matrix.operating-system == 'macos-latest'
+      run: pip install torch==1.4.0 torchvision==0.5.0
+    - name: Install dependencies
+      run: pip install .[tests]
+    - name: Install linters
+      run: pip install "pydocstyle<4.0.0" flake8 flake8-docstrings mypy
+    - name: Run PyTest
+      run: pytest
+    - name: Run Flake8
+      run: flake8
+    - name: Run mypy
+      run: mypy .
+
+  check_code_formatting:
+    name: Check code formatting with Black
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v1.1.1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Restore cache for check_code_formatting
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: check_code_formatting-${{ matrix.python-version }}
+        restore-keys: check_code_formatting-${{ matrix.python-version }}
+    - name: Update pip
+      run: python -m pip install --upgrade pip
+    - name: Install Black
+      run: pip install black==19.3b0
+    - name: Run Black
+      run: black --config=black.toml --check .
+
+  check_sphinx_build:
+    name: Check Sphinx build for docs
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v1.1.1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Restore cache for check_sphinx_build
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: check_sphinx_build-${{ matrix.python-version }}
+        restore-keys: check_sphinx_build-${{ matrix.python-version }}
+    - name: Update pip
+      run: python -m pip install --upgrade pip
+    - name: Install dependencies
+      run: pip install -r docs/requirements.txt
+    - name: Run Sphinx
+      run: sphinx-build -b html docs /tmp/_docs_build
+
+  check_transforms_docs:
+    name: Check that transforms docs are not outdated
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v1.1.1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Restore cache for check_transforms_docs
+      uses: actions/cache@v1
+      with:
+        path: ~/.cache/pip
+        key: check_transforms_docs-${{ matrix.python-version }}
+        restore-keys: check_transforms_docs-${{ matrix.python-version }}
+    - name: Update pip
+      run: python -m pip install --upgrade pip
+    - name: Install dependencies
+      run: pip install .
+    - name: Run checks
+      run: python tools/make_transforms_docs.py check README.md

@@ -41,6 +41,7 @@ __all__ = [
     "MedianBlur",
     "GaussianBlur",
     "GaussNoise",
+    "GlassBlur",
     "CLAHE",
     "ChannelShuffle",
     "InvertImg",
@@ -77,7 +78,9 @@ __all__ = [
     "Posterize",
     "Downscale",
     "MultiplicativeNoise",
+    "FancyPCA",
     "MaskDropout",
+    "GridDropout",
 ]
 
 
@@ -1088,7 +1091,8 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         bx, by = x * random.random(), y * random.random()
         bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
         bw, bh = bx2 - bx, by2 - by
-        crop_height, crop_width = int(img_h * bh), int(img_w * bw)
+        crop_height = img_h if bh >= 1.0 else int(img_h * bh)
+        crop_width = img_w if bw >= 1.0 else int(img_w * bw)
         h_start = np.clip(0.0 if bh >= 1.0 else by / (1.0 - bh), 0.0, 1.0)
         w_start = np.clip(0.0 if bw >= 1.0 else bx / (1.0 - bw), 0.0, 1.0)
         return {"h_start": h_start, "w_start": w_start, "crop_height": crop_height, "crop_width": crop_width}
@@ -1616,9 +1620,9 @@ class Cutout(ImageOnlyTransform):
             x = random.randint(0, width)
 
             y1 = np.clip(y - self.max_h_size // 2, 0, height)
-            y2 = np.clip(y + self.max_h_size // 2, 0, height)
+            y2 = np.clip(y1 + self.max_h_size, 0, height)
             x1 = np.clip(x - self.max_w_size // 2, 0, width)
-            x2 = np.clip(x + self.max_w_size // 2, 0, width)
+            x2 = np.clip(x1 + self.max_w_size, 0, width)
             holes.append((x1, y1, x2, y2))
 
         return {"holes": holes}
@@ -2841,7 +2845,7 @@ class RandomGamma(ImageOnlyTransform):
     Args:
         gamma_limit (float or (float, float)): If gamma_limit is a single float value,
             the range will be (-gamma_limit, gamma_limit). Default: (80, 120).
-        eps (float): value for exclude division by zero.
+        eps: Deprecated.
 
     Targets:
         image
@@ -2850,13 +2854,13 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), eps=1e-7, always_apply=False, p=0.5):
+    def __init__(self, gamma_limit=(80, 120), eps=None, always_apply=False, p=0.5):
         super(RandomGamma, self).__init__(always_apply, p)
         self.gamma_limit = to_tuple(gamma_limit)
         self.eps = eps
 
     def apply(self, img, gamma=1, **params):
-        return F.gamma_transform(img, gamma=gamma, eps=self.eps)
+        return F.gamma_transform(img, gamma=gamma)
 
     def get_params(self):
         return {"gamma": random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
@@ -3040,7 +3044,7 @@ class Lambda(NoOp):
         self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
         for target_name, custom_apply_fn in {"image": image, "mask": mask, "keypoint": keypoint, "bbox": bbox}.items():
             if custom_apply_fn is not None:
-                if isinstance(custom_apply_fn, LambdaType):
+                if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
                     warnings.warn(
                         "Using lambda is incompatible with multiprocessing. "
                         "Consider using regular functions or partial()."
@@ -3138,6 +3142,44 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return "multiplier", "per_channel", "elementwise"
 
 
+class FancyPCA(ImageOnlyTransform):
+    """Augment RGB image using FancyPCA from Krizhevsky's paper
+    "ImageNet Classification with Deep Convolutional Neural Networks"
+
+    Args:
+        alpha (float):  how much to perturb/scale the eigen vecs and vals.
+            scale is samples from gaussian distribution (mu=0, sigma=alpha)
+
+    Targets:
+        image
+
+    Image types:
+        3-channel uint8 images only
+
+    Credit:
+        http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+        https://deshanadesai.github.io/notes/Fancy-PCA-with-Scikit-Image
+        https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
+    """
+
+    def __init__(self, alpha=0.1, always_apply=False, p=0.5):
+        """
+
+        """
+        super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
+        self.alpha = alpha
+
+    def apply(self, img, alpha=0.1, **params):
+        img = F.fancy_pca(img, alpha)
+        return img
+
+    def get_params(self):
+        return {"alpha": random.gauss(0, self.alpha)}
+
+    def get_transform_init_args_names(self):
+        return ("alpha",)
+
+
 class MaskDropout(DualTransform):
     """
     Image & mask augmentation that zero out mask and image regions corresponding
@@ -3219,3 +3261,199 @@ class MaskDropout(DualTransform):
 
     def get_transform_init_args_names(self):
         return ("max_objects", "image_fill_value", "mask_fill_value")
+
+
+class GlassBlur(Blur):
+    """Apply glass noise to the input image.
+    Args:
+        sigma (float): standard deviation for Gaussian kernel.
+        max_delta (int): max distance between pixels which are swapped.
+        iterations (int): number of repeats.
+            Should be in range [1, inf). Default: (2).
+        mode (str): mode of computation: fast or exact. Default: "fast".
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    Image types:
+        uint8, float32
+
+    Reference:
+    |  https://arxiv.org/abs/1903.12261
+    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+    """
+
+    def __init__(self, sigma=0.7, max_delta=4, iterations=2, always_apply=False, mode="fast", p=0.5):
+        super(GlassBlur, self).__init__(always_apply=always_apply, p=p)
+        if iterations < 1:
+            raise ValueError("Iterations should be more or equal to 1, but we got {}".format(iterations))
+
+        if mode not in ["fast", "exact"]:
+            raise ValueError("Mode should be 'fast' or 'exact', but we got {}".format(iterations))
+
+        self.sigma = sigma
+        self.max_delta = max_delta
+        self.iterations = iterations
+        self.mode = mode
+
+    def apply(self, img, sigma=0.7, max_delta=4, iterations=2, dxy=0, **params):
+        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+
+        # generate array containing all necessary values for transformations
+        width_pixels = img.shape[0] - self.max_delta * 2
+        height_pixels = img.shape[1] - self.max_delta * 2
+        total_pixels = width_pixels * height_pixels
+        dxy = np.random.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+
+        return {"dxy": dxy}
+
+    def get_transform_init_args_names(self):
+        return ("sigma", "max_delta", "iterations")
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+
+class GridDropout(DualTransform):
+    """
+    GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
+
+        Args:
+            ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
+                Must be between 0 and 1. Default: 0.5.
+            unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
+                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+            unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
+                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+            holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
+                If 'None', grid unit width is set as image_width//10. Default: `None`.
+            holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
+                If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
+            shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
+                Clipped between 0 and grid unit_width - hole_width. Default: 0.
+            shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
+                Clipped between 0 and grid unit height - hole_height. Default: 0.
+            random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
+                If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
+            fill_value (int): value for the dropped pixels. Default = 0
+            mask_fill_value (int): value for the dropped pixels in mask.
+                If `None`, tranformation is not applied to the mask. Default: `None`.
+        Targets:
+            image, mask
+        Image types:
+            uint8, float32
+        References:
+            https://arxiv.org/abs/2001.04086
+    """
+
+    def __init__(
+        self,
+        ratio: float = 0.5,
+        unit_size_min: int = None,
+        unit_size_max: int = None,
+        holes_number_x: int = None,
+        holes_number_y: int = None,
+        shift_x: int = 0,
+        shift_y: int = 0,
+        random_offset: bool = False,
+        fill_value: int = 0,
+        mask_fill_value: int = None,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super(GridDropout, self).__init__(always_apply, p)
+        self.ratio = ratio
+        self.unit_size_min = unit_size_min
+        self.unit_size_max = unit_size_max
+        self.holes_number_x = holes_number_x
+        self.holes_number_y = holes_number_y
+        self.shift_x = shift_x
+        self.shift_y = shift_y
+        self.random_offset = random_offset
+        self.fill_value = fill_value
+        self.mask_fill_value = mask_fill_value
+        if not 0 < self.ratio <= 1:
+            raise ValueError("ratio must be between 0 and 1.")
+
+    def apply(self, image, holes=[], **params):
+        return F.cutout(image, holes, self.fill_value)
+
+    def apply_to_mask(self, image, holes=[], **params):
+        if self.mask_fill_value is None:
+            return image
+        else:
+            return F.cutout(image, holes, self.mask_fill_value)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        height, width = img.shape[:2]
+        # set grid using unit size limits
+        if self.unit_size_min and self.unit_size_max:
+            if not 2 <= self.unit_size_min <= self.unit_size_max:
+                raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
+            if self.unit_size_max > min(height, width):
+                raise ValueError("Grid size limits must be within the shortest image edge.")
+            unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
+            unit_height = unit_width
+        else:
+            # set grid using holes numbers
+            if self.holes_number_x is None:
+                unit_width = max(2, width // 10)
+            else:
+                if not 1 <= self.holes_number_x <= width // 2:
+                    raise ValueError("The hole_number_x must be between 1 and image width//2.")
+                unit_width = width // self.holes_number_x
+            if self.holes_number_y is None:
+                unit_height = max(min(unit_width, height), 2)
+            else:
+                if not 1 <= self.holes_number_y <= height // 2:
+                    raise ValueError("The hole_number_y must be between 1 and image height//2.")
+                unit_height = height // self.holes_number_y
+
+        hole_width = int(unit_width * self.ratio)
+        hole_height = int(unit_height * self.ratio)
+        # min 1 pixel and max unit length - 1
+        hole_width = min(max(hole_width, 1), unit_width - 1)
+        hole_height = min(max(hole_height, 1), unit_height - 1)
+        # set offset of the grid
+        if self.shift_x is None:
+            shift_x = 0
+        else:
+            shift_x = min(max(0, self.shift_x), unit_width - hole_width)
+        if self.shift_y is None:
+            shift_y = 0
+        else:
+            shift_y = min(max(0, self.shift_y), unit_height - hole_height)
+        if self.random_offset:
+            shift_x = random.randint(0, unit_width - hole_width)
+            shift_y = random.randint(0, unit_height - hole_height)
+        holes = []
+        for i in range(width // unit_width + 1):
+            for j in range(height // unit_height + 1):
+                x1 = min(shift_x + unit_width * i, width)
+                y1 = min(shift_y + unit_height * j, height)
+                x2 = min(x1 + hole_width, width)
+                y2 = min(y1 + hole_height, height)
+                holes.append((x1, y1, x2, y2))
+
+        return {"holes": holes}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_transform_init_args_names(self):
+        return (
+            "ratio",
+            "unit_size_min",
+            "unit_size_max",
+            "holes_number_x",
+            "holes_number_y",
+            "shift_x",
+            "shift_y",
+            "mask_fill_value",
+            "random_offset",
+        )
