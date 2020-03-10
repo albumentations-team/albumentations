@@ -1,5 +1,8 @@
 from __future__ import absolute_import
 
+from unittest import mock
+from unittest.mock import Mock, MagicMock, call
+
 import cv2
 import numpy as np
 import pytest
@@ -8,7 +11,6 @@ from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransfor
 from albumentations.augmentations.bbox_utils import check_bboxes
 from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel, ReplayCompose
 from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
-from .compat import mock, MagicMock, Mock, call
 
 
 def test_one_or_other():

@@ -1,6 +1,6 @@
 # Albumentations
 [![PyPI version](https://badge.fury.io/py/albumentations.svg)](https://badge.fury.io/py/albumentations)
-[![Build Status](https://travis-ci.org/albumentations-team/albumentations.svg?branch=master)](https://travis-ci.org/albu/albumentations)
+![CI](https://github.com/albumentations-team/albumentations/workflows/CI/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/albumentations/badge/?version=latest)](https://albumentations.readthedocs.io/en/latest/?badge=latest)
 
 * The library works with images in `HWC` format.
@@ -211,26 +211,28 @@ Results for running the benchmark on first 2000 images from the ImageNet validat
 All outputs are converted to a contiguous NumPy array with the np.uint8 data type.
 The table shows how many images per second can be processed on a single core, higher is better.
 
-|                      |albumentations<br><small>0.4.2</small>|imgaug<br><small>0.3.0</small>|torchvision (Pillow-SIMD backend)<br><small>0.4.1</small>|keras<br><small>2.3.1</small>|augmentor<br><small>0.2.6</small>|solt<br><small>0.1.8</small>|
+|                      |albumentations<br><small>0.4.5</small>|imgaug<br><small>0.4.0</small>|torchvision (Pillow-SIMD backend)<br><small>0.5.0</small>|keras<br><small>2.3.1</small>|augmentor<br><small>0.2.8</small>|solt<br><small>0.1.8</small>|
 |----------------------|:------------------------------------:|:----------------------------:|:-------------------------------------------------------:|:---------------------------:|:-------------------------------:|:--------------------------:|
-|HorizontalFlip        |               **2183**               |             1403             |                          1757                           |            1068             |              1779               |            1031            |
-|VerticalFlip          |               **4217**               |             2334             |                          1538                           |            4196             |              1541               |            3820            |
-|Rotate                |               **456**                |             368              |                           163                           |             32              |               60                |            116             |
-|ShiftScaleRotate      |               **800**                |             549              |                           146                           |             34              |                -                |             -              |
-|Brightness            |               **2209**               |             1288             |                           405                           |             211             |               403               |            2070            |
-|Contrast              |               **2215**               |             1387             |                           338                           |              -              |               337               |            2073            |
-|BrightnessContrast    |               **2208**               |             740              |                           193                           |              -              |               193               |            1060            |
-|ShiftRGB              |               **2214**               |             1303             |                            -                            |             407             |                -                |             -              |
-|ShiftHSV              |               **468**                |             443              |                           61                            |              -              |                -                |            144             |
-|Gamma                 |               **2281**               |              -               |                           730                           |              -              |                -                |            925             |
-|Grayscale             |               **5019**               |             436              |                           788                           |              -              |              1451               |            4191            |
-|RandomCrop64          |              **173877**              |             3340             |                          43792                          |              -              |              36869              |           36178            |
-|PadToSize512          |               **2906**               |              -               |                           553                           |              -              |                -                |            2711            |
-|Resize512             |                 663                  |             506              |                         **968**                         |              -              |               954               |            673             |
-|RandomSizedCrop_64_512|               **2565**               |             933              |                          1395                           |              -              |              1353               |            2360            |
-|Equalize              |               **759**                |             457              |                            -                            |              -              |               684               |             -              |
+|HorizontalFlip        |               **3066**               |             1544             |                          1652                           |             874             |              1658               |            853             |
+|VerticalFlip          |               **4159**               |             2014             |                          1427                           |            4147             |              1448               |            3788            |
+|Rotate                |               **417**                |             327              |                           160                           |             29              |               60                |            113             |
+|ShiftScaleRotate      |               **703**                |             471              |                           144                           |             30              |                -                |             -              |
+|Brightness            |               **2210**               |             997              |                           397                           |             210             |               396               |            2058            |
+|Contrast              |               **2208**               |             1023             |                           330                           |              -              |               331               |            2059            |
+|BrightnessContrast    |               **2199**               |             582              |                           190                           |              -              |               190               |            1051            |
+|ShiftRGB              |               **2215**               |             998              |                            -                            |             378             |                -                |             -              |
+|ShiftHSV              |               **381**                |             241              |                           59                            |              -              |                -                |            128             |
+|Gamma                 |               **2340**               |              -               |                           686                           |              -              |                -                |            951             |
+|Grayscale             |               **4961**               |             372              |                           735                           |              -              |              1423               |            4286            |
+|RandomCrop64          |              **157376**              |             2560             |                          41448                          |              -              |              36036              |           35454            |
+|PadToSize512          |               **2833**               |              -               |                           478                           |              -              |                -                |            2629            |
+|Resize512             |               **952**                |             595              |                           885                           |              -              |               873               |            881             |
+|RandomSizedCrop_64_512|               **3128**               |             881              |                          1295                           |              -              |              1254               |            2678            |
+|Equalize              |               **760**                |             399              |                            -                            |              -              |               666               |             -              |
+|Multiply              |               **2184**               |             1059             |                            -                            |              -              |                -                |             -              |
+|MultiplyElementwise   |                 124                  |           **197**            |                            -                            |              -              |                -                |             -              |
 
-Python and library versions: Python 3.7.5 (default, Oct 19 2019, 00:03:48) \[GCC 8.3.0\], numpy 1.17.3, pillow-simd 6.0.0.post0, opencv-python 4.1.1.26, scikit-image 0.16.2, scipy 1.3.1.
+Python and library versions: Python 3.7.5 (default, Oct 19 2019, 00:03:48) [GCC 8.3.0], numpy 1.18.1, pillow-simd 7.0.0.post3, opencv-python 4.2.0.32, scikit-image 0.16.2, scipy 1.4.1.
 
 ## Contributing
 
@@ -277,7 +279,7 @@ You can find their names and links to the solutions [here](docs/hall_of_fame.rst
 <a href="https://imedhub.org/" target="_blank"><img src="https://habrastorage.org/webt/eq/8x/m-/eq8xm-fjfx_uqkka4_ekxsdwtiq.png" width="100"/></a>
 <a href="https://recursionpharma.com" target="_blank"><img src="https://pbs.twimg.com/profile_images/925897897165639683/jI8YvBfC_400x400.jpg" width="100"/></a>
 <a href="https://www.everypixel.com/" target="_blank"><img src="https://www.everypixel.com/i/logo_sq.png" width="100"/></a>
-
+<a href="https://neuromation.io/" target="_blank"><img src="https://habrastorage.org/webt/yd/_4/xa/yd_4xauvggn1tuz5xgrtkif6lya.png" width="100"/></a>
 
 ## Comments
 In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355)
@@ -289,15 +291,20 @@ cv2.ocl.setUseOpenCL(False)
 
 # Citing
 
-If you find this library useful for your research, please consider citing:
+If you find this library useful for your research, please consider citing [Albumentations: Fast and Flexible Image Augmentations](https://www.mdpi.com/2078-2489/11/2/125):
 
 ```
-@article{2018arXiv180906839B,
-    author = {A. Buslaev, A. Parinov, E. Khvedchenya, V.~I. Iglovikov and A.~A. Kalinin},
-     title = "{Albumentations: fast and flexible image augmentations}",
-   journal = {ArXiv e-prints},
-    eprint = {1809.06839},
-      year = 2018
+@Article{info11020125,
+    AUTHOR = {Buslaev, Alexander and Iglovikov, Vladimir I. and Khvedchenya, Eugene and Parinov, Alex and Druzhinin, Mikhail and Kalinin, Alexandr A.},
+    TITLE = {Albumentations: Fast and Flexible Image Augmentations},
+    JOURNAL = {Information},
+    VOLUME = {11},
+    YEAR = {2020},
+    NUMBER = {2},
+    ARTICLE-NUMBER = {125},
+    URL = {https://www.mdpi.com/2078-2489/11/2/125},
+    ISSN = {2078-2489},
+    DOI = {10.3390/info11020125}
 }
 ```
 

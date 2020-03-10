@@ -369,22 +369,45 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, sat, val = cv2.split(img)
 
-    hue = cv2.add(hue, hue_shift)
-    hue = np.where(hue < 0, hue + 180, hue)
-    hue = np.where(hue > 180, hue - 180, hue)
-    hue = hue.astype(dtype)
-    sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
-    val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+    if hue_shift != 0:
+        hue = cv2.add(hue, hue_shift)
+        hue = np.where(hue < 0, hue + 180, hue)
+        hue = np.where(hue > 180, hue - 180, hue)
+        hue = hue.astype(dtype)
+
+    if sat_shift != 0:
+        sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+
+    if val_shift != 0:
+        val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
 
 
+@preserve_shape
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
-    if img.dtype == np.uint8:
-        return _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
+    is_gray = is_grayscale_image(img)
+    if is_gray:
+        if hue_shift != 0 or sat_shift != 0:
+            hue_shift = 0
+            sat_shift = 0
+            warn(
+                "HueSaturationValue: hue_shift and sat_shift are not applicable to grayscale image. "
+                "Set them to 0 or use RGB image"
+            )
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-    return _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
+    if img.dtype == np.uint8:
+        img = _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift)
+    else:
+        img = _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
+
+    if is_gray:
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+
+    return img
 
 
 def solarize(img, threshold=128):
@@ -627,13 +650,14 @@ def linear_transformation_rgb(img, transformation_matrix):
     return result_img
 
 
+@preserve_channel_dim
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     if img.dtype != np.uint8:
         raise TypeError("clahe supports only uint8 inputs")
 
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
-    if len(img.shape) == 2:
+    if len(img.shape) == 2 or img.shape[2] == 1:
         img = clahe.apply(img)
     else:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
@@ -1054,7 +1078,8 @@ def grid_distortion(
     x_step = width // num_steps
     xx = np.zeros(width, np.float32)
     prev = 0
-    for idx, x in enumerate(np.linspace(0, width, num_steps)):
+    for idx in range(num_steps):
+        x = idx * x_step
         start = int(x)
         end = int(x) + x_step
         if end > width:
@@ -1069,7 +1094,8 @@ def grid_distortion(
     y_step = height // num_steps
     yy = np.zeros(height, np.float32)
     prev = 0
-    for idx, y in enumerate(np.linspace(0, height, num_steps)):
+    for idx in range(num_steps):
+        y = idx * y_step
         start = int(y)
         end = int(y) + y_step
         if end > height:

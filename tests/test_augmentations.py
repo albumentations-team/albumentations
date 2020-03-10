@@ -384,6 +384,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [Equalize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [HueSaturationValue, {}],
         [AugMix, {}],
     ],
 )

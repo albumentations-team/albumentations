@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import datetime
-import mock
+from typing import Dict, Any
+from unittest.mock import MagicMock
+
 import re
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../"))
-
-
-try:
-    from unittest.mock import MagicMock
-except ImportError:
-    from mock import Mock as MagicMock
 
 
 class Mock(MagicMock):
@@ -134,7 +130,7 @@ latex_elements = {
     # Latex figure (float) alignment
     #
     # 'figure_align': 'htbp',
-}
+}  # type: Dict[str, Any]
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
