@@ -32,7 +32,6 @@ class DataProcessor:
             for k, v in additional_targets.items():
                 if v == self.default_data_name:
                     self.data_fields.append(k)
-        self.data_length = 0
 
     @property
     @abstractmethod
@@ -93,9 +92,9 @@ class DataProcessor:
             return data
         for data_name in self.data_fields:
             for field in self.params.label_fields:
+                assert len(data[data_name]) == len(data[field])
                 data_with_added_field = []
                 for d, field_value in zip(data[data_name], data[field]):
-                    self.data_length = len(list(d))
                     data_with_added_field.append(list(d) + [field_value])
                 data[data_name] = data_with_added_field
         return data
@@ -104,11 +103,12 @@ class DataProcessor:
         if self.params.label_fields is None:
             return data
         for data_name in self.data_fields:
+            label_fields_len = len(self.params.label_fields)
             for idx, field in enumerate(self.params.label_fields):
                 field_values = []
                 for bbox in data[data_name]:
-                    field_values.append(bbox[self.data_length + idx])
+                    field_values.append(bbox[-label_fields_len + idx])
                 data[field] = field_values
-
-            data[data_name] = [d[: self.data_length] for d in data[data_name]]
+            if label_fields_len:
+                data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
         return data
