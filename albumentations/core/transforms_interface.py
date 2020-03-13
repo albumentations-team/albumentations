@@ -13,7 +13,7 @@ from albumentations.core.utils import format_args
 __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
 
 
-def to_tuple(param, low=None, bias=None):
+def to_tuple(param, low=None, bias=None, bias_to_tuple=True):
     """Convert input argument to min-max tuple
     Args:
         param (scalar, tuple or list of 2+ elements): Input value.
@@ -21,6 +21,8 @@ def to_tuple(param, low=None, bias=None):
             If value is tuple, return value would be value + offset (broadcasted).
         low:  Second element of tuple can be passed as optional argument
         bias: An offset factor added to each element
+        bias_to_tuple; If `True` bias will be applied to tuple `param`.
+            If `False`, bias will be applied only to single value `param`.
     """
     if low is not None and bias is not None:
         raise ValueError("Arguments low and bias are mutually exclusive")
@@ -28,6 +30,7 @@ def to_tuple(param, low=None, bias=None):
     if param is None:
         return param
 
+    is_single_value = True
     if isinstance(param, (int, float)):
         if low is None:
             param = -param, +param
@@ -35,10 +38,11 @@ def to_tuple(param, low=None, bias=None):
             param = (low, param) if low < param else (param, low)
     elif isinstance(param, (list, tuple)):
         param = tuple(param)
+        is_single_value = False
     else:
         raise ValueError("Argument param must be either scalar (int, float) or tuple")
 
-    if bias is not None:
+    if bias is not None and (bias_to_tuple or is_single_value):
         return tuple([bias + x for x in param])
 
     return tuple(param)

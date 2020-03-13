@@ -645,3 +645,21 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
     elif holes_number_x and holes_number_y:
         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_x))
         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_y))
+
+
+@pytest.mark.parametrize(
+    ["transform_class", "scale_limit", "use_bias", "target_scale"],
+    [
+        [A.RandomScale, 0.5, True, [0.5, 1.5]],
+        [A.RandomScale, 0.5, False, [0.5, 1.5]],
+        [A.RandomScale, [0.5, 1.5], True, [1.5, 2.5]],
+        [A.RandomScale, [0.5, 1.5], False, [0.5, 1.5]],
+        [A.ShiftScaleRotate, 0.5, True, [0.5, 1.5]],
+        [A.ShiftScaleRotate, 0.5, False, [0.5, 1.5]],
+        [A.ShiftScaleRotate, [0.5, 1.5], True, [1.5, 2.5]],
+        [A.ShiftScaleRotate, [0.5, 1.5], False, [0.5, 1.5]],
+    ],
+)
+def test_bias_for_scale_limit_bias(transform_class, scale_limit, use_bias, target_scale):
+    aug = transform_class(scale_limit=scale_limit, use_bias=use_bias)
+    assert np.allclose(aug.scale_limit, target_scale)

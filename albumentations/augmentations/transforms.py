@@ -546,10 +546,13 @@ class RandomScale(DualTransform):
 
     Args:
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (1 - scale_limit, 1 + scale_limit). Default: (0.9, 1.1).
+            range will be (1 - scale_limit, 1 + scale_limit).
+            If scale_limit is tuple and `use_bias` is `True`,
+            the range will be [1- scale_limit[0], 1 + scale_limit[1]]. Default: (0.9, 1.1).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
+        use_bias (float): use or not bias for `scale_limit` if it is a tuple. Default: `True`.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -559,9 +562,9 @@ class RandomScale(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
+    def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, use_bias=True, always_apply=False, p=0.5):
         super(RandomScale, self).__init__(always_apply, p)
-        self.scale_limit = to_tuple(scale_limit, bias=1.0)
+        self.scale_limit = to_tuple(scale_limit, bias=1, bias_to_tuple=use_bias)
         self.interpolation = interpolation
 
     def get_params(self):
@@ -578,7 +581,7 @@ class RandomScale(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args(self):
-        return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
+        return {"interpolation": self.interpolation, "scale_limit": self.scale_limit}
 
 
 class ShiftScaleRotate(DualTransform):
@@ -589,7 +592,9 @@ class ShiftScaleRotate(DualTransform):
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
             upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (-scale_limit, scale_limit). Default: (-0.1, 0.1).
+            range will be (1 - scale_limit, 1 + scale_limit).
+            If scale_limit is tuple and `use_bias` is `True`,
+            the range will be [1- scale_limit[0], 1 + scale_limit[1]]. Default: (0.9, 1.1).
         rotate_limit ((int, int) or int): rotation range. If rotate_limit is a single int value, the
             range will be (-rotate_limit, rotate_limit). Default: (-45, 45).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -602,6 +607,7 @@ class ShiftScaleRotate(DualTransform):
         mask_value (int, float,
                     list of int,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        use_bias (float): use or not bias for `scale_limit` if it is a tuple. Default: `True`.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -620,12 +626,13 @@ class ShiftScaleRotate(DualTransform):
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
+        use_bias=True,
         always_apply=False,
         p=0.5,
     ):
         super(ShiftScaleRotate, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
-        self.scale_limit = to_tuple(scale_limit, bias=1.0)
+        self.scale_limit = to_tuple(scale_limit, bias=1.0, bias_to_tuple=use_bias)
         self.rotate_limit = to_tuple(rotate_limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -657,7 +664,7 @@ class ShiftScaleRotate(DualTransform):
     def get_transform_init_args(self):
         return {
             "shift_limit": self.shift_limit,
-            "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
+            "scale_limit": self.scale_limit,
             "rotate_limit": self.rotate_limit,
             "interpolation": self.interpolation,
             "border_mode": self.border_mode,
