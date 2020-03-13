@@ -581,7 +581,7 @@ class RandomScale(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args(self):
-        return {"interpolation": self.interpolation, "scale_limit": self.scale_limit}
+        return {"interpolation": self.interpolation, "scale_limit": self.scale_limit, "use_bias": False}
 
 
 class ShiftScaleRotate(DualTransform):
@@ -670,6 +670,7 @@ class ShiftScaleRotate(DualTransform):
             "border_mode": self.border_mode,
             "value": self.value,
             "mask_value": self.mask_value,
+            "use_bias": False,
         }
 
 
