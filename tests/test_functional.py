@@ -942,3 +942,13 @@ def test_multiply_uint8_optimized():
 )
 def test_shift_hsv_gray(img):
     F.shift_hsv(img, 0.5, 0.5, 0.5)
+
+
+def test_normalize_np_cv_equal():
+    image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    mean = np.array([0.485, 0.456, 0.406], dtype=np.float32)
+    std = np.array([0.229, 0.224, 0.225], dtype=np.float32)
+
+    res1 = F.normalize_cv2(image, mean, std)
+    res2 = F.normalize_numpy(image, mean, std)
+    assert np.allclose(res1, res2)
