@@ -81,7 +81,7 @@ def test_compose_doesnt_pass_force_apply(image):
     transforms = [HorizontalFlip(p=0, always_apply=False)]
     augmentation = Compose(transforms, p=1)
     result = augmentation(force_apply=True, image=image)
-    assert np.array_equal(result['image'], image)
+    assert np.array_equal(result["image"], image)
 
 
 def test_dual_transform(image, mask):
