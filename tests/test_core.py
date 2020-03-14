@@ -77,6 +77,13 @@ def test_image_only_transform(image, mask):
             assert np.array_equal(data["mask"], mask)
 
 
+def test_compose_doesnt_pass_force_apply(image):
+    transforms = [HorizontalFlip(p=0, always_apply=False)]
+    augmentation = Compose(transforms, p=1)
+    result = augmentation(force_apply=True, image=image)
+    assert np.array_equal(result['image'], image)
+
+
 def test_dual_transform(image, mask):
     image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
     mask_call = call(mask, interpolation=cv2.INTER_NEAREST, cols=mask.shape[1], rows=mask.shape[0])
