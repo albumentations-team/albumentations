@@ -173,7 +173,7 @@ class Compose(BaseCompose):
                 for p in self.processors.values():
                     p.preprocess(data)
 
-            data = t(force_apply=force_apply, **data)
+            data = t(**data)
 
             if dual_start_end is not None and idx == dual_start_end[1]:
                 for p in self.processors.values():
