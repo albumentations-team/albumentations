@@ -161,8 +161,10 @@ class Compose(BaseCompose):
         self.add_targets(additional_targets)
 
     def __call__(self, *args, force_apply=False, **data):
+        if args:
+            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
+        self._check_args(**data)
         assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
-        assert not args, "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
             p.ensure_data_valid(data)
@@ -194,6 +196,20 @@ class Compose(BaseCompose):
             }
         )
         return dictionary
+
+    def _check_args(self, **kwargs):
+        checked_single = ["image", "mask"]
+        checked_multi = ["masks"]
+        # ["bboxes", "keypoints"] could be almost any type, no need to check them
+        for data_name, data in kwargs.items():
+            internal_data_name = self.additional_targets.get(data_name, data_name)
+            if internal_data_name in checked_single:
+                if not isinstance(data, np.ndarray):
+                    raise TypeError("{} must be numpy array type".format(data_name))
+            if internal_data_name in checked_multi:
+                if data:
+                    if not isinstance(data[0], np.ndarray):
+                        raise TypeError("{} must be list of numpy arrays".format(data_name))
 
 
 class OneOf(BaseCompose):

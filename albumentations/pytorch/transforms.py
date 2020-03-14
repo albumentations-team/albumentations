@@ -60,7 +60,8 @@ class ToTensor(BasicTransform):
         )
 
     def __call__(self, *args, force_apply=True, **kwargs):
-        assert not args, "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
+        if args:
+            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
         kwargs.update({"image": img_to_tensor(kwargs["image"], self.normalize)})
         if "mask" in kwargs.keys():
             kwargs.update({"mask": mask_to_tensor(kwargs["mask"], self.num_classes, sigmoid=self.sigmoid)})
