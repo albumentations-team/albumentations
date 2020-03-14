@@ -160,8 +160,9 @@ class Compose(BaseCompose):
 
         self.add_targets(additional_targets)
 
-    def __call__(self, force_apply=False, **data):
+    def __call__(self, *args, force_apply=False, **data):
         assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
+        assert not args, "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
             p.ensure_data_valid(data)

@@ -59,7 +59,8 @@ class ToTensor(BasicTransform):
             "ToTensor is deprecated and will be replaced by ToTensorV2 " "in albumentations 0.5.0", DeprecationWarning
         )
 
-    def __call__(self, force_apply=True, **kwargs):
+    def __call__(self, *args, force_apply=True, **kwargs):
+        assert not args, "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
         kwargs.update({"image": img_to_tensor(kwargs["image"], self.normalize)})
         if "mask" in kwargs.keys():
             kwargs.update({"mask": mask_to_tensor(kwargs["mask"], self.num_classes, sigmoid=self.sigmoid)})
