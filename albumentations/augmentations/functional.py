@@ -129,17 +129,24 @@ def rot90(img, factor):
 
 
 def normalize(img, mean, std, max_pixel_value=255.0):
-    mean = np.array(mean, dtype=np.float32)
+    mean = np.array(mean, dtype=np.float64)
     mean *= max_pixel_value
 
-    std = np.array(std, dtype=np.float32)
+    std = np.array(std, dtype=np.float64)
     std *= max_pixel_value
 
-    denominator = np.reciprocal(std, dtype=np.float32)
+    denominator = np.reciprocal(std, dtype=np.float64)
 
-    img = img.astype(np.float32)
-    img -= mean
-    img *= denominator
+    if mean.shape and len(mean) != 4 and mean.shape != img.shape:
+        mean = np.array(mean.tolist() + [0] * (4 - len(mean)), dtype=np.float64)
+    if not denominator.shape:
+        denominator = np.array([denominator.tolist()] * 4, dtype=np.float64)
+    elif len(denominator) != 4 and denominator.shape != img.shape:
+        denominator = np.array(denominator.tolist() + [1] * (4 - len(denominator)), dtype=np.float64)
+
+    img = img.astype("float32")
+    cv2.subtract(img, mean, img)
+    cv2.multiply(img, denominator, img)
     return img
 
 
