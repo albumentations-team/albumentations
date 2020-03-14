@@ -568,7 +568,7 @@ class RandomScale(DualTransform):
         return {"scale": random.uniform(self.scale_limit[0], self.scale_limit[1])}
 
     def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.scale(img, scale, interpolation)
+        return F.scale_image(img, scale, interpolation)
 
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant

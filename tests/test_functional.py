@@ -479,7 +479,7 @@ def test_scale(target):
     )
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = F.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
+    scaled = F.scale_image(img, scale=2, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 

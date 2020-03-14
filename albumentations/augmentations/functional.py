@@ -224,7 +224,7 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
 
 
 @preserve_channel_dim
-def scale(img, scale, interpolation=cv2.INTER_LINEAR):
+def scale_image(img, scale, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
     return resize(img, new_height, new_width, interpolation)
@@ -678,13 +678,13 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     if img.dtype != np.uint8:
         raise TypeError("clahe supports only uint8 inputs")
 
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
     if len(img.shape) == 2 or img.shape[2] == 1:
-        img = clahe.apply(img)
+        img = clahe_mat.apply(img)
     else:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
-        img[:, :, 0] = clahe.apply(img[:, :, 0])
+        img[:, :, 0] = clahe_mat.apply(img[:, :, 0])
         img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
     return img
