@@ -425,7 +425,12 @@ class KeypointParams(Params):
     """
 
     def __init__(
-        self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True, check_each_transform=False
+        self,
+        format,  # skipcq: PYL-W0622
+        label_fields=None,
+        remove_invisible=True,
+        angle_in_degrees=True,
+        check_each_transform=False,
     ):
         super(KeypointParams, self).__init__(format, label_fields)
         self.remove_invisible = remove_invisible
