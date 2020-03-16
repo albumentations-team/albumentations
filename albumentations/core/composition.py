@@ -167,6 +167,9 @@ class Compose(BaseCompose):
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else self.transforms.get_always_apply(self.transforms)
         dual_start_end = transforms.start_end if self.processors else None
+        check_each_transform = any(
+            getattr(item.params, "check_each_transform", False) for item in self.processors.values()
+        )
 
         for idx, t in enumerate(transforms):
             if dual_start_end is not None and idx == dual_start_end[0]:
@@ -178,6 +181,11 @@ class Compose(BaseCompose):
             if dual_start_end is not None and idx == dual_start_end[1]:
                 for p in self.processors.values():
                     p.postprocess(data)
+            elif check_each_transform and isinstance(t, DualTransform):
+                rows, cols = data["image"].shape[:2]
+                for p in self.processors.values():
+                    for data_name in p.data_fields:
+                        data[data_name] = p.filter(data[data_name], rows, cols)
 
         return data
 
@@ -372,16 +380,25 @@ class BboxParams(Params):
             visible area in pixels is less than this value will be removed. Default: 0.0.
         min_visibility (float): minimum fraction of area for a bounding box
             to remain this box in list. Default: 0.0.
+        check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
+            Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0):
+    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_each_transform=False):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
+        self.check_each_transform = check_each_transform
 
     def _to_dict(self):
         data = super(BboxParams, self)._to_dict()
-        data.update({"min_area": self.min_area, "min_visibility": self.min_visibility})
+        data.update(
+            {
+                "min_area": self.min_area,
+                "min_visibility": self.min_visibility,
+                "check_each_transform": self.check_each_transform,
+            }
+        )
         return data
 
 
@@ -403,14 +420,25 @@ class KeypointParams(Params):
             Should be same type as keypoints.
         remove_invisible (bool): to remove invisible points after transform or not
         angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
+        check_each_transform (bool): if `True`, then keypoints will be checked after each dual transform.
+            Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True):
+    def __init__(
+        self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True, check_each_transform=False
+    ):
         super(KeypointParams, self).__init__(format, label_fields)
         self.remove_invisible = remove_invisible
         self.angle_in_degrees = angle_in_degrees
+        self.check_each_transform = check_each_transform
 
     def _to_dict(self):
         data = super(KeypointParams, self)._to_dict()
-        data.update({"remove_invisible": self.remove_invisible, "angle_in_degrees": self.angle_in_degrees})
+        data.update(
+            {
+                "remove_invisible": self.remove_invisible,
+                "angle_in_degrees": self.angle_in_degrees,
+                "check_each_transform": self.check_each_transform,
+            }
+        )
         return data

@@ -9,8 +9,16 @@ import pytest
 
 from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
 from albumentations.augmentations.bbox_utils import check_bboxes
-from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel, ReplayCompose
-from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
+from albumentations.core.composition import (
+    OneOrOther,
+    Compose,
+    OneOf,
+    PerChannel,
+    ReplayCompose,
+    KeypointParams,
+    BboxParams,
+)
+from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
 
 
 def test_one_or_other():
@@ -162,3 +170,43 @@ def test_deterministic_one_or_other():
         assert "replay" in data
         data2 = ReplayCompose.replay(data["replay"], image=image2)
         assert np.array_equal(data["image"], data2["image"])
+
+
+@pytest.mark.parametrize(
+    ["targets", "bbox_params", "keypoint_params", "expected"],
+    [
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=False),
+            {"keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25},
+        ],
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=True),
+            {"keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=False),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]]},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=True),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
+        ],
+    ],
+)
+def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
+    image = np.empty([100, 100], dtype=np.uint8)
+    augs = Compose(
+        [Crop(0, 0, 50, 50), PadIfNeeded(100, 100)], bbox_params=bbox_params, keypoint_params=keypoint_params
+    )
+    res = augs(image=image, **targets)
+
+    for key, item in expected.items():
+        assert np.all(np.array(item) == np.array(res[key]))
