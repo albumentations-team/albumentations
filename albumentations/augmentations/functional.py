@@ -158,10 +158,7 @@ def normalize(img, mean, std, max_pixel_value=255.0):
 
     denominator = np.reciprocal(std, dtype=np.float32)
 
-    use_cv = not mean.shape or mean.shape == img.shape or len(mean) <= 4
-    use_cv = use_cv and (not std.shape or std.shape == img.shape or len(std) <= 4)
-
-    if use_cv:
+    if img.ndim == 3 and img.shape[-1] == 3:
         return normalize_cv2(img, mean, denominator)
     return normalize_numpy(img, mean, denominator)
 
