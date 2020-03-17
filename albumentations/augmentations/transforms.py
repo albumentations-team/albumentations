@@ -644,9 +644,15 @@ class ShiftScaleRotate(DualTransform):
         return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
 
     def get_params(self):
+
+        if random.uniform(0, 1) < 0.5:  # 50% chance to upscale
+            scale = random.uniform(1, self.scale_limit[1])
+        else:  # 50% chance to downscale
+            scale = random.uniform(self.scale_limit[0], 1)
+
         return {
             "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
-            "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
+            "scale": scale,
             "dx": random.uniform(self.shift_limit[0], self.shift_limit[1]),
             "dy": random.uniform(self.shift_limit[0], self.shift_limit[1]),
         }
