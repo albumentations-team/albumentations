@@ -246,7 +246,6 @@ def test_augmentations_serialization_with_custom_parameters(
 def test_augmentations_serialization_to_file_with_custom_parameters(
     augmentation_cls, params, p, seed, image, mask, always_apply, data_format
 ):
-
     with patch("builtins.open", OpenMock()):
         aug = augmentation_cls(p=p, always_apply=always_apply, **params)
         filepath = "serialized.{}".format(data_format)
