@@ -170,6 +170,20 @@ class BasicTransform(object):
     def get_class_fullname(cls):
         return "{cls.__module__}.{cls.__name__}".format(cls=cls)
 
+    @classmethod
+    def prepare_init_args(cls, init_args):
+        # This method converts a deserialized representation of the init args to the args with correct Python types.
+        # The conversion is required because the deserialized representation contains only primitive types
+        # (such as lists, integers, strings, etc.), but the transform may require the argument to be an instance of
+        # some Python non-primitive data type, e.g., Enum.
+        #
+        # The default implementation doesn't do any conversion and returns values as is. If a transform requires
+        # custom logic to handle arguments' types, you need to implement this method in the transform class. Note
+        # that if you implement a custom `prepare_init_args` method, you probably need also to implement a custom
+        # `get_transform_init_args` method that will convert Python objects to a representation that will contain
+        # only primitive types and thus could be serialized to JSON or YAML.
+        return init_args
+
     def get_transform_init_args_names(self):
         raise NotImplementedError(
             "Class {name} is not serializable because the `get_transform_init_args_names` method is not "

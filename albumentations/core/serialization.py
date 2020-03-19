@@ -100,6 +100,10 @@ def from_dict(transform_dict, lambda_transforms=None):
         args["transforms"] = [
             from_dict({"transform": t}, lambda_transforms=lambda_transforms) for t in args["transforms"]
         ]
+    if hasattr(cls, "prepare_init_args"):
+        # The `prepare_init_args` method is called to allow the transform to convert primitive Python types to the
+        # necessary Python objects (e.g. convert a string representation of the Enum object to the actual Enum type).
+        args = cls.prepare_init_args(args)
     return cls(**args)
 
 

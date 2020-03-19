@@ -1587,7 +1587,7 @@ class ImageCompression(ImageOnlyTransform):
         quality_upper (float): upper bound on the image quality.
                                Should be in [0, 100] range for jpeg and [1, 100] for webp.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
-            Defaul: ImageCompressionType.JPEG
+            Default: ImageCompressionType.JPEG
 
     Targets:
         image
@@ -1622,6 +1622,15 @@ class ImageCompression(ImageOnlyTransform):
         self.quality_lower = quality_lower
         self.quality_upper = quality_upper
 
+    @classmethod
+    def prepare_init_args(cls, init_args):
+        if "compression_type" in init_args:
+            return {
+                **init_args,
+                "compression_type": getattr(ImageCompression.ImageCompressionType, init_args["compression_type"]),
+            }
+        return init_args
+
     def apply(self, image, quality=100, image_type=".jpg", **params):
         return F.image_compression(image, quality, image_type)
 
@@ -1633,8 +1642,12 @@ class ImageCompression(ImageOnlyTransform):
 
         return {"quality": random.randint(self.quality_lower, self.quality_upper), "image_type": image_type}
 
-    def get_transform_init_args_names(self):
-        return ("quality_lower", "quality_upper", "compression_type")
+    def get_transform_init_args(self):
+        return {
+            "quality_lower": self.quality_lower,
+            "quality_upper": self.quality_upper,
+            "compression_type": self.compression_type.name,
+        }
 
 
 class JpegCompression(ImageCompression):
@@ -2496,7 +2509,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
-        if isinstance(var_limit, tuple):
+        if isinstance(var_limit, (tuple, list)):
             if var_limit[0] < 0:
                 raise ValueError("Lower var_limit should be non negative.")
             if var_limit[1] < 0:
@@ -2504,9 +2517,13 @@ class GaussNoise(ImageOnlyTransform):
             self.var_limit = var_limit
         elif isinstance(var_limit, (int, float)):
             if var_limit < 0:
-                raise ValueError(" var_limit should be non negative.")
+                raise ValueError("var_limit should be non negative.")
 
             self.var_limit = (0, var_limit)
+        else:
+            raise TypeError(
+                "Expected var_limit type to be one of (int, float, tuple, list), got {}".format(type(var_limit))
+            )
 
         self.mean = mean
 
