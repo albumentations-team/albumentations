@@ -3380,8 +3380,10 @@ class Defocus(ImageOnlyTransform):
     Apply defocus transform. See arXiv:1903.12261 [cs.LG].
 
     Args:
-        severity (int, (int, int)): maximum severity for defocusing the input image.
-            Should be in range [1, 5]. Default: [1, 2].
+        radius ((int, int) or int): range for radius of defocusing.
+            If limit is a single int, the range will be [1, limit]. Default: (3, 10).
+        alias_blur ((float, float) or float): range for alias_blur of defocusing (sigma of gaussian blur).
+            If limit is a single float, the range will be (0, limit). Default: (0.1, 0.5).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -3391,23 +3393,31 @@ class Defocus(ImageOnlyTransform):
         Any
     """
 
-    def __init__(self, severity=3, always_apply=False, p=0.5):
+    def __init__(self, radius=(3, 10), alias_blur=(0.1, 0.5), always_apply=False, p=0.5):
         super(Defocus, self).__init__(always_apply, p)
-        self.severity = to_tuple(severity, low=1)
+        self.radius = to_tuple(radius, low=1)
+        self.alias_blur = to_tuple(alias_blur, low=0)
 
-        assert self.severity[0] >= 1, "Expected minimal severity greater than or equal to 1, got {}".format(
-            self.severity[0]
-        )
-        assert self.severity[1] <= 5, "Expected maximum severity not greater than 5, got{}".format(self.severity[1])
+        if self.radius[0] < 0:
+            raise ValueError("Parameter radius must be positive")
 
-    def apply(self, img, severity=1, random_state=None, **params):
-        return F.defocus(img, severity)
+        if self.alias_blur[0] <= 0:
+            raise ValueError("Parameter alias_blur must be non-negative")
+
+    def apply(self, img, radius=3, alias_blur=0.5, **params):
+        return F.defocus(img, radius, alias_blur)
 
     def get_params(self):
-        return {"severity": random.choice(np.arange(self.severity[0], self.severity[1] + 1))}
+        return {
+            "radius": random.choice(np.arange(self.radius[0], self.radius[1] + 1)),
+            "alias_blur": random.uniform(self.alias_blur[0], self.alias_blur[1]),
+        }
 
     def get_transform_init_args_names(self):
-        return ("severity",)
+        return ("radius", "alias_blur")
+
+    def get_params_dependent_on_targets(self, params):
+        return {}
 
 
 class ZoomBlur(ImageOnlyTransform):
@@ -3415,8 +3425,12 @@ class ZoomBlur(ImageOnlyTransform):
     Apply zoom blur transform. See arXiv:1903.12261 [cs.LG].
 
     Args:
-        severity (int, (int, int)): maximum severity for zoom blur the input image.
-            Should be in range [1, 5]. Default: [1, 2].
+        max_factor ((float, float) or float): range for max factor for blurring.
+            If max_factor is a single float, the range will be (1, limit). Default: (1, 1.31).
+            All max_factor values should be larger than 1.
+        step_factor ((float, float) or float): If single float will be used as step parameter for np.arange.
+            If tuple of float step_factor will be in range `[step_factor[0], step_factor[1])`. Default: (0.01, 0.03).
+            All step_factor values should be positive.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -3426,20 +3440,30 @@ class ZoomBlur(ImageOnlyTransform):
         Any
     """
 
-    def __init__(self, severity=3, always_apply=False, p=0.5):
+    def __init__(self, max_factor=1.31, step_factor=(0.01, 0.03), always_apply=False, p=0.5):
         super().__init__(always_apply, p)
-        self.severity = to_tuple(severity, low=1)
+        self.max_factors = to_tuple(max_factor, low=1.0)
+        self.step_factors = to_tuple(step_factor, step_factor)
 
-        assert self.severity[0] >= 1, "Expected minimal severity greater than or equal to 1, got {}".format(
-            self.severity[0]
-        )
-        assert self.severity[1] <= 5, "Expected maximum severity not greater than 5, got{}".format(self.severity[1])
+        if self.max_factors[0] < 1:
+            raise ValueError("Max factor must be larger or equal 1")
+        if self.step_factors[0] <= 0:
+            raise ValueError("Step factor must be positive")
 
-    def apply(self, img, severity=1, random_state=None, **params):
-        return F.zoom_blur(img, severity)
+    def apply(self, img, zoom_factors=np.arange(1, 1.11, 0.01), **params):
+        return F.zoom_blur(img, zoom_factors)
 
     def get_params(self):
-        return {"severity": random.choice(np.arange(self.severity[0], self.severity[1] + 1))}
+        max_factor = random.uniform(self.max_factors[0], self.max_factors[1])
+        step_factor = (
+            self.step_factors[0]
+            if self.step_factors[0] == self.step_factors[1]
+            else random.uniform(self.step_factors[0], self.step_factors[1])
+        )
+        return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
 
     def get_transform_init_args_names(self):
-        return ("severity",)
+        return ("zoom_factors",)
+
+    def get_params_dependent_on_targets(self, params):
+        return {}

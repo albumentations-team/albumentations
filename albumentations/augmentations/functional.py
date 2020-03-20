@@ -2034,9 +2034,8 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
 
 
-def defocus(img, severity=1):
-    def get_kernel(severity):
-        radius, alias_blur = [(3, 0.1), (4, 0.5), (6, 0.5), (8, 0.5), (10, 0.5)][severity - 1]
+def defocus(img, radius, alias_blur):
+    def get_kernel(radius, alias_blur):
         L = np.arange(-max(8, radius), max(8, radius) + 1)
         ksize = 3 if radius <= 8 else 5
 
@@ -2046,7 +2045,7 @@ def defocus(img, severity=1):
 
         return gaussian_blur(aliased_disk, ksize, sigma_x=alias_blur)
 
-    kernel = get_kernel(severity)
+    kernel = get_kernel(radius, alias_blur)
     return motion_blur(img, kernel=kernel)
 
 
@@ -2063,15 +2062,7 @@ def central_zoom(img, zoom_factor):
 
 
 @clipped
-def zoom_blur(img, severity=1):
-    zoom_factors = [
-        np.arange(1, 1.11, 0.01),
-        np.arange(1, 1.16, 0.01),
-        np.arange(1, 1.21, 0.02),
-        np.arange(1, 1.26, 0.02),
-        np.arange(1, 1.31, 0.03),
-    ][severity - 1]
-
+def zoom_blur(img, zoom_factors):
     out = np.zeros_like(img, dtype=np.float32)
     for zoom_factor in zoom_factors:
         out += central_zoom(img, zoom_factor)
