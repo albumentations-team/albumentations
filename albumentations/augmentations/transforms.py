@@ -3,12 +3,12 @@ from __future__ import absolute_import, division
 import math
 import random
 import warnings
-from enum import Enum
+from enum import IntEnum
 from types import LambdaType
-from skimage.measure import label
 
 import cv2
 import numpy as np
+from skimage.measure import label
 
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
@@ -1596,7 +1596,7 @@ class ImageCompression(ImageOnlyTransform):
         uint8, float32
     """
 
-    class ImageCompressionType(Enum):
+    class ImageCompressionType(IntEnum):
         JPEG = 0
         WEBP = 1
 
@@ -1622,15 +1622,6 @@ class ImageCompression(ImageOnlyTransform):
         self.quality_lower = quality_lower
         self.quality_upper = quality_upper
 
-    @classmethod
-    def prepare_init_args(cls, init_args):
-        if "compression_type" in init_args:
-            return {
-                **init_args,
-                "compression_type": getattr(ImageCompression.ImageCompressionType, init_args["compression_type"]),
-            }
-        return init_args
-
     def apply(self, image, quality=100, image_type=".jpg", **params):
         return F.image_compression(image, quality, image_type)
 
@@ -1646,7 +1637,7 @@ class ImageCompression(ImageOnlyTransform):
         return {
             "quality_lower": self.quality_lower,
             "quality_upper": self.quality_upper,
-            "compression_type": self.compression_type.name,
+            "compression_type": self.compression_type.value,
         }
 
 
