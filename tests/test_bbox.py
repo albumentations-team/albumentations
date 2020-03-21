@@ -235,7 +235,7 @@ def test_random_resized_crop_size(image):
     assert len(bboxes) == len(transformed["bboxes"])
 
 
-@given(image=image(widht=192, height=192, num_channels=3))
+@given(image=image(width=192, height=192, num_channels=3))
 def test_random_rotate(image):
     bboxes = [(78, 42, 142, 80)]
     aug = Rotate(limit=15, p=1.0)
