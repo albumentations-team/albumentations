@@ -3416,9 +3416,6 @@ class Defocus(ImageOnlyTransform):
     def get_transform_init_args_names(self):
         return ("radius", "alias_blur")
 
-    def get_params_dependent_on_targets(self, params):
-        return {}
-
 
 class ZoomBlur(ImageOnlyTransform):
     """
@@ -3464,6 +3461,3 @@ class ZoomBlur(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ("zoom_factors",)
-
-    def get_params_dependent_on_targets(self, params):
-        return {}
