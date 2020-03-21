@@ -1610,7 +1610,7 @@ class ImageCompression(ImageOnlyTransform):
     ):
         super(ImageCompression, self).__init__(always_apply, p)
 
-        self.compression_type = compression_type
+        self.compression_type = ImageCompression.ImageCompressionType(compression_type)
         low_thresh_quality_assert = 0
 
         if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
