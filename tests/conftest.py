@@ -1,8 +1,12 @@
-import warnings
-import sys
 import multiprocessing
-import pytest
+import sys
+import warnings
 
+import numpy as np
+import pytest
+from hypothesis.extra.numpy import arrays as h_array
+from hypothesis.strategies import composite
+from hypothesis.strategies import integers as h_int
 
 try:
     import torch
@@ -49,3 +53,24 @@ def multiprocessing_context():
     else:
         method = None
     return multiprocessing.get_context(method)
+
+
+@composite
+def image(draw, width=100, height=100, num_channels=3):
+    return draw(
+        h_array(dtype=np.uint8, shape=(height, width, num_channels), elements=h_int(min_value=0, max_value=255))
+    )
+
+
+@composite
+def mask(draw, width=100, height=100):
+    return draw(h_array(dtype=np.uint8, shape=(height, width), elements=h_int(min_value=0, max_value=255)))
+
+
+@composite
+def float_image(draw, width=100, height=100, num_channels=3):
+    return draw(
+        h_array(
+            dtype=np.float32, shape=(height, width, num_channels), elements=h_int(min_value=0, max_value=1, width=32)
+        )
+    )

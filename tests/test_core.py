@@ -5,7 +5,6 @@ import cv2
 import numpy as np
 import pytest
 from hypothesis import given
-from hypothesis.extra.numpy import arrays as h_array
 from hypothesis.strategies import floats as h_float
 from hypothesis.strategies import integers as h_int
 
@@ -13,9 +12,10 @@ from albumentations.augmentations.bbox_utils import check_bboxes
 from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
 from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel, ReplayCompose
 from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
+from .conftest import image, mask
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_one_or_other(image):
     first = MagicMock()
     second = MagicMock()
@@ -24,7 +24,7 @@ def test_one_or_other(image):
     assert first.called != second.called
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_compose(image):
     first = MagicMock()
     second = MagicMock()
@@ -34,14 +34,14 @@ def test_compose(image):
     assert second.called
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def oneof_always_apply_crash(image):
     aug = Compose([HorizontalFlip(), Rotate(), OneOf([Blur(), MedianBlur()], p=1)], p=1)
     data = aug(image=image)
     assert data
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_always_apply(image):
     first = MagicMock(always_apply=True)
     second = MagicMock(always_apply=False)
@@ -51,7 +51,7 @@ def test_always_apply(image):
     assert not second.called
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_one_of(image):
     transforms = [Mock(p=1) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
@@ -77,10 +77,7 @@ def test_to_tuple(int_value, float_value, int_value2):
     assert to_tuple(max_int, low=min_int) == (min_int, max_int)
 
 
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_image_only_transform(image, mask):
     height, width = image.shape[:2]
     with mock.patch.object(ImageOnlyTransform, "apply") as mocked_apply:
@@ -91,10 +88,7 @@ def test_image_only_transform(image, mask):
             assert np.array_equal(data["mask"], mask)
 
 
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_dual_transform(image, mask):
     image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
     mask_call = call(mask, interpolation=cv2.INTER_NEAREST, cols=mask.shape[1], rows=mask.shape[0])
@@ -105,10 +99,7 @@ def test_dual_transform(image, mask):
             mocked_apply.assert_has_calls([image_call, mask_call], any_order=True)
 
 
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_additional_targets(image, mask):
     image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
     image2_call = call(mask, interpolation=cv2.INTER_LINEAR, cols=mask.shape[1], rows=mask.shape[0])
@@ -148,7 +139,7 @@ def test_check_bboxes_with_end_greater_that_start():
     assert str(exc_info.value) == message
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)))
+@given(image=mask())
 def test_per_channel_mono(image):
     transforms = [Blur(), Rotate()]
     augmentation = PerChannel(transforms, p=1)
@@ -156,7 +147,7 @@ def test_per_channel_mono(image):
     assert data
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 5), elements=h_int(min_value=0, max_value=255)))
+@given(image=image(num_channels=5))
 def test_per_channel_multi(image):
     transforms = [Blur(), Rotate()]
     augmentation = PerChannel(transforms, p=1)
@@ -164,7 +155,7 @@ def test_per_channel_multi(image):
     assert data
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_deterministic_oneof(image):
     aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
     image2 = np.copy(image)
@@ -174,7 +165,7 @@ def test_deterministic_oneof(image):
     assert np.array_equal(data["image"], data2["image"])
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_deterministic_one_or_other(image):
     aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
     image2 = np.copy(image)

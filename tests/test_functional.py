@@ -2,14 +2,12 @@ import cv2
 import numpy as np
 import pytest
 from hypothesis import given
-from hypothesis.extra.numpy import arrays as h_array
-from hypothesis.strategies import floats as h_float
-from hypothesis.strategies import integers as h_int
 from numpy.testing import assert_array_almost_equal_nulp
 
 import albumentations.augmentations.functional as F
 from albumentations.augmentations.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
+from .conftest import image, mask, float_image
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -110,14 +108,14 @@ def test_normalize_float():
     assert_array_almost_equal_nulp(normalized, expected)
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_compare_rotate_and_shift_scale_rotate(image):
     rotated_img_1 = F.rotate(image, angle=60)
     rotated_img_2 = F.shift_scale_rotate(image, angle=60, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
-@given(float_image=h_array(dtype=np.float32, shape=(7, 9, 3), elements=h_float(min_value=0, max_value=1, width=32)))
+@given(float_image=float_image())
 def test_compare_rotate_float_and_shift_scale_rotate_float(float_image):
     rotated_img_1 = F.rotate(float_image, angle=60)
     rotated_img_2 = F.shift_scale_rotate(float_image, angle=60, scale=1, dx=0, dy=0)
@@ -666,12 +664,7 @@ def test_fun_max_size():
     assert out.shape == (1724, target_width)
 
 
-@given(
-    image_1ch=h_array(dtype=np.uint8, shape=(7, 9, 1), elements=h_int(min_value=0, max_value=255)),
-    image_3ch=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    image_4ch=h_array(dtype=np.uint8, shape=(7, 9, 4), elements=h_int(min_value=0, max_value=255)),
-    image_grayscale=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_grayscale=mask())
 def test_is_rgb_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert F.is_rgb_image(image_3ch)
     assert not F.is_rgb_image(image_4ch)
@@ -679,12 +672,7 @@ def test_is_rgb_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert not F.is_rgb_image(image_1ch)
 
 
-@given(
-    image_1ch=h_array(dtype=np.uint8, shape=(7, 9, 1), elements=h_int(min_value=0, max_value=255)),
-    image_3ch=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    image_4ch=h_array(dtype=np.uint8, shape=(7, 9, 4), elements=h_int(min_value=0, max_value=255)),
-    image_grayscale=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_grayscale=mask())
 def test_is_grayscale_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert not F.is_grayscale_image(image_3ch)
     assert not F.is_grayscale_image(image_4ch)
@@ -692,12 +680,7 @@ def test_is_grayscale_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert F.is_grayscale_image(image_1ch)
 
 
-@given(
-    image_1ch=h_array(dtype=np.uint8, shape=(7, 9, 1), elements=h_int(min_value=0, max_value=255)),
-    image_3ch=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    image_4ch=h_array(dtype=np.uint8, shape=(7, 9, 4), elements=h_int(min_value=0, max_value=255)),
-    image_grayscale=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_grayscale=mask())
 def test_is_multispectral_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert not F.is_multispectral_image(image_3ch)
     assert F.is_multispectral_image(image_4ch)
@@ -705,12 +688,7 @@ def test_is_multispectral_image(image_grayscale, image_1ch, image_3ch, image_4ch
     assert not F.is_multispectral_image(image_1ch)
 
 
-@given(
-    image_uint8=h_array(dtype=np.uint8, shape=(7, 9, 3)),
-    image_uint16=h_array(dtype=np.uint16, shape=(7, 9, 3)),
-    image_uint32=h_array(dtype=np.uint32, shape=(7, 9, 3)),
-    image_float=h_array(dtype=np.float32, shape=(7, 9, 3), elements=h_float(allow_nan=False, width=32)),
-)
+@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_float=float_image())
 def test_brightness_contrast(image_uint8, image_uint16, image_uint32, image_float):
     assert np.array_equal(F.brightness_contrast_adjust(image_uint8), F._brightness_contrast_adjust_uint(image_uint8))
 
@@ -733,7 +711,7 @@ def test_brightness_contrast(image_uint8, image_uint16, image_uint32, image_floa
     )
 
 
-@given(image=h_array(dtype=np.uint8, shape=(4, 4, 4)))
+@given(image=image())
 def test_swap_tiles_on_image_with_empty_tiles(image):
     result_img = F.swap_tiles_on_image(image, [])
 
@@ -894,7 +872,7 @@ def test_downscale_random():
     assert np.all(img == downscaled)
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 6)))
+@given(image=image(num_channels=6))
 def test_maybe_process_in_chunks(image):
     for i in range(1, image.shape[-1] + 1):
         before = image[:, :, :i]
@@ -902,7 +880,7 @@ def test_maybe_process_in_chunks(image):
         assert before.shape == after.shape
 
 
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3)))
+@given(image=image())
 def test_multiply_uint8_optimized(image):
     m = 1.5
 
@@ -916,8 +894,7 @@ def test_multiply_uint8_optimized(image):
     assert np.all(tmp == result)
 
 
-@pytest.mark.parametrize(
-    "img", [np.random.randint(0, 256, [100, 100], dtype=np.uint8), np.random.random([100, 100]).astype(np.float32)]
-)
-def test_shift_hsv_gray(img):
-    F.shift_hsv(img, 0.5, 0.5, 0.5)
+@given(image_uint8=image(), float_image=float_image())
+def test_shift_hsv_gray(image_uint8, float_image):
+    for img in [image_uint8, float_image]:
+        F.shift_hsv(img, 0.5, 0.5, 0.5)

@@ -2,17 +2,13 @@ import numpy as np
 import pytest
 import torch
 from hypothesis import given
-from hypothesis.extra.numpy import arrays as h_array
-from hypothesis.strategies import integers as h_int
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensor, ToTensorV2
+from .conftest import image, mask
 
 
-@given(
-    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_torch_to_tensor_v2_augmentations(image, mask):
     aug = ToTensorV2()
     data = aug(image=image, mask=mask, force_apply=True)
@@ -22,10 +18,7 @@ def test_torch_to_tensor_v2_augmentations(image, mask):
     assert data["mask"].dtype == torch.uint8
 
 
-@given(
-    image1=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
-    mask1=h_array(dtype=np.uint8, shape=(31, 57, 4), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image1=image(), mask1=mask())
 def test_additional_targets_for_totensorv2(image1, mask1):
     aug = A.Compose([ToTensorV2()], additional_targets={"image2": "image", "mask2": "mask"})
 
@@ -40,10 +33,7 @@ def test_additional_targets_for_totensorv2(image1, mask1):
     assert np.array_equal(res["mask"], res["mask2"])
 
 
-@given(
-    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_torch_to_tensor_augmentations(image, mask):
     with pytest.warns(DeprecationWarning):
         aug = ToTensor()
@@ -65,10 +55,7 @@ def test_additional_targets_for_totensor():
         assert np.array_equal(res["mask"], res["mask2"])
 
 
-@given(
-    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_with_replaycompose(image, mask):
     aug = A.ReplayCompose([ToTensorV2()])
     kwargs = {"image": image, "mask": mask}
