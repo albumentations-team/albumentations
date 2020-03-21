@@ -8,6 +8,8 @@ import albumentations.augmentations.functional as F
 from albumentations.augmentations.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 from .conftest import image, mask, float_image
+from hypothesis.extra.numpy import arrays as h_array
+from hypothesis.strategies import integers as h_int
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -688,7 +690,12 @@ def test_is_multispectral_image(image_grayscale, image_1ch, image_3ch, image_4ch
     assert not F.is_multispectral_image(image_1ch)
 
 
-@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_float=float_image())
+@given(
+    image_uint8=image(),
+    image_uint16=image(dtype=np.uint16),
+    image_uint32=image(dtype=np.uint32),
+    image_float=float_image(),
+)
 def test_brightness_contrast(image_uint8, image_uint16, image_uint32, image_float):
     assert np.array_equal(F.brightness_contrast_adjust(image_uint8), F._brightness_contrast_adjust_uint(image_uint8))
 
