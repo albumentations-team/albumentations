@@ -10,9 +10,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 from .utils import OpenMock
 from hypothesis import given
-from hypothesis.extra.numpy import arrays as h_array
-from hypothesis.strategies import integers as h_int
-from hypothesis.strategies import floats as h_float
+from .conftest import image, mask, float_image
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 
@@ -76,10 +74,7 @@ def set_seed(seed):
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_augmentations_serialization(augmentation_cls, params, p, seed, image, mask, always_apply):
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
@@ -232,10 +227,7 @@ AUGMENTATION_CLS_PARAMS = (
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_augmentations_serialization_with_custom_parameters(
     augmentation_cls, params, p, seed, image, mask, always_apply
 ):
@@ -327,7 +319,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_augmentations_for_bboxes_serialization(
     augmentation_cls, params, p, seed, image, albumentations_bboxes, always_apply
 ):
@@ -392,7 +384,7 @@ def test_augmentations_for_bboxes_serialization(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, image, keypoints, always_apply):
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
@@ -423,10 +415,7 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, image, mask, always_apply):
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
@@ -459,7 +448,7 @@ def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, i
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_imgaug_augmentations_for_bboxes_serialization(
     augmentation_cls, params, p, seed, image, albumentations_bboxes, always_apply
 ):
@@ -494,7 +483,7 @@ def test_imgaug_augmentations_for_bboxes_serialization(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_imgaug_augmentations_for_keypoints_serialization(
     augmentation_cls, params, p, seed, image, keypoints, always_apply
 ):
@@ -514,7 +503,7 @@ def test_imgaug_augmentations_for_keypoints_serialization(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_image_only_crop_around_bbox_augmentation_serialization(p, seed, image, always_apply):
     aug = A.RandomCropNearBBox(p=p, always_apply=always_apply, max_part_shift=0.15)
     annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
@@ -527,7 +516,7 @@ def test_image_only_crop_around_bbox_augmentation_serialization(p, seed, image, 
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 
 
-@given(image=h_array(dtype=np.float32, shape=(7, 9, 3), elements=h_float(min_value=0, max_value=1, width=32)))
+@given(image=float_image())
 def test_from_float_serialization(float_image):
     aug = A.FromFloat(p=1, dtype="uint8")
     serialized_aug = A.to_dict(aug)
@@ -538,10 +527,7 @@ def test_from_float_serialization(float_image):
 
 
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_transform_pipeline_serialization(seed, image, mask):
     aug = A.Compose(
         [
@@ -592,7 +578,7 @@ def test_transform_pipeline_serialization(seed, image, mask):
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_format, labels):
     aug = A.Compose(
         [
@@ -625,7 +611,7 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints, keypoint_format, labels):
     aug = A.Compose(
         [
@@ -686,7 +672,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
     aug = A.Compose([augmentation_cls(always_apply=True, **params)], additional_targets={"image2": "image"})
     image2 = image.copy()
@@ -703,10 +689,7 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("p", [1])
-@given(
-    image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
-    mask=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
-)
+@given(image=image(), mask=mask())
 def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, seed, p):
     def vflip_image(image, **kwargs):
         return F.vflip(image)

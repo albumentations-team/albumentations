@@ -20,6 +20,7 @@ from hypothesis import given
 from hypothesis.extra.numpy import arrays as h_array
 from hypothesis.strategies import floats as h_float
 from hypothesis.strategies import integers as h_int
+from .conftest import image, mask, float_image
 
 
 @pytest.mark.parametrize(
@@ -52,7 +53,7 @@ def test_convert_keypoint_to_albumentations(kp, source_format, expected):
         ((20, 30, 0.6, 80), "xyas", (20, 30, math.degrees(0.6), 80)),
     ],
 )
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_convert_keypoint_from_albumentations(kp, target_format, expected, image):
     converted_keypoint = convert_keypoint_from_albumentations(
         kp, rows=image.shape[0], cols=image.shape[1], target_format=target_format
@@ -69,7 +70,7 @@ def test_convert_keypoint_from_albumentations(kp, target_format, expected, image
         ((20, 30, 60, 80, 99), "yx"),
     ],
 )
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format, image):
     converted_kp = convert_keypoint_to_albumentations(
         kp, rows=image.shape[0], cols=image.shape[1], source_format=keypoint_format
@@ -80,7 +81,7 @@ def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format, image)
     assert converted_back_kp == kp
 
 
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_convert_keypoints_to_albumentations(image):
     keypoints = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
     converted_keypoints = convert_keypoints_to_albumentations(
@@ -95,7 +96,7 @@ def test_convert_keypoints_to_albumentations(image):
     assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
 
 
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_convert_keypoints_from_albumentations(image):
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
 
@@ -120,7 +121,7 @@ def test_convert_keypoints_from_albumentations(image):
         ([(20, 30, 60, 80, 99)], "xys", None),
     ],
 )
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels, image):
     if labels is not None:
         aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": ["labels"]})
@@ -133,7 +134,7 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels, image):
 
 
 @pytest.mark.parametrize(["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]])
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format, image):
     aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": "class_id"})
     with pytest.raises(Exception):
@@ -150,7 +151,7 @@ def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_forma
         ([(20, 30, 60, 80), (30, 40, 40, 50)], "xy", {"id": [3, 1]}),
     ],
 )
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, labels, image):
     aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": list(labels.keys())})
     transformed = aug(image=image, keypoints=keypoints, **labels)
@@ -160,7 +161,7 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, la
         assert transformed[k] == v
 
 
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_random_sized_crop_size(image):
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.0)
@@ -169,7 +170,7 @@ def test_random_sized_crop_size(image):
     assert len(keypoints) == len(transformed["keypoints"])
 
 
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_random_resized_crop_size(image):
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomResizedCrop(height=50, width=50, p=1.0)
@@ -195,7 +196,7 @@ def test_random_resized_crop_size(image):
         [VerticalFlip, [[1, 1]], [[1, 1]]],
     ],
 )
-@given(image=h_array(dtype=np.uint8, shape=(3, 3, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_keypoint_flips_transform_3x3(aug, keypoints, expected, image):
     transform = Compose([aug(p=1)], keypoint_params={"format": "xy"})
 
@@ -215,7 +216,7 @@ def test_keypoint_flips_transform_3x3(aug, keypoints, expected, image):
         [VerticalFlip, [[20, 30, 90, 0]], [[20, 69, 270, 0]]],
     ],
 )
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_keypoint_transform_format_xyas(aug, keypoints, expected, image):
     transform = Compose(
         [aug(p=1)], keypoint_params={"format": "xyas", "angle_in_degrees": True, "label_fields": ["labels"]}
@@ -238,7 +239,7 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected, image):
         [IAAFlipud, [(20, 30, 90, 0)], [(20, 69, 90, 0)]],
     ],
 )
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_keypoint_transform_format_xy(aug, keypoints, expected, image):
     transform = Compose([aug(p=1)], keypoint_params={"format": "xy", "label_fields": ["labels"]})
 
@@ -304,7 +305,7 @@ def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
     np.testing.assert_allclose(actual, expected, rtol=1e-4)
 
 
-@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+@given(image=image())
 def test_compose_with_additional_targets(image):
     keypoints = [(10, 10), (50, 50)]
     kp1 = [(15, 15), (55, 55)]
