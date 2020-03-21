@@ -393,11 +393,11 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
     ],
 )
 @given(
-    grayscale_image=h_array(dtype=np.uint8, shape=(100, 100), elements=h_int(min_value=0, max_value=255)),
+    grayscale_image=mask(),
     image_1ch=image(num_channels=1),
-    mask_1ch=h_array(dtype=np.uint8, shape=(100, 100, 1), elements=h_int(min_value=0, max_value=255)),
+    mask_1ch=image(num_channels=1),
     image_3ch=image(),
-    mask_3ch=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)),
+    mask_3ch=image(),
     mask=mask(),
 )
 def test_augmentations_wont_change_shape_grayscale(

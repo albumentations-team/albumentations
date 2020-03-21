@@ -581,10 +581,10 @@ def test_mask_dropout(image):
     assert np.all(result["mask"] == 0)
 
 
-@given(image_uint=image(), image_float=float_image())
+@given(image_uint=image(height=256, width=320), image_float=float_image(height=256, width=320))
 def test_grid_dropout_mask(image_uint, image_float):
     for img in [image_uint, image_float]:
-        mask = np.ones([256, 320], dtype=np.uint8)
+        mask = np.ones(image_uint.shape[:2], dtype=np.uint8)
         aug = A.GridDropout(p=1, mask_fill_value=0)
         result = aug(image=img, mask=mask)
         # with mask on ones and fill_value = 0 the sum of pixels is smaller
@@ -594,21 +594,21 @@ def test_grid_dropout_mask(image_uint, image_float):
         assert result["mask"].shape == mask.shape
 
         # with mask of zeros and fill_value = 0 mask should not change
-        mask = np.zeros([256, 320], dtype=np.uint8)
+        mask = np.zeros(image_uint.shape[:2], dtype=np.uint8)
         aug = A.GridDropout(p=1, mask_fill_value=0)
         result = aug(image=image, mask=mask)
         assert result["image"].sum() < img.sum()
         assert np.all(result["mask"] == 0)
 
         # with mask mask_fill_value=100, mask sum is larger
-        mask = np.random.randint(0, 10, [256, 320], np.uint8)
+        mask = np.random.randint(0, 10, image_uint.shape[:2], np.uint8)
         aug = A.GridDropout(p=1, mask_fill_value=100)
         result = aug(image=img, mask=mask)
         assert result["image"].sum() < img.sum()
         assert result["mask"].sum() > mask.sum()
 
         # with mask mask_fill_value=None, mask is not changed
-        mask = np.ones([256, 320], dtype=np.uint8)
+        mask = np.ones(image_uint.shape[:2], dtype=np.uint8)
         aug = A.GridDropout(p=1, mask_fill_value=None)
         result = aug(image=img, mask=mask)
         assert result["image"].sum() < img.sum()
