@@ -3,6 +3,10 @@ import random
 import cv2
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis.extra.numpy import arrays as h_array
+from hypothesis.strategies import floats as h_float
+from hypothesis.strategies import integers as h_int
 
 from albumentations import (
     RandomCrop,
@@ -100,6 +104,10 @@ from albumentations import (
         [GridDropout, {}],
     ],
 )
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
@@ -138,6 +146,10 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         [GridDropout, {}],
     ],
 )
+@given(
+    float_image=h_array(dtype=np.float32, shape=(31, 57, 3), elements=h_float(min_value=0, max_value=1)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=float_image, mask=mask)
@@ -170,6 +182,10 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [GridDropout, {}],
     ],
 )
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
@@ -200,6 +216,10 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [GridDropout, {}],
     ],
 )
+@given(
+    float_image=h_array(dtype=np.float32, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=1)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=float_image, mask=mask)
@@ -208,6 +228,10 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
 
 
 @pytest.mark.parametrize("augmentation_cls", [IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
     aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
@@ -217,6 +241,10 @@ def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
 
 
 @pytest.mark.parametrize("augmentation_cls", [IAAPiecewiseAffine, IAAPerspective])
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
@@ -280,6 +308,10 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [GridDropout, {}],
     ],
 )
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
     mask_copy = mask.copy()
@@ -338,6 +370,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [GridDropout, {}],
     ],
 )
+@given(float_image=h_array(dtype=np.float32, shape=(31, 57, 3), elements=h_float(min_value=0, max_value=1)))
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
     aug = augmentation_cls(p=1, **params)
@@ -380,28 +413,30 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [HueSaturationValue, {}],
     ],
 )
-def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
+@given(
+    grayscale_image=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+    image_1ch=h_array(dtype=np.uint8, shape=(31, 57, 1), elements=h_int(min_value=0, max_value=255)),
+    mask_1ch=h_array(dtype=np.uint8, shape=(31, 57, 1), elements=h_int(min_value=0, max_value=255)),
+    image_3ch=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+    mask_3ch=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+)
+def test_augmentations_wont_change_shape_grayscale(
+    augmentation_cls, params, grayscale_image, image_1ch, mask_1ch, image_3ch, mask_3ch, mask
+):
     aug = augmentation_cls(p=1, **params)
 
     # Test for grayscale image
-    image = np.zeros((224, 224), dtype=np.uint8)
-    mask = np.zeros((224, 224))
-    result = aug(image=image, mask=mask)
-    assert np.array_equal(image.shape, result["image"].shape)
+    result = aug(image=grayscale_image, mask=mask)
+    assert np.array_equal(grayscale_image.shape, result["image"].shape)
     assert np.array_equal(mask.shape, result["mask"].shape)
 
     # Test for grayscale image with dummy dim
-    image_1ch = np.zeros((224, 224, 1), dtype=np.uint8)
-    mask_1ch = np.zeros((224, 224, 1))
-
     result = aug(image=image_1ch, mask=mask_1ch)
     assert np.array_equal(image_1ch.shape, result["image"].shape)
     assert np.array_equal(mask_1ch.shape, result["mask"].shape)
 
     # Test for RGB image
-    image_3ch = np.zeros((224, 224, 3), dtype=np.uint8)
-    mask_3ch = np.zeros((224, 224, 3))
-
     result = aug(image=image_3ch, mask=mask_3ch)
     assert np.array_equal(image_3ch.shape, result["image"].shape)
     assert np.array_equal(mask_3ch.shape, result["mask"].shape)
@@ -454,20 +489,22 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [GridDropout, {}],
     ],
 )
-def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
+@given(
+    image_3ch=h_array(dtype=np.uint8, shape=(13, 13, 3), elements=h_int(min_value=0, max_value=255)),
+    mask_3ch=h_array(dtype=np.uint8, shape=(13, 13, 3), elements=h_int(min_value=0, max_value=255)),
+)
+def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image_3ch, mask_3ch):
     aug = augmentation_cls(p=1, **params)
 
     # Test for RGB image
-    image_3ch = np.zeros((224, 224, 3), dtype=np.uint8)
-    mask_3ch = np.zeros((224, 224, 3))
-
     result = aug(image=image_3ch, mask=mask_3ch)
     assert np.array_equal(image_3ch.shape, result["image"].shape)
     assert np.array_equal(mask_3ch.shape, result["mask"].shape)
 
 
 @pytest.mark.parametrize(["augmentation_cls", "params"], [[RandomCropNearBBox, {"max_part_shift": 0.15}]])
-def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image, mask):
+@given(image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)))
+def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image):
     aug = augmentation_cls(p=1, **params)
     annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
     data = aug(**annotations)
@@ -488,13 +525,14 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
         [GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
     ],
 )
-def test_mask_fill_value(augmentation_cls, params):
+@given(value_image=h_int(min_value=0, max_value=255), value_mask=h_int(min_value=0, max_value=255))
+def test_mask_fill_value(augmentation_cls, params, value_image, value_mask):
     random.seed(42)
     aug = augmentation_cls(p=1, **params)
-    input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
+    input = {"image": np.zeros((512, 512), dtype=np.uint8) + value_image, "mask": np.zeros((512, 512)) + value_mask}
     output = aug(**input)
-    assert (output["image"] == 100).all()
-    assert (output["mask"] == 1).all()
+    assert (output["image"] == value_image).all()
+    assert (output["mask"] == value_mask).all()
 
 
 @pytest.mark.parametrize(
@@ -516,8 +554,8 @@ def test_mask_fill_value(augmentation_cls, params):
         [GridDropout, {}],
     ],
 )
-def test_multichannel_image_augmentations(augmentation_cls, params):
-    image = np.zeros((512, 512, 6), dtype=np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(31, 57, 6), elements=h_int(min_value=0, max_value=255)))
+def test_multichannel_image_augmentations(augmentation_cls, params, image):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image)
     assert data["image"].dtype == np.uint8

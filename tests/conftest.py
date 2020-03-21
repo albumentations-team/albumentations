@@ -1,9 +1,6 @@
-import os
 import warnings
 import sys
 import multiprocessing
-
-import numpy as np
 import pytest
 
 
@@ -28,16 +25,6 @@ def pytest_ignore_collect(path):
 
 
 @pytest.fixture
-def image():
-    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-
-
-@pytest.fixture
-def mask():
-    return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-
-
-@pytest.fixture
 def bboxes():
     return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
 
@@ -50,11 +37,6 @@ def albumentations_bboxes():
 @pytest.fixture
 def keypoints():
     return [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]]
-
-
-@pytest.fixture
-def float_image():
-    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
 
 
 @pytest.fixture

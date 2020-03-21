@@ -1,8 +1,10 @@
-from __future__ import absolute_import
-
 import cv2
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis.extra.numpy import arrays as h_array
+from hypothesis.strategies import floats as h_float
+from hypothesis.strategies import integers as h_int
 from numpy.testing import assert_array_almost_equal_nulp
 
 import albumentations.augmentations.functional as F
@@ -108,12 +110,14 @@ def test_normalize_float():
     assert_array_almost_equal_nulp(normalized, expected)
 
 
+@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)))
 def test_compare_rotate_and_shift_scale_rotate(image):
     rotated_img_1 = F.rotate(image, angle=60)
     rotated_img_2 = F.shift_scale_rotate(image, angle=60, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
+@given(float_image=h_array(dtype=np.float32, shape=(7, 9, 3), elements=h_float(min_value=0, max_value=1, width=32)))
 def test_compare_rotate_float_and_shift_scale_rotate_float(float_image):
     rotated_img_1 = F.rotate(float_image, angle=60)
     rotated_img_2 = F.shift_scale_rotate(float_image, angle=60, scale=1, dx=0, dy=0)
@@ -662,66 +666,57 @@ def test_fun_max_size():
     assert out.shape == (1724, target_width)
 
 
-def test_is_rgb_image():
-    image = np.ones((5, 5, 3), dtype=np.uint8)
-    assert F.is_rgb_image(image)
-
-    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
-    assert not F.is_rgb_image(multispectral_image)
-
-    gray_image = np.ones((5, 5), dtype=np.uint8)
-    assert not F.is_rgb_image(gray_image)
-
-    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
-    assert not F.is_rgb_image(gray_image)
-
-
-def test_is_grayscale_image():
-    image = np.ones((5, 5, 3), dtype=np.uint8)
-    assert not F.is_grayscale_image(image)
-
-    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
-    assert not F.is_grayscale_image(multispectral_image)
-
-    gray_image = np.ones((5, 5), dtype=np.uint8)
-    assert F.is_grayscale_image(gray_image)
-
-    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
-    assert F.is_grayscale_image(gray_image)
+@given(
+    image_1ch=h_array(dtype=np.uint8, shape=(7, 9, 1), elements=h_int(min_value=0, max_value=255)),
+    image_3ch=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
+    image_4ch=h_array(dtype=np.uint8, shape=(7, 9, 4), elements=h_int(min_value=0, max_value=255)),
+    image_grayscale=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
+)
+def test_is_rgb_image(image_grayscale, image_1ch, image_3ch, image_4ch):
+    assert F.is_rgb_image(image_3ch)
+    assert not F.is_rgb_image(image_4ch)
+    assert not F.is_rgb_image(image_grayscale)
+    assert not F.is_rgb_image(image_1ch)
 
 
-def test_is_multispectral_image():
-    image = np.ones((5, 5, 3), dtype=np.uint8)
-    assert not F.is_multispectral_image(image)
+@given(
+    image_1ch=h_array(dtype=np.uint8, shape=(7, 9, 1), elements=h_int(min_value=0, max_value=255)),
+    image_3ch=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
+    image_4ch=h_array(dtype=np.uint8, shape=(7, 9, 4), elements=h_int(min_value=0, max_value=255)),
+    image_grayscale=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
+)
+def test_is_grayscale_image(image_grayscale, image_1ch, image_3ch, image_4ch):
+    assert not F.is_grayscale_image(image_3ch)
+    assert not F.is_grayscale_image(image_4ch)
+    assert F.is_grayscale_image(image_grayscale)
+    assert F.is_grayscale_image(image_1ch)
 
-    multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
-    assert F.is_multispectral_image(multispectral_image)
 
-    gray_image = np.ones((5, 5), dtype=np.uint8)
-    assert not F.is_multispectral_image(gray_image)
+@given(
+    image_1ch=h_array(dtype=np.uint8, shape=(7, 9, 1), elements=h_int(min_value=0, max_value=255)),
+    image_3ch=h_array(dtype=np.uint8, shape=(7, 9, 3), elements=h_int(min_value=0, max_value=255)),
+    image_4ch=h_array(dtype=np.uint8, shape=(7, 9, 4), elements=h_int(min_value=0, max_value=255)),
+    image_grayscale=h_array(dtype=np.uint8, shape=(7, 9), elements=h_int(min_value=0, max_value=255)),
+)
+def test_is_multispectral_image(image_grayscale, image_1ch, image_3ch, image_4ch):
+    assert not F.is_multispectral_image(image_3ch)
+    assert F.is_multispectral_image(image_4ch)
+    assert not F.is_multispectral_image(image_grayscale)
+    assert not F.is_multispectral_image(image_1ch)
 
-    gray_image = np.ones((5, 5, 1), dtype=np.uint8)
-    assert not F.is_multispectral_image(gray_image)
 
-
-def test_brightness_contrast():
-    dtype = np.uint8
-    min_value = np.iinfo(dtype).min
-    max_value = np.iinfo(dtype).max
-
-    image_uint8 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
-
+@given(
+    image_uint8=h_array(dtype=np.uint8, shape=(7, 9, 3)),
+    image_uint16=h_array(dtype=np.uint16, shape=(7, 9, 3)),
+    image_uint32=h_array(dtype=np.uint32, shape=(7, 9, 3)),
+    image_float=h_array(dtype=np.float32, shape=(7, 9, 3), elements=h_float(allow_nan=False, width=32)),
+)
+def test_brightness_contrast(image_uint8, image_uint16, image_uint32, image_float):
     assert np.array_equal(F.brightness_contrast_adjust(image_uint8), F._brightness_contrast_adjust_uint(image_uint8))
 
     assert np.array_equal(
         F._brightness_contrast_adjust_non_uint(image_uint8), F._brightness_contrast_adjust_uint(image_uint8)
     )
-
-    dtype = np.uint16
-    min_value = np.iinfo(dtype).min
-    max_value = np.iinfo(dtype).max
-
-    image_uint16 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
 
     assert np.array_equal(
         F.brightness_contrast_adjust(image_uint16), F._brightness_contrast_adjust_non_uint(image_uint16)
@@ -729,29 +724,20 @@ def test_brightness_contrast():
 
     F.brightness_contrast_adjust(image_uint16)
 
-    dtype = np.uint32
-    min_value = np.iinfo(dtype).min
-    max_value = np.iinfo(dtype).max
-
-    image_uint32 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
-
     assert np.array_equal(
         F.brightness_contrast_adjust(image_uint32), F._brightness_contrast_adjust_non_uint(image_uint32)
     )
-
-    image_float = np.random.random((5, 5, 3))
 
     assert np.array_equal(
         F.brightness_contrast_adjust(image_float), F._brightness_contrast_adjust_non_uint(image_float)
     )
 
 
-def test_swap_tiles_on_image_with_empty_tiles():
-    img = np.array([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], dtype=np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(4, 4, 4)))
+def test_swap_tiles_on_image_with_empty_tiles(image):
+    result_img = F.swap_tiles_on_image(image, [])
 
-    result_img = F.swap_tiles_on_image(img, [])
-
-    assert np.array_equal(img, result_img)
+    assert np.array_equal(image, result_img)
 
 
 def test_swap_tiles_on_image_with_non_empty_tiles():
@@ -908,30 +894,23 @@ def test_downscale_random():
     assert np.all(img == downscaled)
 
 
-def test_maybe_process_in_chunks():
-    image = np.random.randint(0, 256, (100, 100, 6), np.uint8)
-
+@given(image=h_array(dtype=np.uint8, shape=(7, 9, 6)))
+def test_maybe_process_in_chunks(image):
     for i in range(1, image.shape[-1] + 1):
         before = image[:, :, :i]
         after = F.rotate(before, angle=1)
         assert before.shape == after.shape
 
 
-def test_multiply_uint8_optimized():
-    image = np.random.randint(0, 256, [256, 320], np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(7, 9, 3)))
+def test_multiply_uint8_optimized(image):
     m = 1.5
 
     result = F._multiply_uint8_optimized(image, [m])
     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.all(tmp == result)
 
-    image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
-    result = F._multiply_uint8_optimized(image, [m])
-    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.all(tmp == result)
-
     m = np.array([1.5, 0.75, 1.1])
-    image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
     result = F._multiply_uint8_optimized(image, m)
     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.all(tmp == result)
