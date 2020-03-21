@@ -59,14 +59,18 @@ def multiprocessing_context():
 @composite
 def image(draw, width=100, height=100, num_channels=3, dtype=np.uint8):
     return draw(
-        h_array(dtype=dtype, shape=(height, width), elements=h_int(min_value=0, max_value=np.iinfo(dtype).max))
+        h_array(
+            dtype=dtype,
+            shape=(height, width, num_channels),
+            elements=h_int(min_value=0, max_value=np.iinfo(dtype).max - 1),
+        )
     )
 
 
 @composite
 def mask(draw, width=100, height=100, dtype=np.uint8):
     return draw(
-        h_array(dtype=dtype, shape=(height, width), elements=h_int(min_value=0, max_value=np.iinfo(dtype).max))
+        h_array(dtype=dtype, shape=(height, width), elements=h_int(min_value=0, max_value=np.iinfo(dtype).max - 1))
     )
 
 
@@ -76,6 +80,6 @@ def float_image(draw, width=100, height=100, num_channels=3, dtype=np.float32):
         h_array(
             dtype=dtype,
             shape=(height, width, num_channels),
-            elements=h_float(min_value=0, allow_nan=False, max_value=np.iinfo(dtype).max),
+            elements=h_float(min_value=0, allow_nan=False, max_value=1, width=32),
         )
     )

@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import pytest
 from hypothesis import given
-from hypothesis.extra.numpy import arrays as h_array
 from hypothesis.strategies import integers as h_int
 
 from albumentations import (
