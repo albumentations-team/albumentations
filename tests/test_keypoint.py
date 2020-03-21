@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 import pytest
-from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
+from albumentations import HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 
 from albumentations.augmentations.keypoints_utils import (
     convert_keypoint_from_albumentations,
@@ -17,10 +17,7 @@ from albumentations.augmentations.transforms import RandomSizedCrop, RandomResiz
 import albumentations.augmentations.functional as F
 
 from hypothesis import given
-from hypothesis.extra.numpy import arrays as h_array
-from hypothesis.strategies import floats as h_float
-from hypothesis.strategies import integers as h_int
-from .conftest import image, mask, float_image
+from .conftest import image
 
 
 @pytest.mark.parametrize(

@@ -8,8 +8,6 @@ import albumentations.augmentations.functional as F
 from albumentations.augmentations.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 from .conftest import image, mask, float_image
-from hypothesis.extra.numpy import arrays as h_array
-from hypothesis.strategies import integers as h_int
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -899,9 +897,3 @@ def test_multiply_uint8_optimized(image):
     result = F._multiply_uint8_optimized(image, m)
     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.all(tmp == result)
-
-
-@given(image_uint8=image(), float_image=float_image())
-def test_shift_hsv_gray(image_uint8, float_image):
-    for img in [image_uint8, float_image]:
-        F.shift_hsv(img, 0.5, 0.5, 0.5)

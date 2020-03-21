@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import pytest
 from hypothesis import given
-from hypothesis.extra.numpy import arrays as h_array
 from hypothesis.strategies import floats as h_float
 from hypothesis.strategies import integers as h_int
 
@@ -22,12 +21,12 @@ def test_transpose_both_image_and_mask(image, mask):
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-@given(image=image(), mask=mask())
-def test_rotate_interpolation(interpolation, image, mask):
-    aug = A.Rotate(limit=(45, 45), interpolation=interpolation, p=1)
+@given(image=image(), mask=mask(), angle=h_int(min_value=0, max_value=179))
+def test_rotate_interpolation(interpolation, image, mask, angle):
+    aug = A.Rotate(limit=(angle, angle), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
-    expected_mask = F.rotate(mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
+    expected_image = F.rotate(image, angle, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
+    expected_mask = F.rotate(mask, angle, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
 
@@ -437,7 +436,6 @@ def test_crop_non_empty_mask():
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 @given(image_uint=image(), image_float=float_image())
 def test_downscale(interpolation, image_uint, image_float):
-
     aug = A.Downscale(scale_min=0.5, scale_max=0.5, interpolation=interpolation, always_apply=True)
 
     for img in (image_float, image_uint):
@@ -628,7 +626,6 @@ def test_grid_dropout_mask(image_uint, image_float):
 def test_grid_dropout_params(
     ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y, image
 ):
-
     aug = A.GridDropout(
         ratio=ratio,
         unit_size_min=unit_size_min,
