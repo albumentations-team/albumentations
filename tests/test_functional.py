@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, example
 from hypothesis.strategies import floats as h_float
 from hypothesis.strategies import integers as h_int
 from numpy.testing import assert_array_almost_equal_nulp
@@ -898,7 +898,8 @@ def test_maybe_process_in_chunks(image):
         assert before.shape == after.shape
 
 
-@given(image=h_image(), multiplier=h_float(min_value=0, max_value=2, exclude_min=True, exclude_max=True))
+@given(multiplier=h_float(min_value=0, max_value=2, exclude_min=True, exclude_max=True))
+@example(multiplier=0.5)
 def test_multiply_uint8_optimized(image, multiplier):
     result = F._multiply_uint8_optimized(image, [multiplier])
     tmp = F.clip(image * multiplier, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
