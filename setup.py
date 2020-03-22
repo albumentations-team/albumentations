@@ -57,7 +57,7 @@ setup(
     packages=find_packages(exclude=["tests"]),
     python_requires=">=3.5",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
-    extras_require={"tests": ["pytest"]},
+    extras_require={"tests": ["pytest", "hypothesis"]},
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
