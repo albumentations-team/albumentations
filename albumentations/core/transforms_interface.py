@@ -9,6 +9,7 @@ from copy import deepcopy
 from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
+import numpy as np
 
 __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
 

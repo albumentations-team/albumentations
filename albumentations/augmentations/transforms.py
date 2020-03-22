@@ -2851,8 +2851,8 @@ class Downscale(ImageOnlyTransform):
     """Decreases image quality by downscaling and upscaling back.
 
     Args:
-        scale_min (float): lower bound on the image scale. Should be < 1.
-        scale_max (float):  lower bound on the image scale. Should be .
+        scale_min: lower bound on the image scale. Should be < 1.
+        scale_max:  lower bound on the image scale. Should be .
         interpolation: cv2 interpolation method. cv2.INTER_NEAREST by default
 
     Targets:
@@ -2862,19 +2862,26 @@ class Downscale(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_min=0.25, scale_max=0.25, interpolation=cv2.INTER_NEAREST, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        scale_min: float = 0.25,
+        scale_max: float = 0.25,
+        interpolation=cv2.INTER_NEAREST,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
         super(Downscale, self).__init__(always_apply, p)
         if scale_min > scale_max:
-            raise ValueError(f"Expected scale_min be less or equal scale_max, got {scale_min} {scale_max}")
+            raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
 
         if scale_max >= 1:
-            raise ValueError(f"Expected scale_max to be less than 1, got {scale_max}.")
+            raise ValueError("Expected scale_max to be less than 1, got {}.".format(scale_max))
 
         self.scale_min = scale_min
         self.scale_max = scale_max
         self.interpolation = interpolation
 
-    def apply(self, image, scale=1, interpolation=cv2.INTER_NEAREST, **params):
+    def apply(self, image, scale, interpolation=cv2.INTER_NEAREST, **params):
         return F.downscale(image, scale=scale, interpolation=interpolation)
 
     @property
@@ -2884,7 +2891,7 @@ class Downscale(ImageOnlyTransform):
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params: dict) -> dict:
         image = params["image"]
 
         min_size = min(image.shape[:2])
