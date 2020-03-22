@@ -1,6 +1,6 @@
-import multiprocessing
-import sys
 import warnings
+import sys
+import multiprocessing
 
 import numpy as np
 import pytest
