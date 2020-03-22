@@ -92,14 +92,14 @@ def test_rot90_float(target):
     expected = np.array([[0.4, 0.4, 0.4], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     rotated = F.rot90(img, factor=1)
-    assert_array_almost_equal_nulp(rotated, expected)
+    assert np.allclose(rotated, expected)
 
 
 @given(mean=h_float(min_value=0, max_value=255, allow_nan=False), std=h_float(min_value=1, max_value=255))
 def test_normalize(mean, std):
     img = np.ones((100, 100, 3), dtype=np.uint8) * 127
     normalized = F.normalize(img, mean=mean, std=std)
-    expected = (np.ones((100, 100, 3), dtype=np.float32) * 127 / 255 - mean) / std
+    expected = np.clip((np.ones((100, 100, 3), dtype=np.float32) * 127 / 255 - mean) / std, 0, 255)
     assert_array_almost_equal_nulp(normalized, expected)
 
 

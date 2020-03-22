@@ -5,10 +5,10 @@ import random
 import warnings
 from enum import Enum
 from types import LambdaType
-from skimage.measure import label
 
 import cv2
 import numpy as np
+from skimage.measure import label
 
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
@@ -81,6 +81,8 @@ __all__ = [
     "MaskDropout",
     "GridDropout",
 ]
+
+EPSILON = np.finfo(float).eps
 
 
 class PadIfNeeded(DualTransform):
@@ -2865,19 +2867,33 @@ class Downscale(ImageOnlyTransform):
         assert scale_min <= scale_max, "Expected scale_min be less or equal scale_max, got {} {}".format(
             scale_min, scale_max
         )
-        assert scale_max < 1, "Expected scale_max to be less than 1, got {}".format(scale_max)
+        if scale_max >= 1:
+            raise ValueError(f"Expected scale_max to be less than 1, got {scale_max}.")
+
         self.scale_min = scale_min
         self.scale_max = scale_max
         self.interpolation = interpolation
 
-    def apply(self, image, scale, interpolation, **params):
+    def apply(self, image, scale=1, interpolation=cv2.INTER_NEAREST, **params):
         return F.downscale(image, scale=scale, interpolation=interpolation)
 
-    def get_params(self):
-        return {"scale": np.random.uniform(self.scale_min, self.scale_max), "interpolation": self.interpolation}
+    @property
+    def targets_as_params(self):
+        return ["image"]
 
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"
+
+    def get_params_dependent_on_targets(self, params: dict) -> dict:
+        image = params["image"]
+
+        min_size = min(image.shape[:2])
+
+        # Minimum size for downscaling is 1 pixel in the smallest side)
+        from_scale = max(1 / min_size, self.scale_min)
+        scale = random.uniform(from_scale, self.scale_max)
+
+        return {"scale": scale}
 
 
 class Lambda(NoOp):

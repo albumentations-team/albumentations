@@ -181,7 +181,8 @@ def test_random_resized_crop_size(image):
         [VerticalFlip, [[1, 1]], [[1, 1]]],
     ],
 )
-def test_keypoint_flips_transform_3x3(aug, keypoints, expected, image):
+def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
+    image = np.ones((3, 3, 3))
     transform = Compose([aug(p=1)], keypoint_params={"format": "xy"})
 
     transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
@@ -200,7 +201,7 @@ def test_keypoint_flips_transform_3x3(aug, keypoints, expected, image):
         [VerticalFlip, [[20, 30, 90, 0]], [[20, 69, 270, 0]]],
     ],
 )
-def test_keypoint_transform_format_xyas(aug, keypoints, expected, image):
+def test_keypoint_transform_format_xyas(aug, keypoints, expected):
     transform = Compose(
         [aug(p=1)], keypoint_params={"format": "xyas", "angle_in_degrees": True, "label_fields": ["labels"]}
     )
@@ -213,13 +214,13 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected, image):
 @pytest.mark.parametrize(
     ["aug", "keypoints", "expected"],
     [
-        [IAAFliplr, [(20, 30, 0, 0)], [(79, 30, 0, 0)]],
-        [IAAFliplr, [(20, 30, 45, 0)], [(79, 30, 45, 0)]],
-        [IAAFliplr, [(20, 30, 90, 0)], [(79, 30, 90, 0)]],
+        [IAAFliplr, [(20, 30, 0, 0)], [(80, 30, 0, 0)]],
+        [IAAFliplr, [(20, 30, 45, 0)], [(80, 30, 45, 0)]],
+        [IAAFliplr, [(20, 30, 90, 0)], [(80, 30, 90, 0)]],
         #
-        [IAAFlipud, [(20, 30, 0, 0)], [(20, 69, 0, 0)]],
-        [IAAFlipud, [(20, 30, 45, 0)], [(20, 69, 45, 0)]],
-        [IAAFlipud, [(20, 30, 90, 0)], [(20, 69, 90, 0)]],
+        [IAAFlipud, [(20, 30, 0, 0)], [(20, 70, 0, 0)]],
+        [IAAFlipud, [(20, 30, 45, 0)], [(20, 70, 45, 0)]],
+        [IAAFlipud, [(20, 30, 90, 0)], [(20, 70, 90, 0)]],
     ],
 )
 def test_keypoint_transform_format_xy(aug, keypoints, expected, image):
