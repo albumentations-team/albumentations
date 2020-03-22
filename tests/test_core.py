@@ -59,7 +59,7 @@ def test_one_of(image):
     float_value=h_float(min_value=0, max_value=1),
     int_value2=h_int(min_value=0, max_value=255),
 )
-@example(int_value=20, float_value=0.5)
+@example(int_value=20, float_value=0.5, int_value2=60)
 def test_to_tuple(int_value, float_value, int_value2):
     assert to_tuple(int_value) == (-int_value, int_value)
     assert to_tuple(float_value) == (-float_value, float_value)
