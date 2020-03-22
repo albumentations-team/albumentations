@@ -3,7 +3,7 @@ from functools import partial
 import cv2
 import numpy as np
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, example
 from hypothesis.strategies import floats as h_float
 from hypothesis.strategies import integers as h_int
 
@@ -33,7 +33,7 @@ def test_rotate_interpolation(interpolation, image, mask, angle):
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 @given(
     shift_limit=h_float(min_value=0, max_value=1, allow_nan=False),
-    scale_limit=h_float(min_value=0, max_value=2, allow_nan=False),
+    scale_limit=h_float(min_value=0, max_value=2, allow_nan=False, exclude_min=True),
     rotate_limit=h_int(min_value=-360, max_value=360),
 )
 def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limit, scale_limit, rotate_limit):
@@ -45,10 +45,13 @@ def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limi
         p=1,
     )
     data = aug(image=image, mask=mask)
+
+    scale = max(1 / min(image.shape[:2]), scale_limit)
+
     expected_image = F.shift_scale_rotate(
         image,
         angle=rotate_limit,
-        scale=scale_limit,
+        scale=scale,
         dx=shift_limit,
         dy=shift_limit,
         interpolation=interpolation,
@@ -57,7 +60,7 @@ def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limi
     expected_mask = F.shift_scale_rotate(
         mask,
         angle=rotate_limit,
-        scale=scale_limit,
+        scale=scale,
         dx=shift_limit,
         dy=shift_limit,
         interpolation=cv2.INTER_NEAREST,
@@ -86,17 +89,24 @@ def test_optical_distortion_interpolation(interpolation, image, mask, distort_li
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 @given(distort_limit=h_float(min_value=0, max_value=1, allow_nan=False))
+@example(distort_limit=0.3)
 def test_grid_distortion_interpolation(interpolation, image, mask, distort_limit):
     aug = A.GridDistortion(num_steps=1, distort_limit=(distort_limit, distort_limit), interpolation=interpolation, p=1)
+
     data = aug(image=image, mask=mask)
     expected_image = F.grid_distortion(
-        image, num_steps=1, xsteps=[1.3], ysteps=[1.3], interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
+        image,
+        num_steps=1,
+        xsteps=[1 + distort_limit],
+        ysteps=[1 + distort_limit],
+        interpolation=interpolation,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     expected_mask = F.grid_distortion(
         mask,
         num_steps=1,
-        xsteps=[1.3],
-        ysteps=[1.3],
+        xsteps=[1 + distort_limit],
+        ysteps=[1 + distort_limit],
         interpolation=cv2.INTER_NEAREST,
         border_mode=cv2.BORDER_REFLECT_101,
     )
@@ -158,10 +168,10 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation, image, mask
         [A.GlassBlur, {}],
     ],
 )
-def test_binary_mask_interpolation(augmentation_cls, params, image, mask):
+def test_binary_mask_interpolation(augmentation_cls, params, image, binary_mask):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image, mask=mask)
+    data = aug(image=image, mask=binary_mask)
     assert np.array_equal(np.unique(data["mask"]), np.array([0, 1]))
 
 
@@ -187,6 +197,7 @@ def test_semantic_mask_interpolation(augmentation_cls, params, image):
     """
     aug = augmentation_cls(p=1, **params)
     mask = np.random.randint(low=0, high=4, size=image.shape[:2], dtype=np.uint8) * 64
+    assert np.array_equal(np.unique(mask), np.array([0, 64, 128, 192]))
 
     data = aug(image=image, mask=mask)
     assert np.array_equal(np.unique(data["mask"]), np.array([0, 64, 128, 192]))

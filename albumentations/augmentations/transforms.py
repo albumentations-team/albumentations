@@ -648,12 +648,11 @@ class ShiftScaleRotate(DualTransform):
     def get_params(self):
         return {
             "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
-            "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
             "dx": random.uniform(self.shift_limit[0], self.shift_limit[1]),
             "dy": random.uniform(self.shift_limit[0], self.shift_limit[1]),
         }
 
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
+    def apply_to_bbox(self, bbox=[], angle=0, scale=1, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
 
     def get_transform_init_args(self):
@@ -666,6 +665,19 @@ class ShiftScaleRotate(DualTransform):
             "value": self.value,
             "mask_value": self.mask_value,
         }
+
+    def get_params_dependent_on_targets(self, params):
+        image = params["image"]
+
+        min_size = min(image.shape[:2])
+
+        # Minimum size for downscaling is 1 pixel in the smallest side)
+        from_scale = max(1 / min_size + EPSILON, self.scale_min)
+        scale = random.uniform(from_scale, self.scale_max)
+
+        assert scale * min_size >= 1, f"{scale} {min_size}"
+
+        return {"scale": scale}
 
 
 class CenterCrop(DualTransform):
@@ -1228,8 +1240,8 @@ class GridDistortion(DualTransform):
         )
 
     def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
         return {"stepsx": stepsx, "stepsy": stepsy}
 
     def get_transform_init_args_names(self):
@@ -2893,13 +2905,13 @@ class Downscale(ImageOnlyTransform):
     def targets_as_params(self):
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: dict) -> dict:
+    def get_params_dependent_on_targets(self, params):
         image = params["image"]
 
         min_size = min(image.shape[:2])
 
         # Minimum size for downscaling is 1 pixel in the smallest side)
-        from_scale = max(1 / min_size, self.scale_min)
+        from_scale = max(1 / min_size + EPSILON, self.scale_min)
         scale = random.uniform(from_scale, self.scale_max)
 
         return {"scale": scale}
