@@ -3,24 +3,32 @@ from functools import partial
 import cv2
 import numpy as np
 import pytest
+from hypothesis import given
+from hypothesis.extra.numpy import arrays as h_array
+from hypothesis.strategies import floats as h_float
+from hypothesis.strategies import integers as h_int
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 
 
-def test_transpose_both_image_and_mask():
-    image = np.ones((8, 6, 3))
-    mask = np.ones((8, 6))
+@given(
+    image=h_array(dtype=np.uint8, shape=(5, 5, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(5, 5), elements=h_int(min_value=0, max_value=255)),
+)
+def test_transpose_both_image_and_mask(image, mask):
     augmentation = A.Transpose(p=1)
     augmented = augmentation(image=image, mask=mask)
-    assert augmented["image"].shape == (6, 8, 3)
-    assert augmented["mask"].shape == (6, 8)
+    assert augmented["image"].shape == (5, 5, 3)
+    assert augmented["mask"].shape == (5, 5)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_rotate_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+@given(
+    image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(5, 7), elements=h_int(min_value=0, max_value=255)),
+)
+def test_rotate_interpolation(interpolation, image, mask):
     aug = A.Rotate(limit=(45, 45), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
     expected_image = F.rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
@@ -30,44 +38,73 @@ def test_rotate_interpolation(interpolation):
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_shift_scale_rotate_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+@given(
+    image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(5, 7), elements=h_int(min_value=0, max_value=255)),
+    shift_limit=h_float(min_value=0, max_value=1),
+    scale_limit=h_float(min_value=0, max_value=2),
+    rotate_limit=h_int(min_value=0, max_value=179),
+)
+def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limit, scale_limit, rotate_limit):
     aug = A.ShiftScaleRotate(
-        shift_limit=(0.2, 0.2), scale_limit=(1.1, 1.1), rotate_limit=(45, 45), interpolation=interpolation, p=1
+        shift_limit=(shift_limit, shift_limit),
+        scale_limit=(scale_limit, scale_limit),
+        rotate_limit=(rotate_limit, rotate_limit),
+        interpolation=interpolation,
+        p=1,
     )
     data = aug(image=image, mask=mask)
     expected_image = F.shift_scale_rotate(
-        image, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
+        image,
+        angle=rotate_limit,
+        scale=scale_limit,
+        dx=shift_limit,
+        dy=shift_limit,
+        interpolation=interpolation,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     expected_mask = F.shift_scale_rotate(
-        mask, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
+        mask,
+        angle=rotate_limit,
+        scale=scale_limit,
+        dx=shift_limit,
+        dy=shift_limit,
+        interpolation=cv2.INTER_NEAREST,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_optical_distortion_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    aug = A.OpticalDistortion(distort_limit=(0.05, 0.05), shift_limit=(0, 0), interpolation=interpolation, p=1)
+@given(
+    image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(5, 7), elements=h_int(min_value=0, max_value=255)),
+    distort_limit=h_float(min_value=0, max_value=1),
+)
+def test_optical_distortion_interpolation(interpolation, image, mask, distort_limit):
+    aug = A.OpticalDistortion(
+        distort_limit=(distort_limit, distort_limit), shift_limit=(0, 0), interpolation=interpolation, p=1
+    )
     data = aug(image=image, mask=mask)
     expected_image = F.optical_distortion(
-        image, k=0.05, dx=0, dy=0, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
+        image, k=distort_limit, dx=0, dy=0, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
     )
     expected_mask = F.optical_distortion(
-        mask, k=0.05, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
+        mask, k=distort_limit, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
     )
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_grid_distortion_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    aug = A.GridDistortion(num_steps=1, distort_limit=(0.3, 0.3), interpolation=interpolation, p=1)
+@given(
+    image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(5, 7), elements=h_int(min_value=0, max_value=255)),
+    distort_limit=h_float(min_value=0, max_value=1),
+)
+def test_grid_distortion_interpolation(interpolation, image, mask, distort_limit):
+    aug = A.GridDistortion(num_steps=1, distort_limit=(distort_limit, distort_limit), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
     expected_image = F.grid_distortion(
         image, num_steps=1, xsteps=[1.3], ysteps=[1.3], interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
@@ -84,7 +121,7 @@ def test_grid_distortion_interpolation(interpolation):
     assert np.array_equal(data["mask"], expected_mask)
 
 
-@pytest.mark.parametrize("size", [17, 21, 33])
+@given(size=h_int(min_value=17, max_value=33))
 def test_grid_distortion_steps(size):
     image = np.random.rand(size, size, 3)
     aug = A.GridDistortion(num_steps=size - 2, p=1)
@@ -93,9 +130,11 @@ def test_grid_distortion_steps(size):
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_elastic_transform_interpolation(monkeypatch, interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+@given(
+    image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(5, 7), elements=h_int(min_value=0, max_value=255)),
+)
+def test_elastic_transform_interpolation(monkeypatch, interpolation, image, mask):
     monkeypatch.setattr(
         "albumentations.augmentations.transforms.ElasticTransform.get_params", lambda *_: {"random_state": 1111}
     )
@@ -140,11 +179,13 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         [A.GlassBlur, {}],
     ],
 )
-def test_binary_mask_interpolation(augmentation_cls, params):
+@given(
+    image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(5, 7), elements=h_int(min_value=0, max_value=1)),
+)
+def test_binary_mask_interpolation(augmentation_cls, params, image, mask):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
     aug = augmentation_cls(p=1, **params)
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     data = aug(image=image, mask=mask)
     assert np.array_equal(np.unique(data["mask"]), np.array([0, 1]))
 
@@ -165,13 +206,13 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.GlassBlur, {}],
     ],
 )
-def test_semantic_mask_interpolation(augmentation_cls, params):
+@given(image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)))
+def test_semantic_mask_interpolation(augmentation_cls, params, image):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts.
     Note: IAAAffine, IAAPiecewiseAffine, IAAPerspective does not properly operate if mask has values other than {0;1}
     """
     aug = augmentation_cls(p=1, **params)
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
+    mask = np.random.randint(low=0, high=4, size=image.shape[:2], dtype=np.uint8) * 64
 
     data = aug(image=image, mask=mask)
     assert np.array_equal(np.unique(data["mask"]), np.array([0, 64, 128, 192]))
@@ -287,17 +328,17 @@ def test_force_apply():
         [A.GridDropout, {}],
     ],
 )
-def test_additional_targets_for_image_only(augmentation_cls, params):
+@given(image1=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)))
+def test_additional_targets_for_image_only(augmentation_cls, params, image1):
     aug = A.Compose([augmentation_cls(always_apply=True, **params)], additional_targets={"image2": "image"})
-    for _i in range(10):
-        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-        image2 = image1.copy()
-        res = aug(image=image1, image2=image2)
-        aug1 = res["image"]
-        aug2 = res["image2"]
-        assert np.array_equal(aug1, aug2)
+    image2 = image1.copy()
+    res = aug(image=image1, image2=image2)
+    aug1 = res["image"]
+    aug2 = res["image2"]
+    assert np.array_equal(aug1, aug2)
 
 
+@given(image=h_array(dtype=np.uint8, shape=(5, 7, 3), elements=h_int(min_value=0, max_value=255)))
 def test_lambda_transform():
     def negate_image(image, **kwargs):
         return -image
@@ -343,25 +384,27 @@ def test_channel_droput():
     assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 1
 
 
-def test_equalize():
+@given(
+    image=h_array(dtype=np.uint8, shape=(256, 256, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(256, 256), elements=h_int(min_value=0, max_value=255)),
+)
+def test_equalize(image, mask):
     aug = A.Equalize(p=1)
 
-    img = np.random.randint(0, 256, 256 * 256 * 3, np.uint8).reshape((256, 256, 3))
-    a = aug(image=img)["image"]
-    b = F.equalize(img)
+    a = aug(image=image)["image"]
+    b = F.equalize(image)
     assert np.all(a == b)
 
-    mask = np.random.randint(0, 2, 256 * 256, np.uint8).reshape((256, 256))
     aug = A.Equalize(mask=mask, p=1)
-    a = aug(image=img)["image"]
-    b = F.equalize(img, mask=mask)
+    a = aug(image=image)["image"]
+    b = F.equalize(image, mask=mask)
     assert np.all(a == b)
 
     def mask_func(image, test):
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
-    assert np.all(aug(image=img, test=mask)["image"] == F.equalize(img, mask=mask))
+    assert np.all(aug(image=image, test=mask)["image"] == F.equalize(image, mask=mask))
 
 
 def test_crop_non_empty_mask():
@@ -414,20 +457,22 @@ def test_crop_non_empty_mask():
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_downscale(interpolation):
-    img_float = np.random.rand(100, 100, 3)
-    img_uint = (img_float * 255).astype("uint8")
+@given(
+    image_uint=h_array(dtype=np.uint8, shape=(256, 256, 3), elements=h_int(min_value=0, max_value=255)),
+    image_float=h_array(dtype=np.float32, shape=(256, 256, 3), elements=h_float(min_value=0, max_value=1, width=32)),
+)
+def test_downscale(interpolation, image_uint, image_float):
 
     aug = A.Downscale(scale_min=0.5, scale_max=0.5, interpolation=interpolation, always_apply=True)
 
-    for img in (img_float, img_uint):
+    for img in (image_float, image_uint):
         transformed = aug(image=img)["image"]
         func_applied = F.downscale(img, scale=0.5, interpolation=interpolation)
         np.testing.assert_almost_equal(transformed, func_applied)
 
 
-def test_crop_keypoints():
-    image = np.random.randint(0, 256, (100, 100), np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(100, 100, 3), elements=h_int(min_value=0, max_value=255)))
+def test_crop_keypoints(image):
     keypoints = [(50, 50, 0, 0)]
 
     aug = A.Crop(0, 0, 80, 80, p=1)
@@ -439,164 +484,169 @@ def test_crop_keypoints():
     assert result["keypoints"] == [(0, 0, 0, 0)]
 
 
-def test_longest_max_size_keypoints():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(50, 10, 3), elements=h_int(min_value=0, max_value=255)))
+def test_longest_max_size_keypoints(image):
     keypoints = [(9, 5, 0, 0)]
 
     aug = A.LongestMaxSize(max_size=100, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(18, 10, 0, 0)]
 
     aug = A.LongestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(0.9, 0.5, 0, 0)]
 
     aug = A.LongestMaxSize(max_size=50, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(9, 5, 0, 0)]
 
 
-def test_smallest_max_size_keypoints():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(50, 10, 3), elements=h_int(min_value=0, max_value=255)))
+def test_smallest_max_size_keypoints(image):
     keypoints = [(9, 5, 0, 0)]
 
     aug = A.SmallestMaxSize(max_size=100, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(90, 50, 0, 0)]
 
     aug = A.SmallestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(4.5, 2.5, 0, 0)]
 
     aug = A.SmallestMaxSize(max_size=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(9, 5, 0, 0)]
 
 
-def test_resize_keypoints():
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(50, 10, 3), elements=h_int(min_value=0, max_value=255)))
+def test_resize_keypoints(image):
     keypoints = [(9, 5, 0, 0)]
 
     aug = A.Resize(height=100, width=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(4.5, 10, 0, 0)]
 
     aug = A.Resize(height=50, width=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
+    result = aug(image=image, keypoints=keypoints)
     assert result["keypoints"] == [(9, 5, 0, 0)]
 
 
-@pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320], np.uint8), np.random.random([256, 320]).astype(np.float32)]
+@given(
+    image_uint=h_array(dtype=np.uint8, shape=(256, 320, 3), elements=h_int(min_value=0, max_value=255)),
+    image_float=h_array(dtype=np.float32, shape=(256, 320, 3), elements=h_float(min_value=0, max_value=1, width=32)),
 )
-def test_multiplicative_noise_grayscale(image):
-    m = 0.5
-    aug = A.MultiplicativeNoise(m, p=1)
-    result = aug(image=image)["image"]
-    image = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.allclose(image, result)
+def test_multiplicative_noise_grayscale(image_uint, image_float):
+    for image in [image_uint, image_float]:
+        m = 0.5
+        aug = A.MultiplicativeNoise(m, p=1)
+        result = aug(image=image)["image"]
+        image = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+        assert np.allclose(image, result)
 
-    aug = A.MultiplicativeNoise(elementwise=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == image.shape
-    result = aug.apply(image, mul)
-    dtype = image.dtype
-    image = image.astype(np.float32) * mul
-    image = F.clip(image, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+        aug = A.MultiplicativeNoise(elementwise=True, p=1)
+        params = aug.get_params_dependent_on_targets({"image": image})
+        mul = params["multiplier"]
+        assert mul.shape == image.shape
+        result = aug.apply(image, mul)
+        dtype = image.dtype
+        image = image.astype(np.float32) * mul
+        image = F.clip(image, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+        assert np.allclose(image, result)
 
 
-@pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+@given(
+    image_uint=h_array(dtype=np.uint8, shape=(256, 320, 3), elements=h_int(min_value=0, max_value=255)),
+    image_float=h_array(dtype=np.float32, shape=(256, 320, 3), elements=h_float(min_value=0, max_value=1, width=32)),
 )
-def test_multiplicative_noise_rgb(image):
-    dtype = image.dtype
+def test_multiplicative_noise_rgb(image_uint, image_float):
+    for image in [image_uint, image_float]:
+        dtype = image.dtype
 
-    m = 0.5
-    aug = A.MultiplicativeNoise(m, p=1)
-    result = aug(image=image)["image"]
-    image = F.clip(image * m, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+        m = 0.5
+        aug = A.MultiplicativeNoise(m, p=1)
+        result = aug(image=image)["image"]
+        image = F.clip(image * m, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+        assert np.allclose(image, result)
 
-    aug = A.MultiplicativeNoise(elementwise=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == image.shape[:2] + (1,)
-    result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+        aug = A.MultiplicativeNoise(elementwise=True, p=1)
+        params = aug.get_params_dependent_on_targets({"image": image})
+        mul = params["multiplier"]
+        assert mul.shape == image.shape[:2] + (1,)
+        result = aug.apply(image, mul)
+        image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+        assert np.allclose(image, result)
 
-    aug = A.MultiplicativeNoise(per_channel=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == (3,)
-    result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+        aug = A.MultiplicativeNoise(per_channel=True, p=1)
+        params = aug.get_params_dependent_on_targets({"image": image})
+        mul = params["multiplier"]
+        assert mul.shape == (3,)
+        result = aug.apply(image, mul)
+        image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+        assert np.allclose(image, result)
 
-    aug = A.MultiplicativeNoise(elementwise=True, per_channel=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == image.shape
-    result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.allclose(image, result)
+        aug = A.MultiplicativeNoise(elementwise=True, per_channel=True, p=1)
+        params = aug.get_params_dependent_on_targets({"image": image})
+        mul = params["multiplier"]
+        assert mul.shape == image.shape
+        result = aug.apply(image, mul)
+        image = F.clip(image.astype(np.float32) * mul, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+        assert np.allclose(image, result)
 
 
-def test_mask_dropout():
+@given(image=h_array(dtype=np.uint8, shape=(50, 10, 3), elements=h_int(min_value=0, max_value=255)))
+def test_mask_dropout(image):
     # In this case we have mask with all ones, so MaskDropout wipe entire mask and image
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
-    mask = np.ones([50, 10], dtype=np.long)
+    mask = np.ones(image.shape[:2], dtype=np.long)
 
     aug = A.MaskDropout(p=1)
-    result = aug(image=img, mask=mask)
+    result = aug(image=image, mask=mask)
     assert np.all(result["image"] == 0)
     assert np.all(result["mask"] == 0)
 
     # In this case we have mask with zeros , so MaskDropout will make no changes
-    img = np.random.randint(0, 256, [50, 10], np.uint8)
     mask = np.zeros([50, 10], dtype=np.long)
 
     aug = A.MaskDropout(p=1)
-    result = aug(image=img, mask=mask)
-    assert np.all(result["image"] == img)
+    result = aug(image=image, mask=mask)
+    assert np.all(result["image"] == image)
     assert np.all(result["mask"] == 0)
 
 
-@pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+@given(
+    image_uint=h_array(dtype=np.uint8, shape=(256, 320, 3), elements=h_int(min_value=0, max_value=255)),
+    image_float=h_array(dtype=np.float32, shape=(256, 320, 3), elements=h_float(min_value=0, max_value=1, width=32)),
 )
-def test_grid_dropout_mask(image):
-    mask = np.ones([256, 320], dtype=np.uint8)
-    aug = A.GridDropout(p=1, mask_fill_value=0)
-    result = aug(image=image, mask=mask)
-    # with mask on ones and fill_value = 0 the sum of pixels is smaller
-    assert result["image"].sum() < image.sum()
-    assert result["image"].shape == image.shape
-    assert result["mask"].sum() < mask.sum()
-    assert result["mask"].shape == mask.shape
+def test_grid_dropout_mask(image_uint, image_float):
+    for image in [image_uint, image_float]:
+        mask = np.ones([256, 320], dtype=np.uint8)
+        aug = A.GridDropout(p=1, mask_fill_value=0)
+        result = aug(image=image, mask=mask)
+        # with mask on ones and fill_value = 0 the sum of pixels is smaller
+        assert result["image"].sum() < image.sum()
+        assert result["image"].shape == image.shape
+        assert result["mask"].sum() < mask.sum()
+        assert result["mask"].shape == mask.shape
 
-    # with mask of zeros and fill_value = 0 mask should not change
-    mask = np.zeros([256, 320], dtype=np.uint8)
-    aug = A.GridDropout(p=1, mask_fill_value=0)
-    result = aug(image=image, mask=mask)
-    assert result["image"].sum() < image.sum()
-    assert np.all(result["mask"] == 0)
+        # with mask of zeros and fill_value = 0 mask should not change
+        mask = np.zeros([256, 320], dtype=np.uint8)
+        aug = A.GridDropout(p=1, mask_fill_value=0)
+        result = aug(image=image, mask=mask)
+        assert result["image"].sum() < image.sum()
+        assert np.all(result["mask"] == 0)
 
-    # with mask mask_fill_value=100, mask sum is larger
-    mask = np.random.randint(0, 10, [256, 320], np.uint8)
-    aug = A.GridDropout(p=1, mask_fill_value=100)
-    result = aug(image=image, mask=mask)
-    assert result["image"].sum() < image.sum()
-    assert result["mask"].sum() > mask.sum()
+        # with mask mask_fill_value=100, mask sum is larger
+        mask = np.random.randint(0, 10, [256, 320], np.uint8)
+        aug = A.GridDropout(p=1, mask_fill_value=100)
+        result = aug(image=image, mask=mask)
+        assert result["image"].sum() < image.sum()
+        assert result["mask"].sum() > mask.sum()
 
-    # with mask mask_fill_value=None, mask is not changed
-    mask = np.ones([256, 320], dtype=np.uint8)
-    aug = A.GridDropout(p=1, mask_fill_value=None)
-    result = aug(image=image, mask=mask)
-    assert result["image"].sum() < image.sum()
-    assert result["mask"].sum() == mask.sum()
+        # with mask mask_fill_value=None, mask is not changed
+        mask = np.ones([256, 320], dtype=np.uint8)
+        aug = A.GridDropout(p=1, mask_fill_value=None)
+        result = aug(image=image, mask=mask)
+        assert result["image"].sum() < image.sum()
+        assert result["mask"].sum() == mask.sum()
 
 
 @pytest.mark.parametrize(
@@ -608,8 +658,10 @@ def test_grid_dropout_mask(image):
         (0.00004, None, None, 2, 100, None, None),
     ],
 )
-def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y):
-    img = np.random.randint(0, 256, [256, 320], np.uint8)
+@given(image=h_array(dtype=np.uint8, shape=(256, 320, 3), elements=h_int(min_value=0, max_value=255)))
+def test_grid_dropout_params(
+    ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y, image
+):
 
     aug = A.GridDropout(
         ratio=ratio,
@@ -623,11 +675,11 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
         fill_value=0,
         p=1,
     )
-    result = aug(image=img)["image"]
+    result = aug(image=image)["image"]
     # with fill_value = 0 the sum of pixels is smaller
-    assert result.sum() < img.sum()
-    assert result.shape == img.shape
-    params = aug.get_params_dependent_on_targets({"image": img})
+    assert result.sum() < image.sum()
+    assert result.shape == image.shape
+    params = aug.get_params_dependent_on_targets({"image": image})
     holes = params["holes"]
     assert len(holes[0]) == 4
     # check grid offsets

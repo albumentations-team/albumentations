@@ -1,12 +1,18 @@
-import pytest
-
 import numpy as np
+import pytest
 import torch
+from hypothesis import given
+from hypothesis.extra.numpy import arrays as h_array
+from hypothesis.strategies import integers as h_int
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensor, ToTensorV2
 
 
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_torch_to_tensor_v2_augmentations(image, mask):
     aug = ToTensorV2()
     data = aug(image=image, mask=mask, force_apply=True)
@@ -16,22 +22,28 @@ def test_torch_to_tensor_v2_augmentations(image, mask):
     assert data["mask"].dtype == torch.uint8
 
 
-def test_additional_targets_for_totensorv2():
+@given(
+    image1=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask1=h_array(dtype=np.uint8, shape=(31, 57, 4), elements=h_int(min_value=0, max_value=255)),
+)
+def test_additional_targets_for_totensorv2(image1, mask1):
     aug = A.Compose([ToTensorV2()], additional_targets={"image2": "image", "mask2": "mask"})
-    for _i in range(10):
-        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-        image2 = image1.copy()
-        mask1 = np.random.randint(low=0, high=256, size=(100, 100, 4), dtype=np.uint8)
-        mask2 = mask1.copy()
-        res = aug(image=image1, image2=image2, mask=mask1, mask2=mask2)
-        assert isinstance(res["image"], torch.Tensor) and res["image"].shape == image1.shape[::-1]
-        assert isinstance(res["image2"], torch.Tensor) and res["image2"].shape == image2.shape[::-1]
-        assert isinstance(res["mask"], torch.Tensor) and res["mask"].shape == mask1.shape
-        assert isinstance(res["mask2"], torch.Tensor) and res["mask2"].shape == mask2.shape
-        assert np.array_equal(res["image"], res["image2"])
-        assert np.array_equal(res["mask"], res["mask2"])
+
+    image2 = image1.copy()
+    mask2 = mask1.copy()
+    res = aug(image=image1, image2=image2, mask=mask1, mask2=mask2)
+    assert isinstance(res["image"], torch.Tensor) and res["image"].shape == image1.shape[::-1]
+    assert isinstance(res["image2"], torch.Tensor) and res["image2"].shape == image2.shape[::-1]
+    assert isinstance(res["mask"], torch.Tensor) and res["mask"].shape == mask1.shape
+    assert isinstance(res["mask2"], torch.Tensor) and res["mask2"].shape == mask2.shape
+    assert np.array_equal(res["image"], res["image2"])
+    assert np.array_equal(res["mask"], res["mask2"])
 
 
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57), elements=h_int(min_value=0, max_value=255)),
+)
 def test_torch_to_tensor_augmentations(image, mask):
     with pytest.warns(DeprecationWarning):
         aug = ToTensor()
@@ -53,12 +65,13 @@ def test_additional_targets_for_totensor():
         assert np.array_equal(res["mask"], res["mask2"])
 
 
-def test_with_replaycompose():
+@given(
+    image=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+    mask=h_array(dtype=np.uint8, shape=(31, 57, 3), elements=h_int(min_value=0, max_value=255)),
+)
+def test_with_replaycompose(image, mask):
     aug = A.ReplayCompose([ToTensorV2()])
-    kwargs = {
-        "image": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
-        "mask": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
-    }
+    kwargs = {"image": image, "mask": mask}
     res = aug(**kwargs)
     res2 = A.ReplayCompose.replay(res["replay"], **kwargs)
     assert np.array_equal(res["image"], res2["image"])
