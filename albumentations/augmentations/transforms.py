@@ -3,12 +3,12 @@ from __future__ import absolute_import, division
 import math
 import random
 import warnings
-from enum import Enum
+from enum import IntEnum
 from types import LambdaType
-from skimage.measure import label
 
 import cv2
 import numpy as np
+from skimage.measure import label
 
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
@@ -1587,7 +1587,7 @@ class ImageCompression(ImageOnlyTransform):
         quality_upper (float): upper bound on the image quality.
                                Should be in [0, 100] range for jpeg and [1, 100] for webp.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
-            Defaul: ImageCompressionType.JPEG
+            Default: ImageCompressionType.JPEG
 
     Targets:
         image
@@ -1596,7 +1596,7 @@ class ImageCompression(ImageOnlyTransform):
         uint8, float32
     """
 
-    class ImageCompressionType(Enum):
+    class ImageCompressionType(IntEnum):
         JPEG = 0
         WEBP = 1
 
@@ -1610,7 +1610,7 @@ class ImageCompression(ImageOnlyTransform):
     ):
         super(ImageCompression, self).__init__(always_apply, p)
 
-        self.compression_type = compression_type
+        self.compression_type = ImageCompression.ImageCompressionType(compression_type)
         low_thresh_quality_assert = 0
 
         if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
@@ -1633,8 +1633,12 @@ class ImageCompression(ImageOnlyTransform):
 
         return {"quality": random.randint(self.quality_lower, self.quality_upper), "image_type": image_type}
 
-    def get_transform_init_args_names(self):
-        return ("quality_lower", "quality_upper", "compression_type")
+    def get_transform_init_args(self):
+        return {
+            "quality_lower": self.quality_lower,
+            "quality_upper": self.quality_upper,
+            "compression_type": self.compression_type.value,
+        }
 
 
 class JpegCompression(ImageCompression):
@@ -2496,7 +2500,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
-        if isinstance(var_limit, tuple):
+        if isinstance(var_limit, (tuple, list)):
             if var_limit[0] < 0:
                 raise ValueError("Lower var_limit should be non negative.")
             if var_limit[1] < 0:
@@ -2504,9 +2508,13 @@ class GaussNoise(ImageOnlyTransform):
             self.var_limit = var_limit
         elif isinstance(var_limit, (int, float)):
             if var_limit < 0:
-                raise ValueError(" var_limit should be non negative.")
+                raise ValueError("var_limit should be non negative.")
 
             self.var_limit = (0, var_limit)
+        else:
+            raise TypeError(
+                "Expected var_limit type to be one of (int, float, tuple, list), got {}".format(type(var_limit))
+            )
 
         self.mean = mean
 
