@@ -506,12 +506,12 @@ def test_image_only_crop_around_bbox_augmentation_serialization(p, seed, image, 
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 
 
-def test_from_float_serialization(image):
+def test_from_float_serialization(float_image):
     aug = A.FromFloat(p=1, dtype="uint8")
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    aug_data = aug(image=image)
-    deserialized_aug_data = deserialized_aug(image=image)
+    aug_data = aug(image=float_image)
+    deserialized_aug_data = deserialized_aug(image=float_image)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 
 
