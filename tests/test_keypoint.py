@@ -182,9 +182,9 @@ def test_random_resized_crop_size(image):
     ],
 )
 def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
-    image = np.ones((3, 3, 3))
     transform = Compose([aug(p=1)], keypoint_params={"format": "xy"})
 
+    image = np.ones((3, 3, 3))
     transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
     assert np.allclose(expected, transformed["keypoints"])
 

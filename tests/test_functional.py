@@ -92,7 +92,7 @@ def test_rot90_float(target):
     expected = np.array([[0.4, 0.4, 0.4], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     rotated = F.rot90(img, factor=1)
-    assert np.allclose(rotated, expected)
+    assert_array_almost_equal_nulp(rotated, expected)
 
 
 @given(mean=h_float(min_value=0, max_value=255, allow_nan=False), std=h_float(min_value=1, max_value=255))
