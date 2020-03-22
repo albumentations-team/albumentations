@@ -58,15 +58,15 @@ def test_one_of(image):
     int_value=h_int(min_value=0, max_value=255),
     float_value=h_float(min_value=0, max_value=1),
     int_value2=h_int(min_value=0, max_value=255),
+    bias=h_int(min_value=0, max_value=255),
 )
-@example(int_value=20, float_value=0.5, int_value2=60)
-def test_to_tuple(int_value, float_value, int_value2):
+@example(int_value=20, float_value=0.5, int_value2=60, bias=1)
+def test_to_tuple(int_value, float_value, int_value2, bias):
     assert to_tuple(int_value) == (-int_value, int_value)
     assert to_tuple(float_value) == (-float_value, float_value)
     assert to_tuple((-int_value, int_value)) == (-int_value, int_value)
     assert to_tuple([-int_value, int_value]) == (-int_value, int_value)
-    assert to_tuple(int_value, bias=1) == (-(int_value - 1), int_value + 1)
-    assert to_tuple(int_value, bias=2) == (-(int_value - 2), int_value + 2)
+    assert to_tuple(int_value, bias=bias) == (-(int_value - bias), int_value + bias)
 
     min_int = min(int_value, int_value2)
     max_int = max(int_value, int_value2)

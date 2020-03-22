@@ -214,13 +214,13 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected):
 @pytest.mark.parametrize(
     ["aug", "keypoints", "expected"],
     [
-        [IAAFliplr, [(20, 30, 0, 0)], [(80, 30, 0, 0)]],
-        [IAAFliplr, [(20, 30, 45, 0)], [(80, 30, 45, 0)]],
-        [IAAFliplr, [(20, 30, 89, 0)], [(80, 30, 89, 0)]],
+        [IAAFliplr, [(20, 30, 0, 0)], [(79, 30, 0, 0)]],
+        [IAAFliplr, [(20, 30, 45, 0)], [(79, 30, 45, 0)]],
+        [IAAFliplr, [(20, 30, 90, 0)], [(79, 30, 90, 0)]],
         #
-        [IAAFlipud, [(20, 30, 0, 0)], [(20, 70, 0, 0)]],
-        [IAAFlipud, [(20, 30, 45, 0)], [(20, 70, 45, 0)]],
-        [IAAFlipud, [(20, 30, 89, 0)], [(20, 70, 89, 0)]],
+        [IAAFlipud, [(20, 30, 0, 0)], [(20, 69, 0, 0)]],
+        [IAAFlipud, [(20, 30, 45, 0)], [(20, 69, 45, 0)]],
+        [IAAFlipud, [(20, 30, 90, 0)], [(20, 69, 90, 0)]],
     ],
 )
 def test_keypoint_transform_format_xy(aug, keypoints, expected, image):

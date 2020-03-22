@@ -41,13 +41,13 @@ def binary_mask():
 
 
 @pytest.fixture
-def float_image():
-    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
+def bboxes():
+    return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
 
 
 @pytest.fixture
-def bboxes():
-    return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
+def float_image():
+    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
 
 
 @pytest.fixture

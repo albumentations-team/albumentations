@@ -647,8 +647,8 @@ class ShiftScaleRotate(DualTransform):
 
     def get_params(self):
         return {
-            "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
             "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
+            "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
             "dx": random.uniform(self.shift_limit[0], self.shift_limit[1]),
             "dy": random.uniform(self.shift_limit[0], self.shift_limit[1]),
         }
@@ -2891,8 +2891,6 @@ class Downscale(ImageOnlyTransform):
 
     def apply(self, image, scale, interpolation=cv2.INTER_NEAREST, **params):
         return F.downscale(image, scale=scale, interpolation=interpolation)
-
-        return ["image"]
 
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"

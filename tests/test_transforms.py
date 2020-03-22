@@ -510,6 +510,7 @@ def test_resize_keypoints(image):
 
 
 @given(multiplier=h_float(min_value=0, allow_nan=False))
+@example(multiplier=0.5)
 def test_multiplicative_noise_grayscale(mask, multiplier):
     image = mask
     aug = A.MultiplicativeNoise(multiplier, p=1)
@@ -529,6 +530,7 @@ def test_multiplicative_noise_grayscale(mask, multiplier):
 
 
 @given(multiplier=h_float(min_value=0, allow_nan=False))
+@example(multiplier=0.5)
 def test_multiplicative_noise_rgb(image, multiplier):
     dtype = image.dtype
 
