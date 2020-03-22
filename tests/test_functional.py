@@ -1,13 +1,14 @@
 import cv2
 import numpy as np
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
+from hypothesis.strategies import floats as h_float
+from hypothesis.strategies import integers as h_int
 from numpy.testing import assert_array_almost_equal_nulp
 
 import albumentations.augmentations.functional as F
 from albumentations.augmentations.bbox_utils import filter_bboxes
-from tests.utils import convert_2d_to_target_format
-from .conftest import image, mask, float_image
+from tests.utils import convert_2d_to_target_format, h_image, h_mask, h_float_image
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -94,31 +95,33 @@ def test_rot90_float(target):
     assert_array_almost_equal_nulp(rotated, expected)
 
 
-def test_normalize():
+@given(mean=h_float(min_value=0, max_value=255, allow_nan=False), std=h_float(min_value=1, max_value=255))
+def test_normalize(mean, std):
     img = np.ones((100, 100, 3), dtype=np.uint8) * 127
-    normalized = F.normalize(img, mean=50, std=3)
-    expected = (np.ones((100, 100, 3), dtype=np.float32) * 127 / 255 - 50) / 3
+    normalized = F.normalize(img, mean=mean, std=std)
+    expected = (np.ones((100, 100, 3), dtype=np.float32) * 127 / 255 - mean) / std
     assert_array_almost_equal_nulp(normalized, expected)
 
 
-def test_normalize_float():
+@given(mean=h_float(min_value=0, max_value=255, allow_nan=False), std=h_float(min_value=1, max_value=255))
+def test_normalize_float(mean, std):
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
-    normalized = F.normalize(img, mean=50, std=3, max_pixel_value=1.0)
-    expected = (np.ones((100, 100, 3), dtype=np.float32) * 0.4 - 50) / 3
+    normalized = F.normalize(img, mean=mean, std=std, max_pixel_value=1.0)
+    expected = (np.ones((100, 100, 3), dtype=np.float32) * 0.4 - mean) / std
     assert_array_almost_equal_nulp(normalized, expected)
 
 
-@given(image=image())
-def test_compare_rotate_and_shift_scale_rotate(image):
-    rotated_img_1 = F.rotate(image, angle=60)
-    rotated_img_2 = F.shift_scale_rotate(image, angle=60, scale=1, dx=0, dy=0)
+@given(image=h_image(), angle=h_int(min_value=-360, max_value=360))
+def test_compare_rotate_and_shift_scale_rotate(image, angle):
+    rotated_img_1 = F.rotate(image, angle=angle)
+    rotated_img_2 = F.shift_scale_rotate(image, angle=angle, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
-@given(float_image=float_image())
-def test_compare_rotate_float_and_shift_scale_rotate_float(float_image):
-    rotated_img_1 = F.rotate(float_image, angle=60)
-    rotated_img_2 = F.shift_scale_rotate(float_image, angle=60, scale=1, dx=0, dy=0)
+@given(float_image=h_float_image(), angle=h_int(min_value=-360, max_value=360))
+def test_compare_rotate_float_and_shift_scale_rotate_float(float_image, angle):
+    rotated_img_1 = F.rotate(float_image, angle=angle)
+    rotated_img_2 = F.shift_scale_rotate(float_image, angle=angle, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
@@ -542,13 +545,14 @@ def test_resize_nearest_interpolation(target):
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
-def test_resize_different_height_and_width(target):
+@given(width=h_int(min_value=1, max_value=200), height=h_int(min_value=1, max_value=200))
+def test_resize_different_height_and_width(target, width, height):
     img = np.ones((100, 100), dtype=np.uint8)
     img = convert_2d_to_target_format([img], target=target)
-    resized_img = F.resize(img, height=20, width=30)
+    resized_img = F.resize(img, height=height, width=width)
     height, width = resized_img.shape[:2]
-    assert height == 20
-    assert width == 30
+    assert height == height
+    assert width == width
     if target == "image":
         num_channels = resized_img.shape[2]
         assert num_channels == 3
@@ -664,7 +668,10 @@ def test_fun_max_size():
     assert out.shape == (1724, target_width)
 
 
-@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_grayscale=mask())
+@settings(max_examples=1)
+@given(
+    image_1ch=h_image(num_channels=1), image_3ch=h_image(), image_4ch=h_image(num_channels=4), image_grayscale=h_mask()
+)
 def test_is_rgb_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert F.is_rgb_image(image_3ch)
     assert not F.is_rgb_image(image_4ch)
@@ -672,7 +679,10 @@ def test_is_rgb_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert not F.is_rgb_image(image_1ch)
 
 
-@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_grayscale=mask())
+@settings(max_examples=1)
+@given(
+    image_1ch=h_image(num_channels=1), image_3ch=h_image(), image_4ch=h_image(num_channels=4), image_grayscale=h_mask()
+)
 def test_is_grayscale_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert not F.is_grayscale_image(image_3ch)
     assert not F.is_grayscale_image(image_4ch)
@@ -680,7 +690,10 @@ def test_is_grayscale_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert F.is_grayscale_image(image_1ch)
 
 
-@given(image_1ch=image(num_channels=1), image_3ch=image(), image_4ch=image(num_channels=4), image_grayscale=mask())
+@settings(max_examples=1)
+@given(
+    image_1ch=h_image(num_channels=1), image_3ch=h_image(), image_4ch=h_image(num_channels=4), image_grayscale=h_mask()
+)
 def test_is_multispectral_image(image_grayscale, image_1ch, image_3ch, image_4ch):
     assert not F.is_multispectral_image(image_3ch)
     assert F.is_multispectral_image(image_4ch)
@@ -688,11 +701,12 @@ def test_is_multispectral_image(image_grayscale, image_1ch, image_3ch, image_4ch
     assert not F.is_multispectral_image(image_1ch)
 
 
+@settings(max_examples=1)
 @given(
-    image_uint8=image(),
-    image_uint16=image(dtype=np.uint16),
-    image_uint32=image(dtype=np.uint32),
-    image_float=float_image(),
+    image_uint8=h_image(),
+    image_uint16=h_image(dtype=np.uint16),
+    image_uint32=h_image(dtype=np.uint32),
+    image_float=h_float_image(),
 )
 def test_brightness_contrast(image_uint8, image_uint16, image_uint32, image_float):
     assert np.array_equal(F.brightness_contrast_adjust(image_uint8), F._brightness_contrast_adjust_uint(image_uint8))
@@ -716,7 +730,6 @@ def test_brightness_contrast(image_uint8, image_uint16, image_uint32, image_floa
     )
 
 
-@given(image=image())
 def test_swap_tiles_on_image_with_empty_tiles(image):
     result_img = F.swap_tiles_on_image(image, [])
 
@@ -877,7 +890,7 @@ def test_downscale_random():
     assert np.all(img == downscaled)
 
 
-@given(image=image(num_channels=6))
+@given(image=h_image(num_channels=6))
 def test_maybe_process_in_chunks(image):
     for i in range(1, image.shape[-1] + 1):
         before = image[:, :, :i]
@@ -885,12 +898,10 @@ def test_maybe_process_in_chunks(image):
         assert before.shape == after.shape
 
 
-@given(image=image())
-def test_multiply_uint8_optimized(image):
-    m = 1.5
-
-    result = F._multiply_uint8_optimized(image, [m])
-    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+@given(image=h_image(), multiplier=h_float(min_value=0, max_value=2, exclude_min=True, exclude_max=True))
+def test_multiply_uint8_optimized(image, multiplier):
+    result = F._multiply_uint8_optimized(image, [multiplier])
+    tmp = F.clip(image * multiplier, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.all(tmp == result)
 
     m = np.array([1.5, 0.75, 1.1])

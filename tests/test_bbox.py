@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from hypothesis import given
+from hypothesis import given, settings
 
 from albumentations.augmentations.bbox_utils import (
     normalize_bbox,
@@ -15,7 +15,7 @@ from albumentations.augmentations.bbox_utils import (
 from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop, Rotate
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from .conftest import image
+from tests.utils import h_image
 
 
 @pytest.mark.parametrize(
@@ -83,7 +83,6 @@ def test_calculate_bbox_area(bbox, rows, cols, expected):
         ((0.2, 0.3, 0.4, 0.5, 99), "yolo", (0.01, 0.06, 0.41, 0.56, 99)),
     ],
 )
-@given(image=image())
 def test_convert_bbox_to_albumentations(bbox, source_format, expected, image):
     converted_bbox = convert_bbox_to_albumentations(
         bbox, rows=image.shape[0], cols=image.shape[1], source_format=source_format
@@ -102,7 +101,6 @@ def test_convert_bbox_to_albumentations(bbox, source_format, expected, image):
         ((0.01, 0.06, 0.41, 0.56, 99), "yolo", (0.2, 0.3, 0.4, 0.5, 99)),
     ],
 )
-@given(image=image())
 def test_convert_bbox_from_albumentations(bbox, target_format, expected, image):
     converted_bbox = convert_bbox_from_albumentations(
         bbox, rows=image.shape[0], cols=image.shape[1], target_format=target_format
@@ -121,7 +119,6 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected, image):
         ((0.01, 0.06, 0.41, 0.56, 99), "yolo"),
     ],
 )
-@given(image=image())
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format, image):
     converted_bbox = convert_bbox_to_albumentations(
         bbox, rows=image.shape[0], cols=image.shape[1], source_format=bbox_format
@@ -132,7 +129,6 @@ def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format, image):
     assert np.all(np.isclose(converted_back_bbox, bbox))
 
 
-@given(image=image())
 def test_convert_bboxes_to_albumentations(image):
     bboxes = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
 
@@ -148,7 +144,6 @@ def test_convert_bboxes_to_albumentations(image):
     assert converted_bboxes == [converted_bbox_1, converted_bbox_2]
 
 
-@given(image=image())
 def test_convert_bboxes_from_albumentations(image):
     bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     converted_bboxes = convert_bboxes_to_albumentations(
@@ -174,7 +169,6 @@ def test_convert_bboxes_from_albumentations(image):
         ([(0.1, 0.2, 0.1, 0.2, 99)], "yolo", None),
     ],
 )
-@given(image=image())
 def test_compose_with_bbox_noop(bboxes, bbox_format, labels, image):
     if labels is not None:
         aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format, "label_fields": ["labels"]})
@@ -187,7 +181,6 @@ def test_compose_with_bbox_noop(bboxes, bbox_format, labels, image):
 
 
 @pytest.mark.parametrize(["bboxes", "bbox_format"], [[[[20, 30, 40, 50]], "coco"]])
-@given(image=image())
 def test_compose_with_bbox_noop_error_label_fields(bboxes, bbox_format, image):
     aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
     with pytest.raises(Exception):
@@ -207,7 +200,6 @@ def test_compose_with_bbox_noop_error_label_fields(bboxes, bbox_format, image):
         [[(20, 30, 60, 80, 1, 11), (30, 40, 40, 50, 2, 21)], "pascal_voc", {"id": [31, 32], "subclass": [311, 321]}],
     ],
 )
-@given(image=image())
 def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels, image):
     aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format, "label_fields": list(labels.keys())})
     transformed = aug(image=image, bboxes=bboxes, **labels)
@@ -217,7 +209,6 @@ def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels, image
         assert transformed[k] == v
 
 
-@given(image=image())
 def test_random_sized_crop_size(image):
     bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.0)
@@ -226,7 +217,6 @@ def test_random_sized_crop_size(image):
     assert len(bboxes) == len(transformed["bboxes"])
 
 
-@given(image=image())
 def test_random_resized_crop_size(image):
     bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = RandomResizedCrop(height=50, width=50, p=1.0)
@@ -235,7 +225,8 @@ def test_random_resized_crop_size(image):
     assert len(bboxes) == len(transformed["bboxes"])
 
 
-@given(image=image(width=192, height=192, num_channels=3))
+@settings(max_examples=1)
+@given(image=h_image(width=192, height=192, num_channels=3))
 def test_random_rotate(image):
     bboxes = [(78, 42, 142, 80)]
     aug = Rotate(limit=15, p=1.0)

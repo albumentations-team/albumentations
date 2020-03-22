@@ -1,14 +1,11 @@
 import numpy as np
 import pytest
 import torch
-from hypothesis import given
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensor, ToTensorV2
-from .conftest import image, mask
 
 
-@given(image=image(), mask=mask())
 def test_torch_to_tensor_v2_augmentations(image, mask):
     aug = ToTensorV2()
     data = aug(image=image, mask=mask, force_apply=True)
@@ -18,11 +15,11 @@ def test_torch_to_tensor_v2_augmentations(image, mask):
     assert data["mask"].dtype == torch.uint8
 
 
-@given(image1=image(), mask1=mask())
-def test_additional_targets_for_totensorv2(image1, mask1):
+def test_additional_targets_for_totensorv2(image, mask):
     aug = A.Compose([ToTensorV2()], additional_targets={"image2": "image", "mask2": "mask"})
-
+    image1 = image
     image2 = image1.copy()
+    mask1 = mask
     mask2 = mask1.copy()
     res = aug(image=image1, image2=image2, mask=mask1, mask2=mask2)
     assert isinstance(res["image"], torch.Tensor) and res["image"].shape == image1.shape[::-1]
@@ -33,7 +30,6 @@ def test_additional_targets_for_totensorv2(image1, mask1):
     assert np.array_equal(res["mask"], res["mask2"])
 
 
-@given(image=image(), mask=mask())
 def test_torch_to_tensor_augmentations(image, mask):
     with pytest.warns(DeprecationWarning):
         aug = ToTensor()
@@ -55,7 +51,6 @@ def test_additional_targets_for_totensor():
         assert np.array_equal(res["mask"], res["mask2"])
 
 
-@given(image=image(), mask=mask())
 def test_with_replaycompose(image, mask):
     aug = A.ReplayCompose([ToTensorV2()])
     kwargs = {"image": image, "mask": mask}

@@ -1,10 +1,8 @@
-import random
-
 import cv2
 import numpy as np
 import pytest
-from hypothesis import given
-from hypothesis.strategies import integers as h_int
+from hypothesis import given, settings
+from tests.utils import h_image, h_mask
 
 from albumentations import (
     RandomCrop,
@@ -65,7 +63,6 @@ from albumentations import (
     MultiplicativeNoise,
     GridDropout,
 )
-from .conftest import image, mask, float_image
 
 
 @pytest.mark.parametrize(
@@ -103,7 +100,6 @@ from .conftest import image, mask, float_image
         [GridDropout, {}],
     ],
 )
-@given(image=image(), mask=mask())
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
@@ -142,7 +138,6 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         [GridDropout, {}],
     ],
 )
-@given(float_image=float_image(), mask=mask())
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=float_image, mask=mask)
@@ -175,7 +170,6 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [GridDropout, {}],
     ],
 )
-@given(image=image(), mask=mask())
 def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
@@ -206,7 +200,6 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [GridDropout, {}],
     ],
 )
-@given(float_image=float_image(), mask=mask())
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=float_image, mask=mask)
@@ -215,7 +208,6 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
 
 
 @pytest.mark.parametrize("augmentation_cls", [IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
-@given(image=image(), mask=mask())
 def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
     aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
@@ -225,7 +217,6 @@ def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
 
 
 @pytest.mark.parametrize("augmentation_cls", [IAAPiecewiseAffine, IAAPerspective])
-@given(image=image(), mask=mask())
 def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
     aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
@@ -289,7 +280,6 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [GridDropout, {}],
     ],
 )
-@given(image=image(), mask=mask())
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
     mask_copy = mask.copy()
@@ -348,7 +338,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [GridDropout, {}],
     ],
 )
-@given(float_image=float_image())
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
     aug = augmentation_cls(p=1, **params)
@@ -391,13 +380,14 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [HueSaturationValue, {}],
     ],
 )
+@settings(max_examples=1)
 @given(
-    grayscale_image=mask(),
-    image_1ch=image(num_channels=1),
-    mask_1ch=image(num_channels=1),
-    image_3ch=image(),
-    mask_3ch=image(),
-    mask=mask(),
+    grayscale_image=h_mask(),
+    image_1ch=h_image(num_channels=1),
+    mask_1ch=h_image(num_channels=1),
+    image_3ch=h_image(),
+    mask_3ch=h_image(),
+    mask=h_mask(),
 )
 def test_augmentations_wont_change_shape_grayscale(
     augmentation_cls, params, grayscale_image, image_1ch, mask_1ch, image_3ch, mask_3ch, mask
@@ -467,7 +457,6 @@ def test_augmentations_wont_change_shape_grayscale(
         [GridDropout, {}],
     ],
 )
-@given(image=image(), mask=mask())
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
 
@@ -478,7 +467,6 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, ma
 
 
 @pytest.mark.parametrize(["augmentation_cls", "params"], [[RandomCropNearBBox, {"max_part_shift": 0.15}]])
-@given(image=image())
 def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image):
     aug = augmentation_cls(p=1, **params)
     annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
@@ -500,13 +488,11 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
         [GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
     ],
 )
-@given(value_image=h_int(min_value=0, max_value=255))
-def test_mask_fill_value(augmentation_cls, params, value_image):
-    random.seed(42)
+def test_mask_fill_value(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
-    input = {"image": np.zeros((512, 512), dtype=np.uint8) + value_image, "mask": np.zeros((512, 512))}
+    input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
     output = aug(**input)
-    assert (output["image"] == value_image).all()
+    assert (output["image"] == 100).all()
     assert (output["mask"] == 1).all()
 
 
@@ -529,7 +515,8 @@ def test_mask_fill_value(augmentation_cls, params, value_image):
         [GridDropout, {}],
     ],
 )
-@given(image=image(width=512, height=512, num_channels=6))
+@settings(max_examples=1, deadline=400)
+@given(image=h_image(width=512, height=512, num_channels=6))
 def test_multichannel_image_augmentations(augmentation_cls, params, image):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image)
