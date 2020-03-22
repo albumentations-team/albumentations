@@ -903,7 +903,7 @@ def test_maybe_process_in_chunks(image):
 
 
 @given(multiplier=h_float(min_value=0, max_value=2, exclude_min=True, exclude_max=True))
-@example(multiplier=0.5)
+@example(multiplier=1.5)
 def test_multiply_uint8_optimized(image, multiplier):
     result = F._multiply_uint8_optimized(image, [multiplier])
     tmp = F.clip(image * multiplier, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
