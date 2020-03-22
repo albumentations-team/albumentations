@@ -2892,6 +2892,8 @@ class Downscale(ImageOnlyTransform):
     def apply(self, image, scale, interpolation=cv2.INTER_NEAREST, **params):
         return F.downscale(image, scale=scale, interpolation=interpolation)
 
+        return ["image"]
+
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"
 
