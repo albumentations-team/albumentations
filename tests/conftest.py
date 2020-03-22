@@ -1,13 +1,10 @@
-import multiprocessing
-import sys
 import warnings
+import sys
+import multiprocessing
 
 import numpy as np
 import pytest
-from hypothesis.extra.numpy import arrays as h_array
-from hypothesis.strategies import composite
-from hypothesis.strategies import floats as h_float
-from hypothesis.strategies import integers as h_int
+
 
 try:
     import torch
@@ -30,6 +27,16 @@ def pytest_ignore_collect(path):
 
 
 @pytest.fixture
+def image():
+    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+
+
+@pytest.fixture
+def mask():
+    return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+
+
+@pytest.fixture
 def bboxes():
     return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
 
@@ -45,6 +52,11 @@ def keypoints():
 
 
 @pytest.fixture
+def float_image():
+    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
+
+
+@pytest.fixture
 def multiprocessing_context():
     # Usage of `fork` as a start method for multiprocessing could lead to deadlocks on macOS.
     # Because `fork` was the default start method for macOS until Python 3.8
@@ -54,18 +66,3 @@ def multiprocessing_context():
     else:
         method = None
     return multiprocessing.get_context(method)
-
-
-@pytest.fixture
-def image():
-    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-
-
-@pytest.fixture
-def mask():
-    return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-
-
-@pytest.fixture
-def float_image():
-    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
