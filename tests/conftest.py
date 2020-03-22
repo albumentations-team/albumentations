@@ -4,10 +4,6 @@ import warnings
 
 import numpy as np
 import pytest
-from hypothesis.extra.numpy import arrays as h_array
-from hypothesis.strategies import composite
-from hypothesis.strategies import floats as h_float
-from hypothesis.strategies import integers as h_int
 
 try:
     import torch
@@ -27,6 +23,26 @@ def pytest_ignore_collect(path):
         )
         return True
     return False
+
+
+@pytest.fixture
+def image():
+    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+
+
+@pytest.fixture
+def mask():
+    return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+
+
+@pytest.fixture
+def binary_mask():
+    return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+
+
+@pytest.fixture
+def float_image():
+    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
 
 
 @pytest.fixture
@@ -54,32 +70,3 @@ def multiprocessing_context():
     else:
         method = None
     return multiprocessing.get_context(method)
-
-
-@composite
-def image(draw, width=100, height=100, num_channels=3, dtype=np.uint8):
-    return draw(
-        h_array(
-            dtype=dtype,
-            shape=(height, width, num_channels),
-            elements=h_int(min_value=0, max_value=np.iinfo(dtype).max - 1),
-        )
-    )
-
-
-@composite
-def mask(draw, width=100, height=100, dtype=np.uint8):
-    return draw(
-        h_array(dtype=dtype, shape=(height, width), elements=h_int(min_value=0, max_value=np.iinfo(dtype).max - 1))
-    )
-
-
-@composite
-def float_image(draw, width=100, height=100, num_channels=3, dtype=np.float32):
-    return draw(
-        h_array(
-            dtype=dtype,
-            shape=(height, width, num_channels),
-            elements=h_float(min_value=0, allow_nan=False, max_value=1, width=32),
-        )
-    )

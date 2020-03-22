@@ -2870,10 +2870,13 @@ class Downscale(ImageOnlyTransform):
 
     def __init__(self, scale_min=0.25, scale_max=0.25, interpolation=cv2.INTER_NEAREST, always_apply=False, p=0.5):
         super(Downscale, self).__init__(always_apply, p)
-        assert scale_min <= scale_max, "Expected scale_min be less or equal scale_max, got {} {}".format(
-            scale_min, scale_max
-        )
-        assert scale_max < 1, "Expected scale_max to be less than 1, got {}".format(scale_max)
+
+        if scale_min > scale_max:
+            raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
+
+        if scale_max >= 1:
+            raise ValueError("Expected scale_max to be less than 1, got {}.".format(scale_max))
+
         self.scale_min = scale_min
         self.scale_max = scale_max
         self.interpolation = interpolation
@@ -2886,6 +2889,21 @@ class Downscale(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params: dict) -> dict:
+        image = params["image"]
+
+        min_size = min(image.shape[:2])
+
+        # Minimum size for downscaling is 1 pixel in the smallest side)
+        from_scale = max(1 / min_size, self.scale_min)
+        scale = random.uniform(from_scale, self.scale_max)
+
+        return {"scale": scale}
 
 
 class Lambda(NoOp):
