@@ -34,7 +34,7 @@ def test_rotate_interpolation(interpolation, image, mask, angle):
 @given(
     shift_limit=h_float(min_value=0, max_value=1, allow_nan=False),
     scale_limit=h_float(min_value=0, max_value=2, allow_nan=False),
-    rotate_limit=h_int(min_value=0, max_value=179),
+    rotate_limit=h_int(min_value=-360, max_value=360),
 )
 def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limit, scale_limit, rotate_limit):
     aug = A.ShiftScaleRotate(
@@ -85,7 +85,7 @@ def test_optical_distortion_interpolation(interpolation, image, mask, distort_li
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-@given(distort_limit=h_float(min_value=0, max_value=1))
+@given(distort_limit=h_float(min_value=0, max_value=1, allow_nan=False))
 def test_grid_distortion_interpolation(interpolation, image, mask, distort_limit):
     aug = A.GridDistortion(num_steps=1, distort_limit=(distort_limit, distort_limit), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
@@ -426,12 +426,14 @@ def test_crop_non_empty_mask():
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 @given(scale=h_float(min_value=0, max_value=1, exclude_min=True, exclude_max=True, width=32))
 def test_downscale(interpolation, image, float_image, scale):
+    scale = max(1 / min(image.shape[:2]), scale)
+
     aug = A.Downscale(scale_min=scale, scale_max=scale, interpolation=interpolation, always_apply=True)
 
     for img in (image, float_image):
         transformed = aug(image=img)["image"]
         func_applied = F.downscale(img, scale=scale, interpolation=interpolation)
-        np.testing.assert_almost_equal(transformed, func_applied)
+        assert np.allclose(transformed, func_applied)
 
 
 def test_crop_keypoints(image):
@@ -497,57 +499,56 @@ def test_resize_keypoints(image):
 
 
 @given(multiplier=h_float(min_value=0, allow_nan=False))
-def test_multiplicative_noise_grayscale(image, float_image, multiplier):
-    for img in [image, float_image]:
-        aug = A.MultiplicativeNoise(multiplier, p=1)
-        result = aug(image=img)["image"]
-        image = F.clip(img * multiplier, img.dtype, F.MAX_VALUES_BY_DTYPE[img.dtype])
-        assert np.allclose(img, result)
+def test_multiplicative_noise_grayscale(mask, multiplier):
+    image = mask
+    aug = A.MultiplicativeNoise(multiplier, p=1)
+    result = aug(image=image)["image"]
+    image = F.clip(image * multiplier, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
+    assert np.allclose(image, result)
 
-        aug = A.MultiplicativeNoise(elementwise=True, p=1)
-        params = aug.get_params_dependent_on_targets({"image": img})
-        mul = params["multiplier"]
-        assert mul.shape == img.shape
-        result = aug.apply(image, mul)
-        dtype = img.dtype
-        image = img.astype(np.float32) * mul
-        image = F.clip(image, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-        assert np.allclose(image, result)
+    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": image})
+    mul = params["multiplier"]
+    assert mul.shape == image.shape
+    result = aug.apply(image, mul)
+    dtype = image.dtype
+    image = image.astype(np.float32) * mul
+    image = F.clip(image, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(image, result)
 
 
 @given(multiplier=h_float(min_value=0, allow_nan=False))
-def test_multiplicative_noise_rgb(image, image_float, multiplier):
-    for img in [image, image_float]:
-        dtype = image.dtype
+def test_multiplicative_noise_rgb(image, multiplier):
+    dtype = image.dtype
 
-        aug = A.MultiplicativeNoise(multiplier, p=1)
-        result = aug(image=img)["image"]
-        img = F.clip(img * multiplier, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-        assert np.allclose(img, result)
+    aug = A.MultiplicativeNoise(multiplier, p=1)
+    result = aug(image=image)["image"]
+    img = F.clip(image * multiplier, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(img, result)
 
-        aug = A.MultiplicativeNoise(elementwise=True, p=1)
-        params = aug.get_params_dependent_on_targets({"image": img})
-        mul = params["multiplier"]
-        assert mul.shape == img.shape[:2] + (1,)
-        result = aug.apply(img, mul)
-        img = F.clip(img.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-        assert np.allclose(img, result)
+    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": img})
+    mul = params["multiplier"]
+    assert mul.shape == img.shape[:2] + (1,)
+    result = aug.apply(img, mul)
+    img = F.clip(img.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(img, result)
 
-        aug = A.MultiplicativeNoise(per_channel=True, p=1)
-        params = aug.get_params_dependent_on_targets({"image": img})
-        mul = params["multiplier"]
-        assert mul.shape == (3,)
-        result = aug.apply(img, mul)
-        img = F.clip(img.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-        assert np.allclose(img, result)
+    aug = A.MultiplicativeNoise(per_channel=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": img})
+    mul = params["multiplier"]
+    assert mul.shape == (3,)
+    result = aug.apply(img, mul)
+    img = F.clip(img.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
+    assert np.allclose(img, result)
 
-        aug = A.MultiplicativeNoise(elementwise=True, per_channel=True, p=1)
-        params = aug.get_params_dependent_on_targets({"image": img})
-        mul = params["multiplier"]
-        assert mul.shape == img.shape
-        result = aug.apply(img, mul)
-        img = F.clip(img.astype(np.float32) * mul, img.dtype, F.MAX_VALUES_BY_DTYPE[img.dtype])
-        assert np.allclose(img, result)
+    aug = A.MultiplicativeNoise(elementwise=True, per_channel=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": img})
+    mul = params["multiplier"]
+    assert mul.shape == img.shape
+    result = aug.apply(img, mul)
+    img = F.clip(img.astype(np.float32) * mul, img.dtype, F.MAX_VALUES_BY_DTYPE[img.dtype])
+    assert np.allclose(img, result)
 
 
 def test_mask_dropout(image):

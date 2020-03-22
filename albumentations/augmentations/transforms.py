@@ -82,6 +82,8 @@ __all__ = [
     "GridDropout",
 ]
 
+EPSILON = np.finfo(float).eps
+
 
 class PadIfNeeded(DualTransform):
     """Pad side of the image / max if side is less than desired number.
@@ -2881,11 +2883,8 @@ class Downscale(ImageOnlyTransform):
         self.scale_max = scale_max
         self.interpolation = interpolation
 
-    def apply(self, image, scale, interpolation, **params):
+    def apply(self, image, scale=1, interpolation=cv2.INTER_NEAREST, **params):
         return F.downscale(image, scale=scale, interpolation=interpolation)
-
-    def get_params(self):
-        return {"scale": np.random.uniform(self.scale_min, self.scale_max), "interpolation": self.interpolation}
 
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"
