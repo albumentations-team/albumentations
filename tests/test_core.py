@@ -4,7 +4,7 @@ from unittest.mock import Mock, MagicMock, call
 import cv2
 import numpy as np
 import pytest
-from hypothesis import given
+from hypothesis import given, example
 from hypothesis.strategies import floats as h_float
 from hypothesis.strategies import integers as h_int
 
@@ -59,6 +59,7 @@ def test_one_of(image):
     float_value=h_float(min_value=0, max_value=1),
     int_value2=h_int(min_value=0, max_value=255),
 )
+@example(int_value=20, float_value=0.5)
 def test_to_tuple(int_value, float_value, int_value2):
     assert to_tuple(int_value) == (-int_value, int_value)
     assert to_tuple(float_value) == (-float_value, float_value)
