@@ -556,9 +556,9 @@ def test_resize_different_height_and_width(target, width, height):
     img = np.ones((100, 100), dtype=np.uint8)
     img = convert_2d_to_target_format([img], target=target)
     resized_img = F.resize(img, height=height, width=width)
-    height, width = resized_img.shape[:2]
-    assert height == height
-    assert width == width
+    resized_height, resized_width = resized_img.shape[:2]
+    assert height == resized_height
+    assert width == resized_width
     if target == "image":
         num_channels = resized_img.shape[2]
         assert num_channels == 3
