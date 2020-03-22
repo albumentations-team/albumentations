@@ -635,7 +635,6 @@ class ShiftScaleRotate(DualTransform):
         self.mask_value = mask_value
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
-        print(f"SCALE = {scale} {self.scale_limit}")
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
 
     def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
