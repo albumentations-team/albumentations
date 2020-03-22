@@ -36,6 +36,7 @@ def test_rotate_interpolation(interpolation, image, mask, angle):
     scale_limit=h_float(min_value=0, max_value=2, allow_nan=False, exclude_min=True),
     rotate_limit=h_int(min_value=-360, max_value=360),
 )
+@example(shift_limit=0.2, scale_limit=1.1, rotate_limit=45)
 def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limit, scale_limit, rotate_limit):
     aug = A.ShiftScaleRotate(
         shift_limit=(shift_limit, shift_limit),
@@ -46,12 +47,10 @@ def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limi
     )
     data = aug(image=image, mask=mask)
 
-    scale = max(1 / min(image.shape[:2]), scale_limit)
-
     expected_image = F.shift_scale_rotate(
         image,
         angle=rotate_limit,
-        scale=scale,
+        scale=scale_limit + 1,
         dx=shift_limit,
         dy=shift_limit,
         interpolation=interpolation,
@@ -60,7 +59,7 @@ def test_shift_scale_rotate_interpolation(interpolation, image, mask, shift_limi
     expected_mask = F.shift_scale_rotate(
         mask,
         angle=rotate_limit,
-        scale=scale,
+        scale=scale_limit + 1,
         dx=shift_limit,
         dy=shift_limit,
         interpolation=cv2.INTER_NEAREST,
