@@ -1,6 +1,6 @@
-import warnings
-import sys
 import multiprocessing
+import sys
+import warnings
 
 import numpy as np
 import pytest
@@ -32,6 +32,11 @@ def image():
 
 @pytest.fixture
 def mask():
+    return np.random.randint(low=0, high=255, size=(100, 100), dtype=np.uint8)
+
+
+@pytest.fixture
+def binary_mask():
     return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
 
 

@@ -21,6 +21,7 @@ def test_transpose_both_image_and_mask(image, mask):
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 @given(angle=h_int(min_value=0, max_value=179))
+@example(angle=45)
 def test_rotate_interpolation(interpolation, image, mask, angle):
     aug = A.Rotate(limit=(angle, angle), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
