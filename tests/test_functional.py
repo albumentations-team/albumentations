@@ -116,12 +116,14 @@ def test_normalize_float(mean, std):
 
 
 @given(image=h_image(), angle=h_int(min_value=-360, max_value=360))
+@example(angle=60)
 def test_compare_rotate_and_shift_scale_rotate(image, angle):
     rotated_img_1 = F.rotate(image, angle=angle)
     rotated_img_2 = F.shift_scale_rotate(image, angle=angle, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
+@example(angle=60)
 @given(float_image=h_float_image(), angle=h_int(min_value=-360, max_value=360))
 def test_compare_rotate_float_and_shift_scale_rotate_float(float_image, angle):
     rotated_img_1 = F.rotate(float_image, angle=angle)
