@@ -150,7 +150,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
             A.Resize: {"height": 10, "width": 10},
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
-    ),
+    )
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
@@ -200,7 +200,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.CropNonEmptyMaskIfExists,
             A.MaskDropout,
         },
-    ),
+    )
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()

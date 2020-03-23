@@ -76,6 +76,7 @@ __all__ = [
     "Sharpen",
     "Emboss",
     "Superpixels",
+    "TemplateTransform",
 ]
 
 
@@ -2424,13 +2425,17 @@ class Lambda(NoOp):
         fn = self.custom_apply_fns["keypoint"]
         return fn(keypoint, **params)
 
+    @classmethod
+    def is_serializable(cls):
+        return False
+
     def _to_dict(self):
         if self.name is None:
             raise ValueError(
                 "To make a Lambda transform serializable you should provide the `name` argument, "
                 "e.g. `Lambda(name='my_transform', image=<some func>, ...)`."
             )
-        return {"__type__": "Lambda", "__name__": self.name}
+        return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
 
     def __repr__(self):
         state = {"name": self.name}
@@ -3091,3 +3096,98 @@ class Superpixels(ImageOnlyTransform):
 
     def apply(self, img: np.ndarray, replace_samples: Sequence[bool] = (False,), n_segments: int = 1, **kwargs):
         return F.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)
+
+
+class TemplateTransform(ImageOnlyTransform):
+    """
+    Apply blending of input image with specified templates
+    Args:
+        templates (numpy array or list of numpy arrays): Images as template for transform.
+        img_weight ((float, float) or float): If single float will be used as weight for input image.
+            If tuple of float img_weight will be in range `[img_weight[0], img_weight[1])`. Default: 0.5.
+        template_weight ((float, float) or float): If single float will be used as weight for template.
+            If tuple of float template_weight will be in range `[template_weight[0], template_weight[1])`.
+            Default: 0.5.
+        template_transform: transformation object which could be applied to template,
+            must produce template the same size as input image.
+        name (string): (Optional) Name of transform, used only for deserialization.
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(
+        self,
+        templates,
+        img_weight=0.5,
+        template_weight=0.5,
+        template_transform=None,
+        name=None,
+        always_apply=False,
+        p=0.5,
+    ):
+        super().__init__(always_apply, p)
+
+        self.templates = templates if isinstance(templates, (list, tuple)) else [templates]
+        self.img_weight = to_tuple(img_weight, img_weight)
+        self.template_weight = to_tuple(template_weight, template_weight)
+        self.template_transform = template_transform
+        self.name = name
+
+    def apply(self, img, template=None, img_weight=0.5, template_weight=0.5, **params):
+        return F.add_weighted(img, img_weight, template, template_weight)
+
+    def get_params(self):
+        return {
+            "img_weight": random.uniform(self.img_weight[0], self.img_weight[1]),
+            "template_weight": random.uniform(self.template_weight[0], self.template_weight[1]),
+        }
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        template = random.choice(self.templates)
+
+        if self.template_transform is not None:
+            template = self.template_transform(image=template)["image"]
+
+        if F.get_num_channels(template) not in [1, F.get_num_channels(img)]:
+            raise ValueError(
+                "Template must be a single channel or "
+                "has the same number of channels as input image ({}), got {}".format(
+                    F.get_num_channels(img), F.get_num_channels(template)
+                )
+            )
+
+        if template.dtype != img.dtype:
+            raise ValueError("Image and template must be the same image type")
+
+        if img.shape[:2] != template.shape[:2]:
+            raise ValueError(
+                "Image and template must be the same size, got {} and {}".format(img.shape[:2], template.shape[:2])
+            )
+
+        if F.get_num_channels(template) == 1 and F.get_num_channels(img) > 1:
+            template = np.stack((template,) * F.get_num_channels(img), axis=-1)
+
+        # in order to support grayscale image with dummy dim
+        template = template.reshape(img.shape)
+
+        return {"template": template}
+
+    @classmethod
+    def is_serializable(cls):
+        return False
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def _to_dict(self):
+        if self.name is None:
+            raise ValueError(
+                "To make a TemplateTransform serializable you should provide the `name` argument, "
+                "e.g. `TemplateTransform(name='my_transform', ...)`."
+            )
+        return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
