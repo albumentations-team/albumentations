@@ -3398,10 +3398,10 @@ class Defocus(ImageOnlyTransform):
         self.radius = to_tuple(radius, low=1)
         self.alias_blur = to_tuple(alias_blur, low=0)
 
-        if self.radius[0] < 0:
+        if self.radius[0] <= 0:
             raise ValueError("Parameter radius must be positive")
 
-        if self.alias_blur[0] <= 0:
+        if self.alias_blur[0] < 0:
             raise ValueError("Parameter alias_blur must be non-negative")
 
     def apply(self, img, radius=3, alias_blur=0.5, **params):
@@ -3409,7 +3409,7 @@ class Defocus(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "radius": random.choice(np.arange(self.radius[0], self.radius[1] + 1)),
+            "radius": np.random.randint(self.radius[0], self.radius[1] + 1),
             "alias_blur": random.uniform(self.alias_blur[0], self.alias_blur[1]),
         }
 
@@ -3439,25 +3439,21 @@ class ZoomBlur(ImageOnlyTransform):
 
     def __init__(self, max_factor=1.31, step_factor=(0.01, 0.03), always_apply=False, p=0.5):
         super().__init__(always_apply, p)
-        self.max_factors = to_tuple(max_factor, low=1.0)
-        self.step_factors = to_tuple(step_factor, step_factor)
+        self.max_factor = to_tuple(max_factor, low=1.0)
+        self.step_factor = to_tuple(step_factor, step_factor)
 
-        if self.max_factors[0] < 1:
+        if self.max_factor[0] < 1:
             raise ValueError("Max factor must be larger or equal 1")
-        if self.step_factors[0] <= 0:
+        if self.step_factor[0] <= 0:
             raise ValueError("Step factor must be positive")
 
     def apply(self, img, zoom_factors=np.arange(1, 1.11, 0.01), **params):
         return F.zoom_blur(img, zoom_factors)
 
     def get_params(self):
-        max_factor = random.uniform(self.max_factors[0], self.max_factors[1])
-        step_factor = (
-            self.step_factors[0]
-            if self.step_factors[0] == self.step_factors[1]
-            else random.uniform(self.step_factors[0], self.step_factors[1])
-        )
+        max_factor = random.uniform(self.max_factor[0], self.max_factor[1])
+        step_factor = random.uniform(self.step_factor[0], self.step_factor[1])
         return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
 
     def get_transform_init_args_names(self):
-        return ("zoom_factors",)
+        return ("max_factor", "step_factor")
