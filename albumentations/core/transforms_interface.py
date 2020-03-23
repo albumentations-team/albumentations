@@ -100,7 +100,7 @@ class BasicTransform(object):
                 res[key] = target_function(arg, **dict(params, **target_dependencies))
             else:
                 res[key] = None
-        return res
+        return res,params
 
     def set_deterministic(self, flag, save_key="replay"):
         assert save_key != "params", "params save_key is reserved"

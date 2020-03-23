@@ -1046,16 +1046,21 @@ def optical_distortion(
     height, width = img.shape[:2]
 
     fx = width
-    fy = height
+    fy = width
 
     cx = width * 0.5 + dx
     cy = height * 0.5 + dy
 
     camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
 
-    distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
+    # distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
+    distortion = np.array(k, dtype=np.float32)
     map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
     img = cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
+    # map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+    # for i in range(img.shape[0]):
+    #     img[i,...] = cv2.remap(img[i,...], map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
+    # return img
     return img
 
 

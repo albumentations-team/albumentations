@@ -1139,15 +1139,16 @@ class OpticalDistortion(DualTransform):
     """
 
     def __init__(
-        self,
-        distort_limit=0.05,
-        shift_limit=0.05,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=0.5,
+            self,
+            distort_limit=0.05,
+            shift_limit=0.05,
+            interpolation=cv2.INTER_LINEAR,
+            border_mode=cv2.BORDER_REFLECT_101,
+            value=None,
+            mask_value=None,
+            always_apply=False,
+            p=0.5,
+            fix_params=False
     ):
         super(OpticalDistortion, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
@@ -1156,19 +1157,51 @@ class OpticalDistortion(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.fix_params = fix_params
+        if self.fix_params:
+            self.k = [random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(5)]
+            self.dx = round(random.uniform(self.shift_limit[0], self.shift_limit[1]))
+            self.dy = round(random.uniform(self.shift_limit[0], self.shift_limit[1]))
 
     def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
+
+    def apply_to_keypoint(self, keypoints, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+        height, width = params['params']['rows'], params['params']['cols']
+
+        fx = width
+        fy = width
+
+        cx = width * 0.5 + params['params']['dx']
+        cy = height * 0.5 + params['params']['dy']
+
+        camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
+
+        # distortion = np.array([ params['params']['k'],  params['params']['k'], 0, 0, 0], dtype=np.float32)
+        k = params['params']['k']
+        distortion = np.array(k, dtype=np.float32)
+
+        new_points = cv2.undistortPoints(keypoints, camera_matrix, distortion, P=camera_matrix)
+
+        return tuple(new_points)
+        # keypoints = cv2.remap(keypoints, map1, map2, interpolation=interpolation, borderMode=self.border_mode, borderValue=self.value)
 
     def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
     def get_params(self):
-        return {
-            "k": random.uniform(self.distort_limit[0], self.distort_limit[1]),
-            "dx": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-            "dy": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-        }
+        if self.fix_params:
+            return {
+                "k": self.k,
+                "dx": self.dx,
+                "dy": self.dy,
+            }
+        else:
+            return {
+                "k": [random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(5)],
+                "dx": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
+                "dy": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
+            }
 
     def get_transform_init_args_names(self):
         return ("distort_limit", "shift_limit", "interpolation", "border_mode", "value", "mask_value")
