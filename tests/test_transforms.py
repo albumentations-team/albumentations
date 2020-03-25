@@ -666,3 +666,14 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
 
     message = "This transformation expects 3-channel images"
     assert str(exc_info.value).startswith(message)
+
+
+def test_spatter_incorrect_mode(image):
+    unsupported_mode = "unsupported"
+    aug = A.Spatter(mode=unsupported_mode)
+
+    with pytest.raises(ValueError) as exc_info:
+        aug(image=image, force_apply=True)
+
+    message = "Unsupported color mode: " + unsupported_mode
+    assert str(exc_info.value).startswith(message)
