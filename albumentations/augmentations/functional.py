@@ -2071,5 +2071,5 @@ def spatter(img, mean, std, sigma, cutout_treshold, intensity, color_mode):
         mud = m * np.array([20 / 255.0, 42 / 255.0, 63 / 255.0])
 
         return (img * (1 - m) + mud) * coef
-    else:
-        raise ValueError("Unsupported color mode: ", color_mode)
+
+    raise ValueError("Unsupported color mode: ", color_mode)
