@@ -2032,3 +2032,44 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+
+
+@clipped
+@preserve_shape
+def spatter(img, mean, std, sigma, cutout_treshold, intensity, color_mode):
+    non_rgb_warning(img)
+
+    coef = MAX_VALUES_BY_DTYPE[img.dtype]
+    img = img.astype(np.float32) / coef
+
+    liquid_layer = np.random.normal(size=img.shape[:2], loc=mean, scale=std)
+    liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
+    liquid_layer[liquid_layer < cutout_treshold] = 0
+
+    if color_mode == "rain":
+        liquid_layer = (liquid_layer * 255).astype(np.uint8)
+        dist = 255 - cv2.Canny(liquid_layer, 50, 150)
+        dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
+        _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
+        dist = blur(dist, 3).astype(np.uint8)
+        dist = equalize(dist)
+
+        ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
+        dist = motion_blur(dist, ker)
+        dist = blur(dist, 3).astype(np.float32)
+
+        m = liquid_layer * dist
+        m /= np.max(m, axis=(0, 1))
+        drops = m[:, :, None] * np.array([238 / 255.0, 238 / 255.0, 175 / 255.0]) * intensity
+
+        return (img + drops) * coef
+    elif color_mode == "mud":
+        m = np.where(liquid_layer > cutout_treshold, 1, 0)
+        m = gaussian_filter(m.astype(np.float32), sigma=sigma, mode="nearest")
+        m[m < 1.2 * cutout_treshold] = 0
+        m = m[..., np.newaxis]
+        mud = m * np.array([20 / 255.0, 42 / 255.0, 63 / 255.0])
+
+        return (img * (1 - m) + mud) * coef
+    else:
+        raise ValueError("Unsupported color mode: ", color_mode)

@@ -80,6 +80,7 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "Spatter",
 ]
 
 
@@ -3371,3 +3372,77 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
+
+
+class Spatter(ImageOnlyTransform):
+    """
+    Apply spatter transform. It simulates corruption which can occlude a lens in the form of rain or mud.
+
+    Args:
+        mean (float, or tuple of floats): Mean value of normal distribution for generating liquid layer.
+            If single float it will used as mean.
+            If tuple of float mean will sampled from range `[mean[0], mean[1])`. Default: (0.65).
+        std (float, or tuple of floats): Standard deviation value of normal distribution for generating liquid layer.
+            If single float it will used as std.
+            If tuple of float std will sampled from range `[std[0], std[1])`. Default: (0.3).
+        gauss_sigma (float, or tuple of floats): Sigma value for gaussian filtering of liquid layer.
+            If single float it will used as gauss_sigma.
+            If tuple of float gauss_sigma will sampled from range `[sigma[0], sigma[1])`. Default: (2).
+        cutout_threshold (float, or tuple of floats): Threshold for filtering liqued layer
+            (determines number of drops). If single float it will used as cutout_threshold.
+            If tuple of float cutout_threshold will sampled from range `[cutout_threshold[0], cutout_threshold[1])`.
+            Default: (0.68).
+        intensity (float, or tuple of floats): Intensity of corruption.
+            If single float it will used as intensity.
+            If tuple of float intensity will sampled from range `[intensity[0], intensity[1])`. Default: (0.6).
+        mode (string, or list of strings): Type of corruption. Currently supported options are 'rain' and 'mud'.
+             If list is provided type of corruption will be sampled list. Default: ("rain").
+
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    Image types:
+        uint8, float32
+
+    Reference:
+    |  https://arxiv.org/pdf/1903.12261.pdf
+    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+    """
+
+    def __init__(
+        self,
+        mean=0.65,
+        std=0.3,
+        gauss_sigma=2,
+        cutout_threshold=0.68,
+        intensity=0.6,
+        mode="rain",
+        always_apply=False,
+        p=0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+
+        self.mean = to_tuple(mean, mean)
+        self.std = to_tuple(std, std)
+        self.gauss_sigma = to_tuple(gauss_sigma, gauss_sigma)
+        self.intensity = to_tuple(intensity, intensity)
+        self.cutout_threshold = to_tuple(cutout_threshold, cutout_threshold)
+        self.mode = mode if isinstance(mode, list) else [mode]
+
+    def apply(
+        self, img, mean=0.65, std=0.3, gauss_sigma=2, cutout_threshold=0.68, intensity=0.6, mode="rain", **params
+    ):
+        return F.spatter(img, mean, std, gauss_sigma, cutout_threshold, intensity, mode)
+
+    def get_params(self):
+        return {
+            "mean": random.uniform(self.mean[0], self.mean[1]),
+            "std": random.uniform(self.std[0], self.std[1]),
+            "gauss_sigma": random.uniform(self.gauss_sigma[0], self.gauss_sigma[1]),
+            "intensity": random.uniform(self.intensity[0], self.intensity[1]),
+            "cutout_threshold": random.uniform(self.cutout_threshold[0], self.cutout_threshold[1]),
+            "mode": random.choice(self.mode),
+        }
+
+    def get_transform_init_args_names(self):
+        return ("mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode")

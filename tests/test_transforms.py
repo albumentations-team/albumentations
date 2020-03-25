@@ -652,3 +652,17 @@ def test_gauss_noise_incorrect_var_limit_type():
         A.GaussNoise(var_limit={"low": 70, "high": 90})
     message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
     assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(
+    "augmentation", [A.RandomSnow(), A.RandomRain(), A.RandomFog(), A.RandomSunFlare(), A.RandomShadow(), A.Spatter()]
+)
+@pytest.mark.parametrize("img_channels", [1, 6])
+def test_non_rgb_transform_warning(augmentation, img_channels):
+    img = np.random.randint(0, 256, (512, 512, img_channels), dtype=np.uint8)
+
+    with pytest.raises(ValueError) as exc_info:
+        augmentation(image=img, force_apply=True)
+
+    message = "This transformation expects 3-channel images"
+    assert str(exc_info.value).startswith(message)
