@@ -1918,8 +1918,8 @@ def multiply(img, multiplier):
             return _multiply_uint8_optimized(img, multiplier)
 
         return _multiply_uint8(img, multiplier)
-    else:
-        return _multiply_non_uint8(img, multiplier)
+
+    return _multiply_non_uint8(img, multiplier)
 
 
 def fancy_pca(img, alpha=0.1):

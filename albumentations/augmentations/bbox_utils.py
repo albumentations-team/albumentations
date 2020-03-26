@@ -373,7 +373,7 @@ def filter_bboxes(bboxes, rows, cols, min_area=0.0, min_visibility=0.0):
     return resulting_boxes
 
 
-def union_of_bboxes(height, width, bboxes, erosion_rate=0.0, *_, **__):
+def union_of_bboxes(height, width, bboxes, *_, erosion_rate=0.0, **__):
     """Calculate union of bounding boxes.
 
     Args:
