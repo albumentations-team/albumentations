@@ -335,12 +335,12 @@ def test_channel_droput():
 
     transformed = aug(image=img)["image"]
 
-    assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 2
+    assert sum(transformed[:, :, c].max() for c in range(img.shape[2])) == 2
 
     aug = A.ChannelDropout(channel_drop_range=(2, 2), always_apply=True)  # Drop two channels
     transformed = aug(image=img)["image"]
 
-    assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 1
+    assert sum(transformed[:, :, c].max() for c in range(img.shape[2])) == 1
 
 
 def test_equalize():
@@ -357,7 +357,7 @@ def test_equalize():
     b = F.equalize(img, mask=mask)
     assert np.all(a == b)
 
-    def mask_func(image, test):
+    def mask_func(*_, **__):
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
