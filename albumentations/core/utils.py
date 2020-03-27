@@ -65,11 +65,11 @@ class DataProcessor:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
-        else:
-            if direction == "to":
-                return self.convert_to_albumentations(data, rows, cols)
-            else:
-                return self.convert_from_albumentations(data, rows, cols)
+
+        if direction == "to":
+            return self.convert_to_albumentations(data, rows, cols)
+
+        return self.convert_from_albumentations(data, rows, cols)
 
     @abstractmethod
     def filter(self, data, rows, cols):

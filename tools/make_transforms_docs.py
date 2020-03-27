@@ -98,7 +98,7 @@ def make_transforms_targets_table(transforms_info, header):
         row = [info["docs_link"] or transform] + transform_targets
         rows.append(row)
 
-    column_widths = [max([len(r) for r in column]) for column in zip(*rows)]
+    column_widths = [max(len(r) for r in column) for column in zip(*rows)]
     lines = [
         " | ".join(
             "{title: <{width}}".format(width=width, title=title) for width, title in zip(column_widths, rows[0])

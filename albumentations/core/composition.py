@@ -61,7 +61,7 @@ def set_always_apply(transforms):
 
 
 @add_metaclass(SerializableMeta)
-class BaseCompose(object):
+class BaseCompose:
     def __init__(self, transforms, p):
         self.transforms = Transforms(transforms)
         self.p = p
@@ -96,7 +96,7 @@ class BaseCompose(object):
         return {
             "__class_fullname__": self.get_class_fullname(),
             "p": self.p,
-            "transforms": [t._to_dict() for t in self.transforms],
+            "transforms": [t._to_dict() for t in self.transforms],  # skipcq: PYL-W0212
         }
 
     def get_dict_with_id(self):
@@ -187,8 +187,10 @@ class Compose(BaseCompose):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,
-                "keypoint_params": keypoints_processor.params._to_dict() if keypoints_processor else None,
+                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,  # skipcq: PYL-W0212
+                "keypoint_params": keypoints_processor.params._to_dict()  # skipcq: PYL-W0212
+                if keypoints_processor
+                else None,
                 "additional_targets": self.additional_targets,
             }
         )
@@ -236,8 +238,8 @@ class OneOrOther(BaseCompose):
 
         if random.random() < self.p:
             return self.transforms[0](force_apply=True, **data)
-        else:
-            return self.transforms[-1](force_apply=True, **data)
+
+        return self.transforms[-1](force_apply=True, **data)
 
 
 class PerChannel(BaseCompose):

@@ -15,12 +15,12 @@ def convert_2d_to_3d(arrays, num_channels=3):
 def convert_2d_to_target_format(arrays, target):
     if target == "mask":
         return arrays[0] if len(arrays) == 1 else arrays
-    elif target == "image":
+    if target == "image":
         return convert_2d_to_3d(arrays, num_channels=3)
-    elif target == "image_4_channels":
+    if target == "image_4_channels":
         return convert_2d_to_3d(arrays, num_channels=4)
-    else:
-        raise ValueError("Unknown target {}".format(target))
+
+    raise ValueError("Unknown target {}".format(target))
 
 
 class InMemoryFile(StringIO):

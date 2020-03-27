@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 import pytest
-from albumentations import Flip, HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
+from albumentations import HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 
 from albumentations.augmentations.keypoints_utils import (
     convert_keypoint_from_albumentations,
