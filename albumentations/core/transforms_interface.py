@@ -88,7 +88,7 @@ class BasicTransform:
 
         return kwargs
 
-    def apply_with_params(self, params, *_, **kwargs):
+    def apply_with_params(self, params, force_apply=False, **kwargs):  # skipcq: PYL-W0613
         if params is None:
             return kwargs
         params = self.update_params(params, **kwargs)

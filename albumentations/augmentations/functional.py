@@ -223,7 +223,7 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **__):
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
     x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
@@ -1432,11 +1432,13 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
-def bbox_vflip(bbox, *_, **__):
+def bbox_vflip(bbox, rows, cols):  # skipcq: PYL-W0613
     """Flip a bounding box vertically around the x-axis.
 
     Args:
         bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows (int): Image rows.
+        cols (int): Image cols.
 
     Returns:
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1446,11 +1448,13 @@ def bbox_vflip(bbox, *_, **__):
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox, *_, **__):
+def bbox_hflip(bbox, rows, cols):  # skipcq: PYL-W0613
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
         bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows (int): Image rows.
+        cols (int): Image cols.
 
     Returns:
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1543,12 +1547,14 @@ def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
-def bbox_rot90(bbox, factor, *_, **__):
+def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
         bbox (tuple): A bounding box tuple (x_min, y_min, x_max, y_max).
         factor (int): Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
+        rows (int): Image rows.
+        cols (int): Image cols.
 
     Returns:
         tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
@@ -1566,7 +1572,7 @@ def bbox_rot90(bbox, factor, *_, **__):
     return bbox
 
 
-def bbox_rotate(bbox, angle, rows, cols, *_, **__):
+def bbox_rotate(bbox, angle, rows, cols):
     """Rotates a bounding box by angle degrees.
 
     Args:
@@ -1595,12 +1601,14 @@ def bbox_rotate(bbox, angle, rows, cols, *_, **__):
     return x_min, y_min, x_max, y_max
 
 
-def bbox_transpose(bbox, axis, *_, **__):
+def bbox_transpose(bbox, axis, rows, cols):  # skipcq: PYL-W0613
     """Transposes a bounding box along given axis.
 
     Args:
         bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
         axis (int): 0 - main axis, 1 - secondary axis.
+        rows (int): Image rows.
+        cols (int): Image cols.
 
     Returns:
         tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
@@ -1738,7 +1746,7 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
     return x, y, a + math.radians(angle), s
 
 
-def keypoint_scale(keypoint, scale_x, scale_y, **__):
+def keypoint_scale(keypoint, scale_x, scale_y):
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
@@ -1754,13 +1762,17 @@ def keypoint_scale(keypoint, scale_x, scale_y, **__):
     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
-def crop_keypoint_by_coords(keypoint, crop_coords, *_, **__):
+def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):  # skipcq: PYL-W0613
     """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
 
     Args:
         keypoint (tuple): A keypoint `(x, y, angle, scale)`.
         crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
+        crop height (int): Crop height.
+        crop_width (int): Crop width.
+        rows (int): Image height.
+        cols (int): Image width.
 
     Returns:
         A keypoint `(x, y, angle, scale)`.
@@ -1819,7 +1831,7 @@ def py3round(number):
     return int(round(number))
 
 
-def noop(input_obj, **__):
+def noop(input_obj, **params):  # skipcq: PYL-W0613
     return input_obj
 
 

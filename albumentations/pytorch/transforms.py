@@ -88,10 +88,10 @@ class ToTensorV2(BasicTransform):
     def targets(self):
         return {"image": self.apply, "mask": self.apply_to_mask}
 
-    def apply(self, img, **__):
+    def apply(self, img, **params):  # skipcq: PYL-W0613
         return torch.from_numpy(img.transpose(2, 0, 1))
 
-    def apply_to_mask(self, mask, **__):
+    def apply_to_mask(self, mask, **params):  # skipcq: PYL-W0613
         return torch.from_numpy(mask)
 
     def get_transform_init_args_names(self):

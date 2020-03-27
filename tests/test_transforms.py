@@ -357,7 +357,7 @@ def test_equalize():
     b = F.equalize(img, mask=mask)
     assert np.all(a == b)
 
-    def mask_func(*_, **__):
+    def mask_func(image, test):  # skipcq: PYL-W0613
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
