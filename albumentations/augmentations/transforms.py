@@ -3178,6 +3178,7 @@ class MaskDropout(DualTransform):
 
 class GlassBlur(Blur):
     """Apply glass noise to the input image.
+
     Args:
         sigma (float): standard deviation for Gaussian kernel.
         max_delta (int): max distance between pixels which are swapped.
