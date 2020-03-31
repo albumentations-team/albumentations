@@ -63,6 +63,7 @@ __all__ = [
     "RandomResizedCrop",
     "RandomBrightnessContrast",
     "RandomCropNearBBox",
+    "BBoxSafeRandomCrop",
     "RandomSizedBBoxSafeCrop",
     "RandomSnow",
     "RandomRain",
