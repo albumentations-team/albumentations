@@ -36,7 +36,7 @@ class Scale3d(PointCloudsTransform):
             scale.append(random.uniform(limit[0], limit[1]))
         return {"scale": scale}
 
-    def apply(self, points, scale=[1, 1, 1], **params):
+    def apply(self, points, scale=(1, 1, 1), **params):
         return F.scale(points, scale)
 
     def get_transform_init_args(self):
