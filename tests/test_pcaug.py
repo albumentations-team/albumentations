@@ -81,5 +81,5 @@ def test_move(points, expected_points, offset):
     ],
 )
 def test_scale(points, expected_points, scale_factor):
-    processed_points = F.scale(points, scale=scale_factor)
+    processed_points = F.scale(points, scale_factor)
     assert np.allclose(expected_points, processed_points)

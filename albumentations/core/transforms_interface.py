@@ -240,13 +240,7 @@ class PointCloudsTransform(BasicTransform):
 
     @property
     def targets(self):
-        return {"points": self.apply, "bbox3d": self.apply_to_bboxes}
-
-    def apply_to_bboxes(self, bboxes, **params):
-        return [self.apply_to_bbox(bbox) for bbox in bboxes]
-
-    def apply_to_bbox(self, bbox, **params):
-        raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
+        return {"points": self.apply}
 
 
 class NoOp(DualTransform):

@@ -24,7 +24,7 @@ class Scale3d(PointCloudsTransform):
 
     """
 
-    def __init__(self, scale_limit=[0.1, 0.1, 0.1], bias=[1, 1, 1], always_apply=False, p=0.5):
+    def __init__(self, scale_limit=(0.1, 0.1, 0.1), bias=(1, 1, 1), always_apply=False, p=0.5):
         super().__init__(always_apply, p)
         self.scale_limit = []
         for limit, bias_for_axis in zip(scale_limit, bias):
@@ -56,7 +56,7 @@ class RotateAroundAxis3d(PointCloudsTransform):
 
     """
 
-    def __init__(self, rotation_limit=math.pi / 2, axis=[0, 0, 1], always_apply=False, p=0.5):
+    def __init__(self, rotation_limit=math.pi / 2, axis=(0, 0, 1), always_apply=False, p=0.5):
         super().__init__(always_apply, p)
         self.rotation_limit = to_tuple(rotation_limit, bias=0)
         self.axis = axis
@@ -153,7 +153,7 @@ class Move3d(PointCloudsTransform):
 
     """
 
-    def __init__(self, offset=[0, 0, 0], always_apply=False, p=1.0):
+    def __init__(self, offset=(0, 0, 0), always_apply=False, p=1.0):
         super().__init__(always_apply, p)
         self.offset = offset
 
@@ -222,8 +222,8 @@ class RandomDropout3d(PointCloudsTransform):
         self.dropout_ratio = dropout_ratio
 
     def apply(self, points, **params):
-        self.inds = random.sample(range(len(points)), k=int(len(points) * (1 - self.dropout_ratio)))
-        return points[self.inds]
+        inds = random.sample(range(len(points)), k=int(len(points) * (1 - self.dropout_ratio)))
+        return points[inds]
 
     def get_transform_init_args(self):
         return {"dropout_ratio", self.dropout_ratio}
@@ -242,12 +242,12 @@ class Flip3d(PointCloudsTransform):
 
     """
 
-    def __init__(self, axis=[0, 0, 1], always_apply=False, p=0.5):
+    def __init__(self, axis=(0, 0, 1), always_apply=False, p=0.5):
         super().__init__(always_apply, p)
         self.axis = axis
 
     def apply(self, points, **params):
-        return F.rotate_around_axis(points, axis=self.axis, theta=math.pi)
+        return F.rotate_around_axis(points, axis=self.axis, angle=math.pi)
 
     def get_transform_init_args(self):
         return {"axis", self.axis}

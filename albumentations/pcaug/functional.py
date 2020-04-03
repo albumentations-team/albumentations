@@ -3,9 +3,9 @@ from __future__ import division
 import numpy as np
 
 
-def scale(points, scale=[1, 1, 1]):
+def scale(points, scale_factor=(1, 1, 1)):
     transformation_matrix = np.eye(3)
-    np.fill_diagonal(transformation_matrix, scale)
+    np.fill_diagonal(transformation_matrix, scale_factor)
     points[:, :3] = np.dot(points[:, :3], transformation_matrix)
     return points
 
@@ -13,7 +13,7 @@ def scale(points, scale=[1, 1, 1]):
 def rotate_around_axis(points, axis, angle):
     """
     Return the rotation matrix associated with counterclockwise rotation about
-    the given axis by theta radians.
+    the given axis by angle in radians.
     https://stackoverflow.com/questions/6802577/rotation-of-3d-vector
     """
     axis = axis / np.sqrt(np.dot(axis, axis))
@@ -55,11 +55,11 @@ def crop(points, x_min, y_min, z_min, x_max, y_max, z_max):
     return points[inds]
 
 
-def center(points, center=[0, 0, 0]):
-    points[:, :3] -= center + points[:, :3].mean(axis=0)
+def center(points, origin=(0, 0, 0)):
+    points[:, :3] -= origin + points[:, :3].mean(axis=0)
     return points
 
 
-def move(points, offset=[0, 0, 0]):
+def move(points, offset=(0, 0, 0)):
     points[:, :3] = points[:, :3] + offset
     return points
