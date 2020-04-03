@@ -10,7 +10,7 @@ from albumentations.core.serialization import SerializableMeta
 from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
 
-__all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
+__all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "PointCloudsTransform", "NoOp"]
 
 
 def to_tuple(param, low=None, bias=None):
@@ -139,7 +139,8 @@ class BasicTransform:
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
             params["fill_value"] = self.fill_value
-        params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
+        if "image" in kwargs:
+            params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
         return params
 
     @property
@@ -232,6 +233,20 @@ class ImageOnlyTransform(BasicTransform):
     @property
     def targets(self):
         return {"image": self.apply}
+
+
+class PointCloudsTransform(BasicTransform):
+    """Transform for point clouds."""
+
+    @property
+    def targets(self):
+        return {"points": self.apply, "bbox3d": self.apply_to_bboxes}
+
+    def apply_to_bboxes(self, bboxes, **params):
+        return [self.apply_to_bbox(bbox) for bbox in bboxes]
+
+    def apply_to_bbox(self, bbox, **params):
+        raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
 
 
 class NoOp(DualTransform):
