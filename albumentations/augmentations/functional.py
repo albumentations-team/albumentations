@@ -1401,7 +1401,7 @@ def downscale(img, scale, interpolation=cv2.INTER_NEAREST):
     need_cast = interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
     if need_cast:
         img = to_float(img)
-    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=interpolation)
+    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
     upscaled = cv2.resize(downscaled, (w, h), interpolation=interpolation)
     if need_cast:
         upscaled = from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
