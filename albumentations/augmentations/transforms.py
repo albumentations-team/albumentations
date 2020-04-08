@@ -1733,7 +1733,6 @@ class RandomRain(ImageOnlyTransform):
         brightness_coefficient (float): rainy days are usually shady. Should be in range [0, 1].
         rain_type: One of [None, "drizzle", "heavy", "torrestial"]
 
-
     Targets:
         image
 
@@ -3186,8 +3185,10 @@ class GlassBlur(Blur):
             Should be in range [1, inf). Default: (2).
         mode (str): mode of computation: fast or exact. Default: "fast".
         p (float): probability of applying the transform. Default: 0.5.
+        
     Targets:
         image
+        
     Image types:
         uint8, float32
 
@@ -3232,35 +3233,37 @@ class GlassBlur(Blur):
 
 
 class GridDropout(DualTransform):
-    """
-    GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
+    """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
 
-        Args:
-            ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
-                Must be between 0 and 1. Default: 0.5.
-            unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
-                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-            unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
-                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-            holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
-                If 'None', grid unit width is set as image_width//10. Default: `None`.
-            holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
-                If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
-            shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
-                Clipped between 0 and grid unit_width - hole_width. Default: 0.
-            shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
-                Clipped between 0 and grid unit height - hole_height. Default: 0.
-            random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
-                If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
-            fill_value (int): value for the dropped pixels. Default = 0
-            mask_fill_value (int): value for the dropped pixels in mask.
-                If `None`, tranformation is not applied to the mask. Default: `None`.
-        Targets:
-            image, mask
-        Image types:
-            uint8, float32
-        References:
-            https://arxiv.org/abs/2001.04086
+    Args:
+        ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
+            Must be between 0 and 1. Default: 0.5.
+        unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
+            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
+            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+        holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
+            If 'None', grid unit width is set as image_width//10. Default: `None`.
+        holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
+            If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
+        shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
+            Clipped between 0 and grid unit_width - hole_width. Default: 0.
+        shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
+            Clipped between 0 and grid unit height - hole_height. Default: 0.
+        random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
+            If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
+        fill_value (int): value for the dropped pixels. Default = 0
+        mask_fill_value (int): value for the dropped pixels in mask.
+            If `None`, tranformation is not applied to the mask. Default: `None`.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    References:
+        https://arxiv.org/abs/2001.04086
     """
 
     def __init__(
