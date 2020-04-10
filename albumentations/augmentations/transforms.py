@@ -101,7 +101,6 @@ class PadIfNeeded(DualTransform):
 
     Image types:
         uint8, float32
-
     """
 
     def __init__(
@@ -1522,7 +1521,6 @@ class CoarseDropout(ImageOnlyTransform):
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
-
     """
 
     def __init__(
@@ -2258,7 +2256,6 @@ class Equalize(ImageOnlyTransform):
 
     Image types:
         uint8
-
     """
 
     def __init__(self, mode="cv", by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5):
@@ -2845,7 +2842,6 @@ class ToFloat(ImageOnlyTransform):
 
     Image types:
         any type
-
     """
 
     def __init__(self, max_value=None, always_apply=False, p=1.0):
@@ -2946,7 +2942,6 @@ class Lambda(NoOp):
 
     Image types:
         Any
-
     """
 
     def __init__(self, image=None, mask=None, keypoint=None, bbox=None, name=None, always_apply=False, p=1.0):
