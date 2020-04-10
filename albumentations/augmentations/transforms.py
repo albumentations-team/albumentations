@@ -2842,6 +2842,7 @@ class ToFloat(ImageOnlyTransform):
 
     Image types:
         any type
+
     """
 
     def __init__(self, max_value=None, always_apply=False, p=1.0):
@@ -3259,6 +3260,7 @@ class GridDropout(DualTransform):
 
     References:
         https://arxiv.org/abs/2001.04086
+
     """
 
     def __init__(
