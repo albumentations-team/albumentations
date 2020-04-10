@@ -3185,10 +3185,10 @@ class GlassBlur(Blur):
             Should be in range [1, inf). Default: (2).
         mode (str): mode of computation: fast or exact. Default: "fast".
         p (float): probability of applying the transform. Default: 0.5.
-        
+
     Targets:
         image
-        
+
     Image types:
         uint8, float32
 
