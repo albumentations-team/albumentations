@@ -3427,7 +3427,7 @@ class Spatter(ImageOnlyTransform):
         self.gauss_sigma = to_tuple(gauss_sigma, gauss_sigma)
         self.intensity = to_tuple(intensity, intensity)
         self.cutout_threshold = to_tuple(cutout_threshold, cutout_threshold)
-        self.mode = mode if isinstance(mode, list) else [mode]
+        self.mode = mode if isinstance(mode, (list, tuple)) else [mode]
 
     def apply(
         self, img, mean=0.65, std=0.3, gauss_sigma=2, cutout_threshold=0.68, intensity=0.6, mode="rain", **params
