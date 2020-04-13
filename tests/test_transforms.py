@@ -652,3 +652,44 @@ def test_gauss_noise_incorrect_var_limit_type():
         A.GaussNoise(var_limit={"low": 70, "high": 90})
     message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
     assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(
+    ["bbox", "source_format", "target_format", "expected"],
+    [
+        ((20, 30, 40, 50), "coco", "albumentations", (0.2, 0.3, 0.6, 0.8)),
+        ((20, 30, 40, 50, 99), "coco", "albumentations", (0.2, 0.3, 0.6, 0.8, 99)),
+        ((20, 30, 60, 80), "pascal_voc", "albumentations", (0.2, 0.3, 0.6, 0.8)),
+        ((20, 30, 60, 80, 99), "pascal_voc", "albumentations", (0.2, 0.3, 0.6, 0.8, 99)),
+        ((0.2, 0.3, 0.4, 0.5), "yolo", "albumentations", (0.01, 0.06, 0.41, 0.56)),
+        ((0.2, 0.3, 0.4, 0.5, 99), "yolo", "albumentations", (0.01, 0.06, 0.41, 0.56, 99)),
+        ((0.2, 0.3, 0.6, 0.8), "albumentations", "coco", (20, 30, 40, 50)),
+        ((0.2, 0.3, 0.6, 0.8, 99), "albumentations", "coco", (20, 30, 40, 50, 99)),
+        ((0.2, 0.3, 0.6, 0.8), "albumentations", "pascal_voc", (20, 30, 60, 80)),
+        ((0.2, 0.3, 0.6, 0.8, 99), "albumentations", "pascal_voc", (20, 30, 60, 80, 99)),
+        ((0.01, 0.06, 0.41, 0.56), "albumentations", "yolo", (0.2, 0.3, 0.4, 0.5)),
+        ((0.01, 0.06, 0.41, 0.56, 99), "albumentations", "yolo", (0.2, 0.3, 0.4, 0.5, 99)),
+
+        ((20, 30, 60, 80), "pascal_voc", "coco", (20, 30, 40, 50)),
+        ((20, 30, 60, 80, 99), "pascal_voc", "coco", (20, 30, 40, 50, 99)),
+        ((20, 30, 60, 80), "pascal_voc", "yolo", (0.4, 0.55, 0.4, 0.5)),
+        ((20, 30, 60, 80, 99), "pascal_voc", "yolo", (0.4, 0.55, 0.4, 0.5, 99)),
+        ((20, 30, 40, 50), "coco", "yolo", (0.4, 0.55, 0.4, 0.5)),
+        ((20, 30, 40, 50, 99), "coco", "yolo", (0.4, 0.55, 0.4, 0.5, 99)),
+        ((20, 30, 40, 50), "coco", "pascal_voc", (20, 30, 60, 80)),
+        ((20, 30, 40, 50, 99), "coco", "pascal_voc", (20, 30, 60, 80, 99)),
+        ((0.2, 0.3, 0.4, 0.5), "yolo", "pascal_voc", (1, 6, 41, 56)),
+        ((0.2, 0.3, 0.4, 0.5, 99), "yolo", "pascal_voc", (1, 6, 41, 56, 99)),
+        ((0.2, 0.3, 0.4, 0.5), "yolo", "coco", (1, 6, 40, 50)),
+        ((0.2, 0.3, 0.4, 0.5, 99), "yolo", "coco", (1, 6, 40, 50, 99)),
+
+        ((20, 30, 60, 80), "pascal_voc", "pascal_voc", (20, 30, 60, 80)),
+        ((20, 30, 40, 50, 99), "coco", "coco", (20, 30, 40, 50, 99)),
+    ],
+)
+def test_bbox_format_convert(bbox, source_format, target_format, expected):
+    image = np.ones((100, 100, 3))
+
+    aug = A.BboxFormatConvert(source_format, target_format)
+    result = aug(image=image, bboxes=[bbox])
+    assert np.allclose(result["bboxes"][0], expected)
