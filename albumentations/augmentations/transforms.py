@@ -1509,7 +1509,8 @@ class CoarseDropout(ImageOnlyTransform):
             `min_height` is set to `max_height`. Default: `None`.
         min_width (int): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
-        fill_value (int, float, lisf of int, list of float): value for dropped pixels.
+        fill_value (int, float, lisf of int, list of float, string): value for dropped pixels.
+            If fill_value is 'random', random color will be generated.
 
     Targets:
         image
@@ -1570,7 +1571,16 @@ class CoarseDropout(ImageOnlyTransform):
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
 
-        return {"holes": holes}
+        fill_value = self.fill_value
+        if fill_value == "random":
+            ch = F.get_num_channels(img)
+
+            if img.dtype == np.uint8:
+                fill_value = np.random.randint(0, 256, ch, np.uint8)
+            else:
+                fill_value = np.random.uniform(0, 1, size=ch).astype(np.float32)
+
+        return {"holes": holes, "fill_value": fill_value}
 
     @property
     def targets_as_params(self):

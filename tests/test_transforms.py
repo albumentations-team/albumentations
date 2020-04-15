@@ -652,3 +652,13 @@ def test_gauss_noise_incorrect_var_limit_type():
         A.GaussNoise(var_limit={"low": 70, "high": 90})
     message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
     assert str(exc_info.value) == message
+
+
+def test_fill_value_random():
+    image = np.zeros((100, 100, 3))
+    aug = A.CoarseDropout(5, 10, 10, fill_value="random", always_apply=True)
+
+    augmented1 = aug(image=image)["image"]
+    augmented2 = aug(image=image)["image"]
+
+    assert not np.allclose(np.unique(augmented1), np.unique(augmented2))
