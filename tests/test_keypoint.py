@@ -332,15 +332,16 @@ def test_result_format():
     formats = ["xy", "yx", "xya", "xys", "xyas", "xysa"]
     img = np.empty(image_shape, dtype=np.uint8)
 
-    for format in formats:
+    for in_format in formats:
         tmp_keypoints = convert_keypoints_to_albumentations(keypoints, "xyas", rows, cols)
-        in_keypoints = convert_keypoints_from_albumentations(tmp_keypoints, format, rows, cols)
+        in_keypoints = convert_keypoints_from_albumentations(tmp_keypoints, in_format, rows, cols)
         for result_format in formats:
-            result_keypoints = convert_keypoints_to_albumentations(in_keypoints, format, rows, cols)
+            result_keypoints = convert_keypoints_to_albumentations(in_keypoints, in_format, rows, cols)
             result_keypoints = convert_keypoints_from_albumentations(result_keypoints, result_format, rows, cols)
             transform = Compose(
-                [RandomResizedCrop(50, 50, p=0)], keypoint_params=KeypointParams(format, result_format=result_format)
+                [RandomResizedCrop(50, 50, p=0)],
+                keypoint_params=KeypointParams(in_format, result_format=result_format),
             )
             res = transform(image=img, keypoints=in_keypoints)["keypoints"]
             if not np.allclose(res, result_keypoints):
-                raise AssertionError("Format: {} Result format: {}".format(format, result_format))
+                raise AssertionError("Format: {} Result format: {}".format(in_format, result_format))

@@ -250,12 +250,12 @@ def test_result_format():
     formats = ["coco", "pascal_voc", "albumentations", "yolo"]
     img = np.empty(image_shape, dtype=np.uint8)
 
-    for format in formats:
+    for in_format in formats:
         tmp_bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows, cols)
         in_bboxes = (
             tmp_bboxes
-            if format == "albumentations"
-            else convert_bboxes_from_albumentations(tmp_bboxes, format, rows, cols)
+            if in_format == "albumentations"
+            else convert_bboxes_from_albumentations(tmp_bboxes, in_format, rows, cols)
         )
         for result_format in formats:
             result_bboxes = (
@@ -264,8 +264,8 @@ def test_result_format():
                 else convert_bboxes_from_albumentations(tmp_bboxes, result_format, rows, cols)
             )
             transform = Compose(
-                [RandomResizedCrop(50, 50, p=0)], bbox_params=BboxParams(format, result_format=result_format)
+                [RandomResizedCrop(50, 50, p=0)], bbox_params=BboxParams(in_format, result_format=result_format)
             )
             res = transform(image=img, bboxes=in_bboxes)["bboxes"]
             if not np.allclose(res, result_bboxes, 0.5):
-                raise AssertionError("Format: {} Result format: {}".format(format, result_format))
+                raise AssertionError("Format: {} Result format: {}".format(in_format, result_format))
