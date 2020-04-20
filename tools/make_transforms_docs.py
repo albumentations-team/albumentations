@@ -125,7 +125,7 @@ def make_transforms_targets_links(transforms_info):
 
 
 def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
-    with open(args.filepath, "r", encoding="utf8") as f:
+    with open(filepath, "r", encoding="utf8") as f:
         text = f.read()
     outdated_docs = set()
     image_only_lines_not_in_text = []
@@ -158,7 +158,7 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
     )
 
 
-if __name__ == "__main__":
+def _main():
     args = parse_args()
     command = args.command
     if command not in {"make", "check"}:
@@ -177,3 +177,7 @@ if __name__ == "__main__":
         print(dual_transforms_table)
     else:
         check_docs(args.filepath, image_only_transforms_links, dual_transforms_table)
+
+
+if __name__ == "__main__":
+    _main()
