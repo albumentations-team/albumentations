@@ -11,7 +11,7 @@ from albumentations.augmentations.keypoints_utils import (
     convert_keypoints_to_albumentations,
     angle_to_2pi_range,
 )
-from albumentations.core.composition import Compose
+from albumentations.core.composition import Compose, KeypointParams
 from albumentations.core.transforms_interface import NoOp
 from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
 import albumentations.augmentations.functional as F
@@ -323,3 +323,24 @@ def test_compose_with_additional_targets():
 )
 def test_angle_to_2pi_range(angle, expected):
     assert np.isclose(angle_to_2pi_range(angle), expected)
+
+
+def test_result_format():
+    image_shape = [100, 100]
+    rows, cols = image_shape
+    keypoints = [[0, 1, 12, 13, 1], [21, 22, 33, 34, 1], [91, 92, 98, 99, 1]]
+    formats = ["xy", "yx", "xya", "xys", "xyas", "xysa"]
+    img = np.empty(image_shape, dtype=np.uint8)
+
+    for format in formats:
+        tmp_keypoints = convert_keypoints_to_albumentations(keypoints, "xyas", rows, cols)
+        in_keypoints = convert_keypoints_from_albumentations(tmp_keypoints, format, rows, cols)
+        for result_format in formats:
+            result_keypoints = convert_keypoints_to_albumentations(in_keypoints, format, rows, cols)
+            result_keypoints = convert_keypoints_from_albumentations(result_keypoints, result_format, rows, cols)
+            transform = Compose(
+                [RandomResizedCrop(50, 50, p=0)], keypoint_params=KeypointParams(format, result_format=result_format)
+            )
+            res = transform(image=img, keypoints=in_keypoints)["keypoints"]
+            if not np.allclose(res, result_keypoints):
+                raise AssertionError("Format: {} Result format: {}".format(format, result_format))

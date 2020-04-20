@@ -15,12 +15,13 @@ def format_args(args_dict):
 
 @add_metaclass(ABCMeta)
 class Params:
-    def __init__(self, format, label_fields=None):
+    def __init__(self, format, label_fields=None, result_format=None):
         self.format = format
         self.label_fields = label_fields
+        self.result_format = result_format if result_format is not None else format
 
     def _to_dict(self):
-        return {"format": self.format, "label_fields": self.label_fields}
+        return {"format": self.format, "label_fields": self.label_fields, "result_format": self.result_format}
 
 
 @add_metaclass(ABCMeta)
@@ -62,7 +63,9 @@ class DataProcessor:
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
     def check_and_convert(self, data, rows, cols, direction="to"):
-        if self.params.format == "albumentations":
+        if (direction == "to" and self.params.format == "albumentations") or (
+            direction == "from" and self.params.result_format == "albumentations"
+        ):
             self.check(data, rows, cols)
             return data
 

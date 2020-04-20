@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from albumentations import BboxParams
 from albumentations.augmentations.bbox_utils import (
     normalize_bbox,
     denormalize_bbox,
@@ -10,6 +11,7 @@ from albumentations.augmentations.bbox_utils import (
     convert_bbox_to_albumentations,
     convert_bbox_from_albumentations,
     convert_bboxes_to_albumentations,
+    convert_bboxes_from_albumentations,
 )
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
@@ -239,3 +241,31 @@ def test_random_rotate():
     aug = Rotate(limit=15, p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed["bboxes"])
+
+
+def test_result_format():
+    image_shape = [100, 100]
+    rows, cols = image_shape
+    bboxes = [[0, 0, 10, 10, 1], [20, 20, 30, 30, 1], [90, 90, 99, 99, 1]]
+    formats = ["coco", "pascal_voc", "albumentations", "yolo"]
+    img = np.empty(image_shape, dtype=np.uint8)
+
+    for format in formats:
+        tmp_bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows, cols)
+        in_bboxes = (
+            tmp_bboxes
+            if format == "albumentations"
+            else convert_bboxes_from_albumentations(tmp_bboxes, format, rows, cols)
+        )
+        for result_format in formats:
+            result_bboxes = (
+                tmp_bboxes
+                if result_format == "albumentations"
+                else convert_bboxes_from_albumentations(tmp_bboxes, result_format, rows, cols)
+            )
+            transform = Compose(
+                [RandomResizedCrop(50, 50, p=0)], bbox_params=BboxParams(format, result_format=result_format)
+            )
+            res = transform(image=img, bboxes=in_bboxes)["bboxes"]
+            if not np.allclose(res, result_bboxes, 0.5):
+                raise AssertionError("Format: {} Result format: {}".format(format, result_format))

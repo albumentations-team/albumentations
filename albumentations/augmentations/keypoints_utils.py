@@ -60,7 +60,7 @@ class KeypointsProcessor(DataProcessor):
     def convert_from_albumentations(self, data, rows, cols):
         return convert_keypoints_from_albumentations(
             data,
-            self.params.format,
+            self.params.result_format,
             rows,
             cols,
             check_validity=self.params.remove_invisible,

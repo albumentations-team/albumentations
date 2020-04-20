@@ -374,10 +374,11 @@ class BboxParams(Params):
             visible area in pixels is less than this value will be removed. Default: 0.0.
         min_visibility (float): minimum fraction of area for a bounding box
             to remain this box in list. Default: 0.0.
+        result_format (str): result format of bounding box. By default has same value as `format`.
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0):
-        super(BboxParams, self).__init__(format, label_fields)
+    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, result_format=None):
+        super(BboxParams, self).__init__(format, label_fields, result_format)
         self.min_area = min_area
         self.min_visibility = min_visibility
 
@@ -405,10 +406,11 @@ class KeypointParams(Params):
             Should be same type as keypoints.
         remove_invisible (bool): to remove invisible points after transform or not
         angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
+        result_format (str): result format of keypoints. By default has same value as `format`.
     """
 
-    def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True):
-        super(KeypointParams, self).__init__(format, label_fields)
+    def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True, result_format=None):
+        super(KeypointParams, self).__init__(format, label_fields, result_format)
         self.remove_invisible = remove_invisible
         self.angle_in_degrees = angle_in_degrees
 
