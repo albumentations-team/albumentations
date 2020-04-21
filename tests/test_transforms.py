@@ -654,11 +654,20 @@ def test_gauss_noise_incorrect_var_limit_type():
     assert str(exc_info.value) == message
 
 
-def test_fill_value_random():
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    [
+        [A.CoarseDropout, {"fill_value": "random"}],
+        [A.GridDropout, {"fill_value": "random"}],
+        [A.MaskDropout, {"image_fill_value": "random"}],
+    ],
+)
+def test_fill_value_random(augmentation_cls, params):
     image = np.zeros((100, 100, 3))
-    aug = A.CoarseDropout(5, 10, 10, fill_value="random", always_apply=True)
+    mask = np.random.randint(0, 5, image.shape[:2], dtype=np.uint8)
+    aug = augmentation_cls(always_apply=True, **params)
 
-    augmented1 = aug(image=image)["image"]
-    augmented2 = aug(image=image)["image"]
+    augmented1 = aug(image=image, mask=mask)["image"]
+    augmented2 = aug(image=image, mask=mask)["image"]
 
     assert not np.allclose(np.unique(augmented1), np.unique(augmented2))
