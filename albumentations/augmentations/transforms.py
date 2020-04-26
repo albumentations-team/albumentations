@@ -411,7 +411,8 @@ class Resize(DualTransform):
     Args:
         height (int): desired height of the output.
         width (int): desired width of the output.
-        scale (float): scaling factor. Scale using instead of height and width if it defined and height and width is None.
+        scale (float): scaling factor. Scale using instead of height and width
+            if it defined and height and width is None.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
