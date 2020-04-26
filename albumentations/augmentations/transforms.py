@@ -411,6 +411,7 @@ class Resize(DualTransform):
     Args:
         height (int): desired height of the output.
         width (int): desired width of the output.
+        scale (float): scaling factor. Scale using instead of height and width if it defined and height and width is None.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
@@ -423,13 +424,17 @@ class Resize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
+    def __init__(self, height, width, scale=None, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
         super(Resize, self).__init__(always_apply, p)
         self.height = height
         self.width = width
+        self.scale = scale
         self.interpolation = interpolation
 
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+        if (self.scale is not None) and (self.height is None) and (self.width is None):
+            return F.scale(img, self.scale, interpolation=interpolation)
+
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
@@ -439,6 +444,10 @@ class Resize(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         height = params["rows"]
         width = params["cols"]
+
+        if (self.scale is not None) and (self.height is None) and (self.width is None):
+            return F.keypoint_scale(keypoint, self.scale, self.scale)
+
         scale_x = self.width / width
         scale_y = self.height / height
         return F.keypoint_scale(keypoint, scale_x, scale_y)
