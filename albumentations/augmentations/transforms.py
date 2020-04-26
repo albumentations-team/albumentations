@@ -918,8 +918,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
             aspect_ratio = math.exp(random.uniform(*log_ratio))
 
-            w = int(round(math.sqrt(target_area * aspect_ratio)))
-            h = int(round(math.sqrt(target_area / aspect_ratio)))
+            w = int(round(math.sqrt(target_area * aspect_ratio)))  # skipcq: PTC-W0028
+            h = int(round(math.sqrt(target_area / aspect_ratio)))  # skipcq: PTC-W0028
 
             if 0 < w <= img.shape[1] and 0 < h <= img.shape[0]:
                 i = random.randint(0, img.shape[0] - h)
