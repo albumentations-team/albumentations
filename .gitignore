@@ -156,5 +156,10 @@ crashlytics-build.properties
 fabric.properties
 
 .idea
-
-conda_build/
+.coverage
+.mypy_cache/
+.nox/
+.python-version
+.pytype/
+docs/_build/
+src/*.egg-info/

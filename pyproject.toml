@@ -1,0 +1,75 @@
+[tool.poetry]
+name = "volumentations"
+version = "0.1.0"
+description="Point augmentations library as hard-fork of albu-team/albumentations"
+homepage="https://github.com/kumuji/volumentations"
+repository="https://github.com/kumuji/volumentations"
+documentation = "https://volumentations.readthedocs.io/en/latest/"
+authors = ["kumuji <alexey@nekrasov.dev>"]
+license = "MIT"
+readme="README.rst"
+classifiers=[
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Software Development :: Libraries",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+pyyaml = "^5.3.1"
+numpy = "^1.18.3"
+importlib-metadata = "^1.6.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.4.1"
+flake8 = "^3.7.9"
+flake8-docstrings = "^1.5.0"
+flake8-isort = "^3.0.0"
+mypy = "^0.770"
+pre-commit = "^2.3.0"
+coverage = {extras = ["toml"], version = "^5.1"}
+pytest-cov = "^2.8.1"
+dephell = "^0.8.2"
+nox = "^2019.11.9"
+flake8-bandit = "^2.1.2"
+flake8-black = "^0.1.1"
+pytest-mock = "^3.1.0"
+flake8-bugbear = "^20.1.4"
+safety = "^1.9.0"
+typeguard = "^2.7.1"
+darglint = "^1.2.3"
+xdoctest = "^0.12.0"
+sphinx = "^3.0.3"
+sphinx-autodoc-typehints = "^1.10.3"
+
+[tool.coverage.paths]
+source = ["src", "*/site-packages"]
+
+[tool.coverage.run]
+# poetry run pytest --cov
+branch = true
+source = ["volumentations"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 100
+
+[tool.dephell.main]
+# poetry run dephell deps convert
+from = {format = "poetry", path = "pyproject.toml"}
+to = {format = "setuppy", path = "dephel_setup.py"}
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
+

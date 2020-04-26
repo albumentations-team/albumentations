@@ -4,4 +4,5 @@ numpy==1.15.4
 scikit-image
 sphinx-autobuild
 sphinx<2
+sphinx-autodoc-typehints==1.10.3
 sphinx_rtd_theme

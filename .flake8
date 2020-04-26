@@ -1,0 +1,9 @@
+[flake8]
+select = ANN,B,B9,BLK,C,D,DAR,E,F,I,S,W
+ignore = E203,E501,W503
+max-line-length = 80
+max-complexity = 10
+application-import-names = hypermodern_python,tests
+import-order-style = google
+docstring-convention = google
+per-file-ignores = tests/*:S101
