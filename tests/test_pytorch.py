@@ -32,6 +32,16 @@ def test_additional_targets_for_totensorv2():
         assert np.array_equal(res["mask"], res["mask2"])
 
 
+def test_torch_to_tensor_v2_on_gray_scale_images():
+    aug = ToTensorV2()
+    grayscale_image = np.random.randint(low=0, high=256, size=(100, 100), dtype=np.uint8)
+    data = aug(image=grayscale_image)
+    assert isinstance(data["image"], torch.Tensor)
+    assert len(data["image"].shape) == 3
+    assert data["image"].shape[1:] == grayscale_image.shape
+    assert data["image"].dtype == torch.uint8
+
+
 def test_torch_to_tensor_augmentations(image, mask):
     with pytest.warns(DeprecationWarning):
         aug = ToTensor()

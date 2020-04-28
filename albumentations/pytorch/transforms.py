@@ -89,6 +89,12 @@ class ToTensorV2(BasicTransform):
         return {"image": self.apply, "mask": self.apply_to_mask}
 
     def apply(self, img, **params):  # skipcq: PYL-W0613
+        if len(img.shape) not in [2, 3]:
+            raise ValueError("Albumentations only supports images in HW or HWC format")
+
+        if len(img.shape) == 2:
+            img = np.expand_dims(img, 2)
+
         return torch.from_numpy(img.transpose(2, 0, 1))
 
     def apply_to_mask(self, mask, **params):  # skipcq: PYL-W0613
