@@ -484,13 +484,11 @@ class Scale(DualTransform):
         return bbox
 
     def apply_to_keypoint(self, keypoint, **params):
-        height = params["rows"]
-        width = params["cols"]
         scale_x, scale_y = self.scale
         return F.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self):
-        return ("interpolation")
+        return "interpolation"
 
 
 class RandomRotate90(DualTransform):
