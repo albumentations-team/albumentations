@@ -907,8 +907,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
             aspect_ratio = math.exp(random.uniform(*log_ratio))
 
-            w = int(round(math.sqrt(target_area * aspect_ratio)))
-            h = int(round(math.sqrt(target_area / aspect_ratio)))
+            w = int(round(math.sqrt(target_area * aspect_ratio)))  # skipcq: PTC-W0028
+            h = int(round(math.sqrt(target_area / aspect_ratio)))  # skipcq: PTC-W0028
 
             if 0 < w <= img.shape[1] and 0 < h <= img.shape[0]:
                 i = random.randint(0, img.shape[0] - h)
@@ -1543,13 +1543,13 @@ class CoarseDropout(ImageOnlyTransform):
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
         self.fill_value = fill_value
-        if not (0 < self.min_holes <= self.max_holes):
+        if not 0 < self.min_holes <= self.max_holes:
             raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
-        if not (0 < self.min_height <= self.max_height):
+        if not 0 < self.min_height <= self.max_height:
             raise ValueError(
                 "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
             )
-        if not (0 < self.min_width <= self.max_width):
+        if not 0 < self.min_width <= self.max_width:
             raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
 
     def apply(self, image, fill_value=0, holes=(), **params):
@@ -1618,9 +1618,9 @@ class ImageCompression(ImageOnlyTransform):
         if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
             low_thresh_quality_assert = 1
 
-        if not (low_thresh_quality_assert <= quality_lower <= 100):
+        if not low_thresh_quality_assert <= quality_lower <= 100:
             raise ValueError("Invalid quality_lower. Got: {}".format(quality_lower))
-        if not (low_thresh_quality_assert <= quality_upper <= 100):
+        if not low_thresh_quality_assert <= quality_upper <= 100:
             raise ValueError("Invalid quality_upper. Got: {}".format(quality_upper))
 
         self.quality_lower = quality_lower
@@ -1693,7 +1693,7 @@ class RandomSnow(ImageOnlyTransform):
     def __init__(self, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, always_apply=False, p=0.5):
         super(RandomSnow, self).__init__(always_apply, p)
 
-        if not (0 <= snow_point_lower <= snow_point_upper <= 1):
+        if not 0 <= snow_point_lower <= snow_point_upper <= 1:
             raise ValueError(
                 "Invalid combination of snow_point_lower and snow_point_upper. Got: {}".format(
                     (snow_point_lower, snow_point_upper)
@@ -1757,15 +1757,15 @@ class RandomRain(ImageOnlyTransform):
             raise ValueError(
                 "raint_type must be one of ({}). Got: {}".format(["drizzle", "heavy", "torrential", None], rain_type)
             )
-        if not (-20 <= slant_lower <= slant_upper <= 20):
+        if not -20 <= slant_lower <= slant_upper <= 20:
             raise ValueError(
                 "Invalid combination of slant_lower and slant_upper. Got: {}".format((slant_lower, slant_upper))
             )
-        if not (1 <= drop_width <= 5):
+        if not 1 <= drop_width <= 5:
             raise ValueError("drop_width must be in range [1, 5]. Got: {}".format(drop_width))
-        if not (0 <= drop_length <= 100):
+        if not 0 <= drop_length <= 100:
             raise ValueError("drop_length must be in range [0, 100]. Got: {}".format(drop_length))
-        if not (0 <= brightness_coefficient <= 1):
+        if not 0 <= brightness_coefficient <= 1:
             raise ValueError("brightness_coefficient must be in range [0, 1]. Got: {}".format(brightness_coefficient))
 
         self.slant_lower = slant_lower
@@ -1861,13 +1861,13 @@ class RandomFog(ImageOnlyTransform):
     def __init__(self, fog_coef_lower=0.3, fog_coef_upper=1, alpha_coef=0.08, always_apply=False, p=0.5):
         super(RandomFog, self).__init__(always_apply, p)
 
-        if not (0 <= fog_coef_lower <= fog_coef_upper <= 1):
+        if not 0 <= fog_coef_lower <= fog_coef_upper <= 1:
             raise ValueError(
                 "Invalid combination if fog_coef_lower and fog_coef_upper. Got: {}".format(
                     (fog_coef_lower, fog_coef_upper)
                 )
             )
-        if not (0 <= alpha_coef <= 1):
+        if not 0 <= alpha_coef <= 1:
             raise ValueError("alpha_coef must be in range [0, 1]. Got: {}".format(alpha_coef))
 
         self.fog_coef_lower = fog_coef_lower
@@ -1950,15 +1950,16 @@ class RandomSunFlare(ImageOnlyTransform):
 
         (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = flare_roi
 
-        if not (0 <= flare_center_lower_x < flare_center_upper_x <= 1) or not (
-            0 <= flare_center_lower_y < flare_center_upper_y <= 1
+        if (
+            not 0 <= flare_center_lower_x < flare_center_upper_x <= 1
+            or not 0 <= flare_center_lower_y < flare_center_upper_y <= 1
         ):
             raise ValueError("Invalid flare_roi. Got: {}".format(flare_roi))
-        if not (0 <= angle_lower < angle_upper <= 1):
+        if not 0 <= angle_lower < angle_upper <= 1:
             raise ValueError(
                 "Invalid combination of angle_lower nad angle_upper. Got: {}".format((angle_lower, angle_upper))
             )
-        if not (0 <= num_flare_circles_lower < num_flare_circles_upper):
+        if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
             raise ValueError(
                 "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. Got: {}".format(
                     (num_flare_circles_lower, num_flare_circles_upper)
@@ -2074,9 +2075,9 @@ class RandomShadow(ImageOnlyTransform):
 
         (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
 
-        if not (0 <= shadow_lower_x <= shadow_upper_x <= 1) or not (0 <= shadow_lower_y <= shadow_upper_y <= 1):
+        if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
             raise ValueError("Invalid shadow_roi. Got: {}".format(shadow_roi))
-        if not (0 <= num_shadows_lower <= num_shadows_upper):
+        if not 0 <= num_shadows_lower <= num_shadows_upper:
             raise ValueError(
                 "Invalid combination of num_shadows_lower nad num_shadows_upper. Got: {}".format(
                     (num_shadows_lower, num_shadows_upper)
@@ -2666,7 +2667,7 @@ class ChannelDropout(ImageOnlyTransform):
         self.min_channels = channel_drop_range[0]
         self.max_channels = channel_drop_range[1]
 
-        if not (1 <= self.min_channels <= self.max_channels):
+        if not 1 <= self.min_channels <= self.max_channels:
             raise ValueError("Invalid channel_drop_range. Got: {}".format(channel_drop_range))
 
         self.fill_value = fill_value
