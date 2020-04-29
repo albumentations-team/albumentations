@@ -62,6 +62,7 @@ from albumentations import (
     Downscale,
     MultiplicativeNoise,
     GridDropout,
+    AugMix,
 )
 
 
@@ -136,6 +137,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         [Solarize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [AugMix, {}],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -278,6 +280,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Equalize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [AugMix, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -336,6 +339,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [Solarize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [AugMix, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -452,6 +456,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Equalize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [AugMix, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):

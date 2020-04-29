@@ -223,6 +223,16 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
+@preserve_channel_dim
+def shear(img, shear_x=0, shear_y=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
+    matrix = np.array([[1, shear_x, 0], [shear_y, 1, 0]], dtype=np.float32)
+
+    warp_affine_fn = _maybe_process_in_chunks(
+        cv2.warpAffine, M=matrix, dsize=img.shape[:2], flags=interpolation, borderMode=border_mode, borderValue=value
+    )
+    return warp_affine_fn(img)
+
+
 def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
     x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
@@ -597,6 +607,39 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
         result_img[..., i] = function(img[..., i], _mask)
 
     return result_img
+
+
+def _autocontrast(img):
+    h = cv2.calcHist([img], [0], None, [256], (0, 256)).ravel()
+
+    for lo in range(256):
+        if h[lo]:
+            break
+    for hi in range(255, -1, -1):
+        if h[hi]:
+            break
+
+    if hi > lo:
+        lut = np.zeros(256, dtype=np.uint8)
+        scale = 255.0 / (hi - lo)
+        offset = -lo * scale
+        for ix in range(256):
+            lut[ix] = int(np.clip(ix * scale + offset, 0, 255))
+
+        img = cv2.LUT(img, lut)
+
+    return img
+
+
+@preserve_channel_dim
+def autocontrast(img):
+    if len(img.shape) == 2:
+        result = _autocontrast(img)
+    else:
+        result = np.zeros_like(img)
+        for ch in range(get_num_channels(img)):
+            result[..., ch] = _autocontrast(img[..., ch])
+    return result
 
 
 @clipped

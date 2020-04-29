@@ -80,6 +80,7 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "AugMix",
 ]
 
 
@@ -3371,4 +3372,178 @@ class GridDropout(DualTransform):
             "shift_y",
             "mask_fill_value",
             "random_offset",
+        )
+
+
+class AugMix(ImageOnlyTransform):
+    """Augmentation from "AugMix: A Simple Data Processing Method to Improve Robustness and Uncertainty"
+    Please note that this augmentation performs normalization internally, so resulting image will be float type.
+
+    Args:
+        alpha (float): Probability coefficient for Beta and Dirichlet distributions. Default: (1.0).
+        width (int): Width of augmentation chain. Default: 3.
+        depth (int, tuple of ints): Depth of augmentation chain. If single int will be used provided number.
+            If tuple of depth will be generated in range `[depth[0], depth[1])`. Default: (3).
+        posterize_bits (int, tuple of ints): Number of bits for posterize augmentation.
+            If single int will be used provided number. If tuple of posterize_bits will be generated
+            in range `[postirize_bits[0], postirize_bits[1])`. Default: (3, 4).
+        angle (float, tuple of floats): Angle of rotation. If angle is single float it will be sampled
+            from [-angle, angle] interval.
+        threshold (int, tuple of ints): Threshold for solarize augmentation. If single int threshold
+            is picked from (0, threshold) interval. Default: 70.
+        shear_x (float, tuple of floats): Shear along x axis. If single float shear_x is picked
+            from (-shear_x, shear_x) interval. Default: 0.1.
+        shear_y (float, tuple of floats): Shear along y axis. If single float shear_y is picked
+            from (-shear_y, shear_y) interval. Default: 0.1.
+        translate_x (float, tuple of floats): Degree of image translation along x axis proportially to image width.
+            If single float translate_x is picked from (-translate_x, translate_x) interval.
+            Must be in [-1, 1] interval. Default: 0.1.
+        translate_y (float, tuple of floats): Degree of image translation along y axis proportially to image height.
+            If single float translate_x is picked from (-translate_y, translate_y) interval.
+            Must be in [-1, 1] interval. Default: 0.1.
+        mean (float, list of floats, tuple of float): mean values for normalization. Default: (0.485, 0.456, 0.406).
+        std (float, list of floats, tuple of floats): std values for normalization. Default: (0.229, 0.224, 0.225).
+    Targets:
+        image
+
+    Image types:
+        uint8, float32 3-channel images only
+
+    Credit:
+        https://arxiv.org/pdf/1912.02781.pdf
+        https://github.com/google-research/augmix
+    """
+
+    def __init__(
+        self,
+        alpha=1.0,
+        width=3,
+        depth=3,
+        posterize_bits=(3, 4),
+        angle=5,
+        threshold=77,
+        shear_x=0.1,
+        shear_y=0.1,
+        translate_x=0.1,
+        translate_y=0.1,
+        mean=(0.485, 0.456, 0.406),
+        std=(0.229, 0.224, 0.225),
+        always_apply=False,
+        p=0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+        self.alpha = alpha
+        self.width = width
+        self.depth = to_tuple(depth, low=1)
+        self.posterize_bits = to_tuple(posterize_bits, low=1)
+        self.angle = to_tuple(angle)
+        self.threshold = to_tuple(threshold, low=0)
+        self.shear_x = to_tuple(shear_x)
+        self.shear_y = to_tuple(shear_y)
+        self.translate_x = to_tuple(translate_x)
+        self.translate_y = to_tuple(translate_y)
+        self.mean = mean
+        self.std = std
+
+        if self.translate_x[0] < -1 or self.translate_x[1] > 1:
+            raise ValueError("translate_x should be in [-1, 1] interval")
+        if self.translate_y[0] < -1 or self.translate_y[1] > 1:
+            raise ValueError("translate_y should be in [-1, 1] interval")
+
+    def apply(
+        self,
+        img,
+        depth=3,
+        posterize_bits=2,
+        angle=0,
+        threshold=128,
+        shear_x=0.1,
+        shear_y=0.1,
+        translate_x=0,
+        translate_y=0,
+        **params,
+    ):
+        def autocontrast(img):
+            return F.autocontrast(img)
+
+        def equalize(img):
+            return F.equalize(img, mode="pil")
+
+        def posterize(img):
+            return F.posterize(img, posterize_bits)
+
+        def rotate(img):
+            return F.rotate(img, angle, border_mode=cv2.BORDER_CONSTANT)
+
+        def solarize(img):
+            return F.solarize(img, 256 - threshold)
+
+        def shear_x_op(img):
+            return F.shear(img, shear_x=-shear_x, border_mode=cv2.BORDER_CONSTANT)
+
+        def shear_y_op(img):
+            return F.shear(img, shear_y=-shear_y, border_mode=cv2.BORDER_CONSTANT)
+
+        def translate_x_op(img):
+            return F.shift_scale_rotate(img, 0, 1, -translate_x, 0, border_mode=cv2.BORDER_CONSTANT)
+
+        def translate_y_op(img):
+            return F.shift_scale_rotate(img, 0, 1, 0, -translate_y, border_mode=cv2.BORDER_CONSTANT)
+
+        augmentations = [
+            autocontrast,
+            equalize,
+            posterize,
+            rotate,
+            solarize,
+            shear_x_op,
+            shear_y_op,
+            translate_x_op,
+            translate_y_op,
+        ]
+
+        if img.dtype == np.float32:
+            img = (img * 255).astype(np.uint8)
+
+        ws = np.float32(np.random.dirichlet([self.alpha] * self.width))
+        m = np.float32(np.random.beta(self.alpha, self.alpha))
+
+        mix = np.zeros_like(img, dtype=np.float32)
+        for i in range(self.width):
+            image_aug = img.copy()
+
+            for _ in range(depth):
+                op = np.random.choice(augmentations)
+                image_aug = op(image_aug)
+
+            mix += ws[i] * F.normalize(image_aug, self.mean, self.std)
+
+        mix = (1 - m) * F.normalize(img, self.mean, self.std) + m * mix
+
+        return mix
+
+    def get_params(self):
+        return {
+            "depth": np.random.randint(self.depth[0], self.depth[1]),
+            "posterize_bits": np.random.randint(self.posterize_bits[0], self.posterize_bits[1]),
+            "angle": random.uniform(self.angle[0], self.angle[1]),
+            "threshold": np.random.randint(self.threshold[0], self.threshold[1]),
+            "shear_x": random.uniform(self.shear_x[0], self.shear_x[1]),
+            "shear_y": random.uniform(self.shear_y[0], self.shear_y[1]),
+            "translate_x": random.uniform(self.translate_x[0], self.translate_x[1]),
+            "translate_y": random.uniform(self.translate_y[0], self.translate_y[1]),
+        }
+
+    def get_transform_init_args_names(self):
+        return (
+            "alpha",
+            "width",
+            "depth",
+            "posterize_bits",
+            "angle",
+            "threshold",
+            "shear_x",
+            "shear_y",
+            "translate_x",
+            "translate_y",
         )

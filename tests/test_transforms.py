@@ -652,3 +652,11 @@ def test_gauss_noise_incorrect_var_limit_type():
         A.GaussNoise(var_limit={"low": 70, "high": 90})
     message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
     assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize("param", ["translate_x", "translate_y"])
+def test_augmix_incorrect_translate(param):
+    with pytest.raises(ValueError) as exc_info:
+        A.AugMix(**{param: 1.5})
+    message = "{} should be in [-1, 1] interval".format(param)
+    assert str(exc_info.value) == message
