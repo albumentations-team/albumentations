@@ -483,7 +483,8 @@ def posterize(img, bits):
         if channel_bits == 0:
             result_img[..., i] = np.zeros_like(img[..., i])
             continue
-        elif channel_bits == 8:
+
+        if channel_bits == 8:
             result_img[..., i] = img[..., i].copy()
             continue
 
