@@ -425,17 +425,13 @@ class Resize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, scale=None, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
+    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
         super(Resize, self).__init__(always_apply, p)
         self.height = height
         self.width = width
-        self.scale = scale
         self.interpolation = interpolation
 
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
-        if (self.scale is not None) and (self.height is None) and (self.width is None):
-            return F.scale(img, self.scale, interpolation=interpolation)
-
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
@@ -445,10 +441,6 @@ class Resize(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         height = params["rows"]
         width = params["cols"]
-
-        if (self.scale is not None) and (self.height is None) and (self.width is None):
-            return F.keypoint_scale(keypoint, self.scale, self.scale)
-
         scale_x = self.width / width
         scale_y = self.height / height
         return F.keypoint_scale(keypoint, scale_x, scale_y)
