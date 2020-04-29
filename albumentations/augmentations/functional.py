@@ -621,10 +621,10 @@ def _autocontrast(img):
 
     if hi > lo:
         lut = np.zeros(256, dtype=np.uint8)
-        scale = 255.0 / (hi - lo)
-        offset = -lo * scale
+        scale_coef = 255.0 / (hi - lo)
+        offset = -lo * scale_coef
         for ix in range(256):
-            lut[ix] = int(np.clip(ix * scale + offset, 0, 255))
+            lut[ix] = int(np.clip(ix * scale_coef + offset, 0, 255))
 
         img = cv2.LUT(img, lut)
 
