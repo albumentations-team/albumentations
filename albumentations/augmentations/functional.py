@@ -202,8 +202,12 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
 
 @preserve_channel_dim
 def scale(img, scale, interpolation=cv2.INTER_LINEAR):
+    if isinstance(scale, (int, float)):
+        scale = scale, scale
+
+    scale_x, scale_y = scale
     height, width = img.shape[:2]
-    new_height, new_width = int(height * scale), int(width * scale)
+    new_height, new_width = int(height * scale_y), int(width * scale_x)
     return resize(img, new_height, new_width, interpolation)
 
 
