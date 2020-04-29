@@ -59,6 +59,7 @@ __all__ = [
     "LongestMaxSize",
     "SmallestMaxSize",
     "Resize",
+    "Scale",
     "RandomSizedCrop",
     "RandomResizedCrop",
     "RandomBrightnessContrast",
@@ -445,6 +446,51 @@ class Resize(DualTransform):
 
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
+
+
+class Scale(DualTransform):
+    """Scale the input to the given scaling factor.
+
+    Args:
+        scale (float or (float, float)): scaling factor. If scale is a single float value -
+            input will be scaled proportionately. If tuple of floats - different scaling factors
+            will be used for the width and height of the input.
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p (float): probability of applying the transform. Default: 1.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, scale, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
+        super(Scale, self).__init__(always_apply, p)
+
+        if isinstance(scale, (int, float)):
+            scale = scale, scale
+
+        self.scale = scale
+        self.interpolation = interpolation
+
+    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+        return F.scale(img, self.scale, interpolation=interpolation)
+
+    def apply_to_bbox(self, bbox, **params):
+        # Bounding box coordinates are scale invariant
+        return bbox
+
+    def apply_to_keypoint(self, keypoint, **params):
+        height = params["rows"]
+        width = params["cols"]
+        scale_x, scale_y = self.scale
+        return F.keypoint_scale(keypoint, scale_x, scale_y)
+
+    def get_transform_init_args_names(self):
+        return ("scale", "interpolation")
 
 
 class RandomRotate90(DualTransform):
