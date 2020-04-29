@@ -161,7 +161,6 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.Rotate, {}],
         [A.Resize, {"height": 80, "width": 90}],
         [A.Resize, {"height": 120, "width": 130}],
-        [A.Scale, {}],
         [A.OpticalDistortion, {}],
         [A.GlassBlur, {}],
     ],
