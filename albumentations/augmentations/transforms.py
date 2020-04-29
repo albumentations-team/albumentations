@@ -3450,89 +3450,26 @@ class AugMix(ImageOnlyTransform):
         if self.translate_y[0] < -1 or self.translate_y[1] > 1:
             raise ValueError("translate_y should be in [-1, 1] interval")
 
-    def apply(
-        self,
-        img,
-        depth=3,
-        posterize_bits=2,
-        angle=0,
-        threshold=128,
-        shear_x=0.1,
-        shear_y=0.1,
-        translate_x=0,
-        translate_y=0,
-        **params,
-    ):
-        def autocontrast(img):
-            return F.autocontrast(img)
-
-        def equalize(img):
-            return F.equalize(img, mode="pil")
-
-        def posterize(img):
-            return F.posterize(img, posterize_bits)
-
-        def rotate(img):
-            return F.rotate(img, angle, border_mode=cv2.BORDER_CONSTANT)
-
-        def solarize(img):
-            return F.solarize(img, 256 - threshold)
-
-        def shear_x_op(img):
-            return F.shear(img, shear_x=-shear_x, border_mode=cv2.BORDER_CONSTANT)
-
-        def shear_y_op(img):
-            return F.shear(img, shear_y=-shear_y, border_mode=cv2.BORDER_CONSTANT)
-
-        def translate_x_op(img):
-            return F.shift_scale_rotate(img, 0, 1, -translate_x, 0, border_mode=cv2.BORDER_CONSTANT)
-
-        def translate_y_op(img):
-            return F.shift_scale_rotate(img, 0, 1, 0, -translate_y, border_mode=cv2.BORDER_CONSTANT)
-
-        augmentations = [
-            autocontrast,
-            equalize,
-            posterize,
-            rotate,
-            solarize,
-            shear_x_op,
-            shear_y_op,
-            translate_x_op,
-            translate_y_op,
-        ]
-
-        if img.dtype == np.float32:
-            img = (img * 255).astype(np.uint8)
-
-        ws = np.float32(np.random.dirichlet([self.alpha] * self.width))
-        m = np.float32(np.random.beta(self.alpha, self.alpha))
-
-        mix = np.zeros_like(img, dtype=np.float32)
-        for i in range(self.width):
-            image_aug = img.copy()
-
-            for _ in range(depth):
-                op = np.random.choice(augmentations)
-                image_aug = op(image_aug)
-
-            mix += ws[i] * F.normalize(image_aug, self.mean, self.std)
-
-        mix = (1 - m) * F.normalize(img, self.mean, self.std) + m * mix
-
-        return mix
+    def apply(self, img, random_state, **params):
+        return F.aug_mix(
+            img,
+            self.alpha,
+            self.width,
+            self.depth,
+            self.posterize_bits,
+            self.angle,
+            self.threshold,
+            self.shear_x,
+            self.shear_y,
+            self.translate_x,
+            self.translate_y,
+            self.mean,
+            self.std,
+            random_state=np.random.RandomState(random_state),
+        )
 
     def get_params(self):
-        return {
-            "depth": np.random.randint(self.depth[0], self.depth[1]),
-            "posterize_bits": np.random.randint(self.posterize_bits[0], self.posterize_bits[1]),
-            "angle": random.uniform(self.angle[0], self.angle[1]),
-            "threshold": np.random.randint(self.threshold[0], self.threshold[1]),
-            "shear_x": random.uniform(self.shear_x[0], self.shear_x[1]),
-            "shear_y": random.uniform(self.shear_y[0], self.shear_y[1]),
-            "translate_x": random.uniform(self.translate_x[0], self.translate_x[1]),
-            "translate_y": random.uniform(self.translate_y[0], self.translate_y[1]),
-        }
+        return {"random_state": random.randint(0, 10000)}
 
     def get_transform_init_args_names(self):
         return (
@@ -3546,4 +3483,6 @@ class AugMix(ImageOnlyTransform):
             "shear_y",
             "translate_x",
             "translate_y",
+            "mean",
+            "std",
         )

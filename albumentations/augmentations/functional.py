@@ -2073,3 +2073,88 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+
+
+def aug_mix(
+    img,
+    alpha,
+    width,
+    depth,
+    posterize_bits,
+    angle,
+    threshold,
+    shear_x,
+    shear_y,
+    translate_x,
+    translate_y,
+    mean,
+    std,
+    border_mode=cv2.BORDER_CONSTANT,
+    random_state=None,
+):
+    if random_state is None:
+        random_state = np.random.RandomState(42)
+
+    def equalize_op(img):
+        return equalize(img, mode="pil")
+
+    def posterize_op(img):
+        bits = random_state.randint(posterize_bits[0], posterize_bits[1])
+        return posterize(img, bits)
+
+    def rotate_op(img):
+        alpha = random_state.uniform(angle[0], angle[1])
+        return rotate(img, alpha, border_mode=border_mode)
+
+    def solarize_op(img):
+        val = random_state.randint(threshold[0], threshold[1])
+        return solarize(img, 256 - val)
+
+    def shear_x_op(img):
+        val = random_state.uniform(shear_x[0], shear_x[1])
+        return shear(img, shear_x=val, border_mode=border_mode)
+
+    def shear_y_op(img):
+        val = random_state.uniform(shear_y[0], shear_y[1])
+        return shear(img, shear_y=val, border_mode=border_mode)
+
+    def translate_x_op(img):
+        val = random_state.uniform(translate_x[0], translate_x[1])
+        return shift_scale_rotate(img, 0, 1, val, 0, border_mode=border_mode)
+
+    def translate_y_op(img):
+        val = random_state.uniform(translate_y[0], translate_y[1])
+        return shift_scale_rotate(img, 0, 1, 0, val, border_mode=border_mode)
+
+    augmentations = [
+        autocontrast,
+        equalize_op,
+        posterize_op,
+        rotate_op,
+        solarize_op,
+        shear_x_op,
+        shear_y_op,
+        translate_x_op,
+        translate_y_op,
+    ]
+
+    if img.dtype == np.float32:
+        img = (img * 255).astype(np.uint8)
+
+    ws = np.float32(random_state.dirichlet([alpha] * width))
+    m = np.float32(random_state.beta(alpha, alpha))
+    depth = random_state.randint(depth[0], depth[1])
+
+    mix = np.zeros_like(img, dtype=np.float32)
+    for i in range(width):
+        image_aug = img.copy()
+
+        for _ in range(depth):
+            op = random_state.choice(augmentations)
+            image_aug = op(image_aug)
+
+        mix += ws[i] * normalize(image_aug, mean, std)
+
+    mix = (1 - m) * normalize(img, mean, std) + m * mix
+
+    return mix
