@@ -488,7 +488,7 @@ class Scale(DualTransform):
         return F.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self):
-        return "interpolation"
+        return ("scale", "interpolation")
 
 
 class RandomRotate90(DualTransform):
