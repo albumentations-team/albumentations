@@ -158,7 +158,7 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
     )
 
 
-def _main():
+def main():
     args = parse_args()
     command = args.command
     if command not in {"make", "check"}:
@@ -180,4 +180,4 @@ def _main():
 
 
 if __name__ == "__main__":
-    _main()
+    main()
