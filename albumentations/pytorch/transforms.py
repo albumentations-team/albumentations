@@ -89,7 +89,7 @@ class ToTensorV2(BasicTransform):
         return {"image": self.apply, "mask": self.apply_to_mask}
 
     def apply(self, img, **params):  # skipcq: PYL-W0613
-        return torch.from_numpy(img.transpose(2, 0, 1))
+        return torch.from_numpy(img.transpose(2, 0, 1).copy())
 
     def apply_to_mask(self, mask, **params):  # skipcq: PYL-W0613
         return torch.from_numpy(mask)
