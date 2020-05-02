@@ -3161,7 +3161,7 @@ class MaskDropout(DualTransform):
         if dropout_mask is None:
             return img
 
-        if image_fill_value == "inpaint":
+        if isinstance(image_fill_value, str) and image_fill_value == "inpaint":
             dropout_mask = dropout_mask.astype(np.uint8)
             _, _, w, h = cv2.boundingRect(dropout_mask)
             radius = min(3, max(w, h) // 2)
