@@ -43,7 +43,7 @@ class BboxProcessor(DataProcessor):
 
     def check(self, data, rows, cols):
         if self.params.check_validity:
-            return check_bboxes(data)
+            check_bboxes(data)
 
     def convert_from_albumentations(self, data, rows, cols):
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols,
@@ -368,8 +368,7 @@ def filter_bboxes(bboxes, rows, cols, min_area=0.0, min_visibility=0.0):
         clipped_box_area = calculate_bbox_area(bbox, rows, cols)
         if not transformed_box_area or clipped_box_area / transformed_box_area <= min_visibility:
             continue
-        else:
-            bbox = tuple(np.clip(bbox[:4], 0, 1.0))
+        bbox = tuple(np.clip(bbox[:4], 0, 1.0))
         if calculate_bbox_area(bbox, rows, cols) <= min_area:
             continue
         resulting_boxes.append(bbox + tail)
