@@ -42,13 +42,16 @@ class BboxProcessor(DataProcessor):
         )
 
     def check(self, data, rows, cols):
-        return check_bboxes(data)
+        if self.params.check_validity:
+            return check_bboxes(data)
 
     def convert_from_albumentations(self, data, rows, cols):
-        return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
+        return convert_bboxes_from_albumentations(data, self.params.format, rows, cols,
+                                                  check_validity=self.params.check_validity)
 
     def convert_to_albumentations(self, data, rows, cols):
-        return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
+        return convert_bboxes_to_albumentations(data, self.params.format, rows, cols,
+                                                check_validity=self.params.check_validity)
 
 
 def normalize_bbox(bbox, rows, cols):

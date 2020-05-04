@@ -374,16 +374,20 @@ class BboxParams(Params):
             visible area in pixels is less than this value will be removed. Default: 0.0.
         min_visibility (float): minimum fraction of area for a bounding box
             to remain this box in list. Default: 0.0.
+        check_validity (bool): check validity of input bounding boxes: all corners must be inside an image
+            and left top coordinates must be less or equal than right bottom. Default: True.
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0):
+    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_validity=True):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
+        self.check_validity = check_validity
 
     def _to_dict(self):
         data = super(BboxParams, self)._to_dict()
-        data.update({"min_area": self.min_area, "min_visibility": self.min_visibility})
+        data.update({"min_area": self.min_area, "min_visibility": self.min_visibility,
+                     "check_validity": self.check_validity})
         return data
 
 
@@ -403,8 +407,9 @@ class KeypointParams(Params):
             a - Keypoint orientation in radians or degrees (depending on KeypointParams.angle_in_degrees)
         label_fields (list): list of fields that are joined with keypoints, e.g labels.
             Should be same type as keypoints.
-        remove_invisible (bool): to remove invisible points after transform or not
-        angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
+        remove_invisible (bool): to remove invisible points after transform or not. Default: True
+        angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints.
+            Default: True (i.e. angle in degrees)
     """
 
     def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True):
