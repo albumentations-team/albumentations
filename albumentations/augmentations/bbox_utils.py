@@ -363,7 +363,7 @@ def filter_bboxes(bboxes, rows, cols, min_area=0.0, min_visibility=0.0):
         transformed_box_area = calculate_bbox_area(bbox, rows, cols)
         bbox, tail = tuple(np.clip(bbox[:4], 0, 1.0)), tuple(bbox[4:])
         clipped_box_area = calculate_bbox_area(bbox, rows, cols)
-        if not transformed_box_area or clipped_box_area / transformed_box_area <= min_visibility:
+        if clipped_box_area == 0 or clipped_box_area / transformed_box_area < min_visibility:
             continue
         else:
             bbox = tuple(np.clip(bbox[:4], 0, 1.0))
