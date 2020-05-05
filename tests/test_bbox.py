@@ -13,7 +13,7 @@ from albumentations.augmentations.bbox_utils import (
 )
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop, Rotate
+from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop, Rotate, Crop
 
 
 @pytest.mark.parametrize(
@@ -213,6 +213,20 @@ def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
     assert transformed["bboxes"] == bboxes
     for k, v in labels.items():
         assert transformed[k] == v
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "bbox_format", "result_bboxes"],
+    [
+        [[(-10, -20, 50, 150, 0)], "pascal_voc", [(0, 0, 25, 50, 0)]],
+        [[(-1, -2, 3, 0.5, 1), (-0.5, -1, 0.5, 3, 2)], "albumentations", [(0, 0, 1, 0.5, 1), (0, 0, 0.5, 1, 2)]],
+    ],
+)
+def test_compose_with_bbox_with_check_validity_false(bboxes, bbox_format, result_bboxes):
+    image = np.ones((100, 100, 3))
+    aug = Compose([Crop(25, 25, 75, 75)], bbox_params={"format": bbox_format, "check_validity": False})
+    res = aug(image=image, bboxes=bboxes)["bboxes"]
+    assert np.allclose(res, result_bboxes)
 
 
 def test_random_sized_crop_size():
