@@ -386,8 +386,9 @@ class BboxParams(Params):
 
     def _to_dict(self):
         data = super(BboxParams, self)._to_dict()
-        data.update({"min_area": self.min_area, "min_visibility": self.min_visibility,
-                     "check_validity": self.check_validity})
+        data.update(
+            {"min_area": self.min_area, "min_visibility": self.min_visibility, "check_validity": self.check_validity}
+        )
         return data
 
 
