@@ -637,7 +637,7 @@ class RandomShear(DualTransform):
         )
 
     def apply_to_bbox(self, bbox, shear_x=0, shear_y=0, **params):
-        return F.bbox_shear(bbox, shear_x, shear_y)
+        return F.bbox_shear(bbox, shear_x, shear_y, **params)
 
     def apply_to_keypoint(self, keypoint, shear_x=0, shear_y=0, **params):
         return F.keypoint_shear(keypoint, shear_x, shear_y)

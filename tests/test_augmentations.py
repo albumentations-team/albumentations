@@ -63,6 +63,8 @@ from albumentations import (
     MultiplicativeNoise,
     GridDropout,
     AugMix,
+    RandomShear,
+    Autocontrast,
 )
 
 
@@ -99,6 +101,7 @@ from albumentations import (
         [Downscale, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [Autocontrast, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -170,6 +173,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [ISONoise, {}],
         [RandomGridShuffle, {}],
         [GridDropout, {}],
+        [RandomShear, {}],
     ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -200,6 +204,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
         [RandomGridShuffle, {}],
         [GridDropout, {}],
+        [RandomShear, {}],
     ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -281,6 +286,8 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [AugMix, {}],
+        [RandomShear, {}],
+        [Autocontrast, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -340,6 +347,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [AugMix, {}],
+        [RandomShear, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -382,6 +390,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [HueSaturationValue, {}],
+        [RandomShear, {}],
+        [Autocontrast, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -457,6 +467,8 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [AugMix, {}],
+        [RandomShear, {}],
+        [Autocontrast, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -519,6 +531,8 @@ def test_mask_fill_value(augmentation_cls, params):
         [RandomBrightnessContrast, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [RandomShear, {}],
+        [Autocontrast, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):

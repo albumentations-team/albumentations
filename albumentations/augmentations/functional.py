@@ -262,7 +262,7 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  
     return bbox_affine_transform(bbox, height, width, matrix)
 
 
-def bbox_shear(bbox, shear_x, shear_y, rows, cols):
+def bbox_shear(bbox, shear_x, shear_y, rows, cols, **kwargs):  # skipcq: PYL-W0613
     matrix = np.array([[1, shear_x, 0], [shear_y, 1, 0]], dtype=np.float32)
 
     return bbox_affine_transform(bbox, rows, cols, matrix)

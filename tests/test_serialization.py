@@ -68,6 +68,8 @@ def set_seed(seed):
         [A.Downscale, {}],
         [A.MultiplicativeNoise, {}],
         [A.AugMix, {}],
+        [A.RandomShear, {}],
+        [A.Autocontrast, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -228,6 +230,7 @@ AUGMENTATION_CLS_PARAMS = (
                 "std": [0.3, 0.3, 0.3],
             },
         ],
+        [A.RandomShear, {"shear_x": 0.3, "shear_y": (0.1, 0.3)}],
     ],
 )
 
@@ -323,6 +326,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.AugMix, {}],
+        [A.RandomShear, {}],
+        [A.Autocontrast, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -388,6 +393,8 @@ def test_augmentations_for_bboxes_serialization(
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.AugMix, {}],
+        [A.RandomShear, {}],
+        [A.Autocontrast, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
