@@ -233,13 +233,9 @@ def shear(img, shear_x=0, shear_y=0, interpolation=cv2.INTER_LINEAR, border_mode
     return warp_affine_fn(img)
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
+def bbox_affine_transform(bbox, height, width, matrix):
     x_min, y_min, x_max, y_max = bbox[:4]
-    height, width = rows, cols
-    center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
+
     x = np.array([x_min, x_max, x_max, x_min])
     y = np.array([y_min, y_min, y_max, y_max])
     ones = np.ones(shape=(len(x)))
@@ -256,6 +252,22 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  
     return x_min, y_min, x_max, y_max
 
 
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
+    height, width = rows, cols
+    center = (width / 2, height / 2)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix[0, 2] += dx * width
+    matrix[1, 2] += dy * height
+
+    return bbox_affine_transform(bbox, height, width, matrix)
+
+
+def bbox_shear(bbox, shear_x, shear_y, rows, cols):
+    matrix = np.array([[1, shear_x, 0], [shear_y, 1, 0]], dtype=np.float32)
+
+    return bbox_affine_transform(bbox, rows, cols, matrix)
+
+
 @angle_2pi_range
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
     x, y, a, s, = keypoint[:4]
@@ -270,6 +282,15 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
     scale = s * scale
 
     return x, y, angle, scale
+
+
+def keypoint_shear(keypoint, shear_x, shear_y):
+    x, y, a, s, = keypoint[:4]
+    matrix = np.array([[1, shear_x, 0], [shear_y, 1, 0]], dtype=np.float32)
+
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
+
+    return x, y, a, s
 
 
 def crop(img, x_min, y_min, x_max, y_max):
@@ -2075,83 +2096,23 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
 
 
-def aug_mix(
-    img,
-    alpha,
-    width,
-    depth,
-    posterize_bits,
-    angle,
-    threshold,
-    shear_x,
-    shear_y,
-    translate_x,
-    translate_y,
-    mean,
-    std,
-    border_mode=cv2.BORDER_CONSTANT,
-    random_state=None,
-):
+def aug_mix(img, alpha, width, depth, transforms, mean, std, random_state=None):
     if random_state is None:
         random_state = np.random.RandomState(42)
-
-    def equalize_op(img):
-        return equalize(img, mode="pil")
-
-    def posterize_op(img):
-        bits = random_state.randint(posterize_bits[0], posterize_bits[1])
-        return posterize(img, bits)
-
-    def rotate_op(img):
-        alpha = random_state.uniform(angle[0], angle[1])
-        return rotate(img, alpha, border_mode=border_mode)
-
-    def solarize_op(img):
-        val = random_state.randint(threshold[0], threshold[1])
-        return solarize(img, 256 - val)
-
-    def shear_x_op(img):
-        val = random_state.uniform(shear_x[0], shear_x[1])
-        return shear(img, shear_x=val, border_mode=border_mode)
-
-    def shear_y_op(img):
-        val = random_state.uniform(shear_y[0], shear_y[1])
-        return shear(img, shear_y=val, border_mode=border_mode)
-
-    def translate_x_op(img):
-        val = random_state.uniform(translate_x[0], translate_x[1])
-        return shift_scale_rotate(img, 0, 1, val, 0, border_mode=border_mode)
-
-    def translate_y_op(img):
-        val = random_state.uniform(translate_y[0], translate_y[1])
-        return shift_scale_rotate(img, 0, 1, 0, val, border_mode=border_mode)
-
-    augmentations = [
-        autocontrast,
-        equalize_op,
-        posterize_op,
-        rotate_op,
-        solarize_op,
-        shear_x_op,
-        shear_y_op,
-        translate_x_op,
-        translate_y_op,
-    ]
 
     if img.dtype == np.float32:
         img = (img * 255).astype(np.uint8)
 
     ws = np.float32(random_state.dirichlet([alpha] * width))
     m = np.float32(random_state.beta(alpha, alpha))
-    depth = random_state.randint(depth[0], depth[1])
 
     mix = np.zeros_like(img, dtype=np.float32)
     for i in range(width):
         image_aug = img.copy()
 
         for _ in range(depth):
-            op = random_state.choice(augmentations)
-            image_aug = op(image_aug)
+            op = random_state.choice(transforms)
+            image_aug = op(image=image_aug)["image"]
 
         mix += ws[i] * normalize(image_aug, mean, std)
 

@@ -81,6 +81,8 @@ __all__ = [
     "MaskDropout",
     "GridDropout",
     "AugMix",
+    "RandomShear",
+    "Autocontrast",
 ]
 
 
@@ -580,6 +582,68 @@ class RandomScale(DualTransform):
 
     def get_transform_init_args(self):
         return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
+
+
+class RandomShear(DualTransform):
+    """Randomly resize the input. Output image size is different from the input image size.
+
+    Args:
+        shear_x (float, tuple of floats): Shear along x axis. If single float shear_x is picked
+            from (-shear_x, shear_x) interval. Default: 0.1.
+        shear_y (float, tuple of floats): Shear along y axis. If single float shear_y is picked
+            from (-shear_y, shear_y) interval. Default: 0.1.
+        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101
+        value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(
+        self,
+        shear_x=0.1,
+        shear_y=0.1,
+        interpolation=cv2.INTER_LINEAR,
+        border_mode=cv2.cv2.BORDER_REFLECT_101,
+        value=None,
+        always_apply=False,
+        p=0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.shear_x = to_tuple(shear_x)
+        self.shear_y = to_tuple(shear_y)
+        self.interpolation = interpolation
+        self.border_mode = border_mode
+        self.value = value
+
+    def get_params(self):
+        return {
+            "shear_x": random.uniform(self.shear_x[0], self.shear_x[1]),
+            "shear_y": random.uniform(self.shear_y[0], self.shear_y[1]),
+        }
+
+    def apply(self, img, shear_x=0, shear_y=0, **params):
+        return F.shear(
+            img, shear_x, shear_y, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=self.value
+        )
+
+    def apply_to_bbox(self, bbox, shear_x=0, shear_y=0, **params):
+        return F.bbox_shear(bbox, shear_x, shear_y)
+
+    def apply_to_keypoint(self, keypoint, shear_x=0, shear_y=0, **params):
+        return F.keypoint_shear(keypoint, shear_x, shear_y)
+
+    def get_transform_init_args_names(self):
+        return ("shear_x", "shear_y", "interpolation", "border_mode", "value")
 
 
 class ShiftScaleRotate(DualTransform):
@@ -2288,6 +2352,30 @@ class Equalize(ImageOnlyTransform):
         return ("mode", "by_channels")
 
 
+class Autocontrast(ImageOnlyTransform):
+    """Perform automatic contrast enhancement.
+
+    Args:
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8
+
+    """
+
+    def __init__(self, always_apply=False, p=0.5):
+        super().__init__(always_apply, p)
+
+    def apply(self, image, **params):
+        return F.autocontrast(image)
+
+    def get_transform_init_args_names(self):
+        return tuple()
+
+
 class RGBShift(ImageOnlyTransform):
     """Randomly shift values for each channel of the input RGB image.
 
@@ -3384,23 +3472,8 @@ class AugMix(ImageOnlyTransform):
         width (int): Width of augmentation chain. Default: 3.
         depth (int, tuple of ints): Depth of augmentation chain. If single int will be used provided number.
             If tuple of depth will be generated in range `[depth[0], depth[1])`. Default: (3).
-        posterize_bits (int, tuple of ints): Number of bits for posterize augmentation.
-            If single int will be used provided number. If tuple of posterize_bits will be generated
-            in range `[postirize_bits[0], postirize_bits[1])`. Default: (3, 4).
-        angle (float, tuple of floats): Angle of rotation. If angle is single float it will be sampled
-            from [-angle, angle] interval.
-        threshold (int, tuple of ints): Threshold for solarize augmentation. If single int threshold
-            is picked from (0, threshold) interval. Default: 70.
-        shear_x (float, tuple of floats): Shear along x axis. If single float shear_x is picked
-            from (-shear_x, shear_x) interval. Default: 0.1.
-        shear_y (float, tuple of floats): Shear along y axis. If single float shear_y is picked
-            from (-shear_y, shear_y) interval. Default: 0.1.
-        translate_x (float, tuple of floats): Degree of image translation along x axis proportially to image width.
-            If single float translate_x is picked from (-translate_x, translate_x) interval.
-            Must be in [-1, 1] interval. Default: 0.1.
-        translate_y (float, tuple of floats): Degree of image translation along y axis proportially to image height.
-            If single float translate_x is picked from (-translate_y, translate_y) interval.
-            Must be in [-1, 1] interval. Default: 0.1.
+        transforms (list of albumentation transforms): List of transforms from which augmentation will be sampled
+            on each step of AugMix procedure.
         mean (float, list of floats, tuple of float): mean values for normalization. Default: (0.485, 0.456, 0.406).
         std (float, list of floats, tuple of floats): std values for normalization. Default: (0.229, 0.224, 0.225).
     Targets:
@@ -3419,13 +3492,7 @@ class AugMix(ImageOnlyTransform):
         alpha=1.0,
         width=3,
         depth=3,
-        posterize_bits=(3, 4),
-        angle=5,
-        threshold=77,
-        shear_x=0.1,
-        shear_y=0.1,
-        translate_x=0.1,
-        translate_y=0.1,
+        transforms=None,
         mean=(0.485, 0.456, 0.406),
         std=(0.229, 0.224, 0.225),
         always_apply=False,
@@ -3435,54 +3502,46 @@ class AugMix(ImageOnlyTransform):
         self.alpha = alpha
         self.width = width
         self.depth = to_tuple(depth, low=1)
-        self.posterize_bits = to_tuple(posterize_bits, low=1)
-        self.angle = to_tuple(angle)
-        self.threshold = to_tuple(threshold, low=0)
-        self.shear_x = to_tuple(shear_x)
-        self.shear_y = to_tuple(shear_y)
-        self.translate_x = to_tuple(translate_x)
-        self.translate_y = to_tuple(translate_y)
+        self.transforms = transforms
+
+        if self.transforms is None:
+            self.transforms = [
+                Autocontrast(),
+                Posterize(num_bits=(3, 4)),
+                ShiftScaleRotate(shift_limit=0, scale_limit=0, rotate_limit=5, border_mode=cv2.BORDER_CONSTANT),
+                Solarize(threshold=77),
+                RandomShear(shear_x=0.09, shear_y=0, border_mode=cv2.BORDER_CONSTANT),
+                RandomShear(shear_x=0, shear_y=0.09, border_mode=cv2.BORDER_CONSTANT),
+                ShiftScaleRotate(shift_limit=0.09, scale_limit=0, rotate_limit=0, border_mode=cv2.BORDER_CONSTANT),
+            ]
+
         self.mean = mean
         self.std = std
 
-        if self.translate_x[0] < -1 or self.translate_x[1] > 1:
-            raise ValueError("translate_x should be in [-1, 1] interval")
-        if self.translate_y[0] < -1 or self.translate_y[1] > 1:
-            raise ValueError("translate_y should be in [-1, 1] interval")
-
-    def apply(self, img, random_state, **params):
+    def apply(self, img, depth=3, random_state=None, **params):
         return F.aug_mix(
             img,
             self.alpha,
             self.width,
-            self.depth,
-            self.posterize_bits,
-            self.angle,
-            self.threshold,
-            self.shear_x,
-            self.shear_y,
-            self.translate_x,
-            self.translate_y,
+            depth,
+            self.transforms,
             self.mean,
             self.std,
             random_state=np.random.RandomState(random_state),
         )
 
     def get_params(self):
-        return {"random_state": random.randint(0, 10000)}
+        return {"depth": random.randint(self.depth[0], self.depth[1]), "random_state": random.randint(0, 10000)}
 
-    def get_transform_init_args_names(self):
-        return (
-            "alpha",
-            "width",
-            "depth",
-            "posterize_bits",
-            "angle",
-            "threshold",
-            "shear_x",
-            "shear_y",
-            "translate_x",
-            "translate_y",
-            "mean",
-            "std",
-        )
+    def _to_dict(self):
+        state = {
+            "__class_fullname__": self.get_class_fullname(),
+            "alpha": self.alpha,
+            "width": self.width,
+            "depth": self.depth,
+            "mean": self.mean,
+            "std": self.std,
+            "transforms": [t._to_dict() for t in self.transforms],  # skipcq: PYL-W0212
+        }
+        state.update(self.get_base_init_args())
+        return state
