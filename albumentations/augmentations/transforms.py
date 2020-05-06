@@ -2373,7 +2373,7 @@ class Autocontrast(ImageOnlyTransform):
         return F.autocontrast(image)
 
     def get_transform_init_args_names(self):
-        return tuple()
+        return ()
 
 
 class RGBShift(ImageOnlyTransform):
