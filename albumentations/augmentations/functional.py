@@ -103,11 +103,11 @@ def non_rgb_warning(image):
 
 
 def vflip(img):
-    return np.ascontiguousarray(img[::-1, ...])
+    return img[::-1, ...]
 
 
 def hflip(img):
-    return np.ascontiguousarray(img[:, ::-1, ...])
+    return img[:, ::-1, ...]
 
 
 def hflip_cv2(img):
@@ -124,8 +124,7 @@ def transpose(img):
 
 
 def rot90(img, factor):
-    img = np.rot90(img, factor)
-    return np.ascontiguousarray(img)
+    return np.rot90(img, factor)
 
 
 def normalize(img, mean, std, max_pixel_value=255.0):
