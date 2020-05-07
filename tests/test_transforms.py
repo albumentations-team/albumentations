@@ -335,12 +335,12 @@ def test_channel_droput():
 
     transformed = aug(image=img)["image"]
 
-    assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 2
+    assert sum(transformed[:, :, c].max() for c in range(img.shape[2])) == 2
 
     aug = A.ChannelDropout(channel_drop_range=(2, 2), always_apply=True)  # Drop two channels
     transformed = aug(image=img)["image"]
 
-    assert sum([transformed[:, :, c].max() for c in range(img.shape[2])]) == 1
+    assert sum(transformed[:, :, c].max() for c in range(img.shape[2])) == 1
 
 
 def test_equalize():
@@ -357,7 +357,7 @@ def test_equalize():
     b = F.equalize(img, mask=mask)
     assert np.all(a == b)
 
-    def mask_func(image, test):
+    def mask_func(image, test):  # skipcq: PYL-W0613
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
@@ -645,3 +645,10 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
     elif holes_number_x and holes_number_y:
         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_x))
         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_y))
+
+
+def test_gauss_noise_incorrect_var_limit_type():
+    with pytest.raises(TypeError) as exc_info:
+        A.GaussNoise(var_limit={"low": 70, "high": 90})
+    message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
+    assert str(exc_info.value) == message

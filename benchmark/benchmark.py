@@ -186,14 +186,14 @@ class BenchmarkTest(ABC):
     def is_supported_by(self, library):
         if library == "imgaug":
             return hasattr(self, "imgaug_transform")
-        elif library == "augmentor":
+        if library == "augmentor":
             return hasattr(self, "augmentor_op") or hasattr(self, "augmentor_pipeline")
-        elif library == "solt":
+        if library == "solt":
             return hasattr(self, "solt_stream")
-        elif library == "torchvision":
+        if library == "torchvision":
             return hasattr(self, "torchvision_transform")
-        else:
-            return hasattr(self, library)
+
+        return hasattr(self, library)
 
     def run(self, library, imgs):
         transform = getattr(self, library)
@@ -210,8 +210,8 @@ class HorizontalFlip(BenchmarkTest):
     def albumentations(self, img):
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
             return albumentations.hflip_cv2(img)
-        else:
-            return albumentations.hflip(img)
+
+        return albumentations.hflip(img)
 
     def torchvision_transform(self, img):
         return torchvision.hflip(img)
