@@ -200,19 +200,19 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
 
 
 @preserve_channel_dim
-def scale(img, scale, interpolation=cv2.INTER_LINEAR):
+def scale(img, scale_factor, interpolation=cv2.INTER_LINEAR):
     height, width = img.shape[:2]
-    new_height, new_width = int(height * scale), int(width * scale)
+    new_height, new_width = int(height * scale_factor), int(width * scale_factor)
     return resize(img, new_height, new_width, interpolation)
 
 
 @preserve_channel_dim
 def shift_scale_rotate(
-    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img, angle, scale_factor, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
 ):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale_factor)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
 
@@ -222,11 +222,11 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
+def bbox_shift_scale_rotate(bbox, angle, scale_factor, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
     x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale_factor)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
     x = np.array([x_min, x_max, x_max, x_min])
@@ -246,19 +246,19 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  
 
 
 @angle_2pi_range
-def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
+def keypoint_shift_scale_rotate(keypoint, angle, scale_factor, dx, dy, rows, cols, **params):
     x, y, a, s, = keypoint[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale_factor)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
 
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     angle = a + math.radians(angle)
-    scale = s * scale
+    scale_factor = s * scale_factor
 
-    return x, y, angle, scale
+    return x, y, angle, scale_factor
 
 
 def crop(img, x_min, y_min, x_max, y_max):
@@ -525,14 +525,14 @@ def _equalize_cv(img, mask=None):
     if histogram[i] == total:
         return np.full_like(img, i)
 
-    scale = 255.0 / (total - histogram[i])
+    scale_factor = 255.0 / (total - histogram[i])
     _sum = 0
 
     lut = np.zeros(256, dtype=np.uint8)
     i += 1
     for i in range(i, len(histogram)):
         _sum += histogram[i]
-        lut[i] = clip(round(_sum * scale), np.dtype("uint8"), 255)
+        lut[i] = clip(round(_sum * scale_factor), np.dtype("uint8"), 255)
 
     return cv2.LUT(img, lut)
 
@@ -722,10 +722,10 @@ def gaussian_blur(img, ksize):
 def _func_max_size(img, max_size, interpolation, func):
     height, width = img.shape[:2]
 
-    scale = max_size / float(func(width, height))
+    scale_factor = max_size / float(func(width, height))
 
-    if scale != 1.0:
-        new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
+    if scale_factor != 1.0:
+        new_height, new_width = tuple(py3round(dim * scale_factor) for dim in (height, width))
         img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
     return img
 
@@ -1392,13 +1392,13 @@ def to_gray(img):
 
 
 @preserve_shape
-def downscale(img, scale, interpolation=cv2.INTER_NEAREST):
+def downscale(img, scale_factor, interpolation=cv2.INTER_NEAREST):
     h, w = img.shape[:2]
 
     need_cast = interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
     if need_cast:
         img = to_float(img)
-    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=interpolation)
+    downscaled = cv2.resize(img, None, fx=scale_factor, fy=scale_factor, interpolation=interpolation)
     upscaled = cv2.resize(downscaled, (w, h), interpolation=interpolation)
     if need_cast:
         upscaled = from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
@@ -1583,12 +1583,12 @@ def bbox_rotate(bbox, angle, rows, cols):
 
     """
     x_min, y_min, x_max, y_max = bbox[:4]
-    scale = cols / float(rows)
+    scale_factor = cols / float(rows)
     x = np.array([x_min, x_max, x_max, x_min]) - 0.5
     y = np.array([y_min, y_min, y_max, y_max]) - 0.5
     angle = np.deg2rad(angle)
-    x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
-    y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
+    x_t = (np.cos(angle) * x * scale_factor + np.sin(angle) * y) / scale_factor
+    y_t = -np.sin(angle) * x * scale_factor + np.cos(angle) * y
     x_t = x_t + 0.5
     y_t = y_t + 0.5
 
@@ -1629,17 +1629,17 @@ def keypoint_vflip(keypoint, rows, cols):
     """Flip a keypoint vertically around the x-axis.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         rows (int): Image height.
         cols( int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        tuple: A keypoint `(x, y, angle, scale_factor)`.
 
     """
-    x, y, angle, scale = keypoint
+    x, y, angle, scale_factor = keypoint
     angle = -angle
-    return x, (rows - 1) - y, angle, scale
+    return x, (rows - 1) - y, angle, scale_factor
 
 
 @angle_2pi_range
@@ -1647,24 +1647,24 @@ def keypoint_hflip(keypoint, rows, cols):
     """Flip a keypoint horizontally around the y-axis.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        tuple: A keypoint `(x, y, angle, scale_factor)`.
 
     """
-    x, y, angle, scale = keypoint
+    x, y, angle, scale_factor = keypoint
     angle = math.pi - angle
-    return (cols - 1) - x, y, angle, scale
+    return (cols - 1) - x, y, angle, scale_factor
 
 
 def keypoint_flip(keypoint, d, rows, cols):
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         d (int): Number of flip. Must be -1, 0 or 1:
             * 0 - vertical flip,
             * 1 - horizontal flip,
@@ -1673,7 +1673,7 @@ def keypoint_flip(keypoint, d, rows, cols):
         cols (int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        tuple: A keypoint `(x, y, angle, scale_factor)`.
 
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
@@ -1696,19 +1696,19 @@ def keypoint_rot90(keypoint, factor, rows, cols, **params):
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        tuple: A keypoint `(x, y, angle, scale_factor)`.
 
     Raises:
         ValueError: if factor not in set {0, 1, 2, 3}
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale_factor = keypoint[:4]
 
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
@@ -1720,7 +1720,7 @@ def keypoint_rot90(keypoint, factor, rows, cols, **params):
     elif factor == 3:
         x, y, angle = (rows - 1) - y, x, angle + math.pi / 2
 
-    return x, y, angle, scale
+    return x, y, angle, scale_factor
 
 
 @angle_2pi_range
@@ -1728,13 +1728,13 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
     """Rotate a keypoint by angle.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         angle (float): Rotation angle.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        tuple: A keypoint `(x, y, angle, scale_factor)`.
 
     """
     matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, 1.0)
@@ -1747,16 +1747,16 @@ def keypoint_scale(keypoint, scale_x, scale_y):
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         scale_x (int): Scale coefficient x-axis.
         scale_y (int): Scale coefficient y-axis.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
+        A keypoint `(x, y, angle, scale_factor)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
-    return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
+    x, y, angle, scale_factor = keypoint[:4]
+    return x * scale_x, y * scale_y, angle, scale_factor * max(scale_x, scale_y)
 
 
 def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):  # skipcq: PYL-W0613
@@ -1764,7 +1764,7 @@ def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows
     required height and width of the crop.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
         crop height (int): Crop height.
         crop_width (int): Crop width.
@@ -1772,19 +1772,19 @@ def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows
         cols (int): Image width.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
+        A keypoint `(x, y, angle, scale_factor)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale_factor = keypoint[:4]
     x1, y1, _, _ = crop_coords
-    return x - x1, y - y1, angle, scale
+    return x - x1, y - y1, angle, scale_factor
 
 
 def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols):
     """Keypoint random crop.
 
     Args:
-        keypoint: (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint: (tuple): A keypoint `(x, y, angle, scale_factor)`.
         crop_height (int): Crop height.
         crop_width (int): Crop width.
         h_start (int): Crop height start.
@@ -1793,7 +1793,7 @@ def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, ro
         cols (int): Image width.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
+        A keypoint `(x, y, angle, scale_factor)`.
 
     """
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
@@ -1804,7 +1804,7 @@ def keypoint_center_crop(keypoint, crop_height, crop_width, rows, cols):
     """Keypoint center crop.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
         crop_height (int): Crop height.
         crop_width (int): Crop width.
         h_start (int): Crop height start.
@@ -1813,7 +1813,7 @@ def keypoint_center_crop(keypoint, crop_height, crop_width, rows, cols):
         cols (int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        tuple: A keypoint `(x, y, angle, scale_factor)`.
 
     """
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
@@ -1861,20 +1861,20 @@ def keypoint_transpose(keypoint):
     """Rotate a keypoint by angle.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoint (tuple): A keypoint `(x, y, angle, scale_factor)`.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        tuple: A keypoint `(x, y, angle, scale_factor)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale_factor = keypoint[:4]
 
     if angle <= np.pi:
         angle = np.pi - angle
     else:
         angle = 3 * np.pi - angle
 
-    return y, x, angle, scale
+    return y, x, angle, scale_factor
 
 
 @clipped
