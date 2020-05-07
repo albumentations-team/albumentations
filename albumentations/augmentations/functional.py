@@ -200,7 +200,7 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
 
 
 @preserve_channel_dim
-def scale(img, scale, interpolation=cv2.INTER_LINEAR):
+def scale(img, scale, interpolation=cv2.INTER_LINEAR):  # skipcq: PYL-W0621
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
     return resize(img, new_height, new_width, interpolation)
@@ -208,7 +208,7 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
 
 @preserve_channel_dim
 def shift_scale_rotate(
-    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None  # skipcq: PYL-W0621
 ):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
@@ -222,7 +222,7 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613 PYL-W0621
     x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
@@ -246,7 +246,7 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  
 
 
 @angle_2pi_range
-def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
+def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):  # skipcq: PYL-W0621
     x, y, a, s, = keypoint[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
@@ -256,7 +256,7 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
 
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     angle = a + math.radians(angle)
-    scale = s * scale
+    scale = s * scale  # skipcq: PYL-W0621
 
     return x, y, angle, scale
 
@@ -525,7 +525,7 @@ def _equalize_cv(img, mask=None):
     if histogram[i] == total:
         return np.full_like(img, i)
 
-    scale = 255.0 / (total - histogram[i])
+    scale = 255.0 / (total - histogram[i])  # skipcq: PYL-W0621
     _sum = 0
 
     lut = np.zeros(256, dtype=np.uint8)
@@ -722,7 +722,7 @@ def gaussian_blur(img, ksize):
 def _func_max_size(img, max_size, interpolation, func):
     height, width = img.shape[:2]
 
-    scale = max_size / float(func(width, height))
+    scale = max_size / float(func(width, height))  # skipcq: PYL-W0621
 
     if scale != 1.0:
         new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
@@ -1392,7 +1392,7 @@ def to_gray(img):
 
 
 @preserve_shape
-def downscale(img, scale, interpolation=cv2.INTER_NEAREST):
+def downscale(img, scale, interpolation=cv2.INTER_NEAREST):  # skipcq: PYL-W0621
     h, w = img.shape[:2]
 
     need_cast = interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
@@ -1583,7 +1583,7 @@ def bbox_rotate(bbox, angle, rows, cols):
 
     """
     x_min, y_min, x_max, y_max = bbox[:4]
-    scale = cols / float(rows)
+    scale = cols / float(rows)  # skipcq: PYL-W0621
     x = np.array([x_min, x_max, x_max, x_min]) - 0.5
     y = np.array([y_min, y_min, y_max, y_max]) - 0.5
     angle = np.deg2rad(angle)
@@ -1637,7 +1637,7 @@ def keypoint_vflip(keypoint, rows, cols):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = keypoint
+    x, y, angle, scale = keypoint  # skipcq: PYL-W0621
     angle = -angle
     return x, (rows - 1) - y, angle, scale
 
@@ -1655,7 +1655,7 @@ def keypoint_hflip(keypoint, rows, cols):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = keypoint
+    x, y, angle, scale = keypoint  # skipcq: PYL-W0621
     angle = math.pi - angle
     return (cols - 1) - x, y, angle, scale
 
@@ -1708,7 +1708,7 @@ def keypoint_rot90(keypoint, factor, rows, cols, **params):
         ValueError: if factor not in set {0, 1, 2, 3}
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale = keypoint[:4]  # skipcq: PYL-W0621
 
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
@@ -1755,7 +1755,7 @@ def keypoint_scale(keypoint, scale_x, scale_y):
         A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale = keypoint[:4]  # skipcq: PYL-W0621
     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
@@ -1775,7 +1775,7 @@ def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows
         A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale = keypoint[:4]  # skipcq: PYL-W0621
     x1, y1, _, _ = crop_coords
     return x - x1, y - y1, angle, scale
 
@@ -1867,7 +1867,7 @@ def keypoint_transpose(keypoint):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale = keypoint[:4]  # skipcq: PYL-W0621
 
     if angle <= np.pi:
         angle = np.pi - angle
