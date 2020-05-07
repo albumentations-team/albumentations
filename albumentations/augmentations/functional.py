@@ -215,7 +215,7 @@ def shift_scale_rotate(
     dy,
     interpolation=cv2.INTER_LINEAR,
     border_mode=cv2.BORDER_REFLECT_101,
-    value=None
+    value=None,
 ):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
@@ -229,14 +229,9 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
-def bbox_shift_scale_rotate(bbox,
-                            angle,
-                            scale,  # skipcq: PYL-W0621
-                            dx,
-                            dy,
-                            rows,
-                            cols,
-                            **kwargs):  # skipcq: PYL-W0613
+def bbox_shift_scale_rotate(
+    bbox, angle, scale, dx, dy, rows, cols, **kwargs  # skipcq: PYL-W0621
+):  # skipcq: PYL-W0613
     x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
