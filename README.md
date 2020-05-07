@@ -92,7 +92,7 @@ pip install albumentations
 
 If you want to get the latest version of the code before it is released on PyPI you can install the library from GitHub:
 ```
-pip install -U git+https://github.com/albu/albumentations
+pip install -U git+https://github.com/albumentations-team/albumentations
 ```
 
 And it also works in Kaggle GPU kernels [(proof)](https://www.kaggle.com/creafz/albumentations-installation/)
@@ -200,7 +200,7 @@ Albumentations has equivalents for common torchvision transforms as well as plen
 
 
 ## Benchmarking results
-To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albu/albumentations/blob/master/benchmark/README.md)
+To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
 
 Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Xeon Platinum 8168 CPU.
 All outputs are converted to a contiguous NumPy array with the np.uint8 data type.
