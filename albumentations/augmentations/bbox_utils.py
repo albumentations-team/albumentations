@@ -248,7 +248,7 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
     bbox = (x_min, y_min, x_max, y_max) + tail
     bbox = normalize_bbox(bbox, rows, cols)
     if check_validity:
-        bbox = np.clip(box, a_min = 0, a_max = 1) 
+        bbox = np.clip(bbox, a_min = 0, a_max = 1) 
         check_bbox(bbox)
     return bbox
 
