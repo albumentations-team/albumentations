@@ -996,6 +996,10 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         x, y, x2, y2 = union_of_bboxes(
             width=img_w, height=img_h, bboxes=params["bboxes"], erosion_rate=self.erosion_rate
         )
+        
+        # normalize union
+        x, y, x2, y2 = x/img_w, y/img_h, x2/img_w, y2/img_h
+
         # find bigger region
         bx, by = x * random.random(), y * random.random()
         bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
