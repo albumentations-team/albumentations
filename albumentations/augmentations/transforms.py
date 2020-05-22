@@ -954,7 +954,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
 
 class BBoxSafeRandomCrop(DualTransform):
-    """Crop a random part of the input and rescale it to some size without loss of bboxes.
+    """Crop a random part of the input without loss of bboxes.
 
     Args:
         erosion_rate (float): erosion rate applied on input image height before crop.
