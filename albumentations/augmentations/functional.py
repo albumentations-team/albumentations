@@ -478,16 +478,14 @@ def posterize(img, bits):
     for i, channel_bits in enumerate(bits):
         if channel_bits == 0:
             result_img[..., i] = np.zeros_like(img[..., i])
-            continue
         elif channel_bits == 8:
             result_img[..., i] = img[..., i].copy()
-            continue
+        else:
+            lut = np.arange(0, 256, dtype=np.uint8)
+            mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+            lut &= mask
 
-        lut = np.arange(0, 256, dtype=np.uint8)
-        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
-        lut &= mask
-
-        result_img[..., i] = cv2.LUT(img[..., i], lut)
+            result_img[..., i] = cv2.LUT(img[..., i], lut)
 
     return result_img
 
@@ -1086,7 +1084,7 @@ def grid_distortion(
     x_step = width // num_steps
     xx = np.zeros(width, np.float32)
     prev = 0
-    for idx in range(num_steps):
+    for idx in range(num_steps + 1):
         x = idx * x_step
         start = int(x)
         end = int(x) + x_step
@@ -1102,7 +1100,7 @@ def grid_distortion(
     y_step = height // num_steps
     yy = np.zeros(height, np.float32)
     prev = 0
-    for idx in range(num_steps):
+    for idx in range(num_steps + 1):
         y = idx * y_step
         start = int(y)
         end = int(y) + y_step

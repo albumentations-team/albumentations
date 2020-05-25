@@ -1,8 +1,8 @@
 Contributing
 ============
-All development is done on GitHub: https://github.com/albu/albumentations
+All development is done on GitHub: https://github.com/albumentations-team/albumentations
 
-If you find a bug or have a feature request file an issue at https://github.com/albu/albumentations/issues
+If you find a bug or have a feature request file an issue at https://github.com/albumentations-team/albumentations/issues
 
 To create a pull request:
 =======================
