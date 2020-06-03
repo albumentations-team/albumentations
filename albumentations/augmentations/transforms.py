@@ -2498,8 +2498,6 @@ class MedianBlur(Blur):
             raise ValueError("MedianBlur supports only odd blur limits.")
 
     def apply(self, image, ksize=3, **params):
-        if ksize % 2 != 1:
-            ksize -= 1
         return F.median_blur(image, ksize)
 
 
@@ -2525,8 +2523,6 @@ class GaussianBlur(Blur):
             raise ValueError("GaussianBlur supports only odd blur limits.")
 
     def apply(self, image, ksize=3, **params):
-        if ksize % 2 != 1:
-            ksize -= 1
         return F.gaussian_blur(image, ksize)
 
 
