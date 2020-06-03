@@ -171,10 +171,19 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
         num_channels = get_num_channels(img)
         if num_channels > 4:
             chunks = []
-            for index in range(0, num_channels, 4):
-                chunk = img[:, :, index : index + 4]
+            processed_channels = 0
+            while processed_channels < num_channels:
+                unprocessed = num_channels - processed_channels
+                if unprocessed < 4 and unprocessed not in [1, 3, 4]:
+                    current_channels = np.argsort(np.abs((np.array([0, 1, 4]) - unprocessed)))[0]
+                else:
+                    current_channels = min(unprocessed, 4)
+                chunk = img[:, :, processed_channels : processed_channels + current_channels]
                 chunk = process_fn(chunk, **kwargs)
+                if chunk.ndim == 2:
+                    chunk = np.expand_dims(chunk, -1)
                 chunks.append(chunk)
+                processed_channels += current_channels
             img = np.dstack(chunks)
         else:
             img = process_fn(img, **kwargs)
