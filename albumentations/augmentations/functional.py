@@ -1065,6 +1065,26 @@ def optical_distortion(
     return img
 
 
+def linear_space(width, xsteps, num_steps):
+    x_step = width / num_steps
+    xx = np.zeros(width, np.float32)
+    prev = 0
+    for idx in range(num_steps):
+        x = idx * x_step
+        start = int(x)
+        end = int(x + x_step)
+        if idx >= num_steps - 1 or end >= width:
+            end = width
+            cur = width
+        else:
+            cur = prev + x_step * xsteps[idx]
+
+        xx[start:end] = np.linspace(prev, cur, end - start)
+        prev = cur
+
+    return xx
+
+
 @preserve_shape
 def grid_distortion(
     img,
@@ -1081,37 +1101,8 @@ def grid_distortion(
     """
     height, width = img.shape[:2]
 
-    x_step = width // num_steps
-    xx = np.zeros(width, np.float32)
-    prev = 0
-    for idx in range(num_steps + 1):
-        x = idx * x_step
-        start = int(x)
-        end = int(x) + x_step
-        if end > width:
-            end = width
-            cur = width
-        else:
-            cur = prev + x_step * xsteps[idx]
-
-        xx[start:end] = np.linspace(prev, cur, end - start)
-        prev = cur
-
-    y_step = height // num_steps
-    yy = np.zeros(height, np.float32)
-    prev = 0
-    for idx in range(num_steps + 1):
-        y = idx * y_step
-        start = int(y)
-        end = int(y) + y_step
-        if end > height:
-            end = height
-            cur = height
-        else:
-            cur = prev + y_step * ysteps[idx]
-
-        yy[start:end] = np.linspace(prev, cur, end - start)
-        prev = cur
+    xx = linear_space(width, xsteps, num_steps)
+    yy = linear_space(height, ysteps, num_steps)
 
     map_x, map_y = np.meshgrid(xx, yy)
     map_x = map_x.astype(np.float32)

@@ -1178,6 +1178,8 @@ class GridDistortion(DualTransform):
         num_steps (int): count of grid cells on each side.
         distort_limit (float, (float, float)): If distort_limit is a single float, the range
             will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).
+        limit_to_bbox (bool, (bool, bool)): If limit_to_bbox is False, the distortion may move content outside of
+            the image's bounding box.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
@@ -1200,6 +1202,7 @@ class GridDistortion(DualTransform):
         self,
         num_steps=5,
         distort_limit=0.3,
+        limit_to_bbox=False,
         interpolation=cv2.INTER_LINEAR,
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
@@ -1210,6 +1213,9 @@ class GridDistortion(DualTransform):
         super(GridDistortion, self).__init__(always_apply, p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
+        self.limit_to_bbox = (
+            (limit_to_bbox, limit_to_bbox) if isinstance(limit_to_bbox, bool) else tuple(limit_to_bbox)
+        )
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value
@@ -1224,8 +1230,12 @@ class GridDistortion(DualTransform):
         )
 
     def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps)]
+        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps)]
+        if self.limit_to_bbox[0]:
+            stepsx = np.array(stepsx) * max(1, self.num_steps / np.sum(stepsx))
+        if self.limit_to_bbox[1]:
+            stepsy = np.array(stepsy) * max(1, self.num_steps / np.sum(stepsy))
         return {"stepsx": stepsx, "stepsy": stepsy}
 
     def get_transform_init_args_names(self):
