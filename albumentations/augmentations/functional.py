@@ -204,6 +204,9 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 
 @preserve_channel_dim
 def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+    img_height, img_width = img.shape[:2]
+    if height == img_height and width == img_width:
+        return img
     resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)
 
