@@ -172,9 +172,17 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
         if num_channels > 4:
             chunks = []
             for index in range(0, num_channels, 4):
-                chunk = img[:, :, index : index + 4]
-                chunk = process_fn(chunk, **kwargs)
-                chunks.append(chunk)
+                if num_channels - index == 2:
+                    # Many OpenCV functions cannot work with 2-channel images
+                    for i in range(2):
+                        chunk = img[:, :, index + i : index + i + 1]
+                        chunk = process_fn(chunk, **kwargs)
+                        chunk = np.expand_dims(chunk, -1)
+                        chunks.append(chunk)
+                else:
+                    chunk = img[:, :, index : index + 4]
+                    chunk = process_fn(chunk, **kwargs)
+                    chunks.append(chunk)
             img = np.dstack(chunks)
         else:
             img = process_fn(img, **kwargs)

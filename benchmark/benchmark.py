@@ -15,15 +15,6 @@ from pytablewriter.style import Style
 
 import cv2
 
-cv2.setNumThreads(0)  # noqa E402
-cv2.ocl.setUseOpenCL(False)  # noqa E402
-
-os.environ["OMP_NUM_THREADS"] = "1"  # noqa E402
-os.environ["OPENBLAS_NUM_THREADS"] = "1"  # noqa E402
-os.environ["MKL_NUM_THREADS"] = "1"  # noqa E402
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # noqa E402
-os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
-
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
@@ -36,6 +27,15 @@ import solt.data as sld
 
 import albumentations.augmentations.functional as albumentations
 import albumentations as A
+
+cv2.setNumThreads(0)  # noqa E402
+cv2.ocl.setUseOpenCL(False)  # noqa E402
+
+os.environ["OMP_NUM_THREADS"] = "1"  # noqa E402
+os.environ["OPENBLAS_NUM_THREADS"] = "1"  # noqa E402
+os.environ["MKL_NUM_THREADS"] = "1"  # noqa E402
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # noqa E402
+os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
 
 
 DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt"]
