@@ -1502,7 +1502,7 @@ class CoarseDropout(ImageOnlyTransform):
     Args:
         max_holes (int): Maximum number of regions to zero out.
         max_height (int): Maximum height of the hole.
-        min_width (int): Maximum width of the hole.
+        max_width (int): Maximum width of the hole.
         min_holes (int): Minimum number of regions to zero out. If `None`,
             `min_holes` is be set to `max_holes`. Default: `None`.
         min_height (int): Minimum height of the hole. Default: None. If `None`,
