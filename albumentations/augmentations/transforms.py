@@ -1567,7 +1567,7 @@ class CoarseDropout(ImageOnlyTransform):
     Args:
         max_holes (int): Maximum number of regions to zero out.
         max_height (int): Maximum height of the hole.
-        min_width (int): Maximum width of the hole.
+        max_width (int): Maximum width of the hole.
         min_holes (int): Minimum number of regions to zero out. If `None`,
             `min_holes` is be set to `max_holes`. Default: `None`.
         min_height (int): Minimum height of the hole. Default: None. If `None`,
@@ -2583,6 +2583,9 @@ class MedianBlur(Blur):
     def __init__(self, blur_limit=7, always_apply=False, p=0.5):
         super(MedianBlur, self).__init__(blur_limit, always_apply, p)
 
+        if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+            raise ValueError("MedianBlur supports only odd blur limits.")
+
     def apply(self, image, ksize=3, **params):
         return F.median_blur(image, ksize)
 
@@ -2604,6 +2607,9 @@ class GaussianBlur(Blur):
 
     def __init__(self, blur_limit=7, always_apply=False, p=0.5):
         super(GaussianBlur, self).__init__(blur_limit, always_apply, p)
+
+        if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+            raise ValueError("GaussianBlur supports only odd blur limits.")
 
     def apply(self, image, ksize=3, **params):
         return F.gaussian_blur(image, ksize)
