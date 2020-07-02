@@ -104,7 +104,7 @@ And it also works in Kaggle GPU kernels [(proof)](https://www.kaggle.com/creafz/
 To install albumentations using conda we need first to install `imgaug` via conda-forge collection
 ```
 conda install -c conda-forge imgaug
-conda install albumentations -c albumentations
+conda install albumentations -c conda-forge
 ```
 
 ## Documentation
