@@ -348,7 +348,9 @@ class ReplayCompose(Compose):
         return serialized["applied"]
 
     def _to_dict(self):
-        raise NotImplementedError("You cannot serialize ReplayCompose")
+        dictionary = super(ReplayCompose, self)._to_dict()
+        dictionary.update({"save_key": self.save_key})
+        return dictionary
 
 
 class BboxParams(Params):
