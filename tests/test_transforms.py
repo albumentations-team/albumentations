@@ -214,7 +214,7 @@ def test_multiprocessing_support(augmentation_cls, params, multiprocessing_conte
 
 def test_force_apply():
     """
-    Unit test for https://github.com/albu/albumentations/issues/189
+    Unit test for https://github.com/albumentations-team/albumentations/issues/189
     """
     aug = A.Compose(
         [

@@ -101,7 +101,6 @@ class PadIfNeeded(DualTransform):
 
     Image types:
         uint8, float32
-
     """
 
     def __init__(
@@ -908,8 +907,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
             aspect_ratio = math.exp(random.uniform(*log_ratio))
 
-            w = int(round(math.sqrt(target_area * aspect_ratio)))
-            h = int(round(math.sqrt(target_area / aspect_ratio)))
+            w = int(round(math.sqrt(target_area * aspect_ratio)))  # skipcq: PTC-W0028
+            h = int(round(math.sqrt(target_area / aspect_ratio)))  # skipcq: PTC-W0028
 
             if 0 < w <= img.shape[1] and 0 < h <= img.shape[0]:
                 i = random.randint(0, img.shape[0] - h)
@@ -1503,7 +1502,7 @@ class CoarseDropout(ImageOnlyTransform):
     Args:
         max_holes (int): Maximum number of regions to zero out.
         max_height (int): Maximum height of the hole.
-        min_width (int): Maximum width of the hole.
+        max_width (int): Maximum width of the hole.
         min_holes (int): Minimum number of regions to zero out. If `None`,
             `min_holes` is be set to `max_holes`. Default: `None`.
         min_height (int): Minimum height of the hole. Default: None. If `None`,
@@ -1522,7 +1521,6 @@ class CoarseDropout(ImageOnlyTransform):
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
-
     """
 
     def __init__(
@@ -1545,13 +1543,13 @@ class CoarseDropout(ImageOnlyTransform):
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
         self.fill_value = fill_value
-        if not (0 < self.min_holes <= self.max_holes):
+        if not 0 < self.min_holes <= self.max_holes:
             raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
-        if not (0 < self.min_height <= self.max_height):
+        if not 0 < self.min_height <= self.max_height:
             raise ValueError(
                 "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
             )
-        if not (0 < self.min_width <= self.max_width):
+        if not 0 < self.min_width <= self.max_width:
             raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
 
     def apply(self, image, fill_value=0, holes=(), **params):
@@ -1620,9 +1618,9 @@ class ImageCompression(ImageOnlyTransform):
         if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
             low_thresh_quality_assert = 1
 
-        if not (low_thresh_quality_assert <= quality_lower <= 100):
+        if not low_thresh_quality_assert <= quality_lower <= 100:
             raise ValueError("Invalid quality_lower. Got: {}".format(quality_lower))
-        if not (low_thresh_quality_assert <= quality_upper <= 100):
+        if not low_thresh_quality_assert <= quality_upper <= 100:
             raise ValueError("Invalid quality_upper. Got: {}".format(quality_upper))
 
         self.quality_lower = quality_lower
@@ -1695,7 +1693,7 @@ class RandomSnow(ImageOnlyTransform):
     def __init__(self, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, always_apply=False, p=0.5):
         super(RandomSnow, self).__init__(always_apply, p)
 
-        if not (0 <= snow_point_lower <= snow_point_upper <= 1):
+        if not 0 <= snow_point_lower <= snow_point_upper <= 1:
             raise ValueError(
                 "Invalid combination of snow_point_lower and snow_point_upper. Got: {}".format(
                     (snow_point_lower, snow_point_upper)
@@ -1733,7 +1731,6 @@ class RandomRain(ImageOnlyTransform):
         brightness_coefficient (float): rainy days are usually shady. Should be in range [0, 1].
         rain_type: One of [None, "drizzle", "heavy", "torrestial"]
 
-
     Targets:
         image
 
@@ -1760,15 +1757,15 @@ class RandomRain(ImageOnlyTransform):
             raise ValueError(
                 "raint_type must be one of ({}). Got: {}".format(["drizzle", "heavy", "torrential", None], rain_type)
             )
-        if not (-20 <= slant_lower <= slant_upper <= 20):
+        if not -20 <= slant_lower <= slant_upper <= 20:
             raise ValueError(
                 "Invalid combination of slant_lower and slant_upper. Got: {}".format((slant_lower, slant_upper))
             )
-        if not (1 <= drop_width <= 5):
+        if not 1 <= drop_width <= 5:
             raise ValueError("drop_width must be in range [1, 5]. Got: {}".format(drop_width))
-        if not (0 <= drop_length <= 100):
+        if not 0 <= drop_length <= 100:
             raise ValueError("drop_length must be in range [0, 100]. Got: {}".format(drop_length))
-        if not (0 <= brightness_coefficient <= 1):
+        if not 0 <= brightness_coefficient <= 1:
             raise ValueError("brightness_coefficient must be in range [0, 1]. Got: {}".format(brightness_coefficient))
 
         self.slant_lower = slant_lower
@@ -1864,13 +1861,13 @@ class RandomFog(ImageOnlyTransform):
     def __init__(self, fog_coef_lower=0.3, fog_coef_upper=1, alpha_coef=0.08, always_apply=False, p=0.5):
         super(RandomFog, self).__init__(always_apply, p)
 
-        if not (0 <= fog_coef_lower <= fog_coef_upper <= 1):
+        if not 0 <= fog_coef_lower <= fog_coef_upper <= 1:
             raise ValueError(
                 "Invalid combination if fog_coef_lower and fog_coef_upper. Got: {}".format(
                     (fog_coef_lower, fog_coef_upper)
                 )
             )
-        if not (0 <= alpha_coef <= 1):
+        if not 0 <= alpha_coef <= 1:
             raise ValueError("alpha_coef must be in range [0, 1]. Got: {}".format(alpha_coef))
 
         self.fog_coef_lower = fog_coef_lower
@@ -1953,15 +1950,16 @@ class RandomSunFlare(ImageOnlyTransform):
 
         (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = flare_roi
 
-        if not (0 <= flare_center_lower_x < flare_center_upper_x <= 1) or not (
-            0 <= flare_center_lower_y < flare_center_upper_y <= 1
+        if (
+            not 0 <= flare_center_lower_x < flare_center_upper_x <= 1
+            or not 0 <= flare_center_lower_y < flare_center_upper_y <= 1
         ):
             raise ValueError("Invalid flare_roi. Got: {}".format(flare_roi))
-        if not (0 <= angle_lower < angle_upper <= 1):
+        if not 0 <= angle_lower < angle_upper <= 1:
             raise ValueError(
                 "Invalid combination of angle_lower nad angle_upper. Got: {}".format((angle_lower, angle_upper))
             )
-        if not (0 <= num_flare_circles_lower < num_flare_circles_upper):
+        if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
             raise ValueError(
                 "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. Got: {}".format(
                     (num_flare_circles_lower, num_flare_circles_upper)
@@ -2077,9 +2075,9 @@ class RandomShadow(ImageOnlyTransform):
 
         (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
 
-        if not (0 <= shadow_lower_x <= shadow_upper_x <= 1) or not (0 <= shadow_lower_y <= shadow_upper_y <= 1):
+        if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
             raise ValueError("Invalid shadow_roi. Got: {}".format(shadow_roi))
-        if not (0 <= num_shadows_lower <= num_shadows_upper):
+        if not 0 <= num_shadows_lower <= num_shadows_upper:
             raise ValueError(
                 "Invalid combination of num_shadows_lower nad num_shadows_upper. Got: {}".format(
                     (num_shadows_lower, num_shadows_upper)
@@ -2259,7 +2257,6 @@ class Equalize(ImageOnlyTransform):
 
     Image types:
         uint8
-
     """
 
     def __init__(self, mode="cv", by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5):
@@ -2497,6 +2494,9 @@ class MedianBlur(Blur):
     def __init__(self, blur_limit=7, always_apply=False, p=0.5):
         super(MedianBlur, self).__init__(blur_limit, always_apply, p)
 
+        if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+            raise ValueError("MedianBlur supports only odd blur limits.")
+
     def apply(self, image, ksize=3, **params):
         return F.median_blur(image, ksize)
 
@@ -2518,6 +2518,9 @@ class GaussianBlur(Blur):
 
     def __init__(self, blur_limit=7, always_apply=False, p=0.5):
         super(GaussianBlur, self).__init__(blur_limit, always_apply, p)
+
+        if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+            raise ValueError("GaussianBlur supports only odd blur limits.")
 
     def apply(self, image, ksize=3, **params):
         return F.gaussian_blur(image, ksize)
@@ -2670,7 +2673,7 @@ class ChannelDropout(ImageOnlyTransform):
         self.min_channels = channel_drop_range[0]
         self.max_channels = channel_drop_range[1]
 
-        if not (1 <= self.min_channels <= self.max_channels):
+        if not 1 <= self.min_channels <= self.max_channels:
             raise ValueError("Invalid channel_drop_range. Got: {}".format(channel_drop_range))
 
         self.fill_value = fill_value
@@ -2947,7 +2950,6 @@ class Lambda(NoOp):
 
     Image types:
         Any
-
     """
 
     def __init__(self, image=None, mask=None, keypoint=None, bbox=None, name=None, always_apply=False, p=1.0):
@@ -3186,8 +3188,10 @@ class GlassBlur(Blur):
             Should be in range [1, inf). Default: (2).
         mode (str): mode of computation: fast or exact. Default: "fast".
         p (float): probability of applying the transform. Default: 0.5.
+
     Targets:
         image
+
     Image types:
         uint8, float32
 
@@ -3232,35 +3236,38 @@ class GlassBlur(Blur):
 
 
 class GridDropout(DualTransform):
-    """
-    GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
+    """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
 
-        Args:
-            ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
-                Must be between 0 and 1. Default: 0.5.
-            unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
-                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-            unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
-                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-            holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
-                If 'None', grid unit width is set as image_width//10. Default: `None`.
-            holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
-                If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
-            shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
-                Clipped between 0 and grid unit_width - hole_width. Default: 0.
-            shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
-                Clipped between 0 and grid unit height - hole_height. Default: 0.
-            random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
-                If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
-            fill_value (int): value for the dropped pixels. Default = 0
-            mask_fill_value (int): value for the dropped pixels in mask.
-                If `None`, tranformation is not applied to the mask. Default: `None`.
-        Targets:
-            image, mask
-        Image types:
-            uint8, float32
-        References:
-            https://arxiv.org/abs/2001.04086
+    Args:
+        ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
+            Must be between 0 and 1. Default: 0.5.
+        unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
+            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
+            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+        holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
+            If 'None', grid unit width is set as image_width//10. Default: `None`.
+        holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
+            If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
+        shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
+            Clipped between 0 and grid unit_width - hole_width. Default: 0.
+        shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
+            Clipped between 0 and grid unit height - hole_height. Default: 0.
+        random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
+            If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
+        fill_value (int): value for the dropped pixels. Default = 0
+        mask_fill_value (int): value for the dropped pixels in mask.
+            If `None`, tranformation is not applied to the mask. Default: `None`.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    References:
+        https://arxiv.org/abs/2001.04086
+
     """
 
     def __init__(
