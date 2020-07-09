@@ -2,8 +2,9 @@ import math
 
 import numpy as np
 import pytest
-from albumentations import HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 
+import albumentations.augmentations.functional as F
+from albumentations import HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 from albumentations.augmentations.keypoints_utils import (
     convert_keypoint_from_albumentations,
     convert_keypoints_from_albumentations,
@@ -11,10 +12,9 @@ from albumentations.augmentations.keypoints_utils import (
     convert_keypoints_to_albumentations,
     angle_to_2pi_range,
 )
+from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
 from albumentations.core.composition import Compose
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
-import albumentations.augmentations.functional as F
 
 
 @pytest.mark.parametrize(
@@ -222,13 +222,13 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected):
 @pytest.mark.parametrize(
     ["aug", "keypoints", "expected"],
     [
-        [IAAFliplr, [(20, 30, 0, 0)], [(79, 30, 0, 0)]],
-        [IAAFliplr, [(20, 30, 45, 0)], [(79, 30, 45, 0)]],
-        [IAAFliplr, [(20, 30, 90, 0)], [(79, 30, 90, 0)]],
+        [IAAFliplr, [(20, 30, 0, 0)], [(80, 30, 0, 0)]],
+        [IAAFliplr, [(20, 30, 45, 0)], [(80, 30, 45, 0)]],
+        [IAAFliplr, [(20, 30, 90, 0)], [(80, 30, 90, 0)]],
         #
-        [IAAFlipud, [(20, 30, 0, 0)], [(20, 69, 0, 0)]],
-        [IAAFlipud, [(20, 30, 45, 0)], [(20, 69, 45, 0)]],
-        [IAAFlipud, [(20, 30, 90, 0)], [(20, 69, 90, 0)]],
+        [IAAFlipud, [(20, 30, 0, 0)], [(20, 70, 0, 0)]],
+        [IAAFlipud, [(20, 30, 45, 0)], [(20, 70, 45, 0)]],
+        [IAAFlipud, [(20, 30, 90, 0)], [(20, 70, 90, 0)]],
     ],
 )
 def test_keypoint_transform_format_xy(aug, keypoints, expected):
