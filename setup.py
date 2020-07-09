@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 from pkg_resources import DistributionNotFound, get_distribution
 
 
-INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "imgaug=0.4.0", "PyYAML"]
+INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "imgaug==0.4.0", "PyYAML"]
 
 # If first not installed install second package
 CHOOSE_INSTALL_REQUIRES = [("opencv-python>=4.1.1", "opencv-python-headless>=4.1.1")]
