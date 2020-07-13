@@ -172,9 +172,17 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
         if num_channels > 4:
             chunks = []
             for index in range(0, num_channels, 4):
-                chunk = img[:, :, index : index + 4]
-                chunk = process_fn(chunk, **kwargs)
-                chunks.append(chunk)
+                if num_channels - index == 2:
+                    # Many OpenCV functions cannot work with 2-channel images
+                    for i in range(2):
+                        chunk = img[:, :, index + i : index + i + 1]
+                        chunk = process_fn(chunk, **kwargs)
+                        chunk = np.expand_dims(chunk, -1)
+                        chunks.append(chunk)
+                else:
+                    chunk = img[:, :, index : index + 4]
+                    chunk = process_fn(chunk, **kwargs)
+                    chunks.append(chunk)
             img = np.dstack(chunks)
         else:
             img = process_fn(img, **kwargs)
@@ -196,6 +204,9 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 
 @preserve_channel_dim
 def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+    img_height, img_width = img.shape[:2]
+    if height == img_height and width == img_width:
+        return img
     resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)
 
@@ -478,16 +489,14 @@ def posterize(img, bits):
     for i, channel_bits in enumerate(bits):
         if channel_bits == 0:
             result_img[..., i] = np.zeros_like(img[..., i])
-            continue
         elif channel_bits == 8:
             result_img[..., i] = img[..., i].copy()
-            continue
+        else:
+            lut = np.arange(0, 256, dtype=np.uint8)
+            mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+            lut &= mask
 
-        lut = np.arange(0, 256, dtype=np.uint8)
-        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
-        lut &= mask
-
-        result_img[..., i] = cv2.LUT(img[..., i], lut)
+            result_img[..., i] = cv2.LUT(img[..., i], lut)
 
     return result_img
 

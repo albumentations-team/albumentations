@@ -542,3 +542,31 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     data = aug(image=image)
     assert data["image"].dtype == np.uint8
     assert data["image"].shape[2] == 6
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    [
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {"blur_limit": [7, 7]}],
+        [GaussianBlur, {"blur_limit": [7, 7]}],
+        [GaussNoise, {}],
+        [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
+        [ShiftScaleRotate, {}],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}],
+        [LongestMaxSize, {"max_size": 256}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [RandomBrightnessContrast, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+    ],
+)
+def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
+    for num_channels in range(3, 13):
+        image = np.zeros((512, 512, num_channels), dtype=np.uint8)
+        aug = augmentation_cls(p=1, **params)
+        data = aug(image=image)
+        assert data["image"].dtype == np.uint8
+        assert data["image"].shape[2] == num_channels

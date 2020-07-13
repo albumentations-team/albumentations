@@ -28,7 +28,7 @@ If you want to get the latest version of the code before it is released on PyPI 
 
 ::
 
-    pip install -U git+https://github.com/albu/albumentations
+    pip install -U git+https://github.com/albumentations-team/albumentations
 
 
 Demo
