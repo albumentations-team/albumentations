@@ -198,7 +198,8 @@ class Compose(BaseCompose):
 
 
 class OneOf(BaseCompose):
-    """Select one of transforms to apply
+    """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
         transforms (list): list of transformations to compose.
@@ -225,6 +226,8 @@ class OneOf(BaseCompose):
 
 
 class OneOrOther(BaseCompose):
+    """Select one or another transform to apply. Selected transform will be called with `force_apply=True`."""
+
     def __init__(self, first=None, second=None, transforms=None, p=0.5):
         if transforms is None:
             transforms = [first, second]
