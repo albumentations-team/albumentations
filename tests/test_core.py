@@ -199,6 +199,51 @@ def test_deterministic_one_or_other():
             None,
             {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
         ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=True),
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=True),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
     ],
 )
 def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
