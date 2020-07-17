@@ -184,6 +184,9 @@ class Compose(BaseCompose):
             elif check_each_transform and isinstance(t, DualTransform):
                 rows, cols = data["image"].shape[:2]
                 for p in self.processors.values():
+                    if not getattr(p.params, "check_each_transform", False):
+                        continue
+
                     for data_name in p.data_fields:
                         data[data_name] = p.filter(data[data_name], rows, cols)
 
@@ -384,7 +387,7 @@ class BboxParams(Params):
             Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_each_transform=False):
+    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_each_transform=True):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
@@ -430,7 +433,7 @@ class KeypointParams(Params):
         label_fields=None,
         remove_invisible=True,
         angle_in_degrees=True,
-        check_each_transform=False,
+        check_each_transform=True,
     ):
         super(KeypointParams, self).__init__(format, label_fields)
         self.remove_invisible = remove_invisible
