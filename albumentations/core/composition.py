@@ -61,7 +61,7 @@ def set_always_apply(transforms):
 
 
 @add_metaclass(SerializableMeta)
-class BaseCompose(object):
+class BaseCompose:
     def __init__(self, transforms, p):
         self.transforms = Transforms(transforms)
         self.p = p
@@ -96,7 +96,7 @@ class BaseCompose(object):
         return {
             "__class_fullname__": self.get_class_fullname(),
             "p": self.p,
-            "transforms": [t._to_dict() for t in self.transforms],
+            "transforms": [t._to_dict() for t in self.transforms],  # skipcq: PYL-W0212
         }
 
     def get_dict_with_id(self):
@@ -195,8 +195,10 @@ class Compose(BaseCompose):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,
-                "keypoint_params": keypoints_processor.params._to_dict() if keypoints_processor else None,
+                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,  # skipcq: PYL-W0212
+                "keypoint_params": keypoints_processor.params._to_dict()  # skipcq: PYL-W0212
+                if keypoints_processor
+                else None,
                 "additional_targets": self.additional_targets,
             }
         )
@@ -204,7 +206,8 @@ class Compose(BaseCompose):
 
 
 class OneOf(BaseCompose):
-    """Select one of transforms to apply
+    """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
         transforms (list): list of transformations to compose.
@@ -231,6 +234,8 @@ class OneOf(BaseCompose):
 
 
 class OneOrOther(BaseCompose):
+    """Select one or another transform to apply. Selected transform will be called with `force_apply=True`."""
+
     def __init__(self, first=None, second=None, transforms=None, p=0.5):
         if transforms is None:
             transforms = [first, second]
@@ -244,8 +249,8 @@ class OneOrOther(BaseCompose):
 
         if random.random() < self.p:
             return self.transforms[0](force_apply=True, **data)
-        else:
-            return self.transforms[-1](force_apply=True, **data)
+
+        return self.transforms[-1](force_apply=True, **data)
 
 
 class PerChannel(BaseCompose):
@@ -354,7 +359,9 @@ class ReplayCompose(Compose):
         return serialized["applied"]
 
     def _to_dict(self):
-        raise NotImplementedError("You cannot serialize ReplayCompose")
+        dictionary = super(ReplayCompose, self)._to_dict()
+        dictionary.update({"save_key": self.save_key})
+        return dictionary
 
 
 class BboxParams(Params):

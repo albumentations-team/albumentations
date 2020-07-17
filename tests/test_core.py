@@ -109,7 +109,7 @@ def test_additional_targets(image, mask):
 def test_check_bboxes_with_correct_values():
     try:
         check_bboxes([[0.1, 0.5, 0.8, 1.0], [0.2, 0.5, 0.5, 0.6, 99]])
-    except Exception as e:
+    except Exception as e:  # skipcq: PYL-W0703
         pytest.fail("Unexpected Exception {!r}".format(e))
 
 
@@ -152,7 +152,7 @@ def test_per_channel_multi():
 
 def test_deterministic_oneof():
     aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
-    for i in range(10):
+    for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
         data = aug(image=image)
@@ -163,7 +163,7 @@ def test_deterministic_oneof():
 
 def test_deterministic_one_or_other():
     aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
-    for i in range(10):
+    for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
         data = aug(image=image)
