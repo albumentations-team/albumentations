@@ -52,6 +52,8 @@ def get_transforms_info():
     transforms_info = {}
     for name, cls in inspect.getmembers(albumentations):
         if inspect.isclass(cls) and issubclass(cls, albumentations.BasicTransform) and name not in IGNORED_CLASSES:
+            if "DeprecationWarning" in inspect.getsource(cls):
+                continue
 
             targets = {Targets.IMAGE}
             if issubclass(cls, albumentations.DualTransform):
@@ -98,7 +100,7 @@ def make_transforms_targets_table(transforms_info, header):
         row = [info["docs_link"] or transform] + transform_targets
         rows.append(row)
 
-    column_widths = [max([len(r) for r in column]) for column in zip(*rows)]
+    column_widths = [max(len(r) for r in column) for column in zip(*rows)]
     lines = [
         " | ".join(
             "{title: <{width}}".format(width=width, title=title) for width, title in zip(column_widths, rows[0])
@@ -123,7 +125,7 @@ def make_transforms_targets_links(transforms_info):
 
 
 def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
-    with open(args.filepath, "r", encoding="utf8") as f:
+    with open(filepath, "r", encoding="utf8") as f:
         text = f.read()
     outdated_docs = set()
     image_only_lines_not_in_text = []
@@ -156,7 +158,7 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
     )
 
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
     command = args.command
     if command not in {"make", "check"}:
@@ -175,3 +177,7 @@ if __name__ == "__main__":
         print(dual_transforms_table)
     else:
         check_docs(args.filepath, image_only_transforms_links, dual_transforms_table)
+
+
+if __name__ == "__main__":
+    main()

@@ -794,12 +794,12 @@ def test_solarize(dtype):
 
 def test_posterize_checks():
     img = np.random.random([256, 256, 3])
-    with pytest.raises(AssertionError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         F.posterize(img, 4)
     assert str(exc_info.value) == "Image must have uint8 channel type"
 
     img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
-    with pytest.raises(AssertionError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         F.posterize(img, [1, 2, 3])
     assert str(exc_info.value) == "If bits is iterable image must be RGB"
 
@@ -824,7 +824,7 @@ def test_equalize_checks():
     )
 
     img = np.random.random([256, 256, 3])
-    with pytest.raises(AssertionError) as exc_info:
+    with pytest.raises(TypeError) as exc_info:
         F.equalize(img, mask=mask, by_channels=False)
     assert str(exc_info.value) == "Image must have uint8 channel type"
 

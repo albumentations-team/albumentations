@@ -39,13 +39,13 @@ def to_tuple(param, low=None, bias=None):
         raise ValueError("Argument param must be either scalar (int, float) or tuple")
 
     if bias is not None:
-        return tuple([bias + x for x in param])
+        return tuple(bias + x for x in param)
 
     return tuple(param)
 
 
 @add_metaclass(SerializableMeta)
-class BasicTransform(object):
+class BasicTransform:
     call_backup = None
 
     def __init__(self, always_apply=False, p=0.5):
@@ -64,8 +64,8 @@ class BasicTransform(object):
         if self.replay_mode:
             if self.applied_in_replay:
                 return self.apply_with_params(self.params, **kwargs)
-            else:
-                return kwargs
+
+            return kwargs
 
         if (random.random() < self.p) or self.always_apply or force_apply:
             params = self.get_params()
@@ -88,7 +88,7 @@ class BasicTransform(object):
 
         return kwargs
 
-    def apply_with_params(self, params, force_apply=False, **kwargs):
+    def apply_with_params(self, params, force_apply=False, **kwargs):  # skipcq: PYL-W0613
         if params is None:
             return kwargs
         params = self.update_params(params, **kwargs)
@@ -250,4 +250,4 @@ class NoOp(DualTransform):
         return img
 
     def get_transform_init_args_names(self):
-        return tuple()
+        return ()

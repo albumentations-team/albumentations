@@ -1,6 +1,5 @@
-import os
-import warnings
 import sys
+import warnings
 import multiprocessing
 
 import numpy as np
@@ -8,8 +7,8 @@ import pytest
 
 
 try:
-    import torch
-    import torchvision
+    import torch  # skipcq: PYL-W0611
+    import torchvision  # skipcq: PYL-W0611
 
     torch_available = True
 except ImportError:

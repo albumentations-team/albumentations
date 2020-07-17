@@ -26,10 +26,10 @@ class SerializableMeta(type):
     while deserializing transformation pipeline using classes full names.
     """
 
-    def __new__(meta, name, bases, class_dict):
-        cls = type.__new__(meta, name, bases, class_dict)
-        SERIALIZABLE_REGISTRY[cls.get_class_fullname()] = cls
-        return cls
+    def __new__(cls, name, bases, class_dict):
+        cls_obj = type.__new__(cls, name, bases, class_dict)
+        SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
+        return cls_obj
 
 
 def to_dict(transform, on_not_implemented_error="raise"):
@@ -50,19 +50,17 @@ def to_dict(transform, on_not_implemented_error="raise"):
             )
         )
     try:
-        transform_dict = transform._to_dict()
+        transform_dict = transform._to_dict()  # skipcq: PYL-W0212
     except NotImplementedError as e:
         if on_not_implemented_error == "raise":
             raise e
-        else:
-            transform_dict = {}
-            warnings.warn(
-                "Got NotImplementedError while trying to serialize {obj}. Object arguments are not preserved. "
-                "Implement either '{cls_name}.get_transform_init_args_names' or '{cls_name}.get_transform_init_args' "
-                "method to make the transform serializable".format(
-                    obj=transform, cls_name=transform.__class__.__name__
-                )
-            )
+
+        transform_dict = {}
+        warnings.warn(
+            "Got NotImplementedError while trying to serialize {obj}. Object arguments are not preserved. "
+            "Implement either '{cls_name}.get_transform_init_args_names' or '{cls_name}.get_transform_init_args' "
+            "method to make the transform serializable".format(obj=transform, cls_name=transform.__class__.__name__)
+        )
     return {"__version__": __version__, "transform": transform_dict}
 
 
@@ -78,6 +76,7 @@ def instantiate_lambda(transform, lambda_transforms=None):
         if transform is None:
             raise ValueError("Lambda transform with {name} was not found in `lambda_transforms`".format(name=name))
         return transform
+    return None
 
 
 def from_dict(transform_dict, lambda_transforms=None):
