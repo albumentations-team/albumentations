@@ -1,7 +1,6 @@
 # Albumentations
 [![PyPI version](https://badge.fury.io/py/albumentations.svg)](https://badge.fury.io/py/albumentations)
 ![CI](https://github.com/albumentations-team/albumentations/workflows/CI/badge.svg)
-[![Documentation Status](https://readthedocs.org/projects/albumentations/badge/?version=latest)](https://albumentations.readthedocs.io/en/latest/?badge=latest)
 
 * The library works with images in `HWC` format.
 * The library is faster than other libraries on most of the transformations.
@@ -108,7 +107,7 @@ conda install albumentations -c conda-forge
 ```
 
 ## Documentation
-The full documentation is available at [albumentations.readthedocs.io](https://albumentations.readthedocs.io/en/latest/).
+The full documentation is available at [https://albumentations.ai/docs/](https://albumentations.ai/docs/).
 
 
 ## Pixel-level transforms
