@@ -286,7 +286,7 @@ def crop(img, x_min, y_min, x_max, y_max):
     if x_min < 0 or x_max > width or y_min < 0 or y_max > height:
         raise ValueError(
             "Values for crop should be non negative and equal or smaller than image sizes"
-            "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}"
+            "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
             "height = {height}, width = {width})".format(
                 x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
             )
