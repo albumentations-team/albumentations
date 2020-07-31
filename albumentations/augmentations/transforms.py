@@ -2506,7 +2506,8 @@ class GaussianBlur(ImageOnlyTransform):
 
     Args:
         blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
-            Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma.
+            Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
+            as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
             If set single value `blur_limit` will be in range (0, blur_limit).
             Default: (3, 7).
         sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be greater in range [0, inf).
