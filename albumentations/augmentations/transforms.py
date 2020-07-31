@@ -2506,8 +2506,10 @@ class GaussianBlur(ImageOnlyTransform):
 
     Args:
         blur_limit (int): maximum Gaussian kernel size for blurring the input image.
-            Must be zero or odd and in range [3, inf). Default: (3, 7).
-        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be greater than 0.
+            Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma.
+            If set single value `blur_limit` will be in range (0, blur_limit).
+            Default: (3, 7).
+        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be greater in range [0, inf).
             If set single value `sigma_limit` will be in range (0, sigma_limit).
             If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
         p (float): probability of applying the transform. Default: 0.5.
@@ -2519,12 +2521,21 @@ class GaussianBlur(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, blur_limit=7, sigma_limit=0, always_apply=False, p=0.5):
+    def __init__(self, blur_limit=(3, 7), sigma_limit=0, always_apply=False, p=0.5):
         super(GaussianBlur, self).__init__(always_apply, p)
-        self.blur_limit = to_tuple(blur_limit, 3)
+        self.blur_limit = to_tuple(blur_limit, 0)
         self.sigma_limit = to_tuple(sigma_limit if sigma_limit is not None else 0, 0)
 
-        if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+        if self.blur_limit[0] == 0 and self.sigma_limit[0] == 0:
+            self.blur_limit = 3, max(3, self.blur_limit[1])
+            warnings.warn(
+                "blur_limit and sigma_limit minimum value can not be both equal to 0. "
+                "blur_limit minimum value changed to 3."
+            )
+
+        if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
+            self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
+        ):
             raise ValueError("GaussianBlur supports only odd blur limits.")
 
     def apply(self, image, ksize=3, sigma=0, **params):

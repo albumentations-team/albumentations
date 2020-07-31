@@ -652,3 +652,23 @@ def test_gauss_noise_incorrect_var_limit_type():
         A.GaussNoise(var_limit={"low": 70, "high": 90})
     message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
     assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(
+    ["blur_limit", "sigma", "result_blur", "result_sigma"],
+    [
+        [[0, 0], [1, 1], 0, 1],
+        [[1, 1], [0, 0], 1, 0],
+        [[1, 1], [1, 1], 1, 1],
+        [[0, 0], [0, 0], 3, 0],
+        [[0, 3], [0, 0], 3, 0],
+        [[0, 3], [0.1, 0.1], 3, 0.1],
+    ],
+)
+def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
+    img = np.zeros([100, 100, 3], dtype=np.uint8)
+
+    aug = A.Compose([A.GaussianBlur(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
+
+    res = aug(image=img)["image"]
+    assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
