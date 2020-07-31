@@ -2542,10 +2542,11 @@ class GaussianBlur(ImageOnlyTransform):
         return F.gaussian_blur(image, ksize, sigma=sigma)
 
     def get_params(self):
-        return {
-            "ksize": int(random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))),
-            "sigma": random.uniform(*self.sigma_limit),
-        }
+        ksize = np.random.randint(self.blur_limit[0], self.blur_limit[1] + 1)
+        if ksize != 0 and ksize % 2 != 1:
+            ksize = (ksize + 1) % (self.blur_limit[1] + 1)
+
+        return {"ksize": ksize, "sigma": random.uniform(*self.sigma_limit)}
 
     def get_transform_init_args_names(self):
         return ("blur_limit", "sigma_limit")
