@@ -2501,12 +2501,15 @@ class MedianBlur(Blur):
         return F.median_blur(image, ksize)
 
 
-class GaussianBlur(Blur):
+class GaussianBlur(ImageOnlyTransform):
     """Blur the input image using using a Gaussian filter with a random kernel size.
 
     Args:
         blur_limit (int): maximum Gaussian kernel size for blurring the input image.
             Must be zero or odd and in range [3, inf). Default: (3, 7).
+        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be greater than 0.
+            If set single value `sigma_limit` will be in range (0, sigma_limit).
+            If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2516,14 +2519,25 @@ class GaussianBlur(Blur):
         uint8, float32
     """
 
-    def __init__(self, blur_limit=7, always_apply=False, p=0.5):
-        super(GaussianBlur, self).__init__(blur_limit, always_apply, p)
+    def __init__(self, blur_limit=7, sigma_limit=0, always_apply=False, p=0.5):
+        super(GaussianBlur, self).__init__(always_apply, p)
+        self.blur_limit = to_tuple(blur_limit, 3)
+        self.sigma_limit = to_tuple(sigma_limit if sigma_limit is not None else 0, 0)
 
         if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
             raise ValueError("GaussianBlur supports only odd blur limits.")
 
-    def apply(self, image, ksize=3, **params):
-        return F.gaussian_blur(image, ksize)
+    def apply(self, image, ksize=3, sigma=0, **params):
+        return F.gaussian_blur(image, ksize, sigma=sigma)
+
+    def get_params(self):
+        return {
+            "ksize": int(random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))),
+            "sigma": random.uniform(*self.sigma_limit),
+        }
+
+    def get_transform_init_args_names(self):
+        return ("blur_limit", "sigma_limit")
 
 
 class GaussNoise(ImageOnlyTransform):
