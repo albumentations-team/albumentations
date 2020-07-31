@@ -2505,7 +2505,7 @@ class GaussianBlur(ImageOnlyTransform):
     """Blur the input image using using a Gaussian filter with a random kernel size.
 
     Args:
-        blur_limit (int): maximum Gaussian kernel size for blurring the input image.
+        blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
             Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma.
             If set single value `blur_limit` will be in range (0, blur_limit).
             Default: (3, 7).
