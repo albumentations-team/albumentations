@@ -2,6 +2,7 @@ from __future__ import absolute_import, division
 
 import math
 import random
+import typing
 import warnings
 from enum import IntEnum
 from types import LambdaType
@@ -13,7 +14,7 @@ from skimage.measure import label
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
 from ..core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp, to_tuple
-from ..core.utils import format_args
+from ..core.utils import format_args, get_random_color
 
 __all__ = [
     "Blur",
@@ -1509,7 +1510,8 @@ class CoarseDropout(ImageOnlyTransform):
             `min_height` is set to `max_height`. Default: `None`.
         min_width (int): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
-        fill_value (int, float, lisf of int, list of float): value for dropped pixels.
+        fill_value (int, float, lisf of int, list of float, string): value for dropped pixels.
+            If fill_value is 'random', random color will be generated.
 
     Targets:
         image
@@ -1570,7 +1572,11 @@ class CoarseDropout(ImageOnlyTransform):
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
 
-        return {"holes": holes}
+        fill_value = self.fill_value
+        if self.fill_value == "random":
+            fill_value = get_random_color(F.get_num_channels(img), img.dtype)
+
+        return {"holes": holes, "fill_value": fill_value}
 
     @property
     def targets_as_params(self):
@@ -3111,8 +3117,9 @@ class MaskDropout(DualTransform):
         Args:
             max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
             image_fill_value: Fill value to use when filling image.
-                Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
-            mask_fill_value: Fill value to use when filling mask.
+                Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images).
+                If image_fill_value is 'random', random color will be generated. Default = 0.
+            mask_fill_value: Fill value to use when filling mask. Default = 0.
 
         Targets:
             image, mask
@@ -3127,7 +3134,7 @@ class MaskDropout(DualTransform):
 
     @property
     def targets_as_params(self):
-        return ["mask"]
+        return ["image", "mask"]
 
     def get_params_dependent_on_targets(self, params):
         mask = params["mask"]
@@ -3148,21 +3155,26 @@ class MaskDropout(DualTransform):
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index
 
-        params.update({"dropout_mask": dropout_mask})
+        image_fill_value = self.image_fill_value
+        if self.image_fill_value == "random":
+            img = params["image"]
+            image_fill_value = get_random_color(F.get_num_channels(img), img.dtype)
+
+        params.update({"dropout_mask": dropout_mask, "image_fill_value": image_fill_value})
         return params
 
-    def apply(self, img, dropout_mask=None, **params):
+    def apply(self, img, dropout_mask=None, image_fill_value=0, **params):
         if dropout_mask is None:
             return img
 
-        if self.image_fill_value == "inpaint":
+        if isinstance(image_fill_value, str) and image_fill_value == "inpaint":
             dropout_mask = dropout_mask.astype(np.uint8)
             _, _, w, h = cv2.boundingRect(dropout_mask)
             radius = min(3, max(w, h) // 2)
             img = cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
         else:
             img = img.copy()
-            img[dropout_mask] = self.image_fill_value
+            img[dropout_mask] = image_fill_value
 
         return img
 
@@ -3255,7 +3267,8 @@ class GridDropout(DualTransform):
             Clipped between 0 and grid unit height - hole_height. Default: 0.
         random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
             If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
-        fill_value (int): value for the dropped pixels. Default = 0
+        fill_value (int): value for the dropped pixels.
+            If fill_value is 'random', random color will be generated. Default = 0
         mask_fill_value (int): value for the dropped pixels in mask.
             If `None`, tranformation is not applied to the mask. Default: `None`.
 
@@ -3280,7 +3293,7 @@ class GridDropout(DualTransform):
         shift_x: int = 0,
         shift_y: int = 0,
         random_offset: bool = False,
-        fill_value: int = 0,
+        fill_value: typing.Union[int, str] = 0,
         mask_fill_value: int = None,
         always_apply: bool = False,
         p: float = 0.5,
@@ -3299,8 +3312,8 @@ class GridDropout(DualTransform):
         if not 0 < self.ratio <= 1:
             raise ValueError("ratio must be between 0 and 1.")
 
-    def apply(self, image, holes=(), **params):
-        return F.cutout(image, holes, self.fill_value)
+    def apply(self, image, holes=(), fill_value=0, **params):
+        return F.cutout(image, holes, fill_value)
 
     def apply_to_mask(self, image, holes=(), **params):
         if self.mask_fill_value is None:
@@ -3360,7 +3373,11 @@ class GridDropout(DualTransform):
                 y2 = min(y1 + hole_height, height)
                 holes.append((x1, y1, x2, y2))
 
-        return {"holes": holes}
+        fill_value = self.fill_value
+        if self.fill_value == "random":
+            fill_value = get_random_color(F.get_num_channels(img), img.dtype)
+
+        return {"holes": holes, "fill_value": fill_value}
 
     @property
     def targets_as_params(self):

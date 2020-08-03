@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
+import numpy as np
 
 from ..core.six import string_types, add_metaclass
 
@@ -11,6 +12,15 @@ def format_args(args_dict):
             v = "'{}'".format(v)
         formatted_args.append("{}={}".format(k, v))
     return ", ".join(formatted_args)
+
+
+def get_random_color(img_channels, dtype=np.uint8):
+    if dtype == np.uint8:
+        fill_value = np.random.randint(0, 256, img_channels, np.uint8)
+    else:
+        fill_value = np.random.uniform(0, 1, size=img_channels).astype(np.float32)
+
+    return fill_value
 
 
 @add_metaclass(ABCMeta)

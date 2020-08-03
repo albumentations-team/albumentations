@@ -652,3 +652,22 @@ def test_gauss_noise_incorrect_var_limit_type():
         A.GaussNoise(var_limit={"low": 70, "high": 90})
     message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
     assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    [
+        [A.CoarseDropout, {"fill_value": "random"}],
+        [A.GridDropout, {"fill_value": "random"}],
+        [A.MaskDropout, {"image_fill_value": "random"}],
+    ],
+)
+def test_fill_value_random(augmentation_cls, params):
+    image = np.zeros((100, 100, 3))
+    mask = np.random.randint(0, 5, image.shape[:2], dtype=np.uint8)
+    aug = augmentation_cls(always_apply=True, **params)
+
+    augmented1 = aug(image=image, mask=mask)["image"]
+    augmented2 = aug(image=image, mask=mask)["image"]
+
+    assert not np.allclose(np.unique(augmented1), np.unique(augmented2))
