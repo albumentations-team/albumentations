@@ -2913,19 +2913,29 @@ class Downscale(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_min=0.25, scale_max=0.25, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
+
+
+    def __init__(self, scale_min=0.25, scale_max=0.25, interpolation=None, always_apply=False, p=0.5):
         super(Downscale, self).__init__(always_apply, p)
+        if interpolation is None:
+            self.down_interpolation, self.up_interpolation = cv2.INTER_NEAREST, cv2.INTER_NEAREST
+            warnings.warn("Using default interpolation INTER_NEAREST, which is sub-optimal."
+                        "Please specify interpolation mode for downscale and upscale explicitly."
+                        "For additional information see this PR https://github.com/albumentations-team/albumentations/pull/584")
+        elif isinstance(interpolation, int):
+            self.down_interpolation, self.up_interpolation = interpolation, interpolation
+        else:
+            self.down_interpolation, self.up_interpolation = interpolation
+
         if scale_min > scale_max:
             raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
         if scale_max >= 1:
             raise ValueError("Expected scale_max to be less than 1, got {}".format(scale_max))
         self.scale_min = scale_min
         self.scale_max = scale_max
-        self.down_interpolation = down_interpolation
-        self.up_interpolation = up_interpolation
 
     def apply(self, image, scale, down_interpolation, up_interpolation, **params):
-        return F.downscale(image, scale=scale, down_interpolation=down_interpolation, up_interpolation=up_interpolation)
+        return F.downscale(image, scale=scale, down_interpolation=self.down_interpolation, up_interpolation=self.up_interpolation)
 
     def get_params(self):
         return {"scale": np.random.uniform(self.scale_min, self.scale_max), "down_interpolation": self.down_interpolation, "up_interpolation": self.up_interpolation}

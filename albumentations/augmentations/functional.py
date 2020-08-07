@@ -1402,19 +1402,18 @@ def to_gray(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
-
 @preserve_shape
 def downscale(img, scale, down_interpolation = cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR):
-    h, w = img.shape[:2]
+     h, w = img.shape[:2]
 
-    need_cast = up_interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
-    if need_cast:
-        img = to_float(img)
-    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
-    upscaled = cv2.resize(downscaled, (w, h), interpolation=up_interpolation)
-    if need_cast:
-        upscaled = from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
-    return upscaled
+     need_cast = up_interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
+     if need_cast:
+         img = to_float(img)
+     downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
+     upscaled = cv2.resize(downscaled, (w, h), interpolation=up_interpolation)
+     if need_cast:
+         upscaled = from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
+     return upscaled
 
 
 def to_float(img, max_value=None):
