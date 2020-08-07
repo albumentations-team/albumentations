@@ -725,9 +725,9 @@ def blur(img, ksize):
 
 
 @preserve_shape
-def gaussian_blur(img, ksize):
+def gaussian_blur(img, ksize, sigma=0):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=0)
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
     return blur_fn(img)
 
 
