@@ -18,12 +18,10 @@ IGNORED_CLASSES = {
 }
 
 
-READTHEDOCS_TEMPLATE_ALBU = (
-    "[{name}](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations"
-)
-READTHEDOCS_TEMPLATE_IMGAUG = "[{name}](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations"
-TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_ALBU + ".augmentations.transforms.{name})"
-IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_IMGAUG + ".imgaug.transforms.{name})"
+def make_augmentation_docs_link(module, cls):
+    return (
+        "[{cls_name}]" "(https://albumentations.ai/docs/api_reference/{module}/transforms/#{cls_fullname})"
+    ).format(cls_name=cls.__name__, module=module, cls_fullname=cls.__module__ + "." + cls.__name__)
 
 
 class Targets(Enum):
@@ -78,9 +76,9 @@ def get_transforms_info():
 
             docs_link = None
             if cls.__module__ == "albumentations.augmentations.transforms":
-                docs_link = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
+                docs_link = make_augmentation_docs_link("augmentations", cls)
             elif cls.__module__ == "albumentations.imgaug.transforms":
-                docs_link = IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
+                docs_link = make_augmentation_docs_link("imgaug", cls)
 
             transforms_info[name] = {
                 "targets": targets,
@@ -145,9 +143,9 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
         "Docs for the following transform types are outdated: {outdated_docs_headers}. "
         "Generate new docs by executing the `python tools/{py_file} make` command "
         "and paste them to {filename}.\n"
-        "# Image only transforms lines not in file:\n"
+        "# Pixel-level transforms lines not in file:\n"
         "{image_only_lines}\n"
-        "# Dual transforms lines not in file:\n"
+        "# Spatial-level transforms lines not in file:\n"
         "{dual_lines}".format(
             outdated_docs_headers=", ".join(outdated_docs),
             py_file=os.path.basename(os.path.realpath(__file__)),
