@@ -18,12 +18,10 @@ IGNORED_CLASSES = {
 }
 
 
-READTHEDOCS_TEMPLATE_ALBU = (
-    "[{name}](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations"
-)
-READTHEDOCS_TEMPLATE_IMGAUG = "[{name}](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations"
-TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_ALBU + ".augmentations.transforms.{name})"
-IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_IMGAUG + ".imgaug.transforms.{name})"
+def make_augmentation_docs_link(module, cls):
+    return (
+        "[{cls_name}]" "(https://albumentations.ai/docs/api_reference/{module}/transforms/#{cls_fullname})"
+    ).format(cls_name=cls.__name__, module=module, cls_fullname=cls.__module__ + "." + cls.__name__)
 
 
 class Targets(Enum):
@@ -52,6 +50,8 @@ def get_transforms_info():
     transforms_info = {}
     for name, cls in inspect.getmembers(albumentations):
         if inspect.isclass(cls) and issubclass(cls, albumentations.BasicTransform) and name not in IGNORED_CLASSES:
+            if "DeprecationWarning" in inspect.getsource(cls):
+                continue
 
             targets = {Targets.IMAGE}
             if issubclass(cls, albumentations.DualTransform):
@@ -76,9 +76,9 @@ def get_transforms_info():
 
             docs_link = None
             if cls.__module__ == "albumentations.augmentations.transforms":
-                docs_link = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
+                docs_link = make_augmentation_docs_link("augmentations", cls)
             elif cls.__module__ == "albumentations.imgaug.transforms":
-                docs_link = IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
+                docs_link = make_augmentation_docs_link("imgaug", cls)
 
             transforms_info[name] = {
                 "targets": targets,
@@ -98,7 +98,7 @@ def make_transforms_targets_table(transforms_info, header):
         row = [info["docs_link"] or transform] + transform_targets
         rows.append(row)
 
-    column_widths = [max([len(r) for r in column]) for column in zip(*rows)]
+    column_widths = [max(len(r) for r in column) for column in zip(*rows)]
     lines = [
         " | ".join(
             "{title: <{width}}".format(width=width, title=title) for width, title in zip(column_widths, rows[0])
@@ -123,7 +123,7 @@ def make_transforms_targets_links(transforms_info):
 
 
 def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
-    with open(args.filepath, "r", encoding="utf8") as f:
+    with open(filepath, "r", encoding="utf8") as f:
         text = f.read()
     outdated_docs = set()
     image_only_lines_not_in_text = []
@@ -143,9 +143,9 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
         "Docs for the following transform types are outdated: {outdated_docs_headers}. "
         "Generate new docs by executing the `python tools/{py_file} make` command "
         "and paste them to {filename}.\n"
-        "# Image only transforms lines not in file:\n"
+        "# Pixel-level transforms lines not in file:\n"
         "{image_only_lines}\n"
-        "# Dual transforms lines not in file:\n"
+        "# Spatial-level transforms lines not in file:\n"
         "{dual_lines}".format(
             outdated_docs_headers=", ".join(outdated_docs),
             py_file=os.path.basename(os.path.realpath(__file__)),
@@ -156,7 +156,7 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
     )
 
 
-if __name__ == "__main__":
+def main():
     args = parse_args()
     command = args.command
     if command not in {"make", "check"}:
@@ -175,3 +175,7 @@ if __name__ == "__main__":
         print(dual_transforms_table)
     else:
         check_docs(args.filepath, image_only_transforms_links, dual_transforms_table)
+
+
+if __name__ == "__main__":
+    main()

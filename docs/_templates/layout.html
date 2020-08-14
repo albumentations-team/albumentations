@@ -115,6 +115,80 @@
 </head>
 
 <body class="wy-body-for-nav">
+  <style>
+    #documentation-link-header {
+      position: static;
+      top: 0;
+      left: 0;
+      width: 100%;
+      color: white;
+      font-size: 24px;
+      text-align: center;
+      padding: 10px 0;
+      height: 50px;
+      background: #448aff;
+      z-index: 999999
+    }
+
+    .wy-nav-side {
+        top: 50px
+    }
+
+    #documentation-link-header a {
+      color: white;
+      text-decoration: underline;
+    }
+
+    #documentation-link-header a:hover {
+      text-decoration: none;
+    }
+
+    @media only screen and (max-width: 600px) {
+      #documentation-link-header {
+        font-size: 18px;
+        height: 90px;
+      }
+      .wy-nav-side {
+        top: 90px;
+      }
+
+    }
+
+    @media only screen and (min-width: 600px) {
+      #documentation-link-header {
+        font-size: 20px;
+        height: 75px;
+      }
+      .wy-nav-side {
+        top: 75px;
+      }
+    }
+
+    @media only screen and (min-width: 768px) {
+      #documentation-link-header {
+        height: 70px;
+      }
+
+      .wy-nav-side {
+        top: 70px;
+      }
+    }
+
+    @media only screen and (min-width: 992px) {
+      #documentation-link-header {
+        height: 50px;
+      }
+
+      .wy-nav-side {
+        top: 50px
+    }
+
+    }
+  </style>
+
+  <div id="documentation-link-header">The updated and extended version of the documentation is available at <a
+      href="https://albumentations.ai/docs/">https://albumentations.ai/docs/</a>
+  </div>
 
   {% block extrabody %}{% endblock %}
   <div class="wy-grid-for-nav">
@@ -157,7 +231,9 @@
         {% block navigation %}
         <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
           <div style="padding: 5px 10px 10px 10px; text-align: center; width: 100%">
-            <iframe src="https://ghbtns.com/github-btn.html?user=albu&repo=albumentations&type=star&count=true&size=large" frameborder="0" scrolling="0" width="150px" height="30px"></iframe>
+            <iframe
+              src="https://ghbtns.com/github-btn.html?user=albumentations-team&repo=albumentations&type=star&count=true&size=large"
+              frameborder="0" scrolling="0" width="170" height="30" title="GitHub"></iframe>
           </div>
           {% block menu %}
             {#
