@@ -172,6 +172,42 @@ def test_deterministic_one_or_other():
         assert np.array_equal(data["image"], data2["image"])
 
 
+def test_named_args():
+    image = np.empty([100, 100, 3], dtype=np.uint8)
+    aug = HorizontalFlip(p=1)
+
+    with pytest.raises(KeyError) as exc_info:
+        aug(image)
+    assert str(exc_info.value) == (
+        "'You have to pass data to augmentations as named arguments, for example: aug(image=image)'"
+    )
+
+
+@pytest.mark.parametrize(
+    ["targets", "additional_targets", "err_message"],
+    [
+        [{"image": None}, None, "image must be numpy array type"],
+        [{"image": np.empty([100, 100, 3], np.uint8), "mask": None}, None, "mask must be numpy array type"],
+        [
+            {"image": np.empty([100, 100, 3], np.uint8), "image1": None},
+            {"image1": "image"},
+            "image1 must be numpy array type",
+        ],
+        [
+            {"image": np.empty([100, 100, 3], np.uint8), "mask1": None},
+            {"mask1": "mask"},
+            "mask1 must be numpy array type",
+        ],
+    ],
+)
+def test_targets_type_check(targets, additional_targets, err_message):
+    aug = Compose([], additional_targets=additional_targets)
+
+    with pytest.raises(TypeError) as exc_info:
+        aug(**targets)
+    assert str(exc_info.value) == err_message
+
+
 @pytest.mark.parametrize(
     ["targets", "bbox_params", "keypoint_params", "expected"],
     [

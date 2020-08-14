@@ -60,7 +60,9 @@ class BasicTransform:
         self.replay_mode = False
         self.applied_in_replay = False
 
-    def __call__(self, force_apply=False, **kwargs):
+    def __call__(self, *args, force_apply=False, **kwargs):
+        if args:
+            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
         if self.replay_mode:
             if self.applied_in_replay:
                 return self.apply_with_params(self.params, **kwargs)
