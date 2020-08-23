@@ -80,6 +80,7 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "FDA",
 ]
 
 
@@ -3405,3 +3406,63 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
+
+
+class FDA(ImageOnlyTransform):
+    """
+    Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
+    Source paper "FDA: Fourier Domain Adaptation for Semantic Segmentation"
+
+    Args:
+        list_names (list or None): list of target image names.
+        target_images (sequence): sequence of images.
+        beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
+
+    Targets:
+        image
+
+    Image types:
+        3-channel uint8 images only
+
+    """
+
+    def __init__(self, list_names=None, target_images=None, beta_limit=0.1, always_apply=False, p=0.5):
+        super(FDA, self).__init__(always_apply=always_apply, p=p)
+
+        self.list_names = list_names
+        self.target_images = target_images
+        self.beta_limit = to_tuple(beta_limit, low=0)
+
+        if self.list_names is not None:
+            self.count_targets = len(self.list_names)
+        elif self.target_images is not None:
+            self.count_targets = len(self.target_images)
+        else:
+            raise ValueError("`Need list_names` or `target_images`")
+
+    def apply(self, img, target_image=None, beta=0.1, **params):
+        if target_image is None:
+            return img
+        return F.fourier_domain_adaptation(img=img, target_img=target_image, beta=beta)
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        target_img = self._get_image_by_idx(random.randint(0, self.count_targets - 1))
+        target_img = cv2.resize(target_img, img.shape[1::-1])
+        return {"target_image": target_img}
+
+    def get_params(self):
+        return {"beta": random.uniform(self.beta_limit[0], self.beta_limit[1])}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def _get_image_by_idx(self, idx):
+        if self.list_names is not None:
+            return cv2.imread(self.list_names[idx])[..., ::-1]
+        else:
+            return self.target_images[idx]
+
+    def get_transform_init_args_names(self):
+        return ("beta_limit", "target_images", "list_names")
