@@ -2054,6 +2054,7 @@ def fourier_domain_adaptation(img, target_img, beta):
 
     Returns:
         transformed image
+
     """
     # get fft of both source and target
     fft_src = np.fft.fft2(img.astype(np.float32), axes=(0, 1))
