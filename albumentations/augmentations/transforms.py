@@ -200,11 +200,7 @@ class Crop(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         return F.crop_keypoint_by_coords(
             keypoint,
-            crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max),
-            crop_height=self.y_max - self.y_min,
-            crop_width=self.x_max - self.x_min,
-            rows=params["rows"],
-            cols=params["cols"],
+            crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max)
         )
 
     def get_transform_init_args_names(self):
@@ -780,11 +776,7 @@ class RandomCropNearBBox(DualTransform):
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.crop_keypoint_by_coords(
             keypoint,
-            crop_coords=(x_min, y_min, x_max, y_max),
-            crop_height=y_max - y_min,
-            crop_width=x_max - x_min,
-            rows=params["rows"],
-            cols=params["cols"],
+            crop_coords=(x_min, y_min, x_max, y_max)
         )
 
     @property
@@ -953,6 +945,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
 class RandomSizedBBoxSafeCrop(DualTransform):
     """Crop a random part of the input and rescale it to some size without loss of bboxes.
+    Keypoints are processed but does not affect selection of crop region. So if you need to crop preserving 
+    keypoints you have to pass fictive bbox enclosing keypoints. 
 
     Args:
         height (int): height after crop and resize.
@@ -964,7 +958,7 @@ class RandomSizedBBoxSafeCrop(DualTransform):
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
-        image, mask, bboxes
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -1008,6 +1002,13 @@ class RandomSizedBBoxSafeCrop(DualTransform):
 
     def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
         return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
+
+    def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
+        return F.keypoint_scale(
+            F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols),
+            self.width/crop_width,
+            self.height/crop_height
+        )
 
     @property
     def targets_as_params(self):
@@ -1060,11 +1061,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.crop_keypoint_by_coords(
             keypoint,
-            crop_coords=[x_min, y_min, x_max, y_max],
-            crop_height=y_max - y_min,
-            crop_width=x_max - x_min,
-            rows=params["rows"],
-            cols=params["cols"],
+            crop_coords=[x_min, y_min, x_max, y_max]
         )
 
     @property

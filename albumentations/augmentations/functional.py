@@ -1502,16 +1502,16 @@ def bbox_flip(bbox, d, rows, cols):
 
 
 def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
-    """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
+    """Crop a bounding box using the provided coordinates `crop_coords` of bottom-left and top-right corners in pixels
+     and scale it to fit cropped area being scaled to `(crop_height, crop_width)` size.
 
     Args:
         bbox (tuple): A cropped box `(x_min, y_min, x_max, y_max)`.
-        crop_coords (tuple): Crop coordinates `(x1, y1, x2, y2)`.
-        crop_height (int):
-        crop_width (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
+        crop_coords (tuple): Crop area coordinates in an original image `(x1, y1, x2, y2)`.
+        crop_height (int): Target height of cropped area after scaling.
+        crop_width (int): Target width of cropped area after scaling.
+        rows (int): Original image height.
+        cols (int): Original image width.
 
     Returns:
         tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1771,17 +1771,12 @@ def keypoint_scale(keypoint, scale_x, scale_y):
     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
-def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):  # skipcq: PYL-W0613
-    """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
+def crop_keypoint_by_coords(keypoint, crop_coords):  # skipcq: PYL-W0613
+    """Crop a keypoint using the provided coordinates `crop_coords` of bottom-left and top-right corners in pixels
 
     Args:
         keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
-        crop height (int): Crop height.
-        crop_width (int): Crop width.
-        rows (int): Image height.
-        cols (int): Image width.
+        crop_coords (tuple): Crop area coords `(x1, x2, y1, y2)`. Actually only `(x1,y1)` matters.
 
     Returns:
         A keypoint `(x, y, angle, scale)`.
@@ -1809,7 +1804,7 @@ def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, ro
 
     """
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
+    return crop_keypoint_by_coords(keypoint, crop_coords)
 
 
 def keypoint_center_crop(keypoint, crop_height, crop_width, rows, cols):
@@ -1829,7 +1824,7 @@ def keypoint_center_crop(keypoint, crop_height, crop_width, rows, cols):
 
     """
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
+    return crop_keypoint_by_coords(keypoint, crop_coords)
 
 
 def py3round(number):
