@@ -939,8 +939,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
 class RandomSizedBBoxSafeCrop(DualTransform):
     """Crop a random part of the input and rescale it to some size without loss of bboxes.
-    Keypoints are processed but does not affect selection of crop region. So if you need to crop preserving 
-    keypoints you have to pass fictive bbox enclosing keypoints. 
+    Keypoints are processed but does not affect selection of crop region. So if you need to crop preserving
+    keypoints you have to pass fictive bbox enclosing keypoints.
 
     Args:
         height (int): height after crop and resize.
