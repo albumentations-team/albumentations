@@ -198,10 +198,7 @@ class Crop(DualTransform):
         return F.bbox_crop(bbox, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max, **params)
 
     def apply_to_keypoint(self, keypoint, **params):
-        return F.crop_keypoint_by_coords(
-            keypoint,
-            crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max)
-        )
+        return F.crop_keypoint_by_coords(keypoint, crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max))
 
     def get_transform_init_args_names(self):
         return ("x_min", "y_min", "x_max", "y_max")
@@ -774,10 +771,7 @@ class RandomCropNearBBox(DualTransform):
         return F.bbox_crop(bbox, y_max - y_min, x_max - x_min, h_start, w_start, **params)
 
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        return F.crop_keypoint_by_coords(
-            keypoint,
-            crop_coords=(x_min, y_min, x_max, y_max)
-        )
+        return F.crop_keypoint_by_coords(keypoint, crop_coords=(x_min, y_min, x_max, y_max))
 
     @property
     def targets_as_params(self):
@@ -1006,8 +1000,8 @@ class RandomSizedBBoxSafeCrop(DualTransform):
     def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
         return F.keypoint_scale(
             F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols),
-            self.width/crop_width,
-            self.height/crop_height
+            self.width / crop_width,
+            self.height / crop_height,
         )
 
     @property
@@ -1059,10 +1053,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
         )
 
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        return F.crop_keypoint_by_coords(
-            keypoint,
-            crop_coords=[x_min, y_min, x_max, y_max]
-        )
+        return F.crop_keypoint_by_coords(keypoint, crop_coords=[x_min, y_min, x_max, y_max])
 
     @property
     def targets_as_params(self):
