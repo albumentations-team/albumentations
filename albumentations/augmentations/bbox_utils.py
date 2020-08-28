@@ -236,12 +236,12 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         if np.any((_bbox <= 0) | (_bbox > 1)):
             raise ValueError("In YOLO format all labels must be float and in range (0, 1]")
 
-        x, y, width, height = np.round(denormalize_bbox(bbox, rows, cols))
+        x, y, width, height = denormalize_bbox(bbox, rows, cols)
 
-        x_min = x - width / 2 + 1
-        x_max = x_min + width
-        y_min = y - height / 2 + 1
-        y_max = y_min + height
+        x_min = round(x - width / 2 + 1)
+        x_max = round(x_min + width)
+        y_min = round(y - height / 2 + 1)
+        y_max = round(y_min + height)
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
