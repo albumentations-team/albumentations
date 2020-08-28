@@ -124,6 +124,9 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected):
         ((21, 31, 61, 81, 99), "pascal_voc"),
         ((0.01, 0.06, 0.41, 0.56), "yolo"),
         ((0.01, 0.06, 0.41, 0.56, 99), "yolo"),
+        ((0.02, 0.06, 0.42, 0.56, 99), "yolo"),
+        ((0.01, 0.05, 0.41, 0.55, 99), "yolo"),
+        ((0.02, 0.06, 0.41, 0.55, 99), "yolo"),
     ],
 )
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
