@@ -34,9 +34,6 @@ class BasicIAATransform(BasicTransform):
     def processor(self):
         return iaa.Noop()
 
-    def __call__(self, **kwargs):
-        return super(BasicIAATransform, self).__call__(**kwargs)
-
     def update_params(self, params, **kwargs):
         params = super(BasicIAATransform, self).update_params(params, **kwargs)
         params["deterministic_processor"] = self.processor.to_deterministic()
@@ -48,7 +45,7 @@ class BasicIAATransform(BasicTransform):
 
 class DualIAATransform(DualTransform, BasicIAATransform):
     def apply_to_bboxes(self, bboxes, deterministic_processor=None, rows=0, cols=0, **params):
-        if len(bboxes):
+        if len(bboxes) > 0:
             bboxes = convert_bboxes_from_albumentations(bboxes, "pascal_voc", rows=rows, cols=cols)
 
             bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols))
@@ -70,7 +67,7 @@ class DualIAATransform(DualTransform, BasicIAATransform):
     """
 
     def apply_to_keypoints(self, keypoints, deterministic_processor=None, rows=0, cols=0, **params):
-        if len(keypoints):
+        if len(keypoints) > 0:
             keypoints = convert_keypoints_from_albumentations(keypoints, "xy", rows=rows, cols=cols)
             keypoints_t = ia.KeypointsOnImage([ia.Keypoint(*kp[:2]) for kp in keypoints], (rows, cols))
             keypoints_t = deterministic_processor.augment_keypoints([keypoints_t])[0].keypoints

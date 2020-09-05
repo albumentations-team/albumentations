@@ -192,9 +192,17 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
         if num_channels > 4:
             chunks = []
             for index in range(0, num_channels, 4):
-                chunk = img[:, :, index : index + 4]
-                chunk = process_fn(chunk, **kwargs)
-                chunks.append(chunk)
+                if num_channels - index == 2:
+                    # Many OpenCV functions cannot work with 2-channel images
+                    for i in range(2):
+                        chunk = img[:, :, index + i : index + i + 1]
+                        chunk = process_fn(chunk, **kwargs)
+                        chunk = np.expand_dims(chunk, -1)
+                        chunks.append(chunk)
+                else:
+                    chunk = img[:, :, index : index + 4]
+                    chunk = process_fn(chunk, **kwargs)
+                    chunks.append(chunk)
             img = np.dstack(chunks)
         else:
             img = process_fn(img, **kwargs)
@@ -216,6 +224,9 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
 
 @preserve_channel_dim
 def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+    img_height, img_width = img.shape[:2]
+    if height == img_height and width == img_width:
+        return img
     resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)
 
@@ -243,7 +254,7 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
     x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
@@ -295,7 +306,7 @@ def crop(img, x_min, y_min, x_max, y_max):
     if x_min < 0 or x_max > width or y_min < 0 or y_max > height:
         raise ValueError(
             "Values for crop should be non negative and equal or smaller than image sizes"
-            "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}"
+            "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
             "height = {height}, width = {width})".format(
                 x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
             )
@@ -474,13 +485,15 @@ def posterize(img, bits):
     """
     bits = np.uint8(bits)
 
-    assert img.dtype == np.uint8, "Image must have uint8 channel type"
-    assert np.all((0 <= bits) & (bits <= 8)), "bits must be in range [0, 8]"
+    if img.dtype != np.uint8:
+        raise TypeError("Image must have uint8 channel type")
+    if np.any((bits < 0) | (bits > 8)):
+        raise ValueError("bits must be in range [0, 8]")
 
     if not bits.shape or len(bits) == 1:
         if bits == 0:
             return np.zeros_like(img)
-        elif bits == 8:
+        if bits == 8:
             return img.copy()
 
         lut = np.arange(0, 256, dtype=np.uint8)
@@ -489,22 +502,21 @@ def posterize(img, bits):
 
         return cv2.LUT(img, lut)
 
-    assert is_rgb_image(img), "If bits is iterable image must be RGB"
+    if not is_rgb_image(img):
+        raise TypeError("If bits is iterable image must be RGB")
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits):
         if channel_bits == 0:
             result_img[..., i] = np.zeros_like(img[..., i])
-            continue
         elif channel_bits == 8:
             result_img[..., i] = img[..., i].copy()
-            continue
+        else:
+            lut = np.arange(0, 256, dtype=np.uint8)
+            mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+            lut &= mask
 
-        lut = np.arange(0, 256, dtype=np.uint8)
-        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
-        lut &= mask
-
-        result_img[..., i] = cv2.LUT(img[..., i], lut)
+            result_img[..., i] = cv2.LUT(img[..., i], lut)
 
     return result_img
 
@@ -573,7 +585,8 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
         numpy.ndarray: Equalized image.
 
     """
-    assert img.dtype == np.uint8, "Image must have uint8 channel type"
+    if img.dtype != np.uint8:
+        raise TypeError("Image must have uint8 channel type")
 
     modes = ["cv", "pil"]
 
@@ -707,8 +720,12 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=No
 
     img = pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value)
 
-    assert img.shape[0] == max(min_height, height)
-    assert img.shape[1] == max(min_width, width)
+    if img.shape[:2] != (max(min_height, height), max(min_width, width)):
+        raise RuntimeError(
+            "Invalid result shape. Got: {}. Expected: {}".format(
+                img.shape[:2], (max(min_height, height), max(min_width, width))
+            )
+        )
 
     return img
 
@@ -728,9 +745,9 @@ def blur(img, ksize):
 
 
 @preserve_shape
-def gaussian_blur(img, ksize):
+def gaussian_blur(img, ksize, sigma=0):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=0)
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
     return blur_fn(img)
 
 
@@ -774,7 +791,7 @@ def motion_blur(img, kernel):
 
 @preserve_shape
 def image_compression(img, quality, image_type):
-    if image_type == ".jpeg" or image_type == ".jpg":
+    if image_type in [".jpeg", ".jpg"]:
         quality_flag = cv2.IMWRITE_JPEG_QUALITY
     elif image_type == ".webp":
         quality_flag = cv2.IMWRITE_WEBP_QUALITY
@@ -928,7 +945,7 @@ def add_fog(img, fog_coef, alpha_coef, haze_list):
     elif input_dtype not in (np.uint8, np.float32):
         raise ValueError("Unexpected dtype {} for RandomFog augmentation".format(input_dtype))
 
-    height, width = img.shape[:2]
+    width = img.shape[1]
 
     hw = max(int(width // 3 * fog_coef), 10)
 
@@ -1083,8 +1100,8 @@ def optical_distortion(
 def grid_distortion(
     img,
     num_steps=10,
-    xsteps=[],
-    ysteps=[],
+    xsteps=(),
+    ysteps=(),
     interpolation=cv2.INTER_LINEAR,
     border_mode=cv2.BORDER_REFLECT_101,
     value=None,
@@ -1098,7 +1115,7 @@ def grid_distortion(
     x_step = width // num_steps
     xx = np.zeros(width, np.float32)
     prev = 0
-    for idx in range(num_steps):
+    for idx in range(num_steps + 1):
         x = idx * x_step
         start = int(x)
         end = int(x) + x_step
@@ -1114,7 +1131,7 @@ def grid_distortion(
     y_step = height // num_steps
     yy = np.zeros(height, np.float32)
     prev = 0
-    for idx in range(num_steps):
+    for idx in range(num_steps + 1):
         y = idx * y_step
         start = int(y)
         end = int(y) + y_step
@@ -1352,8 +1369,8 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
 def brightness_contrast_adjust(img, alpha=1, beta=0, beta_by_max=False):
     if img.dtype == np.uint8:
         return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
-    else:
-        return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
+
+    return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
 
 
 @clipped
@@ -1373,8 +1390,10 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
         numpy.ndarray: Noised image
 
     """
-    assert image.dtype == np.uint8, "Image must have uint8 channel type"
-    assert image.shape[2] == 3, "Image must be RGB"
+    if image.dtype != np.uint8:
+        raise TypeError("Image must have uint8 channel type")
+    if is_grayscale_image(image):
+        raise TypeError("Image must be RGB")
 
     if random_state is None:
         random_state = np.random.RandomState(42)
@@ -1382,7 +1401,7 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     one_over_255 = float(1.0 / 255.0)
     image = np.multiply(image, one_over_255, dtype=np.float32)
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-    mean, stddev = cv2.meanStdDev(hls)
+    _, stddev = cv2.meanStdDev(hls)
 
     luminance_noise = random_state.poisson(stddev[1] * intensity * 255, size=hls.shape[:2])
     color_noise = random_state.normal(0, color_shift * 360 * intensity, size=hls.shape[:2])
@@ -1442,7 +1461,7 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
-def bbox_vflip(bbox, rows, cols):
+def bbox_vflip(bbox, rows, cols):  # skipcq: PYL-W0613
     """Flip a bounding box vertically around the x-axis.
 
     Args:
@@ -1458,7 +1477,7 @@ def bbox_vflip(bbox, rows, cols):
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox, rows, cols):
+def bbox_hflip(bbox, rows, cols):  # skipcq: PYL-W0613
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
@@ -1520,7 +1539,7 @@ def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
     """
     bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox[:4]
-    x1, y1, x2, y2 = crop_coords
+    x1, y1, _, _ = crop_coords
     cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
     return normalize_bbox(cropped_bbox, crop_height, crop_width)
 
@@ -1557,7 +1576,7 @@ def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
-def bbox_rot90(bbox, factor, rows, cols):
+def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -1582,7 +1601,7 @@ def bbox_rot90(bbox, factor, rows, cols):
     return bbox
 
 
-def bbox_rotate(bbox, angle, rows, cols, interpolation):
+def bbox_rotate(bbox, angle, rows, cols):
     """Rotates a bounding box by angle degrees.
 
     Args:
@@ -1590,7 +1609,6 @@ def bbox_rotate(bbox, angle, rows, cols, interpolation):
         angle (int): Angle of rotation in degrees.
         rows (int): Image rows.
         cols (int): Image cols.
-        interpolation (int): Interpolation method. TODO: Fix this, tt's not used in function
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1612,7 +1630,7 @@ def bbox_rotate(bbox, angle, rows, cols, interpolation):
     return x_min, y_min, x_max, y_max
 
 
-def bbox_transpose(bbox, axis, rows, cols):
+def bbox_transpose(bbox, axis, rows, cols):  # skipcq: PYL-W0613
     """Transposes a bounding box along given axis.
 
     Args:
@@ -1757,7 +1775,7 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
     return x, y, a + math.radians(angle), s
 
 
-def keypoint_scale(keypoint, scale_x, scale_y, **params):
+def keypoint_scale(keypoint, scale_x, scale_y):
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
@@ -1773,7 +1791,7 @@ def keypoint_scale(keypoint, scale_x, scale_y, **params):
     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
-def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):
+def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):  # skipcq: PYL-W0613
     """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
 
@@ -1790,7 +1808,7 @@ def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows
 
     """
     x, y, angle, scale = keypoint[:4]
-    x1, y1, x2, y2 = crop_coords
+    x1, y1, _, _ = crop_coords
     return x - x1, y - y1, angle, scale
 
 
@@ -1842,7 +1860,7 @@ def py3round(number):
     return int(round(number))
 
 
-def noop(input_obj, **params):
+def noop(input_obj, **params):  # skipcq: PYL-W0613
     return input_obj
 
 
@@ -1939,10 +1957,10 @@ def multiply(img, multiplier):
     if img.dtype == np.uint8:
         if len(multiplier.shape) == 1:
             return _multiply_uint8_optimized(img, multiplier)
-        else:
-            return _multiply_uint8(img, multiplier)
-    else:
-        return _multiply_non_uint8(img, multiplier)
+
+        return _multiply_uint8(img, multiplier)
+
+    return _multiply_non_uint8(img, multiplier)
 
 
 def fancy_pca(img, alpha=0.1):
@@ -1958,7 +1976,8 @@ def fancy_pca(img, alpha=0.1):
         numpy image-like array as float range(0, 1)
 
     """
-    assert is_rgb_image(img) and img.dtype == np.uint8
+    if is_grayscale_image(img) or img.dtype != np.uint8:
+        raise TypeError("Image must be RGB image in uint8 format.")
 
     orig_img = img.astype(float).copy()
 

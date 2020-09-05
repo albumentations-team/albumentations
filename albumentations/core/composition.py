@@ -61,7 +61,7 @@ def set_always_apply(transforms):
 
 
 @add_metaclass(SerializableMeta)
-class BaseCompose(object):
+class BaseCompose:
     def __init__(self, transforms, p):
         self.transforms = Transforms(transforms)
         self.p = p
@@ -96,7 +96,7 @@ class BaseCompose(object):
         return {
             "__class_fullname__": self.get_class_fullname(),
             "p": self.p,
-            "transforms": [t._to_dict() for t in self.transforms],
+            "transforms": [t._to_dict() for t in self.transforms],  # skipcq: PYL-W0212
         }
 
     def get_dict_with_id(self):
@@ -160,13 +160,19 @@ class Compose(BaseCompose):
 
         self.add_targets(additional_targets)
 
-    def __call__(self, force_apply=False, **data):
+    def __call__(self, *args, force_apply=False, **data):
+        if args:
+            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
+        self._check_args(**data)
         assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else self.transforms.get_always_apply(self.transforms)
         dual_start_end = transforms.start_end if self.processors else None
+        check_each_transform = any(
+            getattr(item.params, "check_each_transform", False) for item in self.processors.values()
+        )
 
         for idx, t in enumerate(transforms):
             if dual_start_end is not None and idx == dual_start_end[0]:
@@ -178,6 +184,14 @@ class Compose(BaseCompose):
             if dual_start_end is not None and idx == dual_start_end[1]:
                 for p in self.processors.values():
                     p.postprocess(data)
+            elif check_each_transform and isinstance(t, DualTransform):
+                rows, cols = data["image"].shape[:2]
+                for p in self.processors.values():
+                    if not getattr(p.params, "check_each_transform", False):
+                        continue
+
+                    for data_name in p.data_fields:
+                        data[data_name] = p.filter(data[data_name], rows, cols)
 
         return data
 
@@ -187,16 +201,33 @@ class Compose(BaseCompose):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,
-                "keypoint_params": keypoints_processor.params._to_dict() if keypoints_processor else None,
+                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,  # skipcq: PYL-W0212
+                "keypoint_params": keypoints_processor.params._to_dict()  # skipcq: PYL-W0212
+                if keypoints_processor
+                else None,
                 "additional_targets": self.additional_targets,
             }
         )
         return dictionary
 
+    def _check_args(self, **kwargs):
+        checked_single = ["image", "mask"]
+        checked_multi = ["masks"]
+        # ["bboxes", "keypoints"] could be almost any type, no need to check them
+        for data_name, data in kwargs.items():
+            internal_data_name = self.additional_targets.get(data_name, data_name)
+            if internal_data_name in checked_single:
+                if not isinstance(data, np.ndarray):
+                    raise TypeError("{} must be numpy array type".format(data_name))
+            if internal_data_name in checked_multi:
+                if data:
+                    if not isinstance(data[0], np.ndarray):
+                        raise TypeError("{} must be list of numpy arrays".format(data_name))
+
 
 class OneOf(BaseCompose):
-    """Select one of transforms to apply
+    """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
         transforms (list): list of transformations to compose.
@@ -223,6 +254,8 @@ class OneOf(BaseCompose):
 
 
 class OneOrOther(BaseCompose):
+    """Select one or another transform to apply. Selected transform will be called with `force_apply=True`."""
+
     def __init__(self, first=None, second=None, transforms=None, p=0.5):
         if transforms is None:
             transforms = [first, second]
@@ -236,8 +269,8 @@ class OneOrOther(BaseCompose):
 
         if random.random() < self.p:
             return self.transforms[0](force_apply=True, **data)
-        else:
-            return self.transforms[-1](force_apply=True, **data)
+
+        return self.transforms[-1](force_apply=True, **data)
 
 
 class PerChannel(BaseCompose):
@@ -346,7 +379,9 @@ class ReplayCompose(Compose):
         return serialized["applied"]
 
     def _to_dict(self):
-        raise NotImplementedError("You cannot serialize ReplayCompose")
+        dictionary = super(ReplayCompose, self)._to_dict()
+        dictionary.update({"save_key": self.save_key})
+        return dictionary
 
 
 class BboxParams(Params):
@@ -372,16 +407,25 @@ class BboxParams(Params):
             visible area in pixels is less than this value will be removed. Default: 0.0.
         min_visibility (float): minimum fraction of area for a bounding box
             to remain this box in list. Default: 0.0.
+        check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
+            Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0):
+    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_each_transform=True):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
+        self.check_each_transform = check_each_transform
 
     def _to_dict(self):
         data = super(BboxParams, self)._to_dict()
-        data.update({"min_area": self.min_area, "min_visibility": self.min_visibility})
+        data.update(
+            {
+                "min_area": self.min_area,
+                "min_visibility": self.min_visibility,
+                "check_each_transform": self.check_each_transform,
+            }
+        )
         return data
 
 
@@ -403,14 +447,30 @@ class KeypointParams(Params):
             Should be same type as keypoints.
         remove_invisible (bool): to remove invisible points after transform or not
         angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
+        check_each_transform (bool): if `True`, then keypoints will be checked after each dual transform.
+            Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, remove_invisible=True, angle_in_degrees=True):
+    def __init__(
+        self,
+        format,  # skipcq: PYL-W0622
+        label_fields=None,
+        remove_invisible=True,
+        angle_in_degrees=True,
+        check_each_transform=True,
+    ):
         super(KeypointParams, self).__init__(format, label_fields)
         self.remove_invisible = remove_invisible
         self.angle_in_degrees = angle_in_degrees
+        self.check_each_transform = check_each_transform
 
     def _to_dict(self):
         data = super(KeypointParams, self)._to_dict()
-        data.update({"remove_invisible": self.remove_invisible, "angle_in_degrees": self.angle_in_degrees})
+        data.update(
+            {
+                "remove_invisible": self.remove_invisible,
+                "angle_in_degrees": self.angle_in_degrees,
+                "check_each_transform": self.check_each_transform,
+            }
+        )
         return data
