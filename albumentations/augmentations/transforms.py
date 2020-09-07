@@ -3454,7 +3454,7 @@ class FDA(ImageOnlyTransform):
         if target_img.shape[2] != img.shape[2]:
             raise ValueError(
                 "The source and target images must contain the same number of channels,"
-                f" but given {img.shape[2]} and {target_img.shape[2]} respectively."
+                " but got {} and {} respectively.".format(img.shape[2], target_img.shape[2])
             )
 
         return {"target_image": target_img}
