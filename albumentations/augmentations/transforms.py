@@ -3421,7 +3421,7 @@ class FDA(ImageOnlyTransform):
         image
 
     Image types:
-        3-channel uint8 images only
+        3-channel and grayscale uint8 images only
 
     Reference:
         https://github.com/YanchaoYang/FDA
