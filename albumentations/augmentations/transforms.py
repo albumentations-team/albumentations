@@ -3421,7 +3421,7 @@ class FDA(ImageOnlyTransform):
         image
 
     Image types:
-        3-channel and grayscale uint8 images only
+        uint8 images only
 
     Reference:
         https://github.com/YanchaoYang/FDA
@@ -3442,8 +3442,6 @@ class FDA(ImageOnlyTransform):
         self.beta_limit = to_tuple(beta_limit, low=0)
 
     def apply(self, img, target_image=None, beta=0.1, **params):
-        if target_image is None:
-            return img
         return F.fourier_domain_adaptation(img=img, target_img=target_image, beta=beta)
 
     def get_params_dependent_on_targets(self, params):
