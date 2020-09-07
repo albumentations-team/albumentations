@@ -381,18 +381,15 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
     hue, sat, val = cv2.split(img)
 
     if hue_shift != 0:
-        hue = cv2.add(hue, hue_shift)
-        hue = np.where(hue < 0, hue + 180, hue)
-        hue = np.where(hue > 180, hue - 180, hue)
-        hue = hue.astype(dtype)
+        hue = cv2.add(hue, hue_shift)  # OpenCV works fine with values outside range [0, 360]
 
     if sat_shift != 0:
-        sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+        sat = clip(cv2.add(sat, sat_shift), dtype, 1.0)
 
     if val_shift != 0:
-        val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+        val = clip(cv2.add(val, val_shift), dtype, 1.0)
 
-    img = cv2.merge((hue, sat, val)).astype(dtype)
+    img = cv2.merge((hue, sat, val))
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
 
