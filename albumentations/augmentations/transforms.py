@@ -3451,10 +3451,10 @@ class FDA(ImageOnlyTransform):
         target_img = params["target_image"]
         target_img = cv2.resize(target_img, img.shape[1::-1])
 
-        if target_img.shape[2] != img.shape[2]:
+        if target_img.shape != img.shape:
             raise ValueError(
-                "The source and target images must contain the same number of channels,"
-                " but got {} and {} respectively.".format(img.shape[2], target_img.shape[2])
+                "The source and target images must contain the same shape,"
+                " but got {} and {} respectively.".format(img.shape, target_img.shape)
             )
 
         return {"target_image": target_img}
