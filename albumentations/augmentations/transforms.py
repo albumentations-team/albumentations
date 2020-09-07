@@ -3421,7 +3421,7 @@ class FDA(ImageOnlyTransform):
         image
 
     Image types:
-        uint8 images only
+        uint8, float32
 
     Reference:
         https://github.com/YanchaoYang/FDA

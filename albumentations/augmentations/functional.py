@@ -2081,4 +2081,4 @@ def fourier_domain_adaptation(img, target_img, beta):
     src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
     src_image_transformed = np.real(src_image_transformed)
 
-    return np.clip(src_image_transformed, 0, 255).astype(np.uint8)
+    return np.clip(src_image_transformed, 0, 255).astype(img.dtype)
