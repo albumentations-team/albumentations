@@ -491,12 +491,25 @@ def test_imgaug_augmentations_for_keypoints_serialization(
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
 
 
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params", "call_params"],
+    [
+        [A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}],
+        [
+            A.FDA,
+            {"beta_limit": 0.3},
+            {"target_image": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)},
+        ],
+    ],
+)
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-def test_image_only_crop_around_bbox_augmentation_serialization(p, seed, image, always_apply):
-    aug = A.RandomCropNearBBox(p=p, always_apply=always_apply, max_part_shift=0.15)
-    annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
+def test_augmentations_serialization_with_call_params(
+    augmentation_cls, params, call_params, p, seed, image, always_apply
+):
+    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+    annotations = {"image": image, **call_params}
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
