@@ -1497,7 +1497,7 @@ class Cutout(ImageOnlyTransform):
         return ("num_holes", "max_h_size", "max_w_size")
 
 
-class CoarseDropout(ImageOnlyTransform):
+class CoarseDropout(DualTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
@@ -1511,9 +1511,11 @@ class CoarseDropout(ImageOnlyTransform):
         min_width (int): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
         fill_value (int, float, lisf of int, list of float): value for dropped pixels.
+        mask_fill_value (int, float, lisf of int, list of float): fill value for dropped pixels
+            in mask. If None - mask is not affected.
 
     Targets:
-        image
+        image, mask
 
     Image types:
         uint8, float32
@@ -1533,6 +1535,7 @@ class CoarseDropout(ImageOnlyTransform):
         min_height=None,
         min_width=None,
         fill_value=0,
+        mask_fill_value=None,
         always_apply=False,
         p=0.5,
     ):
@@ -1544,6 +1547,7 @@ class CoarseDropout(ImageOnlyTransform):
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
         self.fill_value = fill_value
+        self.mask_fill_value = mask_fill_value
         if not 0 < self.min_holes <= self.max_holes:
             raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
         if not 0 < self.min_height <= self.max_height:
@@ -1555,6 +1559,11 @@ class CoarseDropout(ImageOnlyTransform):
 
     def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
+
+    def apply_to_mask(self, image, mask_fill_value=0, holes=(), **params):
+        if mask_fill_value is None:
+            return image
+        return F.cutout(image, holes, mask_fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
@@ -1578,7 +1587,16 @@ class CoarseDropout(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self):
-        return ("max_holes", "max_height", "max_width", "min_holes", "min_height", "min_width")
+        return (
+            "max_holes",
+            "max_height",
+            "max_width",
+            "min_holes",
+            "min_height",
+            "min_width",
+            "fill_value",
+            "mask_fill_value",
+        )
 
 
 class ImageCompression(ImageOnlyTransform):
