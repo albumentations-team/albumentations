@@ -91,8 +91,8 @@ class PadIfNeeded(DualTransform):
     Args:
         min_height (int): minimal result image height.
         min_width (int): minimal result image width.
-        height_divisor (int): if not None, ensures image height is divisable by height_divisor.
-        width_divisor (int): if not None, ensures image width is divisable by width_divisor.
+        height_divisor (int): if not None, ensures image height is dividable by height_divisor.
+        width_divisor (int): if not None, ensures image width is dividable by width_divisor.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -199,7 +199,7 @@ class PadIfNeeded(DualTransform):
         return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
-        return ("min_height", "min_width", "height_divisor", "width_divisor" "border_mode", "value", "mask_value")
+        return ("min_height", "min_width", "height_divisor", "width_divisor", "border_mode", "value", "mask_value")
 
 
 class Crop(DualTransform):
