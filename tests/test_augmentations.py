@@ -156,6 +156,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [CoarseDropout, {"fill_value": 0, "mask_fill_value": 0}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
