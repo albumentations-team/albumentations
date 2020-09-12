@@ -114,10 +114,19 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected):
     [
         ((20, 30, 40, 50), "coco"),
         ((20, 30, 40, 50, 99), "coco"),
+        ((20, 30, 41, 51, 99), "coco"),
+        ((21, 31, 40, 50, 99), "coco"),
+        ((21, 31, 41, 51, 99), "coco"),
         ((20, 30, 60, 80), "pascal_voc"),
         ((20, 30, 60, 80, 99), "pascal_voc"),
+        ((20, 30, 61, 81, 99), "pascal_voc"),
+        ((21, 31, 60, 80, 99), "pascal_voc"),
+        ((21, 31, 61, 81, 99), "pascal_voc"),
         ((0.01, 0.06, 0.41, 0.56), "yolo"),
         ((0.01, 0.06, 0.41, 0.56, 99), "yolo"),
+        ((0.02, 0.06, 0.42, 0.56, 99), "yolo"),
+        ((0.01, 0.05, 0.41, 0.55, 99), "yolo"),
+        ((0.02, 0.06, 0.41, 0.55, 99), "yolo"),
     ],
 )
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
