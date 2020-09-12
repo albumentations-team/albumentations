@@ -91,8 +91,8 @@ class PadIfNeeded(DualTransform):
     Args:
         min_height (int): minimal result image height.
         min_width (int): minimal result image width.
-        height_divisor (int): if not None, ensures image height is dividable by height_divisor.
-        width_divisor (int): if not None, ensures image width is dividable by width_divisor.
+        pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
+        pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -111,25 +111,25 @@ class PadIfNeeded(DualTransform):
         self,
         min_height: Optional[int] = 1024,
         min_width: Optional[int] = 1024,
-        height_divisor: Optional[int] = None,
-        width_divisor: Optional[int] = None,
+        pad_height_divisor: Optional[int] = None,
+        pad_width_divisor: Optional[int] = None,
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
         always_apply=False,
         p=1.0,
     ):
-        if (min_height is not None) == (height_divisor is not None):
-            raise ValueError("Only one of 'min_height' and 'height_divisor' parameters must be set")
+        if (min_height is None) == (pad_height_divisor is None):
+            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
 
-        if (min_width is not None) == (width_divisor is not None):
-            raise ValueError("Only one of 'min_width' and 'width_divisor' parameters must be set")
+        if (min_width is None) == (pad_width_divisor is None):
+            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
 
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
-        self.width_divisor = width_divisor
-        self.height_divisor = height_divisor
+        self.width_divisor = pad_width_divisor
+        self.height_divisor = pad_height_divisor
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
