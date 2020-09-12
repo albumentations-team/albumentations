@@ -128,8 +128,8 @@ class PadIfNeeded(DualTransform):
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
-        self.width_divisor = pad_width_divisor
-        self.height_divisor = pad_height_divisor
+        self.pad_width_divisor = pad_width_divisor
+        self.pad_height_divisor = pad_height_divisor
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -147,11 +147,11 @@ class PadIfNeeded(DualTransform):
                 h_pad_top = 0
                 h_pad_bottom = 0
         else:
-            if rows > self.height_divisor:
-                pad_rows = rows % self.height_divisor
-                pad_rows = self.height_divisor - pad_rows if pad_rows > 0 else 0
+            if rows > self.pad_height_divisor:
+                pad_rows = rows % self.pad_height_divisor
+                pad_rows = self.pad_height_divisor - pad_rows if pad_rows > 0 else 0
             else:
-                pad_rows = self.height_divisor - rows
+                pad_rows = self.pad_height_divisor - rows
 
             h_pad_top = pad_rows // 2
             h_pad_bottom = pad_rows - h_pad_top
@@ -164,11 +164,11 @@ class PadIfNeeded(DualTransform):
                 w_pad_left = 0
                 w_pad_right = 0
         else:
-            if cols > self.width_divisor:
-                pad_cols = cols % self.width_divisor
-                pad_cols = self.width_divisor - pad_cols if pad_cols > 0 else 0
+            if cols > self.pad_width_divisor:
+                pad_cols = cols % self.pad_width_divisor
+                pad_cols = self.pad_width_divisor - pad_cols if pad_cols > 0 else 0
             else:
-                pad_cols = self.width_divisor - cols
+                pad_cols = self.pad_width_divisor - cols
 
             w_pad_left = pad_cols // 2
             w_pad_right = pad_cols - w_pad_left
@@ -199,7 +199,15 @@ class PadIfNeeded(DualTransform):
         return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
-        return ("min_height", "min_width", "height_divisor", "width_divisor", "border_mode", "value", "mask_value")
+        return (
+            "min_height",
+            "min_width",
+            "pad_height_divisor",
+            "pad_width_divisor",
+            "border_mode",
+            "value",
+            "mask_value",
+        )
 
 
 class Crop(DualTransform):
@@ -3157,9 +3165,7 @@ class FancyPCA(ImageOnlyTransform):
     """
 
     def __init__(self, alpha=0.1, always_apply=False, p=0.5):
-        """
-
-        """
+        """"""
         super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
         self.alpha = alpha
 
