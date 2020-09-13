@@ -3165,7 +3165,6 @@ class FancyPCA(ImageOnlyTransform):
     """
 
     def __init__(self, alpha=0.1, always_apply=False, p=0.5):
-        """"""
         super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
         self.alpha = alpha
 
