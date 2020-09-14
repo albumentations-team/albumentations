@@ -285,6 +285,7 @@ def test_force_apply():
         [A.FancyPCA, {}],
         [A.GlassBlur, {}],
         [A.GridDropout, {}],
+        [A.ColorJitter, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
