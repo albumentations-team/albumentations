@@ -3,7 +3,7 @@ from __future__ import absolute_import, division
 import math
 import random
 import warnings
-from enum import IntEnum
+from enum import IntEnum, Enum
 from types import LambdaType
 
 import cv2
@@ -33,6 +33,7 @@ __all__ = [
     "ElasticTransform",
     "RandomGridShuffle",
     "HueSaturationValue",
+    "RandomColorShifts",
     "PadIfNeeded",
     "RGBShift",
     "RandomBrightness",
@@ -2183,6 +2184,148 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ("hue_shift_limit", "sat_shift_limit", "val_shift_limit")
+
+
+class RandomColorShifts(ImageOnlyTransform):
+    """Randomly change each channel in described colorspace. Shift values is relative to colorspace range.
+    For example we use HLS colorspace and shift limit for hue equal to `[-0.2, 0.2]`,
+    it will be transformed to `[-36, 36]` for uint8 data type and `[-72.0, 72.0]` for float32 data type.
+
+    Args:
+        channel1 ((float, float) or float): range for changing first channel in colorspace.
+            If channel1 is a single float, the range will be (-channel1, channel1). Default: (-0.2, 0.2).
+        channel2 ((float, float) or float): range for changing second channel in colorspace.
+            If channel2 is a single float, the range will be (-channel2, channel2). Default: (-0.2, 0.2).
+        channel3 ((float, float) or float): range for changing third channel in colorspace.
+            If channel3 is a single float, the range will be (-channel3, channel3). Default: (-0.2, 0.2).
+        colorspace (str): colorspace name. Supported color spaces: `[HLS, HSV, LAB, LUV, YCrCb, XYZ, YUV, random]`.
+            If set to `random` then the colorspace will be randomly selected on each call. Default: "random",
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    class Colorspace(Enum):
+        RANDOM = "random"
+        HLS = "HLS"
+        HSV = "HSV"
+        LAB = "LAB"
+        LUV = "LUV"
+        YCrCb = "YCrCb"
+        XYZ = "XYZ"
+        YUV = "YUV"
+
+    # Colorspace name and it is ranges for uint8 and float32 data types
+    COLOR_SPACES = {
+        Colorspace.RANDOM: None,
+        Colorspace.HLS: {
+            "code": (cv2.COLOR_BGR2HLS, cv2.COLOR_HLS2BGR),
+            np.uint8: ([0, 180], [0, 255], [0, 255]),
+            np.float32: ([0, 360.0], [0, 1.0], [0, 1.0]),
+            "is_angle": [True, False, False],
+        },
+        Colorspace.HSV: {
+            "code": (cv2.COLOR_BGR2HSV, cv2.COLOR_HSV2BGR),
+            np.uint8: ([0, 180], [0, 255], [0, 255]),
+            np.float32: ([0, 360.0], [0, 1.0], [0, 1.0]),
+            "is_angle": [True, False, False],
+        },
+        Colorspace.LAB: {
+            "code": (cv2.COLOR_BGR2LAB, cv2.COLOR_LAB2BGR),
+            np.uint8: ([0, 255], [0, 255], [0, 255]),
+            np.float32: ([0, 100.0], [-127.0, 127.0], [-127.0, 127.0]),
+            "is_angle": [False, False, False],
+        },
+        Colorspace.LUV: {
+            "code": (cv2.COLOR_BGR2LUV, cv2.COLOR_LUV2BGR),
+            np.uint8: ([0, 255], [0, 255], [0, 255]),
+            np.float32: ([0, 100.0], [-134.0, 220], [-140.0, 122.0]),
+            "is_angle": [False, False, False],
+        },
+        Colorspace.YCrCb: {
+            "code": (cv2.COLOR_BGR2YCrCb, cv2.COLOR_YCrCb2BGR),
+            np.uint8: ([0, 255], [0, 255], [0, 255]),
+            np.float32: ([0, 1], [0, 1], [0, 1]),
+            "is_angle": [False, False, False],
+        },
+        Colorspace.XYZ: {
+            "code": (cv2.COLOR_BGR2XYZ, cv2.COLOR_XYZ2BGR),
+            np.uint8: ([0, 255], [0, 255], [0, 255]),
+            np.float32: ([0, 1], [0, 1], [0, 2]),
+            "is_angle": [False, False, False],
+        },
+        Colorspace.YUV: {
+            "code": (cv2.COLOR_BGR2YUV, cv2.COLOR_YUV2BGR),
+            np.uint8: ([0, 255], [0, 255], [0, 255]),
+            np.float32: ([0, 1], [0, 1], [-2, 2]),
+            "is_angle": [False, False, False],
+        },
+    }
+
+    def __init__(
+        self, channel1=0.2, channel2=0.2, channel3=0.2, colorspace=Colorspace.RANDOM, always_apply=False, p=0.5
+    ):
+        colorspace = self.Colorspace(colorspace)
+        if colorspace not in self.COLOR_SPACES:
+            raise ValueError(
+                "Unsupported colorspace: {}. Use one of {}".format(colorspace, list(self.COLOR_SPACES.keys()))
+            )
+
+        super(RandomColorShifts, self).__init__(always_apply, p)
+        self.channel1 = to_tuple(channel1)
+        self.channel2 = to_tuple(channel2)
+        self.channel3 = to_tuple(channel3)
+        self.colorspace = colorspace
+        self._set_color_data(colorspace)
+
+    def _set_color_data(self, colorspace):
+        if colorspace == self.Colorspace.RANDOM:
+            return
+
+        self.data = self.COLOR_SPACES[colorspace]
+        self.code = self.data["code"]
+        self.is_angle = self.data["is_angle"]
+        self.ranges = {
+            np.uint8: [i[1] - i[0] for i in self.data[np.uint8]],
+            np.float32: [i[1] - i[0] for i in self.data[np.float32]],
+        }
+
+    def apply(self, image, shifts=None, limits=None, **params):
+        return F.shift_colorspace(image, shifts, limits, self.code, self.is_angle)
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params):
+        if self.colorspace == self.Colorspace.RANDOM:
+            self._set_color_data(random.choice(list(self.Colorspace)[1:]))
+
+        dtype = params["image"].dtype.type
+
+        limits = self.data[dtype]
+        ranges = self.ranges[dtype]
+
+        return {
+            "shifts": [
+                random.uniform(self.channel1[0] * ranges[0], self.channel1[1] * ranges[0]),
+                random.uniform(self.channel2[0] * ranges[1], self.channel2[1] * ranges[1]),
+                random.uniform(self.channel3[0] * ranges[2], self.channel3[1] * ranges[2]),
+            ],
+            "limits": limits,
+        }
+
+    def get_transform_init_args_names(self):
+        return ("channel1", "channel2", "channel3", "colorspace")
+
+    def get_transform_init_args(self):
+        data = {k: getattr(self, k) for k in self.get_transform_init_args_names()}
+        data["colorspace"] = data["colorspace"].value
+        return data
 
 
 class Solarize(ImageOnlyTransform):

@@ -418,6 +418,62 @@ def shift_hsv(img, hue_shift, sat_shift, val_shift):
     return img
 
 
+def _shift_color_space_uint8(img, shifts, limits, code, is_angle):
+    img = cv2.cvtColor(img, code[0])
+    img = cv2.split(img)
+
+    for channel, is_a, shift, limit in zip(img, is_angle, shifts, limits):
+        if shift == 0:
+            continue
+
+        lut = np.arange(0, 256, dtype=np.int16)
+        if is_a:
+            lut = np.mod(lut + shift, limit[1]).astype(np.uint8)
+        else:
+            lut = np.clip(lut + shift, limit[0], limit[1]).astype(np.uint8)
+
+        cv2.LUT(channel, lut, dst=channel)
+
+    img = cv2.merge(img)
+    img = cv2.cvtColor(img, code[1])
+    return img
+
+
+def _shift_colorspace_non_uint8(img, shifts, limits, code, is_angle):
+    img = cv2.cvtColor(img, code[0])
+    img = cv2.split(img)
+
+    for channel, is_a, shift, limit in zip(img, is_angle, shifts, limits):
+        if shift == 0:
+            continue
+
+        cv2.add(channel, shift, channel)
+        if not is_a:  # OpenCV works fine with values outside range [0, 360]
+            np.clip(channel, limit[0], limit[1], out=channel)
+
+    img = cv2.merge(img)
+    img = cv2.cvtColor(img, code[1])
+    return img
+
+
+@preserve_shape
+def shift_colorspace(img, shifts, limits, code, is_angle):
+    is_gray = is_grayscale_image(img)
+    if is_gray:
+        warn("RandomColorShifts works only with BGR or RGB images. Got grayscale image.")
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+
+    if img.dtype == np.uint8:
+        img = _shift_color_space_uint8(img, shifts, limits, code, is_angle)
+    else:
+        img = _shift_colorspace_non_uint8(img, shifts, limits, code, is_angle)
+
+    if is_gray:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    return img
+
+
 def solarize(img, threshold=128):
     """Invert all pixel values above a threshold.
 
