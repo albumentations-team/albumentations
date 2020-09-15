@@ -562,52 +562,27 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
         [PadIfNeeded, {"min_height": 514, "min_width": 516}, (600, 600)],
         [
             PadIfNeeded,
-            {
-                "min_height": None,
-                "min_width": None,
-                "pad_height_divisor": 128,
-                "pad_width_divisor": 128,
-            },
+            {"min_height": None, "min_width": None, "pad_height_divisor": 128, "pad_width_divisor": 128},
             (300, 200),
         ],
         [
             PadIfNeeded,
-            {
-                "min_height": None,
-                "min_width": None,
-                "pad_height_divisor": 72,
-                "pad_width_divisor": 128,
-            },
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (72, 128),
         ],
         [
             PadIfNeeded,
-            {
-                "min_height": None,
-                "min_width": None,
-                "pad_height_divisor": 72,
-                "pad_width_divisor": 128,
-            },
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (15, 15),
         ],
         [
             PadIfNeeded,
-            {
-                "min_height": None,
-                "min_width": None,
-                "pad_height_divisor": 72,
-                "pad_width_divisor": 128,
-            },
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (144, 256),
         ],
         [
             PadIfNeeded,
-            {
-                "min_height": None,
-                "min_width": None,
-                "pad_height_divisor": 72,
-                "pad_width_divisor": 128,
-            },
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (200, 300),
         ],
         [PadIfNeeded, {"min_height": 512, "min_width": None, "pad_width_divisor": 128}, (300, 200)],
