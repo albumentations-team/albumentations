@@ -5,6 +5,5 @@ __version__ = "0.4.6"
 from .core.composition import *
 from .core.transforms_interface import *
 from .core.serialization import *
-from .augmentations.transforms import *
-from .augmentations.bbox_utils import *
+from .augmentations import *
 from .imgaug.transforms import *
