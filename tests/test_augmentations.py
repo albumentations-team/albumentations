@@ -1,4 +1,5 @@
 import random
+from typing import Type, Dict, Tuple
 
 import cv2
 import numpy as np
@@ -551,3 +552,86 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
         data = aug(image=image)
         assert data["image"].dtype == np.uint8
         assert data["image"].shape[2] == num_channels
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params", "image_shape"],
+    [
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (300, 200)],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (512, 516)],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (600, 600)],
+        [
+            PadIfNeeded,
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 128,
+                "pad_width_divisor": 128,
+            },
+            (300, 200),
+        ],
+        [
+            PadIfNeeded,
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
+            (72, 128),
+        ],
+        [
+            PadIfNeeded,
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
+            (15, 15),
+        ],
+        [
+            PadIfNeeded,
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
+            (144, 256),
+        ],
+        [
+            PadIfNeeded,
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
+            (200, 300),
+        ],
+        [PadIfNeeded, {"min_height": 512, "min_width": None, "pad_width_divisor": 128}, (300, 200)],
+        [PadIfNeeded, {"min_height": None, "min_width": 512, "pad_height_divisor": 128}, (300, 200)],
+    ],
+)
+def test_pad_if_needed(augmentation_cls: Type[PadIfNeeded], params: Dict, image_shape: Tuple[int, int]):
+    image = np.zeros(image_shape)
+    pad: PadIfNeeded = augmentation_cls(**params)
+
+    image_padded = pad(image=image)["image"]
+
+    if pad.min_width is not None:
+        assert image_padded.shape[1] >= pad.min_width
+
+    if pad.min_height is not None:
+        assert image_padded.shape[0] >= pad.min_height
+
+    if pad.pad_width_divisor is not None:
+        assert image_padded.shape[1] % pad.pad_width_divisor == 0
+        assert image_padded.shape[1] >= image.shape[1]
+        assert image_padded.shape[1] - image.shape[1] <= pad.pad_width_divisor
+
+    if pad.pad_height_divisor is not None:
+        assert image_padded.shape[0] % pad.pad_height_divisor == 0
+        assert image_padded.shape[0] >= image.shape[0]
+        assert image_padded.shape[0] - image.shape[0] <= pad.pad_height_divisor

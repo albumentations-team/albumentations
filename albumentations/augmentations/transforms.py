@@ -147,11 +147,8 @@ class PadIfNeeded(DualTransform):
                 h_pad_top = 0
                 h_pad_bottom = 0
         else:
-            if rows > self.pad_height_divisor:
-                pad_rows = rows % self.pad_height_divisor
-                pad_rows = self.pad_height_divisor - pad_rows if pad_rows > 0 else 0
-            else:
-                pad_rows = self.pad_height_divisor - rows
+            pad_remained = rows % self.pad_height_divisor
+            pad_rows = self.pad_height_divisor - pad_remained if pad_remained > 0 else 0
 
             h_pad_top = pad_rows // 2
             h_pad_bottom = pad_rows - h_pad_top
@@ -164,11 +161,8 @@ class PadIfNeeded(DualTransform):
                 w_pad_left = 0
                 w_pad_right = 0
         else:
-            if cols > self.pad_width_divisor:
-                pad_cols = cols % self.pad_width_divisor
-                pad_cols = self.pad_width_divisor - pad_cols if pad_cols > 0 else 0
-            else:
-                pad_cols = self.pad_width_divisor - cols
+            pad_remainder = cols % self.pad_width_divisor
+            pad_cols = self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
 
             w_pad_left = pad_cols // 2
             w_pad_right = pad_cols - w_pad_left
