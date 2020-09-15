@@ -616,7 +616,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
 )
 def test_pad_if_needed(augmentation_cls: Type[PadIfNeeded], params: Dict, image_shape: Tuple[int, int]):
     image = np.zeros(image_shape)
-    pad: PadIfNeeded = augmentation_cls(**params)
+    pad = augmentation_cls(**params)
 
     image_padded = pad(image=image)["image"]
 
