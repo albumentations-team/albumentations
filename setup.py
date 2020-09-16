@@ -55,7 +55,7 @@ setup(
     license="MIT",
     url="https://github.com/albumentations-team/albumentations",
     packages=find_packages(exclude=["tests"]),
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
     extras_require={"tests": ["pytest"]},
     classifiers=[
@@ -66,7 +66,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
