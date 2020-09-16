@@ -441,17 +441,15 @@ def _shift_color_space_uint8(img, shifts, limits, code, is_angle):
 
 def _shift_colorspace_non_uint8(img, shifts, limits, code, is_angle):
     img = cv2.cvtColor(img, code[0])
-    img = cv2.split(img)
+    img += np.array(shifts).reshape([1, 1, 3])
 
-    for channel, is_a, shift, limit in zip(img, is_angle, shifts, limits):
-        if shift == 0:
-            continue
+    if limits[0] == limits[1] == limits[2]:
+        img = np.clip(img, limits[0][0], limits[0][1], out=img)
+    else:
+        for i, (is_a, limit) in enumerate(zip(is_angle, limits)):
+            if not is_a:  # OpenCV works fine with values outside range [0, 360]
+                img[..., i] = np.clip(img[..., i], limit[0], limit[1])
 
-        cv2.add(channel, shift, channel)
-        if not is_a:  # OpenCV works fine with values outside range [0, 360]
-            np.clip(channel, limit[0], limit[1], out=channel)
-
-    img = cv2.merge(img)
     img = cv2.cvtColor(img, code[1])
     return img
 
