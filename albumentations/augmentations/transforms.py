@@ -5,6 +5,7 @@ import random
 import warnings
 from enum import IntEnum, Enum
 from types import LambdaType
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -91,6 +92,8 @@ class PadIfNeeded(DualTransform):
     Args:
         min_height (int): minimal result image height.
         min_width (int): minimal result image width.
+        pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
+        pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -107,17 +110,27 @@ class PadIfNeeded(DualTransform):
 
     def __init__(
         self,
-        min_height=1024,
-        min_width=1024,
+        min_height: Optional[int] = 1024,
+        min_width: Optional[int] = 1024,
+        pad_height_divisor: Optional[int] = None,
+        pad_width_divisor: Optional[int] = None,
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
         always_apply=False,
         p=1.0,
     ):
+        if (min_height is None) == (pad_height_divisor is None):
+            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
+
+        if (min_width is None) == (pad_width_divisor is None):
+            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
+
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
+        self.pad_width_divisor = pad_width_divisor
+        self.pad_height_divisor = pad_height_divisor
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -127,19 +140,33 @@ class PadIfNeeded(DualTransform):
         rows = params["rows"]
         cols = params["cols"]
 
-        if rows < self.min_height:
-            h_pad_top = int((self.min_height - rows) / 2.0)
-            h_pad_bottom = self.min_height - rows - h_pad_top
+        if self.min_height is not None:
+            if rows < self.min_height:
+                h_pad_top = int((self.min_height - rows) / 2.0)
+                h_pad_bottom = self.min_height - rows - h_pad_top
+            else:
+                h_pad_top = 0
+                h_pad_bottom = 0
         else:
-            h_pad_top = 0
-            h_pad_bottom = 0
+            pad_remained = rows % self.pad_height_divisor
+            pad_rows = self.pad_height_divisor - pad_remained if pad_remained > 0 else 0
 
-        if cols < self.min_width:
-            w_pad_left = int((self.min_width - cols) / 2.0)
-            w_pad_right = self.min_width - cols - w_pad_left
+            h_pad_top = pad_rows // 2
+            h_pad_bottom = pad_rows - h_pad_top
+
+        if self.min_width is not None:
+            if cols < self.min_width:
+                w_pad_left = int((self.min_width - cols) / 2.0)
+                w_pad_right = self.min_width - cols - w_pad_left
+            else:
+                w_pad_left = 0
+                w_pad_right = 0
         else:
-            w_pad_left = 0
-            w_pad_right = 0
+            pad_remainder = cols % self.pad_width_divisor
+            pad_cols = self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
+
+            w_pad_left = pad_cols // 2
+            w_pad_right = pad_cols - w_pad_left
 
         params.update(
             {"pad_top": h_pad_top, "pad_bottom": h_pad_bottom, "pad_left": w_pad_left, "pad_right": w_pad_right}
@@ -167,7 +194,15 @@ class PadIfNeeded(DualTransform):
         return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
-        return ("min_height", "min_width", "border_mode", "value", "mask_value")
+        return (
+            "min_height",
+            "min_width",
+            "pad_height_divisor",
+            "pad_width_divisor",
+            "border_mode",
+            "value",
+            "mask_value",
+        )
 
 
 class Crop(DualTransform):
@@ -3267,9 +3302,6 @@ class FancyPCA(ImageOnlyTransform):
     """
 
     def __init__(self, alpha=0.1, always_apply=False, p=0.5):
-        """
-
-        """
         super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
         self.alpha = alpha
 
