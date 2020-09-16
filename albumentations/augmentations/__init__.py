@@ -5,4 +5,4 @@ from .functional import *
 from .transforms import *
 
 # New transformations goes to individual files listed below
-from .histogram_matching import *
+from .domain_adaptation import *
