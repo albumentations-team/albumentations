@@ -236,10 +236,11 @@ def shift_scale_rotate(
 
 @preserve_channel_dim
 def shear(img, shear_x=0, shear_y=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
+    height, width = img.shape[:2]
     matrix = np.array([[1, shear_x, 0], [shear_y, 1, 0]], dtype=np.float32)
 
     warp_affine_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=img.shape[:2], flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
     )
     return warp_affine_fn(img)
 
