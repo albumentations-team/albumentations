@@ -82,7 +82,6 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
-    "FDA",
 ]
 
 
@@ -3478,7 +3477,7 @@ class GridDropout(DualTransform):
             If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
         fill_value (int): value for the dropped pixels. Default = 0
         mask_fill_value (int): value for the dropped pixels in mask.
-            If `None`, tranformation is not applied to the mask. Default: `None`.
+            If `None`, transformation is not applied to the mask. Default: `None`.
 
     Targets:
         image, mask
@@ -3599,63 +3598,3 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
-
-
-class FDA(ImageOnlyTransform):
-    """
-    Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
-    Simple "style transfer".
-    Important: you need to pass target image as a parameter `target_image` in __call__, see example
-
-    Args:
-        beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-
-    Reference:
-        https://github.com/YanchaoYang/FDA
-        https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
-
-    Example:
-        >>> import numpy as np
-        >>> import albumentations as A
-        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> target_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-        >>> aug = A.Compose([A.FDA(p=1)])
-        >>> result = aug(image=image, target_image=target_image)
-
-    """
-
-    def __init__(self, beta_limit=0.1, always_apply=False, p=0.5):
-        super(FDA, self).__init__(always_apply=always_apply, p=p)
-        self.beta_limit = to_tuple(beta_limit, low=0)
-
-    def apply(self, img, target_image=None, beta=0.1, **params):
-        return F.fourier_domain_adaptation(img=img, target_img=target_image, beta=beta)
-
-    def get_params_dependent_on_targets(self, params):
-        img = params["image"]
-        target_img = params["target_image"]
-        target_img = cv2.resize(target_img, img.shape[1::-1])
-
-        if target_img.shape != img.shape:
-            raise ValueError(
-                "The source and target images must contain the same shape,"
-                " but got {} and {} respectively.".format(img.shape, target_img.shape)
-            )
-
-        return {"target_image": target_img}
-
-    def get_params(self):
-        return {"beta": random.uniform(self.beta_limit[0], self.beta_limit[1])}
-
-    @property
-    def targets_as_params(self):
-        return ["image", "target_image"]
-
-    def get_transform_init_args_names(self):
-        return ("beta_limit",)

@@ -75,7 +75,7 @@ def get_transforms_info():
                 targets.add(Targets.KEYPOINTS)
 
             docs_link = None
-            if cls.__module__ == "albumentations.augmentations.transforms":
+            if cls.__module__.startswith("albumentations.augmentations"):
                 docs_link = make_augmentation_docs_link("augmentations", cls)
             elif cls.__module__ == "albumentations.imgaug.transforms":
                 docs_link = make_augmentation_docs_link("imgaug", cls)
