@@ -2097,13 +2097,13 @@ def adjust_brightness_torchvision(img, factor):
     if img.dtype == np.uint8:
         return _adjust_brightness_torchvision_uint8(img, factor)
 
-    return (img * factor).astype(img.dtype)
+    return clip(img * factor, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
 
 
 def _adjust_contrast_torchvision_uint8(img, factor, mean):
     lut = np.arange(0, 256) * factor
     lut = lut + mean * (1 - factor)
-    lut = lut.astype(np.uint8)
+    lut = clip(lut, img.dtype, 255)
 
     return cv2.LUT(img, lut)
 
@@ -2116,7 +2116,7 @@ def adjust_contrast_torchvision(img, factor):
     if is_grayscale_image(img):
         mean = img.mean()
     else:
-        mean = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY).mean()
+        mean = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).mean()
     mean = int(mean + 0.5)
 
     if factor == 0:
@@ -2125,7 +2125,7 @@ def adjust_contrast_torchvision(img, factor):
     if img.dtype == np.uint8:
         return _adjust_contrast_torchvision_uint8(img, factor, mean)
 
-    return (img.astype(np.float32) * factor + mean * (1 - factor)).astype(img.dtype)
+    return clip(img.astype(np.float32) * factor + mean * (1 - factor), img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
 
 
 @preserve_shape
