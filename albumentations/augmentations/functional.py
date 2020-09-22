@@ -2101,7 +2101,12 @@ def adjust_saturation_torchvision(img, factor, gamma=0):
     if factor == 0:
         return gray
 
-    return cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
+    result = cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
+    if img.dtype == np.uint8:
+        return result
+
+    # OpenCV does not clip values for float dtype
+    return clip(result, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
 
 
 def _adjust_hue_torchvision_uint8(img, factor):
