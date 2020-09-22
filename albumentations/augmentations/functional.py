@@ -2076,10 +2076,9 @@ def adjust_contrast_torchvision(img, factor):
         mean = img.mean()
     else:
         mean = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).mean()
-    mean = int(mean + 0.5)
 
     if factor == 0:
-        return np.full_like(img, mean, dtype=img.dtype)
+        return np.full_like(img, int(mean + 0.5), dtype=img.dtype)
 
     if img.dtype == np.uint8:
         return _adjust_contrast_torchvision_uint8(img, factor, mean)
