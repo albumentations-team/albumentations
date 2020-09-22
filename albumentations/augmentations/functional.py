@@ -2130,5 +2130,5 @@ def adjust_hue_torchvision(img, factor):
         return _adjust_hue_torchvision_uint8(img, factor)
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    img[..., 0] = img[..., 0] + factor * 360
+    img[..., 0] = np.mod(img[..., 0] + factor * 360, 360)
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
