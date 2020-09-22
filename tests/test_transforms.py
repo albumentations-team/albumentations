@@ -719,3 +719,43 @@ def test_color_jitter(brightness, contrast, saturation, hue):
 
     _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
     assert _max <= 2, "Max: {}".format(_max)
+
+
+@pytest.mark.parametrize(
+    ["brightness", "contrast", "saturation", "hue"],
+    [
+        [1, 1, 1, 0],
+        [0.123, 1, 1, 0],
+        [1.321, 1, 1, 0],
+        [1, 0.234, 1, 0],
+        [1, 1.432, 1, 0],
+        [1, 1, 0.345, 0],
+        [1, 1, 1.543, 0],
+        [1, 1, 1, 0.456],
+        [1, 1, 1, -0.432],
+    ],
+)
+def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+    transform = A.Compose(
+        [
+            A.ColorJitter(
+                brightness=[brightness, brightness],
+                contrast=[contrast, contrast],
+                saturation=[saturation, saturation],
+                hue=[hue, hue],
+                p=1,
+            )
+        ]
+    )
+
+    res1 = transform(image=img)["image"]
+    res2 = (transform(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
+
+    _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
+
+    if hue != 0:
+        assert _max <= 10, "Max: {}".format(_max)
+    else:
+        assert _max <= 2, "Max: {}".format(_max)
