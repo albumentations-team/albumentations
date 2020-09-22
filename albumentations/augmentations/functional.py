@@ -2096,11 +2096,12 @@ def adjust_saturation_torchvision(img, factor, gamma=0):
         return gray
     else:
         gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
     if factor == 0:
         return gray
 
-    return cv2.addWeighted(img, factor, np.stack([gray] * 3, axis=-1), 1 - factor, gamma=gamma)
+    return cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
 
 
 def _adjust_hue_torchvision_uint8(img, factor):
