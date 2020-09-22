@@ -357,18 +357,20 @@ def _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, sat, val = cv2.split(img)
 
-    lut_hue = np.arange(0, 256, dtype=np.int16)
-    lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
+    if hue_shift != 0:
+        lut_hue = np.arange(0, 256, dtype=np.int16)
+        lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
+        hue = cv2.LUT(hue, lut_hue)
 
-    lut_sat = np.arange(0, 256, dtype=np.int16)
-    lut_sat = np.clip(lut_sat + sat_shift, 0, 255).astype(dtype)
+    if sat_shift != 0:
+        lut_sat = np.arange(0, 256, dtype=np.int16)
+        lut_sat = np.clip(lut_sat + sat_shift, 0, 255).astype(dtype)
+        sat = cv2.LUT(sat, lut_sat)
 
-    lut_val = np.arange(0, 256, dtype=np.int16)
-    lut_val = np.clip(lut_val + val_shift, 0, 255).astype(dtype)
-
-    hue = cv2.LUT(hue, lut_hue)
-    sat = cv2.LUT(sat, lut_sat)
-    val = cv2.LUT(val, lut_val)
+    if val_shift != 0:
+        lut_val = np.arange(0, 256, dtype=np.int16)
+        lut_val = np.clip(lut_val + val_shift, 0, 255).astype(dtype)
+        val = cv2.LUT(val, lut_val)
 
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
@@ -381,7 +383,8 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
     hue, sat, val = cv2.split(img)
 
     if hue_shift != 0:
-        hue = cv2.add(hue, hue_shift)  # OpenCV works fine with values outside range [0, 360]
+        hue = cv2.add(hue, hue_shift)
+        hue = np.mod(hue, 360)  # OpenCV fails with negative values
 
     if sat_shift != 0:
         sat = clip(cv2.add(sat, sat_shift), dtype, 1.0)
@@ -396,6 +399,9 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
 
 @preserve_shape
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
+    if hue_shift == 0 and sat_shift == 0 and val_shift == 0:
+        return img
+
     is_gray = is_grayscale_image(img)
     if is_gray:
         if hue_shift != 0 or sat_shift != 0:
