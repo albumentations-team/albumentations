@@ -621,11 +621,14 @@ class ShiftScaleRotate(DualTransform):
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
+        shift_limit_x=None,
+        shift_limit_y=None,
         always_apply=False,
         p=0.5,
     ):
         super(ShiftScaleRotate, self).__init__(always_apply, p)
-        self.shift_limit = to_tuple(shift_limit)
+        self.shift_limit_x = to_tuple(shift_limit_x if shift_limit_x is not None else shift_limit)
+        self.shift_limit_y = to_tuple(shift_limit_y if shift_limit_y is not None else shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.rotate_limit = to_tuple(rotate_limit)
         self.interpolation = interpolation
@@ -646,8 +649,8 @@ class ShiftScaleRotate(DualTransform):
         return {
             "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
             "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
-            "dx": random.uniform(self.shift_limit[0], self.shift_limit[1]),
-            "dy": random.uniform(self.shift_limit[0], self.shift_limit[1]),
+            "dx": random.uniform(self.shift_limit_x[0], self.shift_limit_x[1]),
+            "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
@@ -655,7 +658,8 @@ class ShiftScaleRotate(DualTransform):
 
     def get_transform_init_args(self):
         return {
-            "shift_limit": self.shift_limit,
+            "shift_limit_x": self.shift_limit_x,
+            "shift_limit_y": self.shift_limit_y,
             "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
             "rotate_limit": self.rotate_limit,
             "interpolation": self.interpolation,
