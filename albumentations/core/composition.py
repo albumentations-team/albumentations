@@ -13,7 +13,7 @@ from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose"]
+__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
 
 
 REPR_INDENT_STEP = 2
@@ -473,4 +473,11 @@ class KeypointParams(Params):
                 "check_each_transform": self.check_each_transform,
             }
         )
+        return data
+
+
+class Sequential(BaseCompose):
+    def __call__(self, **data):
+        for t in self.transforms:
+            data = t(**data)
         return data
