@@ -29,7 +29,7 @@ Then let's add the test itself:
     def test_random_contrast():
         img = np.ones((100, 100, 3), dtype=np.uint8) * 128
         img = F.brightness_contrast_adjust(img, alpha=1.5)
-        expected_brightness = 192
+        expected_multiplier = 192
         expected = np.ones((100, 100, 3), dtype=np.uint8) * expected_multiplier
         assert np.array_equal(img, expected)
 
