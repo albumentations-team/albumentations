@@ -2044,3 +2044,97 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+
+
+def _adjust_brightness_torchvision_uint8(img, factor):
+    lut = np.arange(0, 256) * factor
+    lut = np.clip(lut, 0, 255).astype(np.uint8)
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def adjust_brightness_torchvision(img, factor):
+    if factor == 0:
+        return np.zeros_like(img)
+    elif factor == 1:
+        return img
+
+    if img.dtype == np.uint8:
+        return _adjust_brightness_torchvision_uint8(img, factor)
+
+    return clip(img * factor, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+def _adjust_contrast_torchvision_uint8(img, factor, mean):
+    lut = np.arange(0, 256) * factor
+    lut = lut + mean * (1 - factor)
+    lut = clip(lut, img.dtype, 255)
+
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def adjust_contrast_torchvision(img, factor):
+    if factor == 1:
+        return img
+
+    if is_grayscale_image(img):
+        mean = img.mean()
+    else:
+        mean = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).mean()
+
+    if factor == 0:
+        return np.full_like(img, int(mean + 0.5), dtype=img.dtype)
+
+    if img.dtype == np.uint8:
+        return _adjust_contrast_torchvision_uint8(img, factor, mean)
+
+    return clip(img.astype(np.float32) * factor + mean * (1 - factor), img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+@preserve_shape
+def adjust_saturation_torchvision(img, factor, gamma=0):
+    if factor == 1:
+        return img
+
+    if is_grayscale_image(img):
+        gray = img
+        return gray
+    else:
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+    if factor == 0:
+        return gray
+
+    result = cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
+    if img.dtype == np.uint8:
+        return result
+
+    # OpenCV does not clip values for float dtype
+    return clip(result, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+def _adjust_hue_torchvision_uint8(img, factor):
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+
+    lut = np.arange(0, 256, dtype=np.int16)
+    lut = np.mod(lut + 180 * factor, 180).astype(np.uint8)
+    img[..., 0] = cv2.LUT(img[..., 0], lut)
+
+    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+
+
+def adjust_hue_torchvision(img, factor):
+    if is_grayscale_image(img):
+        return img
+
+    if factor == 0:
+        return img
+
+    if img.dtype == np.uint8:
+        return _adjust_hue_torchvision_uint8(img, factor)
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    img[..., 0] = np.mod(img[..., 0] + factor * 360, 360)
+    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)

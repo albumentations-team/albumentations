@@ -2,6 +2,7 @@ from __future__ import absolute_import, division
 
 import math
 import random
+import numbers
 import warnings
 from enum import IntEnum
 from types import LambdaType
@@ -81,6 +82,7 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "ColorJitter",
 ]
 
 
@@ -3455,3 +3457,72 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
+
+
+class ColorJitter(ImageOnlyTransform):
+    """Randomly change the brightness, contrast and saturation of an image. This transform gives a little bit different
+    results because Pillow and OpenCV transforms image to HSV format by different formulas.
+    Another difference - Pillow uses uint8 overflow, but we are use value saturation.
+
+    Args:
+        brightness (float or tuple of float (min, max)): How much to jitter brightness.
+            brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
+            or the given [min, max]. Should be non negative numbers. Default:
+        contrast (float or tuple of float (min, max)): How much to jitter contrast.
+            contrast_factor is chosen uniformly from [max(0, 1 - contrast), 1 + contrast]
+            or the given [min, max]. Should be non negative numbers.
+        saturation (float or tuple of float (min, max)): How much to jitter saturation.
+            saturation_factor is chosen uniformly from [max(0, 1 - saturation), 1 + saturation]
+            or the given [min, max]. Should be non negative numbers.
+        hue (float or tuple of float (min, max)): How much to jitter hue.
+            hue_factor is chosen uniformly from [-hue, hue] or the given [min, max].
+            Should have 0<= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
+    """
+
+    def __init__(self, brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, always_apply=False, p=0.5):
+        super(ColorJitter, self).__init__(always_apply=always_apply, p=p)
+
+        self.brightness = self.__check_values(brightness, "brightness")
+        self.contrast = self.__check_values(contrast, "contrast")
+        self.saturation = self.__check_values(saturation, "saturation")
+        self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
+
+    @staticmethod
+    def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
+        if isinstance(value, numbers.Number):
+            if value < 0:
+                raise ValueError("If {} is a single number, it must be non negative.".format(name))
+            value = [offset - value, offset + value]
+            if clip:
+                value[0] = max(value[0], 0)
+        elif isinstance(value, (tuple, list)) and len(value) == 2:
+            if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+                raise ValueError("{} values should be between {}".format(name, bounds))
+        else:
+            raise TypeError("{} should be a single number or a list/tuple with lenght 2.".format(name))
+
+        return value
+
+    def get_params(self):
+        brightness = random.uniform(self.brightness[0], self.brightness[1])
+        contrast = random.uniform(self.contrast[0], self.contrast[1])
+        saturation = random.uniform(self.saturation[0], self.saturation[1])
+        hue = random.uniform(self.hue[0], self.hue[1])
+
+        transforms = [
+            lambda x: F.adjust_brightness_torchvision(x, brightness),
+            lambda x: F.adjust_contrast_torchvision(x, contrast),
+            lambda x: F.adjust_saturation_torchvision(x, saturation),
+            lambda x: F.adjust_hue_torchvision(x, hue),
+        ]
+        random.shuffle(transforms)
+
+        return {"transforms": transforms}
+
+    def apply(self, img, transforms=(), **params):
+        for transform in transforms:
+            img = transform(img)
+        return img
+
+    def get_transform_init_args_names(self):
+        return ("brightness", "contrast", "saturation", "hue")
