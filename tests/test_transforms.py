@@ -672,3 +672,52 @@ def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
 
     res = aug(image=img)["image"]
     assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
+
+
+@pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
+def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+    for i in range(2):
+        sign = 1 if i == 0 else -1
+        for i in range(4):
+            if i == 0:
+                _hue = hue * sign
+                _sat = 0
+                _val = 0
+            elif i == 1:
+                _hue = 0
+                _sat = sat * sign
+                _val = 0
+            elif i == 2:
+                _hue = 0
+                _sat = 0
+                _val = val * sign
+            else:
+                _hue = hue * sign
+                _sat = sat * sign
+                _val = val * sign
+
+            t1 = A.Compose(
+                [
+                    A.HueSaturationValue(
+                        hue_shift_limit=[_hue, _hue], sat_shift_limit=[_sat, _sat], val_shift_limit=[_val, _val], p=1
+                    )
+                ]
+            )
+            t2 = A.Compose(
+                [
+                    A.HueSaturationValue(
+                        hue_shift_limit=[_hue / 180 * 360, _hue / 180 * 360],
+                        sat_shift_limit=[_sat / 255, _sat / 255],
+                        val_shift_limit=[_val / 255, _val / 255],
+                        p=1,
+                    )
+                ]
+            )
+
+            res1 = t1(image=img)["image"]
+            res2 = (t2(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
+
+            _max = np.abs(res1.astype(np.int) - res2).max()
+            assert _max <= 10, "Max value: {}".format(_max)
