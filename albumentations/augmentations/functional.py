@@ -1138,6 +1138,37 @@ def grid_distortion(
 
 
 @preserve_shape
+def normalized_grid_distortion(
+    img,
+    num_steps=10,
+    xsteps=(),
+    ysteps=(),
+    interpolation=cv2.INTER_LINEAR,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
+):
+    height, width = img.shape[:2]
+
+    # compensate for smaller last steps in source image.
+    x_step = width // num_steps
+    last_x_step = min(width, ((num_steps + 1) * x_step)) - (num_steps * x_step)
+    xsteps[-1] *= last_x_step / x_step
+
+    y_step = height // num_steps
+    last_y_step = min(height, ((num_steps + 1) * y_step)) - (num_steps * y_step)
+    ysteps[-1] *= last_y_step / y_step
+
+    # now normalize such that distortion never leaves image bounds.
+    tx = width / math.floor(width / num_steps)
+    ty = height / math.floor(height / num_steps)
+    xsteps = np.array(xsteps) * (tx / np.sum(xsteps))
+    ysteps = np.array(ysteps) * (ty / np.sum(ysteps))
+
+    # do actual distortion.
+    return grid_distortion(img, num_steps, xsteps, ysteps, interpolation, border_mode, value)
+
+
+@preserve_shape
 def elastic_transform(
     img,
     alpha,
