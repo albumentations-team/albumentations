@@ -2,12 +2,13 @@ albumentations
 Augmentor
 imgaug
 keras
+kornia==0.4.0
 numpy
 opencv-python
 pandas
 pillow-simd
 pytablewriter
-solt
+solt==0.1.8
 tensorflow # required for keras
 torchvision
 tqdm

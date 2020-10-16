@@ -18,12 +18,15 @@ import cv2
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
+import torch
+from torchvision import transforms
 import torchvision.transforms.functional as torchvision
 import keras_preprocessing.image as keras
 from imgaug import augmenters as iaa
 import solt.core as slc
 import solt.transforms as slt
 import solt.data as sld
+import kornia.augmentation as K
 
 import albumentations.augmentations.functional as albumentations
 import albumentations as A
@@ -38,7 +41,7 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # noqa E402
 os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
 
 
-DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt"]
+DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt", "kornia"]
 
 
 def parse_args():
@@ -69,6 +72,7 @@ def get_package_versions():
         "imgaug",
         "torchvision",
         "keras",
+        "kornia",
         "numpy",
         "opencv-python",
         "scikit-image",
@@ -154,6 +158,12 @@ def read_img_cv2(filepath):
     return img
 
 
+def read_img_tensor(path):
+    with open(path, "rb") as f:
+        img = Image.open(f)
+        return transforms.ToTensor()(img)
+
+
 def format_results(images_per_second_for_aug, show_std=False):
     if images_per_second_for_aug is None:
         return "-"
@@ -183,6 +193,9 @@ class BenchmarkTest(ABC):
         img = self.torchvision_transform(img)
         return np.array(img, np.uint8, copy=True)
 
+    def kornia(self, img):
+        return self.kornia_op(img)
+
     def is_supported_by(self, library):
         if library == "imgaug":
             return hasattr(self, "imgaug_transform")
@@ -192,6 +205,8 @@ class BenchmarkTest(ABC):
             return hasattr(self, "solt_stream")
         if library == "torchvision":
             return hasattr(self, "torchvision_transform")
+        if library == "kornia":
+            return hasattr(self, "kornia_op")
 
         return hasattr(self, library)
 
@@ -206,6 +221,7 @@ class HorizontalFlip(BenchmarkTest):
         self.imgaug_transform = iaa.Fliplr(p=1)
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="LEFT_RIGHT")
         self.solt_stream = slc.Stream([slt.RandomFlip(p=1, axis=1)])
+        self.kornia_op = K.RandomHorizontalFlip(p=1.0)
 
     def albumentations(self, img):
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
@@ -228,6 +244,7 @@ class VerticalFlip(BenchmarkTest):
         self.imgaug_transform = iaa.Flipud(p=1)
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="TOP_BOTTOM")
         self.solt_stream = slc.Stream([slt.RandomFlip(p=1, axis=0)])
+        self.kornia_op = K.RandomVerticalFlip(p=1.0)
 
     def albumentations(self, img):
         return albumentations.vflip(img)
@@ -247,6 +264,7 @@ class Rotate(BenchmarkTest):
         self.imgaug_transform = iaa.Affine(rotate=(45, 45), order=1, mode="reflect")
         self.augmentor_op = Operations.RotateStandard(probability=1, max_left_rotation=45, max_right_rotation=45)
         self.solt_stream = slc.Stream([slt.RandomRotate(p=1, rotation_range=(45, 45))], padding="r")
+        self.kornia_op = K.RandomRotation(degrees=45.0)
 
     def albumentations(self, img):
         return albumentations.rotate(img, angle=-45)
@@ -264,6 +282,7 @@ class Brightness(BenchmarkTest):
         self.imgaug_transform = iaa.Add((127, 127), per_channel=False)
         self.augmentor_op = Operations.RandomBrightness(probability=1, min_factor=1.5, max_factor=1.5)
         self.solt_stream = slc.Stream([slt.ImageRandomBrightness(p=1, brightness_range=(127, 127))])
+        self.kornia_brightness_params = {"brightness_factor": torch.Tensor([1.5])}
 
     def albumentations(self, img):
         return albumentations.brightness_contrast_adjust(img, beta=0.5, beta_by_max=True)
@@ -274,18 +293,25 @@ class Brightness(BenchmarkTest):
     def keras(self, img):
         return keras.apply_brightness_shift(img, brightness=1.5).astype(np.uint8)
 
+    def kornia_op(self, img):
+        return K.functional.apply_adjust_brightness(img, self.kornia_brightness_params)
+
 
 class Contrast(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Multiply((1.5, 1.5), per_channel=False)
         self.augmentor_op = Operations.RandomContrast(probability=1, min_factor=1.5, max_factor=1.5)
         self.solt_stream = slc.Stream([slt.ImageRandomContrast(p=1, contrast_range=(1.5, 1.5))])
+        self.kornia_contrast_params = {"contrast_factor": torch.Tensor([1.5])}
 
     def albumentations(self, img):
         return albumentations.brightness_contrast_adjust(img, alpha=1.5)
 
     def torchvision_transform(self, img):
         return torchvision.adjust_contrast(img, contrast_factor=1.5)
+
+    def kornia_op(self, img):
+        return K.functional.apply_adjust_contrast(img, self.kornia_contrast_params)
 
 
 class BrightnessContrast(BenchmarkTest):
@@ -335,6 +361,19 @@ class ShiftScaleRotate(BenchmarkTest):
         img = keras.apply_affine_transform(img, theta=45, tx=50, ty=50, zx=0.5, zy=0.5, fill_mode="reflect")
         return np.ascontiguousarray(img)
 
+    # TODO: def kornia_op(self, img):
+    #     self.kornia_affine_params = {
+    #         "angle": torch.Tensor([45]),
+    #         "translations": torch.Tensor([50, 50]),
+    #         "center": torch.Tensor([[0, 0]]),
+    #         "scale": torch.Tensor([2]),
+    #         "sx": torch.Tensor([0.0]),
+    #         "sy": torch.Tensor([0.0]),
+    #         "resample": torch.Tensor([1]),  # BILINEAR
+    #         "align_corners": torch.tensor(False),
+    #     }
+    #     return K.functional.apply_affine(img, self.kornia_affine_params)
+
 
 class ShiftHSV(BenchmarkTest):
     def __init__(self):
@@ -383,6 +422,7 @@ class RandomCrop64(BenchmarkTest):
         self.imgaug_transform = iaa.CropToFixedSize(width=64, height=64)
         self.augmentor_op = Operations.Crop(probability=1, width=64, height=64, centre=False)
         self.solt_stream = slc.Stream([slt.CropTransform(crop_size=(64, 64), crop_mode="r")])
+        self.kornia_op = K.RandomCrop((64, 64))
 
     def albumentations(self, img):
         img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
@@ -498,6 +538,12 @@ class Grayscale(BenchmarkTest):
         img = np.array(img, np.uint8, copy=True)
         return np.dstack([img, img, img])
 
+    def kornia_op(self, img):
+        if img.shape[0] == 1:
+            # already grayscale, will throw exception
+            return img
+        return K.RandomGrayscale(p=1.0)(img)
+
 
 class Posterize(BenchmarkTest):
     def albumentations(self, img):
@@ -536,6 +582,7 @@ def main():
     paths = paths[: args.images]
     imgs_cv2 = [read_img_cv2(os.path.join(data_dir, path)) for path in paths]
     imgs_pillow = [read_img_pillow(os.path.join(data_dir, path)) for path in paths]
+    imgs_tensor = [read_img_tensor(os.path.join(data_dir, path)) for path in paths]
 
     benchmarks = [
         HorizontalFlip(),
@@ -560,7 +607,12 @@ def main():
         MultiplyElementwise(),
     ]
     for library in libraries:
-        imgs = imgs_pillow if library in ("torchvision", "augmentor", "pillow") else imgs_cv2
+        if library in ("torchvision", "augmentor", "pillow"):
+            imgs = imgs_pillow
+        elif library == "kornia":
+            imgs = imgs_tensor
+        else:
+            imgs = imgs_cv2
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
