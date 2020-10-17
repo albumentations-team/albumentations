@@ -172,14 +172,14 @@ class BenchmarkTest(ABC):
 
     def augmentor(self, img):
         img = self.augmentor_op.perform_operation([img])[0]
-        return np.array(img, np.uint8, copy=True)
+        return np.array(img, np.uint8, copy=False)
 
     def solt(self, img):
         return self.solt_stream({"image": img}, return_torch=False).data[0]
 
     def torchvision(self, img):
         img = self.torchvision_transform(img)
-        return np.array(img, np.uint8, copy=True)
+        return np.array(img, np.uint8, copy=False)
 
     def is_supported_by(self, library):
         if library == "imgaug":
@@ -311,7 +311,7 @@ class BrightnessContrast(BenchmarkTest):
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
             img, = operation.perform_operation([img])
-        return np.array(img, np.uint8, copy=True)
+        return np.array(img, np.uint8, copy=False)
 
 
 class ShiftScaleRotate(BenchmarkTest):
@@ -410,7 +410,7 @@ class RandomSizedCrop_64_512(BenchmarkTest):
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
             img, = operation.perform_operation([img])
-        return np.array(img, np.uint8, copy=True)
+        return np.array(img, np.uint8, copy=False)
 
     def torchvision_transform(self, img):
         img = torchvision.crop(img, top=0, left=0, height=64, width=64)
@@ -482,7 +482,7 @@ class Grayscale(BenchmarkTest):
 
     def augmentor(self, img):
         img = self.augmentor_op.perform_operation([img])[0]
-        img = np.array(img, np.uint8, copy=True)
+        img = np.array(img, np.uint8, copy=False)
         return np.dstack([img, img, img])
 
 
