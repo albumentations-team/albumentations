@@ -1,4 +1,4 @@
-FROM python:3.7.5
+FROM python:3.8.6
 
 ENV DATA_DIR /images
 
