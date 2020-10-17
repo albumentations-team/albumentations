@@ -514,13 +514,13 @@ class MultiplyElementwise(BenchmarkTest):
 class ColorJitter(BenchmarkTest):
     def __init__(self):
         imgaug_hue_param = int(0.5 * 255)
-        self.imgaug_adjust_hue = iaa.AddToHue((imgaug_hue_param, imgaug_hue_param))
+        self.imgaug_transform = iaa.AddToHue((imgaug_hue_param, imgaug_hue_param))
 
     def imgaug(self, img):
         img = iaa.pillike.enhance_brightness(img, 1.5)
         img = iaa.pillike.enhance_contrast(img, 1.5)
         img = iaa.pillike.enhance_color(img, 1.5)
-        img = self.imgaug_adjust_hue.augment_image(img)
+        img = self.imgaug_transform.augment_image(img)
         return img
 
     def albumentations(self, img):
