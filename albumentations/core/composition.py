@@ -477,6 +477,11 @@ class KeypointParams(Params):
 
 
 class Sequential(BaseCompose):
+    """Sequentially applies all transforms to targets."""
+
+    def __init__(self, transforms, p=0.5):
+        super().__init__(transforms, p)
+
     def __call__(self, **data):
         for t in self.transforms:
             data = t(**data)

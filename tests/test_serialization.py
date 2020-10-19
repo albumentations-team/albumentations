@@ -168,6 +168,18 @@ AUGMENTATION_CLS_PARAMS = (
             },
         ],
         [
+            A.ShiftScaleRotate,
+            {
+                "shift_limit_x": 0.3,
+                "shift_limit_y": 0.4,
+                "scale_limit": 0.2,
+                "rotate_limit": 70,
+                "interpolation": cv2.INTER_CUBIC,
+                "border_mode": cv2.BORDER_CONSTANT,
+                "value": (10, 10, 10),
+            },
+        ],
+        [
             A.OpticalDistortion,
             {
                 "distort_limit": 0.2,
