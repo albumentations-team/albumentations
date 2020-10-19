@@ -67,6 +67,7 @@ def set_seed(seed):
         [A.Equalize, {}],
         [A.Downscale, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -228,6 +229,10 @@ AUGMENTATION_CLS_PARAMS = (
         [A.Posterize, {"num_bits": 1}],
         [A.Equalize, {"mode": "pil", "by_channels": False}],
         [A.MultiplicativeNoise, {"multiplier": (0.7, 2.3), "per_channel": True, "elementwise": True}],
+        [
+            A.ColorJitter,
+            {"brightness": [0.2, 0.3], "contrast": [0.7, 0.9], "saturation": [1.2, 1.7], "hue": [-0.2, 0.1]},
+        ],
     ],
 )
 
@@ -322,6 +327,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -386,6 +392,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -680,6 +687,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

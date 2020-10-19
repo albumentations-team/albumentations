@@ -7,6 +7,9 @@ import pytest
 import albumentations as A
 import albumentations.augmentations.functional as F
 
+from torchvision.transforms import ColorJitter
+from PIL import Image
+
 
 def test_transpose_both_image_and_mask():
     image = np.ones((8, 6, 3))
@@ -285,6 +288,7 @@ def test_force_apply():
         [A.FancyPCA, {}],
         [A.GlassBlur, {}],
         [A.GridDropout, {}],
+        [A.ColorJitter, {}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
@@ -672,6 +676,138 @@ def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
 
     res = aug(image=img)["image"]
     assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
+
+
+@pytest.mark.parametrize(
+    ["brightness", "contrast", "saturation", "hue"],
+    [
+        [1, 1, 1, 0],
+        [0.123, 1, 1, 0],
+        [1.321, 1, 1, 0],
+        [1, 0.234, 1, 0],
+        [1, 1.432, 1, 0],
+        [1, 1, 0.345, 0],
+        [1, 1, 1.543, 0],
+    ],
+)
+def test_color_jitter(brightness, contrast, saturation, hue):
+    np.random.seed(0)
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    pil_image = Image.fromarray(img)
+
+    transform = A.Compose(
+        [
+            A.ColorJitter(
+                brightness=[brightness, brightness],
+                contrast=[contrast, contrast],
+                saturation=[saturation, saturation],
+                hue=[hue, hue],
+                p=1,
+            )
+        ]
+    )
+
+    pil_transform = ColorJitter(
+        brightness=[brightness, brightness],
+        contrast=[contrast, contrast],
+        saturation=[saturation, saturation],
+        hue=[hue, hue],
+    )
+
+    res1 = transform(image=img)["image"]
+    res2 = np.array(pil_transform(pil_image))
+
+    _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
+    assert _max <= 2, "Max: {}".format(_max)
+
+
+@pytest.mark.parametrize(
+    ["brightness", "contrast", "saturation", "hue"],
+    [
+        [1, 1, 1, 0],
+        [0.123, 1, 1, 0],
+        [1.321, 1, 1, 0],
+        [1, 0.234, 1, 0],
+        [1, 1.432, 1, 0],
+        [1, 1, 0.345, 0],
+        [1, 1, 1.543, 0],
+        [1, 1, 1, 0.456],
+        [1, 1, 1, -0.432],
+    ],
+)
+def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+    transform = A.Compose(
+        [
+            A.ColorJitter(
+                brightness=[brightness, brightness],
+                contrast=[contrast, contrast],
+                saturation=[saturation, saturation],
+                hue=[hue, hue],
+                p=1,
+            )
+        ]
+    )
+
+    res1 = transform(image=img)["image"]
+    res2 = (transform(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
+
+    _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
+
+    if hue != 0:
+        assert _max <= 10, "Max: {}".format(_max)
+    else:
+        assert _max <= 2, "Max: {}".format(_max)
+
+
+@pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
+def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+    for i in range(2):
+        sign = 1 if i == 0 else -1
+        for i in range(4):
+            if i == 0:
+                _hue = hue * sign
+                _sat = 0
+                _val = 0
+            elif i == 1:
+                _hue = 0
+                _sat = sat * sign
+                _val = 0
+            elif i == 2:
+                _hue = 0
+                _sat = 0
+                _val = val * sign
+            else:
+                _hue = hue * sign
+                _sat = sat * sign
+                _val = val * sign
+
+            t1 = A.Compose(
+                [
+                    A.HueSaturationValue(
+                        hue_shift_limit=[_hue, _hue], sat_shift_limit=[_sat, _sat], val_shift_limit=[_val, _val], p=1
+                    )
+                ]
+            )
+            t2 = A.Compose(
+                [
+                    A.HueSaturationValue(
+                        hue_shift_limit=[_hue / 180 * 360, _hue / 180 * 360],
+                        sat_shift_limit=[_sat / 255, _sat / 255],
+                        val_shift_limit=[_val / 255, _val / 255],
+                        p=1,
+                    )
+                ]
+            )
+
+            res1 = t1(image=img)["image"]
+            res2 = (t2(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
+
+            _max = np.abs(res1.astype(np.int) - res2).max()
+            assert _max <= 10, "Max value: {}".format(_max)
 
 
 def test_shift_scale_separate_shift_x_shift_y(image, mask):
