@@ -18,10 +18,12 @@ IGNORED_CLASSES = {
 }
 
 
-def make_augmentation_docs_link(module, cls):
+def make_augmentation_docs_link(cls):
+    module_parts = cls.__module__.split(".")
+    module_page = "/".join(module_parts[1:])
     return (
-        "[{cls_name}]" "(https://albumentations.ai/docs/api_reference/{module}/transforms/#{cls_fullname})"
-    ).format(cls_name=cls.__name__, module=module, cls_fullname=cls.__module__ + "." + cls.__name__)
+        "[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
+    ).format(module_page=module_page, cls=cls)
 
 
 class Targets(Enum):
@@ -74,15 +76,9 @@ def get_transforms_info():
                 targets.add(Targets.BBOXES)
                 targets.add(Targets.KEYPOINTS)
 
-            docs_link = None
-            if cls.__module__.startswith("albumentations.augmentations"):
-                docs_link = make_augmentation_docs_link("augmentations", cls)
-            elif cls.__module__ == "albumentations.imgaug.transforms":
-                docs_link = make_augmentation_docs_link("imgaug", cls)
-
             transforms_info[name] = {
                 "targets": targets,
-                "docs_link": docs_link,
+                "docs_link": make_augmentation_docs_link(cls),
                 "image_only": issubclass(cls, albumentations.ImageOnlyTransform),
             }
     return transforms_info
