@@ -37,7 +37,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     amplitude_trg = np.fft.fftshift(amplitude_trg, axes=(0, 1))
     height, width = amplitude_src.shape[:2]
     border = np.floor(min(height, width) * beta).astype(int)
-    center_x, center_y = np.floor([height / 2.0, width / 2.0]).astype(int)
+    center_y, center_x = np.floor([height / 2.0, width / 2.0]).astype(int)
 
     y1, y2 = center_y - border, center_y + border + 1
     x1, x2 = center_x - border, center_x + border + 1
