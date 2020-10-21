@@ -150,6 +150,6 @@ def load(filepath, data_format="json", lambda_transforms=None):
 
 def register_additional_transforms():
     """
-    Registers transforms that are not imported directly into the `albumentations` module.
+    Register transforms that are not imported directly into the `albumentations` module.
     """
     import albumentations.pytorch
