@@ -3472,14 +3472,15 @@ class GridDropout(DualTransform):
 
 
 class ColorJitter(ImageOnlyTransform):
-    """Randomly change the brightness, contrast and saturation of an image. This transform gives a little bit different
-    results because Pillow and OpenCV transforms image to HSV format by different formulas.
-    Another difference - Pillow uses uint8 overflow, but we are use value saturation.
+    """Randomly changes the brightness, contrast, and saturation of an image. Compared to ColorJitter from torchvision,
+    this transform gives a little bit different results because Pillow (used in torchvision) and OpenCV (used in
+    Albumentations) transform an image to HSV format by different formulas. Another difference - Pillow uses uint8
+    overflow, but we use value saturation.
 
     Args:
         brightness (float or tuple of float (min, max)): How much to jitter brightness.
             brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            or the given [min, max]. Should be non negative numbers. Default:
+            or the given [min, max]. Should be non negative numbers.
         contrast (float or tuple of float (min, max)): How much to jitter contrast.
             contrast_factor is chosen uniformly from [max(0, 1 - contrast), 1 + contrast]
             or the given [min, max]. Should be non negative numbers.
@@ -3488,7 +3489,7 @@ class ColorJitter(ImageOnlyTransform):
             or the given [min, max]. Should be non negative numbers.
         hue (float or tuple of float (min, max)): How much to jitter hue.
             hue_factor is chosen uniformly from [-hue, hue] or the given [min, max].
-            Should have 0<= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
+            Should have 0 <= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
     """
 
     def __init__(self, brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, always_apply=False, p=0.5):
@@ -3511,7 +3512,7 @@ class ColorJitter(ImageOnlyTransform):
             if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
                 raise ValueError("{} values should be between {}".format(name, bounds))
         else:
-            raise TypeError("{} should be a single number or a list/tuple with lenght 2.".format(name))
+            raise TypeError("{} should be a single number or a list/tuple with length 2.".format(name))
 
         return value
 
