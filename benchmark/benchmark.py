@@ -310,7 +310,7 @@ class BrightnessContrast(BenchmarkTest):
 
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
-            (img,) = operation.perform_operation([img])
+            img, = operation.perform_operation([img])
         return np.array(img, np.uint8, copy=False)
 
 
@@ -409,7 +409,7 @@ class RandomSizedCrop_64_512(BenchmarkTest):
 
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
-            (img,) = operation.perform_operation([img])
+            img, = operation.perform_operation([img])
         return np.array(img, np.uint8, copy=False)
 
     def torchvision_transform(self, img):
