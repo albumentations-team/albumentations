@@ -81,7 +81,7 @@ class ToTensor(BasicTransform):
 
 
 class ToTensorV2(BasicTransform):
-    """Converts image and mask to `torch.Tensor`.
+    """Convert image and mask to `torch.Tensor`.
 
     Args:
         transpose_mask (bool): if True and an input mask has three dimensions, this transform will transpose dimensions
