@@ -64,6 +64,8 @@ from albumentations import (
     MultiplicativeNoise,
     GridDropout,
     ColorJitter,
+    FDA,
+    HistogramMatching,
 )
 
 
@@ -101,6 +103,14 @@ from albumentations import (
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -140,6 +150,14 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -284,6 +302,14 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -343,6 +369,14 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -386,6 +420,11 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [GridDropout, {}],
         [HueSaturationValue, {}],
         [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [FDA, {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -405,14 +444,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     result = aug(image=image_1ch, mask=mask_1ch)
     assert np.array_equal(image_1ch.shape, result["image"].shape)
     assert np.array_equal(mask_1ch.shape, result["mask"].shape)
-
-    # Test for RGB image
-    image_3ch = np.zeros((224, 224, 3), dtype=np.uint8)
-    mask_3ch = np.zeros((224, 224, 3))
-
-    result = aug(image=image_3ch, mask=mask_3ch)
-    assert np.array_equal(image_3ch.shape, result["image"].shape)
-    assert np.array_equal(mask_3ch.shape, result["mask"].shape)
 
 
 @pytest.mark.parametrize(
@@ -461,6 +492,14 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
