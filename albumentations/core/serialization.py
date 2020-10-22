@@ -152,4 +152,8 @@ def register_additional_transforms():
     """
     Register transforms that are not imported directly into the `albumentations` module.
     """
-    import albumentations.pytorch
+    try:
+        # This import will result in ImportError if `torch` is not installed
+        import albumentations.pytorch
+    except ImportError:
+        pass
