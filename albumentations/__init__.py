@@ -7,3 +7,4 @@ from .core.transforms_interface import *
 from .core.serialization import *
 from .augmentations import *
 from .imgaug.transforms import *
+from .pytorch.transforms import *
