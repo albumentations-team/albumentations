@@ -39,8 +39,16 @@ def choose_requirement(main, secondary):
 
 
 def get_install_requirements(install_requires, choose_install_requires):
-    for main, secondary in choose_install_requires:
-        install_requires.append(choose_requirement(main, secondary))
+    try:
+        # OpenCV installed via conda.
+        import cv2  # NOQA: F401
+
+        major, minor, *rest = cv2.__version__.split(".")
+        if int(major) < 4 or int(minor) < 1:
+            raise RuntimeError(f"OpenCV >=4.1 is required but {cv2.__version__} is installed")
+    except ImportError:
+        for main, secondary in choose_install_requires:
+            install_requires.append(choose_requirement(main, secondary))
 
     return install_requires
 
