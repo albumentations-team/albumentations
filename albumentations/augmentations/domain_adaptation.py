@@ -9,16 +9,9 @@ from .functional import clipped, preserve_shape
 
 from skimage.exposure import match_histograms
 
-__all__ = ["HistogramMatching", "FDA", "fourier_domain_adaptation", "read_bgr_image", "read_rgb_image"]
+from .utils import read_rgb_image
 
-
-def read_bgr_image(path):
-    return cv2.imread(path, cv2.IMREAD_COLOR)
-
-
-def read_rgb_image(path):
-    image = cv2.imread(path, cv2.IMREAD_COLOR)
-    return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+__all__ = ["HistogramMatching", "FDA", "fourier_domain_adaptation"]
 
 
 @clipped
@@ -115,7 +108,7 @@ class HistogramMatching(ImageOnlyTransform):
         self,
         reference_images: List[Union[str, np.ndarray]],
         blend_ratio=(0.5, 1.0),
-        read_fn=read_bgr_image,
+        read_fn=read_rgb_image,
         always_apply=False,
         p=0.5,
     ):
@@ -176,7 +169,7 @@ class FDA(ImageOnlyTransform):
         self,
         reference_images: List[Union[str, np.ndarray]],
         beta_limit=0.1,
-        read_fn=read_bgr_image,
+        read_fn=read_rgb_image,
         always_apply=False,
         p=0.5,
     ):
