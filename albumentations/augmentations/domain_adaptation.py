@@ -35,7 +35,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 
     if target_img.shape != img.shape:
         raise ValueError(
-            "The source and target images must contain the same shape,"
+            "The source and target images must have the same shape,"
             " but got {} and {} respectively.".format(img.shape, target_img.shape)
         )
 
