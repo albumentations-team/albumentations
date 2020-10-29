@@ -512,14 +512,7 @@ def test_imgaug_augmentations_for_keypoints_serialization(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params", "call_params"],
-    [
-        [A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}],
-        [
-            A.FDA,
-            {"beta_limit": 0.3},
-            {"target_image": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)},
-        ],
-    ],
+    [[A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}]],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
