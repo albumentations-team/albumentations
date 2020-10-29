@@ -13,7 +13,7 @@ from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose"]
+__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
 
 
 REPR_INDENT_STEP = 2
@@ -473,4 +473,38 @@ class KeypointParams(Params):
                 "check_each_transform": self.check_each_transform,
             }
         )
+        return data
+
+
+class Sequential(BaseCompose):
+    """Sequentially applies all transforms to targets.
+
+    Note:
+        This transform is not intended to be a replacement for `Compose`. Instead, it should be used inside `Compose`
+        the same way `OneOf` or `OneOrOther` are used. For instance, you can combine `OneOf` with `Sequential` to
+        create an augmentation pipeline that contains multiple sequences of augmentations and applies one randomly
+        chose sequence to input data (see the `Example` section for an example definition of such pipeline).
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        >>>    A.OneOf([
+        >>>        A.Sequential([
+        >>>            A.HorizontalFlip(p=0.5),
+        >>>            A.ShiftScaleRotate(p=0.5),
+        >>>        ]),
+        >>>        A.Sequential([
+        >>>            A.VerticalFlip(p=0.5),
+        >>>            A.RandomBrightnessContrast(p=0.5),
+        >>>        ]),
+        >>>    ], p=1)
+        >>> ])
+    """
+
+    def __init__(self, transforms, p=0.5):
+        super().__init__(transforms, p)
+
+    def __call__(self, **data):
+        for t in self.transforms:
+            data = t(**data)
         return data

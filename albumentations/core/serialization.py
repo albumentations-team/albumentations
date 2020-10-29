@@ -88,6 +88,7 @@ def from_dict(transform_dict, lambda_transforms=None):
             in that dictionary should be named same as `name` arguments in respective lambda transforms from
             a serialized pipeline.
     """
+    register_additional_transforms()
     transform = transform_dict["transform"]
     lmbd = instantiate_lambda(transform, lambda_transforms)
     if lmbd:
@@ -145,3 +146,14 @@ def load(filepath, data_format="json", lambda_transforms=None):
     with open(filepath) as f:
         transform_dict = load_fn(f)
     return from_dict(transform_dict, lambda_transforms=lambda_transforms)
+
+
+def register_additional_transforms():
+    """
+    Register transforms that are not imported directly into the `albumentations` module.
+    """
+    try:
+        # This import will result in ImportError if `torch` is not installed
+        import albumentations.pytorch
+    except ImportError:
+        pass
