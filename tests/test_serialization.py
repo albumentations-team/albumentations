@@ -1,4 +1,5 @@
 import random
+from unittest.mock import patch
 
 import cv2
 import pytest
@@ -7,7 +8,7 @@ import imgaug as ia
 
 import albumentations as A
 import albumentations.augmentations.functional as F
-
+from .utils import OpenMock
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 
@@ -66,6 +67,7 @@ def set_seed(seed):
         [A.Equalize, {}],
         [A.Downscale, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -83,8 +85,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
-@pytest.mark.parametrize(
-    ["augmentation_cls", "params"],
+AUGMENTATION_CLS_PARAMS = (
     [
         [
             A.ImageCompression,
@@ -168,6 +169,18 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
             },
         ],
         [
+            A.ShiftScaleRotate,
+            {
+                "shift_limit_x": 0.3,
+                "shift_limit_y": 0.4,
+                "scale_limit": 0.2,
+                "rotate_limit": 70,
+                "interpolation": cv2.INTER_CUBIC,
+                "border_mode": cv2.BORDER_CONSTANT,
+                "value": (10, 10, 10),
+            },
+        ],
+        [
             A.OpticalDistortion,
             {
                 "distort_limit": 0.2,
@@ -216,8 +229,15 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
         [A.Posterize, {"num_bits": 1}],
         [A.Equalize, {"mode": "pil", "by_channels": False}],
         [A.MultiplicativeNoise, {"multiplier": (0.7, 2.3), "per_channel": True, "elementwise": True}],
+        [
+            A.ColorJitter,
+            {"brightness": [0.2, 0.3], "contrast": [0.7, 0.9], "saturation": [1.2, 1.7], "hue": [-0.2, 0.1]},
+        ],
     ],
 )
+
+
+@pytest.mark.parametrize(["augmentation_cls", "params"], *AUGMENTATION_CLS_PARAMS)
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
@@ -233,6 +253,27 @@ def test_augmentations_serialization_with_custom_parameters(
     deserialized_aug_data = deserialized_aug(image=image, mask=mask)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+
+
+@pytest.mark.parametrize(["augmentation_cls", "params"], *AUGMENTATION_CLS_PARAMS)
+@pytest.mark.parametrize("p", [0.5, 1])
+@pytest.mark.parametrize("seed", TEST_SEEDS)
+@pytest.mark.parametrize("always_apply", (False, True))
+@pytest.mark.parametrize("data_format", ("yaml",))
+def test_augmentations_serialization_to_file_with_custom_parameters(
+    augmentation_cls, params, p, seed, image, mask, always_apply, data_format
+):
+    with patch("builtins.open", OpenMock()):
+        aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+        filepath = "serialized.{}".format(data_format)
+        A.save(aug, filepath, data_format=data_format)
+        deserialized_aug = A.load(filepath, data_format=data_format)
+        set_seed(seed)
+        aug_data = aug(image=image, mask=mask)
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+        assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+        assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
 @pytest.mark.parametrize(
@@ -286,6 +327,7 @@ def test_augmentations_serialization_with_custom_parameters(
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -350,6 +392,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -467,12 +510,18 @@ def test_imgaug_augmentations_for_keypoints_serialization(
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
 
 
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params", "call_params"],
+    [[A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}]],
+)
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-def test_image_only_crop_around_bbox_augmentation_serialization(p, seed, image, always_apply):
-    aug = A.RandomCropNearBBox(p=p, always_apply=always_apply, max_part_shift=0.15)
-    annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
+def test_augmentations_serialization_with_call_params(
+    augmentation_cls, params, call_params, p, seed, image, always_apply
+):
+    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+    annotations = {"image": image, **call_params}
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
@@ -631,6 +680,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

@@ -9,8 +9,17 @@ import pytest
 
 from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
 from albumentations.augmentations.bbox_utils import check_bboxes
-from albumentations.core.composition import OneOrOther, Compose, OneOf, PerChannel, ReplayCompose
-from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur
+from albumentations.core.composition import (
+    OneOrOther,
+    Compose,
+    OneOf,
+    PerChannel,
+    ReplayCompose,
+    KeypointParams,
+    BboxParams,
+    Sequential,
+)
+from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
 
 
 def test_one_or_other():
@@ -57,6 +66,14 @@ def test_one_of():
     assert len([transform for transform in transforms if transform.called]) == 1
 
 
+def test_sequential():
+    transforms = [Mock(side_effect=lambda **kw: kw) for _ in range(1)]
+    augmentation = Sequential(transforms, p=1)
+    image = np.ones((8, 8))
+    augmentation(image=image)
+    assert len([transform for transform in transforms if transform.called]) == len(transforms)
+
+
 def test_to_tuple():
     assert to_tuple(10) == (-10, 10)
     assert to_tuple(0.5) == (-0.5, 0.5)
@@ -101,7 +118,7 @@ def test_additional_targets(image, mask):
 def test_check_bboxes_with_correct_values():
     try:
         check_bboxes([[0.1, 0.5, 0.8, 1.0], [0.2, 0.5, 0.5, 0.6, 99]])
-    except Exception as e:
+    except Exception as e:  # skipcq: PYL-W0703
         pytest.fail("Unexpected Exception {!r}".format(e))
 
 
@@ -144,7 +161,7 @@ def test_per_channel_multi():
 
 def test_deterministic_oneof():
     aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
-    for i in range(10):
+    for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
         data = aug(image=image)
@@ -155,10 +172,142 @@ def test_deterministic_oneof():
 
 def test_deterministic_one_or_other():
     aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
-    for i in range(10):
+    for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)
         data = aug(image=image)
         assert "replay" in data
         data2 = ReplayCompose.replay(data["replay"], image=image2)
         assert np.array_equal(data["image"], data2["image"])
+
+
+def test_deterministic_sequential():
+    aug = ReplayCompose([Sequential([HorizontalFlip(), Blur()])], p=1)
+    for _ in range(10):
+        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
+        image2 = np.copy(image)
+        data = aug(image=image)
+        assert "replay" in data
+        data2 = ReplayCompose.replay(data["replay"], image=image2)
+        assert np.array_equal(data["image"], data2["image"])
+
+
+def test_named_args():
+    image = np.empty([100, 100, 3], dtype=np.uint8)
+    aug = HorizontalFlip(p=1)
+
+    with pytest.raises(KeyError) as exc_info:
+        aug(image)
+    assert str(exc_info.value) == (
+        "'You have to pass data to augmentations as named arguments, for example: aug(image=image)'"
+    )
+
+
+@pytest.mark.parametrize(
+    ["targets", "additional_targets", "err_message"],
+    [
+        [{"image": None}, None, "image must be numpy array type"],
+        [{"image": np.empty([100, 100, 3], np.uint8), "mask": None}, None, "mask must be numpy array type"],
+        [
+            {"image": np.empty([100, 100, 3], np.uint8), "image1": None},
+            {"image1": "image"},
+            "image1 must be numpy array type",
+        ],
+        [
+            {"image": np.empty([100, 100, 3], np.uint8), "mask1": None},
+            {"mask1": "mask"},
+            "mask1 must be numpy array type",
+        ],
+    ],
+)
+def test_targets_type_check(targets, additional_targets, err_message):
+    aug = Compose([], additional_targets=additional_targets)
+
+    with pytest.raises(TypeError) as exc_info:
+        aug(**targets)
+    assert str(exc_info.value) == err_message
+
+
+@pytest.mark.parametrize(
+    ["targets", "bbox_params", "keypoint_params", "expected"],
+    [
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=False),
+            {"keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25},
+        ],
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=True),
+            {"keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=False),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]]},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=True),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=True),
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=True),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+    ],
+)
+def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
+    image = np.empty([100, 100], dtype=np.uint8)
+    augs = Compose(
+        [Crop(0, 0, 50, 50), PadIfNeeded(100, 100)], bbox_params=bbox_params, keypoint_params=keypoint_params
+    )
+    res = augs(image=image, **targets)
+
+    for key, item in expected.items():
+        assert np.all(np.array(item) == np.array(res[key]))

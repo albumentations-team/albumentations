@@ -2,13 +2,15 @@ from __future__ import absolute_import, division
 
 import math
 import random
+import numbers
 import warnings
-from enum import Enum
+from enum import IntEnum
 from types import LambdaType
-from skimage.measure import label
+from typing import Optional
 
 import cv2
 import numpy as np
+from skimage.measure import label
 
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
@@ -80,6 +82,7 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "ColorJitter",
 ]
 
 
@@ -89,6 +92,8 @@ class PadIfNeeded(DualTransform):
     Args:
         min_height (int): minimal result image height.
         min_width (int): minimal result image width.
+        pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
+        pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -101,22 +106,31 @@ class PadIfNeeded(DualTransform):
 
     Image types:
         uint8, float32
-
     """
 
     def __init__(
         self,
-        min_height=1024,
-        min_width=1024,
+        min_height: Optional[int] = 1024,
+        min_width: Optional[int] = 1024,
+        pad_height_divisor: Optional[int] = None,
+        pad_width_divisor: Optional[int] = None,
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
         always_apply=False,
         p=1.0,
     ):
+        if (min_height is None) == (pad_height_divisor is None):
+            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
+
+        if (min_width is None) == (pad_width_divisor is None):
+            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
+
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
+        self.pad_width_divisor = pad_width_divisor
+        self.pad_height_divisor = pad_height_divisor
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -126,19 +140,33 @@ class PadIfNeeded(DualTransform):
         rows = params["rows"]
         cols = params["cols"]
 
-        if rows < self.min_height:
-            h_pad_top = int((self.min_height - rows) / 2.0)
-            h_pad_bottom = self.min_height - rows - h_pad_top
+        if self.min_height is not None:
+            if rows < self.min_height:
+                h_pad_top = int((self.min_height - rows) / 2.0)
+                h_pad_bottom = self.min_height - rows - h_pad_top
+            else:
+                h_pad_top = 0
+                h_pad_bottom = 0
         else:
-            h_pad_top = 0
-            h_pad_bottom = 0
+            pad_remained = rows % self.pad_height_divisor
+            pad_rows = self.pad_height_divisor - pad_remained if pad_remained > 0 else 0
 
-        if cols < self.min_width:
-            w_pad_left = int((self.min_width - cols) / 2.0)
-            w_pad_right = self.min_width - cols - w_pad_left
+            h_pad_top = pad_rows // 2
+            h_pad_bottom = pad_rows - h_pad_top
+
+        if self.min_width is not None:
+            if cols < self.min_width:
+                w_pad_left = int((self.min_width - cols) / 2.0)
+                w_pad_right = self.min_width - cols - w_pad_left
+            else:
+                w_pad_left = 0
+                w_pad_right = 0
         else:
-            w_pad_left = 0
-            w_pad_right = 0
+            pad_remainder = cols % self.pad_width_divisor
+            pad_cols = self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
+
+            w_pad_left = pad_cols // 2
+            w_pad_right = pad_cols - w_pad_left
 
         params.update(
             {"pad_top": h_pad_top, "pad_bottom": h_pad_bottom, "pad_left": w_pad_left, "pad_right": w_pad_right}
@@ -160,12 +188,21 @@ class PadIfNeeded(DualTransform):
         bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
         return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
+    # skipcq: PYL-W0613
     def apply_to_keypoint(self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
         x, y, angle, scale = keypoint
         return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
-        return ("min_height", "min_width", "border_mode", "value", "mask_value")
+        return (
+            "min_height",
+            "min_width",
+            "pad_height_divisor",
+            "pad_width_divisor",
+            "border_mode",
+            "value",
+            "mask_value",
+        )
 
 
 class Crop(DualTransform):
@@ -255,8 +292,8 @@ class HorizontalFlip(DualTransform):
             # Opencv is faster than numpy only in case of
             # non-gray scale 8bits images
             return F.hflip_cv2(img)
-        else:
-            return F.hflip(img)
+
+        return F.hflip(img)
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_hflip(bbox, **params)
@@ -532,7 +569,7 @@ class Rotate(DualTransform):
         return {"angle": random.uniform(self.limit[0], self.limit[1])}
 
     def apply_to_bbox(self, bbox, angle=0, **params):
-        return F.bbox_rotate(bbox, angle, **params)
+        return F.bbox_rotate(bbox, angle, params["rows"], params["cols"])
 
     def apply_to_keypoint(self, keypoint, angle=0, **params):
         return F.keypoint_rotate(keypoint, angle, **params)
@@ -602,6 +639,14 @@ class ShiftScaleRotate(DualTransform):
         mask_value (int, float,
                     list of int,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        shift_limit_x ((float, float) or float): shift factor range for width. If it is set then this value
+            instead of shift_limit will be used for shifting width.  If shift_limit_x is a single float value,
+            the range will be (-shift_limit_x, shift_limit_x). Absolute values for lower and upper bounds should lie in
+            the range [0, 1]. Default: None.
+        shift_limit_y ((float, float) or float): shift factor range for height. If it is set then this value
+            instead of shift_limit will be used for shifting height.  If shift_limit_y is a single float value,
+            the range will be (-shift_limit_y, shift_limit_y). Absolute values for lower and upper bounds should lie
+            in the range [0, 1]. Default: None.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -620,11 +665,14 @@ class ShiftScaleRotate(DualTransform):
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
+        shift_limit_x=None,
+        shift_limit_y=None,
         always_apply=False,
         p=0.5,
     ):
         super(ShiftScaleRotate, self).__init__(always_apply, p)
-        self.shift_limit = to_tuple(shift_limit)
+        self.shift_limit_x = to_tuple(shift_limit_x if shift_limit_x is not None else shift_limit)
+        self.shift_limit_y = to_tuple(shift_limit_y if shift_limit_y is not None else shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.rotate_limit = to_tuple(rotate_limit)
         self.interpolation = interpolation
@@ -638,25 +686,24 @@ class ShiftScaleRotate(DualTransform):
     def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_keypoint(
-        self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, interpolation=cv2.INTER_LINEAR, **params
-    ):
+    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, **params):
         return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
 
     def get_params(self):
         return {
             "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
             "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
-            "dx": random.uniform(self.shift_limit[0], self.shift_limit[1]),
-            "dy": random.uniform(self.shift_limit[0], self.shift_limit[1]),
+            "dx": random.uniform(self.shift_limit_x[0], self.shift_limit_x[1]),
+            "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, **params)
+    def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, **params)
 
     def get_transform_init_args(self):
         return {
-            "shift_limit": self.shift_limit,
+            "shift_limit_x": self.shift_limit_x,
+            "shift_limit_y": self.shift_limit_y,
             "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
             "rotate_limit": self.rotate_limit,
             "interpolation": self.interpolation,
@@ -909,8 +956,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
             aspect_ratio = math.exp(random.uniform(*log_ratio))
 
-            w = int(round(math.sqrt(target_area * aspect_ratio)))
-            h = int(round(math.sqrt(target_area / aspect_ratio)))
+            w = int(round(math.sqrt(target_area * aspect_ratio)))  # skipcq: PTC-W0028
+            h = int(round(math.sqrt(target_area / aspect_ratio)))  # skipcq: PTC-W0028
 
             if 0 < w <= img.shape[1] and 0 < h <= img.shape[0]:
                 i = random.randint(0, img.shape[0] - h)
@@ -1217,10 +1264,10 @@ class GridDistortion(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img, stepsx=[], stepsy=[], interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode, self.value)
 
-    def apply_to_mask(self, img, stepsx=[], stepsy=[], **params):
+    def apply_to_mask(self, img, stepsx=(), stepsy=(), **params):
         return F.grid_distortion(
             img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
@@ -1470,7 +1517,7 @@ class Cutout(ImageOnlyTransform):
         self.fill_value = fill_value
         warnings.warn("This class has been deprecated. Please use CoarseDropout", DeprecationWarning)
 
-    def apply(self, image, fill_value=0, holes=[], **params):
+    def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params):
@@ -1498,13 +1545,13 @@ class Cutout(ImageOnlyTransform):
         return ("num_holes", "max_h_size", "max_w_size")
 
 
-class CoarseDropout(ImageOnlyTransform):
+class CoarseDropout(DualTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
         max_holes (int): Maximum number of regions to zero out.
         max_height (int): Maximum height of the hole.
-        min_width (int): Maximum width of the hole.
+        max_width (int): Maximum width of the hole.
         min_holes (int): Minimum number of regions to zero out. If `None`,
             `min_holes` is be set to `max_holes`. Default: `None`.
         min_height (int): Minimum height of the hole. Default: None. If `None`,
@@ -1512,9 +1559,11 @@ class CoarseDropout(ImageOnlyTransform):
         min_width (int): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
         fill_value (int, float, lisf of int, list of float): value for dropped pixels.
+        mask_fill_value (int, float, lisf of int, list of float): fill value for dropped pixels
+            in mask. If None - mask is not affected.
 
     Targets:
-        image
+        image, mask
 
     Image types:
         uint8, float32
@@ -1523,7 +1572,6 @@ class CoarseDropout(ImageOnlyTransform):
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
-
     """
 
     def __init__(
@@ -1535,6 +1583,7 @@ class CoarseDropout(ImageOnlyTransform):
         min_height=None,
         min_width=None,
         fill_value=0,
+        mask_fill_value=None,
         always_apply=False,
         p=0.5,
     ):
@@ -1546,12 +1595,23 @@ class CoarseDropout(ImageOnlyTransform):
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
         self.fill_value = fill_value
-        assert 0 < self.min_holes <= self.max_holes
-        assert 0 < self.min_height <= self.max_height
-        assert 0 < self.min_width <= self.max_width
+        self.mask_fill_value = mask_fill_value
+        if not 0 < self.min_holes <= self.max_holes:
+            raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
+        if not 0 < self.min_height <= self.max_height:
+            raise ValueError(
+                "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
+            )
+        if not 0 < self.min_width <= self.max_width:
+            raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
 
-    def apply(self, image, fill_value=0, holes=[], **params):
+    def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
+
+    def apply_to_mask(self, image, mask_fill_value=0, holes=(), **params):
+        if mask_fill_value is None:
+            return image
+        return F.cutout(image, holes, mask_fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
@@ -1575,7 +1635,16 @@ class CoarseDropout(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self):
-        return ("max_holes", "max_height", "max_width", "min_holes", "min_height", "min_width")
+        return (
+            "max_holes",
+            "max_height",
+            "max_width",
+            "min_holes",
+            "min_height",
+            "min_width",
+            "fill_value",
+            "mask_fill_value",
+        )
 
 
 class ImageCompression(ImageOnlyTransform):
@@ -1587,7 +1656,7 @@ class ImageCompression(ImageOnlyTransform):
         quality_upper (float): upper bound on the image quality.
                                Should be in [0, 100] range for jpeg and [1, 100] for webp.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
-            Defaul: ImageCompressionType.JPEG
+            Default: ImageCompressionType.JPEG
 
     Targets:
         image
@@ -1596,7 +1665,7 @@ class ImageCompression(ImageOnlyTransform):
         uint8, float32
     """
 
-    class ImageCompressionType(Enum):
+    class ImageCompressionType(IntEnum):
         JPEG = 0
         WEBP = 1
 
@@ -1610,14 +1679,16 @@ class ImageCompression(ImageOnlyTransform):
     ):
         super(ImageCompression, self).__init__(always_apply, p)
 
-        self.compression_type = compression_type
+        self.compression_type = ImageCompression.ImageCompressionType(compression_type)
         low_thresh_quality_assert = 0
 
         if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
             low_thresh_quality_assert = 1
 
-        assert low_thresh_quality_assert <= quality_lower <= 100
-        assert low_thresh_quality_assert <= quality_upper <= 100
+        if not low_thresh_quality_assert <= quality_lower <= 100:
+            raise ValueError("Invalid quality_lower. Got: {}".format(quality_lower))
+        if not low_thresh_quality_assert <= quality_upper <= 100:
+            raise ValueError("Invalid quality_upper. Got: {}".format(quality_upper))
 
         self.quality_lower = quality_lower
         self.quality_upper = quality_upper
@@ -1633,8 +1704,12 @@ class ImageCompression(ImageOnlyTransform):
 
         return {"quality": random.randint(self.quality_lower, self.quality_upper), "image_type": image_type}
 
-    def get_transform_init_args_names(self):
-        return ("quality_lower", "quality_upper", "compression_type")
+    def get_transform_init_args(self):
+        return {
+            "quality_lower": self.quality_lower,
+            "quality_upper": self.quality_upper,
+            "compression_type": self.compression_type.value,
+        }
 
 
 class JpegCompression(ImageCompression):
@@ -1685,8 +1760,14 @@ class RandomSnow(ImageOnlyTransform):
     def __init__(self, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, always_apply=False, p=0.5):
         super(RandomSnow, self).__init__(always_apply, p)
 
-        assert 0 <= snow_point_lower <= snow_point_upper <= 1
-        assert 0 <= brightness_coeff
+        if not 0 <= snow_point_lower <= snow_point_upper <= 1:
+            raise ValueError(
+                "Invalid combination of snow_point_lower and snow_point_upper. Got: {}".format(
+                    (snow_point_lower, snow_point_upper)
+                )
+            )
+        if brightness_coeff < 0:
+            raise ValueError("brightness_coeff must be greater than 0. Got: {}".format(brightness_coeff))
 
         self.snow_point_lower = snow_point_lower
         self.snow_point_upper = snow_point_upper
@@ -1717,7 +1798,6 @@ class RandomRain(ImageOnlyTransform):
         brightness_coefficient (float): rainy days are usually shady. Should be in range [0, 1].
         rain_type: One of [None, "drizzle", "heavy", "torrestial"]
 
-
     Targets:
         image
 
@@ -1740,12 +1820,20 @@ class RandomRain(ImageOnlyTransform):
     ):
         super(RandomRain, self).__init__(always_apply, p)
 
-        assert rain_type in ["drizzle", "heavy", "torrential", None]
-
-        assert -20 <= slant_lower <= slant_upper <= 20
-        assert 1 <= drop_width <= 5
-        assert 0 <= drop_length <= 100
-        assert 0 <= brightness_coefficient <= 1
+        if rain_type not in ["drizzle", "heavy", "torrential", None]:
+            raise ValueError(
+                "raint_type must be one of ({}). Got: {}".format(["drizzle", "heavy", "torrential", None], rain_type)
+            )
+        if not -20 <= slant_lower <= slant_upper <= 20:
+            raise ValueError(
+                "Invalid combination of slant_lower and slant_upper. Got: {}".format((slant_lower, slant_upper))
+            )
+        if not 1 <= drop_width <= 5:
+            raise ValueError("drop_width must be in range [1, 5]. Got: {}".format(drop_width))
+        if not 0 <= drop_length <= 100:
+            raise ValueError("drop_length must be in range [0, 100]. Got: {}".format(drop_length))
+        if not 0 <= brightness_coefficient <= 1:
+            raise ValueError("brightness_coefficient must be in range [0, 1]. Got: {}".format(brightness_coefficient))
 
         self.slant_lower = slant_lower
         self.slant_upper = slant_upper
@@ -1757,7 +1845,7 @@ class RandomRain(ImageOnlyTransform):
         self.brightness_coefficient = brightness_coefficient
         self.rain_type = rain_type
 
-    def apply(self, image, slant=10, drop_length=20, rain_drops=[], **params):
+    def apply(self, image, slant=10, drop_length=20, rain_drops=(), **params):
         return F.add_rain(
             image,
             slant,
@@ -1840,14 +1928,20 @@ class RandomFog(ImageOnlyTransform):
     def __init__(self, fog_coef_lower=0.3, fog_coef_upper=1, alpha_coef=0.08, always_apply=False, p=0.5):
         super(RandomFog, self).__init__(always_apply, p)
 
-        assert 0 <= fog_coef_lower <= fog_coef_upper <= 1
-        assert 0 <= alpha_coef <= 1
+        if not 0 <= fog_coef_lower <= fog_coef_upper <= 1:
+            raise ValueError(
+                "Invalid combination if fog_coef_lower and fog_coef_upper. Got: {}".format(
+                    (fog_coef_lower, fog_coef_upper)
+                )
+            )
+        if not 0 <= alpha_coef <= 1:
+            raise ValueError("alpha_coef must be in range [0, 1]. Got: {}".format(alpha_coef))
 
         self.fog_coef_lower = fog_coef_lower
         self.fog_coef_upper = fog_coef_upper
         self.alpha_coef = alpha_coef
 
-    def apply(self, image, fog_coef=0.1, haze_list=[], **params):
+    def apply(self, image, fog_coef=0.1, haze_list=(), **params):
         return F.add_fog(image, fog_coef, self.alpha_coef, haze_list)
 
     @property
@@ -1923,10 +2017,21 @@ class RandomSunFlare(ImageOnlyTransform):
 
         (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = flare_roi
 
-        assert 0 <= flare_center_lower_x < flare_center_upper_x <= 1
-        assert 0 <= flare_center_lower_y < flare_center_upper_y <= 1
-        assert 0 <= angle_lower < angle_upper <= 1
-        assert 0 <= num_flare_circles_lower < num_flare_circles_upper
+        if (
+            not 0 <= flare_center_lower_x < flare_center_upper_x <= 1
+            or not 0 <= flare_center_lower_y < flare_center_upper_y <= 1
+        ):
+            raise ValueError("Invalid flare_roi. Got: {}".format(flare_roi))
+        if not 0 <= angle_lower < angle_upper <= 1:
+            raise ValueError(
+                "Invalid combination of angle_lower nad angle_upper. Got: {}".format((angle_lower, angle_upper))
+            )
+        if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
+            raise ValueError(
+                "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. Got: {}".format(
+                    (num_flare_circles_lower, num_flare_circles_upper)
+                )
+            )
 
         self.flare_center_lower_x = flare_center_lower_x
         self.flare_center_upper_x = flare_center_upper_x
@@ -1942,8 +2047,7 @@ class RandomSunFlare(ImageOnlyTransform):
         self.src_radius = src_radius
         self.src_color = src_color
 
-    def apply(self, image, flare_center_x=0.5, flare_center_y=0.5, circles=[], **params):
-
+    def apply(self, image, flare_center_x=0.5, flare_center_y=0.5, circles=(), **params):
         return F.add_sun_flare(image, flare_center_x, flare_center_y, self.src_radius, self.src_color, circles)
 
     @property
@@ -2038,9 +2142,14 @@ class RandomShadow(ImageOnlyTransform):
 
         (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
 
-        assert 0 <= shadow_lower_x <= shadow_upper_x <= 1
-        assert 0 <= shadow_lower_y <= shadow_upper_y <= 1
-        assert 0 <= num_shadows_lower <= num_shadows_upper
+        if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
+            raise ValueError("Invalid shadow_roi. Got: {}".format(shadow_roi))
+        if not 0 <= num_shadows_lower <= num_shadows_upper:
+            raise ValueError(
+                "Invalid combination of num_shadows_lower nad num_shadows_upper. Got: {}".format(
+                    (num_shadows_lower, num_shadows_upper)
+                )
+            )
 
         self.shadow_roi = shadow_roi
 
@@ -2049,7 +2158,7 @@ class RandomShadow(ImageOnlyTransform):
 
         self.shadow_dimension = shadow_dimension
 
-    def apply(self, image, vertices_list=[], **params):
+    def apply(self, image, vertices_list=(), **params):
         return F.add_shadow(image, vertices_list)
 
     @property
@@ -2215,7 +2324,6 @@ class Equalize(ImageOnlyTransform):
 
     Image types:
         uint8
-
     """
 
     def __init__(self, mode="cv", by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5):
@@ -2420,7 +2528,8 @@ class MotionBlur(Blur):
 
     def get_params(self):
         ksize = random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
-        assert ksize > 2
+        if ksize <= 2:
+            raise ValueError("ksize must be > 2. Got: {}".format(ksize))
         kernel = np.zeros((ksize, ksize), dtype=np.uint8)
         xs, xe = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
         if xs == xe:
@@ -2452,16 +2561,25 @@ class MedianBlur(Blur):
     def __init__(self, blur_limit=7, always_apply=False, p=0.5):
         super(MedianBlur, self).__init__(blur_limit, always_apply, p)
 
+        if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+            raise ValueError("MedianBlur supports only odd blur limits.")
+
     def apply(self, image, ksize=3, **params):
         return F.median_blur(image, ksize)
 
 
-class GaussianBlur(Blur):
+class GaussianBlur(ImageOnlyTransform):
     """Blur the input image using using a Gaussian filter with a random kernel size.
 
     Args:
-        blur_limit (int): maximum Gaussian kernel size for blurring the input image.
-            Must be zero or odd and in range [3, inf). Default: (3, 7).
+        blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
+            Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
+            as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
+            If set single value `blur_limit` will be in range (0, blur_limit).
+            Default: (3, 7).
+        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be greater in range [0, inf).
+            If set single value `sigma_limit` will be in range (0, sigma_limit).
+            If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2471,11 +2589,35 @@ class GaussianBlur(Blur):
         uint8, float32
     """
 
-    def __init__(self, blur_limit=7, always_apply=False, p=0.5):
-        super(GaussianBlur, self).__init__(blur_limit, always_apply, p)
+    def __init__(self, blur_limit=(3, 7), sigma_limit=0, always_apply=False, p=0.5):
+        super(GaussianBlur, self).__init__(always_apply, p)
+        self.blur_limit = to_tuple(blur_limit, 0)
+        self.sigma_limit = to_tuple(sigma_limit if sigma_limit is not None else 0, 0)
 
-    def apply(self, image, ksize=3, **params):
-        return F.gaussian_blur(image, ksize)
+        if self.blur_limit[0] == 0 and self.sigma_limit[0] == 0:
+            self.blur_limit = 3, max(3, self.blur_limit[1])
+            warnings.warn(
+                "blur_limit and sigma_limit minimum value can not be both equal to 0. "
+                "blur_limit minimum value changed to 3."
+            )
+
+        if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
+            self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
+        ):
+            raise ValueError("GaussianBlur supports only odd blur limits.")
+
+    def apply(self, image, ksize=3, sigma=0, **params):
+        return F.gaussian_blur(image, ksize, sigma=sigma)
+
+    def get_params(self):
+        ksize = np.random.randint(self.blur_limit[0], self.blur_limit[1] + 1)
+        if ksize != 0 and ksize % 2 != 1:
+            ksize = (ksize + 1) % (self.blur_limit[1] + 1)
+
+        return {"ksize": ksize, "sigma": random.uniform(*self.sigma_limit)}
+
+    def get_transform_init_args_names(self):
+        return ("blur_limit", "sigma_limit")
 
 
 class GaussNoise(ImageOnlyTransform):
@@ -2496,7 +2638,7 @@ class GaussNoise(ImageOnlyTransform):
 
     def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
-        if isinstance(var_limit, tuple):
+        if isinstance(var_limit, (tuple, list)):
             if var_limit[0] < 0:
                 raise ValueError("Lower var_limit should be non negative.")
             if var_limit[1] < 0:
@@ -2504,9 +2646,13 @@ class GaussNoise(ImageOnlyTransform):
             self.var_limit = var_limit
         elif isinstance(var_limit, (int, float)):
             if var_limit < 0:
-                raise ValueError(" var_limit should be non negative.")
+                raise ValueError("var_limit should be non negative.")
 
             self.var_limit = (0, var_limit)
+        else:
+            raise TypeError(
+                "Expected var_limit type to be one of (int, float, tuple, list), got {}".format(type(var_limit))
+            )
 
         self.mean = mean
 
@@ -2621,7 +2767,8 @@ class ChannelDropout(ImageOnlyTransform):
         self.min_channels = channel_drop_range[0]
         self.max_channels = channel_drop_range[1]
 
-        assert 1 <= self.min_channels <= self.max_channels
+        if not 1 <= self.min_channels <= self.max_channels:
+            raise ValueError("Invalid channel_drop_range. Got: {}".format(channel_drop_range))
 
         self.fill_value = fill_value
 
@@ -2670,7 +2817,7 @@ class ChannelShuffle(ImageOnlyTransform):
     def targets_as_params(self):
         return ["image"]
 
-    def apply(self, img, channels_shuffled=[0, 1, 2], **params):
+    def apply(self, img, channels_shuffled=(0, 1, 2), **params):
         return F.channel_shuffle(img, channels_shuffled)
 
     def get_params_dependent_on_targets(self, params):
@@ -2862,10 +3009,10 @@ class Downscale(ImageOnlyTransform):
 
     def __init__(self, scale_min=0.25, scale_max=0.25, interpolation=cv2.INTER_NEAREST, always_apply=False, p=0.5):
         super(Downscale, self).__init__(always_apply, p)
-        assert scale_min <= scale_max, "Expected scale_min be less or equal scale_max, got {} {}".format(
-            scale_min, scale_max
-        )
-        assert scale_max < 1, "Expected scale_max to be less than 1, got {}".format(scale_max)
+        if scale_min > scale_max:
+            raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
+        if scale_max >= 1:
+            raise ValueError("Expected scale_max to be less than 1, got {}".format(scale_max))
         self.scale_min = scale_min
         self.scale_max = scale_max
         self.interpolation = interpolation
@@ -2897,7 +3044,6 @@ class Lambda(NoOp):
 
     Image types:
         Any
-
     """
 
     def __init__(self, image=None, mask=None, keypoint=None, bbox=None, name=None, always_apply=False, p=1.0):
@@ -3026,9 +3172,6 @@ class FancyPCA(ImageOnlyTransform):
     """
 
     def __init__(self, alpha=0.1, always_apply=False, p=0.5):
-        """
-
-        """
         super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
         self.alpha = alpha
 
@@ -3128,6 +3271,7 @@ class MaskDropout(DualTransform):
 
 class GlassBlur(Blur):
     """Apply glass noise to the input image.
+
     Args:
         sigma (float): standard deviation for Gaussian kernel.
         max_delta (int): max distance between pixels which are swapped.
@@ -3135,8 +3279,10 @@ class GlassBlur(Blur):
             Should be in range [1, inf). Default: (2).
         mode (str): mode of computation: fast or exact. Default: "fast".
         p (float): probability of applying the transform. Default: 0.5.
+
     Targets:
         image
+
     Image types:
         uint8, float32
 
@@ -3158,7 +3304,7 @@ class GlassBlur(Blur):
         self.iterations = iterations
         self.mode = mode
 
-    def apply(self, img, sigma=0.7, max_delta=4, iterations=2, dxy=0, **params):
+    def apply(self, img, dxy=0, **params):
         return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
 
     def get_params_dependent_on_targets(self, params):
@@ -3181,35 +3327,38 @@ class GlassBlur(Blur):
 
 
 class GridDropout(DualTransform):
-    """
-    GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
+    """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
 
-        Args:
-            ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
-                Must be between 0 and 1. Default: 0.5.
-            unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
-                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-            unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
-                If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-            holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
-                If 'None', grid unit width is set as image_width//10. Default: `None`.
-            holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
-                If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
-            shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
-                Clipped between 0 and grid unit_width - hole_width. Default: 0.
-            shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
-                Clipped between 0 and grid unit height - hole_height. Default: 0.
-            random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
-                If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
-            fill_value (int): value for the dropped pixels. Default = 0
-            mask_fill_value (int): value for the dropped pixels in mask.
-                If `None`, tranformation is not applied to the mask. Default: `None`.
-        Targets:
-            image, mask
-        Image types:
-            uint8, float32
-        References:
-            https://arxiv.org/abs/2001.04086
+    Args:
+        ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
+            Must be between 0 and 1. Default: 0.5.
+        unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
+            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
+            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
+        holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
+            If 'None', grid unit width is set as image_width//10. Default: `None`.
+        holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
+            If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
+        shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
+            Clipped between 0 and grid unit_width - hole_width. Default: 0.
+        shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
+            Clipped between 0 and grid unit height - hole_height. Default: 0.
+        random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
+            If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
+        fill_value (int): value for the dropped pixels. Default = 0
+        mask_fill_value (int): value for the dropped pixels in mask.
+            If `None`, transformation is not applied to the mask. Default: `None`.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    References:
+        https://arxiv.org/abs/2001.04086
+
     """
 
     def __init__(
@@ -3241,14 +3390,14 @@ class GridDropout(DualTransform):
         if not 0 < self.ratio <= 1:
             raise ValueError("ratio must be between 0 and 1.")
 
-    def apply(self, image, holes=[], **params):
+    def apply(self, image, holes=(), **params):
         return F.cutout(image, holes, self.fill_value)
 
-    def apply_to_mask(self, image, holes=[], **params):
+    def apply_to_mask(self, image, holes=(), **params):
         if self.mask_fill_value is None:
             return image
-        else:
-            return F.cutout(image, holes, self.mask_fill_value)
+
+        return F.cutout(image, holes, self.mask_fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
@@ -3320,3 +3469,73 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
+
+
+class ColorJitter(ImageOnlyTransform):
+    """Randomly changes the brightness, contrast, and saturation of an image. Compared to ColorJitter from torchvision,
+    this transform gives a little bit different results because Pillow (used in torchvision) and OpenCV (used in
+    Albumentations) transform an image to HSV format by different formulas. Another difference - Pillow uses uint8
+    overflow, but we use value saturation.
+
+    Args:
+        brightness (float or tuple of float (min, max)): How much to jitter brightness.
+            brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
+            or the given [min, max]. Should be non negative numbers.
+        contrast (float or tuple of float (min, max)): How much to jitter contrast.
+            contrast_factor is chosen uniformly from [max(0, 1 - contrast), 1 + contrast]
+            or the given [min, max]. Should be non negative numbers.
+        saturation (float or tuple of float (min, max)): How much to jitter saturation.
+            saturation_factor is chosen uniformly from [max(0, 1 - saturation), 1 + saturation]
+            or the given [min, max]. Should be non negative numbers.
+        hue (float or tuple of float (min, max)): How much to jitter hue.
+            hue_factor is chosen uniformly from [-hue, hue] or the given [min, max].
+            Should have 0 <= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
+    """
+
+    def __init__(self, brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, always_apply=False, p=0.5):
+        super(ColorJitter, self).__init__(always_apply=always_apply, p=p)
+
+        self.brightness = self.__check_values(brightness, "brightness")
+        self.contrast = self.__check_values(contrast, "contrast")
+        self.saturation = self.__check_values(saturation, "saturation")
+        self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
+
+    @staticmethod
+    def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
+        if isinstance(value, numbers.Number):
+            if value < 0:
+                raise ValueError("If {} is a single number, it must be non negative.".format(name))
+            value = [offset - value, offset + value]
+            if clip:
+                value[0] = max(value[0], 0)
+        elif isinstance(value, (tuple, list)) and len(value) == 2:
+            if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+                raise ValueError("{} values should be between {}".format(name, bounds))
+        else:
+            raise TypeError("{} should be a single number or a list/tuple with length 2.".format(name))
+
+        return value
+
+    def get_params(self):
+        brightness = random.uniform(self.brightness[0], self.brightness[1])
+        contrast = random.uniform(self.contrast[0], self.contrast[1])
+        saturation = random.uniform(self.saturation[0], self.saturation[1])
+        hue = random.uniform(self.hue[0], self.hue[1])
+
+        transforms = [
+            lambda x: F.adjust_brightness_torchvision(x, brightness),
+            lambda x: F.adjust_contrast_torchvision(x, contrast),
+            lambda x: F.adjust_saturation_torchvision(x, saturation),
+            lambda x: F.adjust_hue_torchvision(x, hue),
+        ]
+        random.shuffle(transforms)
+
+        return {"transforms": transforms}
+
+    def apply(self, img, transforms=(), **params):
+        for transform in transforms:
+            img = transform(img)
+        return img
+
+    def get_transform_init_args_names(self):
+        return ("brightness", "contrast", "saturation", "hue")

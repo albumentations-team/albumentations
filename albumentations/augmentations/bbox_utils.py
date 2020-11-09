@@ -33,7 +33,7 @@ class BboxProcessor(DataProcessor):
                         "because bboxes must have labels"
                     )
         if self.params.label_fields:
-            if not all(l in data.keys() for l in self.params.label_fields):
+            if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
     def filter(self, data, rows, cols):
@@ -233,15 +233,15 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         bbox, tail = bbox[:4], tuple(bbox[4:])
         _bbox = np.array(bbox[:4])
-        if not np.all((0 < _bbox) & (_bbox <= 1)):
+        if np.any((_bbox <= 0) | (_bbox > 1)):
             raise ValueError("In YOLO format all labels must be float and in range (0, 1]")
 
-        x, y, width, height = np.round(denormalize_bbox(bbox, rows, cols))
+        x, y, width, height = denormalize_bbox(bbox, rows, cols)
 
-        x_min = x - width / 2 + 1
-        x_max = x_min + width
-        y_min = y - height / 2 + 1
-        y_max = y_min + height
+        x_min = int(x - width / 2 + 1)
+        x_max = int(x_min + width)
+        y_min = int(y - height / 2 + 1)
+        y_max = int(y_min + height)
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
@@ -289,8 +289,8 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
     elif target_format == "yolo":
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
-        x = (x_min + x_max) / 2 - 1
-        y = (y_min + y_max) / 2 - 1
+        x = int((x_min + x_max) / 2 - 1)
+        y = int((y_min + y_max) / 2 - 1)
         width = x_max - x_min
         height = y_max - y_min
         bbox = normalize_bbox((x, y, width, height) + tail, rows, cols)
@@ -373,7 +373,7 @@ def filter_bboxes(bboxes, rows, cols, min_area=0.0, min_visibility=0.0):
     return resulting_boxes
 
 
-def union_of_bboxes(height, width, bboxes, erosion_rate=0.0, to_int=False):
+def union_of_bboxes(height, width, bboxes, erosion_rate=0.0):
     """Calculate union of bounding boxes.
 
     Args:

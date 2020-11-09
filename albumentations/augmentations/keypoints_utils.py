@@ -28,7 +28,7 @@ class KeypointsProcessor(DataProcessor):
 
     def ensure_data_valid(self, data):
         if self.params.label_fields:
-            if not all(l in data.keys() for l in self.params.label_fields):
+            if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError(
                     "Your 'label_fields' are not valid - them must have same names as params in "
                     "'keypoint_params' dict"
