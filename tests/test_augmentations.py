@@ -1,4 +1,5 @@
 import random
+from typing import Type, Dict, Tuple
 
 import cv2
 import numpy as np
@@ -62,6 +63,9 @@ from albumentations import (
     Downscale,
     MultiplicativeNoise,
     GridDropout,
+    ColorJitter,
+    FDA,
+    HistogramMatching,
 )
 
 
@@ -98,6 +102,15 @@ from albumentations import (
         [Downscale, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -136,6 +149,15 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         [Solarize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -156,6 +178,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [CoarseDropout, {"fill_value": 0, "mask_fill_value": 0}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
@@ -278,6 +301,15 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Equalize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -336,6 +368,15 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [Solarize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -378,6 +419,12 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
         [HueSaturationValue, {}],
+        [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [FDA, {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -397,14 +444,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
     result = aug(image=image_1ch, mask=mask_1ch)
     assert np.array_equal(image_1ch.shape, result["image"].shape)
     assert np.array_equal(mask_1ch.shape, result["mask"].shape)
-
-    # Test for RGB image
-    image_3ch = np.zeros((224, 224, 3), dtype=np.uint8)
-    mask_3ch = np.zeros((224, 224, 3))
-
-    result = aug(image=image_3ch, mask=mask_3ch)
-    assert np.array_equal(image_3ch.shape, result["image"].shape)
-    assert np.array_equal(mask_3ch.shape, result["mask"].shape)
 
 
 @pytest.mark.parametrize(
@@ -452,6 +491,15 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Equalize, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [ColorJitter, {}],
+        [
+            HistogramMatching,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
+        [
+            FDA,
+            {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+        ],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -522,3 +570,89 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     data = aug(image=image)
     assert data["image"].dtype == np.uint8
     assert data["image"].shape[2] == 6
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    [
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {"blur_limit": [7, 7]}],
+        [GaussianBlur, {"blur_limit": [7, 7]}],
+        [GaussNoise, {}],
+        [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
+        [ShiftScaleRotate, {}],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}],
+        [LongestMaxSize, {"max_size": 256}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [RandomBrightnessContrast, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+    ],
+)
+def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
+    for num_channels in range(3, 13):
+        image = np.zeros((512, 512, num_channels), dtype=np.uint8)
+        aug = augmentation_cls(p=1, **params)
+        data = aug(image=image)
+        assert data["image"].dtype == np.uint8
+        assert data["image"].shape[2] == num_channels
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params", "image_shape"],
+    [
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (300, 200)],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (512, 516)],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (600, 600)],
+        [
+            PadIfNeeded,
+            {"min_height": None, "min_width": None, "pad_height_divisor": 128, "pad_width_divisor": 128},
+            (300, 200),
+        ],
+        [
+            PadIfNeeded,
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            (72, 128),
+        ],
+        [
+            PadIfNeeded,
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            (15, 15),
+        ],
+        [
+            PadIfNeeded,
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            (144, 256),
+        ],
+        [
+            PadIfNeeded,
+            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            (200, 300),
+        ],
+        [PadIfNeeded, {"min_height": 512, "min_width": None, "pad_width_divisor": 128}, (300, 200)],
+        [PadIfNeeded, {"min_height": None, "min_width": 512, "pad_height_divisor": 128}, (300, 200)],
+    ],
+)
+def test_pad_if_needed(augmentation_cls: Type[PadIfNeeded], params: Dict, image_shape: Tuple[int, int]):
+    image = np.zeros(image_shape)
+    pad = augmentation_cls(**params)
+
+    image_padded = pad(image=image)["image"]
+
+    if pad.min_width is not None:
+        assert image_padded.shape[1] >= pad.min_width
+
+    if pad.min_height is not None:
+        assert image_padded.shape[0] >= pad.min_height
+
+    if pad.pad_width_divisor is not None:
+        assert image_padded.shape[1] % pad.pad_width_divisor == 0
+        assert image_padded.shape[1] >= image.shape[1]
+        assert image_padded.shape[1] - image.shape[1] <= pad.pad_width_divisor
+
+    if pad.pad_height_divisor is not None:
+        assert image_padded.shape[0] % pad.pad_height_divisor == 0
+        assert image_padded.shape[0] >= image.shape[0]
+        assert image_padded.shape[0] - image.shape[0] <= pad.pad_height_divisor
