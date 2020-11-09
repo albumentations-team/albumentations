@@ -2,9 +2,11 @@ from __future__ import absolute_import, division
 
 import math
 import random
+import numbers
 import warnings
 from enum import IntEnum
 from types import LambdaType
+from typing import Optional
 
 import cv2
 import numpy as np
@@ -80,6 +82,7 @@ __all__ = [
     "FancyPCA",
     "MaskDropout",
     "GridDropout",
+    "ColorJitter",
 ]
 
 
@@ -89,6 +92,8 @@ class PadIfNeeded(DualTransform):
     Args:
         min_height (int): minimal result image height.
         min_width (int): minimal result image width.
+        pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
+        pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -105,17 +110,27 @@ class PadIfNeeded(DualTransform):
 
     def __init__(
         self,
-        min_height=1024,
-        min_width=1024,
+        min_height: Optional[int] = 1024,
+        min_width: Optional[int] = 1024,
+        pad_height_divisor: Optional[int] = None,
+        pad_width_divisor: Optional[int] = None,
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
         always_apply=False,
         p=1.0,
     ):
+        if (min_height is None) == (pad_height_divisor is None):
+            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
+
+        if (min_width is None) == (pad_width_divisor is None):
+            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
+
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
+        self.pad_width_divisor = pad_width_divisor
+        self.pad_height_divisor = pad_height_divisor
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -125,19 +140,33 @@ class PadIfNeeded(DualTransform):
         rows = params["rows"]
         cols = params["cols"]
 
-        if rows < self.min_height:
-            h_pad_top = int((self.min_height - rows) / 2.0)
-            h_pad_bottom = self.min_height - rows - h_pad_top
+        if self.min_height is not None:
+            if rows < self.min_height:
+                h_pad_top = int((self.min_height - rows) / 2.0)
+                h_pad_bottom = self.min_height - rows - h_pad_top
+            else:
+                h_pad_top = 0
+                h_pad_bottom = 0
         else:
-            h_pad_top = 0
-            h_pad_bottom = 0
+            pad_remained = rows % self.pad_height_divisor
+            pad_rows = self.pad_height_divisor - pad_remained if pad_remained > 0 else 0
 
-        if cols < self.min_width:
-            w_pad_left = int((self.min_width - cols) / 2.0)
-            w_pad_right = self.min_width - cols - w_pad_left
+            h_pad_top = pad_rows // 2
+            h_pad_bottom = pad_rows - h_pad_top
+
+        if self.min_width is not None:
+            if cols < self.min_width:
+                w_pad_left = int((self.min_width - cols) / 2.0)
+                w_pad_right = self.min_width - cols - w_pad_left
+            else:
+                w_pad_left = 0
+                w_pad_right = 0
         else:
-            w_pad_left = 0
-            w_pad_right = 0
+            pad_remainder = cols % self.pad_width_divisor
+            pad_cols = self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
+
+            w_pad_left = pad_cols // 2
+            w_pad_right = pad_cols - w_pad_left
 
         params.update(
             {"pad_top": h_pad_top, "pad_bottom": h_pad_bottom, "pad_left": w_pad_left, "pad_right": w_pad_right}
@@ -165,7 +194,15 @@ class PadIfNeeded(DualTransform):
         return x + pad_left, y + pad_top, angle, scale
 
     def get_transform_init_args_names(self):
-        return ("min_height", "min_width", "border_mode", "value", "mask_value")
+        return (
+            "min_height",
+            "min_width",
+            "pad_height_divisor",
+            "pad_width_divisor",
+            "border_mode",
+            "value",
+            "mask_value",
+        )
 
 
 class Crop(DualTransform):
@@ -602,6 +639,14 @@ class ShiftScaleRotate(DualTransform):
         mask_value (int, float,
                     list of int,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        shift_limit_x ((float, float) or float): shift factor range for width. If it is set then this value
+            instead of shift_limit will be used for shifting width.  If shift_limit_x is a single float value,
+            the range will be (-shift_limit_x, shift_limit_x). Absolute values for lower and upper bounds should lie in
+            the range [0, 1]. Default: None.
+        shift_limit_y ((float, float) or float): shift factor range for height. If it is set then this value
+            instead of shift_limit will be used for shifting height.  If shift_limit_y is a single float value,
+            the range will be (-shift_limit_y, shift_limit_y). Absolute values for lower and upper bounds should lie
+            in the range [0, 1]. Default: None.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -620,11 +665,14 @@ class ShiftScaleRotate(DualTransform):
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
+        shift_limit_x=None,
+        shift_limit_y=None,
         always_apply=False,
         p=0.5,
     ):
         super(ShiftScaleRotate, self).__init__(always_apply, p)
-        self.shift_limit = to_tuple(shift_limit)
+        self.shift_limit_x = to_tuple(shift_limit_x if shift_limit_x is not None else shift_limit)
+        self.shift_limit_y = to_tuple(shift_limit_y if shift_limit_y is not None else shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.rotate_limit = to_tuple(rotate_limit)
         self.interpolation = interpolation
@@ -645,8 +693,8 @@ class ShiftScaleRotate(DualTransform):
         return {
             "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
             "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
-            "dx": random.uniform(self.shift_limit[0], self.shift_limit[1]),
-            "dy": random.uniform(self.shift_limit[0], self.shift_limit[1]),
+            "dx": random.uniform(self.shift_limit_x[0], self.shift_limit_x[1]),
+            "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
@@ -654,7 +702,8 @@ class ShiftScaleRotate(DualTransform):
 
     def get_transform_init_args(self):
         return {
-            "shift_limit": self.shift_limit,
+            "shift_limit_x": self.shift_limit_x,
+            "shift_limit_y": self.shift_limit_y,
             "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
             "rotate_limit": self.rotate_limit,
             "interpolation": self.interpolation,
@@ -1496,7 +1545,7 @@ class Cutout(ImageOnlyTransform):
         return ("num_holes", "max_h_size", "max_w_size")
 
 
-class CoarseDropout(ImageOnlyTransform):
+class CoarseDropout(DualTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
@@ -1510,9 +1559,11 @@ class CoarseDropout(ImageOnlyTransform):
         min_width (int): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
         fill_value (int, float, lisf of int, list of float): value for dropped pixels.
+        mask_fill_value (int, float, lisf of int, list of float): fill value for dropped pixels
+            in mask. If None - mask is not affected.
 
     Targets:
-        image
+        image, mask
 
     Image types:
         uint8, float32
@@ -1532,6 +1583,7 @@ class CoarseDropout(ImageOnlyTransform):
         min_height=None,
         min_width=None,
         fill_value=0,
+        mask_fill_value=None,
         always_apply=False,
         p=0.5,
     ):
@@ -1543,6 +1595,7 @@ class CoarseDropout(ImageOnlyTransform):
         self.min_height = min_height if min_height is not None else max_height
         self.min_width = min_width if min_width is not None else max_width
         self.fill_value = fill_value
+        self.mask_fill_value = mask_fill_value
         if not 0 < self.min_holes <= self.max_holes:
             raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
         if not 0 < self.min_height <= self.max_height:
@@ -1554,6 +1607,11 @@ class CoarseDropout(ImageOnlyTransform):
 
     def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
+
+    def apply_to_mask(self, image, mask_fill_value=0, holes=(), **params):
+        if mask_fill_value is None:
+            return image
+        return F.cutout(image, holes, mask_fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
@@ -1577,7 +1635,16 @@ class CoarseDropout(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self):
-        return ("max_holes", "max_height", "max_width", "min_holes", "min_height", "min_width")
+        return (
+            "max_holes",
+            "max_height",
+            "max_width",
+            "min_holes",
+            "min_height",
+            "min_width",
+            "fill_value",
+            "mask_fill_value",
+        )
 
 
 class ImageCompression(ImageOnlyTransform):
@@ -3105,9 +3172,6 @@ class FancyPCA(ImageOnlyTransform):
     """
 
     def __init__(self, alpha=0.1, always_apply=False, p=0.5):
-        """
-
-        """
         super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
         self.alpha = alpha
 
@@ -3284,7 +3348,7 @@ class GridDropout(DualTransform):
             If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
         fill_value (int): value for the dropped pixels. Default = 0
         mask_fill_value (int): value for the dropped pixels in mask.
-            If `None`, tranformation is not applied to the mask. Default: `None`.
+            If `None`, transformation is not applied to the mask. Default: `None`.
 
     Targets:
         image, mask
@@ -3405,3 +3469,73 @@ class GridDropout(DualTransform):
             "mask_fill_value",
             "random_offset",
         )
+
+
+class ColorJitter(ImageOnlyTransform):
+    """Randomly changes the brightness, contrast, and saturation of an image. Compared to ColorJitter from torchvision,
+    this transform gives a little bit different results because Pillow (used in torchvision) and OpenCV (used in
+    Albumentations) transform an image to HSV format by different formulas. Another difference - Pillow uses uint8
+    overflow, but we use value saturation.
+
+    Args:
+        brightness (float or tuple of float (min, max)): How much to jitter brightness.
+            brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
+            or the given [min, max]. Should be non negative numbers.
+        contrast (float or tuple of float (min, max)): How much to jitter contrast.
+            contrast_factor is chosen uniformly from [max(0, 1 - contrast), 1 + contrast]
+            or the given [min, max]. Should be non negative numbers.
+        saturation (float or tuple of float (min, max)): How much to jitter saturation.
+            saturation_factor is chosen uniformly from [max(0, 1 - saturation), 1 + saturation]
+            or the given [min, max]. Should be non negative numbers.
+        hue (float or tuple of float (min, max)): How much to jitter hue.
+            hue_factor is chosen uniformly from [-hue, hue] or the given [min, max].
+            Should have 0 <= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
+    """
+
+    def __init__(self, brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, always_apply=False, p=0.5):
+        super(ColorJitter, self).__init__(always_apply=always_apply, p=p)
+
+        self.brightness = self.__check_values(brightness, "brightness")
+        self.contrast = self.__check_values(contrast, "contrast")
+        self.saturation = self.__check_values(saturation, "saturation")
+        self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
+
+    @staticmethod
+    def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
+        if isinstance(value, numbers.Number):
+            if value < 0:
+                raise ValueError("If {} is a single number, it must be non negative.".format(name))
+            value = [offset - value, offset + value]
+            if clip:
+                value[0] = max(value[0], 0)
+        elif isinstance(value, (tuple, list)) and len(value) == 2:
+            if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+                raise ValueError("{} values should be between {}".format(name, bounds))
+        else:
+            raise TypeError("{} should be a single number or a list/tuple with length 2.".format(name))
+
+        return value
+
+    def get_params(self):
+        brightness = random.uniform(self.brightness[0], self.brightness[1])
+        contrast = random.uniform(self.contrast[0], self.contrast[1])
+        saturation = random.uniform(self.saturation[0], self.saturation[1])
+        hue = random.uniform(self.hue[0], self.hue[1])
+
+        transforms = [
+            lambda x: F.adjust_brightness_torchvision(x, brightness),
+            lambda x: F.adjust_contrast_torchvision(x, contrast),
+            lambda x: F.adjust_saturation_torchvision(x, saturation),
+            lambda x: F.adjust_hue_torchvision(x, hue),
+        ]
+        random.shuffle(transforms)
+
+        return {"transforms": transforms}
+
+    def apply(self, img, transforms=(), **params):
+        for transform in transforms:
+            img = transform(img)
+        return img
+
+    def get_transform_init_args_names(self):
+        return ("brightness", "contrast", "saturation", "hue")

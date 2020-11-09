@@ -377,18 +377,20 @@ def _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, sat, val = cv2.split(img)
 
-    lut_hue = np.arange(0, 256, dtype=np.int16)
-    lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
+    if hue_shift != 0:
+        lut_hue = np.arange(0, 256, dtype=np.int16)
+        lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
+        hue = cv2.LUT(hue, lut_hue)
 
-    lut_sat = np.arange(0, 256, dtype=np.int16)
-    lut_sat = np.clip(lut_sat + sat_shift, 0, 255).astype(dtype)
+    if sat_shift != 0:
+        lut_sat = np.arange(0, 256, dtype=np.int16)
+        lut_sat = np.clip(lut_sat + sat_shift, 0, 255).astype(dtype)
+        sat = cv2.LUT(sat, lut_sat)
 
-    lut_val = np.arange(0, 256, dtype=np.int16)
-    lut_val = np.clip(lut_val + val_shift, 0, 255).astype(dtype)
-
-    hue = cv2.LUT(hue, lut_hue)
-    sat = cv2.LUT(sat, lut_sat)
-    val = cv2.LUT(val, lut_val)
+    if val_shift != 0:
+        lut_val = np.arange(0, 256, dtype=np.int16)
+        lut_val = np.clip(lut_val + val_shift, 0, 255).astype(dtype)
+        val = cv2.LUT(val, lut_val)
 
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
@@ -402,23 +404,24 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
 
     if hue_shift != 0:
         hue = cv2.add(hue, hue_shift)
-        hue = np.where(hue < 0, hue + 180, hue)
-        hue = np.where(hue > 180, hue - 180, hue)
-        hue = hue.astype(dtype)
+        hue = np.mod(hue, 360)  # OpenCV fails with negative values
 
     if sat_shift != 0:
-        sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+        sat = clip(cv2.add(sat, sat_shift), dtype, 1.0)
 
     if val_shift != 0:
-        val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+        val = clip(cv2.add(val, val_shift), dtype, 1.0)
 
-    img = cv2.merge((hue, sat, val)).astype(dtype)
+    img = cv2.merge((hue, sat, val))
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
 
 
 @preserve_shape
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
+    if hue_shift == 0 and sat_shift == 0 and val_shift == 0:
+        return img
+
     is_gray = is_grayscale_image(img)
     if is_gray:
         if hue_shift != 0 or sat_shift != 0:
@@ -2061,3 +2064,97 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
     return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+
+
+def _adjust_brightness_torchvision_uint8(img, factor):
+    lut = np.arange(0, 256) * factor
+    lut = np.clip(lut, 0, 255).astype(np.uint8)
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def adjust_brightness_torchvision(img, factor):
+    if factor == 0:
+        return np.zeros_like(img)
+    elif factor == 1:
+        return img
+
+    if img.dtype == np.uint8:
+        return _adjust_brightness_torchvision_uint8(img, factor)
+
+    return clip(img * factor, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+def _adjust_contrast_torchvision_uint8(img, factor, mean):
+    lut = np.arange(0, 256) * factor
+    lut = lut + mean * (1 - factor)
+    lut = clip(lut, img.dtype, 255)
+
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def adjust_contrast_torchvision(img, factor):
+    if factor == 1:
+        return img
+
+    if is_grayscale_image(img):
+        mean = img.mean()
+    else:
+        mean = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).mean()
+
+    if factor == 0:
+        return np.full_like(img, int(mean + 0.5), dtype=img.dtype)
+
+    if img.dtype == np.uint8:
+        return _adjust_contrast_torchvision_uint8(img, factor, mean)
+
+    return clip(img.astype(np.float32) * factor + mean * (1 - factor), img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+@preserve_shape
+def adjust_saturation_torchvision(img, factor, gamma=0):
+    if factor == 1:
+        return img
+
+    if is_grayscale_image(img):
+        gray = img
+        return gray
+    else:
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+    if factor == 0:
+        return gray
+
+    result = cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
+    if img.dtype == np.uint8:
+        return result
+
+    # OpenCV does not clip values for float dtype
+    return clip(result, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+def _adjust_hue_torchvision_uint8(img, factor):
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+
+    lut = np.arange(0, 256, dtype=np.int16)
+    lut = np.mod(lut + 180 * factor, 180).astype(np.uint8)
+    img[..., 0] = cv2.LUT(img[..., 0], lut)
+
+    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+
+
+def adjust_hue_torchvision(img, factor):
+    if is_grayscale_image(img):
+        return img
+
+    if factor == 0:
+        return img
+
+    if img.dtype == np.uint8:
+        return _adjust_hue_torchvision_uint8(img, factor)
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    img[..., 0] = np.mod(img[..., 0] + factor * 360, 360)
+    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)

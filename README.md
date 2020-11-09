@@ -10,7 +10,7 @@
 * Easy to extend the library to wrap around other libraries.
 * Easy to extend to other tasks.
 * Supports transformations on images, masks, key points and bounding boxes.
-* Supports python 3.5-3.7
+* Supports Python 3.6-3.8.
 * Easy integration with PyTorch.
 * Easy transfer from torchvision.
 * Was used to get top results in many DL competitions at Kaggle, topcoder, CVPR, MICCAI.
@@ -117,14 +117,16 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [CLAHE](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CLAHE)
 - [ChannelDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ChannelDropout)
 - [ChannelShuffle](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ChannelShuffle)
-- [CoarseDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CoarseDropout)
+- [ColorJitter](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ColorJitter)
 - [Downscale](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Downscale)
 - [Equalize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Equalize)
+- [FDA](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.FDA)
 - [FancyPCA](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.FancyPCA)
 - [FromFloat](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.FromFloat)
 - [GaussNoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GaussNoise)
 - [GaussianBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GaussianBlur)
 - [GlassBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GlassBlur)
+- [HistogramMatching](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.HistogramMatching)
 - [HueSaturationValue](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.HueSaturationValue)
 - [IAAAdditiveGaussianNoise](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAAdditiveGaussianNoise)
 - [IAAEmboss](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAEmboss)
@@ -157,6 +159,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | Transform                                                                                                                                                           | Image | Masks | BBoxes | Keypoints |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :---: | :----: | :-------: |
 | [CenterCrop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CenterCrop)                             | ✓     | ✓     | ✓      | ✓         |
+| [CoarseDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CoarseDropout)                       | ✓     | ✓     |        |           |
 | [Crop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Crop)                                         | ✓     | ✓     | ✓      | ✓         |
 | [CropNonEmptyMaskIfExists](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CropNonEmptyMaskIfExists) | ✓     | ✓     | ✓      | ✓         |
 | [ElasticTransform](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ElasticTransform)                 | ✓     | ✓     |        |           |
@@ -173,7 +176,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Lambda](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Lambda)                                     | ✓     | ✓     | ✓      | ✓         |
 | [LongestMaxSize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.LongestMaxSize)                     | ✓     | ✓     | ✓      | ✓         |
 | [MaskDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MaskDropout)                           | ✓     | ✓     |        |           |
-| NoOp                                                                                                                                                                | ✓     | ✓     | ✓      | ✓         |
+| [NoOp](https://albumentations.ai/docs/api_reference/core/transforms_interface/#albumentations.core.transforms_interface.NoOp)                                       | ✓     | ✓     | ✓      | ✓         |
 | [OpticalDistortion](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.OpticalDistortion)               | ✓     | ✓     |        |           |
 | [PadIfNeeded](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.PadIfNeeded)                           | ✓     | ✓     | ✓      | ✓         |
 | [RandomCrop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomCrop)                             | ✓     | ✓     | ✓      | ✓         |
@@ -201,32 +204,35 @@ Albumentations has equivalents for common torchvision transforms as well as plen
 ## Benchmarking results
 To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
 
-Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Xeon Platinum 8168 CPU.
+Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Xeon Gold 6140 CPU.
 All outputs are converted to a contiguous NumPy array with the np.uint8 data type.
 The table shows how many images per second can be processed on a single core, higher is better.
 
-|                      |albumentations<br><small>0.4.5</small>|imgaug<br><small>0.4.0</small>|torchvision (Pillow-SIMD backend)<br><small>0.5.0</small>|keras<br><small>2.3.1</small>|augmentor<br><small>0.2.8</small>|solt<br><small>0.1.8</small>|
+|                      |albumentations<br><small>0.5.0</small>|imgaug<br><small>0.4.0</small>|torchvision (Pillow-SIMD backend)<br><small>0.7.0</small>|keras<br><small>2.4.3</small>|augmentor<br><small>0.2.8</small>|solt<br><small>0.1.9</small>|
 |----------------------|:------------------------------------:|:----------------------------:|:-------------------------------------------------------:|:---------------------------:|:-------------------------------:|:--------------------------:|
-|HorizontalFlip        |               **3066**               |             1544             |                          1652                           |             874             |              1658               |            853             |
-|VerticalFlip          |               **4159**               |             2014             |                          1427                           |            4147             |              1448               |            3788            |
-|Rotate                |               **417**                |             327              |                           160                           |             29              |               60                |            113             |
-|ShiftScaleRotate      |               **703**                |             471              |                           144                           |             30              |                -                |             -              |
-|Brightness            |               **2210**               |             997              |                           397                           |             210             |               396               |            2058            |
-|Contrast              |               **2208**               |             1023             |                           330                           |              -              |               331               |            2059            |
-|BrightnessContrast    |               **2199**               |             582              |                           190                           |              -              |               190               |            1051            |
-|ShiftRGB              |               **2215**               |             998              |                            -                            |             378             |                -                |             -              |
-|ShiftHSV              |               **381**                |             241              |                           59                            |              -              |                -                |            128             |
-|Gamma                 |               **2340**               |              -               |                           686                           |              -              |                -                |            951             |
-|Grayscale             |               **4961**               |             372              |                           735                           |              -              |              1423               |            4286            |
-|RandomCrop64          |              **157376**              |             2560             |                          41448                          |              -              |              36036              |           35454            |
-|PadToSize512          |               **2833**               |              -               |                           478                           |              -              |                -                |            2629            |
-|Resize512             |               **952**                |             595              |                           885                           |              -              |               873               |            881             |
-|RandomSizedCrop_64_512|               **3128**               |             881              |                          1295                           |              -              |              1254               |            2678            |
-|Equalize              |               **760**                |             399              |                            -                            |              -              |               666               |             -              |
-|Multiply              |               **2184**               |             1059             |                            -                            |              -              |                -                |             -              |
-|MultiplyElementwise   |                 124                  |           **197**            |                            -                            |              -              |                -                |             -              |
+|HorizontalFlip        |               **9909**               |             2821             |                          2267                           |             873             |              2301               |            6223            |
+|VerticalFlip          |               **4374**               |             2218             |                          1952                           |            4339             |              1968               |            3562            |
+|Rotate                |               **371**                |             296              |                           163                           |             27              |               60                |            345             |
+|ShiftScaleRotate      |               **635**                |             437              |                           147                           |             28              |                -                |             -              |
+|Brightness            |               **2751**               |             1178             |                           419                           |             229             |               418               |            2300            |
+|Contrast              |               **2756**               |             1213             |                           352                           |              -              |               348               |            2305            |
+|BrightnessContrast    |               **2738**               |             699              |                           195                           |              -              |               193               |            1179            |
+|ShiftRGB              |               **2757**               |             1176             |                            -                            |             348             |                -                |             -              |
+|ShiftHSV              |               **597**                |             284              |                           58                            |              -              |                -                |            137             |
+|Gamma                 |               **2844**               |              -               |                           382                           |              -              |                -                |            946             |
+|Grayscale             |               **5159**               |             428              |                           709                           |              -              |              1064               |            1273            |
+|RandomCrop64          |              **175886**              |             3018             |                          52103                          |              -              |              41774              |           20732            |
+|PadToSize512          |               **3418**               |              -               |                           574                           |              -              |                -                |            2874            |
+|Resize512             |                 1003                 |             634              |                        **1036**                         |              -              |              1016               |            977             |
+|RandomSizedCrop_64_512|               **3191**               |             939              |                          1594                           |              -              |              1529               |            2563            |
+|Posterize             |               **2778**               |              -               |                            -                            |              -              |                -                |             -              |
+|Solarize              |               **2762**               |              -               |                            -                            |              -              |                -                |             -              |
+|Equalize              |                 644                  |             413              |                            -                            |              -              |             **735**             |             -              |
+|Multiply              |               **2727**               |             1248             |                            -                            |              -              |                -                |             -              |
+|MultiplyElementwise   |                 118                  |           **209**            |                            -                            |              -              |                -                |             -              |
+|ColorJitter           |               **368**                |              78              |                           57                            |              -              |                -                |             -              |
 
-Python and library versions: Python 3.7.5 (default, Oct 19 2019, 00:03:48) [GCC 8.3.0], numpy 1.18.1, pillow-simd 7.0.0.post3, opencv-python 4.2.0.32, scikit-image 0.16.2, scipy 1.4.1.
+Python and library versions: Python 3.8.6 (default, Oct 13 2020, 20:37:26) [GCC 8.3.0], numpy 1.19.2, pillow-simd 7.0.0.post3, opencv-python 4.4.0.44, scikit-image 0.17.2, scipy 1.5.2.
 
 ## Contributing
 
