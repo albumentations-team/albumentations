@@ -60,7 +60,9 @@ class BasicTransform:
         self.replay_mode = False
         self.applied_in_replay = False
 
-    def __call__(self, force_apply=False, **kwargs):
+    def __call__(self, *args, force_apply=False, **kwargs):
+        if args:
+            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
         if self.replay_mode:
             if self.applied_in_replay:
                 return self.apply_with_params(self.params, **kwargs)
@@ -139,6 +141,8 @@ class BasicTransform:
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
             params["fill_value"] = self.fill_value
+        if hasattr(self, "mask_fill_value"):
+            params["mask_fill_value"] = self.mask_fill_value
         params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
         return params
 

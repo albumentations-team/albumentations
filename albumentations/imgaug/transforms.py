@@ -34,9 +34,6 @@ class BasicIAATransform(BasicTransform):
     def processor(self):
         return iaa.Noop()
 
-    def __call__(self, **kwargs):
-        return super(BasicIAATransform, self).__call__(**kwargs)
-
     def update_params(self, params, **kwargs):
         params = super(BasicIAATransform, self).update_params(params, **kwargs)
         params["deterministic_processor"] = self.processor.to_deterministic()

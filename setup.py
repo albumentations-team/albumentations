@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 from pkg_resources import DistributionNotFound, get_distribution
 
 
-INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "imgaug>=0.2.5,<0.2.7", "PyYAML"]
+INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "scikit-image>=0.16.1", "imgaug>=0.4.0", "PyYAML"]
 
 # If first not installed install second package
 CHOOSE_INSTALL_REQUIRES = [("opencv-python>=4.1.1", "opencv-python-headless>=4.1.1")]
@@ -55,7 +55,7 @@ setup(
     license="MIT",
     url="https://github.com/albumentations-team/albumentations",
     packages=find_packages(exclude=["tests"]),
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
     extras_require={"tests": ["pytest"]},
     classifiers=[
@@ -66,7 +66,6 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",

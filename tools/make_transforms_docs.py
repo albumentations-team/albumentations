@@ -18,12 +18,12 @@ IGNORED_CLASSES = {
 }
 
 
-READTHEDOCS_TEMPLATE_ALBU = (
-    "[{name}](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations"
-)
-READTHEDOCS_TEMPLATE_IMGAUG = "[{name}](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations"
-TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_ALBU + ".augmentations.transforms.{name})"
-IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_IMGAUG + ".imgaug.transforms.{name})"
+def make_augmentation_docs_link(cls):
+    module_parts = cls.__module__.split(".")
+    module_page = "/".join(module_parts[1:])
+    return (
+        "[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
+    ).format(module_page=module_page, cls=cls)
 
 
 class Targets(Enum):
@@ -76,15 +76,9 @@ def get_transforms_info():
                 targets.add(Targets.BBOXES)
                 targets.add(Targets.KEYPOINTS)
 
-            docs_link = None
-            if cls.__module__ == "albumentations.augmentations.transforms":
-                docs_link = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
-            elif cls.__module__ == "albumentations.imgaug.transforms":
-                docs_link = IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
-
             transforms_info[name] = {
                 "targets": targets,
-                "docs_link": docs_link,
+                "docs_link": make_augmentation_docs_link(cls),
                 "image_only": issubclass(cls, albumentations.ImageOnlyTransform),
             }
     return transforms_info
@@ -145,9 +139,9 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
         "Docs for the following transform types are outdated: {outdated_docs_headers}. "
         "Generate new docs by executing the `python tools/{py_file} make` command "
         "and paste them to {filename}.\n"
-        "# Image only transforms lines not in file:\n"
+        "# Pixel-level transforms lines not in file:\n"
         "{image_only_lines}\n"
-        "# Dual transforms lines not in file:\n"
+        "# Spatial-level transforms lines not in file:\n"
         "{dual_lines}".format(
             outdated_docs_headers=", ".join(outdated_docs),
             py_file=os.path.basename(os.path.realpath(__file__)),
