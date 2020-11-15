@@ -7,7 +7,8 @@ import numpy as np
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 from .functional import clipped, preserve_shape
 
-from skimage.exposure import match_histograms
+try: from skimage.exposure import match_histograms
+except: from skimage.transform import histogram_matching
 
 from .utils import read_rgb_image
 
