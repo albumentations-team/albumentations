@@ -7,7 +7,10 @@ import numpy as np
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 from .functional import clipped, preserve_shape
 
-from skimage.exposure import match_histograms
+try:
+    from skimage.exposure import match_histograms
+except:
+    from skimage.transform import histogram_matching
 
 from .utils import read_rgb_image
 
@@ -16,7 +19,9 @@ __all__ = ["HistogramMatching", "FDA", "fourier_domain_adaptation"]
 
 @clipped
 @preserve_shape
-def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
+def fourier_domain_adaptation(
+    img: np.ndarray, target_img: np.ndarray, beta: float
+) -> np.ndarray:
     """
     Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
 
@@ -61,7 +66,9 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     amplitude_src = np.fft.ifftshift(amplitude_src, axes=(0, 1))
 
     # get mutated image
-    src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
+    src_image_transformed = np.fft.ifft2(
+        amplitude_src * np.exp(1j * phase_src), axes=(0, 1)
+    )
     src_image_transformed = np.real(src_image_transformed)
 
     return src_image_transformed
@@ -70,7 +77,9 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 @preserve_shape
 def apply_histogram(img, reference_image, blend_ratio):
     reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
-    matched = match_histograms(np.squeeze(img), np.squeeze(reference_image), multichannel=True)
+    matched = match_histograms(
+        np.squeeze(img), np.squeeze(reference_image), multichannel=True
+    )
     img = cv2.addWeighted(matched, blend_ratio, img, 1 - blend_ratio, 0)
     return img
 
