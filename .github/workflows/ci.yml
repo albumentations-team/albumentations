@@ -14,30 +14,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Set up Python
-      uses: actions/setup-python@v1.1.1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Restore Ubuntu cache
-      uses: actions/cache@v1
-      if: matrix.operating-system == 'ubuntu-latest'
-      with:
-        path: ~/.cache/pip
-        key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/setup.py')}}
-        restore-keys: ${{ matrix.os }}-${{ matrix.python-version }}-
-    - name: Restore MacOS cache
-      uses: actions/cache@v1
-      if:  matrix.operating-system == 'macos-latest'
-      with:
-        path: ~/Library/Caches/pip
-        key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/setup.py')}}
-        restore-keys: ${{ matrix.os }}-${{ matrix.python-version }}-
-    - name: Restore Windows cache
-      uses: actions/cache@v1
-      if: matrix.operating-system == 'windows-latest'
-      with:
-        path: ~\AppData\Local\pip\Cache
-        key: ${{ matrix.os }}-${{ matrix.python-version }}-${{ hashFiles('**/setup.py')}}
-        restore-keys: ${{ matrix.os }}-${{ matrix.python-version }}-
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install PyTorch on Linux and Windows
@@ -71,15 +50,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Set up Python
-      uses: actions/setup-python@v1.1.1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Restore cache for check_code_formatting
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/pip
-        key: check_code_formatting-${{ matrix.python-version }}
-        restore-keys: check_code_formatting-${{ matrix.python-version }}
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install Black
@@ -97,15 +70,9 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Set up Python
-      uses: actions/setup-python@v1.1.1
+      uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Restore cache for check_sphinx_build
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/pip
-        key: check_sphinx_build-${{ matrix.python-version }}
-        restore-keys: check_sphinx_build-${{ matrix.python-version }}
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install dependencies
