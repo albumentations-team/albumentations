@@ -2,73 +2,34 @@
 [![PyPI version](https://badge.fury.io/py/albumentations.svg)](https://badge.fury.io/py/albumentations)
 ![CI](https://github.com/albumentations-team/albumentations/workflows/CI/badge.svg)
 
-* The library works with images in `HWC` format.
-* The library is faster than other libraries on most of the transformations.
-* Based on numpy, OpenCV, imgaug picking the best from each of them.
-* Simple, flexible API that allows the library to be used in any computer vision pipeline.
-* Large, diverse set of transformations.
-* Easy to extend the library to wrap around other libraries.
-* Easy to extend to other tasks.
-* Supports transformations on images, masks, key points and bounding boxes.
-* Supports Python 3.6-3.8.
-* Easy integration with PyTorch.
-* Easy transfer from torchvision.
-* Was used to get top results in many DL competitions at Kaggle, topcoder, CVPR, MICCAI.
-* Written by Kaggle Masters.
+Albumentations is a Python library for image augmentation. Image augmentation is used in deep learning and computer vision tasks to increase the quality of trained models. The purpose of image augmentation is to create new training samples from the existing data.
 
-## Table of contents
-- [How to use](#how-to-use)
-- [Authors](#authors)
-- [Installation](#installation)
-  - [PyPI](#pypi)
-  - [Conda](#conda)
-- [Documentation](#documentation)
-- [Pixel-level transforms](#pixel-level-transforms)
-- [Spatial-level transforms](#spatial-level-transforms)
-- [Migrating from torchvision to albumentations](#migrating-from-torchvision-to-albumentations)
-- [Benchmarking results](#benchmarking-results)
-- [Contributing](#contributing)
-  - [Adding new transforms](#adding-new-transforms)
-- [Building the documentation](#building-the-documentation)
-- [Comments](#comments)
-- [Citing](#citing)
-- [Competitions won with the library](#competitions-won-with-the-library)
-- [Industry users](#used-by)
-
-## How to use
-
-**All in one showcase notebook** - [`showcase.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/showcase.ipynb)
-
-**Classification** - [`example.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example.ipynb)
-
-**Object detection** - [`example_bboxes.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_bboxes.ipynb)
-
-**Non-8-bit images** - [`example_16_bit_tiff.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_16_bit_tiff.ipynb)
-
-**Image segmentation** [`example_kaggle_salt.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_kaggle_salt.ipynb)
-
-**Keypoints** [`example_keypoints.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_keypoints.ipynb)
-
-**Custom targets** [`example_multi_target.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_multi_target.ipynb)
-
-**Weather transforms** [`example_weather_transforms.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/example_weather_transforms.ipynb)
-
-**Serialization** [`serialization.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/serialization.ipynb)
-
-**Replay/Deterministic mode** [`replay.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/replay.ipynb)
-
-You can use this [Google Colaboratory notebook](https://colab.research.google.com/drive/1JuZ23u0C0gx93kV0oJ8Mq0B6CBYhPLXy#scrollTo=GwFN-In3iagp&forceEdit=true&offline=true&sandboxMode=true)
-to adjust image augmentation parameters and see the resulting images.
-
+Here is an example of how you can apply some augmentations from Albumentations to create new images from the original one:
 ![parrot](https://habrastorage.org/webt/bd/ne/rv/bdnerv5ctkudmsaznhw4crsdfiw.jpeg)
 
-![inria](https://habrastorage.org/webt/su/wa/np/suwanpeo6ww7wpwtobtrzd_cg20.jpeg)
+## Why Albumentations
+- Albumentations **supports all common computer vision tasks** such as classification, semantic segmentation, instance segmentation, object detection, and pose estimation.
+- The library provides **a simple unified API** to work with all data types: images (RBG-images, grayscale images, multispectral images), segmentation masks, bounding boxes, and keypoints.
+- The library contains **more than 70 different augmentations** to generate new training samples from the existing data.
+- Albumentations is **fast**. We benchmark each new release to ensure that augmentations provide maximum speed.
+- It **works with popular deep learning frameworks** such as PyTorch and TensorFlow 2. By the way, Albumentations is a part of the PyTorch ecosystem.
+- **Written by experts**. The authors have experience both working on production computer vision systems and participating in competitive machine learning. Many core team members are Kaggle Masters and Grandmasters.
+- The library is **widely used** in industry, deep learning research, machine learning competitions, and open source projects.
 
-![medical](https://habrastorage.org/webt/1i/fi/wz/1ifiwzy0lxetc4nwjvss-71nkw0.jpeg)
-
-![vistas](https://habrastorage.org/webt/rz/-h/3j/rz-h3jalbxic8o_fhucxysts4tc.jpeg)
-
-<img src="https://habrastorage.org/webt/e-/6k/z-/e-6kz-fugp2heak3jzns3bc-r8o.jpeg" width=100%>
+## Table of contents
+- [Authors](#authors)
+- [Installation](#installation)
+- [Documentation](#documentation)
+- [Getting started](#getting-started)
+  - [I am new to image augmentation](#i-am-new-to-image-augmentation)
+  - [I want to use Albumentations for the specific task such as classification or segmentation](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation)
+  - [I want to explore augmentations and see Albumentations in action](#i-want-to-explore-augmentations-and-see-albumentations-in-action)
+- [Who is using Albumentations](#who-is-using-albumentations)
+- [A few more examples of augmentations](#a-few-more-examples-of-augmentations)
+- [Benchmarking results](#benchmarking-results)
+- [Contributing](#contributing)
+- [Comments](#comments)
+- [Citing](#citing)
 
 ## Authors
 [Alexander Buslaev](https://www.linkedin.com/in/al-buslaev/)
@@ -81,130 +42,64 @@ to adjust image augmentation parameters and see the resulting images.
 
 [Mikhail Druzhinin](https://www.linkedin.com/in/mikhail-druzhinin-548229100/)
 
+
 ## Installation
+Albumentations requires Python 3.6 or higher. To install the latest version from PyPI:
 
-### PyPI
-You can use pip to install albumentations:
 ```
-pip install albumentations
-```
-
-If you want to get the latest version of the code before it is released on PyPI you can install the library from GitHub:
-```
-pip install -U git+https://github.com/albumentations-team/albumentations
+pip install -U albumentations
 ```
 
-And it also works in Kaggle GPU kernels [(proof)](https://www.kaggle.com/creafz/albumentations-installation/)
-```
-!pip install albumentations > /dev/null
-```
+Other installation options are described in the [documentation](https://albumentations.ai/docs/getting_started/installation/)
 
-### Conda
-To install albumentations using conda we need first to install `imgaug` via conda-forge collection
-```
-conda install -c conda-forge imgaug
-conda install albumentations -c conda-forge
-```
 
 ## Documentation
-The full documentation is available at [https://albumentations.ai/docs/](https://albumentations.ai/docs/).
+The full documentation is available at **[https://albumentations.ai/docs/](https://albumentations.ai/docs/)**.
+
+## Getting started
+
+### I am new to image augmentation
+Please start with the [introduction articles](https://albumentations.ai/docs/#introduction-to-image-augmentation) about why image augmentation is important and why it helps to build better models.
+
+### I want to use Albumentations for the specific task such as classification or segmentation
+If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/#getting-started-with-albumentations) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) of how to use Albumentations for different use cases and integrate it with deep learning frameworks such as PyTorch and TensorFlow 2.
+
+### I want to explore augmentations and see Albumentations in action
+Check the [online demo of the library](https://albumentations-demo.herokuapp.com/). With it, you can apply augmentations to different images and see the result. Also, we have a [special page](https://albumentations.ai/docs/getting_started/transforms_and_targets/) that lists all available augmentations and their targets.
 
 
-## Pixel-level transforms
-Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. The list of pixel-level transforms:
+## Who is using Albumentations
+<a href="https://www.lyft.com/" target="_blank"><img src="https://habrastorage.org/webt/ce/bs/sa/cebssajf_5asst5yshmyykqjhcg.png" width="100"/></a>
+<a href="https://www.x5.ru/en" target="_blank"><img src="https://habrastorage.org/webt/9y/dv/f1/9ydvf1fbxotkl6nyhydrn9v8cqw.png" width="100"/></a>
+<a href="https://imedhub.org/" target="_blank"><img src="https://habrastorage.org/webt/eq/8x/m-/eq8xm-fjfx_uqkka4_ekxsdwtiq.png" width="100"/></a>
+<a href="https://recursionpharma.com" target="_blank"><img src="https://pbs.twimg.com/profile_images/925897897165639683/jI8YvBfC_400x400.jpg" width="100"/></a>
+<a href="https://www.everypixel.com/" target="_blank"><img src="https://www.everypixel.com/i/logo_sq.png" width="100"/></a>
+<a href="https://neuromation.io/" target="_blank"><img src="https://habrastorage.org/webt/yd/_4/xa/yd_4xauvggn1tuz5xgrtkif6lya.png" width="100"/></a>
 
-- [Blur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Blur)
-- [CLAHE](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CLAHE)
-- [ChannelDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ChannelDropout)
-- [ChannelShuffle](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ChannelShuffle)
-- [ColorJitter](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ColorJitter)
-- [Downscale](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Downscale)
-- [Equalize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Equalize)
-- [FDA](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.FDA)
-- [FancyPCA](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.FancyPCA)
-- [FromFloat](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.FromFloat)
-- [GaussNoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GaussNoise)
-- [GaussianBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GaussianBlur)
-- [GlassBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GlassBlur)
-- [HistogramMatching](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.HistogramMatching)
-- [HueSaturationValue](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.HueSaturationValue)
-- [IAAAdditiveGaussianNoise](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAAdditiveGaussianNoise)
-- [IAAEmboss](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAEmboss)
-- [IAASharpen](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAASharpen)
-- [IAASuperpixels](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAASuperpixels)
-- [ISONoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ISONoise)
-- [ImageCompression](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ImageCompression)
-- [InvertImg](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.InvertImg)
-- [MedianBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MedianBlur)
-- [MotionBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MotionBlur)
-- [MultiplicativeNoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MultiplicativeNoise)
-- [Normalize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Normalize)
-- [Posterize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Posterize)
-- [RGBShift](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RGBShift)
-- [RandomBrightnessContrast](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomBrightnessContrast)
-- [RandomFog](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomFog)
-- [RandomGamma](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomGamma)
-- [RandomRain](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomRain)
-- [RandomShadow](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomShadow)
-- [RandomSnow](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomSnow)
-- [RandomSunFlare](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomSunFlare)
-- [Solarize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Solarize)
-- [ToFloat](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ToFloat)
-- [ToGray](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ToGray)
-- [ToSepia](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ToSepia)
+#### See also:
+- [A list of papers that cite Albumentations]().
+- [A list of teams that were using Albumentations and took high places in machine learning competitions]().
+- [Open source projects that use Albumentations]().
 
-## Spatial-level transforms
-Spatial-level transforms will simultaneously change both an input image as well as additional targets such as masks, bounding boxes, and keypoints. The following table shows which additional targets are supported by each transform.
+## A few more examples of augmentations
+### Semantic segmentation on the Inria dataset
 
-| Transform                                                                                                                                                           | Image | Masks | BBoxes | Keypoints |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :---: | :----: | :-------: |
-| [CenterCrop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CenterCrop)                             | ✓     | ✓     | ✓      | ✓         |
-| [CoarseDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CoarseDropout)                       | ✓     | ✓     |        |           |
-| [Crop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Crop)                                         | ✓     | ✓     | ✓      | ✓         |
-| [CropNonEmptyMaskIfExists](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.CropNonEmptyMaskIfExists) | ✓     | ✓     | ✓      | ✓         |
-| [ElasticTransform](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ElasticTransform)                 | ✓     | ✓     |        |           |
-| [Flip](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Flip)                                         | ✓     | ✓     | ✓      | ✓         |
-| [GridDistortion](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GridDistortion)                     | ✓     | ✓     |        |           |
-| [GridDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GridDropout)                           | ✓     | ✓     |        |           |
-| [HorizontalFlip](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.HorizontalFlip)                     | ✓     | ✓     | ✓      | ✓         |
-| [IAAAffine](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAAffine)                                             | ✓     | ✓     | ✓      | ✓         |
-| [IAACropAndPad](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAACropAndPad)                                     | ✓     | ✓     | ✓      | ✓         |
-| [IAAFliplr](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAFliplr)                                             | ✓     | ✓     | ✓      | ✓         |
-| [IAAFlipud](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAFlipud)                                             | ✓     | ✓     | ✓      | ✓         |
-| [IAAPerspective](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAPerspective)                                   | ✓     | ✓     | ✓      | ✓         |
-| [IAAPiecewiseAffine](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAPiecewiseAffine)                           | ✓     | ✓     | ✓      | ✓         |
-| [Lambda](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Lambda)                                     | ✓     | ✓     | ✓      | ✓         |
-| [LongestMaxSize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.LongestMaxSize)                     | ✓     | ✓     | ✓      | ✓         |
-| [MaskDropout](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MaskDropout)                           | ✓     | ✓     |        |           |
-| [NoOp](https://albumentations.ai/docs/api_reference/core/transforms_interface/#albumentations.core.transforms_interface.NoOp)                                       | ✓     | ✓     | ✓      | ✓         |
-| [OpticalDistortion](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.OpticalDistortion)               | ✓     | ✓     |        |           |
-| [PadIfNeeded](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.PadIfNeeded)                           | ✓     | ✓     | ✓      | ✓         |
-| [RandomCrop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomCrop)                             | ✓     | ✓     | ✓      | ✓         |
-| [RandomCropNearBBox](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomCropNearBBox)             | ✓     | ✓     | ✓      | ✓         |
-| [RandomGridShuffle](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomGridShuffle)               | ✓     | ✓     |        |           |
-| [RandomResizedCrop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomResizedCrop)               | ✓     | ✓     | ✓      | ✓         |
-| [RandomRotate90](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomRotate90)                     | ✓     | ✓     | ✓      | ✓         |
-| [RandomScale](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomScale)                           | ✓     | ✓     | ✓      | ✓         |
-| [RandomSizedBBoxSafeCrop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomSizedBBoxSafeCrop)   | ✓     | ✓     | ✓      |           |
-| [RandomSizedCrop](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomSizedCrop)                   | ✓     | ✓     | ✓      | ✓         |
-| [Resize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Resize)                                     | ✓     | ✓     | ✓      | ✓         |
-| [Rotate](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Rotate)                                     | ✓     | ✓     | ✓      | ✓         |
-| [ShiftScaleRotate](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ShiftScaleRotate)                 | ✓     | ✓     | ✓      | ✓         |
-| [SmallestMaxSize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.SmallestMaxSize)                   | ✓     | ✓     | ✓      | ✓         |
-| [Transpose](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Transpose)                               | ✓     | ✓     | ✓      | ✓         |
-| [VerticalFlip](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.VerticalFlip)                         | ✓     | ✓     | ✓      | ✓         |
+![inria](https://habrastorage.org/webt/su/wa/np/suwanpeo6ww7wpwtobtrzd_cg20.jpeg)
 
-## Migrating from torchvision to albumentations
+### Medical imaging
+![medical](https://habrastorage.org/webt/1i/fi/wz/1ifiwzy0lxetc4nwjvss-71nkw0.jpeg)
 
-Migrating from torchvision to albumentations is simple - you just need to change a few lines of code.
-Albumentations has equivalents for common torchvision transforms as well as plenty of transforms that are not presented in torchvision.
-[`migrating_from_torchvision_to_albumentations.ipynb`](https://github.com/albumentations-team/albumentations_examples/blob/master/notebooks/migrating_from_torchvision_to_albumentations.ipynb) shows how one can migrate code from torchvision to albumentations.
+### Object detection and semantic segmentation on the Mapillary Vistas dataset
+![vistas](https://habrastorage.org/webt/rz/-h/3j/rz-h3jalbxic8o_fhucxysts4tc.jpeg)
+
+### Keypoints augmentation
+<img src="https://habrastorage.org/webt/e-/6k/z-/e-6kz-fugp2heak3jzns3bc-r8o.jpeg" width=100%>
 
 
 ## Benchmarking results
-To run the benchmark yourself follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
+To run the benchmark yourself, follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
 
-Results for running the benchmark on first 2000 images from the ImageNet validation set using an Intel Xeon Gold 6140 CPU.
+Results for running the benchmark on the first 2000 images from the ImageNet validation set using an Intel Xeon Gold 6140 CPU.
 All outputs are converted to a contiguous NumPy array with the np.uint8 data type.
 The table shows how many images per second can be processed on a single core, higher is better.
 
@@ -236,60 +131,18 @@ Python and library versions: Python 3.8.6 (default, Oct 13 2020, 20:37:26) [GCC 
 
 ## Contributing
 
-To create a pull request to the repository follow the documentation at [docs/contributing.rst](docs/contributing.rst)
+To create a pull request to the repository, follow the documentation at [https://albumentations.ai/docs/contributing/](https://albumentations.ai/docs/contributing/)
 
-### Adding new transforms
-If you are contributing a new transformation, make sure to update ["Pixel-level transforms"](#pixel-level-transforms) or/and ["Spatial-level transforms"](#spatial-level-transforms) sections of this file (`README.md`). To do this, simply run (with python3 only):
-```
-python3 tools/make_transforms_docs.py make
-```
-and copy/paste the results into the corresponding sections. To validate your modifications, you
-can run:
-```
-python3 tools/make_transforms_docs.py check README.md
-```
-
-
-## Building the documentation
-1. Go to `docs/` directory
-   ```
-   cd docs
-   ```
-2. Install required libraries
-   ```
-   pip install -r requirements.txt
-   ```
-3. Build html files
-   ```
-   make html
-   ```
-4. Open `_build/html/index.html` in browser.
-
-Alternatively, you can start a web server that rebuilds the documentation
-automatically when a change is detected by running `make livehtml`
-
-## Competitions won with the library
-Albumentations are widely used in Computer Vision Competitions at Kaggle and other platforms.
-
-You can find their names and links to the solutions [here](docs/hall_of_fame.rst).
-
-## Used by
-<a href="https://www.lyft.com/" target="_blank"><img src="https://habrastorage.org/webt/ce/bs/sa/cebssajf_5asst5yshmyykqjhcg.png" width="100"/></a>
-<a href="https://www.x5.ru/en" target="_blank"><img src="https://habrastorage.org/webt/9y/dv/f1/9ydvf1fbxotkl6nyhydrn9v8cqw.png" width="100"/></a>
-<a href="https://imedhub.org/" target="_blank"><img src="https://habrastorage.org/webt/eq/8x/m-/eq8xm-fjfx_uqkka4_ekxsdwtiq.png" width="100"/></a>
-<a href="https://recursionpharma.com" target="_blank"><img src="https://pbs.twimg.com/profile_images/925897897165639683/jI8YvBfC_400x400.jpg" width="100"/></a>
-<a href="https://www.everypixel.com/" target="_blank"><img src="https://www.everypixel.com/i/logo_sq.png" width="100"/></a>
-<a href="https://neuromation.io/" target="_blank"><img src="https://habrastorage.org/webt/yd/_4/xa/yd_4xauvggn1tuz5xgrtkif6lya.png" width="100"/></a>
 
 ## Comments
-In some systems, in the multiple GPU regime PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355)
+In some systems, in the multiple GPU regime, PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355)
 
 ```python
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 ```
 
-# Citing
+## Citing
 
 If you find this library useful for your research, please consider citing [Albumentations: Fast and Flexible Image Augmentations](https://www.mdpi.com/2078-2489/11/2/125):
 
@@ -307,5 +160,3 @@ If you find this library useful for your research, please consider citing [Album
     DOI = {10.3390/info11020125}
 }
 ```
-
-You can find the full list of papers that cite Albumentations [here](docs/citations.rst).
