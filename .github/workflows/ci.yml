@@ -112,29 +112,3 @@ jobs:
       run: pip install -r docs/requirements.txt
     - name: Run Sphinx
       run: sphinx-build -b html docs /tmp/_docs_build
-
-  check_transforms_docs:
-    name: Check that transforms docs are not outdated
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8]
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v1.1.1
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Restore cache for check_transforms_docs
-      uses: actions/cache@v1
-      with:
-        path: ~/.cache/pip
-        key: check_transforms_docs-${{ matrix.python-version }}
-        restore-keys: check_transforms_docs-${{ matrix.python-version }}
-    - name: Update pip
-      run: python -m pip install --upgrade pip
-    - name: Install dependencies
-      run: pip install .
-    - name: Run checks
-      run: python tools/make_transforms_docs.py check README.md
