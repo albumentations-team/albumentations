@@ -10,7 +10,7 @@ Here is an example of how you can apply some augmentations from Albumentations t
 ## Why Albumentations
 - Albumentations **[supports all common computer vision tasks](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation)** such as classification, semantic segmentation, instance segmentation, object detection, and pose estimation.
 - The library provides **[a simple unified API](#a-simple-example)** to work with all data types: images (RBG-images, grayscale images, multispectral images), segmentation masks, bounding boxes, and keypoints.
-- The library contains **[more than 70 different augmentations](#i-want-to-explore-augmentations-and-see-albumentations-in-action)** to generate new training samples from the existing data.
+- The library contains **[more than 70 different augmentations](#list-of-augmentations)** to generate new training samples from the existing data.
 - Albumentations is [**fast**](#benchmarking-results). We benchmark each new release to ensure that augmentations provide maximum speed.
 - It **[works with popular deep learning frameworks](#i-want-to-know-how-to-use-albumentations-with-deep-learning-frameworks)** such as PyTorch and TensorFlow 2. By the way, Albumentations is a part of the [PyTorch ecosystem](https://pytorch.org/ecosystem/).
 - [**Written by experts**](#authors). The authors have experience both working on production computer vision systems and participating in competitive machine learning. Many core team members are Kaggle Masters and Grandmasters.
