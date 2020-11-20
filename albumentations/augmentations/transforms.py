@@ -2555,7 +2555,7 @@ class MotionBlur(Blur):
 
 
 class MedianBlur(Blur):
-    """Blur the input image using using a median filter with a random aperture linear size.
+    """Blur the input image using a median filter with a random aperture linear size.
 
     Args:
         blur_limit (int): maximum aperture linear size for blurring the input image.
@@ -2580,7 +2580,7 @@ class MedianBlur(Blur):
 
 
 class GaussianBlur(ImageOnlyTransform):
-    """Blur the input image using using a Gaussian filter with a random kernel size.
+    """Blur the input image using a Gaussian filter with a random kernel size.
 
     Args:
         blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
