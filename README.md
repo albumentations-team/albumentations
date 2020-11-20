@@ -55,7 +55,7 @@ Albumentations requires Python 3.6 or higher. To install the latest version from
 pip install -U albumentations
 ```
 
-Other installation options are described in the [documentation](https://albumentations.ai/docs/getting_started/installation/)
+Other installation options are described in the [documentation](https://albumentations.ai/docs/getting_started/installation/).
 
 ## Documentation
 The full documentation is available at **[https://albumentations.ai/docs/](https://albumentations.ai/docs/)**.
