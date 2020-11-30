@@ -239,9 +239,9 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         x, y, width, height = denormalize_bbox(bbox, rows, cols)
 
         x_min = int(x - width / 2 + 1)
-        x_max = int(x_min + width)
+        x_max = int(x_min + width) - 1
         y_min = int(y - height / 2 + 1)
-        y_max = int(y_min + height)
+        y_max = int(y_min + height) - 1
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
