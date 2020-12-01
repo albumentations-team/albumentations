@@ -898,7 +898,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         self.w2h_ratio = w2h_ratio
 
     def get_params(self):
-        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
+        crop_height = random.randint(round(self.min_max_height[0]), round(self.min_max_height[1]))
         return {
             "h_start": random.random(),
             "w_start": random.random(),
