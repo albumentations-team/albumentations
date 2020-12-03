@@ -15,6 +15,7 @@ MAX_VALUES_BY_DTYPE = {
     np.dtype("uint8"): 255,
     np.dtype("uint16"): 65535,
     np.dtype("uint32"): 4294967295,
+    np.dtype("float16"): 1.0,
     np.dtype("float32"): 1.0,
 }
 
