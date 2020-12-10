@@ -1116,12 +1116,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
             cols=params["cols"],
         )
 
-    @property
-    def targets_as_params(self):
-        return ["mask"]
-
-    def get_params_dependent_on_targets(self, params):
-        mask = params["mask"]
+    def _preprocess_mask(self, mask):
         mask_height, mask_width = mask.shape[:2]
 
         if self.ignore_values is not None:
@@ -1139,10 +1134,22 @@ class CropNonEmptyMaskIfExists(DualTransform):
                 )
             )
 
-        if mask.sum() == 0:
-            x_min = random.randint(0, mask_width - self.width)
-            y_min = random.randint(0, mask_height - self.height)
+        return mask
+
+    def update_params(self, params, **kwargs):
+        if "mask" in kwargs:
+            mask = self._preprocess_mask(kwargs["mask"])
+        elif "masks" in kwargs and len(kwargs["masks"]):
+            masks = kwargs["masks"]
+            mask = self._preprocess_mask(masks[0])
+            for m in masks[1:]:
+                mask |= self._preprocess_mask(m)
         else:
+            raise RuntimeError("Can not find mask for CropNonEmptyMaskIfExists")
+
+        mask_height, mask_width = mask.shape[:2]
+
+        if mask.any():
             mask = mask.sum(axis=-1) if mask.ndim == 3 else mask
             non_zero_yx = np.argwhere(mask)
             y, x = random.choice(non_zero_yx)
@@ -1150,11 +1157,15 @@ class CropNonEmptyMaskIfExists(DualTransform):
             y_min = y - random.randint(0, self.height - 1)
             x_min = np.clip(x_min, 0, mask_width - self.width)
             y_min = np.clip(y_min, 0, mask_height - self.height)
+        else:
+            x_min = random.randint(0, mask_width - self.width)
+            y_min = random.randint(0, mask_height - self.height)
 
         x_max = x_min + self.width
         y_max = y_min + self.height
 
-        return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
+        params.update({"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max})
+        return params
 
     def get_transform_init_args_names(self):
         return ("height", "width", "ignore_values", "ignore_channels")
@@ -2544,7 +2555,7 @@ class MotionBlur(Blur):
 
 
 class MedianBlur(Blur):
-    """Blur the input image using using a median filter with a random aperture linear size.
+    """Blur the input image using a median filter with a random aperture linear size.
 
     Args:
         blur_limit (int): maximum aperture linear size for blurring the input image.
@@ -2569,7 +2580,7 @@ class MedianBlur(Blur):
 
 
 class GaussianBlur(ImageOnlyTransform):
-    """Blur the input image using using a Gaussian filter with a random kernel size.
+    """Blur the input image using a Gaussian filter with a random kernel size.
 
     Args:
         blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
