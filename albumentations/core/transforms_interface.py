@@ -143,7 +143,13 @@ class BasicTransform:
             params["fill_value"] = self.fill_value
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
-        params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
+        if "image" in kwargs:
+            cols, rows = kwargs["image"].shape[1], kwargs["image"].shape[0]
+        elif "mask" in kwargs:
+            cols, rows = kwargs["mask"].shape[1], kwargs["mask"].shape[0]
+        else:
+            raise ValueError("Need at least one object with key 'image' or 'mask'")
+        params.update({"cols": cols, "rows": rows})
         return params
 
     @property
