@@ -17,6 +17,8 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+      env:
+        - ACTIONS_ALLOW_UNSECURE_COMMANDS: True
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install PyTorch on Linux and Windows
@@ -53,6 +55,8 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+      env:
+        - ACTIONS_ALLOW_UNSECURE_COMMANDS: True
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install Black
@@ -73,6 +77,8 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+      env:
+        - ACTIONS_ALLOW_UNSECURE_COMMANDS: True
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install dependencies
@@ -93,6 +99,8 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+      env:
+        - ACTIONS_ALLOW_UNSECURE_COMMANDS: True
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install dependencies
