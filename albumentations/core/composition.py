@@ -211,7 +211,7 @@ class Compose(BaseCompose):
         return dictionary
 
     def get_dict_with_id(self):
-        dictionary = super(Compose, self).get_dict_with_id()
+        dictionary = super().get_dict_with_id()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
