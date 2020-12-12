@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: [3.6, 3.7, 3.8]
+        python-version: [3.6, 3.7, 3.8, 3.9]
       fail-fast: false
     steps:
     - name: Checkout
@@ -24,11 +24,11 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==1.4.0+cpu torchvision==0.5.0+cpu
+        pip install torch==1.7.1+cpu torchvision==0.8.2+cpu
         -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==1.4.0 torchvision==0.5.0
+      run: pip install torch==1.7.1 torchvision==0.8.2
     - name: Install dependencies
       run: pip install .[tests]
     - name: Install linters
