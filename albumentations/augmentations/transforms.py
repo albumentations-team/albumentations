@@ -95,10 +95,10 @@ class PadIfNeeded(DualTransform):
         pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
         pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         border_mode (OpenCV flag): OpenCV border mode.
-        value (int, float, list of int, lisft of float): padding value if border_mode is cv2.BORDER_CONSTANT.
+        value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
                     list of int,
-                    lisft of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
+                    list of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -1506,7 +1506,7 @@ class Cutout(ImageOnlyTransform):
         num_holes (int): number of regions to zero out
         max_h_size (int): maximum height of the hole
         max_w_size (int): maximum width of the hole
-        fill_value (int, float, lisf of int, list of float): value for dropped pixels.
+        fill_value (int, float, list of int, list of float): value for dropped pixels.
 
     Targets:
         image
@@ -1569,9 +1569,9 @@ class CoarseDropout(DualTransform):
             `min_height` is set to `max_height`. Default: `None`.
         min_width (int): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
-        fill_value (int, float, lisf of int, list of float): value for dropped pixels.
-        mask_fill_value (int, float, lisf of int, list of float): fill value for dropped pixels
-            in mask. If None - mask is not affected.
+        fill_value (int, float, list of int, list of float): value for dropped pixels.
+        mask_fill_value (int, float, list of int, list of float): fill value for dropped pixels
+            in mask. If `None` - mask is not affected. Default: `None`.
 
     Targets:
         image, mask
