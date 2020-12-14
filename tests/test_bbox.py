@@ -13,7 +13,7 @@ from albumentations.augmentations.bbox_utils import (
 )
 from albumentations.core.composition import Compose, ReplayCompose, BboxParams
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop, Rotate, RandomCrop
+from albumentations import RandomSizedCrop, RandomResizedCrop, Rotate, RandomCrop
 
 
 @pytest.mark.parametrize(
