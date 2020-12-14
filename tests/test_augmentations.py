@@ -67,6 +67,7 @@ from albumentations import (
     FDA,
     HistogramMatching,
     Perspective,
+    Sharpen,
 )
 
 
@@ -112,6 +113,7 @@ from albumentations import (
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Sharpen, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -159,6 +161,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Sharpen, {}],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -314,6 +317,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
         [Perspective, {}],
+        [Sharpen, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -382,6 +386,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
         [Perspective, {}],
+        [Sharpen, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -431,6 +436,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         ],
         [FDA, {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x}],
         [Perspective, {}],
+        [Sharpen, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -507,6 +513,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
         [Perspective, {}],
+        [Sharpen, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
