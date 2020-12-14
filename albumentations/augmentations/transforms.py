@@ -11,6 +11,8 @@ from typing import Optional
 import cv2
 import numpy as np
 from skimage.measure import label
+from skimage.segmentation import slic
+from skimage.measure import regionprops
 
 from . import functional as F
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
@@ -83,6 +85,7 @@ __all__ = [
     "MaskDropout",
     "GridDropout",
     "ColorJitter",
+    "Superpixels",
 ]
 
 
@@ -3550,3 +3553,61 @@ class ColorJitter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ("brightness", "contrast", "saturation", "hue")
+
+
+class Superpixels(ImageOnlyTransform):
+    """Completely or partially transform the input image to its superpixel representation. Uses skimage's version
+    of the SLIC algorithm. May be slow.
+    Args:
+        p_replace (float): defines the probability of any superpixel area being replaced by the superpixel, i.e. by
+            the average pixel color within its area. Default: 0.1.
+        n_segments (int): target number of superpixels to generate. Default: 100.
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    """
+
+    def __init__(self, p_replace=0.1, n_segments=100, always_apply=False, p=0.5):
+        super(Superpixels, self).__init__(always_apply, p)
+        self.p_replace = p_replace
+        self.n_segments = n_segments
+
+    def apply(self, image, cols, rows):
+        segments = slic(image, n_segments=self.n_segments, compactness=5)
+        nb_channels = image.shape[2]
+        image_sp = np.copy(image)
+
+        min_value = image.min()  ### check that value
+        max_value = image.max()  ### check that value
+
+        # for c in sm.xrange(nb_channels):
+        for c in range(nb_channels):
+            # segments+1 here because otherwise regionprops always
+            # misses the last label
+            regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
+            for ridx, region in enumerate(regions):
+                # with mod here, because slic can sometimes create more
+                # superpixel than requested. replace_samples then does not
+                # have enough values, so we just start over with the first one
+                # again.
+                if random.random() > self.p_replace:  # maybe here problem
+                    mean_intensity = region.mean_intensity
+                    image_sp_c = image_sp[..., c]
+
+                    if image_sp_c.dtype.kind in ["i", "u", "b"]:
+                        # After rounding the value can end up slightly outside
+                        # of the value_range. Hence, we need to clip. We do
+                        # clip via min(max(...)) instead of np.clip because
+                        # the latter one does not seem to keep dtypes for
+                        # dtypes with large itemsizes (e.g. uint64).
+                        value = int(np.round(mean_intensity))
+                        value = min(max(value, min_value), max_value)
+                    else:
+                        value = mean_intensity
+
+                    image_sp_c[segments == ridx] = value
+
+        return image_sp
+
+    def get_transform_init_args_names(self):
+        return ("p_replace", "n_segments")
