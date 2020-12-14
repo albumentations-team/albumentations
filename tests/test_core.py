@@ -19,7 +19,7 @@ from albumentations.core.composition import (
     BboxParams,
     Sequential,
 )
-from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
+from albumentations import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
 
 
 def test_one_or_other():

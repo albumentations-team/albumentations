@@ -6,5 +6,9 @@ from .transforms import *
 
 # New transformations goes to individual files listed below
 from .domain_adaptation import *
+from .geometric.transforms import *
+from .geometric.functional import *
+from .geometric.resize import *
+from .geometric.rotate import *
 
 from .utils import *
