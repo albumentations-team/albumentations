@@ -70,6 +70,7 @@ def set_seed(seed):
         [A.ColorJitter, {}],
         [A.Perspective, {}],
         [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -248,6 +249,7 @@ AUGMENTATION_CLS_PARAMS = (
             },
         ],
         [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
+        [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
     ],
 )
 
@@ -345,6 +347,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.ColorJitter, {}],
         [A.Perspective, {}],
         [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -412,6 +415,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.ColorJitter, {}],
         [A.Perspective, {}],
         [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -432,7 +436,6 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
@@ -463,7 +466,6 @@ def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, i
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
@@ -496,7 +498,6 @@ def test_imgaug_augmentations_for_bboxes_serialization(
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
@@ -699,6 +700,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.ColorJitter, {}],
         [A.Perspective, {}],
         [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
