@@ -6,7 +6,7 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
-import albumentations.augmentations.geometric_functional as FGeometric
+import albumentations.augmentations.geometric.functional as FGeometric
 
 from torchvision.transforms import ColorJitter
 from PIL import Image

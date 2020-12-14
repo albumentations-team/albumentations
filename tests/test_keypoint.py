@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 import albumentations.augmentations.functional as F
-import albumentations.augmentations.geometric_functional as FGeometric
+import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations import HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
 from albumentations.augmentations.keypoints_utils import (
     convert_keypoint_from_albumentations,

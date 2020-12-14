@@ -13,7 +13,7 @@ import numpy as np
 from skimage.measure import label
 
 from . import functional as F
-from . import geometric_functional as FGeometric
+from .geometric import functional as FGeometric
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
 from ..core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp, to_tuple
 from ..core.utils import format_args

@@ -4,7 +4,7 @@ import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter
 
-from .functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
+from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
 
 
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613

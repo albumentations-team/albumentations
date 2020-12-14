@@ -6,7 +6,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal_nulp
 
 import albumentations.augmentations.functional as F
-import albumentations.augmentations.geometric_functional as FGeometric
+import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 
