@@ -204,6 +204,8 @@ class Perspective(DualTransform):
         pad_mode (OpenCV flag): OpenCV border mode.
         pad_val (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
             Default: 0
+        mask_pad_val (int, float, list of int, list of float): padding value for mask
+            if border_mode is cv2.BORDER_CONSTANT. Default: 0
         fit_output (bool): If True, the image plane size and position will be adjusted to still capture
             the whole image after perspective transformation. (Followed by image resizing if keep_size is set to True.)
             Otherwise, parts of the transformed image may be outside of the image plane.
@@ -224,6 +226,7 @@ class Perspective(DualTransform):
         keep_size=True,
         pad_mode=cv2.BORDER_CONSTANT,
         pad_val=0,
+        mask_pad_val=0,
         fit_output=False,
         interpolation=cv2.INTER_LINEAR,
         always_apply=False,
@@ -234,6 +237,7 @@ class Perspective(DualTransform):
         self.keep_size = keep_size
         self.pad_mode = pad_mode
         self.pad_val = pad_val
+        self.mask_pad_val = mask_pad_val
         self.fit_output = fit_output
         self.interpolation = interpolation
 
@@ -244,7 +248,14 @@ class Perspective(DualTransform):
 
     def apply_to_mask(self, img, matrix=None, max_height=None, max_width=None, **params):
         return F.perspective(
-            img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, params["interpolation"]
+            img,
+            matrix,
+            max_width,
+            max_height,
+            self.mask_pad_val,
+            self.pad_mode,
+            self.keep_size,
+            params["interpolation"],
         )
 
     def apply_to_bbox(self, bbox, matrix=None, max_height=None, max_width=None, **params):
@@ -370,4 +381,4 @@ class Perspective(DualTransform):
         return pts_ordered
 
     def get_transform_init_args_names(self):
-        return ("scale", "keep_size", "pad_mode", "pad_val", "fit_output", "interpolation")
+        return ("scale", "keep_size", "pad_mode", "pad_val", "mask_pad_val", "fit_output", "interpolation")
