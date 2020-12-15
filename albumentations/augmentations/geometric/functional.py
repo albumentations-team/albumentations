@@ -317,7 +317,12 @@ def smallest_max_size(img, max_size, interpolation):
 def perspective(img, matrix, max_width, max_height, border_val, border_mode, keep_size, interpolation):
     h, w = img.shape[:2]
     perspective_func = _maybe_process_in_chunks(
-        cv2.warpPerspective, M=matrix, dsize=(max_width, max_height), borderMode=border_mode, borderValue=border_val
+        cv2.warpPerspective,
+        M=matrix,
+        dsize=(max_width, max_height),
+        borderMode=border_mode,
+        borderValue=border_val,
+        flags=interpolation,
     )
     warped = perspective_func(img)
 

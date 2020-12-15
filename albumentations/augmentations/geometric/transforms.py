@@ -243,19 +243,7 @@ class Perspective(DualTransform):
 
     def apply(self, img, matrix=None, max_height=None, max_width=None, **params):
         return F.perspective(
-            img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, self.interpolation
-        )
-
-    def apply_to_mask(self, img, matrix=None, max_height=None, max_width=None, **params):
-        return F.perspective(
-            img,
-            matrix,
-            max_width,
-            max_height,
-            self.mask_pad_val,
-            self.pad_mode,
-            self.keep_size,
-            params["interpolation"],
+            img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, params["interpolation"]
         )
 
     def apply_to_bbox(self, bbox, matrix=None, max_height=None, max_width=None, **params):
@@ -341,7 +329,7 @@ class Perspective(DualTransform):
         if self.fit_output:
             m, max_width, max_height = self._expand_transform(m, (h, w))
 
-        return {"matrix": m, "max_height": max_height, "max_width": max_width}
+        return {"matrix": m, "max_height": max_height, "max_width": max_width, "interpolation": self.interpolation}
 
     @classmethod
     def _expand_transform(cls, matrix, shape):
