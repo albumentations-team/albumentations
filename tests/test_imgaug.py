@@ -8,7 +8,7 @@ from albumentations.augmentations.bbox_utils import (
 from albumentations.imgaug.transforms import IAAPiecewiseAffine, IAAPerspective, IAAFliplr, IAAFlipud
 
 
-@pytest.mark.parametrize("augmentation_cls", [IAAPiecewiseAffine, IAAPerspective, IAAFliplr])
+@pytest.mark.parametrize("augmentation_cls", [IAAPiecewiseAffine, IAAFliplr])
 def test_imagaug_dual_augmentations_are_deterministic(augmentation_cls, image):
     aug = augmentation_cls(p=1)
     mask = np.copy(image)
