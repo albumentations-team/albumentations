@@ -195,8 +195,6 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [Transpose](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Transpose)                                   | ✓     | ✓     | ✓      | ✓         |
 | [VerticalFlip](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.VerticalFlip)                             | ✓     | ✓     | ✓      | ✓         |
 
-Process finished with exit code 0
-
 
 ## A few more examples of augmentations
 ### Semantic segmentation on the Inria dataset
