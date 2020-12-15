@@ -210,6 +210,22 @@ class Compose(BaseCompose):
         )
         return dictionary
 
+    def get_dict_with_id(self):
+        dictionary = super().get_dict_with_id()
+        bbox_processor = self.processors.get("bboxes")
+        keypoints_processor = self.processors.get("keypoints")
+        dictionary.update(
+            {
+                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,  # skipcq: PYL-W0212
+                "keypoint_params": keypoints_processor.params._to_dict()  # skipcq: PYL-W0212
+                if keypoints_processor
+                else None,
+                "additional_targets": self.additional_targets,
+                "params": None,
+            }
+        )
+        return dictionary
+
     def _check_args(self, **kwargs):
         checked_single = ["image", "mask"]
         checked_multi = ["masks"]

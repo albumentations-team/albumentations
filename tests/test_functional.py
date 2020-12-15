@@ -6,6 +6,7 @@ import pytest
 from numpy.testing import assert_array_almost_equal_nulp
 
 import albumentations.augmentations.functional as F
+import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 
@@ -109,14 +110,14 @@ def test_normalize_float():
 
 
 def test_compare_rotate_and_shift_scale_rotate(image):
-    rotated_img_1 = F.rotate(image, angle=60)
-    rotated_img_2 = F.shift_scale_rotate(image, angle=60, scale=1, dx=0, dy=0)
+    rotated_img_1 = FGeometric.rotate(image, angle=60)
+    rotated_img_2 = FGeometric.shift_scale_rotate(image, angle=60, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
 def test_compare_rotate_float_and_shift_scale_rotate_float(float_image):
-    rotated_img_1 = F.rotate(float_image, angle=60)
-    rotated_img_2 = F.shift_scale_rotate(float_image, angle=60, scale=1, dx=0, dy=0)
+    rotated_img_1 = FGeometric.rotate(float_image, angle=60)
+    rotated_img_2 = FGeometric.shift_scale_rotate(float_image, angle=60, scale=1, dx=0, dy=0)
     assert np.array_equal(rotated_img_1, rotated_img_2)
 
 
@@ -214,7 +215,7 @@ def test_rotate_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
     expected = np.array([[0, 0, 0, 0], [4, 8, 12, 16], [3, 7, 11, 15], [2, 6, 10, 14]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    rotated_img = F.shift_scale_rotate(
+    rotated_img = FGeometric.shift_scale_rotate(
         img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert np.array_equal(rotated_img, expected)
@@ -231,7 +232,7 @@ def test_rotate_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    rotated_img = F.shift_scale_rotate(
+    rotated_img = FGeometric.shift_scale_rotate(
         img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert_array_almost_equal_nulp(rotated_img, expected)
@@ -242,7 +243,7 @@ def test_scale_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
     expected = np.array([[6, 7, 7, 8], [10, 11, 11, 12], [10, 11, 11, 12], [14, 15, 15, 16]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled_img = F.shift_scale_rotate(
+    scaled_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert np.array_equal(scaled_img, expected)
@@ -259,7 +260,7 @@ def test_scale_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled_img = F.shift_scale_rotate(
+    scaled_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert_array_almost_equal_nulp(scaled_img, expected)
@@ -270,7 +271,7 @@ def test_shift_x_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
     expected = np.array([[0, 0, 1, 2], [0, 0, 5, 6], [0, 0, 9, 10], [0, 0, 13, 14]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_x_img = F.shift_scale_rotate(
+    shifted_along_x_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=1, dx=0.5, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert np.array_equal(shifted_along_x_img, expected)
@@ -287,7 +288,7 @@ def test_shift_x_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_x_img = F.shift_scale_rotate(
+    shifted_along_x_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=1, dx=0.5, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert_array_almost_equal_nulp(shifted_along_x_img, expected)
@@ -298,7 +299,7 @@ def test_shift_y_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
     expected = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [1, 2, 3, 4], [5, 6, 7, 8]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_y_img = F.shift_scale_rotate(
+    shifted_along_y_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=1, dx=0, dy=0.5, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert np.array_equal(shifted_along_y_img, expected)
@@ -315,7 +316,7 @@ def test_shift_y_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_y_img = F.shift_scale_rotate(
+    shifted_along_y_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=1, dx=0, dy=0.5, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
     )
     assert_array_almost_equal_nulp(shifted_along_y_img, expected)
@@ -479,7 +480,7 @@ def test_scale(target):
     )
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = F.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
+    scaled = FGeometric.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
@@ -489,7 +490,7 @@ def test_longest_max_size(target):
     expected = np.array([[2, 3], [6, 7], [10, 11]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = F.longest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
+    scaled = FGeometric.longest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
@@ -501,7 +502,7 @@ def test_smallest_max_size(target):
     expected = np.array([[2, 4, 5, 7], [10, 11, 13, 14], [17, 19, 20, 22]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = F.smallest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
+    scaled = FGeometric.smallest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
@@ -520,7 +521,7 @@ def test_resize_default_interpolation(target):
     img = np.array([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], dtype=np.uint8)
     expected = np.array([[2, 2], [4, 4]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = F.resize(img, 2, 2)
+    resized_img = FGeometric.resize(img, 2, 2)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -532,7 +533,7 @@ def test_resize_nearest_interpolation(target):
     img = np.array([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], dtype=np.uint8)
     expected = np.array([[1, 1], [3, 3]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = F.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
+    resized_img = FGeometric.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -543,7 +544,7 @@ def test_resize_nearest_interpolation(target):
 def test_resize_different_height_and_width(target):
     img = np.ones((100, 100), dtype=np.uint8)
     img = convert_2d_to_target_format([img], target=target)
-    resized_img = F.resize(img, height=20, width=30)
+    resized_img = FGeometric.resize(img, height=20, width=30)
     height, width = resized_img.shape[:2]
     assert height == 20
     assert width == 30
@@ -559,7 +560,7 @@ def test_resize_default_interpolation_float(target):
     )
     expected = np.array([[0.15, 0.15], [0.35, 0.35]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = F.resize(img, 2, 2)
+    resized_img = FGeometric.resize(img, 2, 2)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -573,7 +574,7 @@ def test_resize_nearest_interpolation_float(target):
     )
     expected = np.array([[0.1, 0.1], [0.3, 0.3]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = F.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
+    resized_img = FGeometric.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -623,10 +624,10 @@ def test_bbox_random_crop():
 
 
 def test_bbox_rot90():
-    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0, 100, 200) == (0.1, 0.2, 0.3, 0.4)
-    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1, 100, 200) == (0.2, 0.7, 0.4, 0.9)
-    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2, 100, 200) == (0.7, 0.6, 0.9, 0.8)
-    assert F.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3, 100, 200) == (0.6, 0.1, 0.8, 0.3)
+    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0, 100, 200) == (0.1, 0.2, 0.3, 0.4)
+    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1, 100, 200) == (0.2, 0.7, 0.4, 0.9)
+    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2, 100, 200) == (0.7, 0.6, 0.9, 0.8)
+    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3, 100, 200) == (0.6, 0.1, 0.8, 0.3)
 
 
 def test_bbox_transpose():
@@ -657,7 +658,7 @@ def test_fun_max_size():
     target_width = 256
 
     img = np.empty((330, 49), dtype=np.uint8)
-    out = F.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
+    out = FGeometric.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
 
     assert out.shape == (1724, target_width)
 
@@ -913,7 +914,7 @@ def test_maybe_process_in_chunks():
 
     for i in range(1, image.shape[-1] + 1):
         before = image[:, :, :i]
-        after = F.rotate(before, angle=1)
+        after = FGeometric.rotate(before, angle=1)
         assert before.shape == after.shape
 
 
