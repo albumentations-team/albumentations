@@ -5,7 +5,7 @@ from albumentations.augmentations.bbox_utils import (
     convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
 )
-from albumentations.imgaug.transforms import IAAPiecewiseAffine, IAAPerspective, IAAFliplr, IAAFlipud
+from albumentations.imgaug.transforms import IAAPiecewiseAffine, IAAFliplr, IAAFlipud
 
 
 @pytest.mark.parametrize("augmentation_cls", [IAAPiecewiseAffine, IAAFliplr])

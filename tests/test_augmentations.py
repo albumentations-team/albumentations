@@ -5,8 +5,6 @@ import cv2
 import numpy as np
 import pytest
 
-import albumentations as A
-
 from albumentations import (
     RandomCrop,
     PadIfNeeded,

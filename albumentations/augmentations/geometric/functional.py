@@ -332,14 +332,14 @@ def perspective(img, matrix, max_width, max_height, border_val, border_mode, kee
     return warped
 
 
-def perspective_bbox(bbox, h, w, matrix, max_width, max_height, keep_size):
+def perspective_bbox(bbox, h, w, matrix, max_width, max_height):
     bbox = denormalize_bbox(bbox, h, w)
 
     points = np.array(
         [[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[2]], [bbox[0], bbox[2]]], dtype=np.float32
     )
 
-    points = cv2.perspectiveTransform(points.reshape(1, 4, 2), matrix)
+    points = cv2.perspectiveTransform(points.reshape([1, 4, 2]), matrix)
 
     bbox = [np.min(points[..., 0]), np.min(points[..., 1]), np.max(points[..., 0]), np.max(points[..., 1])]
     return normalize_bbox(bbox, max_height, max_width)
@@ -352,7 +352,7 @@ def rotation2DMatrixToEulerAngles(matrix):
 def perspective_keypoint(keypoint, h, w, matrix, max_width, max_height, keep_size):
     x, y, angle, scale = keypoint
 
-    keypoint = np.array([x, y], dtype=np.float32).reshape(1, 1, 2)
+    keypoint = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
 
     x, y = cv2.perspectiveTransform(keypoint, matrix)[0, 0]
     angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])

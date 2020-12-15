@@ -247,7 +247,7 @@ class Perspective(DualTransform):
         )
 
     def apply_to_bbox(self, bbox, matrix=None, max_height=None, max_width=None, **params):
-        return F.perspective_bbox(bbox, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size)
+        return F.perspective_bbox(bbox, params["rows"], params["cols"], matrix, max_width, max_height)
 
     def apply_to_keypoint(self, keypoint, matrix=None, max_height=None, max_width=None, **params):
         return F.perspective_keypoint(
