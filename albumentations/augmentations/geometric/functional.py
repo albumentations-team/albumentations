@@ -7,6 +7,8 @@ from scipy.ndimage.filters import gaussian_filter
 from ..bbox_utils import denormalize_bbox, normalize_bbox
 from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
 
+from typing import Union, List
+
 
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
@@ -314,7 +316,16 @@ def smallest_max_size(img, max_size, interpolation):
 
 
 @preserve_channel_dim
-def perspective(img, matrix, max_width, max_height, border_val, border_mode, keep_size, interpolation):
+def perspective(
+    img: np.ndarray,
+    matrix: np.ndarray,
+    max_width: int,
+    max_height: int,
+    border_val: Union[int, float, List[int], List[float], np.ndarray],
+    border_mode: int,
+    keep_size: bool,
+    interpolation: int,
+):
     h, w = img.shape[:2]
     perspective_func = _maybe_process_in_chunks(
         cv2.warpPerspective,
@@ -332,8 +343,10 @@ def perspective(img, matrix, max_width, max_height, border_val, border_mode, kee
     return warped
 
 
-def perspective_bbox(bbox, h, w, matrix, max_width, max_height):
-    bbox = denormalize_bbox(bbox, h, w)
+def perspective_bbox(
+    bbox: Union[List[int], List[float]], height: int, width: int, matrix: np.ndarray, max_width: int, max_height: int
+):
+    bbox = denormalize_bbox(bbox, height, width)
 
     points = np.array(
         [[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[2]], [bbox[0], bbox[2]]], dtype=np.float32
@@ -345,11 +358,19 @@ def perspective_bbox(bbox, h, w, matrix, max_width, max_height):
     return normalize_bbox(bbox, max_height, max_width)
 
 
-def rotation2DMatrixToEulerAngles(matrix):
+def rotation2DMatrixToEulerAngles(matrix: np.ndarray):
     return np.arctan2(matrix[1, 0], matrix[0, 0])
 
 
-def perspective_keypoint(keypoint, h, w, matrix, max_width, max_height, keep_size):
+def perspective_keypoint(
+    keypoint: Union[List[int], List[float]],
+    height: int,
+    width: int,
+    matrix: np.ndarray,
+    max_width: int,
+    max_height: int,
+    keep_size: bool,
+):
     x, y, angle, scale = keypoint
 
     keypoint = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
@@ -357,6 +378,6 @@ def perspective_keypoint(keypoint, h, w, matrix, max_width, max_height, keep_siz
     x, y = cv2.perspectiveTransform(keypoint, matrix)[0, 0]
     angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
     if not keep_size:
-        scale += max(max_height / h, max_width / w)
+        scale += max(max_height / height, max_width / width)
 
     return x, y, angle, scale
