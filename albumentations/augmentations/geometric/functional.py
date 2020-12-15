@@ -4,6 +4,7 @@ import numpy as np
 
 from scipy.ndimage.filters import gaussian_filter
 
+from ..bbox_utils import denormalize_bbox, normalize_bbox
 from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
 
 
@@ -310,3 +311,47 @@ def longest_max_size(img, max_size, interpolation):
 @preserve_channel_dim
 def smallest_max_size(img, max_size, interpolation):
     return _func_max_size(img, max_size, interpolation, min)
+
+
+@preserve_channel_dim
+def perspective(img, matrix, max_width, max_height, border_val, border_mode, keep_size, interpolation):
+    h, w = img.shape[:2]
+    perspective_func = _maybe_process_in_chunks(
+        cv2.warpPerspective, M=matrix, dsize=(max_width, max_height), borderMode=border_mode, borderValue=border_val
+    )
+    warped = perspective_func(img)
+
+    if keep_size:
+        return resize(warped, h, w, interpolation=interpolation)
+
+    return warped
+
+
+def perspective_bbox(bbox, h, w, matrix, max_width, max_height, keep_size):
+    bbox = denormalize_bbox(bbox, h, w)
+
+    points = np.array(
+        [[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[2]], [bbox[0], bbox[2]]], dtype=np.float32
+    )
+
+    points = cv2.perspectiveTransform(points.reshape(1, 4, 2), matrix)
+
+    bbox = [np.min(points[..., 0]), np.min(points[..., 1]), np.max(points[..., 0]), np.max(points[..., 1])]
+    return normalize_bbox(bbox, max_height, max_width)
+
+
+def rotation2DMatrixToEulerAngles(matrix):
+    return np.arctan2(matrix[1, 0], matrix[0, 0])
+
+
+def perspective_keypoint(keypoint, h, w, matrix, max_width, max_height, keep_size):
+    x, y, angle, scale = keypoint
+
+    keypoint = np.array([x, y], dtype=np.float32).reshape(1, 1, 2)
+
+    x, y = cv2.perspectiveTransform(keypoint, matrix)[0, 0]
+    angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
+    if not keep_size:
+        scale += max(max_height / h, max_width / w)
+
+    return x, y, angle, scale
