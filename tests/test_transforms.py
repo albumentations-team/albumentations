@@ -496,7 +496,13 @@ def test_resize_keypoints():
 
 
 @pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320], np.uint8), np.random.random([256, 320]).astype(np.float32)]
+    "image",
+    [
+        np.random.randint(0, 256, [256, 320], np.uint8),
+        np.random.random([256, 320]).astype(np.float32),
+        np.random.randint(0, 256, [256, 320, 1], np.uint8),
+        np.random.random([256, 320, 1]).astype(np.float32),
+    ],
 )
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
