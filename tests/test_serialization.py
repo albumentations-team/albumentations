@@ -68,6 +68,7 @@ def set_seed(seed):
         [A.Downscale, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -233,6 +234,18 @@ AUGMENTATION_CLS_PARAMS = (
             A.ColorJitter,
             {"brightness": [0.2, 0.3], "contrast": [0.7, 0.9], "saturation": [1.2, 1.7], "hue": [-0.2, 0.1]},
         ],
+        [
+            A.Perspective,
+            {
+                "scale": 0.5,
+                "keep_size": False,
+                "pad_mode": cv2.BORDER_REFLECT_101,
+                "pad_val": 10,
+                "mask_pad_val": 100,
+                "fit_output": True,
+                "interpolation": cv2.INTER_CUBIC,
+            },
+        ],
     ],
 )
 
@@ -328,6 +341,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -393,6 +407,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -681,6 +696,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

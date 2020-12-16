@@ -66,6 +66,7 @@ from albumentations import (
     ColorJitter,
     FDA,
     HistogramMatching,
+    Perspective,
 )
 
 
@@ -191,6 +192,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [ISONoise, {}],
         [RandomGridShuffle, {}],
         [GridDropout, {}],
+        [Perspective, {}],
     ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -221,6 +223,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
         [RandomGridShuffle, {}],
         [GridDropout, {}],
+        [Perspective, {}],
     ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -310,6 +313,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Perspective, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -377,6 +381,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Perspective, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -425,6 +430,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
         [FDA, {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x}],
+        [Perspective, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -500,6 +506,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Perspective, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -562,6 +569,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [RandomBrightnessContrast, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [Perspective, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
@@ -589,6 +597,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         [RandomBrightnessContrast, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [Perspective, {}],
     ],
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
