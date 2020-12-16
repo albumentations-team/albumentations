@@ -196,8 +196,9 @@ class Perspective(DualTransform):
     """Perform a random four point perspective transform of the input.
 
     Args:
-        scale ((float, float): standard deviation of the normal distributions. These are used to sample
-            the random distances of the subimage's corners from the full image's corners. Default: (0.05, 0.1).
+        scale (float or (float, float)): standard deviation of the normal distributions. These are used to sample
+            the random distances of the subimage's corners from the full image's corners.
+            If scale is a single float value, the range will be (0, scale). Default: (0.05, 0.1).
         keep_size (bool): Whether to resize image’s back to their original size after applying the perspective
             transform. If set to False, the resulting images may end up having different shapes
             and will always be a list, never an array. Default: True
