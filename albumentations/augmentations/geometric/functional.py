@@ -362,6 +362,7 @@ def rotation2DMatrixToEulerAngles(matrix: np.ndarray):
     return np.arctan2(matrix[1, 0], matrix[0, 0])
 
 
+@angle_2pi_range
 def perspective_keypoint(
     keypoint: Union[List[int], List[float]],
     height: int,
