@@ -5,12 +5,14 @@ try:
 except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
+from ..augmentations import Sharpen
 from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, convert_bboxes_to_albumentations
 from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, convert_keypoints_to_albumentations
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
 from ..augmentations import Perspective
 
 import warnings
+
 
 __all__ = [
     "BasicIAATransform",
@@ -175,9 +177,9 @@ class IAASuperpixels(ImageOnlyIAATransform):
         return ("p_replace", "n_segments")
 
 
-class IAASharpen(ImageOnlyIAATransform):
+class IAASharpen(Sharpen):
     """Sharpen the input image and overlays the result with the original image.
-
+    This augmentation is deprecated. Please use Sharpen instead
     Args:
         alpha ((float, float)): range to choose the visibility of the sharpened image. At 0, only the original image is
             visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
@@ -189,16 +191,8 @@ class IAASharpen(ImageOnlyIAATransform):
     """
 
     def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
-        super(IAASharpen, self).__init__(always_apply, p)
-        self.alpha = to_tuple(alpha, 0)
-        self.lightness = to_tuple(lightness, 0)
-
-    @property
-    def processor(self):
-        return iaa.Sharpen(self.alpha, self.lightness)
-
-    def get_transform_init_args_names(self):
-        return ("alpha", "lightness")
+        warnings.warn("This augmentation is deprecated. Please use Sharpen instead")
+        super().__init__(alpha=alpha, lightness=lightness, always_apply=always_apply, p=p)
 
 
 class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
