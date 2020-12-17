@@ -69,6 +69,7 @@ def set_seed(seed):
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
         [A.Perspective, {}],
+        [A.Sharpen, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -246,6 +247,7 @@ AUGMENTATION_CLS_PARAMS = (
                 "interpolation": cv2.INTER_CUBIC,
             },
         ],
+        [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
     ],
 )
 
@@ -342,6 +344,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
         [A.Perspective, {}],
+        [A.Sharpen, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -408,6 +411,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
         [A.Perspective, {}],
+        [A.Sharpen, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -430,7 +434,6 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
     [
         [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -462,7 +465,6 @@ def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, i
     [
         [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -496,7 +498,6 @@ def test_imgaug_augmentations_for_bboxes_serialization(
     [
         [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -697,6 +698,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
         [A.Perspective, {}],
+        [A.Sharpen, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
