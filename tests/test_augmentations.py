@@ -33,7 +33,6 @@ from albumentations import (
     CLAHE,
     ChannelShuffle,
     InvertImg,
-    IAAEmboss,
     IAASuperpixels,
     IAASharpen,
     IAAAdditiveGaussianNoise,
@@ -68,6 +67,7 @@ from albumentations import (
     HistogramMatching,
     Perspective,
     Sharpen,
+    Emboss,
 )
 
 
@@ -114,6 +114,7 @@ from albumentations import (
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
         [Sharpen, {}],
+        [Emboss, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -162,6 +163,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
         [Sharpen, {}],
+        [Emboss, {}],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -236,7 +238,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
     assert data["mask"].dtype == np.uint8
 
 
-@pytest.mark.parametrize("augmentation_cls", [IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
+@pytest.mark.parametrize("augmentation_cls", [IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
 def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
     aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
@@ -318,6 +320,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         ],
         [Perspective, {}],
         [Sharpen, {}],
+        [Emboss, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -387,6 +390,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         ],
         [Perspective, {}],
         [Sharpen, {}],
+        [Emboss, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -437,6 +441,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [FDA, {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x}],
         [Perspective, {}],
         [Sharpen, {}],
+        [Emboss, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -514,6 +519,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         ],
         [Perspective, {}],
         [Sharpen, {}],
+        [Emboss, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
