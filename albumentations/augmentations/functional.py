@@ -583,9 +583,9 @@ def median_blur(img, ksize):
 
 
 @preserve_shape
-def motion_blur(img, kernel):
-    blur_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
-    return blur_fn(img)
+def convolve(img, kernel):
+    conv_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
+    return conv_fn(img)
 
 
 @preserve_shape

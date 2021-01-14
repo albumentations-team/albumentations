@@ -142,6 +142,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
         [A.GlassBlur, {}],
+        [A.Perspective, {}],
     ],
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -167,6 +168,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.Resize, {"height": 120, "width": 130}],
         [A.OpticalDistortion, {}],
         [A.GlassBlur, {}],
+        [A.Perspective, {}],
     ],
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -200,9 +202,10 @@ def __test_multiprocessing_support_proc(args):
         [A.IAAAffine, {"scale": 1.5}],
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
-        [A.IAASharpen, {}],
+        [A.Sharpen, {}],
         [A.FancyPCA, {}],
         [A.GlassBlur, {}],
+        [A.Perspective, {}],
     ],
 )
 def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
@@ -290,6 +293,8 @@ def test_force_apply():
         [A.GlassBlur, {}],
         [A.GridDropout, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {"alpha": [0.2, 0.2], "lightness": [0.5, 0.5]}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):

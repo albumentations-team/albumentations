@@ -5,9 +5,13 @@ try:
 except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
+from ..augmentations import Emboss, Perspective, Sharpen
 from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, convert_bboxes_to_albumentations
 from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, convert_keypoints_to_albumentations
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
+
+import warnings
+
 
 __all__ = [
     "BasicIAATransform",
@@ -119,7 +123,7 @@ class IAAFlipud(DualIAATransform):
         return ()
 
 
-class IAAEmboss(ImageOnlyIAATransform):
+class IAAEmboss(Emboss):
     """Emboss the input image and overlays the result with the original image.
 
     Args:
@@ -133,16 +137,8 @@ class IAAEmboss(ImageOnlyIAATransform):
     """
 
     def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
-        super(IAAEmboss, self).__init__(always_apply, p)
-        self.alpha = to_tuple(alpha, 0.0)
-        self.strength = to_tuple(strength, 0.0)
-
-    @property
-    def processor(self):
-        return iaa.Emboss(self.alpha, self.strength)
-
-    def get_transform_init_args_names(self):
-        return ("alpha", "strength")
+        warnings.warn("This augmentation is deprecated. Please use Emboss instead")
+        super().__init__(alpha=alpha, strength=strength, always_apply=always_apply, p=p)
 
 
 class IAASuperpixels(ImageOnlyIAATransform):
@@ -172,9 +168,9 @@ class IAASuperpixels(ImageOnlyIAATransform):
         return ("p_replace", "n_segments")
 
 
-class IAASharpen(ImageOnlyIAATransform):
+class IAASharpen(Sharpen):
     """Sharpen the input image and overlays the result with the original image.
-
+    This augmentation is deprecated. Please use Sharpen instead
     Args:
         alpha ((float, float)): range to choose the visibility of the sharpened image. At 0, only the original image is
             visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
@@ -186,16 +182,8 @@ class IAASharpen(ImageOnlyIAATransform):
     """
 
     def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
-        super(IAASharpen, self).__init__(always_apply, p)
-        self.alpha = to_tuple(alpha, 0)
-        self.lightness = to_tuple(lightness, 0)
-
-    @property
-    def processor(self):
-        return iaa.Sharpen(self.alpha, self.lightness)
-
-    def get_transform_init_args_names(self):
-        return ("alpha", "lightness")
+        warnings.warn("This augmentation is deprecated. Please use Sharpen instead")
+        super().__init__(alpha=alpha, lightness=lightness, always_apply=always_apply, p=p)
 
 
 class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
@@ -313,7 +301,7 @@ class IAAAffine(DualIAATransform):
         return ("scale", "translate_percent", "translate_px", "rotate", "shear", "order", "cval", "mode")
 
 
-class IAAPerspective(DualIAATransform):
+class IAAPerspective(Perspective):
     """Perform a random four point perspective transform of the input.
 
     Note: This class introduce interpolation artifacts to mask if it has values other than {0;1}
@@ -327,14 +315,6 @@ class IAAPerspective(DualIAATransform):
         image, mask
     """
 
-    def __init__(self, scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5):
-        super(IAAPerspective, self).__init__(always_apply, p)
-        self.scale = to_tuple(scale, 1.0)
-        self.keep_size = keep_size
-
-    @property
-    def processor(self):
-        return iaa.PerspectiveTransform(self.scale, keep_size=self.keep_size)
-
-    def get_transform_init_args_names(self):
-        return ("scale", "keep_size")
+    def __init__(self, scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5, **kwargs):
+        warnings.warn("This augmentation is deprecated. Please use Perspective instead")
+        super().__init__(scale=scale, keep_size=keep_size, always_apply=always_apply, p=p, **kwargs)

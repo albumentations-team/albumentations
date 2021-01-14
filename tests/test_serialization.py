@@ -68,6 +68,9 @@ def set_seed(seed):
         [A.Downscale, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -233,6 +236,20 @@ AUGMENTATION_CLS_PARAMS = (
             A.ColorJitter,
             {"brightness": [0.2, 0.3], "contrast": [0.7, 0.9], "saturation": [1.2, 1.7], "hue": [-0.2, 0.1]},
         ],
+        [
+            A.Perspective,
+            {
+                "scale": 0.5,
+                "keep_size": False,
+                "pad_mode": cv2.BORDER_REFLECT_101,
+                "pad_val": 10,
+                "mask_pad_val": 100,
+                "fit_output": True,
+                "interpolation": cv2.INTER_CUBIC,
+            },
+        ],
+        [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
+        [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
     ],
 )
 
@@ -328,6 +345,9 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -393,6 +413,9 @@ def test_augmentations_for_bboxes_serialization(
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -413,9 +436,7 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -445,9 +466,7 @@ def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, i
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -479,9 +498,7 @@ def test_imgaug_augmentations_for_bboxes_serialization(
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -681,6 +698,9 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
