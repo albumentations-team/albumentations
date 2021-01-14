@@ -118,7 +118,7 @@ class BaseCompose:
 
 
 class Compose(BaseCompose):
-    """Compose transforms and handle all transformations regrading bounding boxes
+    """Compose transforms and handle all transformations regarding bounding boxes
 
     Args:
         transforms (list): list of transformations to compose.

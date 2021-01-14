@@ -5,11 +5,10 @@ try:
 except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
-from ..augmentations import Sharpen
+from ..augmentations import Emboss, Perspective, Sharpen
 from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, convert_bboxes_to_albumentations
 from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, convert_keypoints_to_albumentations
 from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
-from ..augmentations import Perspective
 
 import warnings
 
@@ -124,7 +123,7 @@ class IAAFlipud(DualIAATransform):
         return ()
 
 
-class IAAEmboss(ImageOnlyIAATransform):
+class IAAEmboss(Emboss):
     """Emboss the input image and overlays the result with the original image.
 
     Args:
@@ -138,16 +137,8 @@ class IAAEmboss(ImageOnlyIAATransform):
     """
 
     def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
-        super(IAAEmboss, self).__init__(always_apply, p)
-        self.alpha = to_tuple(alpha, 0.0)
-        self.strength = to_tuple(strength, 0.0)
-
-    @property
-    def processor(self):
-        return iaa.Emboss(self.alpha, self.strength)
-
-    def get_transform_init_args_names(self):
-        return ("alpha", "strength")
+        warnings.warn("This augmentation is deprecated. Please use Emboss instead")
+        super().__init__(alpha=alpha, strength=strength, always_apply=always_apply, p=p)
 
 
 class IAASuperpixels(ImageOnlyIAATransform):
