@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal_nulp
 
+import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.bbox_utils import filter_bboxes
@@ -126,7 +127,7 @@ def test_center_crop(target):
     img = np.array([[1, 1, 1, 1], [0, 1, 1, 1], [0, 0, 1, 1], [0, 0, 0, 1]], dtype=np.uint8)
     expected = np.array([[1, 1], [0, 1]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = F.center_crop(img, 2, 2)
+    cropped_img = A.center_crop(img, 2, 2)
     assert np.array_equal(cropped_img, expected)
 
 
@@ -137,14 +138,14 @@ def test_center_crop_float(target):
     )
     expected = np.array([[0.4, 0.4], [0.0, 0.4]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = F.center_crop(img, 2, 2)
+    cropped_img = A.center_crop(img, 2, 2)
     assert_array_almost_equal_nulp(cropped_img, expected)
 
 
 def test_center_crop_with_incorrectly_large_crop_size():
     img = np.ones((4, 4), dtype=np.uint8)
     with pytest.raises(ValueError) as exc_info:
-        F.center_crop(img, 8, 8)
+        A.center_crop(img, 8, 8)
     assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
 
 
@@ -153,7 +154,7 @@ def test_random_crop(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
     expected = np.array([[5, 6], [9, 10]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = F.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
+    cropped_img = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
     assert np.array_equal(cropped_img, expected)
 
 
@@ -165,14 +166,14 @@ def test_random_crop_float(target):
     )
     expected = np.array([[0.05, 0.06], [0.09, 0.10]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = F.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
+    cropped_img = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
     assert_array_almost_equal_nulp(cropped_img, expected)
 
 
 def test_random_crop_with_incorrectly_large_crop_size():
     img = np.ones((4, 4), dtype=np.uint8)
     with pytest.raises(ValueError) as exc_info:
-        F.random_crop(img, crop_height=8, crop_width=8, h_start=0, w_start=0)
+        A.random_crop(img, crop_height=8, crop_width=8, h_start=0, w_start=0)
     assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
 
 
@@ -604,22 +605,22 @@ def test_bbox_flip(code, func):
 
 
 def test_crop_bbox_by_coords():
-    cropped_bbox = F.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 64, 64, 100, 100)
+    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 64, 64, 100, 100)
     assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
 
 
 def test_bbox_center_crop():
-    cropped_bbox = F.bbox_center_crop((0.5, 0.2, 0.9, 0.7), 64, 64, 100, 100)
+    cropped_bbox = A.bbox_center_crop((0.5, 0.2, 0.9, 0.7), 64, 64, 100, 100)
     assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
 
 
 def test_bbox_crop():
-    cropped_bbox = F.bbox_crop([0.5, 0.2, 0.9, 0.7], 24, 24, 64, 64, 100, 100)
+    cropped_bbox = A.bbox_crop([0.5, 0.2, 0.9, 0.7], 24, 24, 64, 64, 100, 100)
     assert cropped_bbox == (0.65, -0.1, 1.65, 1.15)
 
 
 def test_bbox_random_crop():
-    cropped_bbox = F.bbox_random_crop([0.5, 0.2, 0.9, 0.7], 80, 80, 0.2, 0.1, 100, 100)
+    cropped_bbox = A.bbox_random_crop([0.5, 0.2, 0.9, 0.7], 80, 80, 0.2, 0.1, 100, 100)
     assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
 
 
