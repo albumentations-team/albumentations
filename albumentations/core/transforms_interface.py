@@ -6,7 +6,7 @@ from warnings import warn
 import cv2
 from copy import deepcopy
 
-from albumentations.core.serialization import SerializableMeta
+from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
 
@@ -172,7 +172,7 @@ class BasicTransform:
 
     @classmethod
     def get_class_fullname(cls):
-        return "{cls.__module__}.{cls.__name__}".format(cls=cls)
+        return get_shortest_class_fullname(cls)
 
     def get_transform_init_args_names(self):
         raise NotImplementedError(

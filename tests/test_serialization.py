@@ -1,3 +1,5 @@
+import json
+import os
 import random
 from unittest.mock import patch
 
@@ -8,6 +10,8 @@ import imgaug as ia
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+from albumentations.core.serialization import SERIALIZABLE_REGISTRY
+from albumentations.core.transforms_interface import ImageOnlyTransform
 from .utils import OpenMock
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
@@ -745,3 +749,37 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
     assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+
+
+def test_serialization_v2_conversion():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform_0_4_6 = A.load(os.path.join(files_directory, "transform_v0.4.6.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform_0_4_6(image=image)["image"]
+    assert transformed_image.numpy().tolist() == output_0_4_6
+
+
+def test_custom_transform_with_overlapping_name():
+    class HorizontalFlip(ImageOnlyTransform):
+        pass
+
+    assert SERIALIZABLE_REGISTRY["HorizontalFlip"] == A.HorizontalFlip
+    assert SERIALIZABLE_REGISTRY["tests.test_serialization.HorizontalFlip"] == HorizontalFlip
+
+
+def test_serialization_v2_to_dict():
+    transform = A.Compose([A.HorizontalFlip()])
+    transform_dict = A.to_dict(transform)["transform"]
+    assert transform_dict == {
+        "__class_fullname__": "Compose",
+        "p": 1.0,
+        "transforms": [{"__class_fullname__": "HorizontalFlip", "always_apply": False, "p": 0.5}],
+        "bbox_params": None,
+        "keypoint_params": None,
+        "additional_targets": {},
+    }
