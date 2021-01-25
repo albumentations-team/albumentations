@@ -764,6 +764,19 @@ def test_serialization_v2_conversion():
     assert transformed_image.numpy().tolist() == output_0_4_6
 
 
+def test_serialization_v2():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform = A.load(os.path.join(files_directory, "transform_serialization_v2.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform(image=image)["image"]
+    assert transformed_image.numpy().tolist() == output_0_4_6
+
+
 def test_custom_transform_with_overlapping_name():
     class HorizontalFlip(ImageOnlyTransform):
         pass
