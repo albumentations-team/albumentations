@@ -31,10 +31,8 @@ def shorten_class_name(class_fullname):
 
 
 def get_shortest_class_fullname(cls):
-    top_module, *_ = cls.__module__.split(".")
-    if top_module == "albumentations":
-        return cls.__name__
-    return "{cls.__module__}.{cls.__name__}".format(cls=cls)
+    class_fullname = "{cls.__module__}.{cls.__name__}".format(cls=cls)
+    return shorten_class_name(class_fullname)
 
 
 class SerializableMeta(type):
