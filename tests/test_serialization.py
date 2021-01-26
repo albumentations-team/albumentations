@@ -10,7 +10,7 @@ import imgaug as ia
 
 import albumentations as A
 import albumentations.augmentations.functional as F
-from albumentations.core.serialization import SERIALIZABLE_REGISTRY
+from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from .utils import OpenMock
 
@@ -796,3 +796,15 @@ def test_serialization_v2_to_dict():
         "keypoint_params": None,
         "additional_targets": {},
     }
+
+
+@pytest.mark.parametrize(
+    ["class_fullname", "expected_short_class_name"],
+    [
+        ["albumentations.augmentations.transforms.HorizontalFlip", "HorizontalFlip"],
+        ["HorizontalFlip", "HorizontalFlip"],
+        ["some_module.HorizontalFlip", "some_module.HorizontalFlip"],
+    ],
+)
+def test_shorten_class_name(class_fullname, expected_short_class_name):
+    assert shorten_class_name(class_fullname) == expected_short_class_name
