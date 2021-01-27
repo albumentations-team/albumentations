@@ -6,7 +6,7 @@ import random
 import numpy as np
 
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
-from albumentations.core.serialization import SerializableMeta
+from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params
@@ -90,7 +90,7 @@ class BaseCompose:
 
     @classmethod
     def get_class_fullname(cls):
-        return "{cls.__module__}.{cls.__name__}".format(cls=cls)
+        return get_shortest_class_fullname(cls)
 
     def _to_dict(self):
         return {
