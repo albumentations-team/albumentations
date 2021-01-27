@@ -1514,7 +1514,7 @@ def fancy_pca(img, alpha=0.1):
 @clipped
 def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
     coef = MAX_VALUES_BY_DTYPE[img.dtype]
-    x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
+    x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * 255)
 
     if mode == "fast":
 
@@ -1541,7 +1541,7 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             dx = dxy[ind, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
-    return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+    return np.clip(cv2.GaussianBlur(x / 255, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
 
 
 def _adjust_brightness_torchvision_uint8(img, factor):
