@@ -848,5 +848,6 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
 
     # Before comparison, rescale the blur_float32 to [0, 255]
     diff = np.abs(blur_uint8 - blur_float32 * 255)
+
     # The difference between the results of float32 and uint8 will be at most 2.
     assert np.all(diff <= 2.0)
