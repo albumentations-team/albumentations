@@ -3,8 +3,18 @@ import math
 import numpy as np
 import pytest
 
-import albumentations.augmentations.functional as F
-from albumentations import HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
+import albumentations.augmentations.geometric.functional as FGeometric
+from albumentations import (
+    HorizontalFlip,
+    VerticalFlip,
+    IAAFliplr,
+    IAAFlipud,
+    CenterCrop,
+    RandomSizedCrop,
+    RandomResizedCrop,
+    Compose,
+    NoOp,
+)
 from albumentations.augmentations.keypoints_utils import (
     convert_keypoint_from_albumentations,
     convert_keypoints_from_albumentations,
@@ -12,9 +22,6 @@ from albumentations.augmentations.keypoints_utils import (
     convert_keypoints_to_albumentations,
     angle_to_2pi_range,
 )
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
-from albumentations.core.composition import Compose
-from albumentations.core.transforms_interface import NoOp
 
 
 @pytest.mark.parametrize(
@@ -255,7 +262,7 @@ def test_iaa_transforms_emit_warning(aug, keypoints, expected):
     ],
 )
 def test_keypoint_rotate90(keypoint, expected, factor):
-    actual = F.keypoint_rot90(keypoint, factor, rows=100, cols=200)
+    actual = FGeometric.keypoint_rot90(keypoint, factor, rows=100, cols=200)
     assert actual == expected
 
 
@@ -271,7 +278,7 @@ def test_keypoint_rotate90(keypoint, expected, factor):
     ],
 )
 def test_keypoint_rotate(keypoint, expected, angle):
-    actual = F.keypoint_rotate(keypoint, angle, rows=100, cols=100)
+    actual = FGeometric.keypoint_rotate(keypoint, angle, rows=100, cols=100)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
@@ -284,7 +291,7 @@ def test_keypoint_rotate(keypoint, expected, angle):
     ],
 )
 def test_keypoint_scale(keypoint, expected, scale):
-    actual = F.keypoint_scale(keypoint, scale, scale)
+    actual = FGeometric.keypoint_scale(keypoint, scale, scale)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
@@ -293,7 +300,7 @@ def test_keypoint_scale(keypoint, expected, scale):
     [[[50, 50, 0, 5], [120, 160, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
-    actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
+    actual = FGeometric.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
     np.testing.assert_allclose(actual, expected, rtol=1e-4)
 
 

@@ -11,9 +11,9 @@ from albumentations.augmentations.bbox_utils import (
     convert_bbox_from_albumentations,
     convert_bboxes_to_albumentations,
 )
-from albumentations.core.composition import Compose
+from albumentations.core.composition import Compose, ReplayCompose, BboxParams
 from albumentations.core.transforms_interface import NoOp
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop, Rotate
+from albumentations import RandomSizedCrop, RandomResizedCrop, Rotate, RandomCrop
 
 
 @pytest.mark.parametrize(
@@ -248,3 +248,19 @@ def test_random_rotate():
     aug = Rotate(limit=15, p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert len(bboxes) == len(transformed["bboxes"])
+
+
+def test_crop_boxes_replay_compose():
+    image = np.ones((512, 384, 3))
+    bboxes = [(78, 42, 142, 80), (32, 12, 42, 72), (200, 100, 300, 200)]
+    labels = [0, 1, 2]
+    transform = ReplayCompose(
+        [RandomCrop(256, 256, p=1.0)],
+        bbox_params=BboxParams(format="pascal_voc", min_area=16, label_fields=["labels"]),
+    )
+
+    input_data = dict(image=image, bboxes=bboxes, labels=labels)
+    transformed = transform(**input_data)
+    transformed2 = ReplayCompose.replay(transformed["replay"], **input_data)
+
+    np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])

@@ -6,6 +6,7 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+import albumentations.augmentations.geometric.functional as FGeometric
 
 from torchvision.transforms import ColorJitter
 from PIL import Image
@@ -26,8 +27,8 @@ def test_rotate_interpolation(interpolation):
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     aug = A.Rotate(limit=(45, 45), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
-    expected_mask = F.rotate(mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
+    expected_image = FGeometric.rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
+    expected_mask = FGeometric.rotate(mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
 
@@ -40,10 +41,10 @@ def test_shift_scale_rotate_interpolation(interpolation):
         shift_limit=(0.2, 0.2), scale_limit=(1.1, 1.1), rotate_limit=(45, 45), interpolation=interpolation, p=1
     )
     data = aug(image=image, mask=mask)
-    expected_image = F.shift_scale_rotate(
+    expected_image = FGeometric.shift_scale_rotate(
         image, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
     )
-    expected_mask = F.shift_scale_rotate(
+    expected_mask = FGeometric.shift_scale_rotate(
         mask, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
     )
     assert np.array_equal(data["image"], expected_image)
@@ -100,11 +101,11 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     monkeypatch.setattr(
-        "albumentations.augmentations.transforms.ElasticTransform.get_params", lambda *_: {"random_state": 1111}
+        "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_state": 1111}
     )
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.elastic_transform(
+    expected_image = FGeometric.elastic_transform(
         image,
         alpha=1,
         sigma=50,
@@ -113,7 +114,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         border_mode=cv2.BORDER_REFLECT_101,
         random_state=np.random.RandomState(1111),
     )
-    expected_mask = F.elastic_transform(
+    expected_mask = FGeometric.elastic_transform(
         mask,
         alpha=1,
         sigma=50,
@@ -141,6 +142,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
         [A.GlassBlur, {}],
+        [A.Perspective, {}],
     ],
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -166,6 +168,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.Resize, {"height": 120, "width": 130}],
         [A.OpticalDistortion, {}],
         [A.GlassBlur, {}],
+        [A.Perspective, {}],
     ],
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -199,9 +202,10 @@ def __test_multiprocessing_support_proc(args):
         [A.IAAAffine, {"scale": 1.5}],
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
         [A.IAAPerspective, {}],
-        [A.IAASharpen, {}],
+        [A.Sharpen, {}],
         [A.FancyPCA, {}],
         [A.GlassBlur, {}],
+        [A.Perspective, {}],
     ],
 )
 def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
@@ -289,6 +293,8 @@ def test_force_apply():
         [A.GlassBlur, {}],
         [A.GridDropout, {}],
         [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {"alpha": [0.2, 0.2], "lightness": [0.5, 0.5]}],
     ],
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
@@ -813,10 +819,10 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
 def test_shift_scale_separate_shift_x_shift_y(image, mask):
     aug = A.ShiftScaleRotate(shift_limit=(0.3, 0.3), shift_limit_y=(0.4, 0.4), scale_limit=0, rotate_limit=0, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.shift_scale_rotate(
+    expected_image = FGeometric.shift_scale_rotate(
         image, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101
     )
-    expected_mask = F.shift_scale_rotate(
+    expected_mask = FGeometric.shift_scale_rotate(
         mask, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
     )
     assert np.array_equal(data["image"], expected_image)

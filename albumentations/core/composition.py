@@ -6,7 +6,7 @@ import random
 import numpy as np
 
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
-from albumentations.core.serialization import SerializableMeta
+from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params
@@ -90,7 +90,7 @@ class BaseCompose:
 
     @classmethod
     def get_class_fullname(cls):
-        return "{cls.__module__}.{cls.__name__}".format(cls=cls)
+        return get_shortest_class_fullname(cls)
 
     def _to_dict(self):
         return {
@@ -118,7 +118,7 @@ class BaseCompose:
 
 
 class Compose(BaseCompose):
-    """Compose transforms and handle all transformations regrading bounding boxes
+    """Compose transforms and handle all transformations regarding bounding boxes
 
     Args:
         transforms (list): list of transformations to compose.
@@ -206,6 +206,22 @@ class Compose(BaseCompose):
                 if keypoints_processor
                 else None,
                 "additional_targets": self.additional_targets,
+            }
+        )
+        return dictionary
+
+    def get_dict_with_id(self):
+        dictionary = super().get_dict_with_id()
+        bbox_processor = self.processors.get("bboxes")
+        keypoints_processor = self.processors.get("keypoints")
+        dictionary.update(
+            {
+                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,  # skipcq: PYL-W0212
+                "keypoint_params": keypoints_processor.params._to_dict()  # skipcq: PYL-W0212
+                if keypoints_processor
+                else None,
+                "additional_targets": self.additional_targets,
+                "params": None,
             }
         )
         return dictionary
