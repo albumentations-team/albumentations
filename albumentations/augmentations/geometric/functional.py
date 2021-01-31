@@ -379,9 +379,9 @@ def perspective_keypoint(
 ):
     x, y, angle, scale = keypoint
 
-    keypoint = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
+    keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
 
-    x, y = cv2.perspectiveTransform(keypoint, matrix)[0, 0]
+    x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
     angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
     if not keep_size:
         scale += max(max_height / height, max_width / width)
