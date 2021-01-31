@@ -905,7 +905,7 @@ def grid_distortion(
     border_mode=cv2.BORDER_REFLECT_101,
     value=None,
 ):
-    """Perform grid distortion of an input image.
+    """Perform a grid distortion of an input image.
 
     Reference:
         http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
