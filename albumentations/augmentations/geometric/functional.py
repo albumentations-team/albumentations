@@ -145,7 +145,12 @@ def shift_scale_rotate(
 
 @angle_2pi_range
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
-    x, y, a, s, = keypoint[:4]
+    (
+        x,
+        y,
+        a,
+        s,
+    ) = keypoint[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)

@@ -298,8 +298,7 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
 
 
 def convert_bboxes_to_albumentations(bboxes, source_format, rows, cols, check_validity=False):
-    """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations
-    """
+    """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     return [convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity) for bbox in bboxes]
 
 
