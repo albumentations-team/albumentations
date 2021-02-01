@@ -22,7 +22,7 @@ requirements:
   run:
     - python
     - numpy>=1.11.1,<1.16.0
-    - scipy 
+    - scipy
     - opencv
     # ImgAug is not at Conda and should be installed via pip install 'imgaug>=0.2.5,<0.2.7'
     # - imgaug>=0.2.5,<0.2.7

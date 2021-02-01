@@ -145,7 +145,12 @@ def shift_scale_rotate(
 
 @angle_2pi_range
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
-    x, y, a, s, = keypoint[:4]
+    (
+        x,
+        y,
+        a,
+        s,
+    ) = keypoint[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
@@ -374,9 +379,9 @@ def perspective_keypoint(
 ):
     x, y, angle, scale = keypoint
 
-    keypoint = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
+    keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
 
-    x, y = cv2.perspectiveTransform(keypoint, matrix)[0, 0]
+    x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
     angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
     if not keep_size:
         scale += max(max_height / height, max_width / width)
