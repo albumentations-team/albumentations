@@ -13,7 +13,7 @@ from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
+__all__ = ["Compose", "OneOf", "SomeOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
 
 
 REPR_INDENT_STEP = 2
@@ -266,6 +266,61 @@ class OneOf(BaseCompose):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
             data = t(force_apply=True, **data)
+        return data
+
+
+class SomeOf(BaseCompose):
+    """Select some of the transforms to apply. Selected transforms will be called with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
+
+    Args:
+        sample_range (int, int): Range of possible sample sizes.
+        transforms (list): list of transformations to compose.
+        p (float): probability of applying selected transform. Default: 0.5.
+    """
+
+    def __init__(self, sample_range: (int, int), transforms, p=0.5):
+        super().__init__(transforms, p)
+        if isinstance(sample_range, (list, tuple)):
+            self.sample_range = sample_range
+        elif isinstance(sample_range, int):
+            self.sample_range = (0, sample_range)
+        else:
+            raise TypeError(f'Invalid type for sample_range: {type(sample_range).__name__}')
+        self.sample_range = sample_range
+        assert len(self.sample_range) == 2
+        assert self.sample_range[0] <= self.sample_range[1]
+        assert all([isinstance(val, int) for val in self.sample_range])
+        assert self.sample_range[1] <= len(transforms)
+    
+    def _to_dict(self) -> dict:
+        item_dict = super()._to_dict()
+        item_dict['sample_range'] = self.sample_range
+        return item_dict
+
+    def __call__(self, force_apply=False, **data):
+        if self.replay_mode:
+            for t in self.transforms:
+                data = t(**data)
+            return data
+
+        sample_size = random.randint(*self.sample_range)
+        unused_idx_list = list(range(len(self.transforms.transforms)))
+        used_idx_list = []
+        for i in range(sample_size):
+            unused_transforms_ps = [self.transforms[idx].p for idx in unused_idx_list]
+            s = sum(unused_transforms_ps)
+            unused_transforms_ps_norm = [p / s for p in unused_transforms_ps]
+
+            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+            t_idx = random_state.choice(unused_idx_list, p=unused_transforms_ps_norm)
+            used_idx_list.append(t_idx)
+            del unused_idx_list[unused_idx_list.index(t_idx)]
+
+        for idx in used_idx_list:
+            t = self.transforms.transforms[idx]
+            data = t(force_apply=True, **data)
+
         return data
 
 
