@@ -827,3 +827,27 @@ def test_shift_scale_separate_shift_x_shift_y(image, mask):
     )
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
+
+
+@pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
+def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
+
+    x_uint8 = np.zeros((5, 5)).astype(np.uint8)
+    x_uint8[2, 2] = val_uint8
+
+    x_float32 = np.zeros((5, 5)).astype(np.float32)
+    x_float32[2, 2] = val_uint8 / 255.0
+
+    glassblur = A.GlassBlur(always_apply=True, max_delta=1)
+
+    np.random.seed(0)
+    blur_uint8 = glassblur(image=x_uint8)["image"]
+
+    np.random.seed(0)
+    blur_float32 = glassblur(image=x_float32)["image"]
+
+    # Before comparison, rescale the blur_float32 to [0, 255]
+    diff = np.abs(blur_uint8 - blur_float32 * 255)
+
+    # The difference between the results of float32 and uint8 will be at most 2.
+    assert np.all(diff <= 2.0)
