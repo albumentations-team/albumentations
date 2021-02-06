@@ -1,5 +1,6 @@
 from __future__ import division
 from collections import defaultdict
+from typing import Tuple
 
 import random
 
@@ -274,28 +275,31 @@ class SomeOf(BaseCompose):
     Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
-        sample_range (int, int): Range of possible sample sizes.
         transforms (list): list of transformations to compose.
+        sample_range (int, int): Range of possible sample sizes.
         p (float): probability of applying selected transform. Default: 0.5.
     """
 
-    def __init__(self, sample_range: (int, int), transforms, p=0.5):
+    def __init__(self, sample_range: Tuple[int], transforms, p=0.5):
         super().__init__(transforms, p)
         if isinstance(sample_range, (list, tuple)):
             self.sample_range = sample_range
         elif isinstance(sample_range, int):
             self.sample_range = (0, sample_range)
         else:
-            raise TypeError(f'Invalid type for sample_range: {type(sample_range).__name__}')
-        self.sample_range = sample_range
-        assert len(self.sample_range) == 2
-        assert self.sample_range[0] <= self.sample_range[1]
-        assert all([isinstance(val, int) for val in self.sample_range])
-        assert self.sample_range[1] <= len(transforms)
-    
+            raise TypeError(f"Invalid type for sample_range: {type(sample_range).__name__}")
+        if len(self.sample_range) != 2:
+            raise ValueError(f"len(sample_range) == {len(sample_range)} != 2")
+        if self.sample_range[0] > self.sample_range[1]:
+            raise ValueError(f"sample_range[0] == {self.sample_range[0]} > {self.sample_range[1]} == sample_range[1]")
+        if not all([isinstance(val, int) for val in self.sample_range]):
+            raise TypeError(f"not all([isinstance(val, int) for val in sample_range])")
+        if self.sample_range[1] > len(transforms):
+            raise ValueError(f"sample_range[1] == {self.sample_range[1]} > {len(transforms)} == len(transforms)")
+
     def _to_dict(self) -> dict:
         item_dict = super()._to_dict()
-        item_dict['sample_range'] = self.sample_range
+        item_dict["sample_range"] = self.sample_range
         return item_dict
 
     def __call__(self, force_apply=False, **data):
@@ -317,6 +321,7 @@ class SomeOf(BaseCompose):
             used_idx_list.append(t_idx)
             del unused_idx_list[unused_idx_list.index(t_idx)]
 
+        random.shuffle(used_idx_list)
         for idx in used_idx_list:
             t = self.transforms.transforms[idx]
             data = t(force_apply=True, **data)
