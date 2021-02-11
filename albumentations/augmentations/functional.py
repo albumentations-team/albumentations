@@ -449,6 +449,37 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
 
     return result_img
 
+def move_tone_curve(img, low_shift, high_shift):
+    """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
+
+    Args:
+        img (numpy.ndarray): RGB or grayscale image.
+        low_shift (float): y-position of a Bezier control point used to adjust the image tone curve, must be in range [0, .5]
+        high_shift (float): y-position of a Bezier control point used to adjust the image tone curve, must be in range [.5, 1]
+    """
+    input_dtype = img.dtype
+    
+    if (low_shift < 0 or low_shift > .5):
+        raise ValueError("low_shift must be in range [0, .5]")
+    if (high_shift < .5 or high_shift > 1):
+        raise ValueError("high_shift must be in range [.5, 1]")
+    
+    if input_dtype != np.uint8:
+        raise ValueError("Unsupported image type {}".format(input_dtype))
+
+    t = np.linspace(0.0, 1.0, 256)
+    
+    # Defines responze of a four-point bezier curve
+    bez_curve = lambda t: (3 * (1-t) ** 2 * t * low_shift 
+                           + 3 * (1-t) * t ** 2 * high_shift 
+                           + t ** 3)
+    
+    bez_curve = np.vectorize(bez_curve)
+    remapping = np.rint(bez_curve(t) * 255).astype(np.uint8)
+    
+    img = cv2.LUT(img, remapping)
+    return img
+    
 
 @clipped
 def _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift):
@@ -501,7 +532,6 @@ def linear_transformation_rgb(img, transformation_matrix):
     result_img = cv2.transform(img, transformation_matrix)
 
     return result_img
-
 
 @preserve_channel_dim
 def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):

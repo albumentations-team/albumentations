@@ -56,6 +56,7 @@ __all__ = [
     "RandomFog",
     "RandomSunFlare",
     "RandomShadow",
+    "RandomToneCurve",
     "Lambda",
     "ChannelDropout",
     "ISONoise",
@@ -1254,6 +1255,36 @@ class RandomShadow(ImageOnlyTransform):
     def get_transform_init_args_names(self):
         return ("shadow_roi", "num_shadows_lower", "num_shadows_upper", "shadow_dimension")
 
+class RandomToneCurve(ImageOnlyTransform):
+    """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
+    
+    Args:
+        scale (float): Amount of random deviation from the original image tone.
+        
+    Targets:
+        image
+
+    Image types:
+        uint8
+    """
+    def __init__(
+        self,
+        scale=0.3,
+        always_apply=False,
+        p=0.5,
+        ):
+            super(RandomToneCurve, self).__init__(always_apply, p)
+            self.scale = scale
+            
+    def apply(self, image, low_shift, high_shift, **params):
+        return F.move_tone_curve(image, low_shift, high_shift)
+    
+    def get_params(self):
+        return {
+            "low_shift": np.clip(np.random.normal(loc=.25, scale=self.scale), 0, .5),
+            "high_shift": np.clip(np.random.normal(loc=.75, scale=self.scale), .5, 1)
+        }
+    
 
 class HueSaturationValue(ImageOnlyTransform):
     """Randomly change hue, saturation and value of the input image.
