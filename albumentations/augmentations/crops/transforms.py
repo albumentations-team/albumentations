@@ -816,9 +816,10 @@ class CropAndPad(DualTransform):
             return pad_value
 
         if len(pad_value) == 2:
-            if any(isinstance(i, int) for i in pad_value):
-                return random.randint(*pad_value)
+            a, b = pad_value
+            if isinstance(a, int) and isinstance(b, int):
+                return random.randint(a, b)
 
-            return random.uniform(*pad_value)
+            return random.uniform(a, b)
 
         return random.choice(pad_value)
