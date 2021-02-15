@@ -130,8 +130,6 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [HistogramMatching](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.HistogramMatching)
 - [HueSaturationValue](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.HueSaturationValue)
 - [IAAAdditiveGaussianNoise](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAAdditiveGaussianNoise)
-- [IAAEmboss](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAAEmboss)
-- [IAASharpen](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAASharpen)
 - [IAASuperpixels](https://albumentations.ai/docs/api_reference/imgaug/transforms/#albumentations.imgaug.transforms.IAASuperpixels)
 - [ISONoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ISONoise)
 - [ImageCompression](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ImageCompression)
