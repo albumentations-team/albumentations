@@ -211,7 +211,7 @@ def crop_and_pad(
     img: np.ndarray,
     crop_params: Sequence[int],
     pad_params: Sequence[int],
-    pad_value: float,
+    pad_value: Union[int, float],
     rows: int,
     cols: int,
     interpolation: int,

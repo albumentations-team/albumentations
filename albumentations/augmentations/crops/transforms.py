@@ -628,7 +628,7 @@ class CropAndPad(DualTransform):
         img: np.ndarray,
         crop_params: Sequence[int] = None,
         pad_params: Sequence[int] = None,
-        pad_value: float = None,
+        pad_value: Union[int, float] = None,
         rows: int = None,
         cols: int = None,
         interpolation: int = cv2.INTER_LINEAR,
@@ -643,7 +643,7 @@ class CropAndPad(DualTransform):
         img: np.ndarray,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
-        pad_value_mask: float = None,
+        pad_value_mask: Union[int, float] = None,
         rows: int = None,
         cols: int = None,
         interpolation: int = cv2.INTER_NEAREST,
@@ -796,7 +796,7 @@ class CropAndPad(DualTransform):
         return params  # params = [top, right, bottom, left]
 
     @staticmethod
-    def _get_pad_value(pad_value: Union[float, Sequence[float]]):
+    def _get_pad_value(pad_value: Union[float, Sequence[float]]) -> Union[int, float]:
         if isinstance(pad_value, (int, float)):
             return pad_value
 
@@ -809,7 +809,7 @@ class CropAndPad(DualTransform):
 
         return random.choice(pad_value)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Sequence[str]:
         return (
             "px",
             "percent",
