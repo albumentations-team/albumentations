@@ -682,8 +682,8 @@ class CropAndPad(DualTransform):
             crop_x, crop_y = crop_params[:2]
             x1, y1, x2, y2 = x1 - crop_x, y1 - crop_y, x2 - crop_x, y2 - crop_y
         if pad_params is not None:
-            pad_x, pad_y = pad_params[:2]
-            x1, y1, x2, y2 = x1 + pad_x, y1 + pad_y, x2 + pad_x, y2 + pad_y
+            top, bottom, left, right = pad_params
+            x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
 
         bbox = normalize_bbox((x1, y1, x2, y2), rows, cols)
         return bbox
@@ -693,16 +693,29 @@ class CropAndPad(DualTransform):
         keypoint: Sequence[float],
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
+        rows: int = 0,
+        cols: int = 0,
         **params
     ) -> Sequence[float]:
         x, y, angle, scale = keypoint
 
+        result_rows = rows
+        result_cols = cols
         if crop_params is not None:
-            crop_x, crop_y = crop_params[:2]
-            x, y = x - crop_x, y - crop_y
+            crop_x1, crop_y1, crop_x2, crop_y2 = crop_params
+            x, y = x - crop_x1, y - crop_y1
+            result_rows = crop_y2 - crop_y1
+            result_cols = crop_x2 - crop_x1
         if pad_params is not None:
-            pad_x, pad_y = pad_params[:2]
-            x, y = x + pad_x, y + pad_y
+            top, bottom, left, right = pad_params
+            x, y = x + left, y + top
+            result_rows += top + bottom
+            result_cols += left + right
+
+        if self.keep_size and (result_cols != cols or result_rows != rows):
+            scale_x = cols / result_cols
+            scale_y = rows / result_rows
+            return FGeometric.keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
         return x, y, angle, scale
 
