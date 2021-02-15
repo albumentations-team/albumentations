@@ -7,8 +7,6 @@ from . import functional as F
 from ..bbox_utils import union_of_bboxes
 from ..geometric import functional as FGeometric
 from ...core.transforms_interface import DualTransform
-from ..functional import pad_with_params
-from ..bbox_utils import denormalize_bbox, normalize_bbox
 
 from typing import Union, Sequence, Optional, Tuple, List
 
@@ -636,15 +634,9 @@ class CropAndPad(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         **params
     ) -> np.ndarray:
-        if crop_params is not None and any(i != 0 for i in crop_params):
-            img = F.crop(img, *crop_params)
-        if pad_params is not None and any(i != 0 for i in pad_params):
-            img = pad_with_params(img, *pad_params, border_mode=self.pad_mode, value=pad_value)
-
-        if self.keep_size:
-            img = cv2.resize(img, (cols, rows), interpolation=interpolation)
-
-        return img
+        return F.crop_and_pad(
+            img, crop_params, pad_params, pad_value, rows, cols, interpolation, self.pad_mode, self.keep_size
+        )
 
     def apply_to_mask(
         self,
@@ -657,15 +649,9 @@ class CropAndPad(DualTransform):
         interpolation: int = cv2.INTER_NEAREST,
         **params
     ) -> np.ndarray:
-        if crop_params is not None:
-            img = F.crop(img, *crop_params)
-        if pad_params is not None:
-            img = pad_with_params(img, *pad_params, border_mode=self.pad_cval_mask, value=pad_value_mask)
-
-        if self.keep_size:
-            img = cv2.resize(img, (cols, rows), interpolation=interpolation)
-
-        return img
+        return F.crop_and_pad(
+            img, crop_params, pad_params, pad_value_mask, rows, cols, interpolation, self.pad_mode, self.keep_size
+        )
 
     def apply_to_bbox(
         self,
@@ -678,20 +664,7 @@ class CropAndPad(DualTransform):
         result_cols: int = 0,
         **params
     ) -> Sequence[float]:
-        x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
-
-        if crop_params is not None:
-            crop_x, crop_y = crop_params[:2]
-            x1, y1, x2, y2 = x1 - crop_x, y1 - crop_y, x2 - crop_x, y2 - crop_y
-        if pad_params is not None:
-            top, bottom, left, right = pad_params
-            x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
-
-        if self.keep_size:
-            bbox = normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
-        else:
-            bbox = normalize_bbox((x1, y1, x2, y2), rows, cols)
-        return bbox
+        return F.crop_and_pad_bbox(bbox, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size)
 
     def apply_to_keypoint(
         self,
@@ -704,21 +677,9 @@ class CropAndPad(DualTransform):
         result_cols: int = 0,
         **params
     ) -> Sequence[float]:
-        x, y, angle, scale = keypoint
-
-        if crop_params is not None:
-            crop_x1, crop_y1, crop_x2, crop_y2 = crop_params
-            x, y = x - crop_x1, y - crop_y1
-        if pad_params is not None:
-            top, bottom, left, right = pad_params
-            x, y = x + left, y + top
-
-        if self.keep_size and (result_cols != cols or result_rows != rows):
-            scale_x = cols / result_cols
-            scale_y = rows / result_rows
-            return FGeometric.keypoint_scale((x, y, angle, scale), scale_x, scale_y)
-
-        return x, y, angle, scale
+        return F.crop_and_pad_keypoint(
+            keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
+        )
 
     @property
     def targets_as_params(self) -> List[str]:
@@ -847,3 +808,15 @@ class CropAndPad(DualTransform):
             return random.uniform(a, b)
 
         return random.choice(pad_value)
+
+    def get_transform_init_args_names(self):
+        return (
+            "px",
+            "percent",
+            "pad_mode",
+            "pad_cval",
+            "pad_cval_mask",
+            "keep_size",
+            "sample_independently",
+            "interpolation",
+        )

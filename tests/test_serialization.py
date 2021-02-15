@@ -75,6 +75,7 @@ def set_seed(seed):
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.CropAndPad, {"px": 10}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -254,6 +255,18 @@ AUGMENTATION_CLS_PARAMS = (
         ],
         [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
         [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
+        [
+            A.CropAndPad,
+            {
+                "px": 10,
+                "keep_size": False,
+                "sample_independently": False,
+                "interpolation": cv2.INTER_CUBIC,
+                "pad_cval_mask": [10, 20, 30],
+                "pad_cval": [11, 12, 13],
+                "pad_mode": cv2.BORDER_REFLECT101,
+            },
+        ],
     ],
 )
 
@@ -705,6 +718,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.CropAndPad, {"px": -12}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

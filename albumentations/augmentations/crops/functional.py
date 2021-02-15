@@ -1,8 +1,11 @@
+import cv2
 import numpy as np
 
-from typing import List, Union, Tuple
+from typing import List, Union, Tuple, Sequence, Optional
 
+from ..geometric import functional as FGeometric
 from ..bbox_utils import denormalize_bbox, normalize_bbox
+from ..functional import pad_with_params, _maybe_process_in_chunks, preserve_channel_dim
 
 BboxType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.ndarray]
 KeypointType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.ndarray]
@@ -201,3 +204,81 @@ def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: in
     if x_max >= w:
         x_max = w - 1
     return img[int(y_min) : int(y_max), int(x_min) : int(x_max)]
+
+
+@preserve_channel_dim
+def crop_and_pad(
+    img: np.ndarray,
+    crop_params: Sequence[int],
+    pad_params: Sequence[int],
+    pad_value: float,
+    rows: int,
+    cols: int,
+    interpolation: int,
+    pad_mode: int,
+    keep_size: bool,
+) -> np.ndarray:
+    if crop_params is not None and any(i != 0 for i in crop_params):
+        img = crop(img, *crop_params)
+    if pad_params is not None and any(i != 0 for i in pad_params):
+        img = pad_with_params(img, *pad_params, border_mode=pad_mode, value=pad_value)
+
+    if keep_size:
+        resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
+        img = resize_fn(img)
+
+    return img
+
+
+def crop_and_pad_bbox(
+    bbox: Sequence[float],
+    crop_params: Optional[Sequence[int]],
+    pad_params: Optional[Sequence[int]],
+    rows,
+    cols,
+    result_rows,
+    result_cols,
+    keep_size: bool,
+) -> Sequence[float]:
+    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
+
+    if crop_params is not None:
+        crop_x, crop_y = crop_params[:2]
+        x1, y1, x2, y2 = x1 - crop_x, y1 - crop_y, x2 - crop_x, y2 - crop_y
+    if pad_params is not None:
+        top, bottom, left, right = pad_params
+        x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
+
+    if keep_size:
+        bbox = normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
+    else:
+        bbox = normalize_bbox((x1, y1, x2, y2), rows, cols)
+
+    return bbox
+
+
+def crop_and_pad_keypoint(
+    keypoint: Sequence[float],
+    crop_params: Optional[Sequence[int]],
+    pad_params: Optional[Sequence[int]],
+    rows: int,
+    cols: int,
+    result_rows: int,
+    result_cols: int,
+    keep_size: bool,
+) -> Sequence[float]:
+    x, y, angle, scale = keypoint
+
+    if crop_params is not None:
+        crop_x1, crop_y1, crop_x2, crop_y2 = crop_params
+        x, y = x - crop_x1, y - crop_y1
+    if pad_params is not None:
+        top, bottom, left, right = pad_params
+        x, y = x + left, y + top
+
+    if keep_size and (result_cols != cols or result_rows != rows):
+        scale_x = cols / result_cols
+        scale_y = rows / result_rows
+        return FGeometric.keypoint_scale((x, y, angle, scale), scale_x, scale_y)
+
+    return x, y, angle, scale
