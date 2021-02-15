@@ -674,6 +674,8 @@ class CropAndPad(DualTransform):
         pad_params: Optional[Sequence[int]] = None,
         rows: int = 0,
         cols: int = 0,
+        result_rows: int = 0,
+        result_cols: int = 0,
         **params
     ) -> Sequence[float]:
         x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
@@ -685,7 +687,10 @@ class CropAndPad(DualTransform):
             top, bottom, left, right = pad_params
             x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
 
-        bbox = normalize_bbox((x1, y1, x2, y2), rows, cols)
+        if self.keep_size:
+            bbox = normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
+        else:
+            bbox = normalize_bbox((x1, y1, x2, y2), rows, cols)
         return bbox
 
     def apply_to_keypoint(
@@ -695,22 +700,18 @@ class CropAndPad(DualTransform):
         pad_params: Optional[Sequence[int]] = None,
         rows: int = 0,
         cols: int = 0,
+        result_rows: int = 0,
+        result_cols: int = 0,
         **params
     ) -> Sequence[float]:
         x, y, angle, scale = keypoint
 
-        result_rows = rows
-        result_cols = cols
         if crop_params is not None:
             crop_x1, crop_y1, crop_x2, crop_y2 = crop_params
             x, y = x - crop_x1, y - crop_y1
-            result_rows = crop_y2 - crop_y1
-            result_cols = crop_x2 - crop_x1
         if pad_params is not None:
             top, bottom, left, right = pad_params
             x, y = x + left, y + top
-            result_rows += top + bottom
-            result_cols += left + right
 
         if self.keep_size and (result_cols != cols or result_rows != rows):
             scale_x = cols / result_cols
@@ -746,7 +747,7 @@ class CropAndPad(DualTransform):
         return val1, val2
 
     @staticmethod
-    def _prevent_zero(crop_params: List[int], height: int, width: int) -> List[int]:
+    def _prevent_zero(crop_params: List[int], height: int, width: int) -> Sequence[int]:
         top, right, bottom, left = crop_params
 
         remaining_height = height - (top + bottom)
@@ -771,22 +772,32 @@ class CropAndPad(DualTransform):
             params[2] = int(params[2] * height)
             params[3] = int(params[3] * width)
 
-        crop_params = [-min(i, 0) for i in params]
         pad_params = [max(i, 0) for i in params]
 
-        crop_params = self._prevent_zero(crop_params, height, width)
+        crop_params = self._prevent_zero([-min(i, 0) for i in params], height, width)
 
         top, right, bottom, left = crop_params
         crop_params = [left, top, width - right, height - bottom]
+        result_rows = crop_params[3] - crop_params[1]
+        result_cols = crop_params[2] - crop_params[0]
+        if result_cols == width and result_rows == height:
+            crop_params = []
 
         top, right, bottom, left = pad_params
         pad_params = [top, bottom, left, right]
+        if any(pad_params):
+            result_rows += top + bottom
+            result_cols += left + right
+        else:
+            pad_params = []
 
         return {
-            "crop_params": crop_params,
-            "pad_params": pad_params,
+            "crop_params": crop_params or None,
+            "pad_params": pad_params or None,
             "pad_value": None if pad_params is None else self._get_pad_value(self.pad_cval),
             "pad_value_mask": None if pad_params is None else self._get_pad_value(self.pad_cval_mask),
+            "result_rows": result_rows,
+            "result_cols": result_cols,
         }
 
     def _get_px_params(self) -> List[int]:
