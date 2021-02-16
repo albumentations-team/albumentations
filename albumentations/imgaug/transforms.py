@@ -87,6 +87,8 @@ class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):
 
 
 class IAACropAndPad(DualIAATransform):
+    """This augmentation is deprecated. Please use CropAndPad instead."""
+
     def __init__(
         self, px=None, percent=None, pad_mode="constant", pad_cval=0, keep_size=True, always_apply=False, p=1
     ):
@@ -96,6 +98,7 @@ class IAACropAndPad(DualIAATransform):
         self.pad_mode = pad_mode
         self.pad_cval = pad_cval
         self.keep_size = keep_size
+        warnings.warn("This augmentation is deprecated. Please use CropAndPad instead", DeprecationWarning)
 
     @property
     def processor(self):
@@ -125,6 +128,7 @@ class IAAFlipud(DualIAATransform):
 
 class IAAEmboss(Emboss):
     """Emboss the input image and overlays the result with the original image.
+    This augmentation is deprecated. Please use Emboss instead.
 
     Args:
         alpha ((float, float)): range to choose the visibility of the embossed image. At 0, only the original image is
@@ -137,7 +141,7 @@ class IAAEmboss(Emboss):
     """
 
     def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
-        warnings.warn("This augmentation is deprecated. Please use Emboss instead")
+        warnings.warn("This augmentation is deprecated. Please use Emboss instead", DeprecationWarning)
         super().__init__(alpha=alpha, strength=strength, always_apply=always_apply, p=p)
 
 
@@ -182,7 +186,7 @@ class IAASharpen(Sharpen):
     """
 
     def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
-        warnings.warn("This augmentation is deprecated. Please use Sharpen instead")
+        warnings.warn("This augmentation is deprecated. Please use Sharpen instead", DeprecationWarning)
         super().__init__(alpha=alpha, lightness=lightness, always_apply=always_apply, p=p)
 
 
@@ -303,6 +307,7 @@ class IAAAffine(DualIAATransform):
 
 class IAAPerspective(Perspective):
     """Perform a random four point perspective transform of the input.
+    This augmentation is deprecated. Please use Perspective instead.
 
     Note: This class introduce interpolation artifacts to mask if it has values other than {0;1}
 
@@ -316,5 +321,5 @@ class IAAPerspective(Perspective):
     """
 
     def __init__(self, scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5, **kwargs):
-        warnings.warn("This augmentation is deprecated. Please use Perspective instead")
+        warnings.warn("This augmentation is deprecated. Please use Perspective instead", DeprecationWarning)
         super().__init__(scale=scale, keep_size=keep_size, always_apply=always_apply, p=p, **kwargs)

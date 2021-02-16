@@ -165,6 +165,7 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
 
     """
 
+    @wraps(process_fn)
     def __process_fn(img):
         num_channels = get_num_channels(img)
         if num_channels > 4:
