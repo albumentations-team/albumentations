@@ -132,24 +132,27 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
         if line not in text:
             dual_lines_not_in_text.append(line)
             outdated_docs.update(["Spatial-level"])
-    if not outdated_docs:
-        return
-
-    raise ValueError(
-        "Docs for the following transform types are outdated: {outdated_docs_headers}. "
-        "Generate new docs by executing the `python tools/{py_file} make` command "
-        "and paste them to {filename}.\n"
-        "# Pixel-level transforms lines not in file:\n"
-        "{image_only_lines}\n"
-        "# Spatial-level transforms lines not in file:\n"
-        "{dual_lines}".format(
-            outdated_docs_headers=", ".join(outdated_docs),
-            py_file=os.path.basename(os.path.realpath(__file__)),
-            filename=os.path.basename(filepath),
-            image_only_lines="\n".join(image_only_lines_not_in_text),
-            dual_lines="\n".join(dual_lines_not_in_text),
+    if outdated_docs:
+        raise ValueError(
+            "Docs for the following transform types are outdated: {outdated_docs_headers}. "
+            "Generate new docs by executing the `python tools/{py_file} make` command "
+            "and paste them to {filename}.\n"
+            "# Pixel-level transforms lines not in file:\n"
+            "{image_only_lines}\n"
+            "# Spatial-level transforms lines not in file:\n"
+            "{dual_lines}".format(
+                outdated_docs_headers=", ".join(outdated_docs),
+                py_file=os.path.basename(os.path.realpath(__file__)),
+                filename=os.path.basename(filepath),
+                image_only_lines="\n".join(image_only_lines_not_in_text),
+                dual_lines="\n".join(dual_lines_not_in_text),
+            )
         )
-    )
+
+    if image_only_transforms_links not in text:
+        raise ValueError("Image only transforms links are outdated.")
+    if dual_transforms_table not in text:
+        raise ValueError("Dual transforms table are outdated.")
 
 
 def main():

@@ -109,6 +109,10 @@ class IAACropAndPad(DualIAATransform):
 
 
 class IAAFliplr(DualIAATransform):
+    def __init__(self, always_apply=False, p=0.5):
+        super().__init__(always_apply, p)
+        warnings.warn("This augmentation is deprecated. Please use HorizontalFlip instead.", DeprecationWarning)
+
     @property
     def processor(self):
         return iaa.Fliplr(1)
@@ -118,6 +122,10 @@ class IAAFliplr(DualIAATransform):
 
 
 class IAAFlipud(DualIAATransform):
+    def __init__(self, always_apply=False, p=0.5):
+        super().__init__(always_apply, p)
+        warnings.warn("This augmentation is deprecated. Please use VerticalFlip instead.", DeprecationWarning)
+
     @property
     def processor(self):
         return iaa.Flipud(1)
@@ -208,6 +216,7 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
         self.loc = loc
         self.scale = to_tuple(scale, 0.0)
         self.per_channel = per_channel
+        warnings.warn("This augmentation is deprecated. Please use GaussNoise instead", DeprecationWarning)
 
     @property
     def processor(self):
