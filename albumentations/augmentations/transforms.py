@@ -1733,6 +1733,8 @@ class GaussNoise(ImageOnlyTransform):
             gauss = random_state.normal(self.mean, sigma, image.shape)
         else:
             gauss = random_state.normal(self.mean, sigma, image.shape[:2])
+            if len(image.shape) == 3:
+                gauss = np.expand_dims(gauss, -1)
 
         return {"gauss": gauss}
 
@@ -1741,7 +1743,7 @@ class GaussNoise(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self):
-        return ("var_limit",)
+        return ("var_limit", "per_channel", "mean")
 
 
 class ISONoise(ImageOnlyTransform):
