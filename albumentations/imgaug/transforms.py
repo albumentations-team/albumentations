@@ -98,7 +98,7 @@ class IAACropAndPad(DualIAATransform):
         self.pad_mode = pad_mode
         self.pad_cval = pad_cval
         self.keep_size = keep_size
-        warnings.warn("This augmentation is deprecated. Please use CropAndPad instead", DeprecationWarning)
+        warnings.warn("IAACropAndPad is deprecated. Please use CropAndPad instead", FutureWarning)
 
     @property
     def processor(self):
@@ -111,7 +111,7 @@ class IAACropAndPad(DualIAATransform):
 class IAAFliplr(DualIAATransform):
     def __init__(self, always_apply=False, p=0.5):
         super().__init__(always_apply, p)
-        warnings.warn("This augmentation is deprecated. Please use HorizontalFlip instead.", DeprecationWarning)
+        warnings.warn("IAAFliplr is deprecated. Please use HorizontalFlip instead.", FutureWarning)
 
     @property
     def processor(self):
@@ -124,7 +124,7 @@ class IAAFliplr(DualIAATransform):
 class IAAFlipud(DualIAATransform):
     def __init__(self, always_apply=False, p=0.5):
         super().__init__(always_apply, p)
-        warnings.warn("This augmentation is deprecated. Please use VerticalFlip instead.", DeprecationWarning)
+        warnings.warn("IAAFlipud is deprecated. Please use VerticalFlip instead.", FutureWarning)
 
     @property
     def processor(self):
@@ -149,7 +149,7 @@ class IAAEmboss(Emboss):
     """
 
     def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
-        warnings.warn("This augmentation is deprecated. Please use Emboss instead", DeprecationWarning)
+        warnings.warn("IAAEmboss is deprecated. Please use Emboss instead", FutureWarning)
         super().__init__(alpha=alpha, strength=strength, always_apply=always_apply, p=p)
 
 
@@ -194,7 +194,7 @@ class IAASharpen(Sharpen):
     """
 
     def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
-        warnings.warn("This augmentation is deprecated. Please use Sharpen instead", DeprecationWarning)
+        warnings.warn("IAASharpen is deprecated. Please use Sharpen instead", FutureWarning)
         super().__init__(alpha=alpha, lightness=lightness, always_apply=always_apply, p=p)
 
 
@@ -216,7 +216,7 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
         self.loc = loc
         self.scale = to_tuple(scale, 0.0)
         self.per_channel = per_channel
-        warnings.warn("This augmentation is deprecated. Please use GaussNoise instead", DeprecationWarning)
+        warnings.warn("IAAAdditiveGaussianNoise is deprecated. Please use GaussNoise instead", FutureWarning)
 
     @property
     def processor(self):
@@ -330,5 +330,5 @@ class IAAPerspective(Perspective):
     """
 
     def __init__(self, scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5, **kwargs):
-        warnings.warn("This augmentation is deprecated. Please use Perspective instead", DeprecationWarning)
+        warnings.warn("IAAPerspective is deprecated. Please use Perspective instead", FutureWarning)
         super().__init__(scale=scale, keep_size=keep_size, always_apply=always_apply, p=p, **kwargs)

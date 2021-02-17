@@ -52,7 +52,7 @@ def get_transforms_info():
     transforms_info = {}
     for name, cls in inspect.getmembers(albumentations):
         if inspect.isclass(cls) and issubclass(cls, albumentations.BasicTransform) and name not in IGNORED_CLASSES:
-            if "DeprecationWarning" in inspect.getsource(cls):
+            if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
                 continue
 
             targets = {Targets.IMAGE}
