@@ -1377,7 +1377,9 @@ class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-        scale (float): Amount of random deviation from the original image tone.
+        scale (float): standard deviation of the normal distributions. Used to sample random distances to move two control points that modify the image's curve. Default: 0.2
+
+        by_channels (bool): whether to create different random curves for each color channel. Default: False.
 
     Targets:
         image
@@ -1388,21 +1390,41 @@ class RandomToneCurve(ImageOnlyTransform):
 
     def __init__(
         self,
-        scale=0.3,
+        scale=0.2,
+        by_channels=False,
         always_apply=False,
         p=0.5,
     ):
         super(RandomToneCurve, self).__init__(always_apply, p)
         self.scale = scale
+        self.by_channels = by_channels
 
-    def apply(self, image, low_shift, high_shift, **params):
-        return F.move_tone_curve(image, low_shift, high_shift)
+    def apply(self, image, low_y, high_y, **params):
+        if self.by_channels and len(image.shape) > 2:
+            for channel_i in range(3):
+                image = image.copy()
+                image[:, :, channel_i] = F.move_tone_curve(image[:, :, channel_i], low_y[channel_i], high_y[channel_i])
+                return image
+        elif self.by_channels and len(image.shape) == 2:
+            return  F.move_tone_curve(image, low_y[0], high_y[0])
+        else:
+            return F.move_tone_curve(image, low_y, high_y)
 
     def get_params(self):
-        return {
-            "low_shift": np.clip(np.random.normal(loc=0.25, scale=self.scale), 0, 0.5),
-            "high_shift": np.clip(np.random.normal(loc=0.75, scale=self.scale), 0.5, 1),
+        if self.by_channels:
+            return {
+            "low_y": [np.clip(np.random.normal(loc=0.25, scale=self.scale), 0, 1)
+                        for _ in range(3)],
+            "high_y": [np.clip(np.random.normal(loc=0.75, scale=self.scale), 0, 1)
+                        for _ in range(3)]
         }
+        return {
+            "low_y": np.clip(np.random.normal(loc=0.25, scale=self.scale), 0, 1),
+            "high_y": np.clip(np.random.normal(loc=0.75, scale=self.scale), 0, 1),
+        }
+
+    def get_transform_init_args_names(self):
+        return ("scale",)
 
 
 class HueSaturationValue(ImageOnlyTransform):

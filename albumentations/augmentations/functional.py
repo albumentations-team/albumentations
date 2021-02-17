@@ -450,22 +450,23 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
     return result_img
 
 
-def move_tone_curve(img, low_shift, high_shift):
+@preserve_shape
+def move_tone_curve(img, low_y, high_y):
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
         img (numpy.ndarray): RGB or grayscale image.
-        low_shift (float): y-position of a Bezier control point used
-            to adjust the tone curve, must be in range [0, .5]
-        high_shift (float): y-position of a Bezier control point used
-            to adjust image tone curve, must be in range [.5, 1]
+        low_y (float): y-position of a Bezier control point used
+            to adjust the tone curve, must be in range [0, 1]
+        high_y (float): y-position of a Bezier control point used
+            to adjust image tone curve, must be in range [0, 1]
     """
     input_dtype = img.dtype
 
-    if low_shift < 0 or low_shift > 0.5:
-        raise ValueError("low_shift must be in range [0, .5]")
-    if high_shift < 0.5 or high_shift > 1:
-        raise ValueError("high_shift must be in range [.5, 1]")
+    if low_y < 0 or low_y > 1:
+        raise ValueError("low_shift must be in range [0, 1]")
+    if high_y < 0 or high_y > 1:
+        raise ValueError("high_shift must be in range [0, 1]")
 
     if input_dtype != np.uint8:
         raise ValueError("Unsupported image type {}".format(input_dtype))
@@ -474,12 +475,13 @@ def move_tone_curve(img, low_shift, high_shift):
 
     # Defines responze of a four-point bezier curve
     def evaluate_bez(t):
-        return 3 * (1 - t) ** 2 * t * low_shift + 3 * (1 - t) * t ** 2 * high_shift + t ** 3
+        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t ** 2 * high_y + t ** 3
 
     evaluate_bez = np.vectorize(evaluate_bez)
     remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
 
-    img = cv2.LUT(img, remapping)
+    lut_fn = _maybe_process_in_chunks(cv2.LUT, lut=remapping)
+    img = lut_fn(img)
     return img
 
 

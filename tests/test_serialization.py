@@ -63,6 +63,7 @@ def set_seed(seed):
         [A.RandomBrightness, {}],
         [A.RandomContrast, {}],
         [A.RandomScale, {}],
+        [A.RandomToneCurve, {}]
         [A.SmallestMaxSize, {}],
         [A.LongestMaxSize, {}],
         [A.RandomGridShuffle, {}],
