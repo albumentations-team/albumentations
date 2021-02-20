@@ -20,6 +20,21 @@ __all__ = ["to_dict", "from_dict", "save", "load"]
 SERIALIZABLE_REGISTRY = {}
 
 
+def shorten_class_name(class_fullname):
+    splitted = class_fullname.split(".")
+    if len(splitted) == 1:
+        return class_fullname
+    top_module, *_, class_name = splitted
+    if top_module == "albumentations":
+        return class_name
+    return class_fullname
+
+
+def get_shortest_class_fullname(cls):
+    class_fullname = "{cls.__module__}.{cls.__name__}".format(cls=cls)
+    return shorten_class_name(class_fullname)
+
+
 class SerializableMeta(type):
     """
     A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` so they can be found later
@@ -88,13 +103,14 @@ def from_dict(transform_dict, lambda_transforms=None):
             in that dictionary should be named same as `name` arguments in respective lambda transforms from
             a serialized pipeline.
     """
+    register_additional_transforms()
     transform = transform_dict["transform"]
     lmbd = instantiate_lambda(transform, lambda_transforms)
     if lmbd:
         return lmbd
     name = transform["__class_fullname__"]
     args = {k: v for k, v in transform.items() if k != "__class_fullname__"}
-    cls = SERIALIZABLE_REGISTRY[name]
+    cls = SERIALIZABLE_REGISTRY[shorten_class_name(name)]
     if "transforms" in args:
         args["transforms"] = [
             from_dict({"transform": t}, lambda_transforms=lambda_transforms) for t in args["transforms"]
@@ -145,3 +161,14 @@ def load(filepath, data_format="json", lambda_transforms=None):
     with open(filepath) as f:
         transform_dict = load_fn(f)
     return from_dict(transform_dict, lambda_transforms=lambda_transforms)
+
+
+def register_additional_transforms():
+    """
+    Register transforms that are not imported directly into the `albumentations` module.
+    """
+    try:
+        # This import will result in ImportError if `torch` is not installed
+        import albumentations.pytorch
+    except ImportError:
+        pass

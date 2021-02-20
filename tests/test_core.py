@@ -17,8 +17,9 @@ from albumentations.core.composition import (
     ReplayCompose,
     KeypointParams,
     BboxParams,
+    Sequential,
 )
-from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
+from albumentations import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
 
 
 def test_one_or_other():
@@ -63,6 +64,14 @@ def test_one_of():
     image = np.ones((8, 8))
     augmentation(image=image)
     assert len([transform for transform in transforms if transform.called]) == 1
+
+
+def test_sequential():
+    transforms = [Mock(side_effect=lambda **kw: kw) for _ in range(1)]
+    augmentation = Sequential(transforms, p=1)
+    image = np.ones((8, 8))
+    augmentation(image=image)
+    assert len([transform for transform in transforms if transform.called]) == len(transforms)
 
 
 def test_to_tuple():
@@ -163,6 +172,17 @@ def test_deterministic_oneof():
 
 def test_deterministic_one_or_other():
     aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
+    for _ in range(10):
+        image = (np.random.random((8, 8)) * 255).astype(np.uint8)
+        image2 = np.copy(image)
+        data = aug(image=image)
+        assert "replay" in data
+        data2 = ReplayCompose.replay(data["replay"], image=image2)
+        assert np.array_equal(data["image"], data2["image"])
+
+
+def test_deterministic_sequential():
+    aug = ReplayCompose([Sequential([HorizontalFlip(), Blur()])], p=1)
     for _ in range(10):
         image = (np.random.random((8, 8)) * 255).astype(np.uint8)
         image2 = np.copy(image)

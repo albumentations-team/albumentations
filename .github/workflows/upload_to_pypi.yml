@@ -2,7 +2,7 @@ name: Upload release to PyPI
 
 on:
   release:
-    types: [created]
+    types: [published]
 
 jobs:
   upload:

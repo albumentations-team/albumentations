@@ -81,23 +81,38 @@ class ToTensor(BasicTransform):
 
 
 class ToTensorV2(BasicTransform):
-    """Convert image and mask to `torch.Tensor`."""
+    """Convert image and mask to `torch.Tensor`.
 
-    def __init__(self, always_apply=True, p=1.0):
+    Args:
+        transpose_mask (bool): if True and an input mask has three dimensions, this transform will transpose dimensions
+        so the shape `[height, width, num_channels]` becomes `[num_channels, height, width]`. The latter format is a
+        standard format for PyTorch Tensors. Default: False.
+    """
+
+    def __init__(self, transpose_mask=False, always_apply=True, p=1.0):
         super(ToTensorV2, self).__init__(always_apply=always_apply, p=p)
+        self.transpose_mask = transpose_mask
 
     @property
     def targets(self):
         return {"image": self.apply, "mask": self.apply_to_mask}
 
     def apply(self, img, **params):  # skipcq: PYL-W0613
+        if len(img.shape) not in [2, 3]:
+            raise ValueError("Albumentations only supports images in HW or HWC format")
+
+        if len(img.shape) == 2:
+            img = np.expand_dims(img, 2)
+
         return torch.from_numpy(img.transpose(2, 0, 1))
 
     def apply_to_mask(self, mask, **params):  # skipcq: PYL-W0613
+        if self.transpose_mask and mask.ndim == 3:
+            mask = mask.transpose(2, 0, 1)
         return torch.from_numpy(mask)
 
     def get_transform_init_args_names(self):
-        return []
+        return ("transpose_mask",)
 
     def get_params_dependent_on_targets(self, params):
         return {}

@@ -7,8 +7,13 @@ from pkg_resources import DistributionNotFound, get_distribution
 
 INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "scikit-image>=0.16.1", "imgaug>=0.4.0", "PyYAML"]
 
-# If first not installed install second package
-CHOOSE_INSTALL_REQUIRES = [("opencv-python>=4.1.1", "opencv-python-headless>=4.1.1")]
+# If none of packages in first installed, install second package
+CHOOSE_INSTALL_REQUIRES = [
+    (
+        ("opencv-python>=4.1.1", "opencv-contrib-python>=4.1.1", "opencv-contrib-python-headless>=4.1.1"),
+        "opencv-python-headless>=4.1.1",
+    )
+]
 
 
 def get_version():
@@ -24,23 +29,27 @@ def get_long_description():
         return f.read()
 
 
-def choose_requirement(main, secondary):
+def choose_requirement(mains, secondary):
     """If some version version of main requirement installed, return main,
     else return secondary.
 
     """
-    try:
-        name = re.split(r"[!<>=]", main)[0]
-        get_distribution(name)
-    except DistributionNotFound:
-        return secondary
+    chosen = secondary
+    for main in mains:
+        try:
+            name = re.split(r"[!<>=]", main)[0]
+            get_distribution(name)
+            chosen = main
+            break
+        except DistributionNotFound:
+            pass
 
-    return str(main)
+    return str(chosen)
 
 
 def get_install_requirements(install_requires, choose_install_requires):
-    for main, secondary in choose_install_requires:
-        install_requires.append(choose_requirement(main, secondary))
+    for mains, secondary in choose_install_requires:
+        install_requires.append(choose_requirement(mains, secondary))
 
     return install_requires
 
@@ -69,6 +78,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Software Development :: Libraries",
         "Topic :: Software Development :: Libraries :: Python Modules",
     ],

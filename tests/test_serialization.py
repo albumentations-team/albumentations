@@ -1,3 +1,5 @@
+import json
+import os
 import random
 from unittest.mock import patch
 
@@ -8,6 +10,8 @@ import imgaug as ia
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
+from albumentations.core.transforms_interface import ImageOnlyTransform
 from .utils import OpenMock
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
@@ -67,6 +71,11 @@ def set_seed(seed):
         [A.Equalize, {}],
         [A.Downscale, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
+        [A.CropAndPad, {"px": 10}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -168,6 +177,18 @@ AUGMENTATION_CLS_PARAMS = (
             },
         ],
         [
+            A.ShiftScaleRotate,
+            {
+                "shift_limit_x": 0.3,
+                "shift_limit_y": 0.4,
+                "scale_limit": 0.2,
+                "rotate_limit": 70,
+                "interpolation": cv2.INTER_CUBIC,
+                "border_mode": cv2.BORDER_CONSTANT,
+                "value": (10, 10, 10),
+            },
+        ],
+        [
             A.OpticalDistortion,
             {
                 "distort_limit": 0.2,
@@ -216,6 +237,36 @@ AUGMENTATION_CLS_PARAMS = (
         [A.Posterize, {"num_bits": 1}],
         [A.Equalize, {"mode": "pil", "by_channels": False}],
         [A.MultiplicativeNoise, {"multiplier": (0.7, 2.3), "per_channel": True, "elementwise": True}],
+        [
+            A.ColorJitter,
+            {"brightness": [0.2, 0.3], "contrast": [0.7, 0.9], "saturation": [1.2, 1.7], "hue": [-0.2, 0.1]},
+        ],
+        [
+            A.Perspective,
+            {
+                "scale": 0.5,
+                "keep_size": False,
+                "pad_mode": cv2.BORDER_REFLECT_101,
+                "pad_val": 10,
+                "mask_pad_val": 100,
+                "fit_output": True,
+                "interpolation": cv2.INTER_CUBIC,
+            },
+        ],
+        [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
+        [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
+        [
+            A.CropAndPad,
+            {
+                "px": 10,
+                "keep_size": False,
+                "sample_independently": False,
+                "interpolation": cv2.INTER_CUBIC,
+                "pad_cval_mask": [10, 20, 30],
+                "pad_cval": [11, 12, 13],
+                "pad_mode": cv2.BORDER_REFLECT101,
+            },
+        ],
     ],
 )
 
@@ -310,6 +361,10 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -374,6 +429,10 @@ def test_augmentations_for_bboxes_serialization(
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -394,9 +453,7 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -426,9 +483,7 @@ def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, i
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -460,9 +515,7 @@ def test_imgaug_augmentations_for_bboxes_serialization(
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     [
-        [A.IAAEmboss, {}],
         [A.IAASuperpixels, {}],
-        [A.IAASharpen, {}],
         [A.IAAAdditiveGaussianNoise, {}],
         [A.IAACropAndPad, {}],
         [A.IAAFliplr, {}],
@@ -493,14 +546,7 @@ def test_imgaug_augmentations_for_keypoints_serialization(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params", "call_params"],
-    [
-        [A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}],
-        [
-            A.FDA,
-            {"beta_limit": 0.3},
-            {"target_image": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)},
-        ],
-    ],
+    [[A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}]],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -668,6 +714,11 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Posterize, {}],
         [A.Equalize, {}],
         [A.MultiplicativeNoise, {}],
+        [A.ColorJitter, {}],
+        [A.Perspective, {}],
+        [A.Sharpen, {}],
+        [A.Emboss, {}],
+        [A.CropAndPad, {"px": -12}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -712,3 +763,62 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
     assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+
+
+def test_serialization_v2_conversion():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform_0_4_6 = A.load(os.path.join(files_directory, "transform_v0.4.6.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform_0_4_6(image=image)["image"]
+    assert transformed_image.numpy().tolist() == output_0_4_6
+
+
+def test_serialization_v2():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform = A.load(os.path.join(files_directory, "transform_serialization_v2.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform(image=image)["image"]
+    assert transformed_image.numpy().tolist() == output_0_4_6
+
+
+def test_custom_transform_with_overlapping_name():
+    class HorizontalFlip(ImageOnlyTransform):
+        pass
+
+    assert SERIALIZABLE_REGISTRY["HorizontalFlip"] == A.HorizontalFlip
+    assert SERIALIZABLE_REGISTRY["tests.test_serialization.HorizontalFlip"] == HorizontalFlip
+
+
+def test_serialization_v2_to_dict():
+    transform = A.Compose([A.HorizontalFlip()])
+    transform_dict = A.to_dict(transform)["transform"]
+    assert transform_dict == {
+        "__class_fullname__": "Compose",
+        "p": 1.0,
+        "transforms": [{"__class_fullname__": "HorizontalFlip", "always_apply": False, "p": 0.5}],
+        "bbox_params": None,
+        "keypoint_params": None,
+        "additional_targets": {},
+    }
+
+
+@pytest.mark.parametrize(
+    ["class_fullname", "expected_short_class_name"],
+    [
+        ["albumentations.augmentations.transforms.HorizontalFlip", "HorizontalFlip"],
+        ["HorizontalFlip", "HorizontalFlip"],
+        ["some_module.HorizontalFlip", "some_module.HorizontalFlip"],
+    ],
+)
+def test_shorten_class_name(class_fullname, expected_short_class_name):
+    assert shorten_class_name(class_fullname) == expected_short_class_name
