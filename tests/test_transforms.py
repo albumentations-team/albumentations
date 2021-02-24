@@ -851,3 +851,83 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
 
     # The difference between the results of float32 and uint8 will be at most 2.
     assert np.all(diff <= 2.0)
+
+
+@pytest.mark.parametrize(
+    ["img_dtype", "px", "percent", "pad_mode", "pad_cval", "keep_size"],
+    [
+        [np.uint8, 10, None, cv2.BORDER_CONSTANT, 0, True],
+        [np.uint8, -10, None, cv2.BORDER_CONSTANT, 0, True],
+        [np.uint8, 10, None, cv2.BORDER_CONSTANT, 0, False],
+        [np.uint8, -10, None, cv2.BORDER_CONSTANT, 0, False],
+        [np.uint8, None, 0.1, cv2.BORDER_CONSTANT, 0, True],
+        [np.uint8, None, -0.1, cv2.BORDER_CONSTANT, 0, True],
+        [np.uint8, None, 0.1, cv2.BORDER_CONSTANT, 0, False],
+        [np.uint8, None, -0.1, cv2.BORDER_CONSTANT, 0, False],
+        [np.float32, None, 0.1, cv2.BORDER_CONSTANT, 0, False],
+        [np.float32, None, -0.1, cv2.BORDER_CONSTANT, 0, False],
+        [np.uint8, None, 0.1, cv2.BORDER_WRAP, 0, False],
+        [np.uint8, None, 0.1, cv2.BORDER_REPLICATE, 0, False],
+        [np.uint8, None, 0.1, cv2.BORDER_REFLECT101, 0, False],
+    ],
+)
+def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval, keep_size):
+    h, w, c = 100, 100, 3
+    mode_mapping = {
+        cv2.BORDER_CONSTANT: "constant",
+        cv2.BORDER_REPLICATE: "edge",
+        cv2.BORDER_REFLECT101: "reflect",
+        cv2.BORDER_WRAP: "wrap",
+    }
+    pad_mode_iaa = mode_mapping[pad_mode]
+
+    bbox_params = A.BboxParams(format="pascal_voc")
+    keypoint_params = A.KeypointParams(format="xy", remove_invisible=False)
+
+    keypoints = np.random.randint(0, min(h, w), [10, 2])
+
+    bboxes = []
+    for i in range(10):
+        x1, y1 = np.random.randint(0, min(h, w) - 2, 2)
+        x2 = np.random.randint(x1 + 1, w - 1)
+        y2 = np.random.randint(y1 + 1, h - 1)
+        bboxes.append([x1, y1, x2, y2, 0])
+
+    transform_albu = A.Compose(
+        [
+            A.CropAndPad(
+                px=px,
+                percent=percent,
+                pad_mode=pad_mode,
+                pad_cval=pad_cval,
+                keep_size=keep_size,
+                p=1,
+                interpolation=cv2.INTER_AREA
+                if (px is not None and px < 0) or (percent is not None and percent < 0)
+                else cv2.INTER_LINEAR,
+            )
+        ],
+        bbox_params=bbox_params,
+        keypoint_params=keypoint_params,
+    )
+    transform_iaa = A.Compose(
+        [A.IAACropAndPad(px=px, percent=percent, pad_mode=pad_mode_iaa, pad_cval=pad_cval, keep_size=keep_size, p=1)],
+        bbox_params=bbox_params,
+        keypoint_params=keypoint_params,
+    )
+
+    if img_dtype == np.uint8:
+        img = np.random.randint(0, 256, (h, w, c), dtype=np.uint8)
+    else:
+        img = np.random.random((h, w, c)).astype(img_dtype)
+
+    res_albu = transform_albu(image=img, keypoints=keypoints, bboxes=bboxes)
+    res_iaa = transform_iaa(image=img, keypoints=keypoints, bboxes=bboxes)
+
+    for key, item in res_albu.items():
+        if key == "bboxes":
+            bboxes = np.array(res_iaa[key])
+            h = bboxes[:, 3] - bboxes[:, 1]
+            w = bboxes[:, 2] - bboxes[:, 0]
+            res_iaa[key] = bboxes[(h > 0) & (w > 0)]
+        assert np.allclose(item, res_iaa[key]), f"{key} are not equal"
