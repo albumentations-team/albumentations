@@ -165,6 +165,7 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
 
     """
 
+    @wraps(process_fn)
     def __process_fn(img):
         num_channels = get_num_channels(img)
         if num_channels > 4:
@@ -1512,10 +1513,8 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
-@clipped
 def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
-    coef = MAX_VALUES_BY_DTYPE[img.dtype]
-    x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
+    x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
     if mode == "fast":
 
@@ -1542,7 +1541,7 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             dx = dxy[ind, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
-    return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+    return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
 
 
 def _adjust_brightness_torchvision_uint8(img, factor):
