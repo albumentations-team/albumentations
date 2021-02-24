@@ -1379,7 +1379,7 @@ class RandomToneCurve(ImageOnlyTransform):
     Args:
         scale (float): standard deviation of the normal distribution.
             Used to sample random distances to move two control points that modify the image's curve.
-            Default: 0.1
+            Values should be in range [0, 1]. Default: 0.1
 
 
     Targets:
