@@ -1377,7 +1377,9 @@ class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-        scale (float): standard deviation of the normal distributions. Used to sample random distances to move two control points that modify the image's curve. Default: 0.1
+        scale (float): standard deviation of the normal distribution.
+            Used to sample random distances to move two control points that modify the image's curve.
+            Default: 0.1
 
 
     Targets:
@@ -1397,13 +1399,13 @@ class RandomToneCurve(ImageOnlyTransform):
         self.scale = scale
 
     def apply(self, image, low_y, high_y, **params):
-            return  F.move_tone_curve(image, low_y, high_y)
+        return F.move_tone_curve(image, low_y, high_y)
 
     def get_params(self):
         return {
             "low_y": np.clip(np.random.normal(loc=0.25, scale=self.scale), 0, 1),
-            "high_y": np.clip(np.random.normal(loc=0.75, scale=self.scale), 0, 1)
-            }
+            "high_y": np.clip(np.random.normal(loc=0.75, scale=self.scale), 0, 1),
+        }
 
     def get_transform_init_args_names(self):
         return ("scale",)
