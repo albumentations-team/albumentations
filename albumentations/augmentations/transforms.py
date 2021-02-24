@@ -1688,6 +1688,8 @@ class GaussNoise(ImageOnlyTransform):
         var_limit ((float, float) or float): variance range for noise. If var_limit is a single float, the range
             will be (0, var_limit). Default: (10.0, 50.0).
         mean (float): mean of the noise. Default: 0
+        per_channel (bool): if set to True, noise will be sampled for each channel independently.
+            Otherwise, the noise will be sampled once for all channels. Default: True
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1697,7 +1699,7 @@ class GaussNoise(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, var_limit=(10.0, 50.0), mean=0, always_apply=False, p=0.5):
+    def __init__(self, var_limit=(10.0, 50.0), mean=0, per_channel=True, always_apply=False, p=0.5):
         super(GaussNoise, self).__init__(always_apply, p)
         if isinstance(var_limit, (tuple, list)):
             if var_limit[0] < 0:
@@ -1716,6 +1718,7 @@ class GaussNoise(ImageOnlyTransform):
             )
 
         self.mean = mean
+        self.per_channel = per_channel
 
     def apply(self, img, gauss=None, **params):
         return F.gauss_noise(img, gauss=gauss)
@@ -1726,7 +1729,13 @@ class GaussNoise(ImageOnlyTransform):
         sigma = var ** 0.5
         random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
 
-        gauss = random_state.normal(self.mean, sigma, image.shape)
+        if self.per_channel:
+            gauss = random_state.normal(self.mean, sigma, image.shape)
+        else:
+            gauss = random_state.normal(self.mean, sigma, image.shape[:2])
+            if len(image.shape) == 3:
+                gauss = np.expand_dims(gauss, -1)
+
         return {"gauss": gauss}
 
     @property
@@ -1734,7 +1743,7 @@ class GaussNoise(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self):
-        return ("var_limit",)
+        return ("var_limit", "per_channel", "mean")
 
 
 class ISONoise(ImageOnlyTransform):

@@ -111,7 +111,7 @@ AUGMENTATION_CLS_PARAMS = (
         [A.MotionBlur, {"blur_limit": 3}],
         [A.MedianBlur, {"blur_limit": 3}],
         [A.GaussianBlur, {"blur_limit": 3}],
-        [A.GaussNoise, {"var_limit": (20, 90)}],
+        [A.GaussNoise, {"var_limit": (20, 90), "mean": 10, "per_channel": False}],
         [A.CLAHE, {"clip_limit": 2, "tile_grid_size": (12, 12)}],
         [A.RandomGamma, {"gamma_limit": (10, 90)}],
         [A.Cutout, {"num_holes": 4, "max_h_size": 4, "max_w_size": 4}],
