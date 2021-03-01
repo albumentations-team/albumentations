@@ -642,7 +642,7 @@ class Cutout(ImageOnlyTransform):
         self.fill_value = fill_value
         warnings.warn(
             "This class has been deprecated. Please use CoarseDropout",
-            DeprecationWarning,
+            FutureWarning,
         )
 
     def apply(self, image, fill_value=0, holes=(), **params):
@@ -867,7 +867,7 @@ class JpegCompression(ImageCompression):
         )
         warnings.warn(
             "This class has been deprecated. Please use ImageCompression",
-            DeprecationWarning,
+            FutureWarning,
         )
 
     def get_transform_init_args(self):
@@ -1698,7 +1698,7 @@ class RandomBrightness(RandomBrightnessContrast):
         )
         warnings.warn(
             "This class has been deprecated. Please use RandomBrightnessContrast",
-            DeprecationWarning,
+            FutureWarning,
         )
 
     def get_transform_init_args(self):
@@ -1724,7 +1724,7 @@ class RandomContrast(RandomBrightnessContrast):
         super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
         warnings.warn(
             "This class has been deprecated. Please use RandomBrightnessContrast",
-            DeprecationWarning,
+            FutureWarning,
         )
 
     def get_transform_init_args(self):
