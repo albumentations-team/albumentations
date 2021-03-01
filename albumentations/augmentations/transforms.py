@@ -15,7 +15,12 @@ from skimage.measure import label
 from . import functional as F
 from .geometric import functional as FGeometric
 from .bbox_utils import denormalize_bbox, normalize_bbox, union_of_bboxes
-from ..core.transforms_interface import DualTransform, ImageOnlyTransform, NoOp, to_tuple
+from ..core.transforms_interface import (
+    DualTransform,
+    ImageOnlyTransform,
+    NoOp,
+    to_tuple,
+)
 from ..core.utils import format_args
 
 __all__ = [
@@ -56,6 +61,7 @@ __all__ = [
     "RandomFog",
     "RandomSunFlare",
     "RandomShadow",
+    "RandomToneCurve",
     "Lambda",
     "ChannelDropout",
     "ISONoise",
@@ -156,18 +162,35 @@ class PadIfNeeded(DualTransform):
             w_pad_right = pad_cols - w_pad_left
 
         params.update(
-            {"pad_top": h_pad_top, "pad_bottom": h_pad_bottom, "pad_left": w_pad_left, "pad_right": w_pad_right}
+            {
+                "pad_top": h_pad_top,
+                "pad_bottom": h_pad_bottom,
+                "pad_left": w_pad_left,
+                "pad_right": w_pad_right,
+            }
         )
         return params
 
     def apply(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
         return F.pad_with_params(
-            img, pad_top, pad_bottom, pad_left, pad_right, border_mode=self.border_mode, value=self.value
+            img,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            border_mode=self.border_mode,
+            value=self.value,
         )
 
     def apply_to_mask(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
         return F.pad_with_params(
-            img, pad_top, pad_bottom, pad_left, pad_right, border_mode=self.border_mode, value=self.mask_value
+            img,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            border_mode=self.border_mode,
+            value=self.mask_value,
         )
 
     def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
@@ -368,7 +391,14 @@ class OpticalDistortion(DualTransform):
         }
 
     def get_transform_init_args_names(self):
-        return ("distort_limit", "shift_limit", "interpolation", "border_mode", "value", "mask_value")
+        return (
+            "distort_limit",
+            "shift_limit",
+            "interpolation",
+            "border_mode",
+            "value",
+            "mask_value",
+        )
 
 
 class GridDistortion(DualTransform):
@@ -415,11 +445,25 @@ class GridDistortion(DualTransform):
         self.mask_value = mask_value
 
     def apply(self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params):
-        return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode, self.value)
+        return F.grid_distortion(
+            img,
+            self.num_steps,
+            stepsx,
+            stepsy,
+            interpolation,
+            self.border_mode,
+            self.value,
+        )
 
     def apply_to_mask(self, img, stepsx=(), stepsy=(), **params):
         return F.grid_distortion(
-            img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+            img,
+            self.num_steps,
+            stepsx,
+            stepsy,
+            cv2.INTER_NEAREST,
+            self.border_mode,
+            self.mask_value,
         )
 
     def get_params(self):
@@ -428,7 +472,14 @@ class GridDistortion(DualTransform):
         return {"stepsx": stepsx, "stepsy": stepsy}
 
     def get_transform_init_args_names(self):
-        return ("num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value")
+        return (
+            "num_steps",
+            "distort_limit",
+            "interpolation",
+            "border_mode",
+            "value",
+            "mask_value",
+        )
 
 
 class RandomGridShuffle(DualTransform):
@@ -535,7 +586,12 @@ class Normalize(ImageOnlyTransform):
     """
 
     def __init__(
-        self, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0, always_apply=False, p=1.0
+        self,
+        mean=(0.485, 0.456, 0.406),
+        std=(0.229, 0.224, 0.225),
+        max_pixel_value=255.0,
+        always_apply=False,
+        p=1.0,
     ):
         super(Normalize, self).__init__(always_apply, p)
         self.mean = mean
@@ -570,13 +626,24 @@ class Cutout(ImageOnlyTransform):
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
     """
 
-    def __init__(self, num_holes=8, max_h_size=8, max_w_size=8, fill_value=0, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        num_holes=8,
+        max_h_size=8,
+        max_w_size=8,
+        fill_value=0,
+        always_apply=False,
+        p=0.5,
+    ):
         super(Cutout, self).__init__(always_apply, p)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
         self.fill_value = fill_value
-        warnings.warn("This class has been deprecated. Please use CoarseDropout", DeprecationWarning)
+        warnings.warn(
+            "This class has been deprecated. Please use CoarseDropout",
+            DeprecationWarning,
+        )
 
     def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
@@ -763,7 +830,10 @@ class ImageCompression(ImageOnlyTransform):
         if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
             image_type = ".webp"
 
-        return {"quality": random.randint(self.quality_lower, self.quality_upper), "image_type": image_type}
+        return {
+            "quality": random.randint(self.quality_lower, self.quality_upper),
+            "image_type": image_type,
+        }
 
     def get_transform_init_args(self):
         return {
@@ -795,10 +865,16 @@ class JpegCompression(ImageCompression):
             always_apply=always_apply,
             p=p,
         )
-        warnings.warn("This class has been deprecated. Please use ImageCompression", DeprecationWarning)
+        warnings.warn(
+            "This class has been deprecated. Please use ImageCompression",
+            DeprecationWarning,
+        )
 
     def get_transform_init_args(self):
-        return {"quality_lower": self.quality_lower, "quality_upper": self.quality_upper}
+        return {
+            "quality_lower": self.quality_lower,
+            "quality_upper": self.quality_upper,
+        }
 
 
 class RandomSnow(ImageOnlyTransform):
@@ -818,7 +894,14 @@ class RandomSnow(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, snow_point_lower=0.1, snow_point_upper=0.3, brightness_coeff=2.5, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        snow_point_lower=0.1,
+        snow_point_upper=0.3,
+        brightness_coeff=2.5,
+        always_apply=False,
+        p=0.5,
+    ):
         super(RandomSnow, self).__init__(always_apply, p)
 
         if not 0 <= snow_point_lower <= snow_point_upper <= 1:
@@ -986,7 +1069,14 @@ class RandomFog(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, fog_coef_lower=0.3, fog_coef_upper=1, alpha_coef=0.08, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        fog_coef_lower=0.3,
+        fog_coef_upper=1,
+        alpha_coef=0.08,
+        always_apply=False,
+        p=0.5,
+    ):
         super(RandomFog, self).__init__(always_apply, p)
 
         if not 0 <= fog_coef_lower <= fog_coef_upper <= 1:
@@ -1076,7 +1166,12 @@ class RandomSunFlare(ImageOnlyTransform):
     ):
         super(RandomSunFlare, self).__init__(always_apply, p)
 
-        (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = flare_roi
+        (
+            flare_center_lower_x,
+            flare_center_lower_y,
+            flare_center_upper_x,
+            flare_center_upper_y,
+        ) = flare_roi
 
         if (
             not 0 <= flare_center_lower_x < flare_center_upper_x <= 1
@@ -1109,7 +1204,14 @@ class RandomSunFlare(ImageOnlyTransform):
         self.src_color = src_color
 
     def apply(self, image, flare_center_x=0.5, flare_center_y=0.5, circles=(), **params):
-        return F.add_sun_flare(image, flare_center_x, flare_center_y, self.src_radius, self.src_color, circles)
+        return F.add_sun_flare(
+            image,
+            flare_center_x,
+            flare_center_y,
+            self.src_radius,
+            self.src_color,
+            circles,
+        )
 
     @property
     def targets_as_params(self):
@@ -1148,9 +1250,20 @@ class RandomSunFlare(ImageOnlyTransform):
             g_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
             b_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
 
-            circles += [(alpha, (int(x[r]), int(y[r])), pow(rad, 3), (r_color, g_color, b_color))]
+            circles += [
+                (
+                    alpha,
+                    (int(x[r]), int(y[r])),
+                    pow(rad, 3),
+                    (r_color, g_color, b_color),
+                )
+            ]
 
-        return {"circles": circles, "flare_center_x": flare_center_x, "flare_center_y": flare_center_y}
+        return {
+            "circles": circles,
+            "flare_center_x": flare_center_x,
+            "flare_center_y": flare_center_y,
+        }
 
     def get_transform_init_args(self):
         return {
@@ -1252,7 +1365,50 @@ class RandomShadow(ImageOnlyTransform):
         return {"vertices_list": vertices_list}
 
     def get_transform_init_args_names(self):
-        return ("shadow_roi", "num_shadows_lower", "num_shadows_upper", "shadow_dimension")
+        return (
+            "shadow_roi",
+            "num_shadows_lower",
+            "num_shadows_upper",
+            "shadow_dimension",
+        )
+
+
+class RandomToneCurve(ImageOnlyTransform):
+    """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
+
+    Args:
+        scale (float): standard deviation of the normal distribution.
+            Used to sample random distances to move two control points that modify the image's curve.
+            Values should be in range [0, 1]. Default: 0.1
+
+
+    Targets:
+        image
+
+    Image types:
+        uint8
+    """
+
+    def __init__(
+        self,
+        scale=0.1,
+        always_apply=False,
+        p=0.5,
+    ):
+        super(RandomToneCurve, self).__init__(always_apply, p)
+        self.scale = scale
+
+    def apply(self, image, low_y, high_y, **params):
+        return F.move_tone_curve(image, low_y, high_y)
+
+    def get_params(self):
+        return {
+            "low_y": np.clip(np.random.normal(loc=0.25, scale=self.scale), 0, 1),
+            "high_y": np.clip(np.random.normal(loc=0.75, scale=self.scale), 0, 1),
+        }
+
+    def get_transform_init_args_names(self):
+        return ("scale",)
 
 
 class HueSaturationValue(ImageOnlyTransform):
@@ -1274,7 +1430,14 @@ class HueSaturationValue(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, hue_shift_limit=20, sat_shift_limit=30, val_shift_limit=20, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        hue_shift_limit=20,
+        sat_shift_limit=30,
+        val_shift_limit=20,
+        always_apply=False,
+        p=0.5,
+    ):
         super(HueSaturationValue, self).__init__(always_apply, p)
         self.hue_shift_limit = to_tuple(hue_shift_limit)
         self.sat_shift_limit = to_tuple(sat_shift_limit)
@@ -1387,7 +1550,15 @@ class Equalize(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, mode="cv", by_channels=True, mask=None, mask_params=(), always_apply=False, p=0.5):
+    def __init__(
+        self,
+        mode="cv",
+        by_channels=True,
+        mask=None,
+        mask_params=(),
+        always_apply=False,
+        p=0.5,
+    ):
         modes = ["cv", "pil"]
         if mode not in modes:
             raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
@@ -1434,7 +1605,14 @@ class RGBShift(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, r_shift_limit=20, g_shift_limit=20, b_shift_limit=20, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        r_shift_limit=20,
+        g_shift_limit=20,
+        b_shift_limit=20,
+        always_apply=False,
+        p=0.5,
+    ):
         super(RGBShift, self).__init__(always_apply, p)
         self.r_shift_limit = to_tuple(r_shift_limit)
         self.g_shift_limit = to_tuple(g_shift_limit)
@@ -1473,7 +1651,14 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, brightness_limit=0.2, contrast_limit=0.2, brightness_by_max=True, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        brightness_limit=0.2,
+        contrast_limit=0.2,
+        brightness_by_max=True,
+        always_apply=False,
+        p=0.5,
+    ):
         super(RandomBrightnessContrast, self).__init__(always_apply, p)
         self.brightness_limit = to_tuple(brightness_limit)
         self.contrast_limit = to_tuple(contrast_limit)
@@ -1511,7 +1696,10 @@ class RandomBrightness(RandomBrightnessContrast):
         super(RandomBrightness, self).__init__(
             brightness_limit=limit, contrast_limit=0, always_apply=always_apply, p=p
         )
-        warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
+        warnings.warn(
+            "This class has been deprecated. Please use RandomBrightnessContrast",
+            DeprecationWarning,
+        )
 
     def get_transform_init_args(self):
         return {"limit": self.brightness_limit}
@@ -1534,7 +1722,10 @@ class RandomContrast(RandomBrightnessContrast):
 
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
         super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
-        warnings.warn("This class has been deprecated. Please use RandomBrightnessContrast", DeprecationWarning)
+        warnings.warn(
+            "This class has been deprecated. Please use RandomBrightnessContrast",
+            DeprecationWarning,
+        )
 
     def get_transform_init_args(self):
         return {"limit": self.contrast_limit}
@@ -2077,7 +2268,14 @@ class Downscale(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_min=0.25, scale_max=0.25, interpolation=cv2.INTER_NEAREST, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        scale_min=0.25,
+        scale_max=0.25,
+        interpolation=cv2.INTER_NEAREST,
+        always_apply=False,
+        p=0.5,
+    ):
         super(Downscale, self).__init__(always_apply, p)
         if scale_min > scale_max:
             raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
@@ -2091,7 +2289,10 @@ class Downscale(ImageOnlyTransform):
         return F.downscale(image, scale=scale, interpolation=interpolation)
 
     def get_params(self):
-        return {"scale": np.random.uniform(self.scale_min, self.scale_max), "interpolation": self.interpolation}
+        return {
+            "scale": np.random.uniform(self.scale_min, self.scale_max),
+            "interpolation": self.interpolation,
+        }
 
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"
@@ -2116,12 +2317,26 @@ class Lambda(NoOp):
         Any
     """
 
-    def __init__(self, image=None, mask=None, keypoint=None, bbox=None, name=None, always_apply=False, p=1.0):
+    def __init__(
+        self,
+        image=None,
+        mask=None,
+        keypoint=None,
+        bbox=None,
+        name=None,
+        always_apply=False,
+        p=1.0,
+    ):
         super(Lambda, self).__init__(always_apply, p)
 
         self.name = name
         self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
-        for target_name, custom_apply_fn in {"image": image, "mask": mask, "keypoint": keypoint, "bbox": bbox}.items():
+        for target_name, custom_apply_fn in {
+            "image": image,
+            "mask": mask,
+            "keypoint": keypoint,
+            "bbox": bbox,
+        }.items():
             if custom_apply_fn is not None:
                 if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
                     warnings.warn(
@@ -2180,7 +2395,14 @@ class MultiplicativeNoise(ImageOnlyTransform):
         Any
     """
 
-    def __init__(self, multiplier=(0.9, 1.1), per_channel=False, elementwise=False, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        multiplier=(0.9, 1.1),
+        per_channel=False,
+        elementwise=False,
+        always_apply=False,
+        p=0.5,
+    ):
         super(MultiplicativeNoise, self).__init__(always_apply, p)
         self.multiplier = to_tuple(multiplier, multiplier)
         self.per_channel = per_channel
@@ -2267,7 +2489,14 @@ class MaskDropout(DualTransform):
     Inspired by https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
     """
 
-    def __init__(self, max_objects=1, image_fill_value=0, mask_fill_value=0, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        max_objects=1,
+        image_fill_value=0,
+        mask_fill_value=0,
+        always_apply=False,
+        p=0.5,
+    ):
         """
         Args:
             max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
@@ -2361,7 +2590,15 @@ class GlassBlur(Blur):
     |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
     """
 
-    def __init__(self, sigma=0.7, max_delta=4, iterations=2, always_apply=False, mode="fast", p=0.5):
+    def __init__(
+        self,
+        sigma=0.7,
+        max_delta=4,
+        iterations=2,
+        always_apply=False,
+        mode="fast",
+        p=0.5,
+    ):
         super(GlassBlur, self).__init__(always_apply=always_apply, p=p)
         if iterations < 1:
             raise ValueError("Iterations should be more or equal to 1, but we got {}".format(iterations))
@@ -2562,7 +2799,15 @@ class ColorJitter(ImageOnlyTransform):
             Should have 0 <= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
     """
 
-    def __init__(self, brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        brightness=0.2,
+        contrast=0.2,
+        saturation=0.2,
+        hue=0.2,
+        always_apply=False,
+        p=0.5,
+    ):
         super(ColorJitter, self).__init__(always_apply=always_apply, p=p)
 
         self.brightness = self.__check_values(brightness, "brightness")
@@ -2638,7 +2883,10 @@ class Sharpen(ImageOnlyTransform):
     @staticmethod
     def __generate_sharpening_matrix(alpha_sample, lightness_sample):
         matrix_nochange = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]], dtype=np.float32)
-        matrix_effect = np.array([[-1, -1, -1], [-1, 8 + lightness_sample, -1], [-1, -1, -1]], dtype=np.float32)
+        matrix_effect = np.array(
+            [[-1, -1, -1], [-1, 8 + lightness_sample, -1], [-1, -1, -1]],
+            dtype=np.float32,
+        )
 
         matrix = (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
         return matrix

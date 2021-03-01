@@ -451,6 +451,41 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
     return result_img
 
 
+@preserve_shape
+def move_tone_curve(img, low_y, high_y):
+    """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
+
+    Args:
+        img (numpy.ndarray): RGB or grayscale image.
+        low_y (float): y-position of a Bezier control point used
+            to adjust the tone curve, must be in range [0, 1]
+        high_y (float): y-position of a Bezier control point used
+            to adjust image tone curve, must be in range [0, 1]
+    """
+    input_dtype = img.dtype
+
+    if low_y < 0 or low_y > 1:
+        raise ValueError("low_shift must be in range [0, 1]")
+    if high_y < 0 or high_y > 1:
+        raise ValueError("high_shift must be in range [0, 1]")
+
+    if input_dtype != np.uint8:
+        raise ValueError("Unsupported image type {}".format(input_dtype))
+
+    t = np.linspace(0.0, 1.0, 256)
+
+    # Defines responze of a four-point bezier curve
+    def evaluate_bez(t):
+        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t ** 2 * high_y + t ** 3
+
+    evaluate_bez = np.vectorize(evaluate_bez)
+    remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
+
+    lut_fn = _maybe_process_in_chunks(cv2.LUT, lut=remapping)
+    img = lut_fn(img)
+    return img
+
+
 @clipped
 def _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift):
     if r_shift == g_shift == b_shift:
@@ -553,7 +588,13 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=No
 
 @preserve_channel_dim
 def pad_with_params(
-    img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img,
+    h_pad_top,
+    h_pad_bottom,
+    w_pad_left,
+    w_pad_right,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
 ):
     img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
     return img
@@ -668,7 +709,16 @@ def add_snow(img, snow_point, brightness_coeff):
 
 
 @preserve_shape
-def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_drops):
+def add_rain(
+    img,
+    slant,
+    drop_length,
+    drop_width,
+    drop_color,
+    blur_value,
+    brightness_coefficient,
+    rain_drops,
+):
     """
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -704,7 +754,13 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
 
-        cv2.line(image, (rain_drop_x0, rain_drop_y0), (rain_drop_x1, rain_drop_y1), drop_color, drop_width)
+        cv2.line(
+            image,
+            (rain_drop_x0, rain_drop_y0),
+            (rain_drop_x1, rain_drop_y1),
+            drop_color,
+            drop_width,
+        )
 
     image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
     image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
@@ -870,7 +926,13 @@ def add_shadow(img, vertices_list):
 
 @preserve_shape
 def optical_distortion(
-    img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img,
+    k=0,
+    dx=0,
+    dy=0,
+    interpolation=cv2.INTER_LINEAR,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
 ):
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -892,7 +954,14 @@ def optical_distortion(
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
     map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
-    img = cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
+    img = cv2.remap(
+        img,
+        map1,
+        map2,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
+    )
     return img
 
 
@@ -950,7 +1019,12 @@ def grid_distortion(
     map_y = map_y.astype(np.float32)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -997,7 +1071,12 @@ def elastic_transform_approx(
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     img = warp_fn(img)
 
@@ -1015,7 +1094,12 @@ def elastic_transform_approx(
     map_y = np.float32(y + dy)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -1587,7 +1671,11 @@ def adjust_contrast_torchvision(img, factor):
     if img.dtype == np.uint8:
         return _adjust_contrast_torchvision_uint8(img, factor, mean)
 
-    return clip(img.astype(np.float32) * factor + mean * (1 - factor), img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+    return clip(
+        img.astype(np.float32) * factor + mean * (1 - factor),
+        img.dtype,
+        MAX_VALUES_BY_DTYPE[img.dtype],
+    )
 
 
 @preserve_shape

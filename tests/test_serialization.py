@@ -63,6 +63,7 @@ def set_seed(seed):
         [A.RandomBrightness, {}],
         [A.RandomContrast, {}],
         [A.RandomScale, {}],
+        [A.RandomToneCurve, {}],
         [A.SmallestMaxSize, {}],
         [A.LongestMaxSize, {}],
         [A.RandomGridShuffle, {}],
@@ -255,6 +256,7 @@ AUGMENTATION_CLS_PARAMS = (
         ],
         [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
         [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
+        [A.RandomToneCurve, {"scale": 0.2}],
         [
             A.CropAndPad,
             {
@@ -718,6 +720,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.RandomToneCurve, {}],
         [A.CropAndPad, {"px": -12}],
     ],
 )
