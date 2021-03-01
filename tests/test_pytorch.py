@@ -90,7 +90,7 @@ def test_torch_to_tensor_v2_on_gray_scale_images():
 
 
 def test_torch_to_tensor_augmentations(image, mask):
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(FutureWarning):
         aug = ToTensor()
     data = aug(image=image, mask=mask, force_apply=True)
     assert data["image"].dtype == torch.float32
@@ -98,7 +98,7 @@ def test_torch_to_tensor_augmentations(image, mask):
 
 
 def test_additional_targets_for_totensor():
-    with pytest.warns(DeprecationWarning):
+    with pytest.warns(FutureWarning):
         aug = A.Compose([ToTensor(num_classes=4)], additional_targets={"image2": "image", "mask2": "mask"})
     for _i in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
