@@ -6,7 +6,9 @@ from warnings import warn
 from itertools import product
 import cv2
 import numpy as np
+import skimage
 
+from typing import Sequence, Optional, Union
 from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
 
 MAX_VALUES_BY_DTYPE = {
@@ -1724,3 +1726,63 @@ def adjust_hue_torchvision(img, factor):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     img[..., 0] = np.mod(img[..., 0] + factor * 360, 360)
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+
+
+@preserve_shape
+def superpixels(
+    image: np.ndarray, n_segments: int, replace_samples: Sequence[bool], max_size: Optional[int], interpolation: int
+) -> np.ndarray:
+    if not np.any(replace_samples):
+        return image
+
+    orig_shape = image.shape
+    if max_size is not None:
+        size = max(image.shape[:2])
+        if size > max_size:
+            scale = max_size / size
+            height, width = image.shape[:2]
+            new_height, new_width = int(height * scale), int(width * scale)
+            resize_fn = _maybe_process_in_chunks(
+                cv2.resize, dsize=(new_width, new_height), interpolation=interpolation
+            )
+            image = resize_fn(image)
+
+    from skimage.segmentation import slic
+
+    segments = skimage.segmentation.slic(image, n_segments=n_segments, compactness=10)
+
+    min_value = 0
+    max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+    image = np.copy(image)
+    if image.ndim == 2:
+        image = image.reshape(*image.shape, 1)
+    nb_channels = image.shape[2]
+    for c in range(nb_channels):
+        # segments+1 here because otherwise regionprops always misses the last label
+        regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
+        for ridx, region in enumerate(regions):
+            # with mod here, because slic can sometimes create more superpixel than requested.
+            # replace_samples then does not have enough values, so we just start over with the first one again.
+            if replace_samples[ridx % len(replace_samples)]:
+                mean_intensity = region.mean_intensity
+                image_sp_c = image[..., c]
+
+                if image_sp_c.dtype.kind in ["i", "u", "b"]:
+                    # After rounding the value can end up slightly outside of the value_range. Hence, we need to clip.
+                    # We do clip via min(max(...)) instead of np.clip because
+                    # the latter one does not seem to keep dtypes for dtypes with large itemsizes (e.g. uint64).
+                    value: Union[int, float]
+                    value = int(np.round(mean_intensity))
+                    value = min(max(value, min_value), max_value)
+                else:
+                    value = mean_intensity
+
+                image_sp_c[segments == ridx] = value
+
+    if orig_shape != image.shape:
+        resize_fn = _maybe_process_in_chunks(
+            cv2.resize, dsize=(orig_shape[1], orig_shape[0]), interpolation=interpolation
+        )
+        image = resize_fn(image)
+
+    return image

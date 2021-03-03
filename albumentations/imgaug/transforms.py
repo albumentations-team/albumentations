@@ -171,6 +171,7 @@ class IAASuperpixels(ImageOnlyIAATransform):
         super(IAASuperpixels, self).__init__(always_apply, p)
         self.p_replace = p_replace
         self.n_segments = n_segments
+        warnings.warn("IAASuperpixels is deprecated. Please use Superpixels instead.", FutureWarning)
 
     @property
     def processor(self):
