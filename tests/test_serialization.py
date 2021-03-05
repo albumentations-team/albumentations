@@ -77,6 +77,7 @@ def set_seed(seed):
         [A.Sharpen, {}],
         [A.Emboss, {}],
         [A.CropAndPad, {"px": 10}],
+        [A.Superpixels, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -269,6 +270,10 @@ AUGMENTATION_CLS_PARAMS = (
                 "pad_mode": cv2.BORDER_REFLECT101,
             },
         ],
+        [
+            A.Superpixels,
+            {"p_replace": (0.5, 0.7), "n_segments": (20, 30), "max_size": 25, "interpolation": cv2.INTER_CUBIC},
+        ],
     ],
 )
 
@@ -367,6 +372,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.Superpixels, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -435,6 +441,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.Superpixels, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -722,6 +729,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Emboss, {}],
         [A.RandomToneCurve, {}],
         [A.CropAndPad, {"px": -12}],
+        [A.Superpixels, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

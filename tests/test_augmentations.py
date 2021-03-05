@@ -70,6 +70,7 @@ from albumentations import (
     Sharpen,
     Emboss,
     CropAndPad,
+    Superpixels,
 )
 
 
@@ -118,6 +119,7 @@ from albumentations import (
         ],
         [Sharpen, {}],
         [Emboss, {}],
+        [Superpixels, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -167,6 +169,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
         ],
         [Sharpen, {}],
         [Emboss, {}],
+        [Superpixels, {}],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -328,6 +331,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Sharpen, {}],
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -399,6 +403,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [Sharpen, {}],
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -452,6 +457,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [Sharpen, {}],
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -532,6 +538,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Sharpen, {}],
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -597,6 +604,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [GridDropout, {}],
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
@@ -627,6 +635,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         [GridDropout, {}],
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
     ],
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
