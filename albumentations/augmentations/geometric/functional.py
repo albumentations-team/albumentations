@@ -7,7 +7,7 @@ from scipy.ndimage.filters import gaussian_filter
 from ..bbox_utils import denormalize_bbox, normalize_bbox
 from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
 
-from typing import Union, List
+from typing import Union, List, Sequence
 
 
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
@@ -275,13 +275,13 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     return resize(img, new_height, new_width, interpolation)
 
 
-def keypoint_scale(keypoint, scale_x, scale_y):
+def keypoint_scale(keypoint: Sequence[float], scale_x: float, scale_y: float):
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
         keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        scale_x (int): Scale coefficient x-axis.
-        scale_y (int): Scale coefficient y-axis.
+        scale_x: Scale coefficient x-axis.
+        scale_y: Scale coefficient y-axis.
 
     Returns:
         A keypoint `(x, y, angle, scale)`.
@@ -383,7 +383,11 @@ def perspective_keypoint(
 
     x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
     angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
-    if not keep_size:
-        scale += max(max_height / height, max_width / width)
+    if keep_size:
+        scale_x = width / max_width
+        scale_y = height / max_height
+        x, y, angle, scale = keypoint_scale((x, y, angle, scale), scale_x, scale_y)
+    else:
+        scale *= max(max_height / height, max_width / width)
 
     return x, y, angle, scale
