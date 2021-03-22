@@ -1,13 +1,36 @@
 import cv2
 import math
 import numpy as np
+import skimage.transform
 
 from scipy.ndimage.filters import gaussian_filter
 
 from ..bbox_utils import denormalize_bbox, normalize_bbox
-from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
+from ..functional import (
+    angle_2pi_range,
+    preserve_channel_dim,
+    _maybe_process_in_chunks,
+    preserve_shape,
+    MAX_VALUES_BY_DTYPE,
+)
 
-from typing import Union, List
+from typing import Union, List, Sequence
+
+
+# constant, edge, symmetric, reflect, wrap
+# skimage   | cv2
+# constant  | cv2.BORDER_CONSTANT
+# edge      | cv2.BORDER_REPLICATE
+# symmetric | cv2.BORDER_REFLECT
+# reflect   | cv2.BORDER_REFLECT_101
+# wrap      | cv2.BORDER_WRAP
+_AFFINE_MODE_SKIMAGE_TO_CV2 = {
+    "constant": cv2.BORDER_CONSTANT,
+    "edge": cv2.BORDER_REPLICATE,
+    "symmetric": cv2.BORDER_REFLECT,
+    "reflect": cv2.BORDER_REFLECT_101,
+    "wrap": cv2.BORDER_WRAP,
+}
 
 
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
@@ -387,3 +410,81 @@ def perspective_keypoint(
         scale += max(max_height / height, max_width / width)
 
     return x, y, angle, scale
+
+
+def _is_identity_matrix(matrix: np.ndarray, eps: float = 1e-4) -> bool:
+    identity = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    return np.average(np.abs(identity - matrix.params)) <= eps
+
+
+@preserve_channel_dim
+def warp_affine(
+    image: np.ndarray,
+    matrix: skimage.transform.ProjectiveTransform,
+    interpolation: int,
+    backend: str,
+    cval: Union[int, float, Sequence[int], Sequence[float]],
+    mode: str,
+    output_shape: Sequence[int],
+) -> np.ndarray:
+    if _is_identity_matrix(matrix):
+        return image
+
+    if backend == "skimage":
+        # cval may contains 3 values as cv2 can handle 3, but skimage only 1
+        cval = cval[0] if isinstance(cval, Sequence) else cval
+        # skimage does not clip automatically
+        dtype = image.dtype
+        cval = np.clip(cval, 0, MAX_VALUES_BY_DTYPE[dtype])
+        image_warped = skimage.transform.warp(
+            image,
+            matrix.inverse,
+            order=interpolation,
+            cval=cval,
+            mode=mode,
+            output_shape=output_shape,
+            preserve_range=True,
+        )
+        image_warped = np.clip(image_warped, 0, MAX_VALUES_BY_DTYPE[dtype]).astype(dtype)
+        return image_warped
+
+    dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
+    mode = _AFFINE_MODE_SKIMAGE_TO_CV2.get(mode, mode)
+    warp_fn = _maybe_process_in_chunks(
+        cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
+    )
+    return warp_fn(image)
+
+
+@angle_2pi_range
+def keypoint_affine(
+    keypoint: Sequence[float], matrix: skimage.transform.ProjectiveTransform, angle: float, scale: dict
+) -> Sequence[float]:
+    x, y, a, s = keypoint[:4]
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
+    a = a + np.deg2rad(angle)
+    s = s * np.mean([scale["x"], scale["y"]])
+    return x, y, a, s
+
+
+def bbox_shift_affine(bbox, angle, scale, dx, dy, rows, cols):
+    x_min, y_min, x_max, y_max = bbox[:4]
+    height, width = rows, cols
+    center = (width / 2, height / 2)
+    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    matrix[0, 2] += dx * width
+    matrix[1, 2] += dy * height
+    x = np.array([x_min, x_max, x_max, x_min])
+    y = np.array([y_min, y_min, y_max, y_max])
+    ones = np.ones(shape=(len(x)))
+    points_ones = np.vstack([x, y, ones]).transpose()
+    points_ones[:, 0] *= width
+    points_ones[:, 1] *= height
+    tr_points = matrix.dot(points_ones.T).T
+    tr_points[:, 0] /= width
+    tr_points[:, 1] /= height
+
+    x_min, x_max = min(tr_points[:, 0]), max(tr_points[:, 0])
+    y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
+
+    return x_min, y_min, x_max, y_max
