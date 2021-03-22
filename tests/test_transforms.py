@@ -3,6 +3,7 @@ from functools import partial
 import cv2
 import numpy as np
 import pytest
+import random
 
 import albumentations as A
 import albumentations.augmentations.functional as F
@@ -10,6 +11,11 @@ import albumentations.augmentations.geometric.functional as FGeometric
 
 from torchvision.transforms import ColorJitter
 from PIL import Image
+
+
+def set_seed(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
 
 
 def test_transpose_both_image_and_mask():
@@ -931,3 +937,36 @@ def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval, keep_s
             w = bboxes[:, 2] - bboxes[:, 0]
             res_iaa[key] = bboxes[(h > 0) & (w > 0)]
         assert np.allclose(item, res_iaa[key]), f"{key} are not equal"
+
+
+def test_perspective_keep_size():
+    h, w = 100, 100
+    img = np.zeros([h, w, 3], dtype=np.uint8)
+    h, w = img.shape[:2]
+    bboxes = []
+    for _ in range(10):
+        x1 = np.random.randint(0, w - 1)
+        y1 = np.random.randint(0, h - 1)
+        x2 = np.random.randint(x1 + 1, w)
+        y2 = np.random.randint(y1 + 1, h)
+        bboxes.append([x1, y1, x2, y2])
+    keypoints = [(np.random.randint(0, w), np.random.randint(0, h), np.random.random()) for _ in range(10)]
+
+    transform_1 = A.Compose(
+        [A.Perspective(keep_size=True, p=1)],
+        keypoint_params=A.KeypointParams("xys"),
+        bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
+    )
+    transform_2 = A.Compose(
+        [A.Perspective(keep_size=False, p=1), A.Resize(h, w)],
+        keypoint_params=A.KeypointParams("xys"),
+        bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
+    )
+
+    set_seed()
+    res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
+    set_seed()
+    res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
+
+    assert np.allclose(res_1["bboxes"], res_2["bboxes"])
+    assert np.allclose(res_1["keypoints"], res_2["keypoints"])

@@ -349,18 +349,32 @@ def perspective(
 
 
 def perspective_bbox(
-    bbox: Union[List[int], List[float]], height: int, width: int, matrix: np.ndarray, max_width: int, max_height: int
+    bbox: Sequence[float],
+    height: int,
+    width: int,
+    matrix: np.ndarray,
+    max_width: int,
+    max_height: int,
+    keep_size: bool,
 ):
-    bbox = denormalize_bbox(bbox, height, width)
+    x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)
 
-    points = np.array(
-        [[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[2]], [bbox[0], bbox[2]]], dtype=np.float32
-    )
+    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
 
-    points = cv2.perspectiveTransform(points.reshape([1, 4, 2]), matrix)
+    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
+    for pt in points:
+        pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
+        x, y = pt[:2]
+        x = np.clip(x, 0, width if keep_size else max_width)
+        y = np.clip(y, 0, height if keep_size else max_height)
+        x1 = min(x1, x)
+        x2 = max(x2, x)
+        y1 = min(y1, y)
+        y2 = max(y2, y)
 
-    bbox = [np.min(points[..., 0]), np.min(points[..., 1]), np.max(points[..., 0]), np.max(points[..., 1])]
-    return normalize_bbox(bbox, max_height, max_width)
+    x1, x2 = np.clip([x1, x2], 0, width if keep_size else max_width)
+    y1, y2 = np.clip([y1, y2], 0, height if keep_size else max_height)
+    return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
 
 
 def rotation2DMatrixToEulerAngles(matrix: np.ndarray):
@@ -383,11 +397,14 @@ def perspective_keypoint(
 
     x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
     angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
+
+    scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
+    scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
+    scale *= max(scale_x, scale_y)
+
     if keep_size:
         scale_x = width / max_width
         scale_y = height / max_height
-        x, y, angle, scale = keypoint_scale((x, y, angle, scale), scale_x, scale_y)
-    else:
-        scale *= max(max_height / height, max_width / width)
+        return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
     return x, y, angle, scale
