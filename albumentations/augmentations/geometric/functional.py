@@ -372,8 +372,8 @@ def perspective_bbox(
         y1 = min(y1, y)
         y2 = max(y2, y)
 
-    x1, x2 = np.clip([x1, x2], 0, width if keep_size else max_width)
-    y1, y2 = np.clip([y1, y2], 0, height if keep_size else max_height)
+    x1, x2 = np.clip(np.array([x1, x2]), 0, width if keep_size else max_width)
+    y1, y2 = np.clip(np.array([y1, y2]), 0, height if keep_size else max_height)
     return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
 
 
