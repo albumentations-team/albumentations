@@ -657,11 +657,25 @@ class Affine(DualTransform):
             output_shape=output_shape,
         )
 
-    def apply_to_bbox(self, bbox: Sequence[float], **params) -> Sequence[float]:
-        pass
+    def apply_to_bbox(
+        self,
+        bbox: Sequence[float],
+        matrix: skimage.transform.ProjectiveTransform = None,
+        rows: int = 0,
+        cols: int = 0,
+        output_shape: Sequence[int] = (),
+        **params
+    ) -> Sequence[float]:
+        return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
 
-    def apply_to_keypoint(self, keypoint: Sequence[float], **params) -> Sequence[float]:
-        pass
+    def apply_to_keypoint(
+        self,
+        keypoint: Sequence[float],
+        matrix: skimage.transform.ProjectiveTransform = None,
+        scale: dict = None,
+        **params
+    ) -> Sequence[float]:
+        return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @staticmethod
     def _get_cval(
@@ -689,8 +703,8 @@ class Affine(DualTransform):
             translate = {key: random.randint(*value) for key, value in self.translate_px.items()}
         elif self.translate_percent is not None:
             translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
-            translate["x"] = int(translate["x"] * w)
-            translate["y"] = int(translate["y"] * h)
+            translate["x"] = translate["x"] * w
+            translate["y"] = translate["y"] * h
         else:
             translate = {"x": 0, "y": 0}
 

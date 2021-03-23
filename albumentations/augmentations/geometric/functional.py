@@ -412,7 +412,7 @@ def perspective_keypoint(
     return x, y, angle, scale
 
 
-def _is_identity_matrix(matrix: np.ndarray, eps: float = 1e-4) -> bool:
+def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform, eps: float = 1e-4) -> bool:
     identity = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
     return np.average(np.abs(identity - matrix.params)) <= eps
 
@@ -453,38 +453,51 @@ def warp_affine(
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
     )
-    return warp_fn(image)
+    tmp = warp_fn(image)
+    return tmp
 
 
 @angle_2pi_range
 def keypoint_affine(
-    keypoint: Sequence[float], matrix: skimage.transform.ProjectiveTransform, angle: float, scale: dict
+    keypoint: Sequence[float],
+    matrix: skimage.transform.ProjectiveTransform,
+    scale: dict,
 ) -> Sequence[float]:
+    if _is_identity_matrix(matrix):
+        return keypoint
+
     x, y, a, s = keypoint[:4]
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
-    a = a + np.deg2rad(angle)
-    s = s * np.mean([scale["x"], scale["y"]])
+    x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
+    a += rotation2DMatrixToEulerAngles(matrix.params[:2])
+    s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
 
 
-def bbox_shift_affine(bbox, angle, scale, dx, dy, rows, cols):
-    x_min, y_min, x_max, y_max = bbox[:4]
-    height, width = rows, cols
-    center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-    x = np.array([x_min, x_max, x_max, x_min])
-    y = np.array([y_min, y_min, y_max, y_max])
-    ones = np.ones(shape=(len(x)))
-    points_ones = np.vstack([x, y, ones]).transpose()
-    points_ones[:, 0] *= width
-    points_ones[:, 1] *= height
-    tr_points = matrix.dot(points_ones.T).T
-    tr_points[:, 0] /= width
-    tr_points[:, 1] /= height
+def bbox_affine(
+    bbox: Sequence[float],
+    matrix: skimage.transform.ProjectiveTransform,
+    rows: int,
+    cols: int,
+    output_shape: Sequence[int],
+) -> Sequence[float]:
+    if _is_identity_matrix(matrix):
+        return bbox
 
-    x_min, x_max = min(tr_points[:, 0]), max(tr_points[:, 0])
-    y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
+    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
+    points = np.array(
+        [
+            [x_min, y_min],
+            [x_max, y_min],
+            [x_max, y_max],
+            [x_min, y_max],
+        ]
+    )
+    points = skimage.transform.matrix_transform(points, matrix.params)
+    points[:, 0] = np.clip(points[:, 0], 0, output_shape[1])
+    points[:, 1] = np.clip(points[:, 1], 0, output_shape[0])
+    x_min = np.min(points[:, 0])
+    x_max = np.max(points[:, 0])
+    y_min = np.min(points[:, 1])
+    y_max = np.max(points[:, 1])
 
-    return x_min, y_min, x_max, y_max
+    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
