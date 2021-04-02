@@ -194,7 +194,7 @@ def filter_bboxes_by_visibility(
 
 def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity=False):
     """Convert a bounding box from a format specified in `source_format` to the format used by albumentations:
-    normalized coordinates of bottom-left and top-right corners of the bounding box in a form of
+    normalized coordinates of top-left and bottom-right corners of the bounding box in a form of
     `(x_min, y_min, x_max, y_max)` e.g. `(0.15, 0.27, 0.67, 0.5)`.
 
     Args:
