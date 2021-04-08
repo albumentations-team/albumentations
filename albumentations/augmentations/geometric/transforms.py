@@ -351,7 +351,7 @@ class Perspective(DualTransform):
 
     @classmethod
     def _order_points(cls, pts: np.ndarray) -> np.ndarray:
-        pts = sorted(pts, key=lambda x: x[0])
+        pts = np.sort(pts, axis=0)
         left = pts[:2]  # points with smallest x coordinate - left points
         right = pts[2:]  # points with greatest x coordinate - right points
 
