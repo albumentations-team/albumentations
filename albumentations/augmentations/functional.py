@@ -748,7 +748,7 @@ def add_rain(
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError("Unexpected dtype {} for RandomRain augmentation".format(input_dtype))
 
     image = img.copy()
 
@@ -905,7 +905,7 @@ def add_shadow(img, vertices_list):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError("Unexpected dtype {} for RandomShadow augmentation".format(input_dtype))
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     mask = np.zeros_like(img)
