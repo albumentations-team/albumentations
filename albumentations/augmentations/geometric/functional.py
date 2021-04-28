@@ -420,7 +420,7 @@ def perspective_keypoint(
 
 
 def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform, eps: float = 1e-4) -> bool:
-    identity = np.float32([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    identity = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.float32)
     return np.average(np.abs(identity - matrix.params)) <= eps
 
 
