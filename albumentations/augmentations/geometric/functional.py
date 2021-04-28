@@ -17,22 +17,6 @@ from ..functional import (
 from typing import Union, List, Sequence
 
 
-# constant, edge, symmetric, reflect, wrap
-# skimage   | cv2
-# constant  | cv2.BORDER_CONSTANT
-# edge      | cv2.BORDER_REPLICATE
-# symmetric | cv2.BORDER_REFLECT
-# reflect   | cv2.BORDER_REFLECT_101
-# wrap      | cv2.BORDER_WRAP
-_AFFINE_MODE_SKIMAGE_TO_CV2 = {
-    "constant": cv2.BORDER_CONSTANT,
-    "edge": cv2.BORDER_REPLICATE,
-    "symmetric": cv2.BORDER_REFLECT,
-    "reflect": cv2.BORDER_REFLECT_101,
-    "wrap": cv2.BORDER_WRAP,
-}
-
-
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
@@ -422,34 +406,14 @@ def warp_affine(
     image: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
     interpolation: int,
-    backend: str,
     cval: Union[int, float, Sequence[int], Sequence[float]],
-    mode: str,
+    mode: int,
     output_shape: Sequence[int],
 ) -> np.ndarray:
     if _is_identity_matrix(matrix):
         return image
 
-    if backend == "skimage":
-        # cval may contains 3 values as cv2 can handle 3, but skimage only 1
-        cval = cval[0] if isinstance(cval, Sequence) else cval
-        # skimage does not clip automatically
-        dtype = image.dtype
-        cval = np.clip(cval, 0, MAX_VALUES_BY_DTYPE[dtype])
-        image_warped = skimage.transform.warp(
-            image,
-            matrix.inverse,
-            order=interpolation,
-            cval=cval,
-            mode=mode,
-            output_shape=output_shape,
-            preserve_range=True,
-        )
-        image_warped = np.clip(image_warped, 0, MAX_VALUES_BY_DTYPE[dtype]).astype(dtype)
-        return image_warped
-
     dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
-    mode = _AFFINE_MODE_SKIMAGE_TO_CV2.get(mode, mode)
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
     )

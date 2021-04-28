@@ -580,7 +580,7 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
         [OpticalDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [ElasticTransform, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [Affine, {"mode": "constant", "cval_mask": 1, "cval": 100}],
+        [Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
