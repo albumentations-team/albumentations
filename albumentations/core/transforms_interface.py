@@ -2,6 +2,7 @@ from __future__ import absolute_import
 
 import random
 from warnings import warn
+from typing import Sequence
 
 import cv2
 from copy import deepcopy
@@ -33,7 +34,7 @@ def to_tuple(param, low=None, bias=None):
             param = -param, +param
         else:
             param = (low, param) if low < param else (param, low)
-    elif isinstance(param, (list, tuple)):
+    elif isinstance(param, Sequence):
         param = tuple(param)
     else:
         raise ValueError("Argument param must be either scalar (int, float) or tuple")
