@@ -158,21 +158,22 @@ class SafeRotate(DualTransform):
         # Rows and columns of the rotated image (not cropped)
         new_rows, new_cols = self.__rotated_img_size__(angle=angle, rows=old_rows, cols=old_cols)
 
-        col_diff = np.ceil(abs(new_cols - old_cols) / 2)
-        row_diff = np.ceil(abs(new_rows - old_rows) / 2)
+        col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
+        row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
 
         # Normalize shifts
         norm_col_shift = col_diff / new_cols
         norm_row_shift = row_diff / new_rows
 
         # shift bbox
-        shifted_bbox = bbox
-        shifted_bbox[0] += norm_col_shift
-        shifted_bbox[2] += norm_col_shift
-        shifted_bbox[1] += norm_row_shift
-        shifted_bbox[3] += norm_row_shift
+        shifted_bbox = (
+            bbox[0] + norm_col_shift,
+            bbox[1] + norm_row_shift,
+            bbox[2] + norm_col_shift,
+            bbox[3] + norm_row_shift,
+        )
 
-        rotated_bbox = F.bbox_rotate(shifted_bbox, angle, new_rows, new_cols)
+        rotated_bbox = F.bbox_rotate(bbox=shifted_bbox, angle=angle, rows=new_rows, cols=new_cols)
 
         # Bounding boxes are scale invariant, so this does not need to be rescaled to the old size
         return rotated_bbox
@@ -188,12 +189,10 @@ class SafeRotate(DualTransform):
         row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
 
         # Shift keypoint
-        shifted_keypoint = keypoint
-        shifted_keypoint[0] += col_diff
-        shifted_keypoint[1] += row_diff
+        shifted_keypoint = (keypoint[0] + col_diff, keypoint[1] + row_diff, keypoint[2], keypoint[3])
 
         # Rotate keypoint
-        rotated_keypoint = F.keypoint_rotate(shifted_keypoint, angle, **params)
+        rotated_keypoint = F.keypoint_rotate(shifted_keypoint, angle, rows=new_rows, cols=new_cols)
 
         # Scale the keypoint
         return F.keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
