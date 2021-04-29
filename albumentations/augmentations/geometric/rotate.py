@@ -3,6 +3,7 @@ import random
 import numpy as np
 
 from . import functional as F
+from ..crops import functional as FC
 from ...core.transforms_interface import DualTransform, to_tuple
 
 __all__ = ["Rotate", "RandomRotate90", "SafeRotate"]
@@ -112,8 +113,6 @@ class SafeRotate(DualTransform):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method.
-            cv2.BORDER_CONSTANT is the only supported flag at the moment
         value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
                     list of ints,
@@ -131,7 +130,6 @@ class SafeRotate(DualTransform):
         self,
         limit=90,
         interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
         always_apply=False,
@@ -140,7 +138,7 @@ class SafeRotate(DualTransform):
         super(SafeRotate, self).__init__(always_apply, p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
-        self.border_mode = border_mode
+        self.border_mode = cv2.BORDER_CONSTANT
         self.value = value
         self.mask_value = mask_value
 
@@ -159,7 +157,7 @@ class SafeRotate(DualTransform):
         old_cols = params["cols"]
 
         # Rows and columns of the rotated image (not cropped)
-        new_rows, new_cols = F.rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+        new_rows, new_cols = self.__rotated_img_size__(angle=angle, rows=old_rows, cols=old_cols)
 
         col_diff = np.ceil(abs(new_cols - old_cols) / 2)
         row_diff = np.ceil(abs(new_rows - old_rows) / 2)
@@ -185,7 +183,7 @@ class SafeRotate(DualTransform):
         old_cols = params["cols"]
 
         # Rows and columns of the rotated image (not cropped)
-        new_rows, new_cols = F.rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+        new_rows, new_cols = self.__rotated_img_size__(angle=angle, rows=old_rows, cols=old_cols)
 
         col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
         row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
@@ -202,7 +200,7 @@ class SafeRotate(DualTransform):
         return F.keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
 
     def get_transform_init_args_names(self):
-        return ("limit", "interpolation", "border_mode", "value", "mask_value")
+        return ("limit", "interpolation", "value", "mask_value")
 
     def __process_image__(self, img, value, angle=0, interpolation=cv2.INTER_LINEAR, **params):
         old_rows = params["rows"]
@@ -210,10 +208,10 @@ class SafeRotate(DualTransform):
         old_shape = img.shape
 
         # Rows and columns of the rotated image (not cropped)
-        new_rows, new_cols = F.rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+        new_rows, new_cols = self.__rotated_img_size__(angle=angle, rows=old_rows, cols=old_cols)
 
-        col_diff = int(np.ceil(abs(new_cols - old_cols)))
-        row_diff = int(np.ceil(abs(new_rows - old_rows)))
+        col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
+        row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
 
         # Pad the original image to make it the expected size
         padded_img = cv2.copyMakeBorder(
@@ -241,3 +239,21 @@ class SafeRotate(DualTransform):
                 resized_img = resized_img[:, :, np.newaxis]
 
         return resized_img
+
+    def __rotated_img_size__(self, angle, rows, cols):
+
+        deg_angle = abs(angle)
+
+        angle = np.deg2rad(deg_angle % 90)
+
+        r_cols = cols * np.cos(angle) + rows * np.sin(angle)
+
+        r_rows = cols * np.sin(angle) + rows * np.cos(angle)
+
+        if deg_angle > 90:
+            return int(r_cols), int(r_rows)
+        else:
+            return int(r_rows), int(r_cols)
+
+    def __diff__(self, a, b):
+        return int(np.ceil(abs(a - b) / 2))

@@ -409,29 +409,3 @@ def perspective_keypoint(
         return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
     return x, y, angle, scale
-
-
-def rotated_img_size(angle: int, rows: int, cols: int):
-    """
-    TODO
-    :param angle:
-    :param rows:
-    :param cols:
-    :return:
-    """
-
-    deg_angle = abs(angle)
-
-    angle = np.deg2rad(deg_angle % 90)
-
-    r_rows = 0
-    r_cols = 0
-
-    r_cols = cols * np.cos(angle) + rows * np.sin(angle)
-
-    r_rows = cols * np.sin(angle) + rows * np.cos(angle)
-
-    if deg_angle > 90:
-        return int(r_cols), int(r_rows)
-    else:
-        return int(r_rows), int(r_cols)
