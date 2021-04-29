@@ -180,6 +180,7 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  
     tr_points = matrix.dot(points_ones.T).T
     tr_points[:, 0] /= width
     tr_points[:, 1] /= height
+
     x_min, x_max = min(tr_points[:, 0]), max(tr_points[:, 0])
     y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
 

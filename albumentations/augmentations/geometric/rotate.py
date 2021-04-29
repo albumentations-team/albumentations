@@ -3,7 +3,6 @@ import random
 import numpy as np
 
 from . import functional as F
-from ..crops import functional as FC
 from ...core.transforms_interface import DualTransform, to_tuple
 
 __all__ = ["Rotate", "RandomRotate90", "SafeRotate"]
