@@ -240,20 +240,22 @@ class SafeRotate(DualTransform):
 
         return resized_img
 
-    def __rotated_img_size__(self, angle, rows, cols):
+    @staticmethod
+    def __rotated_img_size__(angle, rows, cols):
 
         deg_angle = abs(angle)
 
+        # The rotation angle
         angle = np.deg2rad(deg_angle % 90)
 
+        # The width of the frame to contain the rotated image
         r_cols = cols * np.cos(angle) + rows * np.sin(angle)
 
+        # The height of the frame to contain the rotated image
         r_rows = cols * np.sin(angle) + rows * np.cos(angle)
 
+        # The above calculations work as is for 0<90 degrees, and for 90<180 the cols and rows are flipped
         if deg_angle > 90:
             return int(r_cols), int(r_rows)
         else:
             return int(r_rows), int(r_cols)
-
-    def __diff__(self, a, b):
-        return int(np.ceil(abs(a - b) / 2))
