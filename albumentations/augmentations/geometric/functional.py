@@ -410,3 +410,64 @@ def perspective_keypoint(
         return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
     return x, y, angle, scale
+
+
+def safe_rotate(img: np.ndarray, value: int, angle: int = 0, interpolation: int = cv2.INTER_LINEAR):
+
+    old_rows, old_cols = img.shape[:2]
+    old_shape = img.shape
+
+    border_mode = cv2.BORDER_CONSTANT
+
+    # Rows and columns of the rotated image (not cropped)
+    new_rows, new_cols = rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+
+    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
+    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
+
+    # Pad the original image to make it the expected size
+    padded_img = cv2.copyMakeBorder(
+        src=img,
+        top=row_diff,
+        bottom=row_diff,
+        left=col_diff,
+        right=col_diff,
+        borderType=border_mode,
+        value=value,
+    )
+
+    # Rotate image
+    rotated_img = rotate(padded_img, angle, interpolation, border_mode, value)
+
+    # Resize image back to the original size
+    resized_img = resize(img=rotated_img, height=old_rows, width=old_cols, interpolation=interpolation)
+
+    # Greyscale channel check
+    if len(old_shape) == 3:
+        # Assume the channel is the third index
+        channel = old_shape[2]
+        if channel == 1 and len(resized_img.shape) != len(old_shape):
+            # Add the greyscale channel back
+            resized_img = resized_img[:, :, np.newaxis]
+
+    return resized_img
+
+
+def rotated_img_size(angle: float, rows: int, cols: int):
+
+    deg_angle = abs(angle)
+
+    # The rotation angle
+    angle = np.deg2rad(deg_angle % 90)
+
+    # The width of the frame to contain the rotated image
+    r_cols = cols * np.cos(angle) + rows * np.sin(angle)
+
+    # The height of the frame to contain the rotated image
+    r_rows = cols * np.sin(angle) + rows * np.cos(angle)
+
+    # The above calculations work as is for 0<90 degrees, and for 90<180 the cols and rows are flipped
+    if deg_angle > 90:
+        return int(r_cols), int(r_rows)
+    else:
+        return int(r_rows), int(r_cols)
