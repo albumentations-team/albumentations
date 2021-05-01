@@ -249,11 +249,13 @@ class NOf(BaseCompose):
         n (int): number of transforms to apply.
         transforms (list): list of transformations to compose.
         p (float): probability of applying selected transform. Default: 1.
+        replace (bool): Whether the samples are with or without replacement. Default: True.
     """
 
-    def __init__(self, n, transforms, p=1):
+    def __init__(self, n, transforms, p=1, replace=True):
         super(NOf, self).__init__(transforms, p)
         self.n = n
+        self.replace = replace
         transforms_ps = [t.p for t in transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
@@ -266,8 +268,11 @@ class NOf(BaseCompose):
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            t = random_state.choice(self.transforms.transforms, size=self.n, p=self.transforms_ps)
-            data = t(force_apply=True, **data)
+            transforms = random_state.choice(
+                self.transforms.transforms, size=self.n, replace=self.replace, p=self.transforms_ps
+            )
+            for t in transforms:
+                data = t(force_apply=True, **data)
         return data
 
 
