@@ -241,17 +241,19 @@ class Compose(BaseCompose):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
 
 
-class OneOf(BaseCompose):
-    """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
+class NOf(BaseCompose):
+    """Select N transforms to apply. Selected transforms will be called with `force_apply=True`.
     Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
+        n (int): number of transforms to apply.
         transforms (list): list of transformations to compose.
-        p (float): probability of applying selected transform. Default: 0.5.
+        p (float): probability of applying selected transform. Default: 1.
     """
 
-    def __init__(self, transforms, p=0.5):
-        super(OneOf, self).__init__(transforms, p)
+    def __init__(self, n, transforms, p=1):
+        super(NOf, self).__init__(transforms, p)
+        self.n = n
         transforms_ps = [t.p for t in transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
@@ -264,9 +266,22 @@ class OneOf(BaseCompose):
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
+            t = random_state.choice(self.transforms.transforms, size=self.n, p=self.transforms_ps)
             data = t(force_apply=True, **data)
         return data
+
+
+class OneOf(NOf):
+    """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
+
+    Args:
+        transforms (list): list of transformations to compose.
+        p (float): probability of applying selected transform. Default: 0.5.
+    """
+
+    def __init__(self, transforms, p=0.5):
+        super(OneOf, self).__init__(1, transforms, p)
 
 
 class OneOrOther(BaseCompose):
