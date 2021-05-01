@@ -68,13 +68,16 @@ def test_one_of():
 
 
 @pytest.mark.parametrize("N", [1, 2, 5, 10])
-def test_n_of(N):
+@pytest.mark.parametrize("replace", [True, False])
+def test_n_of(N, replace):
     transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)]
-    augmentation = NOf(N, transforms, p=1, replace=False)
+    augmentation = NOf(N, transforms, p=1, replace=replace)
     print(augmentation.n)
     image = np.ones((8, 8))
     augmentation(image=image)
-    assert len([transform for transform in transforms if transform.called]) == N
+    if not replace:
+        assert len([transform for transform in transforms if transform.called]) == N
+    assert sum([transform.call_count for transform in transforms]) == N
 
 
 def test_sequential():
