@@ -412,6 +412,7 @@ def perspective_keypoint(
     return x, y, angle, scale
 
 
+@preserve_channel_dim
 def safe_rotate(
     img: np.ndarray,
     angle: int = 0,
@@ -421,40 +422,35 @@ def safe_rotate(
 ):
 
     old_rows, old_cols = img.shape[:2]
-    old_shape = img.shape
 
-    # border_mode = cv2.BORDER_CONSTANT
+    # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+    image_center = (old_cols / 2, old_rows / 2)
 
     # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
 
-    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
-    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
+    # Rotation Matrix
+    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
 
-    # Pad the original image to make it the expected size
-    padded_img = cv2.copyMakeBorder(
-        src=img,
-        top=row_diff,
-        bottom=row_diff,
-        left=col_diff,
-        right=col_diff,
-        borderType=border_mode,
-        value=value,
+    # Shift the image to create padding
+    rotation_mat[0, 2] += new_cols / 2 - image_center[0]
+    rotation_mat[1, 2] += new_rows / 2 - image_center[1]
+
+    # CV2 Transformation function
+    warp_affine_fn = _maybe_process_in_chunks(
+        cv2.warpAffine,
+        M=rotation_mat,
+        dsize=(new_cols, new_rows),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
 
-    # Rotate image
-    rotated_img = rotate(padded_img, angle, interpolation, border_mode, value)
+    # rotate image with the new bounds
+    rotated_img = warp_affine_fn(img)
 
     # Resize image back to the original size
     resized_img = resize(img=rotated_img, height=old_rows, width=old_cols, interpolation=interpolation)
-
-    # Greyscale channel check
-    if len(old_shape) == 3:
-        # Assume the channel is the third index
-        channel = old_shape[2]
-        if channel == 1 and len(resized_img.shape) != len(old_shape):
-            # Add the greyscale channel back
-            resized_img = resized_img[:, :, np.newaxis]
 
     return resized_img
 
@@ -464,7 +460,7 @@ def bbox_safe_rotate(bbox, angle, rows, cols):
     old_cols = cols
 
     # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
 
     col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
     row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
@@ -492,7 +488,7 @@ def keypoint_safe_rotate(keypoint, angle, rows, cols):
     old_cols = cols
 
     # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
 
     col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
     row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
@@ -507,7 +503,7 @@ def keypoint_safe_rotate(keypoint, angle, rows, cols):
     return keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
 
 
-def rotated_img_size(angle: float, rows: int, cols: int):
+def safe_rotate_enlarged_img_size(angle: float, rows: int, cols: int):
 
     deg_angle = abs(angle)
 
