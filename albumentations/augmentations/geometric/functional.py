@@ -412,12 +412,18 @@ def perspective_keypoint(
     return x, y, angle, scale
 
 
-def safe_rotate(img: np.ndarray, value: int, angle: int = 0, interpolation: int = cv2.INTER_LINEAR):
+def safe_rotate(
+    img: np.ndarray,
+    angle: int = 0,
+    interpolation: int = cv2.INTER_LINEAR,
+    value: int = None,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+):
 
     old_rows, old_cols = img.shape[:2]
     old_shape = img.shape
 
-    border_mode = cv2.BORDER_CONSTANT
+    # border_mode = cv2.BORDER_CONSTANT
 
     # Rows and columns of the rotated image (not cropped)
     new_rows, new_cols = rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
@@ -451,6 +457,54 @@ def safe_rotate(img: np.ndarray, value: int, angle: int = 0, interpolation: int 
             resized_img = resized_img[:, :, np.newaxis]
 
     return resized_img
+
+
+def bbox_safe_rotate(bbox, angle, rows, cols):
+    old_rows = rows
+    old_cols = cols
+
+    # Rows and columns of the rotated image (not cropped)
+    new_rows, new_cols = rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+
+    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
+    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
+
+    # Normalize shifts
+    norm_col_shift = col_diff / new_cols
+    norm_row_shift = row_diff / new_rows
+
+    # shift bbox
+    shifted_bbox = (
+        bbox[0] + norm_col_shift,
+        bbox[1] + norm_row_shift,
+        bbox[2] + norm_col_shift,
+        bbox[3] + norm_row_shift,
+    )
+
+    rotated_bbox = bbox_rotate(bbox=shifted_bbox, angle=angle, rows=new_rows, cols=new_cols)
+
+    # Bounding boxes are scale invariant, so this does not need to be rescaled to the old size
+    return rotated_bbox
+
+
+def keypoint_safe_rotate(keypoint, angle, rows, cols):
+    old_rows = rows
+    old_cols = cols
+
+    # Rows and columns of the rotated image (not cropped)
+    new_rows, new_cols = rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
+
+    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
+    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
+
+    # Shift keypoint
+    shifted_keypoint = (keypoint[0] + col_diff, keypoint[1] + row_diff, keypoint[2], keypoint[3])
+
+    # Rotate keypoint
+    rotated_keypoint = keypoint_rotate(shifted_keypoint, angle, rows=new_rows, cols=new_cols)
+
+    # Scale the keypoint
+    return keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
 
 
 def rotated_img_size(angle: float, rows: int, cols: int):

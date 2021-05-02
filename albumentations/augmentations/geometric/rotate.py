@@ -129,6 +129,7 @@ class SafeRotate(DualTransform):
         self,
         limit=90,
         interpolation=cv2.INTER_LINEAR,
+        border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
         always_apply=False,
@@ -137,65 +138,28 @@ class SafeRotate(DualTransform):
         super(SafeRotate, self).__init__(always_apply, p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
-        self.border_mode = cv2.BORDER_CONSTANT
+        self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
 
     def apply(self, img, angle=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.safe_rotate(img, self.value, angle, interpolation)
+        return F.safe_rotate(
+            img=img, value=self.value, angle=angle, interpolation=interpolation, border_mode=self.border_mode
+        )
 
     def apply_to_mask(self, img, angle=0, **params):
-        mask = F.safe_rotate(img, self.mask_value, angle=angle, interpolation=params["interpolation"])
-        return mask
+        return F.safe_rotate(
+            img=img, value=self.mask_value, angle=angle, interpolation=cv2.INTER_NEAREST, border_mode=self.border_mode
+        )
 
     def get_params(self):
         return {"angle": random.uniform(self.limit[0], self.limit[1])}
 
     def apply_to_bbox(self, bbox, angle=0, **params):
-        old_rows = params["rows"]
-        old_cols = params["cols"]
-
-        # Rows and columns of the rotated image (not cropped)
-        new_rows, new_cols = F.rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
-
-        col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
-        row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
-
-        # Normalize shifts
-        norm_col_shift = col_diff / new_cols
-        norm_row_shift = row_diff / new_rows
-
-        # shift bbox
-        shifted_bbox = (
-            bbox[0] + norm_col_shift,
-            bbox[1] + norm_row_shift,
-            bbox[2] + norm_col_shift,
-            bbox[3] + norm_row_shift,
-        )
-
-        rotated_bbox = F.bbox_rotate(bbox=shifted_bbox, angle=angle, rows=new_rows, cols=new_cols)
-
-        # Bounding boxes are scale invariant, so this does not need to be rescaled to the old size
-        return rotated_bbox
+        return F.bbox_safe_rotate(bbox=bbox, angle=angle, rows=params["rows"], cols=params["cols"])
 
     def apply_to_keypoint(self, keypoint, angle=0, **params):
-        old_rows = params["rows"]
-        old_cols = params["cols"]
-
-        # Rows and columns of the rotated image (not cropped)
-        new_rows, new_cols = F.rotated_img_size(angle=angle, rows=old_rows, cols=old_cols)
-
-        col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
-        row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
-
-        # Shift keypoint
-        shifted_keypoint = (keypoint[0] + col_diff, keypoint[1] + row_diff, keypoint[2], keypoint[3])
-
-        # Rotate keypoint
-        rotated_keypoint = F.keypoint_rotate(shifted_keypoint, angle, rows=new_rows, cols=new_cols)
-
-        # Scale the keypoint
-        return F.keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
+        return F.keypoint_safe_rotate(keypoint, angle=angle, rows=params["rows"], cols=params["cols"])
 
     def get_transform_init_args_names(self):
-        return ("limit", "interpolation", "value", "mask_value")
+        return ("limit", "interpolation", "border_mode", "value", "mask_value")

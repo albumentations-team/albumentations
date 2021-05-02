@@ -173,6 +173,7 @@ AUGMENTATION_CLS_PARAMS = (
             {
                 "limit": 120,
                 "interpolation": cv2.INTER_CUBIC,
+                "border_mode": cv2.BORDER_CONSTANT,
                 "value": (10, 10, 10),
             },
         ],
@@ -433,6 +434,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Flip, {}],
         [A.RandomRotate90, {}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.ShiftScaleRotate, {}],
         [A.CenterCrop, {"height": 10, "width": 10}],
         [A.RandomCrop, {"height": 10, "width": 10}],
