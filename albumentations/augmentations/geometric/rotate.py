@@ -106,6 +106,10 @@ class Rotate(DualTransform):
 class SafeRotate(DualTransform):
     """Rotate the input inside the input's frame by an angle selected randomly from the uniform distribution.
 
+    The resulting image may have artifacts in it. After rotation, the image may have a different aspect ratio, and
+    after resizing, it returns to its original shape with the original aspect ratio of the image. For these reason we
+    may see some artifacts.
+
     Args:
         limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
             an angle is picked from (-limit, limit). Default: (-90, 90)
