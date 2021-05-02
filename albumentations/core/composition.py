@@ -13,7 +13,7 @@ from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
+__all__ = ["Compose", "NOf", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
 
 
 REPR_INDENT_STEP = 2
@@ -241,18 +241,45 @@ class Compose(BaseCompose):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
 
 
+class OneOf(BaseCompose):
+    """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
+    Args:
+        transforms (list): list of transformations to compose.
+        p (float): probability of applying selected transform. Default: 0.5.
+    """
+
+    def __init__(self, transforms, p=0.5):
+        super(OneOf, self).__init__(transforms, p)
+        transforms_ps = [t.p for t in transforms]
+        s = sum(transforms_ps)
+        self.transforms_ps = [t / s for t in transforms_ps]
+
+    def __call__(self, force_apply=False, **data):
+        if self.replay_mode:
+            for t in self.transforms:
+                data = t(**data)
+            return data
+
+        if self.transforms_ps and (force_apply or random.random() < self.p):
+            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+            t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
+            data = t(force_apply=True, **data)
+        return data
+
+
 class NOf(BaseCompose):
     """Select N transforms to apply. Selected transforms will be called with `force_apply=True`.
     Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
-        n (int): number of transforms to apply.
         transforms (list): list of transformations to compose.
+        n (int): number of transforms to apply.
+        replace (bool): Whether the sampled transforms are with or without replacement. Default: True.
         p (float): probability of applying selected transform. Default: 1.
-        replace (bool): Whether the samples are with or without replacement. Default: True.
     """
 
-    def __init__(self, n, transforms, p=1, replace=True):
+    def __init__(self, transforms, n, replace=True, p=1):
         super(NOf, self).__init__(transforms, p)
         self.n = n
         self.replace = replace
@@ -275,18 +302,10 @@ class NOf(BaseCompose):
                 data = t(force_apply=True, **data)
         return data
 
-
-class OneOf(NOf):
-    """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
-    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
-
-    Args:
-        transforms (list): list of transformations to compose.
-        p (float): probability of applying selected transform. Default: 0.5.
-    """
-
-    def __init__(self, transforms, p=0.5):
-        super(OneOf, self).__init__(1, transforms, p)
+    def _to_dict(self):
+        dictionary = super(NOf, self)._to_dict()
+        dictionary.update({"n": self.n, "replace": self.replace})
+        return dictionary
 
 
 class OneOrOther(BaseCompose):
