@@ -419,9 +419,8 @@ def perspective_keypoint(
     return x, y, angle, scale
 
 
-def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform, eps: float = 1e-4) -> bool:
-    identity = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.float32)
-    return np.average(np.abs(identity - matrix.params)) <= eps
+def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
+    return np.allclose(matrix.params, np.eye(3, dtype=np.float32))
 
 
 @preserve_channel_dim
