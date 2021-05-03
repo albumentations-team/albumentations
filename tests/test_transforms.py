@@ -28,6 +28,20 @@ def test_transpose_both_image_and_mask():
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
+def test_safe_rotate_interpolation(interpolation):
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+    aug = A.SafeRotate(limit=(45, 45), interpolation=interpolation, p=1)
+    data = aug(image=image, mask=mask)
+    expected_image = FGeometric.safe_rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
+    expected_mask = FGeometric.safe_rotate(
+        mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
+    )
+    assert np.array_equal(data["image"], expected_image)
+    assert np.array_equal(data["mask"], expected_mask)
+
+
+@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 def test_rotate_interpolation(interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
@@ -143,6 +157,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
         [A.LongestMaxSize, {"max_size": 50}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.OpticalDistortion, {}],
         [A.IAAAffine, {"scale": 1.5}],
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
@@ -171,6 +186,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
         [A.LongestMaxSize, {"max_size": 50}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.Resize, {"height": 80, "width": 90}],
         [A.Resize, {"height": 120, "width": 130}],
         [A.OpticalDistortion, {}],
@@ -206,6 +222,7 @@ def __test_multiprocessing_support_proc(args):
         [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
         [A.LongestMaxSize, {"max_size": 50}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.OpticalDistortion, {}],
         [A.IAAAffine, {"scale": 1.5}],
         [A.IAAPiecewiseAffine, {"scale": 1.5}],
@@ -287,6 +304,7 @@ def test_force_apply():
         [A.Transpose, {}],
         [A.RandomRotate90, {}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.OpticalDistortion, {}],
         [A.GridDistortion, {}],
         [A.ElasticTransform, {}],
