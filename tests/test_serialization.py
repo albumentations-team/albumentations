@@ -79,6 +79,7 @@ def set_seed(seed):
         [A.Emboss, {}],
         [A.CropAndPad, {"px": 10}],
         [A.Superpixels, {}],
+        [A.Affine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -284,6 +285,36 @@ AUGMENTATION_CLS_PARAMS = (
             A.Superpixels,
             {"p_replace": (0.5, 0.7), "n_segments": (20, 30), "max_size": 25, "interpolation": cv2.INTER_CUBIC},
         ],
+        [
+            A.Affine,
+            {
+                "scale": 0.5,
+                "translate_percent": 0.7,
+                "translate_px": None,
+                "rotate": 33,
+                "shear": 21,
+                "interpolation": cv2.INTER_CUBIC,
+                "cval": 25,
+                "cval_mask": 1,
+                "mode": cv2.BORDER_REFLECT,
+                "fit_output": True,
+            },
+        ],
+        [
+            A.Affine,
+            {
+                "scale": {"x": [0.3, 0.5], "y": [0.1, 0.2]},
+                "translate_percent": None,
+                "translate_px": {"x": [10, 200], "y": [5, 101]},
+                "rotate": [333, 360],
+                "shear": {"x": [31, 38], "y": [41, 48]},
+                "interpolation": 3,
+                "cval": [10, 20, 30],
+                "cval_mask": 1,
+                "mode": cv2.BORDER_REFLECT,
+                "fit_output": True,
+            },
+        ],
     ],
 )
 
@@ -384,6 +415,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Sharpen, {}],
         [A.Emboss, {}],
         [A.Superpixels, {}],
+        [A.Affine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -454,6 +486,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Sharpen, {}],
         [A.Emboss, {}],
         [A.Superpixels, {}],
+        [A.Affine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])

@@ -1,11 +1,17 @@
 import cv2
 import math
 import numpy as np
+import skimage.transform
 
 from scipy.ndimage.filters import gaussian_filter
 
 from ..bbox_utils import denormalize_bbox, normalize_bbox
-from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
+from ..functional import (
+    angle_2pi_range,
+    preserve_channel_dim,
+    _maybe_process_in_chunks,
+    preserve_shape,
+)
 
 from typing import Union, List, Sequence
 
@@ -410,6 +416,76 @@ def perspective_keypoint(
         return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
     return x, y, angle, scale
+
+
+def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
+    return np.allclose(matrix.params, np.eye(3, dtype=np.float32))
+
+
+@preserve_channel_dim
+def warp_affine(
+    image: np.ndarray,
+    matrix: skimage.transform.ProjectiveTransform,
+    interpolation: int,
+    cval: Union[int, float, Sequence[int], Sequence[float]],
+    mode: int,
+    output_shape: Sequence[int],
+) -> np.ndarray:
+    if _is_identity_matrix(matrix):
+        return image
+
+    dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
+    warp_fn = _maybe_process_in_chunks(
+        cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
+    )
+    tmp = warp_fn(image)
+    return tmp
+
+
+@angle_2pi_range
+def keypoint_affine(
+    keypoint: Sequence[float],
+    matrix: skimage.transform.ProjectiveTransform,
+    scale: dict,
+) -> Sequence[float]:
+    if _is_identity_matrix(matrix):
+        return keypoint
+
+    x, y, a, s = keypoint[:4]
+    x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
+    a += rotation2DMatrixToEulerAngles(matrix.params[:2])
+    s *= np.max([scale["x"], scale["y"]])
+    return x, y, a, s
+
+
+def bbox_affine(
+    bbox: Sequence[float],
+    matrix: skimage.transform.ProjectiveTransform,
+    rows: int,
+    cols: int,
+    output_shape: Sequence[int],
+) -> Sequence[float]:
+    if _is_identity_matrix(matrix):
+        return bbox
+
+    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
+    points = np.array(
+        [
+            [x_min, y_min],
+            [x_max, y_min],
+            [x_max, y_max],
+            [x_min, y_max],
+        ]
+    )
+    points = skimage.transform.matrix_transform(points, matrix.params)
+    points[:, 0] = np.clip(points[:, 0], 0, output_shape[1])
+    points[:, 1] = np.clip(points[:, 1], 0, output_shape[0])
+    x_min = np.min(points[:, 0])
+    x_max = np.max(points[:, 0])
+    y_min = np.min(points[:, 1])
+    y_max = np.max(points[:, 1])
+
+    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
 
 
 @preserve_channel_dim
