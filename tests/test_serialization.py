@@ -620,7 +620,7 @@ def test_transform_pipeline_serialization(seed, image, mask):
                     ]
                 ),
             ),
-            A.NOf(
+            A.SomeOf(
                 [
                     A.HorizontalFlip(p=1),
                     A.Transpose(p=1),
@@ -661,7 +661,7 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
                 A.Compose([A.RandomRotate90(), A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)])]),
                 A.Compose([A.Rotate(p=0.5), A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1)]),
             ),
-            A.NOf(
+            A.SomeOf(
                 [
                     A.HorizontalFlip(p=1),
                     A.Transpose(p=1),
@@ -700,7 +700,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
                 A.Compose([A.RandomRotate90(), A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)])]),
                 A.Compose([A.Rotate(p=0.5), A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1)]),
             ),
-            A.NOf(
+            A.SomeOf(
                 n=2,
                 transforms=[
                     A.HorizontalFlip(p=1),

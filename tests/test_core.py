@@ -13,7 +13,7 @@ from albumentations.core.composition import (
     OneOrOther,
     Compose,
     OneOf,
-    NOf,
+    SomeOf,
     PerChannel,
     ReplayCompose,
     KeypointParams,
@@ -71,7 +71,7 @@ def test_one_of():
 @pytest.mark.parametrize("replace", [True, False])
 def test_n_of(N, replace):
     transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)]
-    augmentation = NOf(transforms, N, p=1, replace=replace)
+    augmentation = SomeOf(transforms, N, p=1, replace=replace)
     print(augmentation.n)
     image = np.ones((8, 8))
     augmentation(image=image)
