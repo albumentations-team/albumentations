@@ -55,7 +55,7 @@ class ToTensor(BasicTransform):
         self.sigmoid = sigmoid
         self.normalize = normalize
         warnings.warn(
-            "ToTensor is deprecated and will be replaced by ToTensorV2 " "in albumentations 0.5.0", DeprecationWarning
+            "ToTensor is deprecated and will be replaced by ToTensorV2 in albumentations 0.7.0", FutureWarning
         )
 
     def __call__(self, *args, force_apply=True, **kwargs):

@@ -13,6 +13,7 @@ from albumentations.core.composition import (
     OneOrOther,
     Compose,
     OneOf,
+    SomeOf,
     PerChannel,
     ReplayCompose,
     KeypointParams,
@@ -66,8 +67,21 @@ def test_one_of():
     assert len([transform for transform in transforms if transform.called]) == 1
 
 
+@pytest.mark.parametrize("N", [1, 2, 5, 10])
+@pytest.mark.parametrize("replace", [True, False])
+def test_n_of(N, replace):
+    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)]
+    augmentation = SomeOf(transforms, N, p=1, replace=replace)
+    print(augmentation.n)
+    image = np.ones((8, 8))
+    augmentation(image=image)
+    if not replace:
+        assert len([transform for transform in transforms if transform.called]) == N
+    assert sum([transform.call_count for transform in transforms]) == N
+
+
 def test_sequential():
-    transforms = [Mock(side_effect=lambda **kw: kw) for _ in range(1)]
+    transforms = [Mock(side_effect=lambda **kw: kw) for _ in range(10)]
     augmentation = Sequential(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)

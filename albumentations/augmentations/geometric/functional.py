@@ -1,13 +1,19 @@
 import cv2
 import math
 import numpy as np
+import skimage.transform
 
 from scipy.ndimage.filters import gaussian_filter
 
 from ..bbox_utils import denormalize_bbox, normalize_bbox
-from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape
+from ..functional import (
+    angle_2pi_range,
+    preserve_channel_dim,
+    _maybe_process_in_chunks,
+    preserve_shape,
+)
 
-from typing import Union, List
+from typing import Union, List, Sequence
 
 
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
@@ -145,7 +151,12 @@ def shift_scale_rotate(
 
 @angle_2pi_range
 def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
-    x, y, a, s, = keypoint[:4]
+    (
+        x,
+        y,
+        a,
+        s,
+    ) = keypoint[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
@@ -270,13 +281,13 @@ def scale(img, scale, interpolation=cv2.INTER_LINEAR):
     return resize(img, new_height, new_width, interpolation)
 
 
-def keypoint_scale(keypoint, scale_x, scale_y):
+def keypoint_scale(keypoint: Sequence[float], scale_x: float, scale_y: float):
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
         keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        scale_x (int): Scale coefficient x-axis.
-        scale_y (int): Scale coefficient y-axis.
+        scale_x: Scale coefficient x-axis.
+        scale_y: Scale coefficient y-axis.
 
     Returns:
         A keypoint `(x, y, angle, scale)`.
@@ -344,18 +355,34 @@ def perspective(
 
 
 def perspective_bbox(
-    bbox: Union[List[int], List[float]], height: int, width: int, matrix: np.ndarray, max_width: int, max_height: int
+    bbox: Sequence[float],
+    height: int,
+    width: int,
+    matrix: np.ndarray,
+    max_width: int,
+    max_height: int,
+    keep_size: bool,
 ):
-    bbox = denormalize_bbox(bbox, height, width)
+    x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)
 
-    points = np.array(
-        [[bbox[0], bbox[1]], [bbox[2], bbox[1]], [bbox[2], bbox[2]], [bbox[0], bbox[2]]], dtype=np.float32
+    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
+
+    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
+    for pt in points:
+        pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
+        x, y = pt[:2]
+        x = np.clip(x, 0, width if keep_size else max_width)
+        y = np.clip(y, 0, height if keep_size else max_height)
+        x1 = min(x1, x)
+        x2 = max(x2, x)
+        y1 = min(y1, y)
+        y2 = max(y2, y)
+
+    x = np.clip([x1, x2], 0, width if keep_size else max_width)
+    y = np.clip([y1, y2], 0, height if keep_size else max_height)
+    return normalize_bbox(
+        (x[0], y[0], x[1], y[1]), height if keep_size else max_height, width if keep_size else max_width
     )
-
-    points = cv2.perspectiveTransform(points.reshape([1, 4, 2]), matrix)
-
-    bbox = [np.min(points[..., 0]), np.min(points[..., 1]), np.max(points[..., 0]), np.max(points[..., 1])]
-    return normalize_bbox(bbox, max_height, max_width)
 
 
 def rotation2DMatrixToEulerAngles(matrix: np.ndarray):
@@ -374,11 +401,199 @@ def perspective_keypoint(
 ):
     x, y, angle, scale = keypoint
 
-    keypoint = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
+    keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
 
-    x, y = cv2.perspectiveTransform(keypoint, matrix)[0, 0]
+    x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
     angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
-    if not keep_size:
-        scale += max(max_height / height, max_width / width)
+
+    scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
+    scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
+    scale *= max(scale_x, scale_y)
+
+    if keep_size:
+        scale_x = width / max_width
+        scale_y = height / max_height
+        return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
     return x, y, angle, scale
+
+
+def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
+    return np.allclose(matrix.params, np.eye(3, dtype=np.float32))
+
+
+@preserve_channel_dim
+def warp_affine(
+    image: np.ndarray,
+    matrix: skimage.transform.ProjectiveTransform,
+    interpolation: int,
+    cval: Union[int, float, Sequence[int], Sequence[float]],
+    mode: int,
+    output_shape: Sequence[int],
+) -> np.ndarray:
+    if _is_identity_matrix(matrix):
+        return image
+
+    dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
+    warp_fn = _maybe_process_in_chunks(
+        cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
+    )
+    tmp = warp_fn(image)
+    return tmp
+
+
+@angle_2pi_range
+def keypoint_affine(
+    keypoint: Sequence[float],
+    matrix: skimage.transform.ProjectiveTransform,
+    scale: dict,
+) -> Sequence[float]:
+    if _is_identity_matrix(matrix):
+        return keypoint
+
+    x, y, a, s = keypoint[:4]
+    x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
+    a += rotation2DMatrixToEulerAngles(matrix.params[:2])
+    s *= np.max([scale["x"], scale["y"]])
+    return x, y, a, s
+
+
+def bbox_affine(
+    bbox: Sequence[float],
+    matrix: skimage.transform.ProjectiveTransform,
+    rows: int,
+    cols: int,
+    output_shape: Sequence[int],
+) -> Sequence[float]:
+    if _is_identity_matrix(matrix):
+        return bbox
+
+    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
+    points = np.array(
+        [
+            [x_min, y_min],
+            [x_max, y_min],
+            [x_max, y_max],
+            [x_min, y_max],
+        ]
+    )
+    points = skimage.transform.matrix_transform(points, matrix.params)
+    points[:, 0] = np.clip(points[:, 0], 0, output_shape[1])
+    points[:, 1] = np.clip(points[:, 1], 0, output_shape[0])
+    x_min = np.min(points[:, 0])
+    x_max = np.max(points[:, 0])
+    y_min = np.min(points[:, 1])
+    y_max = np.max(points[:, 1])
+
+    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
+
+
+@preserve_channel_dim
+def safe_rotate(
+    img: np.ndarray,
+    angle: int = 0,
+    interpolation: int = cv2.INTER_LINEAR,
+    value: int = None,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+):
+
+    old_rows, old_cols = img.shape[:2]
+
+    # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+    image_center = (old_cols / 2, old_rows / 2)
+
+    # Rows and columns of the rotated image (not cropped)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+
+    # Rotation Matrix
+    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+
+    # Shift the image to create padding
+    rotation_mat[0, 2] += new_cols / 2 - image_center[0]
+    rotation_mat[1, 2] += new_rows / 2 - image_center[1]
+
+    # CV2 Transformation function
+    warp_affine_fn = _maybe_process_in_chunks(
+        cv2.warpAffine,
+        M=rotation_mat,
+        dsize=(new_cols, new_rows),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
+    )
+
+    # rotate image with the new bounds
+    rotated_img = warp_affine_fn(img)
+
+    # Resize image back to the original size
+    resized_img = resize(img=rotated_img, height=old_rows, width=old_cols, interpolation=interpolation)
+
+    return resized_img
+
+
+def bbox_safe_rotate(bbox, angle, rows, cols):
+    old_rows = rows
+    old_cols = cols
+
+    # Rows and columns of the rotated image (not cropped)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+
+    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
+    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
+
+    # Normalize shifts
+    norm_col_shift = col_diff / new_cols
+    norm_row_shift = row_diff / new_rows
+
+    # shift bbox
+    shifted_bbox = (
+        bbox[0] + norm_col_shift,
+        bbox[1] + norm_row_shift,
+        bbox[2] + norm_col_shift,
+        bbox[3] + norm_row_shift,
+    )
+
+    rotated_bbox = bbox_rotate(bbox=shifted_bbox, angle=angle, rows=new_rows, cols=new_cols)
+
+    # Bounding boxes are scale invariant, so this does not need to be rescaled to the old size
+    return rotated_bbox
+
+
+def keypoint_safe_rotate(keypoint, angle, rows, cols):
+    old_rows = rows
+    old_cols = cols
+
+    # Rows and columns of the rotated image (not cropped)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+
+    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
+    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
+
+    # Shift keypoint
+    shifted_keypoint = (keypoint[0] + col_diff, keypoint[1] + row_diff, keypoint[2], keypoint[3])
+
+    # Rotate keypoint
+    rotated_keypoint = keypoint_rotate(shifted_keypoint, angle, rows=new_rows, cols=new_cols)
+
+    # Scale the keypoint
+    return keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
+
+
+def safe_rotate_enlarged_img_size(angle: float, rows: int, cols: int):
+
+    deg_angle = abs(angle)
+
+    # The rotation angle
+    angle = np.deg2rad(deg_angle % 90)
+
+    # The width of the frame to contain the rotated image
+    r_cols = cols * np.cos(angle) + rows * np.sin(angle)
+
+    # The height of the frame to contain the rotated image
+    r_rows = cols * np.sin(angle) + rows * np.cos(angle)
+
+    # The above calculations work as is for 0<90 degrees, and for 90<180 the cols and rows are flipped
+    if deg_angle > 90:
+        return int(r_cols), int(r_rows)
+    else:
+        return int(r_rows), int(r_cols)

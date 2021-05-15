@@ -6,8 +6,9 @@ from warnings import warn
 from itertools import product
 import cv2
 import numpy as np
+import skimage
 
-from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
+from typing import Sequence, Optional, Union
 from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
 
 MAX_VALUES_BY_DTYPE = {
@@ -166,6 +167,7 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
 
     """
 
+    @wraps(process_fn)
     def __process_fn(img):
         num_channels = get_num_channels(img)
         if num_channels > 4:
@@ -188,85 +190,6 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
         return img
 
     return __process_fn
-
-
-def crop(img, x_min, y_min, x_max, y_max):
-    height, width = img.shape[:2]
-    if x_max <= x_min or y_max <= y_min:
-        raise ValueError(
-            "We should have x_min < x_max and y_min < y_max. But we got"
-            " (x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max
-            )
-        )
-
-    if x_min < 0 or x_max > width or y_min < 0 or y_max > height:
-        raise ValueError(
-            "Values for crop should be non negative and equal or smaller than image sizes"
-            "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
-            "height = {height}, width = {width})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
-            )
-        )
-
-    return img[y_min:y_max, x_min:x_max]
-
-
-def get_center_crop_coords(height, width, crop_height, crop_width):
-    y1 = (height - crop_height) // 2
-    y2 = y1 + crop_height
-    x1 = (width - crop_width) // 2
-    x2 = x1 + crop_width
-    return x1, y1, x2, y2
-
-
-def center_crop(img, crop_height, crop_width):
-    height, width = img.shape[:2]
-    if height < crop_height or width < crop_width:
-        raise ValueError(
-            "Requested crop size ({crop_height}, {crop_width}) is "
-            "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
-            )
-        )
-    x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
-    img = img[y1:y2, x1:x2]
-    return img
-
-
-def get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start):
-    y1 = int((height - crop_height) * h_start)
-    y2 = y1 + crop_height
-    x1 = int((width - crop_width) * w_start)
-    x2 = x1 + crop_width
-    return x1, y1, x2, y2
-
-
-def random_crop(img, crop_height, crop_width, h_start, w_start):
-    height, width = img.shape[:2]
-    if height < crop_height or width < crop_width:
-        raise ValueError(
-            "Requested crop size ({crop_height}, {crop_width}) is "
-            "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
-            )
-        )
-    x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
-    img = img[y1:y2, x1:x2]
-    return img
-
-
-def clamping_crop(img, x_min, y_min, x_max, y_max):
-    h, w = img.shape[:2]
-    if x_min < 0:
-        x_min = 0
-    if y_min < 0:
-        y_min = 0
-    if y_max >= h:
-        y_max = h - 1
-    if x_max >= w:
-        x_max = w - 1
-    return img[int(y_min) : int(y_max), int(x_min) : int(x_max)]
 
 
 def _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift):
@@ -530,6 +453,41 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
     return result_img
 
 
+@preserve_shape
+def move_tone_curve(img, low_y, high_y):
+    """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
+
+    Args:
+        img (numpy.ndarray): RGB or grayscale image.
+        low_y (float): y-position of a Bezier control point used
+            to adjust the tone curve, must be in range [0, 1]
+        high_y (float): y-position of a Bezier control point used
+            to adjust image tone curve, must be in range [0, 1]
+    """
+    input_dtype = img.dtype
+
+    if low_y < 0 or low_y > 1:
+        raise ValueError("low_shift must be in range [0, 1]")
+    if high_y < 0 or high_y > 1:
+        raise ValueError("high_shift must be in range [0, 1]")
+
+    if input_dtype != np.uint8:
+        raise ValueError("Unsupported image type {}".format(input_dtype))
+
+    t = np.linspace(0.0, 1.0, 256)
+
+    # Defines responze of a four-point bezier curve
+    def evaluate_bez(t):
+        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t ** 2 * high_y + t ** 3
+
+    evaluate_bez = np.vectorize(evaluate_bez)
+    remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
+
+    lut_fn = _maybe_process_in_chunks(cv2.LUT, lut=remapping)
+    img = lut_fn(img)
+    return img
+
+
 @clipped
 def _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift):
     if r_shift == g_shift == b_shift:
@@ -632,7 +590,13 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=No
 
 @preserve_channel_dim
 def pad_with_params(
-    img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img,
+    h_pad_top,
+    h_pad_bottom,
+    w_pad_left,
+    w_pad_right,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
 ):
     img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
     return img
@@ -747,7 +711,16 @@ def add_snow(img, snow_point, brightness_coeff):
 
 
 @preserve_shape
-def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_drops):
+def add_rain(
+    img,
+    slant,
+    drop_length,
+    drop_width,
+    drop_color,
+    blur_value,
+    brightness_coefficient,
+    rain_drops,
+):
     """
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -775,7 +748,7 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError("Unexpected dtype {} for RandomRain augmentation".format(input_dtype))
 
     image = img.copy()
 
@@ -783,7 +756,13 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
 
-        cv2.line(image, (rain_drop_x0, rain_drop_y0), (rain_drop_x1, rain_drop_y1), drop_color, drop_width)
+        cv2.line(
+            image,
+            (rain_drop_x0, rain_drop_y0),
+            (rain_drop_x1, rain_drop_y1),
+            drop_color,
+            drop_width,
+        )
 
     image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
     image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
@@ -926,7 +905,7 @@ def add_shadow(img, vertices_list):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError("Unexpected dtype {} for RandomShadow augmentation".format(input_dtype))
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     mask = np.zeros_like(img)
@@ -949,7 +928,13 @@ def add_shadow(img, vertices_list):
 
 @preserve_shape
 def optical_distortion(
-    img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img,
+    k=0,
+    dx=0,
+    dy=0,
+    interpolation=cv2.INTER_LINEAR,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
 ):
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -971,7 +956,14 @@ def optical_distortion(
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
     map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
-    img = cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
+    img = cv2.remap(
+        img,
+        map1,
+        map2,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
+    )
     return img
 
 
@@ -985,7 +977,8 @@ def grid_distortion(
     border_mode=cv2.BORDER_REFLECT_101,
     value=None,
 ):
-    """
+    """Perform a grid distortion of an input image.
+
     Reference:
         http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
     """
@@ -1028,7 +1021,12 @@ def grid_distortion(
     map_y = map_y.astype(np.float32)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -1075,7 +1073,12 @@ def elastic_transform_approx(
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     img = warp_fn(img)
 
@@ -1093,7 +1096,12 @@ def elastic_transform_approx(
     map_y = np.float32(y + dy)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -1328,61 +1336,6 @@ def bbox_flip(bbox, d, rows, cols):
     return bbox
 
 
-def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
-    """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
-
-    Args:
-        bbox (tuple): A cropped box `(x_min, y_min, x_max, y_max)`.
-        crop_coords (tuple): Crop coordinates `(x1, y1, x2, y2)`.
-        crop_height (int):
-        crop_width (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = bbox[:4]
-    x1, y1, _, _ = crop_coords
-    cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
-    return normalize_bbox(cropped_bbox, crop_height, crop_width)
-
-
-def bbox_crop(bbox, x_min, y_min, x_max, y_max, rows, cols):
-    """Crop a bounding box.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        x_min (int):
-        y_min (int):
-        x_max (int):
-        y_max (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    crop_coords = x_min, y_min, x_max, y_max
-    crop_height = y_max - y_min
-    crop_width = x_max - x_min
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def bbox_center_crop(bbox, crop_height, crop_width, rows, cols):
-    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols):
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
 def bbox_transpose(bbox, axis, rows, cols):  # skipcq: PYL-W0613
     """Transposes a bounding box along given axis.
 
@@ -1474,67 +1427,6 @@ def keypoint_flip(keypoint, d, rows, cols):
     else:
         raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
     return keypoint
-
-
-def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):  # skipcq: PYL-W0613
-    """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
-        crop height (int): Crop height.
-        crop_width (int): Crop width.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint[:4]
-    x1, y1, _, _ = crop_coords
-    return x - x1, y - y1, angle, scale
-
-
-def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols):
-    """Keypoint random crop.
-
-    Args:
-        keypoint: (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_height (int): Crop height.
-        crop_width (int): Crop width.
-        h_start (int): Crop height start.
-        w_start (int): Crop width start.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def keypoint_center_crop(keypoint, crop_height, crop_width, rows, cols):
-    """Keypoint center crop.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_height (int): Crop height.
-        crop_width (int): Crop width.
-        h_start (int): Crop height start.
-        w_start (int): Crop width start.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    """
-    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
 
 
 def noop(input_obj, **params):  # skipcq: PYL-W0613
@@ -1707,10 +1599,8 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
-@clipped
 def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
-    coef = MAX_VALUES_BY_DTYPE[img.dtype]
-    x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
+    x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
     if mode == "fast":
 
@@ -1737,7 +1627,7 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             dx = dxy[ind, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
-    return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+    return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
 
 
 def _adjust_brightness_torchvision_uint8(img, factor):
@@ -1783,7 +1673,11 @@ def adjust_contrast_torchvision(img, factor):
     if img.dtype == np.uint8:
         return _adjust_contrast_torchvision_uint8(img, factor, mean)
 
-    return clip(img.astype(np.float32) * factor + mean * (1 - factor), img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+    return clip(
+        img.astype(np.float32) * factor + mean * (1 - factor),
+        img.dtype,
+        MAX_VALUES_BY_DTYPE[img.dtype],
+    )
 
 
 @preserve_shape
@@ -1832,3 +1726,63 @@ def adjust_hue_torchvision(img, factor):
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     img[..., 0] = np.mod(img[..., 0] + factor * 360, 360)
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+
+
+@preserve_shape
+def superpixels(
+    image: np.ndarray, n_segments: int, replace_samples: Sequence[bool], max_size: Optional[int], interpolation: int
+) -> np.ndarray:
+    if not np.any(replace_samples):
+        return image
+
+    orig_shape = image.shape
+    if max_size is not None:
+        size = max(image.shape[:2])
+        if size > max_size:
+            scale = max_size / size
+            height, width = image.shape[:2]
+            new_height, new_width = int(height * scale), int(width * scale)
+            resize_fn = _maybe_process_in_chunks(
+                cv2.resize, dsize=(new_width, new_height), interpolation=interpolation
+            )
+            image = resize_fn(image)
+
+    from skimage.segmentation import slic
+
+    segments = skimage.segmentation.slic(image, n_segments=n_segments, compactness=10)
+
+    min_value = 0
+    max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+    image = np.copy(image)
+    if image.ndim == 2:
+        image = image.reshape(*image.shape, 1)
+    nb_channels = image.shape[2]
+    for c in range(nb_channels):
+        # segments+1 here because otherwise regionprops always misses the last label
+        regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
+        for ridx, region in enumerate(regions):
+            # with mod here, because slic can sometimes create more superpixel than requested.
+            # replace_samples then does not have enough values, so we just start over with the first one again.
+            if replace_samples[ridx % len(replace_samples)]:
+                mean_intensity = region.mean_intensity
+                image_sp_c = image[..., c]
+
+                if image_sp_c.dtype.kind in ["i", "u", "b"]:
+                    # After rounding the value can end up slightly outside of the value_range. Hence, we need to clip.
+                    # We do clip via min(max(...)) instead of np.clip because
+                    # the latter one does not seem to keep dtypes for dtypes with large itemsizes (e.g. uint64).
+                    value: Union[int, float]
+                    value = int(np.round(mean_intensity))
+                    value = min(max(value, min_value), max_value)
+                else:
+                    value = mean_intensity
+
+                image_sp_c[segments == ridx] = value
+
+    if orig_shape != image.shape:
+        resize_fn = _maybe_process_in_chunks(
+            cv2.resize, dsize=(orig_shape[1], orig_shape[0]), interpolation=interpolation
+        )
+        image = resize_fn(image)
+
+    return image

@@ -2,11 +2,12 @@ from __future__ import absolute_import
 
 import random
 from warnings import warn
+from typing import Sequence
 
 import cv2
 from copy import deepcopy
 
-from albumentations.core.serialization import SerializableMeta
+from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
 
@@ -33,7 +34,7 @@ def to_tuple(param, low=None, bias=None):
             param = -param, +param
         else:
             param = (low, param) if low < param else (param, low)
-    elif isinstance(param, (list, tuple)):
+    elif isinstance(param, Sequence):
         param = tuple(param)
     else:
         raise ValueError("Argument param must be either scalar (int, float) or tuple")
@@ -172,7 +173,7 @@ class BasicTransform:
 
     @classmethod
     def get_class_fullname(cls):
-        return "{cls.__module__}.{cls.__name__}".format(cls=cls)
+        return get_shortest_class_fullname(cls)
 
     def get_transform_init_args_names(self):
         raise NotImplementedError(

@@ -1,3 +1,5 @@
+import json
+import os
 import random
 from unittest.mock import patch
 
@@ -8,6 +10,8 @@ import imgaug as ia
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
+from albumentations.core.transforms_interface import ImageOnlyTransform
 from .utils import OpenMock
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
@@ -50,6 +54,7 @@ def set_seed(seed):
         [A.Transpose, {}],
         [A.RandomRotate90, {}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.ShiftScaleRotate, {}],
         [A.OpticalDistortion, {}],
         [A.GridDistortion, {}],
@@ -59,6 +64,7 @@ def set_seed(seed):
         [A.RandomBrightness, {}],
         [A.RandomContrast, {}],
         [A.RandomScale, {}],
+        [A.RandomToneCurve, {}],
         [A.SmallestMaxSize, {}],
         [A.LongestMaxSize, {}],
         [A.RandomGridShuffle, {}],
@@ -71,6 +77,9 @@ def set_seed(seed):
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.CropAndPad, {"px": 10}],
+        [A.Superpixels, {}],
+        [A.Affine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -106,7 +115,7 @@ AUGMENTATION_CLS_PARAMS = (
         [A.MotionBlur, {"blur_limit": 3}],
         [A.MedianBlur, {"blur_limit": 3}],
         [A.GaussianBlur, {"blur_limit": 3}],
-        [A.GaussNoise, {"var_limit": (20, 90)}],
+        [A.GaussNoise, {"var_limit": (20, 90), "mean": 10, "per_channel": False}],
         [A.CLAHE, {"clip_limit": 2, "tile_grid_size": (12, 12)}],
         [A.RandomGamma, {"gamma_limit": (10, 90)}],
         [A.Cutout, {"num_holes": 4, "max_h_size": 4, "max_w_size": 4}],
@@ -153,6 +162,15 @@ AUGMENTATION_CLS_PARAMS = (
         ],
         [
             A.Rotate,
+            {
+                "limit": 120,
+                "interpolation": cv2.INTER_CUBIC,
+                "border_mode": cv2.BORDER_CONSTANT,
+                "value": (10, 10, 10),
+            },
+        ],
+        [
+            A.SafeRotate,
             {
                 "limit": 120,
                 "interpolation": cv2.INTER_CUBIC,
@@ -250,6 +268,53 @@ AUGMENTATION_CLS_PARAMS = (
         ],
         [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
         [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
+        [A.RandomToneCurve, {"scale": 0.2}],
+        [
+            A.CropAndPad,
+            {
+                "px": 10,
+                "keep_size": False,
+                "sample_independently": False,
+                "interpolation": cv2.INTER_CUBIC,
+                "pad_cval_mask": [10, 20, 30],
+                "pad_cval": [11, 12, 13],
+                "pad_mode": cv2.BORDER_REFLECT101,
+            },
+        ],
+        [
+            A.Superpixels,
+            {"p_replace": (0.5, 0.7), "n_segments": (20, 30), "max_size": 25, "interpolation": cv2.INTER_CUBIC},
+        ],
+        [
+            A.Affine,
+            {
+                "scale": 0.5,
+                "translate_percent": 0.7,
+                "translate_px": None,
+                "rotate": 33,
+                "shear": 21,
+                "interpolation": cv2.INTER_CUBIC,
+                "cval": 25,
+                "cval_mask": 1,
+                "mode": cv2.BORDER_REFLECT,
+                "fit_output": True,
+            },
+        ],
+        [
+            A.Affine,
+            {
+                "scale": {"x": [0.3, 0.5], "y": [0.1, 0.2]},
+                "translate_percent": None,
+                "translate_px": {"x": [10, 200], "y": [5, 101]},
+                "rotate": [333, 360],
+                "shear": {"x": [31, 38], "y": [41, 48]},
+                "interpolation": 3,
+                "cval": [10, 20, 30],
+                "cval_mask": 1,
+                "mode": cv2.BORDER_REFLECT,
+                "fit_output": True,
+            },
+        ],
     ],
 )
 
@@ -325,6 +390,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Transpose, {}],
         [A.RandomRotate90, {}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.ShiftScaleRotate, {}],
         [A.CenterCrop, {"height": 10, "width": 10}],
         [A.RandomCrop, {"height": 10, "width": 10}],
@@ -348,6 +414,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.Superpixels, {}],
+        [A.Affine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -398,6 +466,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Flip, {}],
         [A.RandomRotate90, {}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.ShiftScaleRotate, {}],
         [A.CenterCrop, {"height": 10, "width": 10}],
         [A.RandomCrop, {"height": 10, "width": 10}],
@@ -416,6 +485,8 @@ def test_augmentations_for_bboxes_serialization(
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.Superpixels, {}],
+        [A.Affine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -582,8 +653,16 @@ def test_transform_pipeline_serialization(seed, image, mask):
                     ]
                 ),
             ),
-            A.HorizontalFlip(p=1),
-            A.RandomBrightnessContrast(p=0.5),
+            A.SomeOf(
+                [
+                    A.HorizontalFlip(p=1),
+                    A.Transpose(p=1),
+                    A.HueSaturationValue(p=0.5),
+                    A.RandomBrightnessContrast(p=0.5),
+                ],
+                2,
+                replace=False,
+            ),
         ]
     )
     serialized_aug = A.to_dict(aug)
@@ -615,8 +694,15 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
                 A.Compose([A.RandomRotate90(), A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)])]),
                 A.Compose([A.Rotate(p=0.5), A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1)]),
             ),
-            A.HorizontalFlip(p=1),
-            A.RandomBrightnessContrast(p=0.5),
+            A.SomeOf(
+                [
+                    A.HorizontalFlip(p=1),
+                    A.Transpose(p=1),
+                    A.HueSaturationValue(p=0.5),
+                    A.RandomBrightnessContrast(p=0.5),
+                ],
+                n=5,
+            ),
         ],
         bbox_params={"format": bbox_format, "label_fields": ["labels"]},
     )
@@ -647,8 +733,16 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
                 A.Compose([A.RandomRotate90(), A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)])]),
                 A.Compose([A.Rotate(p=0.5), A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1)]),
             ),
-            A.HorizontalFlip(p=1),
-            A.RandomBrightnessContrast(p=0.5),
+            A.SomeOf(
+                n=2,
+                transforms=[
+                    A.HorizontalFlip(p=1),
+                    A.Transpose(p=1),
+                    A.HueSaturationValue(p=0.5),
+                    A.RandomBrightnessContrast(p=0.5),
+                ],
+                replace=False,
+            ),
         ],
         keypoint_params={"format": keypoint_format, "label_fields": ["labels"]},
     )
@@ -686,6 +780,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Transpose, {}],
         [A.RandomRotate90, {}],
         [A.Rotate, {}],
+        [A.SafeRotate, {}],
         [A.OpticalDistortion, {}],
         [A.GridDistortion, {}],
         [A.ElasticTransform, {}],
@@ -701,6 +796,9 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
         [A.Perspective, {}],
         [A.Sharpen, {}],
         [A.Emboss, {}],
+        [A.RandomToneCurve, {}],
+        [A.CropAndPad, {"px": -12}],
+        [A.Superpixels, {}],
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -745,3 +843,62 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
     assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+
+
+def test_serialization_v2_conversion():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform_0_4_6 = A.load(os.path.join(files_directory, "transform_v0.4.6.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform_0_4_6(image=image)["image"]
+    assert transformed_image.numpy().tolist() == output_0_4_6
+
+
+def test_serialization_v2():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform = A.load(os.path.join(files_directory, "transform_serialization_v2.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform(image=image)["image"]
+    assert transformed_image.numpy().tolist() == output_0_4_6
+
+
+def test_custom_transform_with_overlapping_name():
+    class HorizontalFlip(ImageOnlyTransform):
+        pass
+
+    assert SERIALIZABLE_REGISTRY["HorizontalFlip"] == A.HorizontalFlip
+    assert SERIALIZABLE_REGISTRY["tests.test_serialization.HorizontalFlip"] == HorizontalFlip
+
+
+def test_serialization_v2_to_dict():
+    transform = A.Compose([A.HorizontalFlip()])
+    transform_dict = A.to_dict(transform)["transform"]
+    assert transform_dict == {
+        "__class_fullname__": "Compose",
+        "p": 1.0,
+        "transforms": [{"__class_fullname__": "HorizontalFlip", "always_apply": False, "p": 0.5}],
+        "bbox_params": None,
+        "keypoint_params": None,
+        "additional_targets": {},
+    }
+
+
+@pytest.mark.parametrize(
+    ["class_fullname", "expected_short_class_name"],
+    [
+        ["albumentations.augmentations.transforms.HorizontalFlip", "HorizontalFlip"],
+        ["HorizontalFlip", "HorizontalFlip"],
+        ["some_module.HorizontalFlip", "some_module.HorizontalFlip"],
+    ],
+)
+def test_shorten_class_name(class_fullname, expected_short_class_name):
+    assert shorten_class_name(class_fullname) == expected_short_class_name
