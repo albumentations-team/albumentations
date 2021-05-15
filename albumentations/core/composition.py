@@ -13,7 +13,7 @@ from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
+__all__ = ["Compose", "SomeOf", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
 
 
 REPR_INDENT_STEP = 2
@@ -267,6 +267,46 @@ class OneOf(BaseCompose):
             t = random_state.choice(self.transforms.transforms, p=self.transforms_ps)
             data = t(force_apply=True, **data)
         return data
+
+
+class SomeOf(BaseCompose):
+    """Select N transforms to apply. Selected transforms will be called with `force_apply=True`.
+    Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
+
+    Args:
+        transforms (list): list of transformations to compose.
+        n (int): number of transforms to apply.
+        replace (bool): Whether the sampled transforms are with or without replacement. Default: True.
+        p (float): probability of applying selected transform. Default: 1.
+    """
+
+    def __init__(self, transforms, n, replace=True, p=1):
+        super(SomeOf, self).__init__(transforms, p)
+        self.n = n
+        self.replace = replace
+        transforms_ps = [t.p for t in transforms]
+        s = sum(transforms_ps)
+        self.transforms_ps = [t / s for t in transforms_ps]
+
+    def __call__(self, force_apply=False, **data):
+        if self.replay_mode:
+            for t in self.transforms:
+                data = t(**data)
+            return data
+
+        if self.transforms_ps and (force_apply or random.random() < self.p):
+            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+            transforms = random_state.choice(
+                self.transforms.transforms, size=self.n, replace=self.replace, p=self.transforms_ps
+            )
+            for t in transforms:
+                data = t(force_apply=True, **data)
+        return data
+
+    def _to_dict(self):
+        dictionary = super(SomeOf, self)._to_dict()
+        dictionary.update({"n": self.n, "replace": self.replace})
+        return dictionary
 
 
 class OneOrOther(BaseCompose):

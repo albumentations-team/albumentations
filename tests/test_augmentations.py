@@ -14,6 +14,7 @@ from albumentations import (
     Transpose,
     RandomRotate90,
     Rotate,
+    SafeRotate,
     ShiftScaleRotate,
     CenterCrop,
     OpticalDistortion,
@@ -71,6 +72,7 @@ from albumentations import (
     Emboss,
     CropAndPad,
     Superpixels,
+    Affine,
 )
 
 
@@ -190,6 +192,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [CoarseDropout, {"fill_value": 0, "mask_fill_value": 0}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
@@ -205,6 +208,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [GridDropout, {}],
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
+        [Affine, {}],
     ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -224,6 +228,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
@@ -237,6 +242,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [GridDropout, {}],
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
+        [Affine, {}],
     ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -291,6 +297,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
@@ -332,6 +339,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
+        [Affine, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -368,6 +376,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
@@ -404,6 +413,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
+        [Affine, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -433,6 +443,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
         [ElasticTransform, {}],
@@ -458,6 +469,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
+        [Affine, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -504,6 +516,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
         [ElasticTransform, {}],
@@ -539,6 +552,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Emboss, {}],
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
+        [Affine, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -569,10 +583,12 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
             {"min_height": 514, "min_width": 514, "border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
         ],
         [Rotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [SafeRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [ShiftScaleRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [OpticalDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [ElasticTransform, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
@@ -594,6 +610,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [GaussNoise, {}],
         [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
         [ShiftScaleRotate, {}],
+        [SafeRotate, {}],
         [PadIfNeeded, {"min_height": 514, "min_width": 516}],
         [LongestMaxSize, {"max_size": 256}],
         [GridDistortion, {}],
@@ -605,6 +622,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
+        [Affine, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
@@ -625,6 +643,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         [GaussNoise, {}],
         [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
         [ShiftScaleRotate, {}],
+        [SafeRotate, {}],
         [PadIfNeeded, {"min_height": 514, "min_width": 516}],
         [LongestMaxSize, {"max_size": 256}],
         [GridDistortion, {}],
@@ -636,6 +655,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
+        [Affine, {}],
     ],
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
