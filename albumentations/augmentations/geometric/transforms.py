@@ -814,7 +814,7 @@ class PiecewiseAffine(DualTransform):
 
         if self.absolute_scale:
             jitter[:, 0] = jitter[:, 0] / h if h > 0 else 0.0
-            jitter[:, 1] = jitter[:, 1] / jitter[1] if w > 0 else 0.0
+            jitter[:, 1] = jitter[:, 1] / w if w > 0 else 0.0
 
         jitter[:, 0] = jitter[:, 0] * h
         jitter[:, 1] = jitter[:, 1] * w
