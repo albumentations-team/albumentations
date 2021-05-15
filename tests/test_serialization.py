@@ -80,6 +80,7 @@ def set_seed(seed):
         [A.CropAndPad, {"px": 10}],
         [A.Superpixels, {}],
         [A.Affine, {}],
+        [A.PiecewiseAffine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -315,6 +316,20 @@ AUGMENTATION_CLS_PARAMS = (
                 "fit_output": True,
             },
         ],
+        [
+            A.PiecewiseAffine,
+            {
+                "scale": 0.33,
+                "nb_rows": (10, 20),
+                "nb_cols": 33,
+                "interpolation": 2,
+                "mask_interpolation": 1,
+                "cval": 10,
+                "cval_mask": 20,
+                "mode": "edge",
+                "absolute_scale": True,
+            },
+        ],
     ],
 )
 
@@ -416,6 +431,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         [A.Emboss, {}],
         [A.Superpixels, {}],
         [A.Affine, {}],
+        [A.PiecewiseAffine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -487,6 +503,7 @@ def test_augmentations_for_bboxes_serialization(
         [A.Emboss, {}],
         [A.Superpixels, {}],
         [A.Affine, {}],
+        [A.PiecewiseAffine, {}],
     ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
