@@ -692,11 +692,6 @@ class Affine(DualTransform):
         return matrix, output_shape
 
 
-class _ConcavePolygonRecoverer:
-    def __init__(self):
-        pass
-
-
 class PiecewiseAffine(DualTransform):
     """Apply affine transformations that differ between local neighbourhoods.
     This augmentation places a regular grid of points on an image and randomly moves the neighbourhood of these point
@@ -743,11 +738,6 @@ class PiecewiseAffine(DualTransform):
             Points outside the boundaries of the input are filled according
             to the given mode.  Modes match the behaviour of `numpy.pad`.
         absolute_scale (bool): Take `scale` as an absolute value rather than a relative value.
-        polygon_recoverer ('auto', None or _ConcavePolygonRecoverer): The class to use to repair invalid polygons.
-            If ``"auto"``, a new instance of `_ConcavePolygonRecoverer` will be created.
-            If ``None``, no polygon recoverer will be used.
-            If an object, then that object will be used and must provide a ``recover_from()`` method, similar to
-            `_ConcavePolygonRecoverer`.
 
     Targets:
         image, mask, keypoints, bboxes
@@ -768,7 +758,6 @@ class PiecewiseAffine(DualTransform):
         cval_mask: int = 0,
         mode: str = "constant",
         absolute_scale: bool = False,
-        polygon_recoverer: Optional[Union[str, _ConcavePolygonRecoverer]] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -783,10 +772,6 @@ class PiecewiseAffine(DualTransform):
         self.cval_mask = cval_mask
         self.mode = mode
         self.absolute_scale = absolute_scale
-
-        self.polygon_recoverer = polygon_recoverer
-        if polygon_recoverer == "auto":
-            self.polygon_recoverer = _ConcavePolygonRecoverer()
 
     def get_transform_init_args_names(self):
         return (
