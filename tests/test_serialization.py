@@ -328,6 +328,7 @@ AUGMENTATION_CLS_PARAMS = (
                 "cval_mask": 20,
                 "mode": "edge",
                 "absolute_scale": True,
+                "keypoints_threshold": 0.1,
             },
         ],
     ],

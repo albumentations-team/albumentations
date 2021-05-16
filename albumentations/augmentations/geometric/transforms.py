@@ -738,6 +738,11 @@ class PiecewiseAffine(DualTransform):
             Points outside the boundaries of the input are filled according
             to the given mode.  Modes match the behaviour of `numpy.pad`.
         absolute_scale (bool): Take `scale` as an absolute value rather than a relative value.
+        keypoints_threshold (float): Used as threshold in conversion from distance maps to keypoints.
+            The search for keypoints works by searching for the
+            argmin (non-inverted) or argmax (inverted) in each channel. This
+            parameters contains the maximum (non-inverted) or minimum (inverted) value to accept in order to view a hit
+            as a keypoint. Use ``None`` to use no min/max. Default: 0.01
 
     Targets:
         image, mask, keypoints, bboxes
@@ -759,6 +764,7 @@ class PiecewiseAffine(DualTransform):
         mode: str = "constant",
         absolute_scale: bool = False,
         always_apply: bool = False,
+        keypoints_threshold: float = 0.01,
         p: float = 0.5,
     ):
         super(PiecewiseAffine, self).__init__(always_apply, p)
@@ -772,6 +778,7 @@ class PiecewiseAffine(DualTransform):
         self.cval_mask = cval_mask
         self.mode = mode
         self.absolute_scale = absolute_scale
+        self.keypoints_threshold = keypoints_threshold
 
     def get_transform_init_args_names(self):
         return (
@@ -784,6 +791,7 @@ class PiecewiseAffine(DualTransform):
             "cval_mask",
             "mode",
             "absolute_scale",
+            "keypoints_threshold",
         )
 
     @property
@@ -855,7 +863,7 @@ class PiecewiseAffine(DualTransform):
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
     ) -> Sequence[float]:
-        return F.bbox_piecewise_affine(bbox, matrix, rows, cols)
+        return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
     def apply_to_keypoint(
         self,
@@ -865,4 +873,4 @@ class PiecewiseAffine(DualTransform):
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
     ):
-        return F.keypoint_piecewise_affine(keypoint, matrix, rows, cols)
+        return F.keypoint_piecewise_affine(keypoint, matrix, rows, cols, self.keypoints_threshold)

@@ -733,11 +733,12 @@ def keypoint_piecewise_affine(
     matrix: skimage.transform.PiecewiseAffineTransform,
     h: int,
     w: int,
+    keypoints_threshold: float,
 ) -> Tuple[float, float, float, float]:
     x, y, a, s = keypoint
     dist_maps = to_distance_maps([(x, y)], h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    x, y = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, 0.01)[0]
+    x, y = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)[0]
     return x, y, a, s
 
 
@@ -746,6 +747,7 @@ def bbox_piecewise_affine(
     matrix: skimage.transform.PiecewiseAffineTransform,
     h: int,
     w: int,
+    keypoints_threshold: float,
 ) -> Tuple[float, float, float, float]:
     x1, y1, x2, y2 = denormalize_bbox(tuple(bbox), h, w)
     keypoints = [
@@ -756,7 +758,7 @@ def bbox_piecewise_affine(
     ]
     dist_maps = to_distance_maps(keypoints, h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    keypoints = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, 0.01)
+    keypoints = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
     keypoints = [i for i in keypoints if 0 <= i[0] < w and 0 <= i[1] < h]
     keypoints_arr = np.array(keypoints)
     x1 = keypoints_arr[:, 0].min()
