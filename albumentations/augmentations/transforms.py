@@ -2430,7 +2430,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
             shape = [c]
 
         multiplier = np.random.uniform(self.multiplier[0], self.multiplier[1], shape)
-        if F.is_grayscale_image(img):
+        if F.is_grayscale_image(img) and img.ndim == 2:
             multiplier = np.squeeze(multiplier)
 
         return {"multiplier": multiplier}
