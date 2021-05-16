@@ -678,9 +678,11 @@ def from_distance_maps(
             Some keypoint augmenters require that information. If set to ``None``, the keypoint's shape will be set
             to ``(height, width)``, otherwise ``(height, width, nb_channels)``.
     """
-    assert (
-        distance_maps.ndim == 3
-    ), f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
+    if distance_maps.ndim != 3:
+        raise ValueError(
+            f"Expected three-dimensional input, "
+            f"got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
+        )
     height, width, nb_keypoints = distance_maps.shape
 
     drop_if_not_found = False
@@ -689,16 +691,18 @@ def from_distance_maps(
         if_not_found_x = -1
         if_not_found_y = -1
     elif isinstance(if_not_found_coords, (tuple, list)):
-        assert (
-            len(if_not_found_coords) == 2
-        ), f"Expected tuple/list 'if_not_found_coords' to contain exactly two entries, got {len(if_not_found_coords)}."
+        if len(if_not_found_coords) != 2:
+            raise ValueError(
+                f"Expected tuple/list 'if_not_found_coords' to contain exactly two entries, "
+                f"got {len(if_not_found_coords)}."
+            )
         if_not_found_x = if_not_found_coords[0]
         if_not_found_y = if_not_found_coords[1]
     elif isinstance(if_not_found_coords, dict):
         if_not_found_x = if_not_found_coords["x"]
         if_not_found_y = if_not_found_coords["y"]
     else:
-        raise Exception(
+        raise ValueError(
             f"Expected if_not_found_coords to be None or tuple or list or dict, got {type(if_not_found_coords)}."
         )
 
