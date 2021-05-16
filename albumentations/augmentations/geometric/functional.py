@@ -1,7 +1,6 @@
 import cv2
 import math
 import numpy as np
-import six.moves as sm
 import skimage.transform
 
 from scipy.ndimage.filters import gaussian_filter
@@ -704,7 +703,7 @@ def from_distance_maps(
         )
 
     keypoints = []
-    for i in sm.xrange(nb_keypoints):
+    for i in range(nb_keypoints):
         if inverted:
             hitidx_flat = np.argmax(distance_maps[..., i])
         else:
