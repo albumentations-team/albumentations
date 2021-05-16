@@ -284,7 +284,7 @@ class Perspective(DualTransform):
         # Warning: don't just do (tl, tr, br, bl) = _order_points(...)
         # here, because the reordered points is used further below.
         points = self._order_points(points)
-        (tl, tr, br, bl) = points
+        tl, tr, br, bl = points
 
         # compute the width of the new image, which will be the
         # maximum distance between bottom-right and bottom-left
@@ -352,25 +352,23 @@ class Perspective(DualTransform):
         max_width, max_height = dst.max(axis=0)
         return matrix_expanded, int(max_width), int(max_height)
 
-    @classmethod
-    def _order_points(cls, pts):
-        # initialize a list of coordinates that will be ordered such that the first entry in the list is the top-left,
-        # the second entry is the top-right, the third is the bottom-right, and the fourth is the bottom-left
-        pts_ordered = np.zeros((4, 2), dtype=np.float32)
+    @staticmethod
+    def _order_points(pts: np.ndarray) -> np.ndarray:
+        pts = np.array(sorted(pts, key=lambda x: x[0]))
+        left = pts[:2]  # points with smallest x coordinate - left points
+        right = pts[2:]  # points with greatest x coordinate - right points
 
-        # the top-left point will have the smallest sum, whereas the bottom-right point will have the largest sum
-        pointwise_sum = pts.sum(axis=1)
-        pts_ordered[0] = pts[np.argmin(pointwise_sum)]
-        pts_ordered[2] = pts[np.argmax(pointwise_sum)]
+        if left[0][1] < left[1][1]:
+            tl, bl = left
+        else:
+            bl, tl = left
 
-        # now, compute the difference between the points, the top-right point will have the smallest difference,
-        # whereas the bottom-left will have the largest difference
-        diff = np.diff(pts, axis=1)
-        pts_ordered[1] = pts[np.argmin(diff)]
-        pts_ordered[3] = pts[np.argmax(diff)]
+        if right[0][1] < right[1][1]:
+            tr, br = right
+        else:
+            br, tr = right
 
-        # return the ordered coordinates
-        return pts_ordered
+        return np.array([tl, tr, br, bl], dtype=np.float32)
 
     def get_transform_init_args_names(self):
         return ("scale", "keep_size", "pad_mode", "pad_val", "mask_pad_val", "fit_output", "interpolation")
