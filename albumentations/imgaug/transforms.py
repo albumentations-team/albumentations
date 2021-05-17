@@ -190,7 +190,7 @@ class IAASuperpixels(ImageOnlyIAATransform):
         return ("p_replace", "n_segments")
 
 
-class IAASharpen(Sharpen):
+class IAASharpen(ImageOnlyIAATransform):
     """Sharpen the input image and overlays the result with the original image.
     This augmentation is deprecated. Please use Sharpen instead
     Args:
@@ -204,8 +204,16 @@ class IAASharpen(Sharpen):
     """
 
     def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
-        warnings.warn("IAASharpen is deprecated. Please use Sharpen instead", FutureWarning)
-        super().__init__(alpha=alpha, lightness=lightness, always_apply=always_apply, p=p)
+        super(IAASharpen, self).__init__(always_apply, p)
+        self.alpha = to_tuple(alpha, 0)
+        self.lightness = to_tuple(lightness, 0)
+
+    @property
+    def processor(self):
+        return iaa.Sharpen(self.alpha, self.lightness)
+
+    def get_transform_init_args_names(self):
+        return ("alpha", "lightness")
 
 
 class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
