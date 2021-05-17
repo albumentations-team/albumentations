@@ -109,6 +109,8 @@ class IAACropAndPad(DualIAATransform):
 
 
 class IAAFliplr(DualIAATransform):
+    """This augmentation is deprecated. Please use HorizontalFlip instead."""
+
     def __init__(self, always_apply=False, p=0.5):
         super().__init__(always_apply, p)
         warnings.warn("IAAFliplr is deprecated. Please use HorizontalFlip instead.", FutureWarning)
@@ -122,6 +124,8 @@ class IAAFliplr(DualIAATransform):
 
 
 class IAAFlipud(DualIAATransform):
+    """This augmentation is deprecated. Please use VerticalFlip instead."""
+
     def __init__(self, always_apply=False, p=0.5):
         super().__init__(always_apply, p)
         warnings.warn("IAAFlipud is deprecated. Please use VerticalFlip instead.", FutureWarning)
@@ -165,6 +169,8 @@ class IAAEmboss(ImageOnlyIAATransform):
 class IAASuperpixels(ImageOnlyIAATransform):
     """Completely or partially transform the input image to its superpixel representation. Uses skimage's version
     of the SLIC algorithm. May be slow.
+
+    This augmentation is deprecated. Please use Superpixels instead.
 
     Args:
         p_replace (float): defines the probability of any superpixel area being replaced by the superpixel, i.e. by
@@ -219,6 +225,8 @@ class IAASharpen(ImageOnlyIAATransform):
 class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
     """Add gaussian noise to the input image.
 
+    This augmentation is deprecated. Please use GaussNoise instead.
+
     Args:
         loc (int): mean of the normal distribution that generates the noise. Default: 0.
         scale ((float, float)): standard deviation of the normal distribution that generates the noise.
@@ -248,6 +256,8 @@ class IAAPiecewiseAffine(DualIAATransform):
     """Place a regular grid of points on the input and randomly move the neighbourhood of these point around
     via affine transformations.
 
+    This augmentation is deprecated. Please use PiecewiseAffine instead.
+
     Note: This class introduce interpolation artifacts to mask if it has values other than {0;1}
 
     Args:
@@ -270,6 +280,7 @@ class IAAPiecewiseAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
+        warnings.warn("This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead")
 
     @property
     def processor(self):
@@ -282,6 +293,8 @@ class IAAPiecewiseAffine(DualIAATransform):
 class IAAAffine(DualIAATransform):
     """Place a regular grid of points on the input and randomly move the neighbourhood of these point around
     via affine transformations.
+
+    This augmentation is deprecated. Please use Affine instead.
 
     Note: This class introduce interpolation artifacts to mask if it has values other than {0;1}
 
@@ -314,6 +327,7 @@ class IAAAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
+        warnings.warn("This IAAAffine is deprecated. Please use Affine instead")
 
     @property
     def processor(self):
