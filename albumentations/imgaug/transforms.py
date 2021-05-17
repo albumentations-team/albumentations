@@ -347,6 +347,15 @@ class IAAPerspective(Perspective):
         image, mask
     """
 
-    def __init__(self, scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5, **kwargs):
-        warnings.warn("IAAPerspective is deprecated. Please use Perspective instead", FutureWarning)
-        super().__init__(scale=scale, keep_size=keep_size, always_apply=always_apply, p=p, **kwargs)
+    def __init__(self, scale=(0.05, 0.1), keep_size=True, always_apply=False, p=0.5):
+        super(IAAPerspective, self).__init__(always_apply, p)
+        self.scale = to_tuple(scale, 1.0)
+        self.keep_size = keep_size
+        warnings.warn("This IAAPerspective is deprecated. Please use Perspective instead")
+
+    @property
+    def processor(self):
+        return iaa.PerspectiveTransform(self.scale, keep_size=self.keep_size)
+
+    def get_transform_init_args_names(self):
+        return ("scale", "keep_size")
