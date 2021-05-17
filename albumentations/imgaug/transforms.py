@@ -213,6 +213,7 @@ class IAASharpen(ImageOnlyIAATransform):
         super(IAASharpen, self).__init__(always_apply, p)
         self.alpha = to_tuple(alpha, 0)
         self.lightness = to_tuple(lightness, 0)
+        warnings.warn("IAASharpen is deprecated. Please use Sharpen instead", FutureWarning)
 
     @property
     def processor(self):
@@ -365,7 +366,7 @@ class IAAPerspective(Perspective):
         super(IAAPerspective, self).__init__(always_apply, p)
         self.scale = to_tuple(scale, 1.0)
         self.keep_size = keep_size
-        warnings.warn("This IAAPerspective is deprecated. Please use Perspective instead")
+        warnings.warn("This IAAPerspective is deprecated. Please use Perspective instead", FutureWarning)
 
     @property
     def processor(self):
