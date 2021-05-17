@@ -30,7 +30,7 @@ jobs:
       if: matrix.operating-system == 'macos-latest'
       run: pip install torch==1.7.1 torchvision==0.8.2
     - name: Install dependencies
-      run: pip install .[tests]
+      run: pip install .[develop]
     - name: Install linters
       run: pip install flake8==3.8.4 flake8-docstrings==1.5.0 mypy==0.800
     - name: Run PyTest
