@@ -73,6 +73,7 @@ from albumentations import (
     CropAndPad,
     Superpixels,
     Affine,
+    PiecewiseAffine,
     Compose,
 )
 
@@ -210,6 +211,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -244,6 +246,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [Perspective, {}],
         [CropAndPad, {"px": 10}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -341,6 +344,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -415,6 +419,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -471,6 +476,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -554,6 +560,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -590,6 +597,7 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
         [ElasticTransform, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
+        [PiecewiseAffine, {"mode": "constant", "cval_mask": 1, "cval": 100}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
@@ -624,6 +632,7 @@ def test_mask_fill_value(augmentation_cls, params):
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
@@ -657,6 +666,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         [CropAndPad, {"px": 10}],
         [Superpixels, {}],
         [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):

@@ -165,6 +165,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         [A.GlassBlur, {}],
         [A.Perspective, {}],
         [A.Affine, {}],
+        [A.PiecewiseAffine, {}],
     ],
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -193,6 +194,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         [A.GlassBlur, {}],
         [A.Perspective, {}],
         [A.Affine, {}],
+        [A.PiecewiseAffine, {}],
     ],
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -232,6 +234,7 @@ def __test_multiprocessing_support_proc(args):
         [A.GlassBlur, {}],
         [A.Perspective, {}],
         [A.Affine, {}],
+        [A.PiecewiseAffine, {}],
     ],
 )
 def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
