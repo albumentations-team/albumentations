@@ -281,7 +281,7 @@ class IAAPiecewiseAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
-        warnings.warn("This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead")
+        warnings.warn("This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead", FutureWarning)
 
     @property
     def processor(self):
@@ -328,7 +328,7 @@ class IAAAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
-        warnings.warn("This IAAAffine is deprecated. Please use Affine instead")
+        warnings.warn("This IAAAffine is deprecated. Please use Affine instead", FutureWarning)
 
     @property
     def processor(self):
