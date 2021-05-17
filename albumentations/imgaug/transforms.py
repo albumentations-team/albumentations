@@ -134,7 +134,7 @@ class IAAFlipud(DualIAATransform):
         return ()
 
 
-class IAAEmboss(Emboss):
+class IAAEmboss(ImageOnlyIAATransform):
     """Emboss the input image and overlays the result with the original image.
     This augmentation is deprecated. Please use Emboss instead.
 
@@ -149,8 +149,17 @@ class IAAEmboss(Emboss):
     """
 
     def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
-        warnings.warn("IAAEmboss is deprecated. Please use Emboss instead", FutureWarning)
-        super().__init__(alpha=alpha, strength=strength, always_apply=always_apply, p=p)
+        super(IAAEmboss, self).__init__(always_apply, p)
+        self.alpha = to_tuple(alpha, 0.0)
+        self.strength = to_tuple(strength, 0.0)
+        warnings.warn("This augmentation is deprecated. Please use Emboss instead", FutureWarning)
+
+    @property
+    def processor(self):
+        return iaa.Emboss(self.alpha, self.strength)
+
+    def get_transform_init_args_names(self):
+        return ("alpha", "strength")
 
 
 class IAASuperpixels(ImageOnlyIAATransform):
