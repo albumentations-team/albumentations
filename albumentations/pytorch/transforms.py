@@ -38,7 +38,7 @@ def mask_to_tensor(mask, num_classes, sigmoid):
     return torch.from_numpy(mask)
 
 
-class ToTensor(BasicTransform):
+class ToTensorOld(BasicTransform):
     """Convert image and mask to `torch.Tensor` and divide by 255 if image or mask are `uint8` type.
     WARNING! Please use this with care and look into sources before usage.
 
@@ -50,13 +50,11 @@ class ToTensor(BasicTransform):
     """
 
     def __init__(self, num_classes=1, sigmoid=True, normalize=None):
-        super(ToTensor, self).__init__(always_apply=True, p=1.0)
+        super().__init__(always_apply=True, p=1.0)
         self.num_classes = num_classes
         self.sigmoid = sigmoid
         self.normalize = normalize
-        warnings.warn(
-            "ToTensor is deprecated and will be replaced by ToTensorV2 in albumentations 0.7.0", FutureWarning
-        )
+        warnings.warn("ToTensorOld is deprecated. Please use ToTensor instead.", FutureWarning)
 
     def __call__(self, *args, force_apply=True, **kwargs):
         if args:
@@ -116,3 +114,6 @@ class ToTensorV2(BasicTransform):
 
     def get_params_dependent_on_targets(self, params):
         return {}
+
+
+ToTensor = ToTensorV2
