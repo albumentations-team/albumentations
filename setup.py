@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 from pkg_resources import DistributionNotFound, get_distribution
 
 
-INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "scikit-image>=0.16.1", "imgaug>=0.4.0", "PyYAML"]
+INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "scikit-image>=0.16.1", "PyYAML"]
 
 # If none of packages in first installed, install second package
 CHOOSE_INSTALL_REQUIRES = [
@@ -66,7 +66,7 @@ setup(
     packages=find_packages(exclude=["tests"]),
     python_requires=">=3.6",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
-    extras_require={"tests": ["pytest"]},
+    extras_require={"tests": ["pytest"], "imgaug": ["imgaug>=0.4.0"], "develop": ["pytest", "imgaug>=0.4.0"]},
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
