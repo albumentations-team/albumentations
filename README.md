@@ -39,13 +39,13 @@ Here is an example of how you can apply some augmentations from Albumentations t
 ## Authors
 [**Alexander Buslaev** — Computer Vision Engineer at Mapbox](https://www.linkedin.com/in/al-buslaev/) | [Kaggle Master](https://www.kaggle.com/albuslaev)
 
-[**Alex Parinov** — Computer Vision Architect at X5 Retail Group](https://www.linkedin.com/in/alex-parinov/) | [Kaggle Master](https://www.kaggle.com/creafz)
+[**Alex Parinov** — Tech Lead at SberDevices](https://www.linkedin.com/in/alex-parinov/) | [Kaggle Master](https://www.kaggle.com/creafz)
 
-[**Vladimir I. Iglovikov** — Senior Computer Vision Engineer at Lyft Level5](https://www.linkedin.com/in/iglovikov/) | [Kaggle Grandmaster](https://www.kaggle.com/iglovikov)
+[**Vladimir I. Iglovikov** — Staff Engineer at Lyft Level5](https://www.linkedin.com/in/iglovikov/) | [Kaggle Grandmaster](https://www.kaggle.com/iglovikov)
 
-[**Evegene Khvedchenya** — AI/ML Advisor and Independent researcher](https://www.linkedin.com/in/cvtalks/) | [Kaggle Master](https://www.kaggle.com/bloodaxe)
+[**Evegene Khvedchenya** — AI/ML Advisor and Independent researcher](https://www.linkedin.com/in/cvtalks/) | [Kaggle Grandmaster](https://www.kaggle.com/bloodaxe)
 
-[**Mikhail Druzhinin** — Computer Vision Engineer at Simicon](https://www.linkedin.com/in/mikhail-druzhinin-548229100/) | [Kaggle Expert](https://www.kaggle.com/dipetm)
+[**Mikhail Druzhinin** — Computer Vision Engineer at ID R&D](https://www.linkedin.com/in/mikhail-druzhinin-548229100/) | [Kaggle Expert](https://www.kaggle.com/dipetm)
 
 
 ## Installation
