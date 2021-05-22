@@ -59,8 +59,8 @@ class ToTensor(BasicTransform):
 
 
 class ToTensorV2(BasicTransform):
-    """Convert image and mask to `torch.Tensor`. This is a simplified and improved version of the old `ToTensor `
-    transform (`ToTensor` was deprecated, and now it is not present in Albumentations. You should use `ToTensorV2 `
+    """Convert image and mask to `torch.Tensor`. This is a simplified and improved version of the old `ToTensor`
+    transform (`ToTensor` was deprecated, and now it is not present in Albumentations. You should use `ToTensorV2`
     instead).
 
     Args:
