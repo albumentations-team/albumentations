@@ -40,7 +40,7 @@ def mask_to_tensor(mask, num_classes, sigmoid):
 
 class ToTensor(BasicTransform):
     """Convert image and mask to `torch.Tensor` and divide by 255 if image or mask are `uint8` type.
-    WARNING! Please use this with care and look into sources before usage.
+    This transform is now removed from Albumentations. If you need it downgrade the library to version 0.5.2.
 
     Args:
         num_classes (int): only for segmentation
@@ -50,34 +50,12 @@ class ToTensor(BasicTransform):
     """
 
     def __init__(self, num_classes=1, sigmoid=True, normalize=None):
-        super(ToTensor, self).__init__(always_apply=True, p=1.0)
-        self.num_classes = num_classes
-        self.sigmoid = sigmoid
-        self.normalize = normalize
-        warnings.warn(
-            "ToTensor is deprecated and will be replaced by ToTensorV2 in albumentations 0.7.0", FutureWarning
+        raise RuntimeError(
+            "`ToTensor` is obsolete and it was removed from Albumentations. Please use `ToTensorV2` instead - "
+            "https://albumentations.ai/docs/api_reference/pytorch/transforms/"
+            "#albumentations.pytorch.transforms.ToTensorV2. "
+            "\n\nIf you need `ToTensor` downgrade Albumentations to version 0.5.2."
         )
-
-    def __call__(self, *args, force_apply=True, **kwargs):
-        if args:
-            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
-        kwargs.update({"image": img_to_tensor(kwargs["image"], self.normalize)})
-        if "mask" in kwargs.keys():
-            kwargs.update({"mask": mask_to_tensor(kwargs["mask"], self.num_classes, sigmoid=self.sigmoid)})
-
-        for k, _v in kwargs.items():
-            if self._additional_targets.get(k) == "image":
-                kwargs.update({k: img_to_tensor(kwargs[k], self.normalize)})
-            if self._additional_targets.get(k) == "mask":
-                kwargs.update({k: mask_to_tensor(kwargs[k], self.num_classes, sigmoid=self.sigmoid)})
-        return kwargs
-
-    @property
-    def targets(self):
-        raise NotImplementedError
-
-    def get_transform_init_args_names(self):
-        return "num_classes", "sigmoid", "normalize"
 
 
 class ToTensorV2(BasicTransform):

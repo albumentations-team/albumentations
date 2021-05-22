@@ -89,25 +89,16 @@ def test_torch_to_tensor_v2_on_gray_scale_images():
     assert data["image"].dtype == torch.uint8
 
 
-def test_torch_to_tensor_augmentations(image, mask):
-    with pytest.warns(FutureWarning):
-        aug = ToTensor()
-    data = aug(image=image, mask=mask, force_apply=True)
-    assert data["image"].dtype == torch.float32
-    assert data["mask"].dtype == torch.float32
-
-
-def test_additional_targets_for_totensor():
-    with pytest.warns(FutureWarning):
-        aug = A.Compose([ToTensor(num_classes=4)], additional_targets={"image2": "image", "mask2": "mask"})
-    for _i in range(10):
-        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-        image2 = image1.copy()
-        mask1 = np.random.randint(low=0, high=256, size=(100, 100, 4), dtype=np.uint8)
-        mask2 = mask1.copy()
-        res = aug(image=image1, image2=image2, mask=mask1, mask2=mask2)
-        assert np.array_equal(res["image"], res["image2"])
-        assert np.array_equal(res["mask"], res["mask2"])
+def test_torch_to_tensor_raises_runtime_error():
+    with pytest.raises(RuntimeError) as exc_info:
+        aug = ToTensor()  # noqa F841
+    message = (
+        "`ToTensor` is obsolete and it was removed from Albumentations. Please use `ToTensorV2` instead - "
+        "https://albumentations.ai/docs/api_reference/pytorch/transforms/"
+        "#albumentations.pytorch.transforms.ToTensorV2. "
+        "\n\nIf you need `ToTensor` downgrade Albumentations to version 0.5.2."
+    )
+    assert str(exc_info.value) == message
 
 
 def test_with_replaycompose():
