@@ -59,8 +59,8 @@ class ToTensor(BasicTransform):
 
 
 class ToTensorV2(BasicTransform):
-    """Convert image and mask to `torch.Tensor`. `HWC` numpy image transforms to `CHW` pytorch tensor.
-    If image is in `HW` format (grayscale image) it is will be transformed to `CHW` format, where `C=1`.
+    """Convert image and mask to `torch.Tensor`. The numpy `HWC` image is converted to pytorch `CHW` tensor.
+    If the image is in `HW` format (grayscale image), it will be converted to `CHW` format, where `C=1`.
     This is a simplified and improved version of the old `ToTensor`
     transform (`ToTensor` was deprecated, and now it is not present in Albumentations. You should use `ToTensorV2`
     instead).
