@@ -9,7 +9,7 @@ from torchvision.transforms import functional as F
 from ..core.transforms_interface import BasicTransform
 
 
-__all__ = ["ToTensor", "ToTensorV2"]
+__all__ = ["ToTensorV2"]
 
 
 def img_to_tensor(im, normalize=None):
