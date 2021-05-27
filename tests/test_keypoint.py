@@ -7,8 +7,6 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations import (
     HorizontalFlip,
     VerticalFlip,
-    IAAFliplr,
-    IAAFlipud,
     CenterCrop,
     RandomSizedCrop,
     RandomResizedCrop,
@@ -224,32 +222,6 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected):
     image = np.ones((100, 100, 3))
     transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
     assert np.allclose(expected, transformed["keypoints"])
-
-
-@pytest.mark.parametrize(
-    ["aug", "keypoints", "expected"],
-    [
-        [IAAFliplr, [(20, 30, 0, 0)], [(80, 30, 0, 0)]],
-        [IAAFliplr, [(20, 30, 45, 0)], [(80, 30, 45, 0)]],
-        [IAAFliplr, [(20, 30, 90, 0)], [(80, 30, 90, 0)]],
-        #
-        [IAAFlipud, [(20, 30, 0, 0)], [(20, 70, 0, 0)]],
-        [IAAFlipud, [(20, 30, 45, 0)], [(20, 70, 45, 0)]],
-        [IAAFlipud, [(20, 30, 90, 0)], [(20, 70, 90, 0)]],
-    ],
-)
-def test_keypoint_transform_format_xy(aug, keypoints, expected):
-    transform = Compose([aug(p=1)], keypoint_params={"format": "xy", "label_fields": ["labels"]})
-
-    image = np.ones((100, 100, 3))
-    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
-    assert np.allclose(expected, transformed["keypoints"])
-
-
-@pytest.mark.parametrize(["aug", "keypoints", "expected"], [[IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]]])
-def test_iaa_transforms_emit_warning(aug, keypoints, expected):
-    with pytest.warns(UserWarning, match="IAAFliplr transformation supports only 'xy' keypoints augmentation"):
-        Compose([aug(p=1)], keypoint_params={"format": "xyas", "label_fields": ["labels"]})
 
 
 @pytest.mark.parametrize(
