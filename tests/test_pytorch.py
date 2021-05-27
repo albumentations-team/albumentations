@@ -2,7 +2,7 @@ import pytest
 
 import numpy as np
 import torch
-from PIL.Image import Image
+from PIL import Image
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensor, ToTensorV2

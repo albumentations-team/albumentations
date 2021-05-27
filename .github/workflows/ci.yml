@@ -25,11 +25,11 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==1.7.1+cpu torchvision==0.8.2+cpu
+        pip install torch==1.8.1+cpu torchvision==0.9.1+cpu
         -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==1.7.1 torchvision==0.8.2
+      run: pip install torch==1.8.1 torchvision==0.9.1
     - name: Install dependencies
       run: pip install .[${{ matrix.albumentations-version }}]
     - name: Install linters
