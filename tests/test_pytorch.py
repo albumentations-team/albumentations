@@ -3,6 +3,7 @@ import pytest
 import numpy as np
 import torch
 from PIL import Image
+from torchvision.transforms import ColorJitter
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensor, ToTensorV2
@@ -139,7 +140,7 @@ def test_with_replaycompose():
         [1, 1, 1.543, 0],
     ],
 )
-def test_color_jitter_matches_torchvision(brightness, contrast, saturation, hue):
+def test_color_jitter(brightness, contrast, saturation, hue):
     np.random.seed(0)
     img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
     pil_image = Image.fromarray(img)
@@ -156,7 +157,7 @@ def test_color_jitter_matches_torchvision(brightness, contrast, saturation, hue)
         ]
     )
 
-    pil_transform = A.ColorJitter(
+    pil_transform = ColorJitter(
         brightness=[brightness, brightness],
         contrast=[contrast, contrast],
         saturation=[saturation, saturation],
