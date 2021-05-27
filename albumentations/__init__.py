@@ -10,6 +10,6 @@ from .augmentations import *
 try:
     from .imgaug.transforms import *  # type: ignore
 except ImportError:
-    # ImgAug is not installed by default, so we import stubs.
+    # imgaug is not installed by default, so we import stubs.
     # Run `pip install -U albumentations[imgaug] if you need augmentations from imgaug.`
     from .imgaug.stubs import *  # type: ignore
