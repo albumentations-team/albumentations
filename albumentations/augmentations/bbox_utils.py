@@ -225,28 +225,32 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
     if isinstance(bbox, np.ndarray):
         bbox = bbox.tolist()
 
-    if source_format == "coco":
-        (x_min, y_min, width, height), tail = bbox[:4], tuple(bbox[4:])
-        x_max = x_min + width
-        y_max = y_min + height
-    elif source_format == "yolo":
-        # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
+    if source_format == "yolo":
         bbox, tail = bbox[:4], tuple(bbox[4:])
         _bbox = np.array(bbox[:4])
         if np.any((_bbox <= 0) | (_bbox > 1)):
             raise ValueError("In YOLO format all labels must be float and in range (0, 1]")
 
-        x, y, width, height = denormalize_bbox(bbox, rows, cols)
+        x, y, width, height = bbox
+        dx, dy = 1 / rows, 1 / cols
 
-        x_min = int(x - width / 2 + 1)
-        x_max = int(x_min + width)
-        y_min = int(y - height / 2 + 1)
-        y_max = int(y_min + height)
+        x_min = x - width / 2 + dx
+        x_max = x_min + width
+        y_min = y - height / 2 + dy
+        y_max = y_min + height
+
+        bbox = (x_min, y_min, x_max, y_max) + tail
     else:
-        (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
+        if source_format == "coco":
+            (x_min, y_min, width, height), tail = bbox[:4], tuple(bbox[4:])
+            x_max = x_min + width
+            y_max = y_min + height
+        else:
+            (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
-    bbox = (x_min, y_min, x_max, y_max) + tail
-    bbox = normalize_bbox(bbox, rows, cols)
+        bbox = (x_min, y_min, x_max, y_max) + tail
+        bbox = normalize_bbox(bbox, rows, cols)
+
     if check_validity:
         check_bbox(bbox)
     return bbox
@@ -280,20 +284,22 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
         )
     if check_validity:
         check_bbox(bbox)
-    bbox = denormalize_bbox(bbox, rows, cols)
-    if target_format == "coco":
-        (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
-        width = x_max - x_min
-        height = y_max - y_min
-        bbox = (x_min, y_min, width, height) + tail
-    elif target_format == "yolo":
-        # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
+    if target_format == "yolo":
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
-        x = int((x_min + x_max) / 2 - 1)
-        y = int((y_min + y_max) / 2 - 1)
+        dx, dy = 1 / rows, 1 / cols
+        x = (x_min + x_max) / 2 - dx
+        y = (y_min + y_max) / 2 - dy
         width = x_max - x_min
         height = y_max - y_min
-        bbox = normalize_bbox((x, y, width, height) + tail, rows, cols)
+        bbox = (x, y, width, height) + tail
+    else:
+        bbox = denormalize_bbox(bbox, rows, cols)
+        if target_format == "coco":
+            (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
+            width = x_max - x_min
+            height = y_max - y_min
+            bbox = (x_min, y_min, width, height) + tail
+
     return bbox
 
 

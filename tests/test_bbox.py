@@ -87,7 +87,7 @@ def test_convert_bbox_to_albumentations(bbox, source_format, expected):
     converted_bbox = convert_bbox_to_albumentations(
         bbox, rows=image.shape[0], cols=image.shape[1], source_format=source_format
     )
-    assert converted_bbox == expected
+    assert np.all(np.isclose(converted_bbox, expected))
 
 
 @pytest.mark.parametrize(
