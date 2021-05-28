@@ -130,14 +130,16 @@ def test_convert_bbox_from_albumentations(bbox, target_format, expected):
     ],
 )
 def test_convert_bbox_to_albumentations_and_back(bbox, bbox_format):
-    image = np.ones((100, 100, 3))
-    converted_bbox = convert_bbox_to_albumentations(
-        bbox, rows=image.shape[0], cols=image.shape[1], source_format=bbox_format
-    )
-    converted_back_bbox = convert_bbox_from_albumentations(
-        converted_bbox, rows=image.shape[0], cols=image.shape[1], target_format=bbox_format
-    )
-    assert np.all(np.isclose(converted_back_bbox, bbox))
+    for rows in range(100, 105):
+        for cols in range(100, 105):
+            image = np.ones((cols, rows, 3))
+            converted_bbox = convert_bbox_to_albumentations(
+                bbox, rows=image.shape[0], cols=image.shape[1], source_format=bbox_format
+            )
+            converted_back_bbox = convert_bbox_from_albumentations(
+                converted_bbox, rows=image.shape[0], cols=image.shape[1], target_format=bbox_format
+            )
+            assert np.all(np.isclose(converted_back_bbox, bbox))
 
 
 def test_convert_bboxes_to_albumentations():
