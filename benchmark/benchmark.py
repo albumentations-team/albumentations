@@ -27,6 +27,8 @@ import solt.utils as slu
 
 import albumentations.augmentations.functional as albumentations
 import albumentations as A
+from albumentations.augmentations.geometric.functional import rotate, resize, shift_scale_rotate
+from albumentations.augmentations.crops.functional import random_crop
 
 cv2.setNumThreads(0)  # noqa E402
 cv2.ocl.setUseOpenCL(False)  # noqa E402
@@ -247,7 +249,7 @@ class Rotate(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Rotate(p=1, angle_range=(45, 45))], padding="r")
 
     def albumentations(self, img):
-        return albumentations.rotate(img, angle=-45)
+        return rotate(img, angle=-45)
 
     def torchvision_transform(self, img):
         return torchvision.rotate(img, angle=-45, resample=Image.BILINEAR)
@@ -321,7 +323,7 @@ class ShiftScaleRotate(BenchmarkTest):
         )
 
     def albumentations(self, img):
-        return albumentations.shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
+        return shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
 
     def torchvision_transform(self, img):
         return torchvision.affine(img, angle=45, translate=(50, 50), scale=2, shear=0, resample=Image.BILINEAR)
@@ -380,7 +382,7 @@ class RandomCrop64(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Crop(crop_to=(64, 64), crop_mode="r")])
 
     def albumentations(self, img):
-        img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        img = random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
         return np.ascontiguousarray(img)
 
     def torchvision_transform(self, img):
@@ -404,8 +406,8 @@ class RandomSizedCrop_64_512(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Crop(crop_to=(64, 64), crop_mode="r"), slt.Resize(resize_to=(512, 512))])
 
     def albumentations(self, img):
-        img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
-        return albumentations.resize(img, height=512, width=512)
+        img = random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        return resize(img, height=512, width=512)
 
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
@@ -451,7 +453,7 @@ class Resize512(BenchmarkTest):
         self.augmentor_op = Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
 
     def albumentations(self, img):
-        return albumentations.resize(img, height=512, width=512)
+        return resize(img, height=512, width=512)
 
     def torchvision_transform(self, img):
         return torchvision.resize(img, (512, 512))
