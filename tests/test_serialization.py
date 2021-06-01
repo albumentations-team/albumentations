@@ -6,20 +6,15 @@ from unittest.mock import patch
 import cv2
 import pytest
 import numpy as np
-import imgaug as ia
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
-from .utils import OpenMock
+from .conftest import torch_available, skipif_no_torch
+from .utils import OpenMock, set_seed
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
-
-
-def set_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
 
 
 @pytest.mark.parametrize(
@@ -523,100 +518,6 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 
 
 @pytest.mark.parametrize(
-    ["augmentation_cls", "params"],
-    [
-        [A.IAASuperpixels, {}],
-        [A.IAAAdditiveGaussianNoise, {}],
-        [A.IAACropAndPad, {}],
-        [A.IAAFliplr, {}],
-        [A.IAAFlipud, {}],
-        [A.IAAAffine, {}],
-        [A.IAAPiecewiseAffine, {}],
-        [A.IAAPerspective, {}],
-    ],
-)
-@pytest.mark.parametrize("p", [0.5, 1])
-@pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
-def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, image, mask, always_apply):
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
-    serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(serialized_aug)
-    set_seed(seed)
-    ia.seed(seed)
-    aug_data = aug(image=image, mask=mask)
-    set_seed(seed)
-    ia.seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, mask=mask)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
-
-
-@pytest.mark.parametrize(
-    ["augmentation_cls", "params"],
-    [
-        [A.IAASuperpixels, {}],
-        [A.IAAAdditiveGaussianNoise, {}],
-        [A.IAACropAndPad, {}],
-        [A.IAAFliplr, {}],
-        [A.IAAFlipud, {}],
-        [A.IAAAffine, {}],
-        [A.IAAPiecewiseAffine, {}],
-        [A.IAAPerspective, {}],
-    ],
-)
-@pytest.mark.parametrize("p", [0.5, 1])
-@pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
-def test_imgaug_augmentations_for_bboxes_serialization(
-    augmentation_cls, params, p, seed, image, albumentations_bboxes, always_apply
-):
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
-    serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(serialized_aug)
-    set_seed(seed)
-    ia.seed(seed)
-    aug_data = aug(image=image, bboxes=albumentations_bboxes)
-    set_seed(seed)
-    ia.seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
-
-
-@pytest.mark.parametrize(
-    ["augmentation_cls", "params"],
-    [
-        [A.IAASuperpixels, {}],
-        [A.IAAAdditiveGaussianNoise, {}],
-        [A.IAACropAndPad, {}],
-        [A.IAAFliplr, {}],
-        [A.IAAFlipud, {}],
-        [A.IAAAffine, {}],
-        [A.IAAPiecewiseAffine, {}],
-        [A.IAAPerspective, {}],
-    ],
-)
-@pytest.mark.parametrize("p", [0.5, 1])
-@pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
-def test_imgaug_augmentations_for_keypoints_serialization(
-    augmentation_cls, params, p, seed, image, keypoints, always_apply
-):
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
-    serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(serialized_aug)
-    set_seed(seed)
-    ia.seed(seed)
-    aug_data = aug(image=image, keypoints=keypoints)
-    set_seed(seed)
-    ia.seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
-
-
-@pytest.mark.parametrize(
     ["augmentation_cls", "params", "call_params"],
     [[A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}]],
 )
@@ -863,11 +764,25 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
 
 
-def test_serialization_v2_conversion():
+def test_serialization_v2_conversion_without_totensor():
     current_directory = os.path.dirname(os.path.abspath(__file__))
     files_directory = os.path.join(current_directory, "files")
-    transform_0_4_6 = A.load(os.path.join(files_directory, "transform_v0.4.6.json"))
-    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+    transform_0_4_6 = A.load(os.path.join(files_directory, "transform_v0.4.6_without_totensor.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6_without_totensor.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform_0_4_6(image=image)["image"]
+    assert transformed_image.tolist() == output_0_4_6
+
+
+@skipif_no_torch
+def test_serialization_v2_conversion_with_totensor():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform_0_4_6 = A.load(os.path.join(files_directory, "transform_v0.4.6_with_totensor.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6_with_totensor.json")) as f:
         output_0_4_6 = json.load(f)
     np.random.seed(42)
     image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
@@ -876,11 +791,25 @@ def test_serialization_v2_conversion():
     assert transformed_image.numpy().tolist() == output_0_4_6
 
 
-def test_serialization_v2():
+def test_serialization_v2_without_totensor():
     current_directory = os.path.dirname(os.path.abspath(__file__))
     files_directory = os.path.join(current_directory, "files")
-    transform = A.load(os.path.join(files_directory, "transform_serialization_v2.json"))
-    with open(os.path.join(files_directory, "output_v0.4.6.json")) as f:
+    transform = A.load(os.path.join(files_directory, "transform_serialization_v2_without_totensor.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6_without_totensor.json")) as f:
+        output_0_4_6 = json.load(f)
+    np.random.seed(42)
+    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    random.seed(42)
+    transformed_image = transform(image=image)["image"]
+    assert transformed_image.tolist() == output_0_4_6
+
+
+@skipif_no_torch
+def test_serialization_v2_with_totensor():
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    files_directory = os.path.join(current_directory, "files")
+    transform = A.load(os.path.join(files_directory, "transform_serialization_v2_with_totensor.json"))
+    with open(os.path.join(files_directory, "output_v0.4.6_with_totensor.json")) as f:
         output_0_4_6 = json.load(f)
     np.random.seed(42)
     image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
