@@ -1,4 +1,4 @@
-from albumentations import HorizontalFlip, OneOf, IAAPiecewiseAffine, IAAAffine, OpticalDistortion, GridDistortion
+from albumentations import HorizontalFlip, OneOf, PiecewiseAffine, Affine, OpticalDistortion, GridDistortion
 from albumentations.core.composition import Transforms
 import pytest
 
@@ -13,7 +13,7 @@ def empty_aug1():
                 # GridDistortion(p=0.1),
                 # IAAPerspective(p=1.0),
                 # IAAAffine(p=1.0),
-                IAAPiecewiseAffine(p=1.0)
+                PiecewiseAffine(p=1.0)
             ],
             p=0.0,
         ),
@@ -23,13 +23,13 @@ def empty_aug1():
 def empty_aug2():
     return [
         HorizontalFlip(p=0.001),
-        IAAPiecewiseAffine(p=1.0),
+        PiecewiseAffine(p=1.0),
         OneOf(
             [
                 # OpticalDistortion(p=0.1),
                 # GridDistortion(p=0.1),
                 # IAAPerspective(p=1.0),
-                IAAAffine(p=1.0),
+                Affine(p=1.0),
                 # IAAPiecewiseAffine(p=1.0),
             ],
             p=0.0,

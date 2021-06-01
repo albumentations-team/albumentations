@@ -2,6 +2,8 @@ import pytest
 
 import numpy as np
 import torch
+from PIL import Image
+from torchvision.transforms import ColorJitter
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensor, ToTensorV2
@@ -115,3 +117,46 @@ def test_with_replaycompose():
     assert res["mask"].dtype == torch.uint8
     assert res2["image"].dtype == torch.uint8
     assert res2["mask"].dtype == torch.uint8
+
+
+@pytest.mark.parametrize(
+    ["brightness", "contrast", "saturation", "hue"],
+    [
+        [1, 1, 1, 0],
+        [0.123, 1, 1, 0],
+        [1.321, 1, 1, 0],
+        [1, 0.234, 1, 0],
+        [1, 1.432, 1, 0],
+        [1, 1, 0.345, 0],
+        [1, 1, 1.543, 0],
+    ],
+)
+def test_color_jitter(brightness, contrast, saturation, hue):
+    np.random.seed(0)
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    pil_image = Image.fromarray(img)
+
+    transform = A.Compose(
+        [
+            A.ColorJitter(
+                brightness=[brightness, brightness],
+                contrast=[contrast, contrast],
+                saturation=[saturation, saturation],
+                hue=[hue, hue],
+                p=1,
+            )
+        ]
+    )
+
+    pil_transform = ColorJitter(
+        brightness=[brightness, brightness],
+        contrast=[contrast, contrast],
+        saturation=[saturation, saturation],
+        hue=[hue, hue],
+    )
+
+    res1 = transform(image=img)["image"]
+    res2 = np.array(pil_transform(pil_image))
+
+    _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
+    assert _max <= 2, "Max: {}".format(_max)
