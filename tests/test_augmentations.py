@@ -34,11 +34,6 @@ from albumentations import (
     CLAHE,
     ChannelShuffle,
     InvertImg,
-    IAASuperpixels,
-    IAASharpen,
-    IAAAdditiveGaussianNoise,
-    IAAPiecewiseAffine,
-    IAAPerspective,
     Cutout,
     CoarseDropout,
     Normalize,
@@ -253,23 +248,6 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
     aug = augmentation_cls(p=1, **params)
     data = aug(image=float_image, mask=mask)
     assert data["image"].dtype == np.float32
-    assert data["mask"].dtype == np.uint8
-
-
-@pytest.mark.parametrize("augmentation_cls", [IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
-def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
-    aug = augmentation_cls(p=1)
-    data = aug(image=image, mask=mask)
-    assert data["image"].dtype == np.uint8
-    assert data["mask"].dtype == np.uint8
-    assert np.array_equal(data["mask"], mask)
-
-
-@pytest.mark.parametrize("augmentation_cls", [IAAPiecewiseAffine, IAAPerspective])
-def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
-    aug = augmentation_cls(p=1)
-    data = aug(image=image, mask=mask)
-    assert data["image"].dtype == np.uint8
     assert data["mask"].dtype == np.uint8
 
 
