@@ -9,6 +9,7 @@ jobs:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
         python-version: [3.6, 3.7, 3.8, 3.9]
+        albumentations-version: [tests, develop]
       fail-fast: false
     steps:
     - name: Checkout
@@ -24,13 +25,13 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==1.7.1+cpu torchvision==0.8.2+cpu
+        pip install torch==1.8.1+cpu torchvision==0.9.1+cpu
         -f https://download.pytorch.org/whl/torch_stable.html
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==1.7.1 torchvision==0.8.2
+      run: pip install torch==1.8.1 torchvision==0.9.1
     - name: Install dependencies
-      run: pip install .[develop]
+      run: pip install .[${{ matrix.albumentations-version }}]
     - name: Install linters
       run: pip install flake8==3.8.4 flake8-docstrings==1.5.0 mypy==0.800
     - name: Run PyTest

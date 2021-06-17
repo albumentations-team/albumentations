@@ -571,7 +571,7 @@ class RandomGridShuffle(DualTransform):
 
 
 class Normalize(ImageOnlyTransform):
-    """Divide pixel values by 255 = 2**8 - 1, subtract mean per channel and divide by std per channel.
+    """Normalization is applied by the formula: `img = (img - mean * max_pixel_value) / (std * max_pixel_value)`
 
     Args:
         mean (float, list of float): mean values

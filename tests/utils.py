@@ -1,3 +1,4 @@
+import random
 from io import StringIO
 
 import numpy as np
@@ -50,3 +51,8 @@ class OpenMock:
 
     def save_value(self, value, file):
         self.values[file] = value
+
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)

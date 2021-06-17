@@ -1,4 +1,10 @@
-import imgaug as ia
+try:
+    import imgaug as ia
+except ImportError as e:
+    raise ImportError(
+        "You are trying to import an augmentation that depends on the imgaug library, but imgaug is not installed. To "
+        "install a version of Albumentations that contains imgaug please run 'pip install -U albumentations[imgaug]'"
+    ) from e
 
 try:
     from imgaug import augmenters as iaa
