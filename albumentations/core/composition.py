@@ -183,9 +183,6 @@ class Compose(BaseCompose):
             if check_each_transform:
                 data = self._check_data_post_transform(data)
 
-        if not check_each_transform and len(self.processors):
-            data = self._check_data_post_transform(data)
-
         for p in self.processors.values():
             p.postprocess(data)
 
