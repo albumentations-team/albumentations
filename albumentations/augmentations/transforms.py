@@ -50,6 +50,7 @@ __all__ = [
     "ToSepia",
     "JpegCompression",
     "ImageCompression",
+    "RandomErasing",
     "Cutout",
     "CoarseDropout",
     "ToFloat",
@@ -605,7 +606,104 @@ class Normalize(ImageOnlyTransform):
         return ("mean", "std", "max_pixel_value")
 
 
-class Cutout(ImageOnlyTransform):
+class RandomErasing(DualTransform):
+    """ Randomly selects a rectangle region in an image and erases its pixels.
+        'Random Erasing Data Augmentation' by Zhong et al.
+        See https://arxiv.org/pdf/1708.04896.pdf
+    Args:
+         probability: The probability that the Random Erasing operation will be performed.
+         sl: Minimum proportion of erased area against input image.
+         sh: Maximum proportion of erased area against input image.
+         r1: Minimum aspect ratio of erased area.
+         num_holes: Number of erasing areas
+         mean: Erasing value.
+    """
+
+    def __init__(self, sl=0.02, sh=0.4, r1=0.3, num_holes=3, fill_value=(0.4914, 0.4822, 0.4465),
+                 always_apply=False, p=0.5):
+        super(RandomErasing, self).__init__(always_apply=always_apply, p=p)
+        self.fill_value = fill_value
+        self.sl = sl
+        self.sh = sh
+        self.r1 = r1
+        self.num_holes = num_holes
+
+    def get_params(self):
+        return {}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_transform_init_args_names(self):
+        return "sl", "sh", "r1", "num_holes", "fill_value"
+
+    def apply(self, img, holes=(), **kwargs):
+        for x, y, w, h in holes:
+            if img.size()[0] == 3:
+                img[0, x:x + w, y:y + h] = self.fill_value[0]
+                img[1, x:x + w, y:y + h] = self.fill_value[1]
+                img[2, x:x + w, y:y + h] = self.fill_value[2]
+            else:
+                img[0, x:x + w, y:y + h] = self.fill_value[0]
+        return img
+
+    def apply_to_bbox(self, bbox, holes=(), **params):
+        # TODO: This part could be tricky. If you accidentally erased an object then it should be removed.
+        raise NotImplementedError(
+            'This part could be tricky. If you accidentally erased an object then it should be removed.')
+
+    def apply_to_keypoint(self, keypoint, holes=(), **params):
+        x, y, angle, scale = keypoint[:4]
+        for hx, hy, hw, hh in holes:
+            if x >= hx and x < hw + hx and y >= hy and y < hh + hy:
+                return None
+            else:
+                return keypoint
+
+    def apply_to_keypoints(self, keypoints, **params):
+        kps = [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
+        while None in kps:
+            kps.remove(None)
+        return kps
+
+    def apply_to_mask(self, img, holes=(), **params):
+        for x, y, w, h in holes:
+            img[:, x:x + w, y:y + h] = 0
+        return img
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        area = img.size()[1] * img.size()[2]
+        holes = []
+        num_holes = random.randint(1, self.num_holes - 1)
+
+        for h in range(num_holes):
+            target_ratio = random.uniform(self.sl, self.sh)
+            aspect_ratio = random.uniform(self.r1, 1 / self.r1)
+            target_area = target_ratio * area
+            flag = False
+            for attempt in range(10):
+                h = int(round(math.sqrt(target_area * aspect_ratio)))
+                w = int(round(math.sqrt(target_area / aspect_ratio)))
+                if w < img.size()[2] and h < img.size()[1]:
+                    x = random.randint(0, img.size()[1] - w)
+                    y = random.randint(0, img.size()[2] - h)
+                    holes.append((x, y, w, h))
+                    flag = True
+                    break
+            if not flag:
+                aspect_ratio = img.size()[2] / img.size()[1]
+                # Fallback to central crop
+                w = int(round(math.sqrt(target_area / aspect_ratio)))
+                h = int(round(math.sqrt(target_area * aspect_ratio)))
+                x = int(round((img.shape[0] - w) / 2))
+                y = int(round((img.shape[0] - h) / 2))
+                holes.append((x, y, w, h))
+        return {'holes': holes}
+
+
+class Cutout(DualTransform):
     """CoarseDropout of the square regions in the image.
 
     Args:
