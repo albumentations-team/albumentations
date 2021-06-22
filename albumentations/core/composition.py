@@ -13,7 +13,17 @@ from albumentations.core.utils import format_args, Params
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "SomeOf", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
+__all__ = [
+    "BaseCompose",
+    "Compose",
+    "SomeOf",
+    "OneOf",
+    "OneOrOther",
+    "BboxParams",
+    "KeypointParams",
+    "ReplayCompose",
+    "Sequential",
+]
 
 
 REPR_INDENT_STEP = 2
