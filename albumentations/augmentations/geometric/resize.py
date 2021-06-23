@@ -51,7 +51,7 @@ class LongestMaxSize(DualTransform):
     """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
-        max_size (int): maximum size of the image after the transformation.
+        max_size (int, list of int): maximum size of the image after the transformation.
         interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
 
@@ -67,19 +67,22 @@ class LongestMaxSize(DualTransform):
         self.interpolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
-        return F.longest_max_size(img, max_size=self.max_size, interpolation=interpolation)
+    def apply(self, img, max_size=1024, interpolation=cv2.INTER_LINEAR, **params):
+        return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
         return bbox
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint, max_size=1024, **params):
         height = params["rows"]
         width = params["cols"]
 
-        scale = self.max_size / max([height, width])
+        scale = max_size / max([height, width])
         return F.keypoint_scale(keypoint, scale, scale)
+
+    def get_params(self):
+        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
     def get_transform_init_args_names(self):
         return ("max_size", "interpolation")
@@ -89,7 +92,7 @@ class SmallestMaxSize(DualTransform):
     """Rescale an image so that minimum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
-        max_size (int): maximum size of smallest side of the image after the transformation.
+        max_size (int, list of int): maximum size of smallest side of the image after the transformation.
         interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
 
@@ -105,18 +108,21 @@ class SmallestMaxSize(DualTransform):
         self.interpolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
-        return F.smallest_max_size(img, max_size=self.max_size, interpolation=interpolation)
+    def apply(self, img, max_size=1024, interpolation=cv2.INTER_LINEAR, **params):
+        return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox, **params):
         return bbox
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint, max_size=1024, **params):
         height = params["rows"]
         width = params["cols"]
 
-        scale = self.max_size / min([height, width])
+        scale = max_size / min([height, width])
         return F.keypoint_scale(keypoint, scale, scale)
+
+    def get_params(self):
+        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
     def get_transform_init_args_names(self):
         return ("max_size", "interpolation")
