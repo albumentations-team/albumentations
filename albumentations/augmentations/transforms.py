@@ -87,6 +87,8 @@ class PadIfNeeded(DualTransform):
         min_width (int): minimal result image width.
         pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
         pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
+        position (str): {'center', 'top_left', 'top_right', 'bottom_left', 'bottom_right'}.
+            Position of the image. Default: 'center'.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -107,6 +109,7 @@ class PadIfNeeded(DualTransform):
         min_width: Optional[int] = 1024,
         pad_height_divisor: Optional[int] = None,
         pad_width_divisor: Optional[int] = None,
+        position: str = "center",
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
@@ -119,11 +122,16 @@ class PadIfNeeded(DualTransform):
         if (min_width is None) == (pad_width_divisor is None):
             raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
 
+        acceptable_positions = ["center", "top_left", "top_right", "bottom_left", "bottom_right"]
+        if position not in acceptable_positions:
+            raise ValueError("Unsupported position. Supports: {}. Got: '{}'".format(acceptable_positions, position))
+
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
         self.pad_width_divisor = pad_width_divisor
         self.pad_height_divisor = pad_height_divisor
+        self.position = position
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
@@ -160,6 +168,10 @@ class PadIfNeeded(DualTransform):
 
             w_pad_left = pad_cols // 2
             w_pad_right = pad_cols - w_pad_left
+
+        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = self.__update_position_params(
+            h_top=h_pad_top, h_bottom=h_pad_bottom, w_left=w_pad_left, w_right=w_pad_right
+        )
 
         params.update(
             {
@@ -213,6 +225,35 @@ class PadIfNeeded(DualTransform):
             "value",
             "mask_value",
         )
+
+    def __update_position_params(
+        self, h_top: int, h_bottom: int, w_left: int, w_right: int
+    ) -> Tuple[int, int, int, int]:
+        if self.position == "top_left":
+            h_bottom += h_top
+            w_right += w_left
+            h_top = 0
+            w_left = 0
+
+        if self.position == "top_right":
+            h_bottom += h_top
+            w_left += w_right
+            h_top = 0
+            w_right = 0
+
+        if self.position == "bottom_left":
+            h_top += h_bottom
+            w_right += w_left
+            h_bottom = 0
+            w_left = 0
+
+        if self.position == "bottom_right":
+            h_top += h_bottom
+            w_left += w_right
+            h_bottom = 0
+            w_right = 0
+
+        return h_top, h_bottom, w_left, w_right
 
 
 class VerticalFlip(DualTransform):

@@ -715,6 +715,46 @@ def test_pad_if_needed(augmentation_cls: Type[PadIfNeeded], params: Dict, image_
 
 
 @pytest.mark.parametrize(
+    ["params", "image_shape"],
+    [
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "center"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_left"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_right"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_left"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_right"}, (5, 6)],
+    ],
+)
+def test_pad_if_needed_position(params, image_shape):
+    image = np.zeros(image_shape)
+    pad = PadIfNeeded(**params)
+    image_padded = pad(image=image)["image"]
+
+    true_result = np.ones((max(image_shape[0], params["min_height"]), max(image_shape[1], params["min_width"])))
+
+    if params["position"] == "center":
+        x_start = image_shape[0] // 2
+        y_start = image_shape[1] // 2
+        true_result[x_start : x_start + image_shape[0], y_start : y_start + image_shape[1]] = 0
+        assert (image_padded == true_result).all()
+
+    if params["position"] == "top_left":
+        true_result[: image_shape[0], : image_shape[1]] = 0
+        assert (image_padded == true_result).all()
+
+    if params["position"] == "top_right":
+        true_result[: image_shape[0], -image_shape[1] :] = 0
+        assert (image_padded == true_result).all()
+
+    if params["position"] == "bottom_left":
+        true_result[-image_shape[0] :, : image_shape[1]] = 0
+        assert (image_padded == true_result).all()
+
+    if params["position"] == "bottom_right":
+        true_result[-image_shape[0] :, -image_shape[1] :] = 0
+        assert (image_padded == true_result).all()
+
+
+@pytest.mark.parametrize(
     ["points"],
     [
         [
