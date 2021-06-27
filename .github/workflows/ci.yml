@@ -33,7 +33,7 @@ jobs:
     - name: Install dependencies
       run: pip install .[${{ matrix.albumentations-version }}]
     - name: Install linters
-      run: pip install flake8==3.8.4 flake8-docstrings==1.5.0 mypy==0.800
+      run: pip install flake8==3.8.4 flake8-docstrings==1.5.0 mypy==0.910
     - name: Run PyTest
       run: pytest
     - name: Run Flake8
