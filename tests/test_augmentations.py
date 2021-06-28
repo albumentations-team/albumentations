@@ -737,15 +737,15 @@ def test_pad_if_needed_position(params, image_shape):
         true_result[x_start : x_start + image_shape[0], y_start : y_start + image_shape[1]] = 0
         assert (image_padded == true_result).all()
 
-    if params["position"] == "top_left":
+    elif params["position"] == "top_left":
         true_result[: image_shape[0], : image_shape[1]] = 0
         assert (image_padded == true_result).all()
 
-    if params["position"] == "top_right":
+    elif params["position"] == "top_right":
         true_result[: image_shape[0], -image_shape[1] :] = 0
         assert (image_padded == true_result).all()
 
-    if params["position"] == "bottom_left":
+    elif params["position"] == "bottom_left":
         true_result[-image_shape[0] :, : image_shape[1]] = 0
         assert (image_padded == true_result).all()
 
