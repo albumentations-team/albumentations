@@ -682,12 +682,12 @@ class Affine(DualTransform):
             output_shape = np.ceil((out_height, out_width, input_shape[2]))
         else:
             output_shape = np.ceil((out_height, out_width))
-        output_shape = tuple([int(v) for v in output_shape.tolist()])
+        output_shape_tuple = tuple([int(v) for v in output_shape.tolist()])
         # fit output image in new shape
         translation = (-minc, -minr)
         matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
         matrix = matrix + matrix_to_fit
-        return matrix, output_shape
+        return matrix, output_shape_tuple
 
 
 class PiecewiseAffine(DualTransform):
