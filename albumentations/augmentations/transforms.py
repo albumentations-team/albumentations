@@ -610,13 +610,14 @@ class RandomErasing(DualTransform):
     """ Randomly selects a rectangle region in an image and erases its pixels.
         'Random Erasing Data Augmentation' by Zhong et al.
         See https://arxiv.org/pdf/1708.04896.pdf
+
+        The erased area will be in [sl * area, sh * area] per hole.
     Args:
-         probability: The probability that the Random Erasing operation will be performed.
          sl: Minimum proportion of erased area against input image.
          sh: Maximum proportion of erased area against input image.
          r1: Minimum aspect ratio of erased area.
          num_holes: Number of erasing areas
-         mean: Erasing value.
+         fill_value: Erasing value.
     """
 
     def __init__(self, sl=0.02, sh=0.4, r1=0.3, num_holes=3, fill_value=(0.4914, 0.4822, 0.4465),
@@ -658,8 +659,7 @@ class RandomErasing(DualTransform):
         for hx, hy, hw, hh in holes:
             if x >= hx and x < hw + hx and y >= hy and y < hh + hy:
                 return None
-            else:
-                return keypoint
+        return keypoint
 
     def apply_to_keypoints(self, keypoints, **params):
         kps = [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
@@ -703,7 +703,7 @@ class RandomErasing(DualTransform):
         return {'holes': holes}
 
 
-class Cutout(DualTransform):
+class Cutout(ImageOnlyTransform):
     """CoarseDropout of the square regions in the image.
 
     Args:
