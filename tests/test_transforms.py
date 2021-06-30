@@ -478,9 +478,9 @@ def test_longest_max_size_keypoints():
     result = aug(image=img, keypoints=keypoints)
     assert result["keypoints"] == [(18, 10, 0, 0)]
 
-    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+    aug = A.LongestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(0.9, 0.5, 0, 0)] or result["keypoints"] == [(1.8, 1, 0, 0)]
+    assert result["keypoints"] == [(0.9, 0.5, 0, 0)]
 
     aug = A.LongestMaxSize(max_size=50, p=1)
     result = aug(image=img, keypoints=keypoints)
@@ -491,9 +491,9 @@ def test_smallest_max_size_keypoints():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+    aug = A.SmallestMaxSize(max_size=100, p=1)
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(45, 25, 0, 0)] or result["keypoints"] == [(90, 50, 0, 0)]
+    assert result["keypoints"] == [(90, 50, 0, 0)]
 
     aug = A.SmallestMaxSize(max_size=5, p=1)
     result = aug(image=img, keypoints=keypoints)
@@ -868,3 +868,23 @@ def test_perspective_keep_size():
 
     assert np.allclose(res_1["bboxes"], res_2["bboxes"])
     assert np.allclose(res_1["keypoints"], res_2["keypoints"])
+
+
+def test_longest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [(9, 5, 0, 0)]
+
+    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(10, 2), (5, 1)]
+    assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
+
+
+def test_smallest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [(9, 5, 0, 0)]
+
+    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(250, 50), (500, 100)]
+    assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
