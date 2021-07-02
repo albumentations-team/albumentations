@@ -720,7 +720,7 @@ def from_distance_maps(
         else:
             found = True
         if found:
-            keypoints.append((hitidx_ndim[1], hitidx_ndim[0]))
+            keypoints.append((float(hitidx_ndim[1]), float(hitidx_ndim[0])))
         else:
             if not drop_if_not_found:
                 keypoints.append((if_not_found_x, if_not_found_y))
