@@ -14,6 +14,7 @@ from albumentations import (
     Transpose,
     RandomRotate90,
     Rotate,
+    SafeRotate,
     ShiftScaleRotate,
     CenterCrop,
     OpticalDistortion,
@@ -33,12 +34,6 @@ from albumentations import (
     CLAHE,
     ChannelShuffle,
     InvertImg,
-    IAAEmboss,
-    IAASuperpixels,
-    IAASharpen,
-    IAAAdditiveGaussianNoise,
-    IAAPiecewiseAffine,
-    IAAPerspective,
     Cutout,
     CoarseDropout,
     Normalize,
@@ -53,6 +48,7 @@ from albumentations import (
     RandomShadow,
     RandomSizedCrop,
     RandomResizedCrop,
+    RandomToneCurve,
     ChannelDropout,
     ISONoise,
     Solarize,
@@ -66,6 +62,14 @@ from albumentations import (
     ColorJitter,
     FDA,
     HistogramMatching,
+    Perspective,
+    Sharpen,
+    Emboss,
+    CropAndPad,
+    Superpixels,
+    Affine,
+    PiecewiseAffine,
+    Compose,
 )
 
 
@@ -94,6 +98,7 @@ from albumentations import (
         [RandomFog, {}],
         [RandomSunFlare, {}],
         [RandomShadow, {}],
+        [RandomToneCurve, {}],
         [ChannelDropout, {}],
         [ISONoise, {}],
         [Solarize, {}],
@@ -111,6 +116,9 @@ from albumentations import (
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [Superpixels, {}],
     ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
@@ -158,6 +166,9 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [Superpixels, {}],
     ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -178,6 +189,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [CoarseDropout, {"fill_value": 0, "mask_fill_value": 0}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
@@ -191,6 +203,10 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
         [ISONoise, {}],
         [RandomGridShuffle, {}],
         [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -210,6 +226,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
@@ -221,29 +238,16 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
         [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
         [RandomGridShuffle, {}],
         [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=float_image, mask=mask)
     assert data["image"].dtype == np.float32
-    assert data["mask"].dtype == np.uint8
-
-
-@pytest.mark.parametrize("augmentation_cls", [IAAEmboss, IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
-def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
-    aug = augmentation_cls(p=1)
-    data = aug(image=image, mask=mask)
-    assert data["image"].dtype == np.uint8
-    assert data["mask"].dtype == np.uint8
-    assert np.array_equal(data["mask"], mask)
-
-
-@pytest.mark.parametrize("augmentation_cls", [IAAPiecewiseAffine, IAAPerspective])
-def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
-    aug = augmentation_cls(p=1)
-    data = aug(image=image, mask=mask)
-    assert data["image"].dtype == np.uint8
     assert data["mask"].dtype == np.uint8
 
 
@@ -275,6 +279,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
@@ -293,6 +298,7 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
         [RandomFog, {}],
         [RandomSunFlare, {}],
         [RandomShadow, {}],
+        [RandomToneCurve, {}],
         [ChannelDropout, {}],
         [ISONoise, {}],
         [RandomGridShuffle, {}],
@@ -310,6 +316,13 @@ def test_imgaug_dual_augmentations(augmentation_cls, image, mask):
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -346,6 +359,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [ShiftScaleRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
@@ -377,6 +391,13 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
@@ -406,6 +427,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
         [ElasticTransform, {}],
@@ -413,6 +435,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         [ToFloat, {}],
         [FromFloat, {}],
         [RandomGridShuffle, {}],
+        [RandomToneCurve, {}],
         [Solarize, {}],
         [Posterize, {}],
         [Equalize, {}],
@@ -425,6 +448,13 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
         [FDA, {"reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)], "read_fn": lambda x: x}],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
@@ -471,6 +501,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [Transpose, {}],
         [RandomRotate90, {}],
         [Rotate, {}],
+        [SafeRotate, {}],
         [OpticalDistortion, {}],
         [GridDistortion, {}],
         [ElasticTransform, {}],
@@ -486,6 +517,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         [ChannelDropout, {}],
         [ISONoise, {}],
         [RandomGridShuffle, {}],
+        [RandomToneCurve, {}],
         [Solarize, {}],
         [Posterize, {}],
         [Equalize, {}],
@@ -500,6 +532,13 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             FDA,
             {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
         ],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
@@ -530,10 +569,13 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
             {"min_height": 514, "min_width": 514, "border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
         ],
         [Rotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [SafeRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [ShiftScaleRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [OpticalDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [ElasticTransform, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
+        [PiecewiseAffine, {"mode": "constant", "cval_mask": 1, "cval": 100}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
@@ -555,13 +597,20 @@ def test_mask_fill_value(augmentation_cls, params):
         [GaussNoise, {}],
         [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
         [ShiftScaleRotate, {}],
+        [SafeRotate, {}],
         [PadIfNeeded, {"min_height": 514, "min_width": 516}],
         [LongestMaxSize, {"max_size": 256}],
         [GridDistortion, {}],
         [ElasticTransform, {}],
         [RandomBrightnessContrast, {}],
+        [RandomToneCurve, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
@@ -582,13 +631,20 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
         [GaussNoise, {}],
         [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
         [ShiftScaleRotate, {}],
+        [SafeRotate, {}],
         [PadIfNeeded, {"min_height": 514, "min_width": 516}],
         [LongestMaxSize, {"max_size": 256}],
         [GridDistortion, {}],
         [ElasticTransform, {}],
         [RandomBrightnessContrast, {}],
+        [RandomToneCurve, {}],
         [MultiplicativeNoise, {}],
         [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
     ],
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
@@ -656,3 +712,112 @@ def test_pad_if_needed(augmentation_cls: Type[PadIfNeeded], params: Dict, image_
         assert image_padded.shape[0] % pad.pad_height_divisor == 0
         assert image_padded.shape[0] >= image.shape[0]
         assert image_padded.shape[0] - image.shape[0] <= pad.pad_height_divisor
+
+
+@pytest.mark.parametrize(
+    ["params", "image_shape"],
+    [
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "center"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_left"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_right"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_left"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_right"}, (5, 6)],
+    ],
+)
+def test_pad_if_needed_position(params, image_shape):
+    image = np.zeros(image_shape)
+    pad = PadIfNeeded(**params)
+    image_padded = pad(image=image)["image"]
+
+    true_result = np.ones((max(image_shape[0], params["min_height"]), max(image_shape[1], params["min_width"])))
+
+    if params["position"] == "center":
+        x_start = image_shape[0] // 2
+        y_start = image_shape[1] // 2
+        true_result[x_start : x_start + image_shape[0], y_start : y_start + image_shape[1]] = 0
+        assert (image_padded == true_result).all()
+
+    elif params["position"] == "top_left":
+        true_result[: image_shape[0], : image_shape[1]] = 0
+        assert (image_padded == true_result).all()
+
+    elif params["position"] == "top_right":
+        true_result[: image_shape[0], -image_shape[1] :] = 0
+        assert (image_padded == true_result).all()
+
+    elif params["position"] == "bottom_left":
+        true_result[-image_shape[0] :, : image_shape[1]] = 0
+        assert (image_padded == true_result).all()
+
+    if params["position"] == "bottom_right":
+        true_result[-image_shape[0] :, -image_shape[1] :] = 0
+        assert (image_padded == true_result).all()
+
+
+@pytest.mark.parametrize(
+    ["points"],
+    [
+        [
+            [
+                [37.25756906, 11.0567457],
+                [514.03919117, 9.49484312],
+                [585.66154354, 74.97413793],
+                [63.60979494, 85.39815904],
+            ]
+        ],
+        [
+            [
+                [37, 11],
+                [514, 9],
+                [585, 74],
+                [63, 85],
+            ]
+        ],
+        [
+            [
+                [10, 20],
+                [719, 34],
+                [613, 63],
+                [91, 33],
+            ]
+        ],
+    ],
+)
+def test_perspective_order_points(points):
+    points = np.array(points)
+    res = Perspective._order_points(points)
+    assert len(points) == len(np.unique(res, axis=0))
+
+
+@pytest.mark.parametrize(
+    ["seed", "scale", "h", "w"],
+    [
+        [0, 0.08, 89, 628],
+        [0, 0.15, 89, 628],
+        [0, 0.15, 35, 190],
+    ],
+)
+def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h: int, w: int):
+    random.seed(seed)
+    np.random.seed(seed)
+
+    image = np.zeros([h, w, 3], dtype=np.uint8)
+    keypoints = [
+        [0, 0],
+        [0, h - 1],
+        [w - 1, h - 1],
+        [w - 1, 0],
+    ]
+
+    transform = Compose(
+        [Perspective(scale=(scale, scale), p=1)], keypoint_params={"format": "xy", "remove_invisible": False}
+    )
+
+    res = transform(image=image, keypoints=keypoints)["keypoints"]
+
+    x1, y1 = res[0]
+    x2, y2 = res[1]
+    x3, y3 = res[2]
+    x4, y4 = res[3]
+
+    assert x1 < x3 and x1 < x4 and x2 < x3 and x2 < x4 and y1 < y2 and y1 < y3 and y4 < y2 and y4 < y3

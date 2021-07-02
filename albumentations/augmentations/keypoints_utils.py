@@ -39,7 +39,11 @@ class KeypointsProcessor(DataProcessor):
         # If your keypoints formats is other than 'xy' we emit warning to let user
         # be aware that angle and size will not be modified.
 
-        from albumentations.imgaug.transforms import DualIAATransform
+        try:
+            from albumentations.imgaug.transforms import DualIAATransform
+        except ImportError:
+            # imgaug is not installed so we skip imgaug checks.
+            return
 
         if self.params.format is not None and self.params.format != "xy":
             for transform in transforms:

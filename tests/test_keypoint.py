@@ -3,8 +3,16 @@ import math
 import numpy as np
 import pytest
 
-import albumentations.augmentations.functional as F
-from albumentations import HorizontalFlip, VerticalFlip, IAAFliplr, IAAFlipud, CenterCrop
+import albumentations.augmentations.geometric.functional as FGeometric
+from albumentations import (
+    HorizontalFlip,
+    VerticalFlip,
+    CenterCrop,
+    RandomSizedCrop,
+    RandomResizedCrop,
+    Compose,
+    NoOp,
+)
 from albumentations.augmentations.keypoints_utils import (
     convert_keypoint_from_albumentations,
     convert_keypoints_from_albumentations,
@@ -12,9 +20,6 @@ from albumentations.augmentations.keypoints_utils import (
     convert_keypoints_to_albumentations,
     angle_to_2pi_range,
 )
-from albumentations.augmentations.transforms import RandomSizedCrop, RandomResizedCrop
-from albumentations.core.composition import Compose
-from albumentations.core.transforms_interface import NoOp
 
 
 @pytest.mark.parametrize(
@@ -220,32 +225,6 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected):
 
 
 @pytest.mark.parametrize(
-    ["aug", "keypoints", "expected"],
-    [
-        [IAAFliplr, [(20, 30, 0, 0)], [(80, 30, 0, 0)]],
-        [IAAFliplr, [(20, 30, 45, 0)], [(80, 30, 45, 0)]],
-        [IAAFliplr, [(20, 30, 90, 0)], [(80, 30, 90, 0)]],
-        #
-        [IAAFlipud, [(20, 30, 0, 0)], [(20, 70, 0, 0)]],
-        [IAAFlipud, [(20, 30, 45, 0)], [(20, 70, 45, 0)]],
-        [IAAFlipud, [(20, 30, 90, 0)], [(20, 70, 90, 0)]],
-    ],
-)
-def test_keypoint_transform_format_xy(aug, keypoints, expected):
-    transform = Compose([aug(p=1)], keypoint_params={"format": "xy", "label_fields": ["labels"]})
-
-    image = np.ones((100, 100, 3))
-    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
-    assert np.allclose(expected, transformed["keypoints"])
-
-
-@pytest.mark.parametrize(["aug", "keypoints", "expected"], [[IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]]])
-def test_iaa_transforms_emit_warning(aug, keypoints, expected):
-    with pytest.warns(UserWarning, match="IAAFliplr transformation supports only 'xy' keypoints augmentation"):
-        Compose([aug(p=1)], keypoint_params={"format": "xyas", "label_fields": ["labels"]})
-
-
-@pytest.mark.parametrize(
     ["keypoint", "expected", "factor"],
     [
         ((20, 30, math.pi / 2, 0), (20, 30, math.pi / 2, 0), 0),
@@ -255,7 +234,7 @@ def test_iaa_transforms_emit_warning(aug, keypoints, expected):
     ],
 )
 def test_keypoint_rotate90(keypoint, expected, factor):
-    actual = F.keypoint_rot90(keypoint, factor, rows=100, cols=200)
+    actual = FGeometric.keypoint_rot90(keypoint, factor, rows=100, cols=200)
     assert actual == expected
 
 
@@ -271,7 +250,7 @@ def test_keypoint_rotate90(keypoint, expected, factor):
     ],
 )
 def test_keypoint_rotate(keypoint, expected, angle):
-    actual = F.keypoint_rotate(keypoint, angle, rows=100, cols=100)
+    actual = FGeometric.keypoint_rotate(keypoint, angle, rows=100, cols=100)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
@@ -284,7 +263,7 @@ def test_keypoint_rotate(keypoint, expected, angle):
     ],
 )
 def test_keypoint_scale(keypoint, expected, scale):
-    actual = F.keypoint_scale(keypoint, scale, scale)
+    actual = FGeometric.keypoint_scale(keypoint, scale, scale)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
@@ -293,7 +272,7 @@ def test_keypoint_scale(keypoint, expected, scale):
     [[[50, 50, 0, 5], [120, 160, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
-    actual = F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
+    actual = FGeometric.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
     np.testing.assert_allclose(actual, expected, rtol=1e-4)
 
 

@@ -1,4 +1,6 @@
-FROM python:3.8.6
+FROM python:3.9.5
+
+RUN apt-get update -y && apt install libgl1-mesa-glx -y
 
 ENV DATA_DIR /images
 
