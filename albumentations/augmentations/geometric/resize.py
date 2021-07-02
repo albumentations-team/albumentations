@@ -1,5 +1,8 @@
-import cv2
 import random
+from typing import Dict, Sequence, Union
+
+import cv2
+import numpy as np
 
 from . import functional as F
 from ...core.transforms_interface import DualTransform, to_tuple
@@ -62,29 +65,37 @@ class LongestMaxSize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
+    def __init__(
+        self,
+        max_size: Union[int, Sequence[int]] = 1024,
+        interpolation: int = cv2.INTER_LINEAR,
+        always_apply: bool = False,
+        p: float = 1,
+    ):
         super(LongestMaxSize, self).__init__(always_apply, p)
         self.interpolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, max_size=1024, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params
+    ) -> np.ndarray:
         return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: Sequence[float], **params) -> Sequence[float]:
         # Bounding box coordinates are scale invariant
         return bbox
 
-    def apply_to_keypoint(self, keypoint, max_size=1024, **params):
+    def apply_to_keypoint(self, keypoint: Sequence[float], max_size: int = 1024, **params) -> Sequence[float]:
         height = params["rows"]
         width = params["cols"]
 
         scale = max_size / max([height, width])
         return F.keypoint_scale(keypoint, scale, scale)
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Sequence[str]:
         return ("max_size", "interpolation")
 
 
@@ -103,28 +114,36 @@ class SmallestMaxSize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, max_size=1024, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
+    def __init__(
+        self,
+        max_size: Union[int, Sequence[int]] = 1024,
+        interpolation: int = cv2.INTER_LINEAR,
+        always_apply: bool = False,
+        p: float = 1,
+    ):
         super(SmallestMaxSize, self).__init__(always_apply, p)
         self.interpolation = interpolation
         self.max_size = max_size
 
-    def apply(self, img, max_size=1024, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params
+    ) -> np.ndarray:
         return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: Sequence[float], **params) -> Sequence[float]:
         return bbox
 
-    def apply_to_keypoint(self, keypoint, max_size=1024, **params):
+    def apply_to_keypoint(self, keypoint: Sequence[float], max_size: int = 1024, **params) -> Sequence[float]:
         height = params["rows"]
         width = params["cols"]
 
         scale = max_size / min([height, width])
         return F.keypoint_scale(keypoint, scale, scale)
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Sequence[str]:
         return ("max_size", "interpolation")
 
 
