@@ -134,9 +134,8 @@ class BaseCompose:
                 f"cv2.INTER_LINEAR_EXACT, cv2.INTER_AREA, cv2.INTER_CUBIC, cv2.INTER_LANCZOS4, cv2.INTER_MAX"
             )
         for t in self.transforms:
-            if not isinstance(t, (DualTransform, BaseCompose)):
-                continue
-            t.set_mask_interpolation(mask_interpolation)
+            if isinstance(t, BaseCompose) or (isinstance(t, DualTransform) and t.mask_interpolation is None):
+                t.set_mask_interpolation(mask_interpolation)
 
 
 class Compose(BaseCompose):

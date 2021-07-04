@@ -204,7 +204,7 @@ class DualTransform(BasicTransform):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._mask_interpolation = cv2.INTER_NEAREST
+        self._mask_interpolation = None
 
     @property
     def targets(self):
@@ -215,6 +215,14 @@ class DualTransform(BasicTransform):
             "bboxes": self.apply_to_bboxes,
             "keypoints": self.apply_to_keypoints,
         }
+
+    @property
+    def mask_interpolation(self):
+        return self._mask_interpolation
+
+    @mask_interpolation.setter
+    def mask_interpolation(self, mask_interpolation):
+        self._mask_interpolation = mask_interpolation
 
     def set_mask_interpolation(self, mask_interpolation):
         self._mask_interpolation = mask_interpolation
@@ -233,9 +241,8 @@ class DualTransform(BasicTransform):
         return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
 
     def apply_to_mask(self, img, **params):
-        return self.apply(
-            img, **{k: self._mask_interpolation if k == "interpolation" else v for k, v in params.items()}
-        )
+        mask_interpolation = self.mask_interpolation if self.mask_interpolation is not None else cv2.INTER_NEAREST
+        return self.apply(img, **{k: mask_interpolation if k == "interpolation" else v for k, v in params.items()})
 
     def apply_to_masks(self, masks, **params):
         return [self.apply_to_mask(mask, **params) for mask in masks]
