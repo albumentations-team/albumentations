@@ -202,6 +202,10 @@ class BasicTransform:
 class DualTransform(BasicTransform):
     """Transform for segmentation task."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._mask_interpolation = cv2.INTER_NEAREST
+
     @property
     def targets(self):
         return {
@@ -211,6 +215,10 @@ class DualTransform(BasicTransform):
             "bboxes": self.apply_to_bboxes,
             "keypoints": self.apply_to_keypoints,
         }
+
+    def set_mask_interpolation(self, mask_interpolation):
+        self._mask_interpolation = mask_interpolation
+        return self
 
     def apply_to_bbox(self, bbox, **params):
         raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
@@ -225,7 +233,9 @@ class DualTransform(BasicTransform):
         return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
 
     def apply_to_mask(self, img, **params):
-        return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
+        return self.apply(
+            img, **{k: self._mask_interpolation if k == "interpolation" else v for k, v in params.items()}
+        )
 
     def apply_to_masks(self, masks, **params):
         return [self.apply_to_mask(mask, **params) for mask in masks]
