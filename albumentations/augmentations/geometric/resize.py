@@ -54,7 +54,8 @@ class LongestMaxSize(DualTransform):
     """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
-        max_size (int, list of int): maximum size of the image after the transformation.
+        max_size (int, list of int): maximum size of the image after the transformation. When using a list, max size
+            will be randomly selected from the values in the list.
         interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
 
@@ -103,7 +104,8 @@ class SmallestMaxSize(DualTransform):
     """Rescale an image so that minimum side is equal to max_size, keeping the aspect ratio of the initial image.
 
     Args:
-        max_size (int, list of int): maximum size of smallest side of the image after the transformation.
+        max_size (int, list of int): maximum size of smallest side of the image after the transformation. When using a
+            list, max size will be randomly selected from the values in the list.
         interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
         p (float): probability of applying the transform. Default: 1.
 
