@@ -774,7 +774,7 @@ class CropAndPad(DualTransform):
                 px = np.random.randint(*self.px)
                 params = [px] * 4
         else:
-            params = [i if isinstance(i, int) else np.random.randint(*i) for i in self.px]
+            params = [i if isinstance(i, int) else np.random.randint(*i) for i in self.px]  # type: ignore
 
         return params  # [top, right, bottom, left]
 
