@@ -233,20 +233,23 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         bbox, tail = bbox[:4], tuple(bbox[4:])
         _bbox = np.array(bbox[:4])
-        if np.any((_bbox <= 0) | (_bbox > 1)):
-            raise ValueError("In YOLO format all labels must be float and in range (0, 1]")
+        if check_validity and np.any((_bbox <= 0) | (_bbox > 1)):
+            raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
 
-        x, y, width, height = denormalize_bbox(bbox, rows, cols)
+        x, y, w, h = bbox
 
-        x_min = int(x - width / 2 + 1)
-        x_max = int(x_min + width)
-        y_min = int(y - height / 2 + 1)
-        y_max = int(y_min + height)
+        w_half, h_half = w / 2, h / 2
+        x_min = x - w_half
+        y_min = y - h_half
+        x_max = x_min + w
+        y_max = y_min + h
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
     bbox = (x_min, y_min, x_max, y_max) + tail
-    bbox = normalize_bbox(bbox, rows, cols)
+
+    if source_format != "yolo":
+        bbox = normalize_bbox(bbox, rows, cols)
     if check_validity:
         check_bbox(bbox)
     return bbox
@@ -280,20 +283,21 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
         )
     if check_validity:
         check_bbox(bbox)
-    bbox = denormalize_bbox(bbox, rows, cols)
+
+    if target_format != "yolo":
+        bbox = denormalize_bbox(bbox, rows, cols)
     if target_format == "coco":
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
         width = x_max - x_min
         height = y_max - y_min
         bbox = (x_min, y_min, width, height) + tail
     elif target_format == "yolo":
-        # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
-        x = int((x_min + x_max) / 2 - 1)
-        y = int((y_min + y_max) / 2 - 1)
-        width = x_max - x_min
-        height = y_max - y_min
-        bbox = normalize_bbox((x, y, width, height) + tail, rows, cols)
+        x = (x_min + x_max) / 2.0
+        y = (y_min + y_max) / 2.0
+        w = x_max - x_min
+        h = y_max - y_min
+        bbox = (x, y, w, h) + tail
     return bbox
 
 
