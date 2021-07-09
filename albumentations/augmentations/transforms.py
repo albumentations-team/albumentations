@@ -3001,7 +3001,7 @@ class Emboss(ImageOnlyTransform):
 
 
 class Superpixels(ImageOnlyTransform):
-    """Transform images parially/completely to their superpixel representation.
+    """Transform images partially/completely to their superpixel representation.
     This implementation uses skimage's version of the SLIC algorithm.
 
     Args:
