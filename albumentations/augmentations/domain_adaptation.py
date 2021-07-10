@@ -1,14 +1,14 @@
 import random
-from typing import List, Union, Tuple, Callable
+from typing import List, Union
 
 import cv2
 import numpy as np
-from qudida import DomainAdapter
 from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from qudida import DomainAdapter
 
-from .functional import clipped, preserve_shape, is_grayscale_image
+from .functional import clipped, preserve_shape
 from .utils import read_rgb_image
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 
@@ -83,10 +83,9 @@ def apply_histogram(img, reference_image, blend_ratio):
     return img
 
 
+@clipped
 @preserve_shape
-def adapt_pixel_distribution(
-    img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5
-) -> np.ndarray:
+def adapt_pixel_distribution(img: np.ndarray, ref: np.ndarray, transform_type="pca", weight=0.5):
     initial_type = img.dtype
     transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
     adapter = DomainAdapter(transformer=transformer, ref_img=ref)
@@ -223,84 +222,29 @@ class FDA(ImageOnlyTransform):
 
 
 class PixelDistributionAdaptation(ImageOnlyTransform):
-    """
-    Another naive and quick pixel-level domain adaptation. It fits a simple transform (such as PCA, StandardScaler
-    or MinMaxScaler) on both original and reference image, transforms original image with transform trained on this
-    image and then performs inverse transformation using transform fitted on reference image.
-
-    Args:
-        reference_images (List[str] or List(np.ndarray)): List of file paths for reference images
-            or list of reference images.
-        blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
-            with random blend factor for increased diversity of generated images.
-        read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
-            array of image pixels. Usually it's default `read_rgb_image` when images paths are used as reference,
-            otherwise it could be identity function `lambda x: x` if reference images have been read in advance.
-        transform_type (str): type of transform; "pca", "standard", "minmax" are allowed.
-        p (float): probability of applying the transform. Default: 1.0.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-
-    See also: https://github.com/arsenyinfo/qudida
-    """
-
     def __init__(
         self,
         reference_images: List[Union[str, np.ndarray]],
-        blend_ratio: Tuple[float, float] = (0.25, 1.0),
-        read_fn: Callable[[Union[str, np.ndarray]], np.ndarray] = read_rgb_image,
-        transform_type: str = "pca",
+        blend_ratio=(0.25, 1.0),
+        read_fn=read_rgb_image,
         always_apply=False,
         p=0.5,
+        transform_type="pca",
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
-        expected_transformers = ("pca", "standard", "minmax")
-        if transform_type not in expected_transformers:
-            raise ValueError(
-                f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}"
-            )
+        assert transform_type in ("pca", "standard", "minmax")
         self.transform_type = transform_type
 
-    @staticmethod
-    def _validate_shape(img: np.ndarray):
-        if is_grayscale_image(img):
-            raise ValueError(
-                f"Unexpected image shape: expected 3 dimensions, got {len(img.shape)}."
-                f"Is it a grayscale image? It's not supported for now."
-            )
-
-    def ensure_uint8(self, img: np.ndarray) -> Tuple[np.ndarray, bool]:
-        if img.dtype == np.float32:
-            if img.min() < 0 or img.max() > 1:
-                message = (
-                    "PixelDistributionAdaptation uses uint8 under the hood, so float32 shoukd be converted,"
-                    "Can not do it automatically when the image is out of [0..1] range."
-                )
-                raise TypeError(message)
-            return (img * 255).astype("uint8"), True
-        return img, False
-
     def apply(self, img, reference_image, blend_ratio, **params):
-        self._validate_shape(img)
-        reference_image, _ = self.ensure_uint8(reference_image)
-        img, needs_reconvert = self.ensure_uint8(img)
-
-        adapted = adapt_pixel_distribution(
+        return adapt_pixel_distribution(
             img=img,
             ref=reference_image,
             weight=blend_ratio,
             transform_type=self.transform_type,
         )
-        if needs_reconvert:
-            adapted = adapted.astype("float32") / 255
-        return adapted
 
     def get_params(self):
         return {
