@@ -1,17 +1,25 @@
-from typing import List, Union
 import random
+from typing import List, Union
 
 import cv2
 import numpy as np
-
-from ..core.transforms_interface import ImageOnlyTransform, to_tuple
-from .functional import clipped, preserve_shape
-
 from skimage.exposure import match_histograms
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from qudida import DomainAdapter
 
+from .functional import clipped, preserve_shape
 from .utils import read_rgb_image
+from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 
-__all__ = ["HistogramMatching", "FDA", "fourier_domain_adaptation"]
+__all__ = [
+    "HistogramMatching",
+    "FDA",
+    "PixelDistributionAdaptation",
+    "fourier_domain_adaptation",
+    "apply_histogram",
+    "adapt_pixel_distribution",
+]
 
 
 @clipped
@@ -73,6 +81,17 @@ def apply_histogram(img, reference_image, blend_ratio):
     matched = match_histograms(np.squeeze(img), np.squeeze(reference_image), multichannel=True)
     img = cv2.addWeighted(matched, blend_ratio, img, 1 - blend_ratio, 0)
     return img
+
+
+@clipped
+@preserve_shape
+def adapt_pixel_distribution(img: np.ndarray, ref: np.ndarray, transform_type="pca", weight=0.5):
+    initial_type = img.dtype
+    transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
+    adapter = DomainAdapter(transformer=transformer, ref_img=ref)
+    result = adapter(img).astype("float32")
+    blended = (img.astype("float32") * (1 - weight) + result * weight).astype(initial_type)
+    return blended
 
 
 class HistogramMatching(ImageOnlyTransform):
@@ -200,3 +219,41 @@ class FDA(ImageOnlyTransform):
 
     def _to_dict(self):
         raise NotImplementedError("FDA can not be serialized.")
+
+
+class PixelDistributionAdaptation(ImageOnlyTransform):
+    def __init__(
+        self,
+        reference_images: List[Union[str, np.ndarray]],
+        blend_ratio=(0.25, 1.0),
+        read_fn=read_rgb_image,
+        always_apply=False,
+        p=0.5,
+        transform_type="pca",
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+        self.reference_images = reference_images
+        self.read_fn = read_fn
+        self.blend_ratio = blend_ratio
+        assert transform_type in ("pca", "standard", "minmax")
+        self.transform_type = transform_type
+
+    def apply(self, img, reference_image, blend_ratio, **params):
+        return adapt_pixel_distribution(
+            img=img,
+            ref=reference_image,
+            weight=blend_ratio,
+            transform_type=self.transform_type,
+        )
+
+    def get_params(self):
+        return {
+            "reference_image": self.read_fn(random.choice(self.reference_images)),
+            "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
+        }
+
+    def get_transform_init_args_names(self):
+        return ("reference_images", "blend_ratio", "read_fn", "transform_type")
+
+    def _to_dict(self):
+        raise NotImplementedError("PixelDistributionAdaptation can not be serialized.")

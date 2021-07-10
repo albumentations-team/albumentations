@@ -5,26 +5,146 @@ import cv2
 import numpy as np
 import pytest
 
-import albumentations as A
+from albumentations import (
+    RandomCrop,
+    PadIfNeeded,
+    VerticalFlip,
+    HorizontalFlip,
+    Flip,
+    Transpose,
+    RandomRotate90,
+    Rotate,
+    SafeRotate,
+    ShiftScaleRotate,
+    CenterCrop,
+    OpticalDistortion,
+    GridDistortion,
+    ElasticTransform,
+    RandomGridShuffle,
+    ToGray,
+    RandomGamma,
+    ImageCompression,
+    HueSaturationValue,
+    RGBShift,
+    Blur,
+    MotionBlur,
+    MedianBlur,
+    GaussianBlur,
+    GaussNoise,
+    CLAHE,
+    ChannelShuffle,
+    InvertImg,
+    Cutout,
+    CoarseDropout,
+    Normalize,
+    ToFloat,
+    FromFloat,
+    RandomBrightnessContrast,
+    RandomSnow,
+    RandomRain,
+    RandomFog,
+    RandomSunFlare,
+    RandomCropNearBBox,
+    RandomShadow,
+    RandomSizedCrop,
+    RandomResizedCrop,
+    RandomToneCurve,
+    ChannelDropout,
+    ISONoise,
+    Solarize,
+    Posterize,
+    Equalize,
+    CropNonEmptyMaskIfExists,
+    LongestMaxSize,
+    Downscale,
+    MultiplicativeNoise,
+    GridDropout,
+    ColorJitter,
+    FDA,
+    HistogramMatching,
+    PixelDistributionAdaptation,
+    Perspective,
+    Sharpen,
+    Emboss,
+    CropAndPad,
+    Superpixels,
+    Affine,
+    PiecewiseAffine,
+    Compose,
+)
 
-from .utils import get_image_only_transforms, get_dual_transforms, get_transforms
-
+DOMAIN_ADAPTATION_AUGMENTATIONS = [
+    [
+        HistogramMatching,
+        {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+    ],
+    [
+        FDA,
+        {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)], "read_fn": lambda x: x},
+    ],
+    [
+        PixelDistributionAdaptation,
+        {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+         "read_fn": lambda x: x,
+         "transform_type": "pca",
+         },
+    ],
+    [
+        PixelDistributionAdaptation,
+        {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+         "read_fn": lambda x: x,
+         "transform_type": "minmax",
+         },
+    ],
+    [
+        PixelDistributionAdaptation,
+        {"reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+         "read_fn": lambda x: x,
+         "transform_type": "standard",
+         },
+    ],
+]
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_image_only_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-        },
-        except_augmentations={A.FromFloat, A.Normalize, A.ToFloat},
-    ),
+    [
+        [ImageCompression, {}],
+        [HueSaturationValue, {}],
+        [RGBShift, {}],
+        [RandomBrightnessContrast, {}],
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {}],
+        [GaussianBlur, {}],
+        [GaussNoise, {}],
+        [CLAHE, {}],
+        [ChannelShuffle, {}],
+        [InvertImg, {}],
+        [RandomGamma, {}],
+        [ToGray, {}],
+        [Cutout, {}],
+        [CoarseDropout, {}],
+        [GaussNoise, {}],
+        [RandomSnow, {}],
+        [RandomRain, {}],
+        [RandomFog, {}],
+        [RandomSunFlare, {}],
+        [RandomShadow, {}],
+        [RandomToneCurve, {}],
+        [ChannelDropout, {}],
+        [ISONoise, {}],
+        [Solarize, {}],
+        [Posterize, {}],
+        [Equalize, {}],
+        [Downscale, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [ColorJitter, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [Superpixels, {}],
+        *DOMAIN_ADAPTATION_AUGMENTATIONS,
+    ],
 )
 def test_image_only_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -36,28 +156,38 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_image_only_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.MedianBlur: {"blur_limit": (3, 5)},
-        },
-        except_augmentations={
-            A.CLAHE,
-            A.Equalize,
-            A.FancyPCA,
-            A.FromFloat,
-            A.ISONoise,
-            A.Posterize,
-            A.RandomToneCurve,
-        },
-    ),
+    [
+        [HueSaturationValue, {}],
+        [RGBShift, {}],
+        [RandomBrightnessContrast, {}],
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {"blur_limit": (3, 5)}],
+        [GaussianBlur, {}],
+        [GaussNoise, {}],
+        [ChannelShuffle, {}],
+        [InvertImg, {}],
+        [RandomGamma, {}],
+        [ImageCompression, {}],
+        [ToGray, {}],
+        [Cutout, {}],
+        [CoarseDropout, {}],
+        [GaussNoise, {}],
+        [RandomSnow, {}],
+        [RandomRain, {}],
+        [RandomFog, {}],
+        [RandomSunFlare, {}],
+        [RandomShadow, {}],
+        [ChannelDropout, {}],
+        [Solarize, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [ColorJitter, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [Superpixels, {}],
+        *DOMAIN_ADAPTATION_AUGMENTATIONS,
+    ],
 )
 def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -69,19 +199,33 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_dual_transforms(
-        custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-        },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
-    ),
+    [
+        [PadIfNeeded, {}],
+        [VerticalFlip, {}],
+        [HorizontalFlip, {}],
+        [Flip, {}],
+        [Transpose, {}],
+        [RandomRotate90, {}],
+        [Rotate, {}],
+        [SafeRotate, {}],
+        [CoarseDropout, {"fill_value": 0, "mask_fill_value": 0}],
+        [ShiftScaleRotate, {}],
+        [OpticalDistortion, {}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [CenterCrop, {"height": 10, "width": 10}],
+        [RandomCrop, {"height": 10, "width": 10}],
+        [CropNonEmptyMaskIfExists, {"height": 10, "width": 10}],
+        [RandomResizedCrop, {"height": 10, "width": 10}],
+        [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
+        [ISONoise, {}],
+        [RandomGridShuffle, {}],
+        [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+    ],
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -92,19 +236,31 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_dual_transforms(
-        custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-        },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
-    ),
+    [
+        [PadIfNeeded, {}],
+        [VerticalFlip, {}],
+        [HorizontalFlip, {}],
+        [Flip, {}],
+        [Transpose, {}],
+        [RandomRotate90, {}],
+        [Rotate, {}],
+        [SafeRotate, {}],
+        [ShiftScaleRotate, {}],
+        [OpticalDistortion, {}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [CenterCrop, {"height": 10, "width": 10}],
+        [RandomCrop, {"height": 10, "width": 10}],
+        [CropNonEmptyMaskIfExists, {"height": 10, "width": 10}],
+        [RandomResizedCrop, {"height": 10, "width": 10}],
+        [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
+        [RandomGridShuffle, {}],
+        [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+    ],
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -115,27 +271,70 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-        },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
-    ),
+    [
+        [Cutout, {}],
+        [ImageCompression, {}],
+        [HueSaturationValue, {}],
+        [RGBShift, {}],
+        [RandomBrightnessContrast, {}],
+        [RandomBrightnessContrast, {}],
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {}],
+        [GaussianBlur, {}],
+        [GaussNoise, {}],
+        [CLAHE, {}],
+        [ChannelShuffle, {}],
+        [InvertImg, {}],
+        [RandomGamma, {}],
+        [ToGray, {}],
+        [Cutout, {}],
+        [CoarseDropout, {}],
+        [PadIfNeeded, {}],
+        [VerticalFlip, {}],
+        [HorizontalFlip, {}],
+        [Flip, {}],
+        [Transpose, {}],
+        [RandomRotate90, {}],
+        [Rotate, {}],
+        [SafeRotate, {}],
+        [ShiftScaleRotate, {}],
+        [OpticalDistortion, {}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [CenterCrop, {"height": 10, "width": 10}],
+        [RandomCrop, {"height": 10, "width": 10}],
+        [CropNonEmptyMaskIfExists, {"height": 10, "width": 10}],
+        [RandomResizedCrop, {"height": 10, "width": 10}],
+        [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
+        [Normalize, {}],
+        [GaussNoise, {}],
+        [ToFloat, {}],
+        [FromFloat, {}],
+        [RandomSnow, {}],
+        [RandomRain, {}],
+        [RandomFog, {}],
+        [RandomSunFlare, {}],
+        [RandomShadow, {}],
+        [RandomToneCurve, {}],
+        [ChannelDropout, {}],
+        [ISONoise, {}],
+        [RandomGridShuffle, {}],
+        [Solarize, {}],
+        [Posterize, {}],
+        [Equalize, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [ColorJitter, {}],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+        *DOMAIN_ADAPTATION_AUGMENTATIONS,
+    ],
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
@@ -148,39 +347,62 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.MedianBlur: {"blur_limit": (3, 5)},
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-        },
-        except_augmentations={
-            A.CLAHE,
-            A.Equalize,
-            A.FancyPCA,
-            A.ISONoise,
-            A.Posterize,
-            A.RandomToneCurve,
-            A.RandomCropNearBBox,
-            A.RandomSizedBBoxSafeCrop,
-            A.CropNonEmptyMaskIfExists,
-            A.MaskDropout,
-        },
-    ),
+    [
+        [Cutout, {}],
+        [CoarseDropout, {}],
+        [HueSaturationValue, {}],
+        [RGBShift, {}],
+        [RandomBrightnessContrast, {}],
+        [RandomBrightnessContrast, {}],
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {"blur_limit": (3, 5)}],
+        [GaussianBlur, {}],
+        [GaussNoise, {}],
+        [ChannelShuffle, {}],
+        [InvertImg, {}],
+        [RandomGamma, {}],
+        [ToGray, {}],
+        [PadIfNeeded, {}],
+        [VerticalFlip, {}],
+        [HorizontalFlip, {}],
+        [Flip, {}],
+        [Transpose, {}],
+        [RandomRotate90, {}],
+        [Rotate, {}],
+        [SafeRotate, {}],
+        [ShiftScaleRotate, {}],
+        [OpticalDistortion, {}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [CenterCrop, {"height": 10, "width": 10}],
+        [RandomCrop, {"height": 10, "width": 10}],
+        [RandomResizedCrop, {"height": 10, "width": 10}],
+        [RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
+        [Normalize, {}],
+        [GaussNoise, {}],
+        [ToFloat, {}],
+        [FromFloat, {}],
+        [RandomSnow, {}],
+        [RandomRain, {}],
+        [RandomFog, {}],
+        [RandomSunFlare, {}],
+        [RandomShadow, {}],
+        [ChannelDropout, {}],
+        [RandomGridShuffle, {}],
+        [Solarize, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [ColorJitter, {}],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+        *DOMAIN_ADAPTATION_AUGMENTATIONS,
+    ],
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
@@ -191,46 +413,49 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.Normalize: {"mean": 0, "std": 1},
-        },
-        except_augmentations={
-            A.ChannelDropout,
-            A.ChannelShuffle,
-            A.FancyPCA,
-            A.ISONoise,
-            A.RandomCropNearBBox,
-            A.RandomSizedBBoxSafeCrop,
-            A.CenterCrop,
-            A.Crop,
-            A.CropNonEmptyMaskIfExists,
-            A.RandomCrop,
-            A.RandomResizedCrop,
-            A.RandomSizedCrop,
-            A.CropAndPad,
-            A.Resize,
-            A.LongestMaxSize,
-            A.SmallestMaxSize,
-            A.PadIfNeeded,
-            A.RGBShift,
-            A.RandomFog,
-            A.RandomRain,
-            A.RandomScale,
-            A.RandomShadow,
-            A.RandomSnow,
-            A.RandomSunFlare,
-            A.ToSepia,
-        },
-    ),
+    [
+        [Cutout, {}],
+        [CoarseDropout, {}],
+        [ImageCompression, {}],
+        [RandomBrightnessContrast, {}],
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {}],
+        [GaussianBlur, {}],
+        [GaussNoise, {}],
+        [InvertImg, {}],
+        [RandomGamma, {}],
+        [VerticalFlip, {}],
+        [HorizontalFlip, {}],
+        [Flip, {}],
+        [Transpose, {}],
+        [RandomRotate90, {}],
+        [Rotate, {}],
+        [SafeRotate, {}],
+        [OpticalDistortion, {}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [GaussNoise, {}],
+        [ToFloat, {}],
+        [FromFloat, {}],
+        [RandomGridShuffle, {}],
+        [RandomToneCurve, {}],
+        [Solarize, {}],
+        [Posterize, {}],
+        [Equalize, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [HueSaturationValue, {}],
+        [ColorJitter, {}],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+        *DOMAIN_ADAPTATION_AUGMENTATIONS,
+    ],
 )
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -253,34 +478,61 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-        },
-        except_augmentations={
-            A.RandomCropNearBBox,
-            A.RandomSizedBBoxSafeCrop,
-            A.CenterCrop,
-            A.Crop,
-            A.CropNonEmptyMaskIfExists,
-            A.RandomCrop,
-            A.RandomResizedCrop,
-            A.RandomSizedCrop,
-            A.CropAndPad,
-            A.Resize,
-            A.LongestMaxSize,
-            A.SmallestMaxSize,
-            A.PadIfNeeded,
-            A.RandomScale,
-        },
-    ),
+    [
+        [Cutout, {}],
+        [CoarseDropout, {}],
+        [ImageCompression, {}],
+        [HueSaturationValue, {}],
+        [RGBShift, {}],
+        [RandomBrightnessContrast, {}],
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {}],
+        [GaussianBlur, {}],
+        [GaussNoise, {}],
+        [CLAHE, {}],
+        [ChannelShuffle, {}],
+        [InvertImg, {}],
+        [RandomGamma, {}],
+        [ToGray, {}],
+        [VerticalFlip, {}],
+        [HorizontalFlip, {}],
+        [Flip, {}],
+        [Transpose, {}],
+        [RandomRotate90, {}],
+        [Rotate, {}],
+        [SafeRotate, {}],
+        [OpticalDistortion, {}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [Normalize, {}],
+        [GaussNoise, {}],
+        [ToFloat, {}],
+        [FromFloat, {}],
+        [RandomSnow, {}],
+        [RandomRain, {}],
+        [RandomFog, {}],
+        [RandomSunFlare, {}],
+        [RandomShadow, {}],
+        [ChannelDropout, {}],
+        [ISONoise, {}],
+        [RandomGridShuffle, {}],
+        [RandomToneCurve, {}],
+        [Solarize, {}],
+        [Posterize, {}],
+        [Equalize, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [ColorJitter, {}],
+        [Perspective, {}],
+        [Sharpen, {}],
+        [Emboss, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+        *DOMAIN_ADAPTATION_AUGMENTATIONS,
+    ],
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
@@ -294,7 +546,7 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, ma
     assert np.array_equal(mask_3ch.shape, result["mask"].shape)
 
 
-@pytest.mark.parametrize(["augmentation_cls", "params"], [[A.RandomCropNearBBox, {"max_part_shift": 0.15}]])
+@pytest.mark.parametrize(["augmentation_cls", "params"], [[RandomCropNearBBox, {"max_part_shift": 0.15}]])
 def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
@@ -306,17 +558,17 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     ["augmentation_cls", "params"],
     [
         [
-            A.PadIfNeeded,
+            PadIfNeeded,
             {"min_height": 514, "min_width": 514, "border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
         ],
-        [A.Rotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.SafeRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.ShiftScaleRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.OpticalDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.ElasticTransform, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
-        [A.PiecewiseAffine, {"mode": "constant", "cval_mask": 1, "cval": 100}],
+        [Rotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [SafeRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [ShiftScaleRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [OpticalDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [ElasticTransform, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
+        [PiecewiseAffine, {"mode": "constant", "cval_mask": 1, "cval": 100}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
@@ -330,51 +582,32 @@ def test_mask_fill_value(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-        },
-        except_augmentations={
-            A.CLAHE,
-            A.ColorJitter,
-            A.CropNonEmptyMaskIfExists,
-            A.FromFloat,
-            A.HueSaturationValue,
-            A.ISONoise,
-            A.ImageCompression,
-            A.MaskDropout,
-            A.Normalize,
-            A.RGBShift,
-            A.RandomCropNearBBox,
-            A.RandomFog,
-            A.RandomRain,
-            A.RandomShadow,
-            A.RandomSizedBBoxSafeCrop,
-            A.RandomSnow,
-            A.RandomSunFlare,
-            A.ToFloat,
-            A.ToGray,
-            A.ToSepia,
-            A.FancyPCA,
-        },
-    ),
+    [
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {}],
+        [GaussianBlur, {}],
+        [GaussNoise, {}],
+        [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
+        [ShiftScaleRotate, {}],
+        [SafeRotate, {}],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}],
+        [LongestMaxSize, {"max_size": 256}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [RandomBrightnessContrast, {}],
+        [RandomToneCurve, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+    ],
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
-    image = np.zeros((100, 100, 6), dtype=np.uint8)
+    image = np.zeros((512, 512, 6), dtype=np.uint8)
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image)
     assert data["image"].dtype == np.uint8
@@ -383,102 +616,33 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.Normalize: {"mean": 0, "std": 1},
-            A.MedianBlur: {"blur_limit": (3, 5)},
-        },
-        except_augmentations={
-            A.CLAHE,
-            A.ColorJitter,
-            A.CropNonEmptyMaskIfExists,
-            A.FromFloat,
-            A.HueSaturationValue,
-            A.ISONoise,
-            A.ImageCompression,
-            A.MaskDropout,
-            A.RGBShift,
-            A.RandomCropNearBBox,
-            A.RandomFog,
-            A.RandomRain,
-            A.RandomShadow,
-            A.RandomSizedBBoxSafeCrop,
-            A.RandomSnow,
-            A.RandomSunFlare,
-            A.ToGray,
-            A.ToSepia,
-            A.Equalize,
-            A.FancyPCA,
-            A.Posterize,
-            A.RandomToneCurve,
-        },
-    ),
-)
-def test_float_multichannel_image_augmentations(augmentation_cls, params):
-    image = np.zeros((100, 100, 6), dtype=np.float32)
-    aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
-    assert data["image"].dtype == np.float32
-    assert data["image"].shape[2] == 6
-
-
-@pytest.mark.parametrize(
-    ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-        },
-        except_augmentations={
-            A.CLAHE,
-            A.ColorJitter,
-            A.CropNonEmptyMaskIfExists,
-            A.FromFloat,
-            A.HueSaturationValue,
-            A.ISONoise,
-            A.ImageCompression,
-            A.MaskDropout,
-            A.Normalize,
-            A.RGBShift,
-            A.RandomCropNearBBox,
-            A.RandomFog,
-            A.RandomRain,
-            A.RandomShadow,
-            A.RandomSizedBBoxSafeCrop,
-            A.RandomSnow,
-            A.RandomSunFlare,
-            A.ToFloat,
-            A.ToGray,
-            A.ToSepia,
-            A.FancyPCA,
-            A.FDA,
-            A.HistogramMatching,
-        },
-    ),
+    [
+        [Blur, {}],
+        [MotionBlur, {}],
+        [MedianBlur, {"blur_limit": [7, 7]}],
+        [GaussianBlur, {"blur_limit": [7, 7]}],
+        [GaussNoise, {}],
+        [RandomSizedCrop, {"min_max_height": (384, 512), "height": 512, "width": 512}],
+        [ShiftScaleRotate, {}],
+        [SafeRotate, {}],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}],
+        [LongestMaxSize, {"max_size": 256}],
+        [GridDistortion, {}],
+        [ElasticTransform, {}],
+        [RandomBrightnessContrast, {}],
+        [RandomToneCurve, {}],
+        [MultiplicativeNoise, {}],
+        [GridDropout, {}],
+        [Perspective, {}],
+        [CropAndPad, {"px": 10}],
+        [Superpixels, {}],
+        [Affine, {}],
+        [PiecewiseAffine, {}],
+    ],
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
     for num_channels in range(3, 13):
-        image = np.zeros((100, 100, num_channels), dtype=np.uint8)
+        image = np.zeros((512, 512, num_channels), dtype=np.uint8)
         aug = augmentation_cls(p=1, **params)
         data = aug(image=image)
         assert data["image"].dtype == np.uint8
@@ -486,92 +650,41 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
 
 
 @pytest.mark.parametrize(
-    ["augmentation_cls", "params"],
-    get_transforms(
-        custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
-            A.CenterCrop: {"height": 10, "width": 10},
-            A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
-            A.CropAndPad: {"px": 10},
-            A.Resize: {"height": 10, "width": 10},
-            A.Normalize: {"mean": 0, "std": 1},
-            A.MedianBlur: {"blur_limit": (3, 5)},
-        },
-        except_augmentations={
-            A.CLAHE,
-            A.ColorJitter,
-            A.CropNonEmptyMaskIfExists,
-            A.FromFloat,
-            A.HueSaturationValue,
-            A.ISONoise,
-            A.ImageCompression,
-            A.MaskDropout,
-            A.RGBShift,
-            A.RandomCropNearBBox,
-            A.RandomFog,
-            A.RandomRain,
-            A.RandomShadow,
-            A.RandomSizedBBoxSafeCrop,
-            A.RandomSnow,
-            A.RandomSunFlare,
-            A.ToGray,
-            A.ToSepia,
-            A.Equalize,
-            A.FancyPCA,
-            A.Posterize,
-            A.RandomToneCurve,
-            A.FDA,
-            A.HistogramMatching,
-        },
-    ),
-)
-def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
-    for num_channels in range(3, 13):
-        image = np.zeros((100, 100, num_channels), dtype=np.float32)
-        aug = augmentation_cls(p=1, **params)
-        data = aug(image=image)
-        assert data["image"].dtype == np.float32
-        assert data["image"].shape[2] == num_channels
-
-
-@pytest.mark.parametrize(
     ["augmentation_cls", "params", "image_shape"],
     [
-        [A.PadIfNeeded, {"min_height": 514, "min_width": 516}, (300, 200)],
-        [A.PadIfNeeded, {"min_height": 514, "min_width": 516}, (512, 516)],
-        [A.PadIfNeeded, {"min_height": 514, "min_width": 516}, (600, 600)],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (300, 200)],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (512, 516)],
+        [PadIfNeeded, {"min_height": 514, "min_width": 516}, (600, 600)],
         [
-            A.PadIfNeeded,
+            PadIfNeeded,
             {"min_height": None, "min_width": None, "pad_height_divisor": 128, "pad_width_divisor": 128},
             (300, 200),
         ],
         [
-            A.PadIfNeeded,
+            PadIfNeeded,
             {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (72, 128),
         ],
         [
-            A.PadIfNeeded,
+            PadIfNeeded,
             {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (15, 15),
         ],
         [
-            A.PadIfNeeded,
+            PadIfNeeded,
             {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (144, 256),
         ],
         [
-            A.PadIfNeeded,
+            PadIfNeeded,
             {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
             (200, 300),
         ],
-        [A.PadIfNeeded, {"min_height": 512, "min_width": None, "pad_width_divisor": 128}, (300, 200)],
-        [A.PadIfNeeded, {"min_height": None, "min_width": 512, "pad_height_divisor": 128}, (300, 200)],
+        [PadIfNeeded, {"min_height": 512, "min_width": None, "pad_width_divisor": 128}, (300, 200)],
+        [PadIfNeeded, {"min_height": None, "min_width": 512, "pad_height_divisor": 128}, (300, 200)],
     ],
 )
-def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, image_shape: Tuple[int, int]):
+def test_pad_if_needed(augmentation_cls: Type[PadIfNeeded], params: Dict, image_shape: Tuple[int, int]):
     image = np.zeros(image_shape)
     pad = augmentation_cls(**params)
 
@@ -606,7 +719,7 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, imag
 )
 def test_pad_if_needed_position(params, image_shape):
     image = np.zeros(image_shape)
-    pad = A.PadIfNeeded(**params)
+    pad = PadIfNeeded(**params)
     image_padded = pad(image=image)["image"]
 
     true_result = np.ones((max(image_shape[0], params["min_height"]), max(image_shape[1], params["min_width"])))
@@ -665,7 +778,7 @@ def test_pad_if_needed_position(params, image_shape):
 )
 def test_perspective_order_points(points):
     points = np.array(points)
-    res = A.Perspective._order_points(points)
+    res = Perspective._order_points(points)
     assert len(points) == len(np.unique(res, axis=0))
 
 
@@ -689,8 +802,8 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
         [w - 1, 0],
     ]
 
-    transform = A.Compose(
-        [A.Perspective(scale=(scale, scale), p=1)], keypoint_params={"format": "xy", "remove_invisible": False}
+    transform = Compose(
+        [Perspective(scale=(scale, scale), p=1)], keypoint_params={"format": "xy", "remove_invisible": False}
     )
 
     res = transform(image=image, keypoints=keypoints)["keypoints"]
