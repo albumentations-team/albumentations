@@ -8,7 +8,7 @@ from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from .functional import clipped, preserve_shape
+from .functional import clipped, preserve_shape, is_grayscale_image
 from .utils import read_rgb_image
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 
@@ -234,9 +234,10 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
             with random blend factor for increased diversity of generated images.
         read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
-            array of image pixels.
-        p (float): probability of applying the transform. Default: 1.0.
+            array of image pixels. Usually it's default `read_rgb_image` when images paths are used as reference,
+            otherwise it could be identity function `lambda x: x` if reference images have been read in advance.
         transform_type (str): type of transform; "pca", "standard", "minmax" are allowed.
+        p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
         image
@@ -252,20 +253,24 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         reference_images: List[Union[str, np.ndarray]],
         blend_ratio: Tuple[float, float] = (0.25, 1.0),
         read_fn: Callable[[Union[str, np.ndarray]], np.ndarray] = read_rgb_image,
+        transform_type: str = "pca",
         always_apply=False,
         p=0.5,
-        transform_type: str = "pca",
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
-        assert transform_type in ("pca", "standard", "minmax")
+        expected_transformers = ("pca", "standard", "minmax")
+        if transform_type not in expected_transformers:
+            raise ValueError(
+                f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}"
+            )
         self.transform_type = transform_type
 
     @staticmethod
     def _validate_shape(img: np.ndarray):
-        if len(img.shape) != 3:
+        if is_grayscale_image(img):
             raise ValueError(
                 f"Unexpected image shape: expected 3 dimensions, got {len(img.shape)}."
                 f"Is it a grayscale image? It's not supported for now."
@@ -273,6 +278,12 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     def ensure_uint8(self, img: np.ndarray) -> Tuple[np.ndarray, bool]:
         if img.dtype == np.float32:
+            if img.min() < 0 or img.max() > 1:
+                message = (
+                    "PixelDistributionAdaptation uses uint8 under the hood, so float32 shoukd be converted,"
+                    "Can not do it automatically when the image is out of [0..1] range."
+                )
+                raise TypeError(message)
             return (img * 255).astype("uint8"), True
         return img, False
 
