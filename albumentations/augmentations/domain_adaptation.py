@@ -269,11 +269,6 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
                 f"Is it a grayscale image? It's not supported for now."
             )
 
-    @staticmethod
-    def _validate_dtypes(img, ref_img):
-        if not img.dtype == ref_img.dtype:
-            raise TypeError(f"Types should match for image and reference image, got {img.dtype, ref_img.dtype}")
-
     def ensure_uint8(self, img):
         if img.dtype == np.float32:
             return (img * 255).astype("uint8"), True
@@ -281,11 +276,8 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     def apply(self, img, reference_image, blend_ratio, **params):
         self._validate_shape(img)
-        self._validate_shape(reference_image)
-        self._validate_dtypes(img, reference_image)
-
-        img, needs_reconvert = self.ensure_uint8(img)
         reference_image, _ = self.ensure_uint8(reference_image)
+        img, needs_reconvert = self.ensure_uint8(img)
 
         adapted = adapt_pixel_distribution(
             img=img,
