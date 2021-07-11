@@ -249,7 +249,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         self,
         reference_images: List[Union[str, np.ndarray]],
         blend_ratio: Tuple[float, float] = (0.25, 1.0),
-        read_fn: Callable[[...], np.ndarray] = read_rgb_image,
+        read_fn: Callable[[Union[str, np.ndarray]], np.ndarray] = read_rgb_image,
         always_apply=False,
         p=0.5,
         transform_type: str = "pca",
