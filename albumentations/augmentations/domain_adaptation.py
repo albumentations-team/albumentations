@@ -3,10 +3,10 @@ from typing import List, Union
 
 import cv2
 import numpy as np
+from qudida import DomainAdapter
 from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from qudida import DomainAdapter
 
 from .functional import clipped, preserve_shape
 from .utils import read_rgb_image
@@ -83,7 +83,6 @@ def apply_histogram(img, reference_image, blend_ratio):
     return img
 
 
-@clipped
 @preserve_shape
 def adapt_pixel_distribution(img: np.ndarray, ref: np.ndarray, transform_type="pca", weight=0.5):
     initial_type = img.dtype
@@ -222,6 +221,30 @@ class FDA(ImageOnlyTransform):
 
 
 class PixelDistributionAdaptation(ImageOnlyTransform):
+    """
+    Another naive and quick pixel-level domain adaptation. It fits a simple transform (such as PCA, StandardScaler
+    or MinMaxScaler) on both original and reference image, transforms original image with transform trained on this
+    image and then performs inverse transformation using transform fitted on reference image.
+
+    Args:
+        reference_images (List[str] or List(np.ndarray)): List of file paths for reference images
+            or list of reference images.
+        blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
+            with random blend factor for increased diversity of generated images.
+        read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
+            array of image pixels.
+        p (float): probability of applying the transform. Default: 1.0.
+        transform_type (str): type of transform; "pca", "standard", "minmax" are allowed.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    See also: https://github.com/arsenyinfo/qudida
+    """
+
     def __init__(
         self,
         reference_images: List[Union[str, np.ndarray]],
@@ -238,13 +261,41 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         assert transform_type in ("pca", "standard", "minmax")
         self.transform_type = transform_type
 
+    @staticmethod
+    def _validate_shape(img):
+        if len(img.shape) != 3:
+            raise ValueError(
+                f"Unexpected image shape: expected 3 dimensions, got {len(img.shape)}."
+                f"Is it a grayscale image? It's not supported for now."
+            )
+
+    @staticmethod
+    def _validate_dtypes(img, ref_img):
+        if not img.dtype == ref_img.dtype:
+            raise TypeError(f"Types should match for image and reference image, got {img.dtype, ref_img.dtype}")
+
+    def ensure_uint8(self, img):
+        if img.dtype == np.float32:
+            return (img * 255).astype("uint8"), True
+        return img, False
+
     def apply(self, img, reference_image, blend_ratio, **params):
-        return adapt_pixel_distribution(
+        self._validate_shape(img)
+        self._validate_shape(reference_image)
+        self._validate_dtypes(img, reference_image)
+
+        img, needs_reconvert = self.ensure_uint8(img)
+        reference_image, _ = self.ensure_uint8(reference_image)
+
+        adapted = adapt_pixel_distribution(
             img=img,
             ref=reference_image,
             weight=blend_ratio,
             transform_type=self.transform_type,
         )
+        if needs_reconvert:
+            adapted = adapted.astype("float32") / 255
+        return adapted
 
     def get_params(self):
         return {
