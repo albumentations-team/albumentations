@@ -1,5 +1,5 @@
 import random
-from typing import List, Union
+from typing import List, Union, Tuple, Callable
 
 import cv2
 import numpy as np
@@ -84,7 +84,7 @@ def apply_histogram(img, reference_image, blend_ratio):
 
 
 @preserve_shape
-def adapt_pixel_distribution(img: np.ndarray, ref: np.ndarray, transform_type="pca", weight=0.5):
+def adapt_pixel_distribution(img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5):
     initial_type = img.dtype
     transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
     adapter = DomainAdapter(transformer=transformer, ref_img=ref)
@@ -248,11 +248,11 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     def __init__(
         self,
         reference_images: List[Union[str, np.ndarray]],
-        blend_ratio=(0.25, 1.0),
-        read_fn=read_rgb_image,
+        blend_ratio: Tuple[float, float] = (0.25, 1.0),
+        read_fn: Callable[[...], np.ndarray] = read_rgb_image,
         always_apply=False,
         p=0.5,
-        transform_type="pca",
+        transform_type: str = "pca",
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
@@ -262,19 +262,19 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         self.transform_type = transform_type
 
     @staticmethod
-    def _validate_shape(img):
+    def _validate_shape(img: np.ndarray):
         if len(img.shape) != 3:
             raise ValueError(
                 f"Unexpected image shape: expected 3 dimensions, got {len(img.shape)}."
                 f"Is it a grayscale image? It's not supported for now."
             )
 
-    def ensure_uint8(self, img):
+    def ensure_uint8(self, img: np.ndarray):
         if img.dtype == np.float32:
             return (img * 255).astype("uint8"), True
         return img, False
 
-    def apply(self, img, reference_image, blend_ratio, **params):
+    def apply(self, img: np.ndarray, reference_image: np.ndarray, blend_ratio: float, **params):
         self._validate_shape(img)
         reference_image, _ = self.ensure_uint8(reference_image)
         img, needs_reconvert = self.ensure_uint8(img)
