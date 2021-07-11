@@ -84,7 +84,9 @@ def apply_histogram(img, reference_image, blend_ratio):
 
 
 @preserve_shape
-def adapt_pixel_distribution(img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5):
+def adapt_pixel_distribution(
+    img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5
+) -> np.ndarray:
     initial_type = img.dtype
     transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
     adapter = DomainAdapter(transformer=transformer, ref_img=ref)
@@ -269,12 +271,12 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
                 f"Is it a grayscale image? It's not supported for now."
             )
 
-    def ensure_uint8(self, img: np.ndarray):
+    def ensure_uint8(self, img: np.ndarray) -> Tuple[np.ndarray, bool]:
         if img.dtype == np.float32:
             return (img * 255).astype("uint8"), True
         return img, False
 
-    def apply(self, img: np.ndarray, reference_image: np.ndarray, blend_ratio: float, **params):
+    def apply(self, img, reference_image, blend_ratio, **params):
         self._validate_shape(img)
         reference_image, _ = self.ensure_uint8(reference_image)
         img, needs_reconvert = self.ensure_uint8(img)
