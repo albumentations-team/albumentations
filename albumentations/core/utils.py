@@ -4,6 +4,24 @@ from abc import ABCMeta, abstractmethod
 from ..core.six import string_types, add_metaclass
 
 import numpy as np
+from typing import Any, Tuple
+
+
+def get_shape(img: Any) -> Tuple[int, int]:
+    if isinstance(img, np.ndarray):
+        return img.shape[:2]
+
+    try:
+        import torch
+
+        if torch.is_tensor(img):
+            return img.shape[-2:]
+    except ImportError:
+        pass
+
+    raise RuntimeError(
+        f"Albumentations supports only numpy.ndarray and torch.Tensor data type for image. Got: {type(img)}"
+    )
 
 
 def format_args(args_dict):
@@ -47,11 +65,7 @@ class DataProcessor:
         pass
 
     def postprocess(self, data):
-        img = data["image"]
-        if isinstance(img, np.ndarray):
-            rows, cols = data["image"].shape[:2]
-        else:
-            rows, cols = data["image"].shape[-2:]
+        rows, cols = get_shape(data["image"])
 
         for data_name in self.data_fields:
             data[data_name] = self.filter(data[data_name], rows, cols)
