@@ -199,7 +199,12 @@ class Compose(BaseCompose):
         return data
 
     def _check_data_post_transform(self, data):
-        rows, cols = data["image"].shape[:2]
+        img = data["image"]
+        if isinstance(img, np.ndarray):
+            rows, cols = data["image"].shape[:2]
+        else:
+            rows, cols = data["image"].shape[-2:]
+
         for p in self.processors.values():
             if not getattr(p.params, "check_each_transform", False):
                 continue

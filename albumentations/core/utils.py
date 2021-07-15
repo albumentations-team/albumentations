@@ -3,6 +3,8 @@ from abc import ABCMeta, abstractmethod
 
 from ..core.six import string_types, add_metaclass
 
+import numpy as np
+
 
 def format_args(args_dict):
     formatted_args = []
@@ -45,7 +47,11 @@ class DataProcessor:
         pass
 
     def postprocess(self, data):
-        rows, cols = data["image"].shape[:2]
+        img = data["image"]
+        if isinstance(img, np.ndarray):
+            rows, cols = data["image"].shape[:2]
+        else:
+            rows, cols = data["image"].shape[-2:]
 
         for data_name in self.data_fields:
             data[data_name] = self.filter(data[data_name], rows, cols)
