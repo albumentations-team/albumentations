@@ -172,13 +172,14 @@ def test_post_data_check():
         [50, 50],
     ]
 
-    transform = A.Compose([
-        A.Resize(50, 50),
-        A.Normalize(),
-        ToTensorV2(),
-    ],
+    transform = A.Compose(
+        [
+            A.Resize(50, 50),
+            A.Normalize(),
+            ToTensorV2(),
+        ],
         keypoint_params=A.KeypointParams("xy"),
-        bbox_params=A.BboxParams("pascal_voc")
+        bbox_params=A.BboxParams("pascal_voc"),
     )
 
     res = transform(image=img, keypoints=keypoints, bboxes=bboxes)
