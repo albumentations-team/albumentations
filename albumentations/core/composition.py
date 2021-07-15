@@ -9,7 +9,7 @@ from albumentations.augmentations.keypoints_utils import KeypointsProcessor
 from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.utils import format_args, Params
+from albumentations.core.utils import format_args, Params, get_shape
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
@@ -199,7 +199,8 @@ class Compose(BaseCompose):
         return data
 
     def _check_data_post_transform(self, data):
-        rows, cols = data["image"].shape[:2]
+        rows, cols = get_shape(data["image"])
+
         for p in self.processors.values():
             if not getattr(p.params, "check_each_transform", False):
                 continue
