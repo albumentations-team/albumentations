@@ -9,13 +9,15 @@ from typing import Any, Tuple
 
 def get_shape(img: Any) -> Tuple[int, int]:
     if isinstance(img, np.ndarray):
-        return img.shape[:2]
+        rows, cols = img.shape[:2]
+        return rows, cols
 
     try:
         import torch
 
         if torch.is_tensor(img):
-            return img.shape[-2:]
+            rows, cols = img.shape[-2:]
+            return rows, cols
     except ImportError:
         pass
 
