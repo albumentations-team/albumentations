@@ -160,3 +160,29 @@ def test_color_jitter(brightness, contrast, saturation, hue):
 
     _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
     assert _max <= 2, "Max: {}".format(_max)
+
+
+def test_post_data_check():
+    img = np.empty([100, 100, 3], dtype=np.uint8)
+    bboxes = [
+        [0, 0, 90, 90, 0],
+    ]
+    keypoints = [
+        [90, 90],
+        [50, 50],
+    ]
+
+    transform = A.Compose(
+        [
+            A.Resize(50, 50),
+            A.Normalize(),
+            ToTensorV2(),
+        ],
+        keypoint_params=A.KeypointParams("xy"),
+        bbox_params=A.BboxParams("pascal_voc"),
+    )
+
+    res = transform(image=img, keypoints=keypoints, bboxes=bboxes)
+    assert len(res["keypoints"]) != 0 and len(res["bboxes"]) != 0
+    assert res["keypoints"] == [(45, 45), (25, 25)]
+    assert res["bboxes"] == [(0, 0, 45, 45, 0)]

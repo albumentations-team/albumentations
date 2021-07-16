@@ -9,11 +9,21 @@ from albumentations.augmentations.keypoints_utils import KeypointsProcessor
 from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.utils import format_args, Params
+from albumentations.core.utils import format_args, Params, get_shape
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
 
-__all__ = ["Compose", "SomeOf", "OneOf", "OneOrOther", "BboxParams", "KeypointParams", "ReplayCompose", "Sequential"]
+__all__ = [
+    "BaseCompose",
+    "Compose",
+    "SomeOf",
+    "OneOf",
+    "OneOrOther",
+    "BboxParams",
+    "KeypointParams",
+    "ReplayCompose",
+    "Sequential",
+]
 
 
 REPR_INDENT_STEP = 2
@@ -169,30 +179,34 @@ class Compose(BaseCompose):
         for p in self.processors.values():
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else self.transforms.get_always_apply(self.transforms)
-        dual_start_end = transforms.start_end if self.processors else None
+
         check_each_transform = any(
             getattr(item.params, "check_each_transform", False) for item in self.processors.values()
         )
 
-        for idx, t in enumerate(transforms):
-            if dual_start_end is not None and idx == dual_start_end[0]:
-                for p in self.processors.values():
-                    p.preprocess(data)
+        for p in self.processors.values():
+            p.preprocess(data)
 
+        for idx, t in enumerate(transforms):
             data = t(force_apply=force_apply, **data)
 
-            if dual_start_end is not None and idx == dual_start_end[1]:
-                for p in self.processors.values():
-                    p.postprocess(data)
-            elif check_each_transform and isinstance(t, DualTransform):
-                rows, cols = data["image"].shape[:2]
-                for p in self.processors.values():
-                    if not getattr(p.params, "check_each_transform", False):
-                        continue
+            if check_each_transform:
+                data = self._check_data_post_transform(data)
 
-                    for data_name in p.data_fields:
-                        data[data_name] = p.filter(data[data_name], rows, cols)
+        for p in self.processors.values():
+            p.postprocess(data)
 
+        return data
+
+    def _check_data_post_transform(self, data):
+        rows, cols = get_shape(data["image"])
+
+        for p in self.processors.values():
+            if not getattr(p.params, "check_each_transform", False):
+                continue
+
+            for data_name in p.data_fields:
+                data[data_name] = p.filter(data[data_name], rows, cols)
         return data
 
     def _to_dict(self):
