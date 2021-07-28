@@ -86,7 +86,7 @@ def get_image_only_transforms(
             continue
 
         try:
-            if isinstance(cls, albumentations.BasicIAATransform):
+            if issubclass(cls, albumentations.BasicIAATransform):
                 continue
         except AttributeError:
             pass
@@ -120,7 +120,7 @@ def get_dual_transforms(
             continue
 
         try:
-            if isinstance(cls, albumentations.BasicIAATransform):
+            if issubclass(cls, albumentations.BasicIAATransform):
                 continue
         except AttributeError:
             pass
@@ -155,7 +155,7 @@ def get_transforms(
             continue
 
         try:
-            if isinstance(cls, albumentations.BasicIAATransform):
+            if issubclass(cls, albumentations.BasicIAATransform):
                 continue
         except AttributeError:
             pass
