@@ -85,6 +85,12 @@ def get_image_only_transforms(
         ):
             continue
 
+        try:
+            if isinstance(cls, albumentations.BasicIAATransform):
+                continue
+        except AttributeError:
+            pass
+
         result.append((cls, custom_arguments.get(cls, {})))
 
     return result
@@ -112,6 +118,12 @@ def get_dual_transforms(
             or cls in except_augmentations
         ):
             continue
+
+        try:
+            if isinstance(cls, albumentations.BasicIAATransform):
+                continue
+        except AttributeError:
+            pass
 
         result.append((cls, custom_arguments.get(cls, {})))
 
@@ -141,6 +153,12 @@ def get_transforms(
             or cls in except_augmentations
         ):
             continue
+
+        try:
+            if isinstance(cls, albumentations.BasicIAATransform):
+                continue
+        except AttributeError:
+            pass
 
         result.append((cls, custom_arguments.get(cls, {})))
 
