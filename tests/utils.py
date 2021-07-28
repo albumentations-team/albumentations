@@ -1,7 +1,11 @@
 import random
+import typing
+import inspect
+import numpy as np
+
 from io import StringIO
 
-import numpy as np
+import albumentations
 
 
 def convert_2d_to_3d(arrays, num_channels=3):
@@ -56,3 +60,107 @@ class OpenMock:
 def set_seed(seed):
     random.seed(seed)
     np.random.seed(seed)
+
+
+def get_image_only_transforms(
+    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.ImageOnlyTransform], dict]] = None,
+    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.ImageOnlyTransform]]] = None,
+) -> typing.List[typing.Tuple[typing.Type[albumentations.ImageOnlyTransform], dict]]:
+    custom_arguments = custom_arguments or {}
+    except_augmentations = except_augmentations or set()
+
+    result = []
+
+    for name, cls in inspect.getmembers(albumentations):
+        if not inspect.isclass(cls) or not issubclass(cls, albumentations.BasicTransform):
+            continue
+
+        if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
+            continue
+
+        if (
+            not issubclass(cls, albumentations.ImageOnlyTransform)
+            or cls == albumentations.ImageOnlyTransform
+            or cls in except_augmentations
+        ):
+            continue
+
+        result.append((cls, custom_arguments.get(cls, {})))
+
+    return result
+
+
+def get_dual_transforms(
+    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.DualTransform], dict]] = None,
+    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.DualTransform]]] = None,
+) -> typing.List[typing.Tuple[typing.Type[albumentations.DualTransform], dict]]:
+    custom_arguments = custom_arguments or {}
+    except_augmentations = except_augmentations or set()
+
+    result = []
+
+    for name, cls in inspect.getmembers(albumentations):
+        if not inspect.isclass(cls) or not issubclass(cls, albumentations.BasicTransform):
+            continue
+
+        if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
+            continue
+
+        if (
+            not issubclass(cls, albumentations.DualTransform)
+            or cls == albumentations.DualTransform
+            or cls in except_augmentations
+        ):
+            continue
+
+        result.append((cls, custom_arguments.get(cls, {})))
+
+    return result
+
+
+def get_transforms(
+    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.BasicTransform], dict]] = None,
+    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
+) -> typing.List[typing.Tuple[typing.Type[albumentations.BasicTransform], dict]]:
+    custom_arguments = custom_arguments or {}
+    except_augmentations = except_augmentations or set()
+
+    result = []
+
+    for name, cls in inspect.getmembers(albumentations):
+        if not inspect.isclass(cls) or not issubclass(cls, albumentations.BasicTransform):
+            continue
+
+        if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
+            continue
+
+        if (
+            not issubclass(cls, (albumentations.DualTransform, albumentations.ImageOnlyTransform))
+            or cls == albumentations.DualTransform
+            or cls == albumentations.ImageOnlyTransform
+            or cls in except_augmentations
+        ):
+            continue
+
+        result.append((cls, custom_arguments.get(cls, {})))
+
+    return result
+
+
+def check_all_augs_exists(
+    augmentations: typing.List[typing.List],
+    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
+) -> typing.List[typing.List]:
+    existed_augs = {i[0] for i in augmentations}
+    except_augmentations = except_augmentations or set()
+
+    not_existed = []
+
+    for cls, _ in get_transforms(except_augmentations=except_augmentations):
+        if cls not in existed_augs:
+            not_existed.append(cls.__name__)
+
+    if not_existed:
+        raise ValueError(f"These augmentations do not exist in augmentations and except_augmentations: {not_existed}")
+
+    return augmentations
