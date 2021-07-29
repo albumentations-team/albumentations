@@ -867,6 +867,8 @@ class ImageCompression(ImageOnlyTransform):
         self.quality_upper = quality_upper
 
     def apply(self, image, quality=100, image_type=".jpg", **params):
+        if not image.ndim == 2 and image.shape[-1] not in (1, 3, 4):
+            raise TypeError("ImageCompression transformation expects 1, 3 or 4 channel images.")
         return F.image_compression(image, quality, image_type)
 
     def get_params(self):
@@ -1489,6 +1491,8 @@ class HueSaturationValue(ImageOnlyTransform):
         self.val_shift_limit = to_tuple(val_shift_limit)
 
     def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
+        if not F.is_rgb_image(image) and not F.is_grayscale_image(image):
+            raise TypeError("HueSaturationValue transformation expects 1-channel or 3-channel images.")
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
 
     def get_params(self):
@@ -1664,6 +1668,8 @@ class RGBShift(ImageOnlyTransform):
         self.b_shift_limit = to_tuple(b_shift_limit)
 
     def apply(self, image, r_shift=0, g_shift=0, b_shift=0, **params):
+        if not F.is_rgb_image(image):
+            raise TypeError("RGBShift transformation expects 3-channel images.")
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
     def get_params(self):
@@ -2041,6 +2047,9 @@ class CLAHE(ImageOnlyTransform):
         self.tile_grid_size = tuple(tile_grid_size)
 
     def apply(self, img, clip_limit=2, **params):
+        if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
+            raise TypeError("CLAHE transformation expects 1-channel or 3-channel images.")
+
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
@@ -2200,6 +2209,12 @@ class ToGray(ImageOnlyTransform):
     """
 
     def apply(self, img, **params):
+        if F.is_grayscale_image(img):
+            warnings.warn("The image is already gray.")
+            return img
+        if not F.is_rgb_image(img):
+            raise TypeError("ToGray transformation expects 3-channel images.")
+
         return F.to_gray(img)
 
     def get_transform_init_args_names(self):
@@ -2226,6 +2241,8 @@ class ToSepia(ImageOnlyTransform):
         )
 
     def apply(self, image, **params):
+        if not F.is_rgb_image(image):
+            raise TypeError("ToSepia transformation expects 3-channel images.")
         return F.linear_transformation_rgb(image, self.sepia_transformation_matrix)
 
     def get_transform_init_args_names(self):
@@ -2893,6 +2910,9 @@ class ColorJitter(ImageOnlyTransform):
         return {"transforms": transforms}
 
     def apply(self, img, transforms=(), **params):
+        if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
+            raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
+
         for transform in transforms:
             img = transform(img)
         return img
