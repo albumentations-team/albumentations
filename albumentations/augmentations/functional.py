@@ -1207,7 +1207,7 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     """
     if image.dtype != np.uint8:
         raise TypeError("Image must have uint8 channel type")
-    if is_grayscale_image(image):
+    if not is_rgb_image(image):
         raise TypeError("Image must be RGB")
 
     if random_state is None:
@@ -1545,7 +1545,7 @@ def fancy_pca(img, alpha=0.1):
         numpy image-like array as float range(0, 1)
 
     """
-    if is_grayscale_image(img) or img.dtype != np.uint8:
+    if not is_rgb_image(img) or img.dtype != np.uint8:
         raise TypeError("Image must be RGB image in uint8 format.")
 
     orig_img = img.astype(float).copy()
@@ -1599,6 +1599,7 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
+@preserve_shape
 def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
     x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
