@@ -1,5 +1,8 @@
 import cv2
 import random
+import typing
+
+import numpy as np
 
 from . import functional as F
 from ...core.transforms_interface import DualTransform, to_tuple
@@ -149,8 +152,18 @@ class Resize(DualTransform):
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
+    def reverse_image(
+        self, img: np.ndarray, height: int = 0, width: int = 0, interpolation=cv2.INTER_LINEAR, **params
+    ) -> np.ndarray:
+        return F.resize(img, height=height, width=width, interpolation=interpolation)
+
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant
+        return bbox
+
+    def reverse_bbox(
+        self, bbox: typing.Tuple[float, float, float, float], **params
+    ) -> typing.Tuple[float, float, float, float]:
         return bbox
 
     def apply_to_keypoint(self, keypoint, **params):
@@ -160,5 +173,16 @@ class Resize(DualTransform):
         scale_y = self.height / height
         return F.keypoint_scale(keypoint, scale_x, scale_y)
 
+    def reverse_keypoint(
+        self, keypoint: typing.Tuple[float, float, float, float], height: int = 0, width: int = 0, **params
+    ) -> typing.Tuple[float, float, float, float]:
+        scale_x = width / self.width
+        scale_y = height / self.height
+        return F.keypoint_scale(keypoint, scale_x, scale_y)
+
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
+
+    def get_reverse_args(self, image: np.ndarray = np.ndarray([]), **kwargs) -> dict:
+        h, w = image.shape[:2]
+        return {"height": h, "width": w}
