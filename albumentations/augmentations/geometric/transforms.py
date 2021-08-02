@@ -441,7 +441,6 @@ class Affine(DualTransform):
                   Using a dictionary allows to set different values for the two axis and sampling will then happen
                   *independently* per axis, resulting in samples that differ between the axes.
         interpolation (int): OpenCV interpolation flag.
-        mask_interpolation (int): OpenCV interpolation flag.
         cval (number or sequence of number): The constant value to use when filling in newly created pixels.
             (E.g. translating by 1px to the right will create a new 1px-wide column of pixels
             on the left of the image).
