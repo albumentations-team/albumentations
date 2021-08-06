@@ -76,7 +76,12 @@ def normalize_bbox(bbox, rows, cols):
 
     x_min, x_max = x_min / cols, x_max / cols
     y_min, y_max = y_min / rows, y_max / rows
-
+    
+    x_min = np.clip(x_min, 0, 1)
+    x_max = np.clip(x_max, 0, 1)
+    y_min = np.clip(y_min, 0, 1)
+    y_max = np.clip(y_max, 0, 1)
+    
     return (x_min, y_min, x_max, y_max) + tail
 
 
