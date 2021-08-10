@@ -207,14 +207,6 @@ def __test_multiprocessing_support_proc(args):
     ["augmentation_cls", "params"],
     get_transforms(
         custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
@@ -230,6 +222,7 @@ def __test_multiprocessing_support_proc(args):
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
+            A.PixelDistributionAdaptation,
             A.MaskDropout,
         },
     ),
@@ -291,6 +284,11 @@ def test_force_apply():
             A.FDA: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
             },
         },
     ),

@@ -9,47 +9,6 @@ import albumentations as A
 
 from .utils import get_image_only_transforms, get_dual_transforms, get_transforms
 
-DOMAIN_ADAPTATION_AUGMENTATIONS = [
-    [
-        A.HistogramMatching,
-        {
-            "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-            "read_fn": lambda x: x,
-        },
-    ],
-    [
-        A.FDA,
-        {
-            "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-            "read_fn": lambda x: x,
-        },
-    ],
-    [
-        A.PixelDistributionAdaptation,
-        {
-            "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-            "read_fn": lambda x: x,
-            "transform_type": "pca",
-        },
-    ],
-    [
-        A.PixelDistributionAdaptation,
-        {
-            "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-            "read_fn": lambda x: x,
-            "transform_type": "minmax",
-        },
-    ],
-    [
-        A.PixelDistributionAdaptation,
-        {
-            "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-            "read_fn": lambda x: x,
-            "transform_type": "standard",
-        },
-    ],
-]
-
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
