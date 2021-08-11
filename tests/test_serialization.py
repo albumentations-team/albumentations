@@ -28,14 +28,6 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
     ["augmentation_cls", "params"],
     get_transforms(
         custom_arguments={
-            A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
-            A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
-                "read_fn": lambda x: x,
-            },
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
@@ -45,7 +37,14 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.FDA, A.HistogramMatching, A.Lambda},
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.Lambda,
+        },
     ),
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -317,6 +316,7 @@ AUGMENTATION_CLS_PARAMS = [
 AUGMENTATION_CLS_EXCEPT = {
     A.FDA,
     A.HistogramMatching,
+    A.PixelDistributionAdaptation,
     A.Lambda,
     A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
@@ -386,6 +386,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.RandomCropNearBBox,
             A.FDA,
             A.HistogramMatching,
+            A.PixelDistributionAdaptation,
             A.Lambda,
             A.CoarseDropout,
             A.CropNonEmptyMaskIfExists,
@@ -432,6 +433,7 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomCropNearBBox,
             A.FDA,
             A.HistogramMatching,
+            A.PixelDistributionAdaptation,
             A.Lambda,
             A.CoarseDropout,
             A.CropNonEmptyMaskIfExists,
@@ -621,7 +623,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_image_only_transforms(
-        except_augmentations={A.HistogramMatching, A.FDA},
+        except_augmentations={A.HistogramMatching, A.FDA, A.PixelDistributionAdaptation},
     ),
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
