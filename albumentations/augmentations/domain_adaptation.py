@@ -280,7 +280,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         if img.dtype == np.float32:
             if img.min() < 0 or img.max() > 1:
                 message = (
-                    "PixelDistributionAdaptation uses uint8 under the hood, so float32 shoukd be converted,"
+                    "PixelDistributionAdaptation uses uint8 under the hood, so float32 should be converted,"
                     "Can not do it automatically when the image is out of [0..1] range."
                 )
                 raise TypeError(message)
@@ -299,7 +299,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             transform_type=self.transform_type,
         )
         if needs_reconvert:
-            adapted = adapted.astype("float32") / 255
+            adapted = adapted.astype("float32") * (1 / 255)
         return adapted
 
     def get_params(self):
