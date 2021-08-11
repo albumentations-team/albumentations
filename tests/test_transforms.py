@@ -9,6 +9,8 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 
+from .utils import get_transforms, get_image_only_transforms, get_dual_transforms
+
 
 def set_seed(seed=0):
     random.seed(seed)
@@ -146,21 +148,19 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.GlassBlur, {}],
-        [A.Perspective, {}],
-        [A.Affine, {}],
-        [A.PiecewiseAffine, {}],
-    ],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
+    ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
@@ -173,23 +173,18 @@ def test_binary_mask_interpolation(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.Resize, {"height": 80, "width": 90}],
-        [A.Resize, {"height": 120, "width": 130}],
-        [A.OpticalDistortion, {}],
-        [A.GlassBlur, {}],
-        [A.Perspective, {}],
-        [A.Affine, {}],
-        [A.PiecewiseAffine, {}],
-    ],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.Resize: {"height": 10, "width": 10},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad},
+    ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts.
@@ -210,23 +205,27 @@ def __test_multiprocessing_support_proc(args):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.Sharpen, {}],
-        [A.FancyPCA, {}],
-        [A.GlassBlur, {}],
-        [A.Perspective, {}],
-        [A.Affine, {}],
-        [A.PiecewiseAffine, {}],
-    ],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+        },
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.MaskDropout,
+        },
+    ),
 )
 def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
     """Checks whether we can use augmentations in multiprocessing environments"""
@@ -276,47 +275,23 @@ def test_force_apply():
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ChannelShuffle, {}],
-        [A.GaussNoise, {}],
-        [A.Cutout, {}],
-        [A.CoarseDropout, {}],
-        [A.ImageCompression, {}],
-        [A.HueSaturationValue, {}],
-        [A.RGBShift, {}],
-        [A.RandomBrightnessContrast, {}],
-        [A.Blur, {}],
-        [A.MotionBlur, {}],
-        [A.MedianBlur, {}],
-        [A.CLAHE, {}],
-        [A.InvertImg, {}],
-        [A.RandomGamma, {}],
-        [A.ToGray, {}],
-        [A.VerticalFlip, {}],
-        [A.HorizontalFlip, {}],
-        [A.Flip, {}],
-        [A.Transpose, {}],
-        [A.RandomRotate90, {}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.GridDistortion, {}],
-        [A.ElasticTransform, {}],
-        [A.Normalize, {}],
-        [A.ToFloat, {}],
-        [A.FromFloat, {}],
-        [A.ChannelDropout, {}],
-        [A.Solarize, {}],
-        [A.Posterize, {}],
-        [A.Equalize, {}],
-        [A.MultiplicativeNoise, {}],
-        [A.FancyPCA, {}],
-        [A.GlassBlur, {}],
-        [A.GridDropout, {}],
-        [A.ColorJitter, {}],
-        [A.Perspective, {}],
-        [A.Sharpen, {"alpha": [0.2, 0.2], "lightness": [0.5, 0.5]}],
-    ],
+    get_image_only_transforms(
+        custom_arguments={
+            A.HistogramMatching: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.FDA: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
+        },
+    ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(always_apply=True, **params)], additional_targets={"image2": "image"})
