@@ -1,13 +1,17 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, annotations
 
 import random
 from warnings import warn
-from typing import Sequence
+from typing import Sequence, Dict, List, Union, Callable, Any
 
 import cv2
+import numpy as np
 from copy import deepcopy
 
-from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
+from albumentations.core.serialization import (
+    SerializableMeta,
+    get_shortest_class_fullname,
+)
 from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
 
@@ -48,20 +52,23 @@ def to_tuple(param, low=None, bias=None):
 @add_metaclass(SerializableMeta)
 class BasicTransform:
     call_backup = None
+    interpolation: Any
+    fill_value: Any
+    mask_fill_value: Any
 
-    def __init__(self, always_apply=False, p=0.5):
+    def __init__(self, always_apply: bool = False, p: float = 0.5):
         self.p = p
         self.always_apply = always_apply
-        self._additional_targets = {}
+        self._additional_targets: Dict[Any, Any] = {}
 
         # replay mode params
         self.deterministic = False
         self.save_key = "replay"
-        self.params = {}
+        self.params: Dict[Any, Any] = {}
         self.replay_mode = False
         self.applied_in_replay = False
 
-    def __call__(self, *args, force_apply=False, **kwargs):
+    def __call__(self, *args, force_apply: bool = False, **kwargs) -> Dict[str, Any]:
         if args:
             raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
         if self.replay_mode:
@@ -91,7 +98,9 @@ class BasicTransform:
 
         return kwargs
 
-    def apply_with_params(self, params, force_apply=False, **kwargs):  # skipcq: PYL-W0613
+    def apply_with_params(
+        self, params: Dict[str, Any], force_apply: bool = False, **kwargs
+    ) -> Dict[str, Any]:  # skipcq: PYL-W0613
         if params is None:
             return kwargs
         params = self.update_params(params, **kwargs)
@@ -105,18 +114,18 @@ class BasicTransform:
                 res[key] = None
         return res
 
-    def set_deterministic(self, flag, save_key="replay"):
+    def set_deterministic(self, flag: bool, save_key: str = "replay") -> BasicTransform:
         assert save_key != "params", "params save_key is reserved"
         self.deterministic = flag
         self.save_key = save_key
         return self
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         state = self.get_base_init_args()
         state.update(self.get_transform_init_args())
         return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
 
-    def _get_target_function(self, key):
+    def _get_target_function(self, key: str) -> Callable:
         transform_key = key
         if key in self._additional_targets:
             transform_key = self._additional_targets.get(key, None)
@@ -124,10 +133,10 @@ class BasicTransform:
         target_function = self.targets.get(transform_key, lambda x, **p: x)
         return target_function
 
-    def apply(self, img, **params):
+    def apply(self, img: np.ndarray, **params):
         raise NotImplementedError
 
-    def get_params(self):
+    def get_params(self) -> Dict:
         return {}
 
     @property
@@ -137,7 +146,7 @@ class BasicTransform:
         #              ('image', 'boxes')
         raise NotImplementedError
 
-    def update_params(self, params, **kwargs):
+    def update_params(self, params: Dict[str, Any], **kwargs) -> Dict[str, Any]:
         if hasattr(self, "interpolation"):
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
@@ -148,10 +157,10 @@ class BasicTransform:
         return params
 
     @property
-    def target_dependence(self):
+    def target_dependence(self) -> Dict:
         return {}
 
-    def add_targets(self, additional_targets):
+    def add_targets(self, additional_targets: Dict[str, str]):
         """Add targets to transform them the same way as one of existing targets
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
@@ -163,16 +172,16 @@ class BasicTransform:
         self._additional_targets = additional_targets
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List:
         return []
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]):
         raise NotImplementedError(
             "Method get_params_dependent_on_targets is not implemented in class " + self.__class__.__name__
         )
 
     @classmethod
-    def get_class_fullname(cls):
+    def get_class_fullname(cls) -> str:
         return get_shortest_class_fullname(cls)
 
     def get_transform_init_args_names(self):
@@ -181,19 +190,19 @@ class BasicTransform:
             "implemented".format(name=self.get_class_fullname())
         )
 
-    def get_base_init_args(self):
+    def get_base_init_args(self) -> Dict[str, Any]:
         return {"always_apply": self.always_apply, "p": self.p}
 
-    def get_transform_init_args(self):
+    def get_transform_init_args(self) -> Dict[str, Any]:
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
         return state
 
-    def get_dict_with_id(self):
+    def get_dict_with_id(self) -> Dict[str, Any]:
         d = self._to_dict()
         d["id"] = id(self)
         return d
