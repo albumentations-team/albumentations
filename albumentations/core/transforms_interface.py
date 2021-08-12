@@ -1,8 +1,8 @@
-from __future__ import absolute_import, annotations
+from __future__ import absolute_import
 
 import random
 from warnings import warn
-from typing import Sequence, Dict, List, Union, Callable, Any
+from typing import Sequence, Dict, List, Callable, Any, Tuple
 
 import cv2
 import numpy as np
@@ -59,7 +59,7 @@ class BasicTransform:
     def __init__(self, always_apply: bool = False, p: float = 0.5):
         self.p = p
         self.always_apply = always_apply
-        self._additional_targets: Dict[Any, Any] = {}
+        self._additional_targets: Dict[str, str] = {}
 
         # replay mode params
         self.deterministic = False
@@ -114,7 +114,7 @@ class BasicTransform:
                 res[key] = None
         return res
 
-    def set_deterministic(self, flag: bool, save_key: str = "replay") -> BasicTransform:
+    def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
         assert save_key != "params", "params save_key is reserved"
         self.deterministic = flag
         self.save_key = save_key
@@ -128,19 +128,19 @@ class BasicTransform:
     def _get_target_function(self, key: str) -> Callable:
         transform_key = key
         if key in self._additional_targets:
-            transform_key = self._additional_targets.get(key, None)
+            transform_key = self._additional_targets.get(key, key)
 
         target_function = self.targets.get(transform_key, lambda x, **p: x)
         return target_function
 
-    def apply(self, img: np.ndarray, **params):
+    def apply(self, img, **params) -> np.ndarray:
         raise NotImplementedError
 
     def get_params(self) -> Dict:
         return {}
 
     @property
-    def targets(self):
+    def targets(self) -> Dict[str, Callable]:
         # you must specify targets in subclass
         # for example: ('image', 'mask')
         #              ('image', 'boxes')
@@ -172,10 +172,10 @@ class BasicTransform:
         self._additional_targets = additional_targets
 
     @property
-    def targets_as_params(self) -> List:
+    def targets_as_params(self) -> List[str]:
         return []
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]):
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         raise NotImplementedError(
             "Method get_params_dependent_on_targets is not implemented in class " + self.__class__.__name__
         )
@@ -184,7 +184,7 @@ class BasicTransform:
     def get_class_fullname(cls) -> str:
         return get_shortest_class_fullname(cls)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         raise NotImplementedError(
             "Class {name} is not serializable because the `get_transform_init_args_names` method is not "
             "implemented".format(name=self.get_class_fullname())
@@ -212,7 +212,7 @@ class DualTransform(BasicTransform):
     """Transform for segmentation task."""
 
     @property
-    def targets(self):
+    def targets(self) -> Dict[str, Callable]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
