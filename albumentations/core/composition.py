@@ -1,14 +1,18 @@
 from __future__ import division
+
+import warnings
 from collections import defaultdict
 
 import random
+import typing
+import inspect
 
 import numpy as np
 
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
 from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
-from albumentations.core.transforms_interface import DualTransform
+from albumentations.core.transforms_interface import BasicTransform, ImageOnlyTransform, DualTransform
 from albumentations.core.utils import format_args, Params, get_shape
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
@@ -23,6 +27,7 @@ __all__ = [
     "KeypointParams",
     "ReplayCompose",
     "Sequential",
+    "ReversibleCompose",
 ]
 
 
@@ -132,8 +137,8 @@ class Compose(BaseCompose):
 
     Args:
         transforms (list): list of transformations to compose.
-        bbox_params (BboxParams): Parameters for bounding boxes transforms
-        keypoint_params (KeypointParams): Parameters for keypoints transforms
+        bbox_params (BboxParams, dict): Parameters for bounding boxes transforms
+        keypoint_params (KeypointParams, dict): Parameters for keypoints transforms
         additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
         p (float): probability of applying all list of transforms. Default: 1.0.
     """
@@ -577,4 +582,96 @@ class Sequential(BaseCompose):
     def __call__(self, **data):
         for t in self.transforms:
             data = t(**data)
+        return data
+
+
+class ReversibleCompose(ReplayCompose):
+    def __init__(
+        self,
+        transforms: typing.List[typing.Union[BasicTransform, BaseCompose]],
+        bbox_params: typing.Optional[typing.Union[BboxParams, dict]] = None,
+        keypoint_params: typing.Optional[typing.Union[KeypointParams, dict]] = None,
+        additional_targets: typing.Optional[dict] = None,
+        p: float = 1.0,
+        save_key: str = "reverse_args",
+    ):
+        super().__init__(transforms, bbox_params, keypoint_params, additional_targets, p, save_key)
+
+        self.not_implemented_reverse: typing.Set[str] = set()
+        self.not_implemented_reverse_bbox: typing.Set[str] = set()
+        self.not_implemented_reverse_keypoint: typing.Set[str] = set()
+
+        self._check_transforms()
+
+    def _check_transforms(self) -> None:
+        not_implemented_reverse: typing.Set[str] = set()
+
+        for transform in self.transforms.transforms:
+            if isinstance(transform, BaseCompose):
+                ReversibleCompose._check_transforms(transform.transforms.transforms)
+                continue
+
+            cls_name = transform.__class__.__name__
+            if "NotImplementedError" in inspect.getsource(transform.reverse):
+                not_implemented_reverse.add(cls_name)
+                if isinstance(transform, DualTransform):
+                    self.not_implemented_reverse.add(cls_name)
+
+            if isinstance(transform, DualTransform):
+                if "NotImplementedError" in (
+                    inspect.getsource(transform.reverse_bbox) + inspect.getsource(transform.reverse_bboxes)
+                ):
+                    self.not_implemented_reverse_bbox.add(cls_name)
+                if "NotImplementedError" in (
+                    inspect.getsource(transform.reverse_keypoint) + inspect.getsource(transform.reverse_keypoints)
+                ):
+                    self.not_implemented_reverse_keypoint.add(cls_name)
+
+        if not_implemented_reverse:
+            warnings.warn(f"These transforms don't implement the reverse method for images: {not_implemented_reverse}")
+
+    def reverse(self, reverse_args: dict, **data) -> dict:
+        if ("mask" in reverse_args or "mask" in reverse_args) and self.not_implemented_reverse:
+            raise ValueError(
+                f"These dual transforms don't implement the reverse method for masks: {self.not_implemented_reverse}"
+            )
+        if "bboxes" in reverse_args and self.not_implemented_reverse_bbox:
+            raise ValueError(
+                f"These dual transforms don't implement"
+                f" the reverse method for bboxes: {self.not_implemented_reverse_bbox}"
+            )
+        if "keypoints" in reverse_args and self.not_implemented_reverse_keypoint:
+            raise ValueError(
+                f"These dual transforms don't implement"
+                f" the reverse method for keypoints: {self.not_implemented_reverse_keypoint}"
+            )
+
+        self._check_args(**data)
+        for p in self.processors.values():
+            p.ensure_data_valid(data)
+
+        check_each_transform = any(
+            getattr(item.params, "check_each_transform", False) for item in self.processors.values()
+        )
+
+        for p in self.processors.values():
+            p.preprocess(data)
+
+        for t, params in reversed(list(zip(self.transforms, reverse_args["transforms"]))):
+            if t.__class__.__name__ != params["__class_fullname__"]:
+                raise ValueError(
+                    f"Invalid reverse params for transform {t.__class__.__name__}. "
+                    f"Got params for class: {params['__class_fullname__']}"
+                )
+
+            if not params["applied"]:
+                continue
+            data = t.reverse(data, params)
+
+            if check_each_transform:
+                data = self._check_data_post_transform(data)
+
+        for p in self.processors.values():
+            p.postprocess(data)
+
         return data
