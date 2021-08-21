@@ -22,6 +22,11 @@ from .utils import get_image_only_transforms, get_dual_transforms, get_transform
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
             },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
         },
         except_augmentations={A.FromFloat, A.Normalize, A.ToFloat},
     ),
@@ -45,6 +50,11 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
             A.FDA: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
             },
             A.MedianBlur: {"blur_limit": (3, 5)},
         },
@@ -125,6 +135,11 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
             },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
@@ -157,6 +172,11 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.FDA: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
             },
             A.MedianBlur: {"blur_limit": (3, 5)},
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
@@ -229,6 +249,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToSepia,
+            A.PixelDistributionAdaptation,
         },
     ),
 )
@@ -262,6 +283,11 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             A.FDA: {
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
             },
         },
         except_augmentations={
@@ -370,6 +396,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.ToGray,
             A.ToSepia,
             A.FancyPCA,
+            A.PixelDistributionAdaptation,
         },
     ),
 )
@@ -426,6 +453,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.FancyPCA,
             A.Posterize,
             A.RandomToneCurve,
+            A.PixelDistributionAdaptation,
         },
     ),
 )
@@ -473,6 +501,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.FancyPCA,
             A.FDA,
             A.HistogramMatching,
+            A.PixelDistributionAdaptation,
         },
     ),
 )
@@ -524,6 +553,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.RandomToneCurve,
             A.FDA,
             A.HistogramMatching,
+            A.PixelDistributionAdaptation,
         },
     ),
 )
@@ -701,3 +731,27 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
     x4, y4 = res[3]
 
     assert x1 < x3 and x1 < x4 and x2 < x3 and x2 < x4 and y1 < y2 and y1 < y3 and y4 < y2 and y4 < y3
+
+
+@pytest.mark.parametrize("kind", ["pca", "minmax", "standard"])
+def test_pixel_domain_adaptation(kind):
+    img_uint8 = np.random.randint(low=100, high=200, size=(100, 100, 3), dtype=np.uint8)
+    ref_img_uint8 = np.random.randint(low=0, high=100, size=(100, 100, 3), dtype=np.uint8)
+    img_float, ref_img_float = [x.astype("float32") / 255.0 for x in (img_uint8, ref_img_uint8)]
+
+    for img, ref_img in ((img_uint8, ref_img_uint8), (img_float, ref_img_float)):
+        adapter = A.PixelDistributionAdaptation(
+            reference_images=[ref_img],
+            blend_ratio=(1, 1),
+            read_fn=lambda x: x,
+            always_apply=True,
+            transform_type=kind,
+        )
+        adapted = adapter(image=img)["image"]
+        np.testing.assert_allclose(
+            adapted.mean(),
+            ref_img.mean(),
+            rtol=0,
+            atol=2 if img.dtype == np.uint8 else 0.01,
+            err_msg=f"{adapted.mean()} {img.mean()} {ref_img.mean()}",
+        )

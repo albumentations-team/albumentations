@@ -765,10 +765,10 @@ def add_rain(
         )
 
     image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
-    image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
-    image_hls[:, :, 1] *= brightness_coefficient
+    image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV).astype(np.float32)
+    image_hsv[:, :, 2] *= brightness_coefficient
 
-    image_rgb = cv2.cvtColor(image_hls.astype(np.uint8), cv2.COLOR_HLS2RGB)
+    image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
     if needs_float:
         image_rgb = to_float(image_rgb, max_value=255)
@@ -1043,7 +1043,7 @@ def elastic_transform_approx(
     random_state=None,
 ):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+    Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in

@@ -108,7 +108,7 @@ class ShiftScaleRotate(DualTransform):
 
 class ElasticTransform(DualTransform):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+    Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -472,6 +472,7 @@ class Affine(DualTransform):
         rotate: Optional[Union[float, Sequence[float]]] = None,
         shear: Optional[Union[float, Sequence[float], dict]] = None,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         cval: Union[int, float, Sequence[int], Sequence[float]] = 0,
         cval_mask: Union[int, float, Sequence[int], Sequence[float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
@@ -493,6 +494,7 @@ class Affine(DualTransform):
             shear = shear if shear is not None else 0.0
 
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
         self.cval = cval
         self.cval_mask = cval_mask
         self.mode = mode
@@ -505,6 +507,7 @@ class Affine(DualTransform):
     def get_transform_init_args_names(self):
         return (
             "interpolation",
+            "mask_interpolation",
             "cval",
             "mode",
             "scale",
@@ -577,7 +580,7 @@ class Affine(DualTransform):
         return F.warp_affine(
             img,
             matrix,
-            interpolation=cv2.INTER_NEAREST,
+            interpolation=self.mask_interpolation,
             cval=self.cval_mask,
             mode=self.mode,
             output_shape=output_shape,
