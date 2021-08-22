@@ -420,7 +420,7 @@ class RandomCropNearBBox(DualTransform):
         p: float = 1.0,
     ):
         super(RandomCropNearBBox, self).__init__(always_apply, p)
-        self.max_part_shift = to_tuple(max_part_shift, low=0)
+        self.max_part_shift = to_tuple(max_part_shift, low=max_part_shift)
         self.cropping_bbox_key = cropping_box_key
 
         if min(self.max_part_shift) < 0 or max(self.max_part_shift) > 1:
