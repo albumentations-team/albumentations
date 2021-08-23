@@ -2,6 +2,7 @@ from __future__ import division
 from collections import defaultdict
 
 import random
+from typing import Dict, List, Any
 
 import numpy as np
 
@@ -30,11 +31,11 @@ REPR_INDENT_STEP = 2
 
 
 class Transforms:
-    def __init__(self, transforms):
+    def __init__(self, transforms: List[Any]):
         self.transforms = transforms
         self.start_end = self._find_dual_start_end(transforms)
 
-    def _find_dual_start_end(self, transforms):
+    def _find_dual_start_end(self, transforms: List[Any]) -> List[Any]:
         dual_start_end = None
         last_dual = None
         for idx, transform in enumerate(transforms):
@@ -52,7 +53,7 @@ class Transforms:
             dual_start_end.append(last_dual)
         return dual_start_end
 
-    def get_always_apply(self, transforms):
+    def get_always_apply(self, transforms: List[Any]) -> "Transforms":
         new_transforms = []
         for transform in transforms:
             if isinstance(transform, BaseCompose):
@@ -61,31 +62,31 @@ class Transforms:
                 new_transforms.append(transform)
         return Transforms(new_transforms)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any):
         return self.transforms[item]
 
 
-def set_always_apply(transforms):
+def set_always_apply(transforms: List[Any]):
     for t in transforms:
         t.always_apply = True
 
 
 @add_metaclass(SerializableMeta)
 class BaseCompose:
-    def __init__(self, transforms, p):
+    def __init__(self, transforms: List[Any], p: float):
         self.transforms = Transforms(transforms)
         self.p = p
 
         self.replay_mode = False
         self.applied_in_replay = False
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any) -> str:
         return self.transforms[item]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.indented_repr()
 
-    def indented_repr(self, indent=REPR_INDENT_STEP):
+    def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
         args = {k: v for k, v in self._to_dict().items() if not (k.startswith("__") or k == "transforms")}
         repr_string = self.__class__.__name__ + "(["
         for t in self.transforms:
@@ -102,14 +103,14 @@ class BaseCompose:
     def get_class_fullname(cls):
         return get_shortest_class_fullname(cls)
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         return {
             "__class_fullname__": self.get_class_fullname(),
             "p": self.p,
             "transforms": [t._to_dict() for t in self.transforms],  # skipcq: PYL-W0212
         }
 
-    def get_dict_with_id(self):
+    def get_dict_with_id(self) -> Dict[str, Any]:
         return {
             "__class_fullname__": self.get_class_fullname(),
             "id": id(self),
@@ -117,12 +118,12 @@ class BaseCompose:
             "transforms": [t.get_dict_with_id() for t in self.transforms],
         }
 
-    def add_targets(self, additional_targets):
+    def add_targets(self, additional_targets: Dict[str, str]):
         if additional_targets:
             for t in self.transforms:
                 t.add_targets(additional_targets)
 
-    def set_deterministic(self, flag, save_key="replay"):
+    def set_deterministic(self, flag: bool, save_key: str = "replay"):
         for t in self.transforms:
             t.set_deterministic(flag, save_key)
 
@@ -138,7 +139,8 @@ class Compose(BaseCompose):
         p (float): probability of applying all list of transforms. Default: 1.0.
     """
 
-    def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0):
+    def __init__(self, transforms: List[Any], bbox_params: "BboxParams" = None,
+                 keypoint_params: "KeypointParams" = None, additional_targets: Dict[str, str] = None, p: float = 1.0):
         super(Compose, self).__init__([t for t in transforms if t is not None], p)
 
         self.processors = {}
@@ -170,7 +172,7 @@ class Compose(BaseCompose):
 
         self.add_targets(additional_targets)
 
-    def __call__(self, *args, force_apply=False, **data):
+    def __call__(self, *args, force_apply: bool = False, **data) -> "Transforms":
         if args:
             raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
         self._check_args(**data)
@@ -198,7 +200,7 @@ class Compose(BaseCompose):
 
         return data
 
-    def _check_data_post_transform(self, data):
+    def _check_data_post_transform(self, data: Dict[str, Any]) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
 
         for p in self.processors.values():
@@ -209,7 +211,7 @@ class Compose(BaseCompose):
                 data[data_name] = p.filter(data[data_name], rows, cols)
         return data
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         dictionary = super(Compose, self)._to_dict()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
@@ -224,7 +226,7 @@ class Compose(BaseCompose):
         )
         return dictionary
 
-    def get_dict_with_id(self):
+    def get_dict_with_id(self) -> Dict[str, Any]:
         dictionary = super().get_dict_with_id()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
@@ -264,13 +266,13 @@ class OneOf(BaseCompose):
         p (float): probability of applying selected transform. Default: 0.5.
     """
 
-    def __init__(self, transforms, p=0.5):
+    def __init__(self, transforms: List[Any], p: float = 0.5):
         super(OneOf, self).__init__(transforms, p)
         transforms_ps = [t.p for t in transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(self, force_apply=False, **data):
+    def __call__(self, force_apply: bool = False, **data) -> List[Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -294,7 +296,7 @@ class SomeOf(BaseCompose):
         p (float): probability of applying selected transform. Default: 1.
     """
 
-    def __init__(self, transforms, n, replace=True, p=1):
+    def __init__(self, transforms: List[Any], n: int, replace: bool = True, p: float = 1):
         super(SomeOf, self).__init__(transforms, p)
         self.n = n
         self.replace = replace
@@ -302,7 +304,7 @@ class SomeOf(BaseCompose):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(self, force_apply=False, **data):
+    def __call__(self, force_apply: bool = False, **data) -> List[Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -317,7 +319,7 @@ class SomeOf(BaseCompose):
                 data = t(force_apply=True, **data)
         return data
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         dictionary = super(SomeOf, self)._to_dict()
         dictionary.update({"n": self.n, "replace": self.replace})
         return dictionary
@@ -326,12 +328,12 @@ class SomeOf(BaseCompose):
 class OneOrOther(BaseCompose):
     """Select one or another transform to apply. Selected transform will be called with `force_apply=True`."""
 
-    def __init__(self, first=None, second=None, transforms=None, p=0.5):
+    def __init__(self, first: Any = None, second: Any = None, transforms: List[Any] = None, p: float = 0.5):
         if transforms is None:
             transforms = [first, second]
         super(OneOrOther, self).__init__(transforms, p)
 
-    def __call__(self, force_apply=False, **data):
+    def __call__(self, force_apply: bool = False, **data) -> List[Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -353,11 +355,11 @@ class PerChannel(BaseCompose):
         p (float): probability of applying the transform. Default: 0.5.
     """
 
-    def __init__(self, transforms, channels=None, p=0.5):
+    def __init__(self, transforms: List[Any], channels: List[Any] = None, p: float = 0.5):
         super(PerChannel, self).__init__(transforms, p)
         self.channels = channels
 
-    def __call__(self, force_apply=False, **data):
+    def __call__(self, force_apply: bool = False, **data) -> Dict[str, Any]:
         if force_apply or random.random() < self.p:
 
             image = data["image"]
@@ -380,13 +382,14 @@ class PerChannel(BaseCompose):
 
 class ReplayCompose(Compose):
     def __init__(
-        self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0, save_key="replay"
+        self, transforms: List[Any], bbox_params: "BboxParams" = None, keypoint_params: "KeypointParams" = None,
+            additional_targets: Dict[str, str] = None, p: float = 1.0, save_key: str = "replay"
     ):
         super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
 
-    def __call__(self, force_apply=False, **kwargs):
+    def __call__(self, force_apply: bool = False, **kwargs) -> Dict[str, Any]:
         kwargs[self.save_key] = defaultdict(dict)
         result = super(ReplayCompose, self).__call__(force_apply=force_apply, **kwargs)
         serialized = self.get_dict_with_id()
@@ -396,15 +399,15 @@ class ReplayCompose(Compose):
         return result
 
     @staticmethod
-    def replay(saved_augmentations, **kwargs):
+    def replay(saved_augmentations: Dict[str, str], **kwargs):
         augs = ReplayCompose._restore_for_replay(saved_augmentations)
         return augs(force_apply=True, **kwargs)
 
     @staticmethod
-    def _restore_for_replay(transform_dict, lambda_transforms=None):
+    def _restore_for_replay(transform_dict: Dict[str, Any], lambda_transforms: Dict[str, Any] = None):
         """
         Args:
-            transform (dict): A dictionary with serialized transform pipeline.
+            transform_dict (dict): A dictionary with serialized transform pipeline.
             lambda_transforms (dict): A dictionary that contains lambda transforms, that
             is instances of the Lambda class.
                 This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
@@ -433,14 +436,14 @@ class ReplayCompose(Compose):
         transform.applied_in_replay = applied
         return transform
 
-    def fill_with_params(self, serialized, all_params):
+    def fill_with_params(self, serialized: Dict[str, Any], all_params: Dict[str, Any]):
         params = all_params.get(serialized.get("id"))
         serialized["params"] = params
         del serialized["id"]
         for transform in serialized.get("transforms", []):
             self.fill_with_params(transform, all_params)
 
-    def fill_applied(self, serialized):
+    def fill_applied(self, serialized: Dict[str, Any]) -> Any:
         if "transforms" in serialized:
             applied = [self.fill_applied(t) for t in serialized["transforms"]]
             serialized["applied"] = any(applied)
@@ -448,7 +451,7 @@ class ReplayCompose(Compose):
             serialized["applied"] = serialized.get("params") is not None
         return serialized["applied"]
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         dictionary = super(ReplayCompose, self)._to_dict()
         dictionary.update({"save_key": self.save_key})
         return dictionary
@@ -481,13 +484,14 @@ class BboxParams(Params):
             Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_each_transform=True):
+    def __init__(self, format: str, label_fields: List[Any] = None, min_area: float = 0.0,
+                 min_visibility: float = 0.0, check_each_transform: bool = True):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
         self.check_each_transform = check_each_transform
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         data = super(BboxParams, self)._to_dict()
         data.update(
             {
@@ -523,18 +527,18 @@ class KeypointParams(Params):
 
     def __init__(
         self,
-        format,  # skipcq: PYL-W0622
-        label_fields=None,
-        remove_invisible=True,
-        angle_in_degrees=True,
-        check_each_transform=True,
+        format: str,  # skipcq: PYL-W0622
+        label_fields: List[Any] = None,
+        remove_invisible: bool = True,
+        angle_in_degrees: bool = True,
+        check_each_transform: bool = True,
     ):
         super(KeypointParams, self).__init__(format, label_fields)
         self.remove_invisible = remove_invisible
         self.angle_in_degrees = angle_in_degrees
         self.check_each_transform = check_each_transform
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         data = super(KeypointParams, self)._to_dict()
         data.update(
             {
@@ -571,10 +575,10 @@ class Sequential(BaseCompose):
         >>> ])
     """
 
-    def __init__(self, transforms, p=0.5):
+    def __init__(self, transforms: List[Any], p: float = 0.5):
         super().__init__(transforms, p)
 
-    def __call__(self, **data):
+    def __call__(self, **data) -> List[Any]:
         for t in self.transforms:
             data = t(**data)
         return data
