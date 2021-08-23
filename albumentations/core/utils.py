@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 from ..core.six import string_types, add_metaclass
 
 import numpy as np
-from typing import Any, Tuple
+from typing import Any, Tuple, Dict, List
 
 
 def get_shape(img: Any) -> Tuple[int, int]:
@@ -26,7 +26,7 @@ def get_shape(img: Any) -> Tuple[int, int]:
     )
 
 
-def format_args(args_dict):
+def format_args(args_dict: Dict[str, str]) -> str:
     formatted_args = []
     for k, v in args_dict.items():
         if isinstance(v, string_types):
@@ -37,11 +37,11 @@ def format_args(args_dict):
 
 @add_metaclass(ABCMeta)
 class Params:
-    def __init__(self, format, label_fields=None):
+    def __init__(self, format: str, label_fields: str = None):
         self.format = format
         self.label_fields = label_fields
 
-    def _to_dict(self):
+    def _to_dict(self) -> Dict[str, Any]:
         return {"format": self.format, "label_fields": self.label_fields}
 
 
@@ -60,13 +60,13 @@ class DataProcessor:
     def default_data_name(self):
         raise NotImplementedError
 
-    def ensure_data_valid(self, data):
+    def ensure_data_valid(self, data: Dict[str, Any]):
         pass
 
-    def ensure_transforms_valid(self, transforms):
+    def ensure_transforms_valid(self, transforms: List[Any]):
         pass
 
-    def postprocess(self, data):
+    def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
 
         for data_name in self.data_fields:
@@ -76,14 +76,14 @@ class DataProcessor:
         data = self.remove_label_fields_from_data(data)
         return data
 
-    def preprocess(self, data):
+    def preprocess(self, data: Dict[str, Any]):
         data = self.add_label_fields_to_data(data)
 
         rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(self, data, rows, cols, direction="to"):
+    def check_and_convert(self, data: Dict[str, Any], rows: int, cols: int, direction: str = "to") -> Dict[str, Any]:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -94,22 +94,22 @@ class DataProcessor:
         return self.convert_from_albumentations(data, rows, cols)
 
     @abstractmethod
-    def filter(self, data, rows, cols):
+    def filter(self, data: Dict[str, Any], rows: int, cols: int):
         pass
 
     @abstractmethod
-    def check(self, data, rows, cols):
+    def check(self, data: Dict[str, Any], rows: int, cols: int):
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data, rows, cols):
+    def convert_to_albumentations(self, data: Dict[str, Any], rows: int, cols: int):
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data, rows, cols):
+    def convert_from_albumentations(self, data: Dict[str, Any], rows: int, cols: int):
         pass
 
-    def add_label_fields_to_data(self, data):
+    def add_label_fields_to_data(self, data: Dict[str, Any]):
         if self.params.label_fields is None:
             return data
         for data_name in self.data_fields:
@@ -121,7 +121,7 @@ class DataProcessor:
                 data[data_name] = data_with_added_field
         return data
 
-    def remove_label_fields_from_data(self, data):
+    def remove_label_fields_from_data(self, data: Dict[str, Any]):
         if self.params.label_fields is None:
             return data
         for data_name in self.data_fields:
