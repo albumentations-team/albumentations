@@ -810,7 +810,7 @@ class CropAndPad(DualTransform):
 
         return random.choice(pad_value)
 
-    def get_transform_init_args_names(self) -> Sequence[str]:
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "px",
             "percent",
