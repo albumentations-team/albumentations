@@ -1,5 +1,5 @@
 import random
-from typing import Dict, Sequence, Union
+from typing import Dict, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -96,7 +96,7 @@ class LongestMaxSize(DualTransform):
     def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
-    def get_transform_init_args_names(self) -> Sequence[str]:
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("max_size", "interpolation")
 
 
@@ -145,7 +145,7 @@ class SmallestMaxSize(DualTransform):
     def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
-    def get_transform_init_args_names(self) -> Sequence[str]:
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("max_size", "interpolation")
 
 
