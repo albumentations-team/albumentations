@@ -199,7 +199,6 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     def update_params(self, params, **kwargs):
         super().update_params(params, **kwargs)
-        
         if "mask" in kwargs:
             mask = self._preprocess_mask(kwargs["mask"])
         elif "masks" in kwargs and len(kwargs["masks"]):
