@@ -90,7 +90,7 @@ As we see pytest prints arguments values at each run.
 ***********************************************************************************************
 Simplifying tests for functions that work with both images and masks by using helper functions.
 ***********************************************************************************************
-Let's say that we want to test the ``hflip`` function. This function vertically flips an image or mask that passed as input to it.
+Let's say that we want to test the ``vflip`` function. This function vertically flips an image or mask that passed as input to it.
 
 We will start with a test that checks that this function works correctly with masks, that is with two-dimensional NumPy arrays that have shape ``(height, width)``.
 

@@ -765,10 +765,10 @@ def add_rain(
         )
 
     image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
-    image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
-    image_hls[:, :, 1] *= brightness_coefficient
+    image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV).astype(np.float32)
+    image_hsv[:, :, 2] *= brightness_coefficient
 
-    image_rgb = cv2.cvtColor(image_hls.astype(np.uint8), cv2.COLOR_HLS2RGB)
+    image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
     if needs_float:
         image_rgb = to_float(image_rgb, max_value=255)
