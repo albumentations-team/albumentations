@@ -234,7 +234,7 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         bbox, tail = bbox[:4], tuple(bbox[4:])
         _bbox = np.array(bbox[:4])
         if check_validity and np.any((_bbox <= 0) | (_bbox > 1)):
-            raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
+            raise ValueError("In YOLO format all coordinates must be float and in range (0, 1)")
 
         x, y, w, h = bbox
 
