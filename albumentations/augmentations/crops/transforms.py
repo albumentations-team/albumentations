@@ -396,7 +396,7 @@ class RandomCropNearBBox(DualTransform):
             to `cropping_bbox` dimension.
             If max_part_shift is a single float, the range will be (max_part_shift, max_part_shift).
             Default (0.3, 0.3).
-        cropping_box_key (str): Additional target key for croppting box. Default `cropping_bbox`
+        cropping_box_key (str): Additional target key for cropping box. Default `cropping_bbox`
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
