@@ -813,8 +813,9 @@ class CoarseDropout(DualTransform):
                     isinstance(self.max_width, float),
                 ]
             ):
-                hole_height = random.randint(round(self.min_height * height), round(self.max_height * height))
-                hole_width = random.randint(round(self.min_width * width), round(self.max_width * width))
+                hole_height = int(height * random.uniform(self.min_height, self.max_height))
+                hole_width = int(width * random.uniform(self.min_width, self.max_width))
+
             else:
                 raise ValueError(
                     "Min width, max width, \
