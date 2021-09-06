@@ -150,6 +150,7 @@ class ElasticTransform(DualTransform):
         mask_value=None,
         always_apply=False,
         approximate=False,
+        same_dxdy=False,
         p=0.5,
     ):
         super(ElasticTransform, self).__init__(always_apply, p)
@@ -161,6 +162,7 @@ class ElasticTransform(DualTransform):
         self.value = value
         self.mask_value = mask_value
         self.approximate = approximate
+        self.same_dxdy = same_dxdy
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
         return F.elastic_transform(
@@ -173,6 +175,7 @@ class ElasticTransform(DualTransform):
             self.value,
             np.random.RandomState(random_state),
             self.approximate,
+            self.same_dxdy,
         )
 
     def apply_to_mask(self, img, random_state=None, **params):
@@ -186,6 +189,7 @@ class ElasticTransform(DualTransform):
             self.mask_value,
             np.random.RandomState(random_state),
             self.approximate,
+            self.same_dxdy,
         )
 
     def get_params(self):
