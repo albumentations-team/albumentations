@@ -131,6 +131,8 @@ class ElasticTransform(DualTransform):
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         approximate (boolean): Whether to smooth displacement map with fixed kernel size.
                                Enabling this option gives ~2X speedup on large images.
+        same_dxdy (boolean): Whether to use same random generated shift for x and y.
+                             Enabling this option gives ~2X speedup.
 
     Targets:
         image, mask
@@ -196,7 +198,17 @@ class ElasticTransform(DualTransform):
         return {"random_state": random.randint(0, 10000)}
 
     def get_transform_init_args_names(self):
-        return ("alpha", "sigma", "alpha_affine", "interpolation", "border_mode", "value", "mask_value", "approximate")
+        return (
+            "alpha",
+            "sigma",
+            "alpha_affine",
+            "interpolation",
+            "border_mode",
+            "value",
+            "mask_value",
+            "approximate",
+            "same_dxdy",
+        )
 
 
 class Perspective(DualTransform):
