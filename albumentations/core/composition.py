@@ -255,7 +255,7 @@ class Compose(BaseCompose):
                     if not isinstance(data[0], np.ndarray):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
-                raise Exception("bbox_params must be specified for bbox transformations")
+                raise ValueError("bbox_params must be specified for bbox transformations")
 
 
 class OneOf(BaseCompose):

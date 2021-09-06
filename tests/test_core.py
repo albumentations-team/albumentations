@@ -325,3 +325,9 @@ def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
 
     for key, item in expected.items():
         assert np.all(np.array(item) == np.array(res[key]))
+
+def test_bbox_params_is_not_set(image, bboxes):
+    t = Compose([])
+    with pytest.raises(ValueError) as exc_info:
+        t(image=image, bboxes=bboxes)
+    assert str(exc_info.value) == "bbox_params must be specified for bbox transformations"
