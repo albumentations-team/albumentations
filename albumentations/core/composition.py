@@ -243,7 +243,6 @@ class Compose(BaseCompose):
     def _check_args(self, **kwargs):
         checked_single = ["image", "mask"]
         checked_multi = ["masks"]
-        check_bbox_param = ["bboxes"]
         # ["bboxes", "keypoints"] could be almost any type, no need to check them
         for data_name, data in kwargs.items():
             internal_data_name = self.additional_targets.get(data_name, data_name)
@@ -254,8 +253,6 @@ class Compose(BaseCompose):
                 if data:
                     if not isinstance(data[0], np.ndarray):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
-            if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
-                raise Exception("bbox_params must be specified for bbox transformations")
 
 
 class OneOf(BaseCompose):
