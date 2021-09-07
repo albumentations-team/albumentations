@@ -333,14 +333,35 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     [
         [
             A.PadIfNeeded,
-            {"min_height": 514, "min_width": 514, "border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
+            {
+                "min_height": 514,
+                "min_width": 514,
+                "border_mode": cv2.BORDER_CONSTANT,
+                "value": 100,
+                "mask_value": 1,
+            },
         ],
         [A.Rotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.SafeRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.ShiftScaleRotate, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.OpticalDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.ElasticTransform, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
-        [A.GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
+        [
+            A.SafeRotate,
+            {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
+        ],
+        [
+            A.ShiftScaleRotate,
+            {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
+        ],
+        [
+            A.OpticalDistortion,
+            {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
+        ],
+        [
+            A.ElasticTransform,
+            {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
+        ],
+        [
+            A.GridDistortion,
+            {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1},
+        ],
         [A.Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
         [A.PiecewiseAffine, {"mode": "constant", "cval_mask": 1, "cval": 100}],
     ],
@@ -348,7 +369,10 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
 def test_mask_fill_value(augmentation_cls, params):
     random.seed(42)
     aug = augmentation_cls(p=1, **params)
-    input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
+    input = {
+        "image": np.zeros((512, 512), dtype=np.uint8) + 100,
+        "mask": np.ones((512, 512)),
+    }
     output = aug(**input)
     assert (output["image"] == 100).all()
     assert (output["mask"] == 1).all()
@@ -574,31 +598,64 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
         [A.PadIfNeeded, {"min_height": 514, "min_width": 516}, (600, 600)],
         [
             A.PadIfNeeded,
-            {"min_height": None, "min_width": None, "pad_height_divisor": 128, "pad_width_divisor": 128},
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 128,
+                "pad_width_divisor": 128,
+            },
             (300, 200),
         ],
         [
             A.PadIfNeeded,
-            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
             (72, 128),
         ],
         [
             A.PadIfNeeded,
-            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
             (15, 15),
         ],
         [
             A.PadIfNeeded,
-            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
             (144, 256),
         ],
         [
             A.PadIfNeeded,
-            {"min_height": None, "min_width": None, "pad_height_divisor": 72, "pad_width_divisor": 128},
+            {
+                "min_height": None,
+                "min_width": None,
+                "pad_height_divisor": 72,
+                "pad_width_divisor": 128,
+            },
             (200, 300),
         ],
-        [A.PadIfNeeded, {"min_height": 512, "min_width": None, "pad_width_divisor": 128}, (300, 200)],
-        [A.PadIfNeeded, {"min_height": None, "min_width": 512, "pad_height_divisor": 128}, (300, 200)],
+        [
+            A.PadIfNeeded,
+            {"min_height": 512, "min_width": None, "pad_width_divisor": 128},
+            (300, 200),
+        ],
+        [
+            A.PadIfNeeded,
+            {"min_height": None, "min_width": 512, "pad_height_divisor": 128},
+            (300, 200),
+        ],
     ],
 )
 def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, image_shape: Tuple[int, int]):
@@ -627,11 +684,56 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, imag
 @pytest.mark.parametrize(
     ["params", "image_shape"],
     [
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "center"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_left"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_right"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_left"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_right"}, (5, 6)],
+        [
+            {
+                "min_height": 10,
+                "min_width": 12,
+                "border_mode": 0,
+                "value": 1,
+                "position": "center",
+            },
+            (5, 6),
+        ],
+        [
+            {
+                "min_height": 10,
+                "min_width": 12,
+                "border_mode": 0,
+                "value": 1,
+                "position": "top_left",
+            },
+            (5, 6),
+        ],
+        [
+            {
+                "min_height": 10,
+                "min_width": 12,
+                "border_mode": 0,
+                "value": 1,
+                "position": "top_right",
+            },
+            (5, 6),
+        ],
+        [
+            {
+                "min_height": 10,
+                "min_width": 12,
+                "border_mode": 0,
+                "value": 1,
+                "position": "bottom_left",
+            },
+            (5, 6),
+        ],
+        [
+            {
+                "min_height": 10,
+                "min_width": 12,
+                "border_mode": 0,
+                "value": 1,
+                "position": "bottom_right",
+            },
+            (5, 6),
+        ],
     ],
 )
 def test_pad_if_needed_position(params, image_shape):
@@ -639,7 +741,12 @@ def test_pad_if_needed_position(params, image_shape):
     pad = A.PadIfNeeded(**params)
     image_padded = pad(image=image)["image"]
 
-    true_result = np.ones((max(image_shape[0], params["min_height"]), max(image_shape[1], params["min_width"])))
+    true_result = np.ones(
+        (
+            max(image_shape[0], params["min_height"]),
+            max(image_shape[1], params["min_width"]),
+        )
+    )
 
     if params["position"] == "center":
         x_start = image_shape[0] // 2
@@ -720,7 +827,8 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
     ]
 
     transform = A.Compose(
-        [A.Perspective(scale=(scale, scale), p=1)], keypoint_params={"format": "xy", "remove_invisible": False}
+        [A.Perspective(scale=(scale, scale), p=1)],
+        keypoint_params={"format": "xy", "remove_invisible": False},
     )
 
     res = transform(image=image, keypoints=keypoints)["keypoints"]

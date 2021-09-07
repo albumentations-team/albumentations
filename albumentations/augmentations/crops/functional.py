@@ -11,7 +11,14 @@ BboxType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.
 KeypointType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.ndarray]
 
 
-def get_random_crop_coords(height: int, width: int, crop_height: int, crop_width: int, h_start: float, w_start: float):
+def get_random_crop_coords(
+    height: int,
+    width: int,
+    crop_height: int,
+    crop_width: int,
+    h_start: float,
+    w_start: float,
+):
     y1 = int((height - crop_height) * h_start)
     y2 = y1 + crop_height
     x1 = int((width - crop_width) * w_start)
@@ -25,7 +32,10 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
         raise ValueError(
             "Requested crop size ({crop_height}, {crop_width}) is "
             "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
+                crop_height=crop_height,
+                crop_width=crop_width,
+                height=height,
+                width=width,
             )
         )
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
@@ -34,7 +44,12 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
 
 
 def crop_bbox_by_coords(
-    bbox: BboxType, crop_coords: Tuple[int, int, int, int], crop_height: int, crop_width: int, rows: int, cols: int
+    bbox: BboxType,
+    crop_coords: Tuple[int, int, int, int],
+    crop_height: int,
+    crop_width: int,
+    rows: int,
+    cols: int,
 ):
     """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
@@ -59,7 +74,13 @@ def crop_bbox_by_coords(
 
 
 def bbox_random_crop(
-    bbox: BboxType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
+    bbox: BboxType,
+    crop_height: int,
+    crop_width: int,
+    h_start: float,
+    w_start: float,
+    rows: int,
+    cols: int,
 ):
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
@@ -83,7 +104,13 @@ def crop_keypoint_by_coords(keypoint: KeypointType, crop_coords: Tuple[int, int,
 
 
 def keypoint_random_crop(
-    keypoint: KeypointType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
+    keypoint: KeypointType,
+    crop_height: int,
+    crop_width: int,
+    h_start: float,
+    w_start: float,
+    rows: int,
+    cols: int,
 ):
     """Keypoint random crop.
 
@@ -118,7 +145,10 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
         raise ValueError(
             "Requested crop size ({crop_height}, {crop_width}) is "
             "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
+                crop_height=crop_height,
+                crop_width=crop_width,
+                height=height,
+                width=width,
             )
         )
     x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
@@ -164,7 +194,12 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
             "Values for crop should be non negative and equal or smaller than image sizes"
             "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
             "height = {height}, width = {width})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
+                x_min=x_min,
+                x_max=x_max,
+                y_min=y_min,
+                y_max=y_max,
+                height=height,
+                width=width,
             )
         )
 

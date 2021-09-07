@@ -13,7 +13,11 @@ def test_torch_to_tensor_v2_augmentations(image, mask):
     aug = ToTensorV2()
     data = aug(image=image, mask=mask, force_apply=True)
     height, width, num_channels = image.shape
-    assert isinstance(data["image"], torch.Tensor) and data["image"].shape == (num_channels, height, width)
+    assert isinstance(data["image"], torch.Tensor) and data["image"].shape == (
+        num_channels,
+        height,
+        width,
+    )
     assert isinstance(data["mask"], torch.Tensor) and data["mask"].shape == mask.shape
     assert data["image"].dtype == torch.uint8
     assert data["mask"].dtype == torch.uint8
@@ -29,7 +33,10 @@ def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image, mask):
         image_height,
         image_width,
     )
-    assert isinstance(data["mask"], torch.Tensor) and data["mask"].shape == (mask_height, mask_width)
+    assert isinstance(data["mask"], torch.Tensor) and data["mask"].shape == (
+        mask_height,
+        mask_width,
+    )
     assert data["image"].dtype == torch.uint8
     assert data["mask"].dtype == torch.uint8
 

@@ -47,7 +47,10 @@ class RandomScale(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args(self):
-        return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
+        return {
+            "interpolation": self.interpolation,
+            "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
+        }
 
 
 class LongestMaxSize(DualTransform):

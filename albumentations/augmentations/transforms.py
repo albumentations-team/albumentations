@@ -173,8 +173,11 @@ class PadIfNeeded(DualTransform):
             w_pad_left = pad_cols // 2
             w_pad_right = pad_cols - w_pad_left
 
-        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = self.__update_position_params(
-            h_top=h_pad_top, h_bottom=h_pad_bottom, w_left=w_pad_left, w_right=w_pad_right
+        (h_pad_top, h_pad_bottom, w_pad_left, w_pad_right,) = self.__update_position_params(
+            h_top=h_pad_top,
+            h_bottom=h_pad_bottom,
+            w_left=w_pad_left,
+            w_right=w_pad_right,
         )
 
         params.update(
@@ -209,7 +212,17 @@ class PadIfNeeded(DualTransform):
             value=self.mask_value,
         )
 
-    def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
+    def apply_to_bbox(
+        self,
+        bbox,
+        pad_top=0,
+        pad_bottom=0,
+        pad_left=0,
+        pad_right=0,
+        rows=0,
+        cols=0,
+        **params,
+    ):
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
         bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
         return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
@@ -774,12 +787,24 @@ class CoarseDropout(DualTransform):
         self.mask_fill_value = mask_fill_value
         if not 0 < self.min_holes <= self.max_holes:
             raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
+
+        self.check_range(self.max_height)
+        self.check_range(self.min_height)
+        self.check_range(self.max_width)
+        self.check_range(self.min_width)
+
         if not 0 < self.min_height <= self.max_height:
             raise ValueError(
                 "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
             )
         if not 0 < self.min_width <= self.max_width:
             raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
+
+    def check_range(self, dimension):
+        if isinstance(dimension, float) and not 0 < dimension <= 1.0:
+            raise ValueError(
+                "Invalid value {}. If using floats, the value should be in the range of 0 to 1.0".format(dimension)
+            )
 
     def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
@@ -822,7 +847,12 @@ class CoarseDropout(DualTransform):
                     min height and max height \
                     should all either be ints or floats. \
                     Got: {} respectively".format(
-                        [type(self.min_width), type(self.max_width), type(self.min_height), type(self.max_height)]
+                        [
+                            type(self.min_width),
+                            type(self.max_width),
+                            type(self.min_height),
+                            type(self.max_height),
+                        ]
                     )
                 )
 
@@ -1972,7 +2002,14 @@ class GaussNoise(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, var_limit=(10.0, 50.0), mean=0, per_channel=True, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        var_limit=(10.0, 50.0),
+        mean=0,
+        per_channel=True,
+        always_apply=False,
+        p=0.5,
+    ):
         super(GaussNoise, self).__init__(always_apply, p)
         if isinstance(var_limit, (tuple, list)):
             if var_limit[0] < 0:
@@ -3118,7 +3155,16 @@ class Superpixels(ImageOnlyTransform):
     def get_params(self) -> dict:
         n_segments = random.randint(*self.n_segments)
         p = random.uniform(*self.p_replace)
-        return {"replace_samples": np.random.random(n_segments) < p, "n_segments": n_segments}
+        return {
+            "replace_samples": np.random.random(n_segments) < p,
+            "n_segments": n_segments,
+        }
 
-    def apply(self, img: np.ndarray, replace_samples: Sequence[bool] = (False,), n_segments: int = 1, **kwargs):
+    def apply(
+        self,
+        img: np.ndarray,
+        replace_samples: Sequence[bool] = (False,),
+        n_segments: int = 1,
+        **kwargs,
+    ):
         return F.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)

@@ -28,7 +28,8 @@ skipif_no_imgaug = pytest.mark.skipif(
     not imgaug_available, reason="The test was skipped because imgaug is not installed"
 )
 skipif_no_torch = pytest.mark.skipif(
-    not torch_available, reason="The test was skipped because PyTorch and torchvision are not installed"
+    not torch_available,
+    reason="The test was skipped because PyTorch and torchvision are not installed",
 )
 
 

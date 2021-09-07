@@ -1,4 +1,11 @@
-from albumentations import HorizontalFlip, OneOf, PiecewiseAffine, Affine, OpticalDistortion, GridDistortion
+from albumentations import (
+    HorizontalFlip,
+    OneOf,
+    PiecewiseAffine,
+    Affine,
+    OpticalDistortion,
+    GridDistortion,
+)
 from albumentations.core.composition import Transforms
 import pytest
 
@@ -54,6 +61,9 @@ def empty_aug3():
     ]
 
 
-@pytest.mark.parametrize(["aug", "start_end"], [[empty_aug1, [0, 1]], [empty_aug2, [0, 2]], [empty_aug3, [0, 0]]])
+@pytest.mark.parametrize(
+    ["aug", "start_end"],
+    [[empty_aug1, [0, 1]], [empty_aug2, [0, 2]], [empty_aug3, [0, 0]]],
+)
 def test_strong_aug(aug, start_end):
     assert Transforms(aug()).start_end == start_end

@@ -6,7 +6,10 @@ import random
 import numpy as np
 
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
-from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
+from albumentations.core.serialization import (
+    SerializableMeta,
+    get_shortest_class_fullname,
+)
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform
 from albumentations.core.utils import format_args, Params, get_shape
@@ -138,7 +141,14 @@ class Compose(BaseCompose):
         p (float): probability of applying all list of transforms. Default: 1.0.
     """
 
-    def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0):
+    def __init__(
+        self,
+        transforms,
+        bbox_params=None,
+        keypoint_params=None,
+        additional_targets=None,
+        p=1.0,
+    ):
         super(Compose, self).__init__([t for t in transforms if t is not None], p)
 
         self.processors = {}
@@ -173,7 +183,6 @@ class Compose(BaseCompose):
     def __call__(self, *args, force_apply=False, **data):
         if args:
             raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
-        self._check_args(**data)
         assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
@@ -311,7 +320,10 @@ class SomeOf(BaseCompose):
         if self.transforms_ps and (force_apply or random.random() < self.p):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             transforms = random_state.choice(
-                self.transforms.transforms, size=self.n, replace=self.replace, p=self.transforms_ps
+                self.transforms.transforms,
+                size=self.n,
+                replace=self.replace,
+                p=self.transforms_ps,
             )
             for t in transforms:
                 data = t(force_apply=True, **data)
@@ -380,7 +392,13 @@ class PerChannel(BaseCompose):
 
 class ReplayCompose(Compose):
     def __init__(
-        self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0, save_key="replay"
+        self,
+        transforms,
+        bbox_params=None,
+        keypoint_params=None,
+        additional_targets=None,
+        p=1.0,
+        save_key="replay",
     ):
         super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
         self.set_deterministic(True, save_key=save_key)
@@ -481,7 +499,14 @@ class BboxParams(Params):
             Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_each_transform=True):
+    def __init__(
+        self,
+        format,
+        label_fields=None,
+        min_area=0.0,
+        min_visibility=0.0,
+        check_each_transform=True,
+    ):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility

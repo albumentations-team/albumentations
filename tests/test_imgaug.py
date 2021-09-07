@@ -99,7 +99,10 @@ def test_keypoint_transform_format_xy(aug, keypoints, expected):
 
 @pytest.mark.parametrize(["aug", "keypoints", "expected"], [[IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]]])
 def test_iaa_transforms_emit_warning(aug, keypoints, expected):
-    with pytest.warns(UserWarning, match="IAAFliplr transformation supports only 'xy' keypoints augmentation"):
+    with pytest.warns(
+        UserWarning,
+        match="IAAFliplr transformation supports only 'xy' keypoints augmentation",
+    ):
         Compose([aug(p=1)], keypoint_params={"format": "xyas", "label_fields": ["labels"]})
 
 
@@ -296,7 +299,16 @@ def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval, keep_s
         keypoint_params=keypoint_params,
     )
     transform_iaa = A.Compose(
-        [IAACropAndPad(px=px, percent=percent, pad_mode=pad_mode_iaa, pad_cval=pad_cval, keep_size=keep_size, p=1)],
+        [
+            IAACropAndPad(
+                px=px,
+                percent=percent,
+                pad_mode=pad_mode_iaa,
+                pad_cval=pad_cval,
+                keep_size=keep_size,
+                p=1,
+            )
+        ],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )

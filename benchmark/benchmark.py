@@ -27,7 +27,11 @@ import solt.utils as slu
 
 import albumentations.augmentations.functional as albumentations
 import albumentations as A
-from albumentations.augmentations.geometric.functional import rotate, resize, shift_scale_rotate
+from albumentations.augmentations.geometric.functional import (
+    rotate,
+    resize,
+    shift_scale_rotate,
+)
 from albumentations.augmentations.crops.functional import random_crop
 
 cv2.setNumThreads(0)  # noqa E402
@@ -40,28 +44,66 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # noqa E402
 os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
 
 
-DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt"]
+DEFAULT_BENCHMARKING_LIBRARIES = [
+    "albumentations",
+    "imgaug",
+    "torchvision",
+    "keras",
+    "augmentor",
+    "solt",
+]
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Augmentation libraries performance benchmark")
     parser.add_argument(
-        "-d", "--data-dir", metavar="DIR", default=os.environ.get("DATA_DIR"), help="path to a directory with images"
+        "-d",
+        "--data-dir",
+        metavar="DIR",
+        default=os.environ.get("DATA_DIR"),
+        help="path to a directory with images",
     )
     parser.add_argument(
-        "-i", "--images", default=2000, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
+        "-i",
+        "--images",
+        default=2000,
+        type=int,
+        metavar="N",
+        help="number of images for benchmarking (default: 2000)",
     )
     parser.add_argument(
-        "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
+        "-l",
+        "--libraries",
+        default=DEFAULT_BENCHMARKING_LIBRARIES,
+        nargs="+",
+        help="list of libraries to benchmark",
     )
     parser.add_argument(
-        "-r", "--runs", default=5, type=int, metavar="N", help="number of runs for each benchmark (default: 5)"
+        "-r",
+        "--runs",
+        default=5,
+        type=int,
+        metavar="N",
+        help="number of runs for each benchmark (default: 5)",
     )
     parser.add_argument(
-        "--show-std", dest="show_std", action="store_true", help="show standard deviation for benchmark runs"
+        "--show-std",
+        dest="show_std",
+        action="store_true",
+        help="show standard deviation for benchmark runs",
     )
-    parser.add_argument("-p", "--print-package-versions", action="store_true", help="print versions of packages")
-    parser.add_argument("-m", "--markdown", action="store_true", help="print benchmarking results as a markdown table")
+    parser.add_argument(
+        "-p",
+        "--print-package-versions",
+        action="store_true",
+        help="print versions of packages",
+    )
+    parser.add_argument(
+        "-m",
+        "--markdown",
+        action="store_true",
+        help="print benchmarking results as a markdown table",
+    )
     return parser.parse_args()
 
 
@@ -128,9 +170,19 @@ class MarkdownGenerator:
         return value_matrix
 
     def _make_versions_text(self):
-        libraries = ["Python", "numpy", "pillow-simd", "opencv-python", "scikit-image", "scipy"]
+        libraries = [
+            "Python",
+            "numpy",
+            "pillow-simd",
+            "opencv-python",
+            "scikit-image",
+            "scipy",
+        ]
         libraries_with_versions = [
-            "{library} {version}".format(library=library, version=self._package_versions[library].replace("\n", ""))
+            "{library} {version}".format(
+                library=library,
+                version=self._package_versions[library].replace("\n", ""),
+            )
             for library in libraries
         ]
         return "Python and library versions: {}.".format(", ".join(libraries_with_versions))
@@ -291,7 +343,10 @@ class Contrast(BenchmarkTest):
 class BrightnessContrast(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Sequential(
-            [iaa.Multiply((1.5, 1.5), per_channel=False), iaa.Add((127, 127), per_channel=False)]
+            [
+                iaa.Multiply((1.5, 1.5), per_channel=False),
+                iaa.Add((127, 127), per_channel=False),
+            ]
         )
         self.augmentor_pipeline = Pipeline()
         self.augmentor_pipeline.add_operation(
@@ -299,7 +354,10 @@ class BrightnessContrast(BenchmarkTest):
         )
         self.augmentor_pipeline.add_operation(Operations.RandomContrast(probability=1, min_factor=1.5, max_factor=1.5))
         self.solt_stream = slc.Stream(
-            [slt.Brightness(p=1, brightness_range=(127, 127)), slt.Contrast(p=1, contrast_range=(1.5, 1.5))]
+            [
+                slt.Brightness(p=1, brightness_range=(127, 127)),
+                slt.Contrast(p=1, contrast_range=(1.5, 1.5)),
+            ]
         )
 
     def albumentations(self, img):
@@ -319,7 +377,11 @@ class BrightnessContrast(BenchmarkTest):
 class ShiftScaleRotate(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Affine(
-            scale=(2, 2), rotate=(45, 45), translate_px=(50, 50), order=1, mode="reflect"
+            scale=(2, 2),
+            rotate=(45, 45),
+            translate_px=(50, 50),
+            order=1,
+            mode="reflect",
         )
 
     def albumentations(self, img):
@@ -401,9 +463,17 @@ class RandomSizedCrop_64_512(BenchmarkTest):
             Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
         )
         self.imgaug_transform = iaa.Sequential(
-            [iaa.CropToFixedSize(width=64, height=64), iaa.Scale(size=512, interpolation="linear")]
+            [
+                iaa.CropToFixedSize(width=64, height=64),
+                iaa.Scale(size=512, interpolation="linear"),
+            ]
         )
-        self.solt_stream = slc.Stream([slt.Crop(crop_to=(64, 64), crop_mode="r"), slt.Resize(resize_to=(512, 512))])
+        self.solt_stream = slc.Stream(
+            [
+                slt.Crop(crop_to=(64, 64), crop_mode="r"),
+                slt.Resize(resize_to=(512, 512)),
+            ]
+        )
 
     def albumentations(self, img):
         img = random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)

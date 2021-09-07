@@ -112,7 +112,9 @@ def get_transforms(
     except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
 ) -> typing.List[typing.Tuple[typing.Type, dict]]:
     return get_filtered_transforms(
-        (albumentations.ImageOnlyTransform, albumentations.DualTransform), custom_arguments, except_augmentations
+        (albumentations.ImageOnlyTransform, albumentations.DualTransform),
+        custom_arguments,
+        except_augmentations,
     )
 
 

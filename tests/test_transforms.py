@@ -57,14 +57,30 @@ def test_shift_scale_rotate_interpolation(interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     aug = A.ShiftScaleRotate(
-        shift_limit=(0.2, 0.2), scale_limit=(1.1, 1.1), rotate_limit=(45, 45), interpolation=interpolation, p=1
+        shift_limit=(0.2, 0.2),
+        scale_limit=(1.1, 1.1),
+        rotate_limit=(45, 45),
+        interpolation=interpolation,
+        p=1,
     )
     data = aug(image=image, mask=mask)
     expected_image = FGeometric.shift_scale_rotate(
-        image, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
+        image,
+        angle=45,
+        scale=2.1,
+        dx=0.2,
+        dy=0.2,
+        interpolation=interpolation,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     expected_mask = FGeometric.shift_scale_rotate(
-        mask, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
+        mask,
+        angle=45,
+        scale=2.1,
+        dx=0.2,
+        dy=0.2,
+        interpolation=cv2.INTER_NEAREST,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
@@ -77,10 +93,20 @@ def test_optical_distortion_interpolation(interpolation):
     aug = A.OpticalDistortion(distort_limit=(0.05, 0.05), shift_limit=(0, 0), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
     expected_image = F.optical_distortion(
-        image, k=0.05, dx=0, dy=0, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
+        image,
+        k=0.05,
+        dx=0,
+        dy=0,
+        interpolation=interpolation,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     expected_mask = F.optical_distortion(
-        mask, k=0.05, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
+        mask,
+        k=0.05,
+        dx=0,
+        dy=0,
+        interpolation=cv2.INTER_NEAREST,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
@@ -93,7 +119,12 @@ def test_grid_distortion_interpolation(interpolation):
     aug = A.GridDistortion(num_steps=1, distort_limit=(0.3, 0.3), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
     expected_image = F.grid_distortion(
-        image, num_steps=1, xsteps=[1.3], ysteps=[1.3], interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
+        image,
+        num_steps=1,
+        xsteps=[1.3],
+        ysteps=[1.3],
+        interpolation=interpolation,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     expected_mask = F.grid_distortion(
         mask,
@@ -120,7 +151,8 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     monkeypatch.setattr(
-        "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_state": 1111}
+        "albumentations.augmentations.geometric.ElasticTransform.get_params",
+        lambda *_: {"random_state": 1111},
     )
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
@@ -183,7 +215,11 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.Resize: {"height": 10, "width": 10},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad},
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.CropAndPad,
+        },
     ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -250,8 +286,18 @@ def test_force_apply():
                         A.RandomSizedCrop(min_max_height=(256, 1025), height=512, width=512, p=1),
                         A.OneOf(
                             [
-                                A.RandomSizedCrop(min_max_height=(256, 512), height=384, width=384, p=0.5),
-                                A.RandomSizedCrop(min_max_height=(256, 512), height=512, width=512, p=0.5),
+                                A.RandomSizedCrop(
+                                    min_max_height=(256, 512),
+                                    height=384,
+                                    width=384,
+                                    p=0.5,
+                                ),
+                                A.RandomSizedCrop(
+                                    min_max_height=(256, 512),
+                                    height=512,
+                                    width=512,
+                                    p=0.5,
+                                ),
                             ]
                         ),
                     ]
@@ -294,7 +340,10 @@ def test_force_apply():
     ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
-    aug = A.Compose([augmentation_cls(always_apply=True, **params)], additional_targets={"image2": "image"})
+    aug = A.Compose(
+        [augmentation_cls(always_apply=True, **params)],
+        additional_targets={"image2": "image"},
+    )
     for _i in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = image1.copy()
@@ -319,7 +368,11 @@ def test_lambda_transform():
         return F.keypoint_vflip(keypoint, **kwargs)
 
     aug = A.Lambda(
-        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
+        image=negate_image,
+        mask=partial(one_hot_mask, num_channels=16),
+        bbox=vflip_bbox,
+        keypoint=vflip_keypoint,
+        p=1,
     )
 
     output = aug(
@@ -520,7 +573,11 @@ def test_multiplicative_noise_grayscale(image):
 
 
 @pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+    "image",
+    [
+        np.random.randint(0, 256, [256, 320, 3], np.uint8),
+        np.random.random([256, 320, 3]).astype(np.float32),
+    ],
 )
 def test_multiplicative_noise_rgb(image):
     dtype = image.dtype
@@ -577,7 +634,11 @@ def test_mask_dropout():
 
 
 @pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+    "image",
+    [
+        np.random.randint(0, 256, [256, 320, 3], np.uint8),
+        np.random.random([256, 320, 3]).astype(np.float32),
+    ],
 )
 def test_grid_dropout_mask(image):
     mask = np.ones([256, 320], dtype=np.uint8)
@@ -612,7 +673,15 @@ def test_grid_dropout_mask(image):
 
 
 @pytest.mark.parametrize(
-    ["ratio", "holes_number_x", "holes_number_y", "unit_size_min", "unit_size_max", "shift_x", "shift_y"],
+    [
+        "ratio",
+        "holes_number_x",
+        "holes_number_y",
+        "unit_size_min",
+        "unit_size_max",
+        "shift_x",
+        "shift_y",
+    ],
     [
         (0.00001, 10, 10, 100, 100, 50, 50),
         (0.9, 100, None, 200, None, 0, 0),
@@ -620,7 +689,15 @@ def test_grid_dropout_mask(image):
         (0.00004, None, None, 2, 100, None, None),
     ],
 )
-def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y):
+def test_grid_dropout_params(
+    ratio,
+    holes_number_x,
+    holes_number_y,
+    unit_size_min,
+    unit_size_max,
+    shift_x,
+    shift_y,
+):
     img = np.random.randint(0, 256, [256, 320], np.uint8)
 
     aug = A.GridDropout(
@@ -726,7 +803,10 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
         assert _max <= 2, "Max: {}".format(_max)
 
 
-@pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
+@pytest.mark.parametrize(
+    ["hue", "sat", "val"],
+    [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]],
+)
 def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
     img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
 
@@ -753,7 +833,10 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
             t1 = A.Compose(
                 [
                     A.HueSaturationValue(
-                        hue_shift_limit=[_hue, _hue], sat_shift_limit=[_sat, _sat], val_shift_limit=[_val, _val], p=1
+                        hue_shift_limit=[_hue, _hue],
+                        sat_shift_limit=[_sat, _sat],
+                        val_shift_limit=[_val, _val],
+                        p=1,
                     )
                 ]
             )
@@ -776,13 +859,31 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
 
 
 def test_shift_scale_separate_shift_x_shift_y(image, mask):
-    aug = A.ShiftScaleRotate(shift_limit=(0.3, 0.3), shift_limit_y=(0.4, 0.4), scale_limit=0, rotate_limit=0, p=1)
+    aug = A.ShiftScaleRotate(
+        shift_limit=(0.3, 0.3),
+        shift_limit_y=(0.4, 0.4),
+        scale_limit=0,
+        rotate_limit=0,
+        p=1,
+    )
     data = aug(image=image, mask=mask)
     expected_image = FGeometric.shift_scale_rotate(
-        image, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101
+        image,
+        angle=0,
+        scale=1,
+        dx=0.3,
+        dy=0.4,
+        interpolation=cv2.INTER_LINEAR,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     expected_mask = FGeometric.shift_scale_rotate(
-        mask, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
+        mask,
+        angle=0,
+        scale=1,
+        dx=0.3,
+        dy=0.4,
+        interpolation=cv2.INTER_NEAREST,
+        border_mode=cv2.BORDER_REFLECT_101,
     )
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)

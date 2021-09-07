@@ -12,9 +12,20 @@ except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
 from ..augmentations import Emboss, Perspective, Sharpen
-from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, convert_bboxes_to_albumentations
-from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, convert_keypoints_to_albumentations
-from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
+from ..augmentations.bbox_utils import (
+    convert_bboxes_from_albumentations,
+    convert_bboxes_to_albumentations,
+)
+from ..augmentations.keypoints_utils import (
+    convert_keypoints_from_albumentations,
+    convert_keypoints_to_albumentations,
+)
+from ..core.transforms_interface import (
+    BasicTransform,
+    DualTransform,
+    ImageOnlyTransform,
+    to_tuple,
+)
 
 import warnings
 
@@ -96,7 +107,14 @@ class IAACropAndPad(DualIAATransform):
     """This augmentation is deprecated. Please use CropAndPad instead."""
 
     def __init__(
-        self, px=None, percent=None, pad_mode="constant", pad_cval=0, keep_size=True, always_apply=False, p=1
+        self,
+        px=None,
+        percent=None,
+        pad_mode="constant",
+        pad_cval=0,
+        keep_size=True,
+        always_apply=False,
+        p=1,
     ):
         super(IAACropAndPad, self).__init__(always_apply, p)
         self.px = px
@@ -192,7 +210,10 @@ class IAASuperpixels(ImageOnlyIAATransform):
         super(IAASuperpixels, self).__init__(always_apply, p)
         self.p_replace = p_replace
         self.n_segments = n_segments
-        warnings.warn("IAASuperpixels is deprecated. Please use Superpixels instead.", FutureWarning)
+        warnings.warn(
+            "IAASuperpixels is deprecated. Please use Superpixels instead.",
+            FutureWarning,
+        )
 
     @property
     def processor(self):
@@ -244,12 +265,22 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
         image
     """
 
-    def __init__(self, loc=0, scale=(0.01 * 255, 0.05 * 255), per_channel=False, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        loc=0,
+        scale=(0.01 * 255, 0.05 * 255),
+        per_channel=False,
+        always_apply=False,
+        p=0.5,
+    ):
         super(IAAAdditiveGaussianNoise, self).__init__(always_apply, p)
         self.loc = loc
         self.scale = to_tuple(scale, 0.0)
         self.per_channel = per_channel
-        warnings.warn("IAAAdditiveGaussianNoise is deprecated. Please use GaussNoise instead", FutureWarning)
+        warnings.warn(
+            "IAAAdditiveGaussianNoise is deprecated. Please use GaussNoise instead",
+            FutureWarning,
+        )
 
     @property
     def processor(self):
@@ -278,7 +309,15 @@ class IAAPiecewiseAffine(DualIAATransform):
     """
 
     def __init__(
-        self, scale=(0.03, 0.05), nb_rows=4, nb_cols=4, order=1, cval=0, mode="constant", always_apply=False, p=0.5
+        self,
+        scale=(0.03, 0.05),
+        nb_rows=4,
+        nb_cols=4,
+        order=1,
+        cval=0,
+        mode="constant",
+        always_apply=False,
+        p=0.5,
     ):
         super(IAAPiecewiseAffine, self).__init__(always_apply, p)
         self.scale = to_tuple(scale, 0.0)
@@ -287,7 +326,10 @@ class IAAPiecewiseAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
-        warnings.warn("This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead", FutureWarning)
+        warnings.warn(
+            "This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead",
+            FutureWarning,
+        )
 
     @property
     def processor(self):
@@ -350,7 +392,16 @@ class IAAAffine(DualIAATransform):
         )
 
     def get_transform_init_args_names(self):
-        return ("scale", "translate_percent", "translate_px", "rotate", "shear", "order", "cval", "mode")
+        return (
+            "scale",
+            "translate_percent",
+            "translate_px",
+            "rotate",
+            "shear",
+            "order",
+            "cval",
+            "mode",
+        )
 
 
 class IAAPerspective(Perspective):
@@ -372,7 +423,10 @@ class IAAPerspective(Perspective):
         super(IAAPerspective, self).__init__(always_apply, p)
         self.scale = to_tuple(scale, 1.0)
         self.keep_size = keep_size
-        warnings.warn("This IAAPerspective is deprecated. Please use Perspective instead", FutureWarning)
+        warnings.warn(
+            "This IAAPerspective is deprecated. Please use Perspective instead",
+            FutureWarning,
+        )
 
     @property
     def processor(self):

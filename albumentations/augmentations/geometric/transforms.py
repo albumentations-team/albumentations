@@ -8,7 +8,13 @@ from typing import Union, Optional, Sequence, Tuple, Dict
 from . import functional as F
 from ...core.transforms_interface import DualTransform, to_tuple
 
-__all__ = ["ShiftScaleRotate", "ElasticTransform", "Perspective", "Affine", "PiecewiseAffine"]
+__all__ = [
+    "ShiftScaleRotate",
+    "ElasticTransform",
+    "Perspective",
+    "Affine",
+    "PiecewiseAffine",
+]
 
 
 class ShiftScaleRotate(DualTransform):
@@ -73,11 +79,29 @@ class ShiftScaleRotate(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self,
+        img,
+        angle=0,
+        scale=0,
+        dx=0,
+        dy=0,
+        interpolation=cv2.INTER_LINEAR,
+        **params,
+    ):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
 
     def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
-        return F.shift_scale_rotate(img, angle, scale, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        return F.shift_scale_rotate(
+            img,
+            angle,
+            scale,
+            dx,
+            dy,
+            cv2.INTER_NEAREST,
+            self.border_mode,
+            self.mask_value,
+        )
 
     def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, **params):
         return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
@@ -192,7 +216,16 @@ class ElasticTransform(DualTransform):
         return {"random_state": random.randint(0, 10000)}
 
     def get_transform_init_args_names(self):
-        return ("alpha", "sigma", "alpha_affine", "interpolation", "border_mode", "value", "mask_value", "approximate")
+        return (
+            "alpha",
+            "sigma",
+            "alpha_affine",
+            "interpolation",
+            "border_mode",
+            "value",
+            "mask_value",
+            "approximate",
+        )
 
 
 class Perspective(DualTransform):
@@ -247,15 +280,36 @@ class Perspective(DualTransform):
 
     def apply(self, img, matrix=None, max_height=None, max_width=None, **params):
         return F.perspective(
-            img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, params["interpolation"]
+            img,
+            matrix,
+            max_width,
+            max_height,
+            self.pad_val,
+            self.pad_mode,
+            self.keep_size,
+            params["interpolation"],
         )
 
     def apply_to_bbox(self, bbox, matrix=None, max_height=None, max_width=None, **params):
-        return F.perspective_bbox(bbox, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size)
+        return F.perspective_bbox(
+            bbox,
+            params["rows"],
+            params["cols"],
+            matrix,
+            max_width,
+            max_height,
+            self.keep_size,
+        )
 
     def apply_to_keypoint(self, keypoint, matrix=None, max_height=None, max_width=None, **params):
         return F.perspective_keypoint(
-            keypoint, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
+            keypoint,
+            params["rows"],
+            params["cols"],
+            matrix,
+            max_width,
+            max_height,
+            self.keep_size,
         )
 
     @property
@@ -325,7 +379,10 @@ class Perspective(DualTransform):
         # in the top-left, top-right, bottom-right, and bottom-left order
         # do not use width-1 or height-1 here, as for e.g. width=3, height=2
         # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
-        dst = np.array([[0, 0], [max_width, 0], [max_width, max_height], [0, max_height]], dtype=np.float32)
+        dst = np.array(
+            [[0, 0], [max_width, 0], [max_width, max_height], [0, max_height]],
+            dtype=np.float32,
+        )
 
         # compute the perspective transform matrix and then apply it
         m = cv2.getPerspectiveTransform(points, dst)
@@ -333,7 +390,12 @@ class Perspective(DualTransform):
         if self.fit_output:
             m, max_width, max_height = self._expand_transform(m, (h, w))
 
-        return {"matrix": m, "max_height": max_height, "max_width": max_width, "interpolation": self.interpolation}
+        return {
+            "matrix": m,
+            "max_height": max_height,
+            "max_width": max_width,
+            "interpolation": self.interpolation,
+        }
 
     @classmethod
     def _expand_transform(cls, matrix, shape):
@@ -371,7 +433,15 @@ class Perspective(DualTransform):
         return np.array([tl, tr, br, bl], dtype=np.float32)
 
     def get_transform_init_args_names(self):
-        return ("scale", "keep_size", "pad_mode", "pad_val", "mask_pad_val", "fit_output", "interpolation")
+        return (
+            "scale",
+            "keep_size",
+            "pad_mode",
+            "pad_val",
+            "mask_pad_val",
+            "fit_output",
+            "interpolation",
+        )
 
 
 class Affine(DualTransform):
@@ -547,7 +617,10 @@ class Affine(DualTransform):
 
         if translate_percent is not None:
             # translate by percent
-            return cls._handle_dict_arg(translate_percent, "translate_percent"), translate_px
+            return (
+                cls._handle_dict_arg(translate_percent, "translate_percent"),
+                translate_px,
+            )
 
         if translate_px is None:
             raise ValueError("translate_px is None.")
@@ -559,7 +632,7 @@ class Affine(DualTransform):
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
         output_shape: Sequence[int] = None,
-        **params
+        **params,
     ) -> np.ndarray:
         return F.warp_affine(
             img,
@@ -575,7 +648,7 @@ class Affine(DualTransform):
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
         output_shape: Sequence[int] = None,
-        **params
+        **params,
     ) -> np.ndarray:
         return F.warp_affine(
             img,
@@ -593,7 +666,7 @@ class Affine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
-        **params
+        **params,
     ) -> Sequence[float]:
         return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
 
@@ -602,7 +675,7 @@ class Affine(DualTransform):
         keypoint: Sequence[float],
         matrix: skimage.transform.ProjectiveTransform = None,
         scale: dict = None,
-        **params
+        **params,
     ) -> Sequence[float]:
         return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
@@ -847,12 +920,18 @@ class PiecewiseAffine(DualTransform):
         }
 
     def apply(
-        self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params
+        self,
+        img: np.ndarray,
+        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        **params,
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
 
     def apply_to_mask(
-        self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params
+        self,
+        img: np.ndarray,
+        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        **params,
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
@@ -862,7 +941,7 @@ class PiecewiseAffine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
-        **params
+        **params,
     ) -> Sequence[float]:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
@@ -872,6 +951,6 @@ class PiecewiseAffine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
-        **params
+        **params,
     ):
         return F.keypoint_piecewise_affine(keypoint, matrix, rows, cols, self.keypoints_threshold)
