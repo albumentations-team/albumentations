@@ -7,7 +7,10 @@ import random
 import numpy as np
 
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
-from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
+from albumentations.core.serialization import (
+    SerializableMeta,
+    get_shortest_class_fullname,
+)
 from albumentations.core.six import add_metaclass
 from albumentations.core.transforms_interface import DualTransform, BasicTransform
 from albumentations.core.utils import format_args, Params, get_shape
@@ -87,7 +90,11 @@ class BaseCompose:
         return self.indented_repr()
 
     def indented_repr(self, indent=REPR_INDENT_STEP):
-        args = {k: v for k, v in self._to_dict().items() if not (k.startswith("__") or k == "transforms")}
+        args = {
+            k: v
+            for k, v in self._to_dict().items()
+            if not (k.startswith("__") or k == "transforms")
+        }
         repr_string = self.__class__.__name__ + "(["
         for t in self.transforms:
             repr_string += "\n"
@@ -96,7 +103,11 @@ class BaseCompose:
             else:
                 t_repr = repr(t)
             repr_string += " " * indent + t_repr + ","
-        repr_string += "\n" + " " * (indent - REPR_INDENT_STEP) + "], {args})".format(args=format_args(args))
+        repr_string += (
+            "\n"
+            + " " * (indent - REPR_INDENT_STEP)
+            + "], {args})".format(args=format_args(args))
+        )
         return repr_string
 
     @classmethod
@@ -139,7 +150,14 @@ class Compose(BaseCompose):
         p (float): probability of applying all list of transforms. Default: 1.0.
     """
 
-    def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0):
+    def __init__(
+        self,
+        transforms,
+        bbox_params=None,
+        keypoint_params=None,
+        additional_targets=None,
+        p=1.0,
+    ):
         super(Compose, self).__init__([t for t in transforms if t is not None], p)
 
         self.processors = {}
@@ -149,7 +167,9 @@ class Compose(BaseCompose):
             elif isinstance(bbox_params, BboxParams):
                 params = bbox_params
             else:
-                raise ValueError("unknown format of bbox_params, please use `dict` or `BboxParams`")
+                raise ValueError(
+                    "unknown format of bbox_params, please use `dict` or `BboxParams`"
+                )
             self.processors["bboxes"] = BboxProcessor(params, additional_targets)
 
         if keypoint_params:
@@ -158,8 +178,12 @@ class Compose(BaseCompose):
             elif isinstance(keypoint_params, KeypointParams):
                 params = keypoint_params
             else:
-                raise ValueError("unknown format of keypoint_params, please use `dict` or `KeypointParams`")
-            self.processors["keypoints"] = KeypointsProcessor(params, additional_targets)
+                raise ValueError(
+                    "unknown format of keypoint_params, please use `dict` or `KeypointParams`"
+                )
+            self.processors["keypoints"] = KeypointsProcessor(
+                params, additional_targets
+            )
 
         if additional_targets is None:
             additional_targets = {}
@@ -173,12 +197,16 @@ class Compose(BaseCompose):
 
         self.is_check_args = True
         self._disable_check_args_for_transforms(self.transforms.transforms)
-    
+
     @staticmethod
-    def _disable_check_args_for_transforms(transforms: typing.List[typing.Union[BaseCompose, BasicTransform]]):
+    def _disable_check_args_for_transforms(
+        transforms: typing.List[typing.Union[BaseCompose, BasicTransform]]
+    ):
         for transform in transforms:
             if isinstance(transform, BaseCompose):
-                Compose._disable_check_args_for_transforms(transform.transforms.transforms)
+                Compose._disable_check_args_for_transforms(
+                    transform.transforms.transforms
+                )
             if isinstance(transform, Compose):
                 transform._disable_check_args()
 
@@ -187,17 +215,26 @@ class Compose(BaseCompose):
 
     def __call__(self, *args, force_apply=False, **data):
         if args:
-            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
+            raise KeyError(
+                "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
+            )
         if self.is_check_args:
             self._check_args(**data)
-        assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
+        assert isinstance(
+            force_apply, (bool, int)
+        ), "force_apply must have bool or int type"
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
             p.ensure_data_valid(data)
-        transforms = self.transforms if need_to_run else self.transforms.get_always_apply(self.transforms)
+        transforms = (
+            self.transforms
+            if need_to_run
+            else self.transforms.get_always_apply(self.transforms)
+        )
 
         check_each_transform = any(
-            getattr(item.params, "check_each_transform", False) for item in self.processors.values()
+            getattr(item.params, "check_each_transform", False)
+            for item in self.processors.values()
         )
 
         for p in self.processors.values():
@@ -232,7 +269,9 @@ class Compose(BaseCompose):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,  # skipcq: PYL-W0212
+                "bbox_params": bbox_processor.params._to_dict()
+                if bbox_processor
+                else None,  # skipcq: PYL-W0212
                 "keypoint_params": keypoints_processor.params._to_dict()  # skipcq: PYL-W0212
                 if keypoints_processor
                 else None,
@@ -247,7 +286,9 @@ class Compose(BaseCompose):
         keypoints_processor = self.processors.get("keypoints")
         dictionary.update(
             {
-                "bbox_params": bbox_processor.params._to_dict() if bbox_processor else None,  # skipcq: PYL-W0212
+                "bbox_params": bbox_processor.params._to_dict()
+                if bbox_processor
+                else None,  # skipcq: PYL-W0212
                 "keypoint_params": keypoints_processor.params._to_dict()  # skipcq: PYL-W0212
                 if keypoints_processor
                 else None,
@@ -270,9 +311,16 @@ class Compose(BaseCompose):
             if internal_data_name in checked_multi:
                 if data:
                     if not isinstance(data[0], np.ndarray):
-                        raise TypeError("{} must be list of numpy arrays".format(data_name))
-            if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
-                raise ValueError("bbox_params must be specified for bbox transformations")
+                        raise TypeError(
+                            "{} must be list of numpy arrays".format(data_name)
+                        )
+            if (
+                internal_data_name in check_bbox_param
+                and self.processors.get("bboxes") is None
+            ):
+                raise ValueError(
+                    "bbox_params must be specified for bbox transformations"
+                )
 
 
 class OneOf(BaseCompose):
@@ -331,7 +379,10 @@ class SomeOf(BaseCompose):
         if self.transforms_ps and (force_apply or random.random() < self.p):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
             transforms = random_state.choice(
-                self.transforms.transforms, size=self.n, replace=self.replace, p=self.transforms_ps
+                self.transforms.transforms,
+                size=self.n,
+                replace=self.replace,
+                p=self.transforms_ps,
             )
             for t in transforms:
                 data = t(force_apply=True, **data)
@@ -400,9 +451,17 @@ class PerChannel(BaseCompose):
 
 class ReplayCompose(Compose):
     def __init__(
-        self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0, save_key="replay"
+        self,
+        transforms,
+        bbox_params=None,
+        keypoint_params=None,
+        additional_targets=None,
+        p=1.0,
+        save_key="replay",
     ):
-        super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
+        super(ReplayCompose, self).__init__(
+            transforms, bbox_params, keypoint_params, additional_targets, p
+        )
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
 
@@ -439,11 +498,17 @@ class ReplayCompose(Compose):
             transform = lmbd
         else:
             name = transform["__class_fullname__"]
-            args = {k: v for k, v in transform.items() if k not in ["__class_fullname__", "applied", "params"]}
+            args = {
+                k: v
+                for k, v in transform.items()
+                if k not in ["__class_fullname__", "applied", "params"]
+            }
             cls = SERIALIZABLE_REGISTRY[name]
             if "transforms" in args:
                 args["transforms"] = [
-                    ReplayCompose._restore_for_replay(t, lambda_transforms=lambda_transforms)
+                    ReplayCompose._restore_for_replay(
+                        t, lambda_transforms=lambda_transforms
+                    )
                     for t in args["transforms"]
                 ]
             transform = cls(**args)
@@ -501,7 +566,14 @@ class BboxParams(Params):
             Default: `True`
     """
 
-    def __init__(self, format, label_fields=None, min_area=0.0, min_visibility=0.0, check_each_transform=True):
+    def __init__(
+        self,
+        format,
+        label_fields=None,
+        min_area=0.0,
+        min_visibility=0.0,
+        check_each_transform=True,
+    ):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
