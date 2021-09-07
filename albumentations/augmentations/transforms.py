@@ -125,10 +125,14 @@ class PadIfNeeded(DualTransform):
         p=1.0,
     ):
         if (min_height is None) == (pad_height_divisor is None):
-            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
+            raise ValueError(
+                "Only one of 'min_height' and 'pad_height_divisor' parameters must be set"
+            )
 
         if (min_width is None) == (pad_width_divisor is None):
-            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
+            raise ValueError(
+                "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
+            )
 
         super(PadIfNeeded, self).__init__(always_apply, p)
         self.min_height = min_height
@@ -168,13 +172,23 @@ class PadIfNeeded(DualTransform):
                 w_pad_right = 0
         else:
             pad_remainder = cols % self.pad_width_divisor
-            pad_cols = self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
+            pad_cols = (
+                self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
+            )
 
             w_pad_left = pad_cols // 2
             w_pad_right = pad_cols - w_pad_left
 
-        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = self.__update_position_params(
-            h_top=h_pad_top, h_bottom=h_pad_bottom, w_left=w_pad_left, w_right=w_pad_right
+        (
+            h_pad_top,
+            h_pad_bottom,
+            w_pad_left,
+            w_pad_right,
+        ) = self.__update_position_params(
+            h_top=h_pad_top,
+            h_bottom=h_pad_bottom,
+            w_left=w_pad_left,
+            w_right=w_pad_right,
         )
 
         params.update(
@@ -198,7 +212,9 @@ class PadIfNeeded(DualTransform):
             value=self.value,
         )
 
-    def apply_to_mask(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
+    def apply_to_mask(
+        self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params
+    ):
         return F.pad_with_params(
             img,
             pad_top,
@@ -209,13 +225,27 @@ class PadIfNeeded(DualTransform):
             value=self.mask_value,
         )
 
-    def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
+    def apply_to_bbox(
+        self,
+        bbox,
+        pad_top=0,
+        pad_bottom=0,
+        pad_left=0,
+        pad_right=0,
+        rows=0,
+        cols=0,
+        **params,
+    ):
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
         bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
-        return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
+        return normalize_bbox(
+            bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right
+        )
 
     # skipcq: PYL-W0613
-    def apply_to_keypoint(self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
+    def apply_to_keypoint(
+        self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params
+    ):
         x, y, angle, scale = keypoint
         return x + pad_left, y + pad_top, angle, scale
 
@@ -423,10 +453,14 @@ class OpticalDistortion(DualTransform):
         self.mask_value = mask_value
 
     def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
+        return F.optical_distortion(
+            img, k, dx, dy, interpolation, self.border_mode, self.value
+        )
 
     def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
-        return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        return F.optical_distortion(
+            img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+        )
 
     def get_params(self):
         return {
@@ -489,7 +523,9 @@ class GridDistortion(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params
+    ):
         return F.grid_distortion(
             img,
             self.num_steps,
@@ -512,8 +548,14 @@ class GridDistortion(DualTransform):
         )
 
     def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+        stepsx = [
+            1 + random.uniform(self.distort_limit[0], self.distort_limit[1])
+            for i in range(self.num_steps + 1)
+        ]
+        stepsy = [
+            1 + random.uniform(self.distort_limit[0], self.distort_limit[1])
+            for i in range(self.num_steps + 1)
+        ]
         return {"stepsx": stepsx, "stepsy": stepsy}
 
     def get_transform_init_args_names(self):
@@ -562,17 +604,23 @@ class RandomGridShuffle(DualTransform):
         n, m = self.grid
 
         if n <= 0 or m <= 0:
-            raise ValueError("Grid's values must be positive. Current grid [%s, %s]" % (n, m))
+            raise ValueError(
+                "Grid's values must be positive. Current grid [%s, %s]" % (n, m)
+            )
 
         if n > height // 2 or m > width // 2:
-            raise ValueError("Incorrect size cell of grid. Just shuffle pixels of image")
+            raise ValueError(
+                "Incorrect size cell of grid. Just shuffle pixels of image"
+            )
 
         random_state = np.random.RandomState(random.randint(0, 10000))
 
         height_split = np.linspace(0, height, n + 1, dtype=np.int)
         width_split = np.linspace(0, width, m + 1, dtype=np.int)
 
-        height_matrix, width_matrix = np.meshgrid(height_split, width_split, indexing="ij")
+        height_matrix, width_matrix = np.meshgrid(
+            height_split, width_split, indexing="ij"
+        )
 
         index_height_matrix = height_matrix[:-1, :-1]
         index_width_matrix = width_matrix[:-1, :-1]
@@ -590,11 +638,15 @@ class RandomGridShuffle(DualTransform):
 
         for bbox_size in np.unique(tiles_sizes.reshape(-1, 2), axis=0):
             eq_mat = np.all(tiles_sizes == bbox_size, axis=2)
-            new_index_matrix[eq_mat] = random_state.permutation(new_index_matrix[eq_mat])
+            new_index_matrix[eq_mat] = random_state.permutation(
+                new_index_matrix[eq_mat]
+            )
 
         new_index_matrix = np.split(new_index_matrix, 2, axis=2)
 
-        old_x = index_height_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
+        old_x = index_height_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(
+            -1
+        )
         old_y = index_width_matrix[new_index_matrix[0], new_index_matrix[1]].reshape(-1)
 
         shift_x = height_tile_sizes.reshape(-1)
@@ -770,13 +822,23 @@ class CoarseDropout(DualTransform):
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
         if not 0 < self.min_holes <= self.max_holes:
-            raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
+            raise ValueError(
+                "Invalid combination of min_holes and max_holes. Got: {}".format(
+                    [min_holes, max_holes]
+                )
+            )
         if not 0 < self.min_height <= self.max_height:
             raise ValueError(
-                "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
+                "Invalid combination of min_height and max_height. Got: {}".format(
+                    [min_height, max_height]
+                )
             )
         if not 0 < self.min_width <= self.max_width:
-            raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
+            raise ValueError(
+                "Invalid combination of min_width and max_width. Got: {}".format(
+                    [min_width, max_width]
+                )
+            )
 
     def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
@@ -868,7 +930,9 @@ class ImageCompression(ImageOnlyTransform):
 
     def apply(self, image, quality=100, image_type=".jpg", **params):
         if not image.ndim == 2 and image.shape[-1] not in (1, 3, 4):
-            raise TypeError("ImageCompression transformation expects 1, 3 or 4 channel images.")
+            raise TypeError(
+                "ImageCompression transformation expects 1, 3 or 4 channel images."
+            )
         return F.image_compression(image, quality, image_type)
 
     def get_params(self):
@@ -958,7 +1022,11 @@ class RandomSnow(ImageOnlyTransform):
                 )
             )
         if brightness_coeff < 0:
-            raise ValueError("brightness_coeff must be greater than 0. Got: {}".format(brightness_coeff))
+            raise ValueError(
+                "brightness_coeff must be greater than 0. Got: {}".format(
+                    brightness_coeff
+                )
+            )
 
         self.snow_point_lower = snow_point_lower
         self.snow_point_upper = snow_point_upper
@@ -968,7 +1036,9 @@ class RandomSnow(ImageOnlyTransform):
         return F.add_snow(image, snow_point, self.brightness_coeff)
 
     def get_params(self):
-        return {"snow_point": random.uniform(self.snow_point_lower, self.snow_point_upper)}
+        return {
+            "snow_point": random.uniform(self.snow_point_lower, self.snow_point_upper)
+        }
 
     def get_transform_init_args_names(self):
         return ("snow_point_lower", "snow_point_upper", "brightness_coeff")
@@ -1013,18 +1083,30 @@ class RandomRain(ImageOnlyTransform):
 
         if rain_type not in ["drizzle", "heavy", "torrential", None]:
             raise ValueError(
-                "raint_type must be one of ({}). Got: {}".format(["drizzle", "heavy", "torrential", None], rain_type)
+                "raint_type must be one of ({}). Got: {}".format(
+                    ["drizzle", "heavy", "torrential", None], rain_type
+                )
             )
         if not -20 <= slant_lower <= slant_upper <= 20:
             raise ValueError(
-                "Invalid combination of slant_lower and slant_upper. Got: {}".format((slant_lower, slant_upper))
+                "Invalid combination of slant_lower and slant_upper. Got: {}".format(
+                    (slant_lower, slant_upper)
+                )
             )
         if not 1 <= drop_width <= 5:
-            raise ValueError("drop_width must be in range [1, 5]. Got: {}".format(drop_width))
+            raise ValueError(
+                "drop_width must be in range [1, 5]. Got: {}".format(drop_width)
+            )
         if not 0 <= drop_length <= 100:
-            raise ValueError("drop_length must be in range [0, 100]. Got: {}".format(drop_length))
+            raise ValueError(
+                "drop_length must be in range [0, 100]. Got: {}".format(drop_length)
+            )
         if not 0 <= brightness_coefficient <= 1:
-            raise ValueError("brightness_coefficient must be in range [0, 1]. Got: {}".format(brightness_coefficient))
+            raise ValueError(
+                "brightness_coefficient must be in range [0, 1]. Got: {}".format(
+                    brightness_coefficient
+                )
+            )
 
         self.slant_lower = slant_lower
         self.slant_upper = slant_upper
@@ -1133,7 +1215,9 @@ class RandomFog(ImageOnlyTransform):
                 )
             )
         if not 0 <= alpha_coef <= 1:
-            raise ValueError("alpha_coef must be in range [0, 1]. Got: {}".format(alpha_coef))
+            raise ValueError(
+                "alpha_coef must be in range [0, 1]. Got: {}".format(alpha_coef)
+            )
 
         self.fog_coef_lower = fog_coef_lower
         self.fog_coef_upper = fog_coef_upper
@@ -1227,7 +1311,9 @@ class RandomSunFlare(ImageOnlyTransform):
             raise ValueError("Invalid flare_roi. Got: {}".format(flare_roi))
         if not 0 <= angle_lower < angle_upper <= 1:
             raise ValueError(
-                "Invalid combination of angle_lower nad angle_upper. Got: {}".format((angle_lower, angle_upper))
+                "Invalid combination of angle_lower nad angle_upper. Got: {}".format(
+                    (angle_lower, angle_upper)
+                )
             )
         if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
             raise ValueError(
@@ -1250,7 +1336,9 @@ class RandomSunFlare(ImageOnlyTransform):
         self.src_radius = src_radius
         self.src_color = src_color
 
-    def apply(self, image, flare_center_x=0.5, flare_center_y=0.5, circles=(), **params):
+    def apply(
+        self, image, flare_center_x=0.5, flare_center_y=0.5, circles=(), **params
+    ):
         return F.add_sun_flare(
             image,
             flare_center_x,
@@ -1270,13 +1358,19 @@ class RandomSunFlare(ImageOnlyTransform):
 
         angle = 2 * math.pi * random.uniform(self.angle_lower, self.angle_upper)
 
-        flare_center_x = random.uniform(self.flare_center_lower_x, self.flare_center_upper_x)
-        flare_center_y = random.uniform(self.flare_center_lower_y, self.flare_center_upper_y)
+        flare_center_x = random.uniform(
+            self.flare_center_lower_x, self.flare_center_upper_x
+        )
+        flare_center_y = random.uniform(
+            self.flare_center_lower_y, self.flare_center_upper_y
+        )
 
         flare_center_x = int(width * flare_center_x)
         flare_center_y = int(height * flare_center_y)
 
-        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
+        num_circles = random.randint(
+            self.num_flare_circles_lower, self.num_flare_circles_upper
+        )
 
         circles = []
 
@@ -1363,7 +1457,10 @@ class RandomShadow(ImageOnlyTransform):
 
         (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
 
-        if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
+        if (
+            not 0 <= shadow_lower_x <= shadow_upper_x <= 1
+            or not 0 <= shadow_lower_y <= shadow_upper_y <= 1
+        ):
             raise ValueError("Invalid shadow_roi. Got: {}".format(shadow_roi))
         if not 0 <= num_shadows_lower <= num_shadows_upper:
             raise ValueError(
@@ -1404,7 +1501,9 @@ class RandomShadow(ImageOnlyTransform):
         for _index in range(num_shadows):
             vertex = []
             for _dimension in range(self.shadow_dimension):
-                vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
+                vertex.append(
+                    (random.randint(x_min, x_max), random.randint(y_min, y_max))
+                )
 
             vertices = np.array([vertex], dtype=np.int32)
             vertices_list.append(vertices)
@@ -1492,14 +1591,22 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
         if not F.is_rgb_image(image) and not F.is_grayscale_image(image):
-            raise TypeError("HueSaturationValue transformation expects 1-channel or 3-channel images.")
+            raise TypeError(
+                "HueSaturationValue transformation expects 1-channel or 3-channel images."
+            )
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
 
     def get_params(self):
         return {
-            "hue_shift": random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
-            "sat_shift": random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
-            "val_shift": random.uniform(self.val_shift_limit[0], self.val_shift_limit[1]),
+            "hue_shift": random.uniform(
+                self.hue_shift_limit[0], self.hue_shift_limit[1]
+            ),
+            "sat_shift": random.uniform(
+                self.sat_shift_limit[0], self.sat_shift_limit[1]
+            ),
+            "val_shift": random.uniform(
+                self.val_shift_limit[0], self.val_shift_limit[1]
+            ),
         }
 
     def get_transform_init_args_names(self):
@@ -1610,7 +1717,10 @@ class Equalize(ImageOnlyTransform):
     ):
         modes = ["cv", "pil"]
         if mode not in modes:
-            raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
+            raise ValueError(
+                "Unsupported equalization mode. Supports: {}. "
+                "Got: {}".format(modes, mode)
+            )
 
         super(Equalize, self).__init__(always_apply, p)
         self.mode = mode
@@ -1619,7 +1729,9 @@ class Equalize(ImageOnlyTransform):
         self.mask_params = mask_params
 
     def apply(self, image, mask=None, **params):
-        return F.equalize(image, mode=self.mode, by_channels=self.by_channels, mask=mask)
+        return F.equalize(
+            image, mode=self.mode, by_channels=self.by_channels, mask=mask
+        )
 
     def get_params_dependent_on_targets(self, params):
         if not callable(self.mask):
@@ -1720,8 +1832,10 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "alpha": 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
-            "beta": 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1]),
+            "alpha": 1.0
+            + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
+            "beta": 0.0
+            + random.uniform(self.brightness_limit[0], self.brightness_limit[1]),
         }
 
     def get_transform_init_args_names(self):
@@ -1772,7 +1886,9 @@ class RandomContrast(RandomBrightnessContrast):
     """
 
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
-        super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
+        super(RandomContrast, self).__init__(
+            brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p
+        )
         warnings.warn(
             "This class has been deprecated. Please use RandomBrightnessContrast",
             FutureWarning,
@@ -1805,7 +1921,11 @@ class Blur(ImageOnlyTransform):
         return F.blur(image, ksize)
 
     def get_params(self):
-        return {"ksize": int(random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
+        return {
+            "ksize": int(
+                random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
+            )
+        }
 
     def get_transform_init_args_names(self):
         return ("blur_limit",)
@@ -1941,7 +2061,14 @@ class GaussNoise(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, var_limit=(10.0, 50.0), mean=0, per_channel=True, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        var_limit=(10.0, 50.0),
+        mean=0,
+        per_channel=True,
+        always_apply=False,
+        p=0.5,
+    ):
         super(GaussNoise, self).__init__(always_apply, p)
         if isinstance(var_limit, (tuple, list)):
             if var_limit[0] < 0:
@@ -1956,7 +2083,9 @@ class GaussNoise(ImageOnlyTransform):
             self.var_limit = (0, var_limit)
         else:
             raise TypeError(
-                "Expected var_limit type to be one of (int, float, tuple, list), got {}".format(type(var_limit))
+                "Expected var_limit type to be one of (int, float, tuple, list), got {}".format(
+                    type(var_limit)
+                )
             )
 
         self.mean = mean
@@ -2006,13 +2135,17 @@ class ISONoise(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, color_shift=(0.01, 0.05), intensity=(0.1, 0.5), always_apply=False, p=0.5):
+    def __init__(
+        self, color_shift=(0.01, 0.05), intensity=(0.1, 0.5), always_apply=False, p=0.5
+    ):
         super(ISONoise, self).__init__(always_apply, p)
         self.intensity = intensity
         self.color_shift = color_shift
 
     def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
-        return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_state))
+        return F.iso_noise(
+            img, color_shift, intensity, np.random.RandomState(random_state)
+        )
 
     def get_params(self):
         return {
@@ -2041,14 +2174,18 @@ class CLAHE(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), always_apply=False, p=0.5):
+    def __init__(
+        self, clip_limit=4.0, tile_grid_size=(8, 8), always_apply=False, p=0.5
+    ):
         super(CLAHE, self).__init__(always_apply, p)
         self.clip_limit = to_tuple(clip_limit, 1)
         self.tile_grid_size = tuple(tile_grid_size)
 
     def apply(self, img, clip_limit=2, **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
-            raise TypeError("CLAHE transformation expects 1-channel or 3-channel images.")
+            raise TypeError(
+                "CLAHE transformation expects 1-channel or 3-channel images."
+            )
 
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
@@ -2074,7 +2211,9 @@ class ChannelDropout(ImageOnlyTransform):
         uint8, uint16, unit32, float32
     """
 
-    def __init__(self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5):
+    def __init__(
+        self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5
+    ):
         super(ChannelDropout, self).__init__(always_apply, p)
 
         self.channel_drop_range = channel_drop_range
@@ -2083,7 +2222,9 @@ class ChannelDropout(ImageOnlyTransform):
         self.max_channels = channel_drop_range[1]
 
         if not 1 <= self.min_channels <= self.max_channels:
-            raise ValueError("Invalid channel_drop_range. Got: {}".format(channel_drop_range))
+            raise ValueError(
+                "Invalid channel_drop_range. Got: {}".format(channel_drop_range)
+            )
 
         self.fill_value = fill_value
 
@@ -2096,7 +2237,9 @@ class ChannelDropout(ImageOnlyTransform):
         num_channels = img.shape[-1]
 
         if len(img.shape) == 2 or num_channels == 1:
-            raise NotImplementedError("Images has one channel. ChannelDropout is not defined.")
+            raise NotImplementedError(
+                "Images has one channel. ChannelDropout is not defined."
+            )
 
         if self.max_channels >= num_channels:
             raise ValueError("Can not drop all channels in ChannelDropout.")
@@ -2188,7 +2331,9 @@ class RandomGamma(ImageOnlyTransform):
         return F.gamma_transform(img, gamma=gamma)
 
     def get_params(self):
-        return {"gamma": random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
+        return {
+            "gamma": random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0
+        }
 
     def get_transform_init_args_names(self):
         return ("gamma_limit", "eps")
@@ -2340,9 +2485,15 @@ class Downscale(ImageOnlyTransform):
     ):
         super(Downscale, self).__init__(always_apply, p)
         if scale_min > scale_max:
-            raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
+            raise ValueError(
+                "Expected scale_min be less or equal scale_max, got {} {}".format(
+                    scale_min, scale_max
+                )
+            )
         if scale_max >= 1:
-            raise ValueError("Expected scale_max to be less than 1, got {}".format(scale_max))
+            raise ValueError(
+                "Expected scale_max to be less than 1, got {}".format(scale_max)
+            )
         self.scale_min = scale_min
         self.scale_max = scale_max
         self.interpolation = interpolation
@@ -2392,7 +2543,9 @@ class Lambda(NoOp):
         super(Lambda, self).__init__(always_apply, p)
 
         self.name = name
-        self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
+        self.custom_apply_fns = {
+            target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")
+        }
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
@@ -2400,7 +2553,10 @@ class Lambda(NoOp):
             "bbox": bbox,
         }.items():
             if custom_apply_fn is not None:
-                if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
+                if (
+                    isinstance(custom_apply_fn, LambdaType)
+                    and custom_apply_fn.__name__ == "<lambda>"
+                ):
                     warnings.warn(
                         "Using lambda is incompatible with multiprocessing. "
                         "Consider using regular functions or partial()."
@@ -2436,7 +2592,9 @@ class Lambda(NoOp):
         state = {"name": self.name}
         state.update(self.custom_apply_fns.items())
         state.update(self.get_base_init_args())
-        return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+        return "{name}({args})".format(
+            name=self.__class__.__name__, args=format_args(state)
+        )
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
@@ -2663,10 +2821,16 @@ class GlassBlur(Blur):
     ):
         super(GlassBlur, self).__init__(always_apply=always_apply, p=p)
         if iterations < 1:
-            raise ValueError("Iterations should be more or equal to 1, but we got {}".format(iterations))
+            raise ValueError(
+                "Iterations should be more or equal to 1, but we got {}".format(
+                    iterations
+                )
+            )
 
         if mode not in ["fast", "exact"]:
-            raise ValueError("Mode should be 'fast' or 'exact', but we got {}".format(iterations))
+            raise ValueError(
+                "Mode should be 'fast' or 'exact', but we got {}".format(iterations)
+            )
 
         self.sigma = sigma
         self.max_delta = max_delta
@@ -2674,7 +2838,9 @@ class GlassBlur(Blur):
         self.mode = mode
 
     def apply(self, img, dxy=0, **params):
-        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
+        return F.glass_blur(
+            img, self.sigma, self.max_delta, self.iterations, dxy, self.mode
+        )
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
@@ -2683,7 +2849,9 @@ class GlassBlur(Blur):
         width_pixels = img.shape[0] - self.max_delta * 2
         height_pixels = img.shape[1] - self.max_delta * 2
         total_pixels = width_pixels * height_pixels
-        dxy = np.random.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+        dxy = np.random.randint(
+            -self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2)
+        )
 
         return {"dxy": dxy}
 
@@ -2774,9 +2942,13 @@ class GridDropout(DualTransform):
         # set grid using unit size limits
         if self.unit_size_min and self.unit_size_max:
             if not 2 <= self.unit_size_min <= self.unit_size_max:
-                raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
+                raise ValueError(
+                    "Max unit size should be >= min size, both at least 2 pixels."
+                )
             if self.unit_size_max > min(height, width):
-                raise ValueError("Grid size limits must be within the shortest image edge.")
+                raise ValueError(
+                    "Grid size limits must be within the shortest image edge."
+                )
             unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
             unit_height = unit_width
         else:
@@ -2785,13 +2957,17 @@ class GridDropout(DualTransform):
                 unit_width = max(2, width // 10)
             else:
                 if not 1 <= self.holes_number_x <= width // 2:
-                    raise ValueError("The hole_number_x must be between 1 and image width//2.")
+                    raise ValueError(
+                        "The hole_number_x must be between 1 and image width//2."
+                    )
                 unit_width = width // self.holes_number_x
             if self.holes_number_y is None:
                 unit_height = max(min(unit_width, height), 2)
             else:
                 if not 1 <= self.holes_number_y <= height // 2:
-                    raise ValueError("The hole_number_y must be between 1 and image height//2.")
+                    raise ValueError(
+                        "The hole_number_y must be between 1 and image height//2."
+                    )
                 unit_height = height // self.holes_number_y
 
         hole_width = int(unit_width * self.ratio)
@@ -2875,13 +3051,17 @@ class ColorJitter(ImageOnlyTransform):
         self.brightness = self.__check_values(brightness, "brightness")
         self.contrast = self.__check_values(contrast, "contrast")
         self.saturation = self.__check_values(saturation, "saturation")
-        self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
+        self.hue = self.__check_values(
+            hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False
+        )
 
     @staticmethod
     def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
         if isinstance(value, numbers.Number):
             if value < 0:
-                raise ValueError("If {} is a single number, it must be non negative.".format(name))
+                raise ValueError(
+                    "If {} is a single number, it must be non negative.".format(name)
+                )
             value = [offset - value, offset + value]
             if clip:
                 value[0] = max(value[0], 0)
@@ -2889,7 +3069,11 @@ class ColorJitter(ImageOnlyTransform):
             if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
                 raise ValueError("{} values should be between {}".format(name, bounds))
         else:
-            raise TypeError("{} should be a single number or a list/tuple with length 2.".format(name))
+            raise TypeError(
+                "{} should be a single number or a list/tuple with length 2.".format(
+                    name
+                )
+            )
 
         return value
 
@@ -2911,7 +3095,9 @@ class ColorJitter(ImageOnlyTransform):
 
     def apply(self, img, transforms=(), **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
-            raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
+            raise TypeError(
+                "ColorJitter transformation expects 1-channel or 3-channel images."
+            )
 
         for transform in transforms:
             img = transform(img)
@@ -2934,9 +3120,13 @@ class Sharpen(ImageOnlyTransform):
         image
     """
 
-    def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
+    def __init__(
+        self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5
+    ):
         super(Sharpen, self).__init__(always_apply, p)
-        self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
+        self.alpha = self.__check_values(
+            to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0)
+        )
         self.lightness = self.__check_values(to_tuple(lightness, 0.0), name="lightness")
 
     @staticmethod
@@ -2959,7 +3149,9 @@ class Sharpen(ImageOnlyTransform):
     def get_params(self):
         alpha = random.uniform(*self.alpha)
         lightness = random.uniform(*self.lightness)
-        sharpening_matrix = self.__generate_sharpening_matrix(alpha_sample=alpha, lightness_sample=lightness)
+        sharpening_matrix = self.__generate_sharpening_matrix(
+            alpha_sample=alpha, lightness_sample=lightness
+        )
         return {"sharpening_matrix": sharpening_matrix}
 
     def apply(self, img, sharpening_matrix=None, **params):
@@ -2982,9 +3174,13 @@ class Emboss(ImageOnlyTransform):
         image
     """
 
-    def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
+    def __init__(
+        self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5
+    ):
         super(Emboss, self).__init__(always_apply, p)
-        self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
+        self.alpha = self.__check_values(
+            to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0)
+        )
         self.strength = self.__check_values(to_tuple(strength, 0.0), name="strength")
 
     @staticmethod
@@ -3010,7 +3206,9 @@ class Emboss(ImageOnlyTransform):
     def get_params(self):
         alpha = random.uniform(*self.alpha)
         strength = random.uniform(*self.strength)
-        emboss_matrix = self.__generate_emboss_matrix(alpha_sample=alpha, strength_sample=strength)
+        emboss_matrix = self.__generate_emboss_matrix(
+            alpha_sample=alpha, strength_sample=strength
+        )
         return {"emboss_matrix": emboss_matrix}
 
     def apply(self, img, emboss_matrix=None, **params):
@@ -3087,7 +3285,18 @@ class Superpixels(ImageOnlyTransform):
     def get_params(self) -> dict:
         n_segments = random.randint(*self.n_segments)
         p = random.uniform(*self.p_replace)
-        return {"replace_samples": np.random.random(n_segments) < p, "n_segments": n_segments}
+        return {
+            "replace_samples": np.random.random(n_segments) < p,
+            "n_segments": n_segments,
+        }
 
-    def apply(self, img: np.ndarray, replace_samples: Sequence[bool] = (False,), n_segments: int = 1, **kwargs):
-        return F.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)
+    def apply(
+        self,
+        img: np.ndarray,
+        replace_samples: Sequence[bool] = (False,),
+        n_segments: int = 1,
+        **kwargs,
+    ):
+        return F.superpixels(
+            img, n_segments, replace_samples, self.max_size, self.interpolation
+        )

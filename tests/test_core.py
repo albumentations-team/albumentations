@@ -7,7 +7,11 @@ import cv2
 import numpy as np
 import pytest
 
-from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
+from albumentations.core.transforms_interface import (
+    to_tuple,
+    ImageOnlyTransform,
+    DualTransform,
+)
 from albumentations.augmentations.bbox_utils import check_bboxes
 from albumentations.core.composition import (
     OneOrOther,
@@ -70,7 +74,9 @@ def test_one_of():
 @pytest.mark.parametrize("N", [1, 2, 5, 10])
 @pytest.mark.parametrize("replace", [True, False])
 def test_n_of(N, replace):
-    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)]
+    transforms = [
+        Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)
+    ]
     augmentation = SomeOf(transforms, N, p=1, replace=replace)
     print(augmentation.n)
     image = np.ones((8, 8))
@@ -85,7 +91,9 @@ def test_sequential():
     augmentation = Sequential(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
-    assert len([transform for transform in transforms if transform.called]) == len(transforms)
+    assert len([transform for transform in transforms if transform.called]) == len(
+        transforms
+    )
 
 
 def test_to_tuple():
@@ -101,28 +109,50 @@ def test_to_tuple():
 def test_image_only_transform(image, mask):
     height, width = image.shape[:2]
     with mock.patch.object(ImageOnlyTransform, "apply") as mocked_apply:
-        with mock.patch.object(ImageOnlyTransform, "get_params", return_value={"interpolation": cv2.INTER_LINEAR}):
+        with mock.patch.object(
+            ImageOnlyTransform,
+            "get_params",
+            return_value={"interpolation": cv2.INTER_LINEAR},
+        ):
             aug = ImageOnlyTransform(p=1)
             data = aug(image=image, mask=mask)
-            mocked_apply.assert_called_once_with(image, interpolation=cv2.INTER_LINEAR, cols=width, rows=height)
+            mocked_apply.assert_called_once_with(
+                image, interpolation=cv2.INTER_LINEAR, cols=width, rows=height
+            )
             assert np.array_equal(data["mask"], mask)
 
 
 def test_dual_transform(image, mask):
-    image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
-    mask_call = call(mask, interpolation=cv2.INTER_NEAREST, cols=mask.shape[1], rows=mask.shape[0])
+    image_call = call(
+        image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0]
+    )
+    mask_call = call(
+        mask, interpolation=cv2.INTER_NEAREST, cols=mask.shape[1], rows=mask.shape[0]
+    )
     with mock.patch.object(DualTransform, "apply") as mocked_apply:
-        with mock.patch.object(DualTransform, "get_params", return_value={"interpolation": cv2.INTER_LINEAR}):
+        with mock.patch.object(
+            DualTransform,
+            "get_params",
+            return_value={"interpolation": cv2.INTER_LINEAR},
+        ):
             aug = DualTransform(p=1)
             aug(image=image, mask=mask)
             mocked_apply.assert_has_calls([image_call, mask_call], any_order=True)
 
 
 def test_additional_targets(image, mask):
-    image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
-    image2_call = call(mask, interpolation=cv2.INTER_LINEAR, cols=mask.shape[1], rows=mask.shape[0])
+    image_call = call(
+        image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0]
+    )
+    image2_call = call(
+        mask, interpolation=cv2.INTER_LINEAR, cols=mask.shape[1], rows=mask.shape[0]
+    )
     with mock.patch.object(DualTransform, "apply") as mocked_apply:
-        with mock.patch.object(DualTransform, "get_params", return_value={"interpolation": cv2.INTER_LINEAR}):
+        with mock.patch.object(
+            DualTransform,
+            "get_params",
+            return_value={"interpolation": cv2.INTER_LINEAR},
+        ):
             aug = DualTransform(p=1)
             aug.add_targets({"image2": "image"})
             aug(image=image, image2=mask)
@@ -221,7 +251,11 @@ def test_named_args():
     ["targets", "additional_targets", "err_message"],
     [
         [{"image": None}, None, "image must be numpy array type"],
-        [{"image": np.empty([100, 100, 3], np.uint8), "mask": None}, None, "mask must be numpy array type"],
+        [
+            {"image": np.empty([100, 100, 3], np.uint8), "mask": None},
+            None,
+            "mask must be numpy array type",
+        ],
         [
             {"image": np.empty([100, 100, 3], np.uint8), "image1": None},
             {"image1": "image"},
@@ -276,7 +310,10 @@ def test_targets_type_check(targets, additional_targets, err_message):
             },
             BboxParams("pascal_voc", check_each_transform=True),
             KeypointParams("xy", check_each_transform=True),
-            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
+                "keypoints": np.array([[10, 10]]) + 25,
+            },
         ],
         [
             {
@@ -286,7 +323,11 @@ def test_targets_type_check(targets, additional_targets, err_message):
             BboxParams("pascal_voc", check_each_transform=False),
             KeypointParams("xy", check_each_transform=True),
             {
-                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "bboxes": [
+                    [25, 25, 35, 35, 0],
+                    [30, 30, 95, 95, 0],
+                    [85, 85, 95, 95, 0],
+                ],
                 "keypoints": np.array([[10, 10]]) + 25,
             },
         ],
@@ -310,7 +351,11 @@ def test_targets_type_check(targets, additional_targets, err_message):
             BboxParams("pascal_voc", check_each_transform=False),
             KeypointParams("xy", check_each_transform=False),
             {
-                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "bboxes": [
+                    [25, 25, 35, 35, 0],
+                    [30, 30, 95, 95, 0],
+                    [85, 85, 95, 95, 0],
+                ],
                 "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
             },
         ],
@@ -319,15 +364,20 @@ def test_targets_type_check(targets, additional_targets, err_message):
 def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
     image = np.empty([100, 100], dtype=np.uint8)
     augs = Compose(
-        [Crop(0, 0, 50, 50), PadIfNeeded(100, 100)], bbox_params=bbox_params, keypoint_params=keypoint_params
+        [Crop(0, 0, 50, 50), PadIfNeeded(100, 100)],
+        bbox_params=bbox_params,
+        keypoint_params=keypoint_params,
     )
     res = augs(image=image, **targets)
 
     for key, item in expected.items():
         assert np.all(np.array(item) == np.array(res[key]))
 
+
 def test_bbox_params_is_not_set(image, bboxes):
     t = Compose([])
     with pytest.raises(ValueError) as exc_info:
         t(image=image, bboxes=bboxes)
-    assert str(exc_info.value) == "bbox_params must be specified for bbox transformations"
+    assert (
+        str(exc_info.value) == "bbox_params must be specified for bbox transformations"
+    )

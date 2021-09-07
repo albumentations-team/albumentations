@@ -6,7 +6,13 @@ import skimage.transform
 from scipy.ndimage.filters import gaussian_filter
 
 from ..bbox_utils import denormalize_bbox, normalize_bbox
-from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape, clipped
+from ..functional import (
+    angle_2pi_range,
+    preserve_channel_dim,
+    _maybe_process_in_chunks,
+    preserve_shape,
+    clipped,
+)
 
 from typing import Union, List, Sequence, Tuple, Optional
 
@@ -69,12 +75,23 @@ def keypoint_rot90(keypoint, factor, rows, cols, **params):
 
 
 @preserve_channel_dim
-def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
+def rotate(
+    img,
+    angle,
+    interpolation=cv2.INTER_LINEAR,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
+):
     height, width = img.shape[:2]
     matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
 
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return warp_fn(img)
 
@@ -130,7 +147,14 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
 
 @preserve_channel_dim
 def shift_scale_rotate(
-    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img,
+    angle,
+    scale,
+    dx,
+    dy,
+    interpolation=cv2.INTER_LINEAR,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
 ):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
@@ -139,7 +163,12 @@ def shift_scale_rotate(
     matrix[1, 2] += dy * height
 
     warp_affine_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return warp_affine_fn(img)
 
@@ -165,7 +194,9 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
     return x, y, angle, scale
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
+def bbox_shift_scale_rotate(
+    bbox, angle, scale, dx, dy, rows, cols, **kwargs
+):  # skipcq: PYL-W0613
     x_min, y_min, x_max, y_max = bbox[:4]
     height, width = rows, cols
     center = (width / 2, height / 2)
@@ -227,11 +258,18 @@ def elastic_transform(
             center_square - square_size,
         ]
     )
-    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
+    pts2 = pts1 + random_state.uniform(
+        -alpha_affine, alpha_affine, size=pts1.shape
+    ).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     img = warp_fn(img)
 
@@ -246,8 +284,12 @@ def elastic_transform(
         cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
         dy *= alpha
     else:
-        dx = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
-        dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
+        dx = np.float32(
+            gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha
+        )
+        dy = np.float32(
+            gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha
+        )
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
 
@@ -255,7 +297,12 @@ def elastic_transform(
     map_y = np.float32(y + dy)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -265,7 +312,9 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
     img_height, img_width = img.shape[:2]
     if height == img_height and width == img_width:
         return img
-    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
+    resize_fn = _maybe_process_in_chunks(
+        cv2.resize, dsize=(width, height), interpolation=interpolation
+    )
     return resize_fn(img)
 
 
@@ -307,7 +356,9 @@ def _func_max_size(img, max_size, interpolation, func):
 
     if scale != 1.0:
         new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
-        img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
+        img = resize(
+            img, height=new_height, width=new_width, interpolation=interpolation
+        )
     return img
 
 
@@ -364,7 +415,15 @@ def perspective_bbox(
 
     x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
     for pt in points:
-        pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
+        pt = perspective_keypoint(
+            pt.tolist() + [0, 0],
+            height,
+            width,
+            matrix,
+            max_width,
+            max_height,
+            keep_size,
+        )
         x, y = pt[:2]
         x = np.clip(x, 0, width if keep_size else max_width)
         y = np.clip(y, 0, height if keep_size else max_height)
@@ -376,7 +435,9 @@ def perspective_bbox(
     x = np.clip([x1, x2], 0, width if keep_size else max_width)
     y = np.clip([y1, y2], 0, height if keep_size else max_height)
     return normalize_bbox(
-        (x[0], y[0], x[1], y[1]), height if keep_size else max_height, width if keep_size else max_width
+        (x[0], y[0], x[1], y[1]),
+        height if keep_size else max_height,
+        width if keep_size else max_width,
     )
 
 
@@ -431,7 +492,12 @@ def warp_affine(
 
     dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
+        cv2.warpAffine,
+        M=matrix.params[:2],
+        dsize=dsize,
+        flags=interpolation,
+        borderMode=mode,
+        borderValue=cval,
     )
     tmp = warp_fn(image)
     return tmp
@@ -480,7 +546,9 @@ def bbox_affine(
     y_min = np.min(points[:, 1])
     y_max = np.max(points[:, 1])
 
-    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
+    return normalize_bbox(
+        (x_min, y_min, x_max, y_max), output_shape[0], output_shape[1]
+    )
 
 
 @preserve_channel_dim
@@ -498,7 +566,9 @@ def safe_rotate(
     image_center = (old_cols / 2, old_rows / 2)
 
     # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(
+        angle=angle, rows=old_rows, cols=old_cols
+    )
 
     # Rotation Matrix
     rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
@@ -521,7 +591,9 @@ def safe_rotate(
     rotated_img = warp_affine_fn(img)
 
     # Resize image back to the original size
-    resized_img = resize(img=rotated_img, height=old_rows, width=old_cols, interpolation=interpolation)
+    resized_img = resize(
+        img=rotated_img, height=old_rows, width=old_cols, interpolation=interpolation
+    )
 
     return resized_img
 
@@ -531,7 +603,9 @@ def bbox_safe_rotate(bbox, angle, rows, cols):
     old_cols = cols
 
     # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(
+        angle=angle, rows=old_rows, cols=old_cols
+    )
 
     col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
     row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
@@ -548,7 +622,9 @@ def bbox_safe_rotate(bbox, angle, rows, cols):
         bbox[3] + norm_row_shift,
     )
 
-    rotated_bbox = bbox_rotate(bbox=shifted_bbox, angle=angle, rows=new_rows, cols=new_cols)
+    rotated_bbox = bbox_rotate(
+        bbox=shifted_bbox, angle=angle, rows=new_rows, cols=new_cols
+    )
 
     # Bounding boxes are scale invariant, so this does not need to be rescaled to the old size
     return rotated_bbox
@@ -559,16 +635,25 @@ def keypoint_safe_rotate(keypoint, angle, rows, cols):
     old_cols = cols
 
     # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+    new_rows, new_cols = safe_rotate_enlarged_img_size(
+        angle=angle, rows=old_rows, cols=old_cols
+    )
 
     col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
     row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
 
     # Shift keypoint
-    shifted_keypoint = (keypoint[0] + col_diff, keypoint[1] + row_diff, keypoint[2], keypoint[3])
+    shifted_keypoint = (
+        keypoint[0] + col_diff,
+        keypoint[1] + row_diff,
+        keypoint[2],
+        keypoint[3],
+    )
 
     # Rotate keypoint
-    rotated_keypoint = keypoint_rotate(shifted_keypoint, angle, rows=new_rows, cols=new_cols)
+    rotated_keypoint = keypoint_rotate(
+        shifted_keypoint, angle, rows=new_rows, cols=new_cols
+    )
 
     # Scale the keypoint
     return keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
@@ -603,12 +688,21 @@ def piecewise_affine(
     cval: float,
 ) -> np.ndarray:
     return skimage.transform.warp(
-        img, matrix, order=interpolation, mode=mode, cval=cval, preserve_range=True, output_shape=img.shape
+        img,
+        matrix,
+        order=interpolation,
+        mode=mode,
+        cval=cval,
+        preserve_range=True,
+        output_shape=img.shape,
     )
 
 
 def to_distance_maps(
-    keypoints: Sequence[Sequence[float]], height: int, width: int, inverted: bool = False
+    keypoints: Sequence[Sequence[float]],
+    height: int,
+    width: int,
+    inverted: bool = False,
 ) -> np.ndarray:
     """Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
 
@@ -738,7 +832,9 @@ def keypoint_piecewise_affine(
     x, y, a, s = keypoint
     dist_maps = to_distance_maps([(x, y)], h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    x, y = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)[0]
+    x, y = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)[
+        0
+    ]
     return x, y, a, s
 
 
@@ -758,7 +854,9 @@ def bbox_piecewise_affine(
     ]
     dist_maps = to_distance_maps(keypoints, h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    keypoints = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
+    keypoints = from_distance_maps(
+        dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold
+    )
     keypoints = [i for i in keypoints if 0 <= i[0] < w and 0 <= i[1] < h]
     keypoints_arr = np.array(keypoints)
     x1 = keypoints_arr[:, 0].min()

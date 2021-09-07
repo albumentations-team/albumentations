@@ -11,7 +11,10 @@ import albumentations
 def convert_2d_to_3d(arrays, num_channels=3):
     # Converts a 2D numpy array with shape (H, W) into a 3D array with shape (H, W, num_channels)
     # by repeating the existing values along the new axis.
-    arrays = tuple(np.repeat(array[:, :, np.newaxis], repeats=num_channels, axis=2) for array in arrays)
+    arrays = tuple(
+        np.repeat(array[:, :, np.newaxis], repeats=num_channels, axis=2)
+        for array in arrays
+    )
     if len(arrays) == 1:
         return arrays[0]
     return arrays
@@ -73,13 +76,21 @@ def get_filtered_transforms(
     result = []
 
     for name, cls in inspect.getmembers(albumentations):
-        if not inspect.isclass(cls) or not issubclass(cls, albumentations.BasicTransform):
+        if not inspect.isclass(cls) or not issubclass(
+            cls, albumentations.BasicTransform
+        ):
             continue
 
-        if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
+        if "DeprecationWarning" in inspect.getsource(
+            cls
+        ) or "FutureWarning" in inspect.getsource(cls):
             continue
 
-        if not issubclass(cls, base_classes) or any(cls == i for i in base_classes) or cls in except_augmentations:
+        if (
+            not issubclass(cls, base_classes)
+            or any(cls == i for i in base_classes)
+            or cls in except_augmentations
+        ):
             continue
 
         try:
@@ -94,31 +105,51 @@ def get_filtered_transforms(
 
 
 def get_image_only_transforms(
-    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.ImageOnlyTransform], dict]] = None,
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.ImageOnlyTransform]]] = None,
+    custom_arguments: typing.Optional[
+        typing.Dict[typing.Type[albumentations.ImageOnlyTransform], dict]
+    ] = None,
+    except_augmentations: typing.Optional[
+        typing.Set[typing.Type[albumentations.ImageOnlyTransform]]
+    ] = None,
 ) -> typing.List[typing.Tuple[typing.Type, dict]]:
-    return get_filtered_transforms((albumentations.ImageOnlyTransform,), custom_arguments, except_augmentations)
+    return get_filtered_transforms(
+        (albumentations.ImageOnlyTransform,), custom_arguments, except_augmentations
+    )
 
 
 def get_dual_transforms(
-    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.DualTransform], dict]] = None,
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.DualTransform]]] = None,
+    custom_arguments: typing.Optional[
+        typing.Dict[typing.Type[albumentations.DualTransform], dict]
+    ] = None,
+    except_augmentations: typing.Optional[
+        typing.Set[typing.Type[albumentations.DualTransform]]
+    ] = None,
 ) -> typing.List[typing.Tuple[typing.Type, dict]]:
-    return get_filtered_transforms((albumentations.DualTransform,), custom_arguments, except_augmentations)
+    return get_filtered_transforms(
+        (albumentations.DualTransform,), custom_arguments, except_augmentations
+    )
 
 
 def get_transforms(
-    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.BasicTransform], dict]] = None,
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
+    custom_arguments: typing.Optional[
+        typing.Dict[typing.Type[albumentations.BasicTransform], dict]
+    ] = None,
+    except_augmentations: typing.Optional[
+        typing.Set[typing.Type[albumentations.BasicTransform]]
+    ] = None,
 ) -> typing.List[typing.Tuple[typing.Type, dict]]:
     return get_filtered_transforms(
-        (albumentations.ImageOnlyTransform, albumentations.DualTransform), custom_arguments, except_augmentations
+        (albumentations.ImageOnlyTransform, albumentations.DualTransform),
+        custom_arguments,
+        except_augmentations,
     )
 
 
 def check_all_augs_exists(
     augmentations: typing.List[typing.List],
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
+    except_augmentations: typing.Optional[
+        typing.Set[typing.Type[albumentations.BasicTransform]]
+    ] = None,
 ) -> typing.List[typing.List]:
     existed_augs = {i[0] for i in augmentations}
     except_augmentations = except_augmentations or set()
@@ -130,6 +161,8 @@ def check_all_augs_exists(
             not_existed.append(cls.__name__)
 
     if not_existed:
-        raise ValueError(f"These augmentations do not exist in augmentations and except_augmentations: {not_existed}")
+        raise ValueError(
+            f"These augmentations do not exist in augmentations and except_augmentations: {not_existed}"
+        )
 
     return augmentations

@@ -15,7 +15,9 @@ __all__ = [
 class IAAStub:
     def __init__(self, *args, **kwargs):
         cls_name = self.__class__.__name__
-        doc_link = "https://albumentations.ai/docs/api_reference/augmentations" + self.doc_link
+        doc_link = (
+            "https://albumentations.ai/docs/api_reference/augmentations" + self.doc_link
+        )
         raise RuntimeError(
             f"You are trying to use a deprecated augmentation '{cls_name}' which depends on the imgaug library, "
             f"but imgaug is not installed.\n\n"
@@ -29,7 +31,9 @@ class IAAStub:
 
 class IAACropAndPad(IAAStub):
     alternative = "CropAndPad"
-    doc_link = "/crops/transforms/#albumentations.augmentations.crops.transforms.CropAndPad"
+    doc_link = (
+        "/crops/transforms/#albumentations.augmentations.crops.transforms.CropAndPad"
+    )
 
 
 class IAAFliplr(IAAStub):

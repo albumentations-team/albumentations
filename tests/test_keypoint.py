@@ -75,7 +75,10 @@ def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format):
         kp, rows=image.shape[0], cols=image.shape[1], source_format=keypoint_format
     )
     converted_back_kp = convert_keypoint_from_albumentations(
-        converted_kp, rows=image.shape[0], cols=image.shape[1], target_format=keypoint_format
+        converted_kp,
+        rows=image.shape[0],
+        cols=image.shape[1],
+        target_format=keypoint_format,
     )
     assert converted_back_kp == kp
 
@@ -122,7 +125,10 @@ def test_convert_keypoints_from_albumentations():
 def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
     image = np.ones((100, 100, 3))
     if labels is not None:
-        aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": ["labels"]})
+        aug = Compose(
+            [NoOp(p=1.0)],
+            keypoint_params={"format": keypoint_format, "label_fields": ["labels"]},
+        )
         transformed = aug(image=image, keypoints=keypoints, labels=labels)
     else:
         aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format})
@@ -131,10 +137,15 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
     assert transformed["keypoints"] == keypoints
 
 
-@pytest.mark.parametrize(["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]])
+@pytest.mark.parametrize(
+    ["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]]
+)
 def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format):
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": "class_id"})
+    aug = Compose(
+        [NoOp(p=1.0)],
+        keypoint_params={"format": keypoint_format, "label_fields": "class_id"},
+    )
     with pytest.raises(Exception):
         aug(image=image, keypoints=keypoints, cls_id=[0])
 
@@ -151,7 +162,13 @@ def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_forma
 )
 def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, labels):
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": list(labels.keys())})
+    aug = Compose(
+        [NoOp(p=1.0)],
+        keypoint_params={
+            "format": keypoint_format,
+            "label_fields": list(labels.keys()),
+        },
+    )
     transformed = aug(image=image, keypoints=keypoints, **labels)
     assert np.array_equal(transformed["image"], image)
     assert transformed["keypoints"] == keypoints
@@ -198,7 +215,9 @@ def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
     transform = Compose([aug(p=1)], keypoint_params={"format": "xy"})
 
     image = np.ones((3, 3, 3))
-    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    transformed = transform(
+        image=image, keypoints=keypoints, labels=np.ones(len(keypoints))
+    )
     assert np.allclose(expected, transformed["keypoints"])
 
 
@@ -216,11 +235,18 @@ def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
 )
 def test_keypoint_transform_format_xyas(aug, keypoints, expected):
     transform = Compose(
-        [aug(p=1)], keypoint_params={"format": "xyas", "angle_in_degrees": True, "label_fields": ["labels"]}
+        [aug(p=1)],
+        keypoint_params={
+            "format": "xyas",
+            "angle_in_degrees": True,
+            "label_fields": ["labels"],
+        },
     )
 
     image = np.ones((100, 100, 3))
-    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    transformed = transform(
+        image=image, keypoints=keypoints, labels=np.ones(len(keypoints))
+    )
     assert np.allclose(expected, transformed["keypoints"])
 
 
@@ -272,7 +298,9 @@ def test_keypoint_scale(keypoint, expected, scale):
     [[[50, 50, 0, 5], [120, 160, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
-    actual = FGeometric.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
+    actual = FGeometric.keypoint_shift_scale_rotate(
+        keypoint, angle, scale, dx, dy, rows=100, cols=200
+    )
     np.testing.assert_allclose(actual, expected, rtol=1e-4)
 
 
@@ -280,7 +308,11 @@ def test_compose_with_additional_targets():
     image = np.ones((100, 100, 3))
     keypoints = [(10, 10), (50, 50)]
     kp1 = [(15, 15), (55, 55)]
-    aug = Compose([CenterCrop(50, 50)], keypoint_params={"format": "xy"}, additional_targets={"kp1": "keypoints"})
+    aug = Compose(
+        [CenterCrop(50, 50)],
+        keypoint_params={"format": "xy"},
+        additional_targets={"kp1": "keypoints"},
+    )
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
     assert transformed["keypoints"] == [(25, 25)]
     assert transformed["kp1"] == [(30, 30)]

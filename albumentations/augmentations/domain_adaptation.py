@@ -8,7 +8,12 @@ from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from .functional import clipped, preserve_shape, is_grayscale_image, is_multispectral_image
+from .functional import (
+    clipped,
+    preserve_shape,
+    is_grayscale_image,
+    is_multispectral_image,
+)
 from .utils import read_rgb_image
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 
@@ -24,7 +29,9 @@ __all__ = [
 
 @clipped
 @preserve_shape
-def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
+def fourier_domain_adaptation(
+    img: np.ndarray, target_img: np.ndarray, beta: float
+) -> np.ndarray:
     """
     Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
 
@@ -69,7 +76,9 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     amplitude_src = np.fft.ifftshift(amplitude_src, axes=(0, 1))
 
     # get mutated image
-    src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
+    src_image_transformed = np.fft.ifft2(
+        amplitude_src * np.exp(1j * phase_src), axes=(0, 1)
+    )
     src_image_transformed = np.real(src_image_transformed)
 
     return src_image_transformed
@@ -78,7 +87,9 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 @preserve_shape
 def apply_histogram(img, reference_image, blend_ratio):
     reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
-    matched = match_histograms(np.squeeze(img), np.squeeze(reference_image), multichannel=True)
+    matched = match_histograms(
+        np.squeeze(img), np.squeeze(reference_image), multichannel=True
+    )
     img = cv2.addWeighted(matched, blend_ratio, img, 1 - blend_ratio, 0)
     return img
 
@@ -88,10 +99,14 @@ def adapt_pixel_distribution(
     img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5
 ) -> np.ndarray:
     initial_type = img.dtype
-    transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
+    transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[
+        transform_type
+    ]()
     adapter = DomainAdapter(transformer=transformer, ref_img=ref)
     result = adapter(img).astype("float32")
-    blended = (img.astype("float32") * (1 - weight) + result * weight).astype(initial_type)
+    blended = (img.astype("float32") * (1 - weight) + result * weight).astype(
+        initial_type
+    )
     return blended
 
 

@@ -70,7 +70,9 @@ class BasicTransform:
 
     def __call__(self, *args, force_apply: bool = False, **kwargs) -> Dict[str, Any]:
         if args:
-            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
+            raise KeyError(
+                "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
+            )
         if self.replay_mode:
             if self.applied_in_replay:
                 return self.apply_with_params(self.params, **kwargs)
@@ -81,16 +83,21 @@ class BasicTransform:
             params = self.get_params()
 
             if self.targets_as_params:
-                assert all(key in kwargs for key in self.targets_as_params), "{} requires {}".format(
+                assert all(
+                    key in kwargs for key in self.targets_as_params
+                ), "{} requires {}".format(
                     self.__class__.__name__, self.targets_as_params
                 )
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
-                params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
+                params_dependent_on_targets = self.get_params_dependent_on_targets(
+                    targets_as_params
+                )
                 params.update(params_dependent_on_targets)
             if self.deterministic:
                 if self.targets_as_params:
                     warn(
-                        self.get_class_fullname() + " could work incorrectly in ReplayMode for other input data"
+                        self.get_class_fullname()
+                        + " could work incorrectly in ReplayMode for other input data"
                         " because its' params depend on targets."
                     )
                 kwargs[self.save_key][id(self)] = deepcopy(params)
@@ -108,13 +115,17 @@ class BasicTransform:
         for key, arg in kwargs.items():
             if arg is not None:
                 target_function = self._get_target_function(key)
-                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
+                target_dependencies = {
+                    k: kwargs[k] for k in self.target_dependence.get(key, [])
+                }
                 res[key] = target_function(arg, **dict(params, **target_dependencies))
             else:
                 res[key] = None
         return res
 
-    def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
+    def set_deterministic(
+        self, flag: bool, save_key: str = "replay"
+    ) -> "BasicTransform":
         assert save_key != "params", "params save_key is reserved"
         self.deterministic = flag
         self.save_key = save_key
@@ -123,7 +134,9 @@ class BasicTransform:
     def __repr__(self) -> str:
         state = self.get_base_init_args()
         state.update(self.get_transform_init_args())
-        return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+        return "{name}({args})".format(
+            name=self.__class__.__name__, args=format_args(state)
+        )
 
     def _get_target_function(self, key: str) -> Callable:
         transform_key = key
@@ -153,7 +166,9 @@ class BasicTransform:
             params["fill_value"] = self.fill_value
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
-        params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
+        params.update(
+            {"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]}
+        )
         return params
 
     @property
@@ -177,7 +192,8 @@ class BasicTransform:
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         raise NotImplementedError(
-            "Method get_params_dependent_on_targets is not implemented in class " + self.__class__.__name__
+            "Method get_params_dependent_on_targets is not implemented in class "
+            + self.__class__.__name__
         )
 
     @classmethod
@@ -222,19 +238,37 @@ class DualTransform(BasicTransform):
         }
 
     def apply_to_bbox(self, bbox, **params):
-        raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
+        raise NotImplementedError(
+            "Method apply_to_bbox is not implemented in class "
+            + self.__class__.__name__
+        )
 
     def apply_to_keypoint(self, keypoint, **params):
-        raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
+        raise NotImplementedError(
+            "Method apply_to_keypoint is not implemented in class "
+            + self.__class__.__name__
+        )
 
     def apply_to_bboxes(self, bboxes, **params):
-        return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]
+        return [
+            self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:])
+            for bbox in bboxes
+        ]
 
     def apply_to_keypoints(self, keypoints, **params):
-        return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
+        return [
+            self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:])
+            for keypoint in keypoints
+        ]
 
     def apply_to_mask(self, img, **params):
-        return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
+        return self.apply(
+            img,
+            **{
+                k: cv2.INTER_NEAREST if k == "interpolation" else v
+                for k, v in params.items()
+            }
+        )
 
     def apply_to_masks(self, masks, **params):
         return [self.apply_to_mask(mask, **params) for mask in masks]

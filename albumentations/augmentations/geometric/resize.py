@@ -28,7 +28,9 @@ class RandomScale(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
+    def __init__(
+        self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5
+    ):
         super(RandomScale, self).__init__(always_apply, p)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.interpolation = interpolation
@@ -47,7 +49,10 @@ class RandomScale(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args(self):
-        return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
+        return {
+            "interpolation": self.interpolation,
+            "scale_limit": to_tuple(self.scale_limit, bias=-1.0),
+        }
 
 
 class LongestMaxSize(DualTransform):
@@ -78,7 +83,11 @@ class LongestMaxSize(DualTransform):
         self.max_size = max_size
 
     def apply(
-        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params
+        self,
+        img: np.ndarray,
+        max_size: int = 1024,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params
     ) -> np.ndarray:
         return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
@@ -86,7 +95,9 @@ class LongestMaxSize(DualTransform):
         # Bounding box coordinates are scale invariant
         return bbox
 
-    def apply_to_keypoint(self, keypoint: Sequence[float], max_size: int = 1024, **params) -> Sequence[float]:
+    def apply_to_keypoint(
+        self, keypoint: Sequence[float], max_size: int = 1024, **params
+    ) -> Sequence[float]:
         height = params["rows"]
         width = params["cols"]
 
@@ -94,7 +105,11 @@ class LongestMaxSize(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
-        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
+        return {
+            "max_size": self.max_size
+            if isinstance(self.max_size, int)
+            else random.choice(self.max_size)
+        }
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("max_size", "interpolation")
@@ -128,14 +143,20 @@ class SmallestMaxSize(DualTransform):
         self.max_size = max_size
 
     def apply(
-        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params
+        self,
+        img: np.ndarray,
+        max_size: int = 1024,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params
     ) -> np.ndarray:
         return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox: Sequence[float], **params) -> Sequence[float]:
         return bbox
 
-    def apply_to_keypoint(self, keypoint: Sequence[float], max_size: int = 1024, **params) -> Sequence[float]:
+    def apply_to_keypoint(
+        self, keypoint: Sequence[float], max_size: int = 1024, **params
+    ) -> Sequence[float]:
         height = params["rows"]
         width = params["cols"]
 
@@ -143,7 +164,11 @@ class SmallestMaxSize(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
-        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
+        return {
+            "max_size": self.max_size
+            if isinstance(self.max_size, int)
+            else random.choice(self.max_size)
+        }
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("max_size", "interpolation")
@@ -167,14 +192,18 @@ class Resize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
+    def __init__(
+        self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1
+    ):
         super(Resize, self).__init__(always_apply, p)
         self.height = height
         self.width = width
         self.interpolation = interpolation
 
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
-        return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
+        return F.resize(
+            img, height=self.height, width=self.width, interpolation=interpolation
+        )
 
     def apply_to_bbox(self, bbox, **params):
         # Bounding box coordinates are scale invariant

@@ -71,7 +71,9 @@ class DataProcessor:
 
         for data_name in self.data_fields:
             data[data_name] = self.filter(data[data_name], rows, cols)
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
+            data[data_name] = self.check_and_convert(
+                data[data_name], rows, cols, direction="from"
+            )
 
         data = self.remove_label_fields_from_data(data)
         return data
@@ -81,7 +83,9 @@ class DataProcessor:
 
         rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
+            data[data_name] = self.check_and_convert(
+                data[data_name], rows, cols, direction="to"
+            )
 
     def check_and_convert(self, data, rows, cols, direction="to"):
         if self.params.format == "albumentations":

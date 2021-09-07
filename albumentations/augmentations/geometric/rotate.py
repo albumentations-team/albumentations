@@ -88,7 +88,9 @@ class Rotate(DualTransform):
         return F.rotate(img, angle, interpolation, self.border_mode, self.value)
 
     def apply_to_mask(self, img, angle=0, **params):
-        return F.rotate(img, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        return F.rotate(
+            img, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+        )
 
     def get_params(self):
         return {"angle": random.uniform(self.limit[0], self.limit[1])}
@@ -151,22 +153,34 @@ class SafeRotate(DualTransform):
 
     def apply(self, img, angle=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.safe_rotate(
-            img=img, value=self.value, angle=angle, interpolation=interpolation, border_mode=self.border_mode
+            img=img,
+            value=self.value,
+            angle=angle,
+            interpolation=interpolation,
+            border_mode=self.border_mode,
         )
 
     def apply_to_mask(self, img, angle=0, **params):
         return F.safe_rotate(
-            img=img, value=self.mask_value, angle=angle, interpolation=cv2.INTER_NEAREST, border_mode=self.border_mode
+            img=img,
+            value=self.mask_value,
+            angle=angle,
+            interpolation=cv2.INTER_NEAREST,
+            border_mode=self.border_mode,
         )
 
     def get_params(self):
         return {"angle": random.uniform(self.limit[0], self.limit[1])}
 
     def apply_to_bbox(self, bbox, angle=0, **params):
-        return F.bbox_safe_rotate(bbox=bbox, angle=angle, rows=params["rows"], cols=params["cols"])
+        return F.bbox_safe_rotate(
+            bbox=bbox, angle=angle, rows=params["rows"], cols=params["cols"]
+        )
 
     def apply_to_keypoint(self, keypoint, angle=0, **params):
-        return F.keypoint_safe_rotate(keypoint, angle=angle, rows=params["rows"], cols=params["cols"])
+        return F.keypoint_safe_rotate(
+            keypoint, angle=angle, rows=params["rows"], cols=params["cols"]
+        )
 
     def get_transform_init_args_names(self):
         return ("limit", "interpolation", "border_mode", "value", "mask_value")

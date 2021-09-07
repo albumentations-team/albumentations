@@ -12,9 +12,20 @@ except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
 from ..augmentations import Emboss, Perspective, Sharpen
-from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, convert_bboxes_to_albumentations
-from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, convert_keypoints_to_albumentations
-from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
+from ..augmentations.bbox_utils import (
+    convert_bboxes_from_albumentations,
+    convert_bboxes_to_albumentations,
+)
+from ..augmentations.keypoints_utils import (
+    convert_keypoints_from_albumentations,
+    convert_keypoints_to_albumentations,
+)
+from ..core.transforms_interface import (
+    BasicTransform,
+    DualTransform,
+    ImageOnlyTransform,
+    to_tuple,
+)
 
 import warnings
 
@@ -54,18 +65,28 @@ class BasicIAATransform(BasicTransform):
 
 
 class DualIAATransform(DualTransform, BasicIAATransform):
-    def apply_to_bboxes(self, bboxes, deterministic_processor=None, rows=0, cols=0, **params):
+    def apply_to_bboxes(
+        self, bboxes, deterministic_processor=None, rows=0, cols=0, **params
+    ):
         if len(bboxes) > 0:
-            bboxes = convert_bboxes_from_albumentations(bboxes, "pascal_voc", rows=rows, cols=cols)
+            bboxes = convert_bboxes_from_albumentations(
+                bboxes, "pascal_voc", rows=rows, cols=cols
+            )
 
-            bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols))
-            bboxes_t = deterministic_processor.augment_bounding_boxes([bboxes_t])[0].bounding_boxes
+            bboxes_t = ia.BoundingBoxesOnImage(
+                [ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols)
+            )
+            bboxes_t = deterministic_processor.augment_bounding_boxes([bboxes_t])[
+                0
+            ].bounding_boxes
             bboxes_t = [
                 [bbox.x1, bbox.y1, bbox.x2, bbox.y2] + list(bbox_orig[4:])
                 for (bbox, bbox_orig) in zip(bboxes_t, bboxes)
             ]
 
-            bboxes = convert_bboxes_to_albumentations(bboxes_t, "pascal_voc", rows=rows, cols=cols)
+            bboxes = convert_bboxes_to_albumentations(
+                bboxes_t, "pascal_voc", rows=rows, cols=cols
+            )
         return bboxes
 
     """Applies transformation to keypoints.
@@ -76,15 +97,28 @@ class DualIAATransform(DualTransform, BasicIAATransform):
         inside Compose with keypoints format other than 'xy'.
     """
 
-    def apply_to_keypoints(self, keypoints, deterministic_processor=None, rows=0, cols=0, **params):
+    def apply_to_keypoints(
+        self, keypoints, deterministic_processor=None, rows=0, cols=0, **params
+    ):
         if len(keypoints) > 0:
-            keypoints = convert_keypoints_from_albumentations(keypoints, "xy", rows=rows, cols=cols)
-            keypoints_t = ia.KeypointsOnImage([ia.Keypoint(*kp[:2]) for kp in keypoints], (rows, cols))
-            keypoints_t = deterministic_processor.augment_keypoints([keypoints_t])[0].keypoints
+            keypoints = convert_keypoints_from_albumentations(
+                keypoints, "xy", rows=rows, cols=cols
+            )
+            keypoints_t = ia.KeypointsOnImage(
+                [ia.Keypoint(*kp[:2]) for kp in keypoints], (rows, cols)
+            )
+            keypoints_t = deterministic_processor.augment_keypoints([keypoints_t])[
+                0
+            ].keypoints
 
-            bboxes_t = [[kp.x, kp.y] + list(kp_orig[2:]) for (kp, kp_orig) in zip(keypoints_t, keypoints)]
+            bboxes_t = [
+                [kp.x, kp.y] + list(kp_orig[2:])
+                for (kp, kp_orig) in zip(keypoints_t, keypoints)
+            ]
 
-            keypoints = convert_keypoints_to_albumentations(bboxes_t, "xy", rows=rows, cols=cols)
+            keypoints = convert_keypoints_to_albumentations(
+                bboxes_t, "xy", rows=rows, cols=cols
+            )
         return keypoints
 
 
@@ -96,7 +130,14 @@ class IAACropAndPad(DualIAATransform):
     """This augmentation is deprecated. Please use CropAndPad instead."""
 
     def __init__(
-        self, px=None, percent=None, pad_mode="constant", pad_cval=0, keep_size=True, always_apply=False, p=1
+        self,
+        px=None,
+        percent=None,
+        pad_mode="constant",
+        pad_cval=0,
+        keep_size=True,
+        always_apply=False,
+        p=1,
     ):
         super(IAACropAndPad, self).__init__(always_apply, p)
         self.px = px
@@ -104,11 +145,15 @@ class IAACropAndPad(DualIAATransform):
         self.pad_mode = pad_mode
         self.pad_cval = pad_cval
         self.keep_size = keep_size
-        warnings.warn("IAACropAndPad is deprecated. Please use CropAndPad instead", FutureWarning)
+        warnings.warn(
+            "IAACropAndPad is deprecated. Please use CropAndPad instead", FutureWarning
+        )
 
     @property
     def processor(self):
-        return iaa.CropAndPad(self.px, self.percent, self.pad_mode, self.pad_cval, self.keep_size)
+        return iaa.CropAndPad(
+            self.px, self.percent, self.pad_mode, self.pad_cval, self.keep_size
+        )
 
     def get_transform_init_args_names(self):
         return ("px", "percent", "pad_mode", "pad_cval", "keep_size")
@@ -119,7 +164,9 @@ class IAAFliplr(DualIAATransform):
 
     def __init__(self, always_apply=False, p=0.5):
         super().__init__(always_apply, p)
-        warnings.warn("IAAFliplr is deprecated. Please use HorizontalFlip instead.", FutureWarning)
+        warnings.warn(
+            "IAAFliplr is deprecated. Please use HorizontalFlip instead.", FutureWarning
+        )
 
     @property
     def processor(self):
@@ -134,7 +181,9 @@ class IAAFlipud(DualIAATransform):
 
     def __init__(self, always_apply=False, p=0.5):
         super().__init__(always_apply, p)
-        warnings.warn("IAAFlipud is deprecated. Please use VerticalFlip instead.", FutureWarning)
+        warnings.warn(
+            "IAAFlipud is deprecated. Please use VerticalFlip instead.", FutureWarning
+        )
 
     @property
     def processor(self):
@@ -158,11 +207,15 @@ class IAAEmboss(ImageOnlyIAATransform):
         image
     """
 
-    def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
+    def __init__(
+        self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5
+    ):
         super(IAAEmboss, self).__init__(always_apply, p)
         self.alpha = to_tuple(alpha, 0.0)
         self.strength = to_tuple(strength, 0.0)
-        warnings.warn("This augmentation is deprecated. Please use Emboss instead", FutureWarning)
+        warnings.warn(
+            "This augmentation is deprecated. Please use Emboss instead", FutureWarning
+        )
 
     @property
     def processor(self):
@@ -192,7 +245,10 @@ class IAASuperpixels(ImageOnlyIAATransform):
         super(IAASuperpixels, self).__init__(always_apply, p)
         self.p_replace = p_replace
         self.n_segments = n_segments
-        warnings.warn("IAASuperpixels is deprecated. Please use Superpixels instead.", FutureWarning)
+        warnings.warn(
+            "IAASuperpixels is deprecated. Please use Superpixels instead.",
+            FutureWarning,
+        )
 
     @property
     def processor(self):
@@ -215,11 +271,15 @@ class IAASharpen(ImageOnlyIAATransform):
         image
     """
 
-    def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
+    def __init__(
+        self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5
+    ):
         super(IAASharpen, self).__init__(always_apply, p)
         self.alpha = to_tuple(alpha, 0)
         self.lightness = to_tuple(lightness, 0)
-        warnings.warn("IAASharpen is deprecated. Please use Sharpen instead", FutureWarning)
+        warnings.warn(
+            "IAASharpen is deprecated. Please use Sharpen instead", FutureWarning
+        )
 
     @property
     def processor(self):
@@ -244,12 +304,22 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
         image
     """
 
-    def __init__(self, loc=0, scale=(0.01 * 255, 0.05 * 255), per_channel=False, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        loc=0,
+        scale=(0.01 * 255, 0.05 * 255),
+        per_channel=False,
+        always_apply=False,
+        p=0.5,
+    ):
         super(IAAAdditiveGaussianNoise, self).__init__(always_apply, p)
         self.loc = loc
         self.scale = to_tuple(scale, 0.0)
         self.per_channel = per_channel
-        warnings.warn("IAAAdditiveGaussianNoise is deprecated. Please use GaussNoise instead", FutureWarning)
+        warnings.warn(
+            "IAAAdditiveGaussianNoise is deprecated. Please use GaussNoise instead",
+            FutureWarning,
+        )
 
     @property
     def processor(self):
@@ -278,7 +348,15 @@ class IAAPiecewiseAffine(DualIAATransform):
     """
 
     def __init__(
-        self, scale=(0.03, 0.05), nb_rows=4, nb_cols=4, order=1, cval=0, mode="constant", always_apply=False, p=0.5
+        self,
+        scale=(0.03, 0.05),
+        nb_rows=4,
+        nb_cols=4,
+        order=1,
+        cval=0,
+        mode="constant",
+        always_apply=False,
+        p=0.5,
     ):
         super(IAAPiecewiseAffine, self).__init__(always_apply, p)
         self.scale = to_tuple(scale, 0.0)
@@ -287,11 +365,16 @@ class IAAPiecewiseAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
-        warnings.warn("This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead", FutureWarning)
+        warnings.warn(
+            "This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead",
+            FutureWarning,
+        )
 
     @property
     def processor(self):
-        return iaa.PiecewiseAffine(self.scale, self.nb_rows, self.nb_cols, self.order, self.cval, self.mode)
+        return iaa.PiecewiseAffine(
+            self.scale, self.nb_rows, self.nb_cols, self.order, self.cval, self.mode
+        )
 
     def get_transform_init_args_names(self):
         return ("scale", "nb_rows", "nb_cols", "order", "cval", "mode")
@@ -334,7 +417,9 @@ class IAAAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
-        warnings.warn("This IAAAffine is deprecated. Please use Affine instead", FutureWarning)
+        warnings.warn(
+            "This IAAAffine is deprecated. Please use Affine instead", FutureWarning
+        )
 
     @property
     def processor(self):
@@ -350,7 +435,16 @@ class IAAAffine(DualIAATransform):
         )
 
     def get_transform_init_args_names(self):
-        return ("scale", "translate_percent", "translate_px", "rotate", "shear", "order", "cval", "mode")
+        return (
+            "scale",
+            "translate_percent",
+            "translate_px",
+            "rotate",
+            "shear",
+            "order",
+            "cval",
+            "mode",
+        )
 
 
 class IAAPerspective(Perspective):
@@ -372,7 +466,10 @@ class IAAPerspective(Perspective):
         super(IAAPerspective, self).__init__(always_apply, p)
         self.scale = to_tuple(scale, 1.0)
         self.keep_size = keep_size
-        warnings.warn("This IAAPerspective is deprecated. Please use Perspective instead", FutureWarning)
+        warnings.warn(
+            "This IAAPerspective is deprecated. Please use Perspective instead",
+            FutureWarning,
+        )
 
     @property
     def processor(self):

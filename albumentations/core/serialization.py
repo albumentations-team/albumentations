@@ -74,7 +74,9 @@ def to_dict(transform, on_not_implemented_error="raise"):
         warnings.warn(
             "Got NotImplementedError while trying to serialize {obj}. Object arguments are not preserved. "
             "Implement either '{cls_name}.get_transform_init_args_names' or '{cls_name}.get_transform_init_args' "
-            "method to make the transform serializable".format(obj=transform, cls_name=transform.__class__.__name__)
+            "method to make the transform serializable".format(
+                obj=transform, cls_name=transform.__class__.__name__
+            )
         )
     return {"__version__": __version__, "transform": transform_dict}
 
@@ -89,7 +91,11 @@ def instantiate_lambda(transform, lambda_transforms=None):
             )
         transform = lambda_transforms.get(name)
         if transform is None:
-            raise ValueError("Lambda transform with {name} was not found in `lambda_transforms`".format(name=name))
+            raise ValueError(
+                "Lambda transform with {name} was not found in `lambda_transforms`".format(
+                    name=name
+                )
+            )
         return transform
     return None
 
@@ -113,14 +119,19 @@ def from_dict(transform_dict, lambda_transforms=None):
     cls = SERIALIZABLE_REGISTRY[shorten_class_name(name)]
     if "transforms" in args:
         args["transforms"] = [
-            from_dict({"transform": t}, lambda_transforms=lambda_transforms) for t in args["transforms"]
+            from_dict({"transform": t}, lambda_transforms=lambda_transforms)
+            for t in args["transforms"]
         ]
     return cls(**args)
 
 
 def check_data_format(data_format):
     if data_format not in {"json", "yaml"}:
-        raise ValueError("Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(data_format))
+        raise ValueError(
+            "Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(
+                data_format
+            )
+        )
 
 
 def save(transform, filepath, data_format="json", on_not_implemented_error="raise"):
@@ -137,7 +148,9 @@ def save(transform, filepath, data_format="json", on_not_implemented_error="rais
             ignored and no transform arguments will be saved.
     """
     check_data_format(data_format)
-    transform_dict = to_dict(transform, on_not_implemented_error=on_not_implemented_error)
+    transform_dict = to_dict(
+        transform, on_not_implemented_error=on_not_implemented_error
+    )
     dump_fn = json.dump if data_format == "json" else yaml.safe_dump
     with open(filepath, "w") as f:
         dump_fn(transform_dict, f)

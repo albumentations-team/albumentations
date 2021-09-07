@@ -96,8 +96,12 @@ def non_rgb_warning(image):
         message = "This transformation expects 3-channel images"
         if is_grayscale_image(image):
             message += "\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))"
-        if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
-            message += "\nThis transformation cannot be applied to multi-spectral images"
+        if is_multispectral_image(
+            image
+        ):  # Any image with a number of channels other than 1 and 3
+            message += (
+                "\nThis transformation cannot be applied to multi-spectral images"
+            )
 
         raise ValueError(message)
 
@@ -414,13 +418,20 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
     modes = ["cv", "pil"]
 
     if mode not in modes:
-        raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
+        raise ValueError(
+            "Unsupported equalization mode. Supports: {}. "
+            "Got: {}".format(modes, mode)
+        )
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
-            raise ValueError("Wrong mask shape. Image shape: {}. " "Mask shape: {}".format(img.shape, mask.shape))
+            raise ValueError(
+                "Wrong mask shape. Image shape: {}. "
+                "Mask shape: {}".format(img.shape, mask.shape)
+            )
         if not by_channels and not is_grayscale_image(mask):
             raise ValueError(
-                "When by_channels=False only 1-channel mask supports. " "Mask shape: {}".format(mask.shape)
+                "When by_channels=False only 1-channel mask supports. "
+                "Mask shape: {}".format(mask.shape)
             )
 
     if mode == "pil":
@@ -576,7 +587,9 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=No
         w_pad_left = 0
         w_pad_right = 0
 
-    img = pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value)
+    img = pad_with_params(
+        img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value
+    )
 
     if img.shape[:2] != (max(min_height, height), max(min_width, width)):
         raise RuntimeError(
@@ -598,7 +611,9 @@ def pad_with_params(
     border_mode=cv2.BORDER_REFLECT_101,
     value=None,
 ):
-    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
+    img = cv2.copyMakeBorder(
+        img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value
+    )
     return img
 
 
@@ -611,7 +626,9 @@ def blur(img, ksize):
 @preserve_shape
 def gaussian_blur(img, ksize, sigma=0):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+    blur_fn = _maybe_process_in_chunks(
+        cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma
+    )
     return blur_fn(img)
 
 
@@ -619,7 +636,9 @@ def gaussian_blur(img, ksize, sigma=0):
 def median_blur(img, ksize):
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(
-            "Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5".format(ksize)
+            "Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5".format(
+                ksize
+            )
         )
 
     blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
@@ -639,7 +658,9 @@ def image_compression(img, quality, image_type):
     elif image_type == ".webp":
         quality_flag = cv2.IMWRITE_WEBP_QUALITY
     else:
-        NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
+        NotImplementedError(
+            "Only '.jpg' and '.webp' compression transforms are implemented. "
+        )
 
     input_dtype = img.dtype
     needs_float = False
@@ -654,7 +675,9 @@ def image_compression(img, quality, image_type):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for image augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for image augmentation".format(input_dtype)
+        )
 
     _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
@@ -691,7 +714,9 @@ def add_snow(img, snow_point, brightness_coeff):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomSnow augmentation".format(input_dtype)
+        )
 
     image_HLS = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     image_HLS = np.array(image_HLS, dtype=np.float32)
@@ -748,7 +773,9 @@ def add_rain(
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomRain augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomRain augmentation".format(input_dtype)
+        )
 
     image = img.copy()
 
@@ -801,7 +828,9 @@ def add_fog(img, fog_coef, alpha_coef, haze_list):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomFog augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomFog augmentation".format(input_dtype)
+        )
 
     width = img.shape[1]
 
@@ -854,7 +883,9 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSunFlareaugmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomSunFlareaugmentation".format(input_dtype)
+        )
 
     overlay = img.copy()
     output = img.copy()
@@ -872,7 +903,11 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     rad = np.linspace(1, src_radius, num=num_times)
     for i in range(num_times):
         cv2.circle(overlay, point, int(rad[i]), src_color, -1)
-        alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
+        alp = (
+            alpha[num_times - i - 1]
+            * alpha[num_times - i - 1]
+            * alpha[num_times - i - 1]
+        )
         cv2.addWeighted(overlay, alp, output, 1 - alp, 0, output)
 
     image_rgb = output
@@ -905,7 +940,9 @@ def add_shadow(img, vertices_list):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomShadow augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomShadow augmentation".format(input_dtype)
+        )
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     mask = np.zeros_like(img)
@@ -955,7 +992,9 @@ def optical_distortion(
     camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+    map1, map2 = cv2.initUndistortRectifyMap(
+        camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1
+    )
     img = cv2.remap(
         img,
         map1,
@@ -1069,7 +1108,9 @@ def elastic_transform_approx(
             center_square - square_size,
         ]
     )
-    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
+    pts2 = pts1 + random_state.uniform(
+        -alpha_affine, alpha_affine, size=pts1.shape
+    ).astype(np.float32)
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
@@ -1218,8 +1259,12 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_state.poisson(stddev[1] * intensity * 255, size=hls.shape[:2])
-    color_noise = random_state.normal(0, color_shift * 360 * intensity, size=hls.shape[:2])
+    luminance_noise = random_state.poisson(
+        stddev[1] * intensity * 255, size=hls.shape[:2]
+    )
+    color_noise = random_state.normal(
+        0, color_shift * 360 * intensity, size=hls.shape[:2]
+    )
 
     hue = hls[..., 0]
     hue += color_noise
@@ -1731,7 +1776,11 @@ def adjust_hue_torchvision(img, factor):
 
 @preserve_shape
 def superpixels(
-    image: np.ndarray, n_segments: int, replace_samples: Sequence[bool], max_size: Optional[int], interpolation: int
+    image: np.ndarray,
+    n_segments: int,
+    replace_samples: Sequence[bool],
+    max_size: Optional[int],
+    interpolation: int,
 ) -> np.ndarray:
     if not np.any(replace_samples):
         return image
@@ -1760,7 +1809,9 @@ def superpixels(
     nb_channels = image.shape[2]
     for c in range(nb_channels):
         # segments+1 here because otherwise regionprops always misses the last label
-        regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
+        regions = skimage.measure.regionprops(
+            segments + 1, intensity_image=image[..., c]
+        )
         for ridx, region in enumerate(regions):
             # with mod here, because slic can sometimes create more superpixel than requested.
             # replace_samples then does not have enough values, so we just start over with the first one again.
@@ -1782,7 +1833,9 @@ def superpixels(
 
     if orig_shape != image.shape:
         resize_fn = _maybe_process_in_chunks(
-            cv2.resize, dsize=(orig_shape[1], orig_shape[0]), interpolation=interpolation
+            cv2.resize,
+            dsize=(orig_shape[1], orig_shape[0]),
+            interpolation=interpolation,
         )
         image = resize_fn(image)
 
