@@ -226,6 +226,7 @@ class Compose(BaseCompose):
         return data
 
     def _to_dict(self):
+        self.is_check_args = True
         dictionary = super(Compose, self)._to_dict()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
