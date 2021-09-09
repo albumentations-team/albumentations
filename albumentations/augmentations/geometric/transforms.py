@@ -407,8 +407,8 @@ class Affine(DualTransform):
     The parameters `cval` and `mode` of this class deal with this.
 
     Some transformations involve interpolations between several pixels
-    of the input image to generate output pixel values. The parameter `order`
-    deals with the method of interpolation used for this.
+    of the input image to generate output pixel values. The parameters `interpolation` and
+    `mask_interpolation` deals with the method of interpolation used for this.
 
     Args:
         scale (number, tuple of number or dict): Scaling factor to use, where ``1.0`` denotes "no change" and
