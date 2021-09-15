@@ -1,6 +1,6 @@
 from __future__ import division
 from collections import defaultdict
-
+import typing
 import random
 
 import numpy as np
@@ -8,7 +8,7 @@ import numpy as np
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
 from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
 from albumentations.core.six import add_metaclass
-from albumentations.core.transforms_interface import DualTransform
+from albumentations.core.transforms_interface import DualTransform, BasicTransform
 from albumentations.core.utils import format_args, Params, get_shape
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_lambda
@@ -170,10 +170,25 @@ class Compose(BaseCompose):
 
         self.add_targets(additional_targets)
 
+        self.is_check_args = True
+        self._disable_check_args_for_transforms(self.transforms.transforms)
+
+    @staticmethod
+    def _disable_check_args_for_transforms(transforms: typing.List[typing.Union[BaseCompose, BasicTransform]]):
+        for transform in transforms:
+            if isinstance(transform, BaseCompose):
+                Compose._disable_check_args_for_transforms(transform.transforms.transforms)
+            if isinstance(transform, Compose):
+                transform._disable_check_args()
+
+    def _disable_check_args(self):
+        self.is_check_args = False
+
     def __call__(self, *args, force_apply=False, **data):
         if args:
             raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
-        self._check_args(**data)
+        if self.is_check_args:
+            self._check_args(**data)
         assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
         need_to_run = force_apply or random.random() < self.p
         for p in self.processors.values():
@@ -243,6 +258,7 @@ class Compose(BaseCompose):
     def _check_args(self, **kwargs):
         checked_single = ["image", "mask"]
         checked_multi = ["masks"]
+        check_bbox_param = ["bboxes"]
         # ["bboxes", "keypoints"] could be almost any type, no need to check them
         for data_name, data in kwargs.items():
             internal_data_name = self.additional_targets.get(data_name, data_name)
@@ -253,6 +269,8 @@ class Compose(BaseCompose):
                 if data:
                     if not isinstance(data[0], np.ndarray):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
+            if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
+                raise ValueError("bbox_params must be specified for bbox transformations")
 
 
 class OneOf(BaseCompose):
