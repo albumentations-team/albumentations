@@ -723,14 +723,19 @@ class CoarseDropout(DualTransform):
 
     Args:
         max_holes (int): Maximum number of regions to zero out.
-        max_height (int): Maximum height of the hole.
-        max_width (int): Maximum width of the hole.
+        max_height (int, float): Maximum height of the hole.
+        If float, it is calculated as a fraction of the image height.
+        max_width (int, float): Maximum width of the hole.
+        If float, it is calculated as a fraction of the image width.
         min_holes (int): Minimum number of regions to zero out. If `None`,
             `min_holes` is be set to `max_holes`. Default: `None`.
-        min_height (int): Minimum height of the hole. Default: None. If `None`,
+        min_height (int, float): Minimum height of the hole. Default: None. If `None`,
             `min_height` is set to `max_height`. Default: `None`.
-        min_width (int): Minimum width of the hole. If `None`, `min_height` is
+            If float, it is calculated as a fraction of the image height.
+        min_width (int, float): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
+            If float, it is calculated as a fraction of the image width.
+
         fill_value (int, float, list of int, list of float): value for dropped pixels.
         mask_fill_value (int, float, list of int, list of float): fill value for dropped pixels
             in mask. If `None` - mask is not affected. Default: `None`.
@@ -771,12 +776,24 @@ class CoarseDropout(DualTransform):
         self.mask_fill_value = mask_fill_value
         if not 0 < self.min_holes <= self.max_holes:
             raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
+
+        self.check_range(self.max_height)
+        self.check_range(self.min_height)
+        self.check_range(self.max_width)
+        self.check_range(self.min_width)
+
         if not 0 < self.min_height <= self.max_height:
             raise ValueError(
                 "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
             )
         if not 0 < self.min_width <= self.max_width:
             raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
+
+    def check_range(self, dimension):
+        if isinstance(dimension, float) and not 0 <= dimension < 1.0:
+            raise ValueError(
+                "Invalid value {}. If using floats, the value should be in the range [0.0, 1.0)".format(dimension)
+            )
 
     def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
@@ -792,8 +809,40 @@ class CoarseDropout(DualTransform):
 
         holes = []
         for _n in range(random.randint(self.min_holes, self.max_holes)):
-            hole_height = random.randint(self.min_height, self.max_height)
-            hole_width = random.randint(self.min_width, self.max_width)
+            if all(
+                [
+                    isinstance(self.min_height, int),
+                    isinstance(self.min_width, int),
+                    isinstance(self.max_height, int),
+                    isinstance(self.max_width, int),
+                ]
+            ):
+                hole_height = random.randint(self.min_height, self.max_height)
+                hole_width = random.randint(self.min_width, self.max_width)
+            elif all(
+                [
+                    isinstance(self.min_height, float),
+                    isinstance(self.min_width, float),
+                    isinstance(self.max_height, float),
+                    isinstance(self.max_width, float),
+                ]
+            ):
+                hole_height = int(height * random.uniform(self.min_height, self.max_height))
+                hole_width = int(width * random.uniform(self.min_width, self.max_width))
+            else:
+                raise ValueError(
+                    "Min width, max width, \
+                    min height and max height \
+                    should all either be ints or floats. \
+                    Got: {} respectively".format(
+                        [
+                            type(self.min_width),
+                            type(self.max_width),
+                            type(self.min_height),
+                            type(self.max_height),
+                        ]
+                    )
+                )
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
