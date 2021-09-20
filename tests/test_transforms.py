@@ -215,6 +215,9 @@ def __test_multiprocessing_support_proc(args):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -289,6 +292,9 @@ def test_force_apply():
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
+            },
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
         },
     ),
@@ -863,3 +869,64 @@ def test_smallest_max_size_list():
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(250, 50), (500, 100)]
     assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
+
+
+@pytest.mark.parametrize(
+    ["img_weight", "template_weight", "template_transform", "image_size", "template_size"],
+    [
+        (0.5, 0.5, A.RandomSizedCrop((50, 200), 513, 450, always_apply=True), (513, 450), (224, 224)),
+        (0.3, 0.5, A.RandomResizedCrop(513, 450, always_apply=True), (513, 450), (224, 224)),
+        (1.0, 0.5, A.CenterCrop(500, 450, always_apply=True), (500, 450, 3), (512, 512, 3)),
+        (0.5, 0.8, A.Resize(513, 450, always_apply=True), (513, 450), (512, 512)),
+        (0.5, 0.2, A.NoOp(), (224, 224), (224, 224)),
+        (0.5, 0.9, A.NoOp(), (512, 512, 3), (512, 512, 3)),
+        (0.5, 0.5, None, (512, 512), (512, 512)),
+        (0.8, 0.7, None, (512, 512, 3), (512, 512, 3)),
+        (
+            0.5,
+            0.5,
+            A.Compose([A.Blur(), A.RandomSizedCrop((50, 200), 512, 512, always_apply=True), A.HorizontalFlip()]),
+            (512, 512),
+            (512, 512),
+        ),
+    ],
+)
+def test_template_transform(image, img_weight, template_weight, template_transform, image_size, template_size):
+    img = np.random.randint(0, 256, image_size, np.uint8)
+    template = np.random.randint(0, 256, template_size, np.uint8)
+
+    aug = A.TemplateTransform(template, img_weight, template_weight, template_transform)
+    result = aug(image=img)["image"]
+
+    assert result.shape == img.shape
+
+    params = aug.get_params_dependent_on_targets({"image": img})
+    template = params["template"]
+    assert template.shape == img.shape
+    assert template.dtype == img.dtype
+
+
+def test_template_transform_incorrect_size(template):
+    image = np.random.randint(0, 256, (512, 512, 3), np.uint8)
+    with pytest.raises(ValueError) as exc_info:
+        transform = A.TemplateTransform(template, always_apply=True)
+        transform(image=image)
+
+    message = "Image and template must be the same size, got {} and {}".format(image.shape[:2], template.shape[:2])
+    assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(["img_channels", "template_channels"], [(1, 3), (6, 3)])
+def test_template_transform_incorrect_channels(img_channels, template_channels):
+    img = np.random.randint(0, 256, [512, 512, img_channels], np.uint8)
+    template = np.random.randint(0, 256, [512, 512, template_channels], np.uint8)
+
+    with pytest.raises(ValueError) as exc_info:
+        transform = A.TemplateTransform(template, always_apply=True)
+        transform(image=img)
+
+    message = (
+        "Template must be a single channel or has the same number of channels "
+        "as input image ({}), got {}".format(img_channels, template.shape[-1])
+    )
+    assert str(exc_info.value) == message
