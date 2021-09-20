@@ -184,6 +184,10 @@ class BasicTransform:
     def get_class_fullname(cls) -> str:
         return get_shortest_class_fullname(cls)
 
+    @classmethod
+    def is_serializable(cls):
+        return True
+
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         raise NotImplementedError(
             "Class {name} is not serializable because the `get_transform_init_args_names` method is not "

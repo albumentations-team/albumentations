@@ -1787,3 +1787,8 @@ def superpixels(
         image = resize_fn(image)
 
     return image
+
+
+@clipped
+def add_weighted(img1, alpha, img2, beta):
+    return img1.astype(float) * alpha + img2.astype(float) * beta
