@@ -27,6 +27,9 @@ from .utils import get_image_only_transforms, get_dual_transforms, get_transform
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
         },
         except_augmentations={A.FromFloat, A.Normalize, A.ToFloat},
     ),
@@ -57,6 +60,9 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
                 "transform_type": "standard",
             },
             A.MedianBlur: {"blur_limit": (3, 5)},
+            A.TemplateTransform: {
+                "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -148,6 +154,9 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
     ),
@@ -187,6 +196,9 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -222,6 +234,9 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
                 "read_fn": lambda x: x,
             },
             A.Normalize: {"mean": 0, "std": 1},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(224, 224), dtype=np.uint8),
+            },
         },
         except_augmentations={
             A.ChannelDropout,
@@ -288,6 +303,9 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
                 "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
+            },
+            A.TemplateTransform: {
+                "templates": np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8),
             },
         },
         except_augmentations={
@@ -373,6 +391,9 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(0, 256, (100, 100, 6), dtype=np.uint8),
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -429,6 +450,9 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.Resize: {"height": 10, "width": 10},
             A.Normalize: {"mean": 0, "std": 1},
             A.MedianBlur: {"blur_limit": (3, 5)},
+            A.TemplateTransform: {
+                "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -476,6 +500,9 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -527,6 +554,9 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.Resize: {"height": 10, "width": 10},
             A.Normalize: {"mean": 0, "std": 1},
             A.MedianBlur: {"blur_limit": (3, 5)},
+            A.TemplateTransform: {
+                "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
+            },
         },
         except_augmentations={
             A.CLAHE,

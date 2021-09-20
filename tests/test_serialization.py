@@ -44,6 +44,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
+            A.TemplateTransform,
         },
     ),
 )
@@ -322,6 +323,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.RandomSizedBBoxSafeCrop,
     A.GridDropout,
     A.GlassBlur,
+    A.TemplateTransform,
 }
 
 
@@ -396,6 +398,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.GridDropout,
             A.MaskDropout,
             A.OpticalDistortion,
+            A.TemplateTransform,
         },
     ),
 )
@@ -444,6 +447,7 @@ def test_augmentations_for_bboxes_serialization(
             A.MaskDropout,
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
+            A.TemplateTransform,
         },
     ),
 )
@@ -623,7 +627,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_image_only_transforms(
-        except_augmentations={A.HistogramMatching, A.FDA, A.PixelDistributionAdaptation},
+        except_augmentations={A.HistogramMatching, A.FDA, A.PixelDistributionAdaptation, A.TemplateTransform},
     ),
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -755,3 +759,21 @@ def test_serialization_v2_to_dict():
 )
 def test_shorten_class_name(class_fullname, expected_short_class_name):
     assert shorten_class_name(class_fullname) == expected_short_class_name
+
+
+@pytest.mark.parametrize("seed", TEST_SEEDS)
+@pytest.mark.parametrize("p", [1])
+def test_template_transform_serialization(image, template, seed, p):
+    template_transform = A.TemplateTransform(name="template", templates=template, p=p)
+
+    aug = A.Compose([A.Flip(), template_transform, A.Blur()])
+
+    serialized_aug = A.to_dict(aug)
+    deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"template": template_transform})
+
+    set_seed(seed)
+    aug_data = aug(image=image)
+    set_seed(seed)
+    deserialized_aug_data = deserialized_aug(image=image)
+
+    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
