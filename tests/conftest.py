@@ -79,6 +79,16 @@ def float_image():
 
 
 @pytest.fixture
+def template():
+    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+
+
+@pytest.fixture
+def float_template():
+    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
+
+
+@pytest.fixture
 def multiprocessing_context():
     # Usage of `fork` as a start method for multiprocessing could lead to deadlocks on macOS.
     # Because `fork` was the default start method for macOS until Python 3.8
