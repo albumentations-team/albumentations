@@ -199,9 +199,10 @@ def elastic_transform(
     value=None,
     random_state=None,
     approximate=False,
+    same_dxdy=False,
 ):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+    Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -241,13 +242,20 @@ def elastic_transform(
         dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
         cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
         dx *= alpha
-
-        dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
-        cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
-        dy *= alpha
+        if same_dxdy:
+            # Speed up even more
+            dy = dx
+        else:
+            dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
+            cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
+            dy *= alpha
     else:
         dx = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
-        dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
+        if same_dxdy:
+            # Speed up
+            dy = dx
+        else:
+            dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
 

@@ -77,6 +77,7 @@ __all__ = [
     "Sharpen",
     "Emboss",
     "Superpixels",
+    "TemplateTransform",
 ]
 
 
@@ -821,14 +822,19 @@ class CoarseDropout(DualTransform):
 
     Args:
         max_holes (int): Maximum number of regions to zero out.
-        max_height (int): Maximum height of the hole.
-        max_width (int): Maximum width of the hole.
+        max_height (int, float): Maximum height of the hole.
+        If float, it is calculated as a fraction of the image height.
+        max_width (int, float): Maximum width of the hole.
+        If float, it is calculated as a fraction of the image width.
         min_holes (int): Minimum number of regions to zero out. If `None`,
             `min_holes` is be set to `max_holes`. Default: `None`.
-        min_height (int): Minimum height of the hole. Default: None. If `None`,
+        min_height (int, float): Minimum height of the hole. Default: None. If `None`,
             `min_height` is set to `max_height`. Default: `None`.
-        min_width (int): Minimum width of the hole. If `None`, `min_height` is
+            If float, it is calculated as a fraction of the image height.
+        min_width (int, float): Minimum width of the hole. If `None`, `min_height` is
             set to `max_width`. Default: `None`.
+            If float, it is calculated as a fraction of the image width.
+
         fill_value (int, float, list of int, list of float): value for dropped pixels.
         mask_fill_value (int, float, list of int, list of float): fill value for dropped pixels
             in mask. If `None` - mask is not affected. Default: `None`.
@@ -869,12 +875,24 @@ class CoarseDropout(DualTransform):
         self.mask_fill_value = mask_fill_value
         if not 0 < self.min_holes <= self.max_holes:
             raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
+
+        self.check_range(self.max_height)
+        self.check_range(self.min_height)
+        self.check_range(self.max_width)
+        self.check_range(self.min_width)
+
         if not 0 < self.min_height <= self.max_height:
             raise ValueError(
                 "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
             )
         if not 0 < self.min_width <= self.max_width:
             raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
+
+    def check_range(self, dimension):
+        if isinstance(dimension, float) and not 0 <= dimension < 1.0:
+            raise ValueError(
+                "Invalid value {}. If using floats, the value should be in the range [0.0, 1.0)".format(dimension)
+            )
 
     def apply(self, image, fill_value=0, holes=(), **params):
         return F.cutout(image, holes, fill_value)
@@ -890,8 +908,40 @@ class CoarseDropout(DualTransform):
 
         holes = []
         for _n in range(random.randint(self.min_holes, self.max_holes)):
-            hole_height = random.randint(self.min_height, self.max_height)
-            hole_width = random.randint(self.min_width, self.max_width)
+            if all(
+                [
+                    isinstance(self.min_height, int),
+                    isinstance(self.min_width, int),
+                    isinstance(self.max_height, int),
+                    isinstance(self.max_width, int),
+                ]
+            ):
+                hole_height = random.randint(self.min_height, self.max_height)
+                hole_width = random.randint(self.min_width, self.max_width)
+            elif all(
+                [
+                    isinstance(self.min_height, float),
+                    isinstance(self.min_width, float),
+                    isinstance(self.max_height, float),
+                    isinstance(self.max_width, float),
+                ]
+            ):
+                hole_height = int(height * random.uniform(self.min_height, self.max_height))
+                hole_width = int(width * random.uniform(self.min_width, self.max_width))
+            else:
+                raise ValueError(
+                    "Min width, max width, \
+                    min height and max height \
+                    should all either be ints or floats. \
+                    Got: {} respectively".format(
+                        [
+                            type(self.min_width),
+                            type(self.max_width),
+                            type(self.min_height),
+                            type(self.max_height),
+                        ]
+                    )
+                )
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
@@ -965,6 +1015,8 @@ class ImageCompression(ImageOnlyTransform):
         self.quality_upper = quality_upper
 
     def apply(self, image, quality=100, image_type=".jpg", **params):
+        if not image.ndim == 2 and image.shape[-1] not in (1, 3, 4):
+            raise TypeError("ImageCompression transformation expects 1, 3 or 4 channel images.")
         return F.image_compression(image, quality, image_type)
 
     def get_params(self):
@@ -1587,6 +1639,8 @@ class HueSaturationValue(ImageOnlyTransform):
         self.val_shift_limit = to_tuple(val_shift_limit)
 
     def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
+        if not F.is_rgb_image(image) and not F.is_grayscale_image(image):
+            raise TypeError("HueSaturationValue transformation expects 1-channel or 3-channel images.")
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
 
     def get_params(self):
@@ -1762,6 +1816,8 @@ class RGBShift(ImageOnlyTransform):
         self.b_shift_limit = to_tuple(b_shift_limit)
 
     def apply(self, image, r_shift=0, g_shift=0, b_shift=0, **params):
+        if not F.is_rgb_image(image):
+            raise TypeError("RGBShift transformation expects 3-channel images.")
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
     def get_params(self):
@@ -2139,6 +2195,9 @@ class CLAHE(ImageOnlyTransform):
         self.tile_grid_size = tuple(tile_grid_size)
 
     def apply(self, img, clip_limit=2, **params):
+        if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
+            raise TypeError("CLAHE transformation expects 1-channel or 3-channel images.")
+
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
@@ -2298,6 +2357,12 @@ class ToGray(ImageOnlyTransform):
     """
 
     def apply(self, img, **params):
+        if F.is_grayscale_image(img):
+            warnings.warn("The image is already gray.")
+            return img
+        if not F.is_rgb_image(img):
+            raise TypeError("ToGray transformation expects 3-channel images.")
+
         return F.to_gray(img)
 
     def get_transform_init_args_names(self):
@@ -2324,6 +2389,8 @@ class ToSepia(ImageOnlyTransform):
         )
 
     def apply(self, image, **params):
+        if not F.is_rgb_image(image):
+            raise TypeError("ToSepia transformation expects 3-channel images.")
         return F.linear_transformation_rgb(image, self.sepia_transformation_matrix)
 
     def get_transform_init_args_names(self):
@@ -2505,13 +2572,17 @@ class Lambda(NoOp):
         fn = self.custom_apply_fns["keypoint"]
         return fn(keypoint, **params)
 
+    @classmethod
+    def is_serializable(cls):
+        return False
+
     def _to_dict(self):
         if self.name is None:
             raise ValueError(
                 "To make a Lambda transform serializable you should provide the `name` argument, "
                 "e.g. `Lambda(name='my_transform', image=<some func>, ...)`."
             )
-        return {"__type__": "Lambda", "__name__": self.name}
+        return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
 
     def __repr__(self):
         state = {"name": self.name}
@@ -2991,6 +3062,9 @@ class ColorJitter(ImageOnlyTransform):
         return {"transforms": transforms}
 
     def apply(self, img, transforms=(), **params):
+        if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
+            raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
+
         for transform in transforms:
             img = transform(img)
         return img
@@ -3169,3 +3243,98 @@ class Superpixels(ImageOnlyTransform):
 
     def apply(self, img: np.ndarray, replace_samples: Sequence[bool] = (False,), n_segments: int = 1, **kwargs):
         return F.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)
+
+
+class TemplateTransform(ImageOnlyTransform):
+    """
+    Apply blending of input image with specified templates
+    Args:
+        templates (numpy array or list of numpy arrays): Images as template for transform.
+        img_weight ((float, float) or float): If single float will be used as weight for input image.
+            If tuple of float img_weight will be in range `[img_weight[0], img_weight[1])`. Default: 0.5.
+        template_weight ((float, float) or float): If single float will be used as weight for template.
+            If tuple of float template_weight will be in range `[template_weight[0], template_weight[1])`.
+            Default: 0.5.
+        template_transform: transformation object which could be applied to template,
+            must produce template the same size as input image.
+        name (string): (Optional) Name of transform, used only for deserialization.
+        p (float): probability of applying the transform. Default: 0.5.
+    Targets:
+        image
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(
+        self,
+        templates,
+        img_weight=0.5,
+        template_weight=0.5,
+        template_transform=None,
+        name=None,
+        always_apply=False,
+        p=0.5,
+    ):
+        super().__init__(always_apply, p)
+
+        self.templates = templates if isinstance(templates, (list, tuple)) else [templates]
+        self.img_weight = to_tuple(img_weight, img_weight)
+        self.template_weight = to_tuple(template_weight, template_weight)
+        self.template_transform = template_transform
+        self.name = name
+
+    def apply(self, img, template=None, img_weight=0.5, template_weight=0.5, **params):
+        return F.add_weighted(img, img_weight, template, template_weight)
+
+    def get_params(self):
+        return {
+            "img_weight": random.uniform(self.img_weight[0], self.img_weight[1]),
+            "template_weight": random.uniform(self.template_weight[0], self.template_weight[1]),
+        }
+
+    def get_params_dependent_on_targets(self, params):
+        img = params["image"]
+        template = random.choice(self.templates)
+
+        if self.template_transform is not None:
+            template = self.template_transform(image=template)["image"]
+
+        if F.get_num_channels(template) not in [1, F.get_num_channels(img)]:
+            raise ValueError(
+                "Template must be a single channel or "
+                "has the same number of channels as input image ({}), got {}".format(
+                    F.get_num_channels(img), F.get_num_channels(template)
+                )
+            )
+
+        if template.dtype != img.dtype:
+            raise ValueError("Image and template must be the same image type")
+
+        if img.shape[:2] != template.shape[:2]:
+            raise ValueError(
+                "Image and template must be the same size, got {} and {}".format(img.shape[:2], template.shape[:2])
+            )
+
+        if F.get_num_channels(template) == 1 and F.get_num_channels(img) > 1:
+            template = np.stack((template,) * F.get_num_channels(img), axis=-1)
+
+        # in order to support grayscale image with dummy dim
+        template = template.reshape(img.shape)
+
+        return {"template": template}
+
+    @classmethod
+    def is_serializable(cls):
+        return False
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def _to_dict(self):
+        if self.name is None:
+            raise ValueError(
+                "To make a TemplateTransform serializable you should provide the `name` argument, "
+                "e.g. `TemplateTransform(name='my_transform', ...)`."
+            )
+        return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}

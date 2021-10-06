@@ -765,10 +765,10 @@ def add_rain(
         )
 
     image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
-    image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
-    image_hls[:, :, 1] *= brightness_coefficient
+    image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV).astype(np.float32)
+    image_hsv[:, :, 2] *= brightness_coefficient
 
-    image_rgb = cv2.cvtColor(image_hls.astype(np.uint8), cv2.COLOR_HLS2RGB)
+    image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
     if needs_float:
         image_rgb = to_float(image_rgb, max_value=255)
@@ -1043,7 +1043,7 @@ def elastic_transform_approx(
     random_state=None,
 ):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+    Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -1207,7 +1207,7 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     """
     if image.dtype != np.uint8:
         raise TypeError("Image must have uint8 channel type")
-    if is_grayscale_image(image):
+    if not is_rgb_image(image):
         raise TypeError("Image must be RGB")
 
     if random_state is None:
@@ -1545,7 +1545,7 @@ def fancy_pca(img, alpha=0.1):
         numpy image-like array as float range(0, 1)
 
     """
-    if is_grayscale_image(img) or img.dtype != np.uint8:
+    if not is_rgb_image(img) or img.dtype != np.uint8:
         raise TypeError("Image must be RGB image in uint8 format.")
 
     orig_img = img.astype(float).copy()
@@ -1599,6 +1599,7 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
+@preserve_shape
 def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
     x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
@@ -1786,3 +1787,8 @@ def superpixels(
         image = resize_fn(image)
 
     return image
+
+
+@clipped
+def add_weighted(img1, alpha, img2, beta):
+    return img1.astype(float) * alpha + img2.astype(float) * beta

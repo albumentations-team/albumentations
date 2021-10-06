@@ -18,6 +18,7 @@ __all__ = ["to_dict", "from_dict", "save", "load"]
 
 
 SERIALIZABLE_REGISTRY = {}
+NON_SERIALIZABLE_REGISTRY = {}
 
 
 def shorten_class_name(class_fullname):
@@ -37,13 +38,16 @@ def get_shortest_class_fullname(cls):
 
 class SerializableMeta(type):
     """
-    A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` so they can be found later
-    while deserializing transformation pipeline using classes full names.
+    A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` or `NON_SERIALIZABLE_REGISTRY`
+    so they can be found later while deserializing transformation pipeline using classes full names.
     """
 
     def __new__(cls, name, bases, class_dict):
         cls_obj = type.__new__(cls, name, bases, class_dict)
-        SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
+        if cls_obj.is_serializable():
+            SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
+        else:
+            NON_SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
         return cls_obj
 
 
@@ -79,42 +83,47 @@ def to_dict(transform, on_not_implemented_error="raise"):
     return {"__version__": __version__, "transform": transform_dict}
 
 
-def instantiate_lambda(transform, lambda_transforms=None):
-    if transform.get("__type__") == "Lambda":
+def instantiate_nonserializable(transform, nonserializable=None):
+    if transform.get("__class_fullname__") in NON_SERIALIZABLE_REGISTRY:
         name = transform["__name__"]
-        if lambda_transforms is None:
+        if nonserializable is None:
             raise ValueError(
-                "To deserialize a Lambda transform with name {name} you need to pass a dict with this transform "
-                "as the `lambda_transforms` argument".format(name=name)
+                "To deserialize a non-serializable transform with name {name} you need to pass a dict with"
+                "this transform as the `lambda_transforms` argument".format(name=name)
             )
-        transform = lambda_transforms.get(name)
+        transform = nonserializable.get(name)
         if transform is None:
-            raise ValueError("Lambda transform with {name} was not found in `lambda_transforms`".format(name=name))
+            raise ValueError(
+                "Non-serializable transform with {name} was not found in `nonserializable`".format(name=name)
+            )
         return transform
     return None
 
 
-def from_dict(transform_dict, lambda_transforms=None):
+def from_dict(transform_dict, nonserializable=None, lambda_transforms="deprecated"):
     """
     Args:
-        transform (dict): A dictionary with serialized transform pipeline.
-        lambda_transforms (dict): A dictionary that contains lambda transforms, that is instances of the Lambda class.
-            This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
-            in that dictionary should be named same as `name` arguments in respective lambda transforms from
+        transform_dict (dict): A dictionary with serialized transform pipeline.
+        nonserializable (dict): A dictionary that contains non-serializable transforms.
+            This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
+            Keys in that dictionary should be named same as `name` arguments in respective transforms from
             a serialized pipeline.
+        lambda_transforms (dict): Deprecated. Use 'nonserizalizable' instead.
     """
+    if lambda_transforms != "deprecated":
+        warnings.warn("lambda_transforms argument is deprecated, please use 'nonserializable'", DeprecationWarning)
+        nonserializable = lambda_transforms
+
     register_additional_transforms()
     transform = transform_dict["transform"]
-    lmbd = instantiate_lambda(transform, lambda_transforms)
+    lmbd = instantiate_nonserializable(transform, nonserializable)
     if lmbd:
         return lmbd
     name = transform["__class_fullname__"]
     args = {k: v for k, v in transform.items() if k != "__class_fullname__"}
     cls = SERIALIZABLE_REGISTRY[shorten_class_name(name)]
     if "transforms" in args:
-        args["transforms"] = [
-            from_dict({"transform": t}, lambda_transforms=lambda_transforms) for t in args["transforms"]
-        ]
+        args["transforms"] = [from_dict({"transform": t}, nonserializable=nonserializable) for t in args["transforms"]]
     return cls(**args)
 
 
@@ -143,24 +152,29 @@ def save(transform, filepath, data_format="json", on_not_implemented_error="rais
         dump_fn(transform_dict, f)
 
 
-def load(filepath, data_format="json", lambda_transforms=None):
+def load(filepath, data_format="json", nonserializable=None, lambda_transforms="deprecated"):
     """
     Load a serialized pipeline from a json or yaml file and construct a transform pipeline.
 
     Args:
-        transform (obj): Transform to serialize.
         filepath (str): Filepath to read from.
         data_format (str): Serialization format. Should be either `json` or 'yaml'.
-        lambda_transforms (dict): A dictionary that contains lambda transforms, that is instances of the Lambda class.
-            This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
-            in that dictionary should be named same as `name` arguments in respective lambda transforms from
+        nonserializable (dict): A dictionary that contains non-serializable transforms.
+            This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
+            Keys in that dictionary should be named same as `name` arguments in respective transforms from
             a serialized pipeline.
+        lambda_transforms (dict): Deprecated. Use 'nonserizalizable' instead.
     """
+    if lambda_transforms != "deprecated":
+        warnings.warn("lambda_transforms argument is deprecated, please use 'nonserializable'", DeprecationWarning)
+        nonserializable = lambda_transforms
+
     check_data_format(data_format)
     load_fn = json.load if data_format == "json" else yaml.safe_load
     with open(filepath) as f:
         transform_dict = load_fn(f)
-    return from_dict(transform_dict, lambda_transforms=lambda_transforms)
+
+    return from_dict(transform_dict, nonserializable=nonserializable)
 
 
 def register_additional_transforms():

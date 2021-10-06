@@ -29,7 +29,7 @@ Then let's add the test itself:
     def test_random_contrast():
         img = np.ones((100, 100, 3), dtype=np.uint8) * 128
         img = F.brightness_contrast_adjust(img, alpha=1.5)
-        expected_brightness = 192
+        expected_multiplier = 192
         expected = np.ones((100, 100, 3), dtype=np.uint8) * expected_multiplier
         assert np.array_equal(img, expected)
 
@@ -90,7 +90,7 @@ As we see pytest prints arguments values at each run.
 ***********************************************************************************************
 Simplifying tests for functions that work with both images and masks by using helper functions.
 ***********************************************************************************************
-Let's say that we want to test the ``hflip`` function. This function vertically flips an image or mask that passed as input to it.
+Let's say that we want to test the ``vflip`` function. This function vertically flips an image or mask that passed as input to it.
 
 We will start with a test that checks that this function works correctly with masks, that is with two-dimensional NumPy arrays that have shape ``(height, width)``.
 

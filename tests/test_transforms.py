@@ -9,6 +9,8 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 
+from .utils import get_transforms, get_image_only_transforms, get_dual_transforms
+
 
 def set_seed(seed=0):
     random.seed(seed)
@@ -146,21 +148,19 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.GlassBlur, {}],
-        [A.Perspective, {}],
-        [A.Affine, {}],
-        [A.PiecewiseAffine, {}],
-    ],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
+    ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
@@ -173,23 +173,18 @@ def test_binary_mask_interpolation(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.Resize, {"height": 80, "width": 90}],
-        [A.Resize, {"height": 120, "width": 130}],
-        [A.OpticalDistortion, {}],
-        [A.GlassBlur, {}],
-        [A.Perspective, {}],
-        [A.Affine, {}],
-        [A.PiecewiseAffine, {}],
-    ],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.Resize: {"height": 10, "width": 10},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad},
+    ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts.
@@ -210,23 +205,30 @@ def __test_multiprocessing_support_proc(args):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.Sharpen, {}],
-        [A.FancyPCA, {}],
-        [A.GlassBlur, {}],
-        [A.Perspective, {}],
-        [A.Affine, {}],
-        [A.PiecewiseAffine, {}],
-    ],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+        },
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.MaskDropout,
+        },
+    ),
 )
 def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
     """Checks whether we can use augmentations in multiprocessing environments"""
@@ -276,47 +278,26 @@ def test_force_apply():
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ChannelShuffle, {}],
-        [A.GaussNoise, {}],
-        [A.Cutout, {}],
-        [A.CoarseDropout, {}],
-        [A.ImageCompression, {}],
-        [A.HueSaturationValue, {}],
-        [A.RGBShift, {}],
-        [A.RandomBrightnessContrast, {}],
-        [A.Blur, {}],
-        [A.MotionBlur, {}],
-        [A.MedianBlur, {}],
-        [A.CLAHE, {}],
-        [A.InvertImg, {}],
-        [A.RandomGamma, {}],
-        [A.ToGray, {}],
-        [A.VerticalFlip, {}],
-        [A.HorizontalFlip, {}],
-        [A.Flip, {}],
-        [A.Transpose, {}],
-        [A.RandomRotate90, {}],
-        [A.Rotate, {}],
-        [A.SafeRotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.GridDistortion, {}],
-        [A.ElasticTransform, {}],
-        [A.Normalize, {}],
-        [A.ToFloat, {}],
-        [A.FromFloat, {}],
-        [A.ChannelDropout, {}],
-        [A.Solarize, {}],
-        [A.Posterize, {}],
-        [A.Equalize, {}],
-        [A.MultiplicativeNoise, {}],
-        [A.FancyPCA, {}],
-        [A.GlassBlur, {}],
-        [A.GridDropout, {}],
-        [A.ColorJitter, {}],
-        [A.Perspective, {}],
-        [A.Sharpen, {"alpha": [0.2, 0.2], "lightness": [0.5, 0.5]}],
-    ],
+    get_image_only_transforms(
+        custom_arguments={
+            A.HistogramMatching: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.FDA: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+        },
+    ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(always_apply=True, **params)], additional_targets={"image2": "image"})
@@ -868,3 +849,84 @@ def test_perspective_keep_size():
 
     assert np.allclose(res_1["bboxes"], res_2["bboxes"])
     assert np.allclose(res_1["keypoints"], res_2["keypoints"])
+
+
+def test_longest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [(9, 5, 0, 0)]
+
+    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(10, 2), (5, 1)]
+    assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
+
+
+def test_smallest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [(9, 5, 0, 0)]
+
+    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(250, 50), (500, 100)]
+    assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
+
+
+@pytest.mark.parametrize(
+    ["img_weight", "template_weight", "template_transform", "image_size", "template_size"],
+    [
+        (0.5, 0.5, A.RandomSizedCrop((50, 200), 513, 450, always_apply=True), (513, 450), (224, 224)),
+        (0.3, 0.5, A.RandomResizedCrop(513, 450, always_apply=True), (513, 450), (224, 224)),
+        (1.0, 0.5, A.CenterCrop(500, 450, always_apply=True), (500, 450, 3), (512, 512, 3)),
+        (0.5, 0.8, A.Resize(513, 450, always_apply=True), (513, 450), (512, 512)),
+        (0.5, 0.2, A.NoOp(), (224, 224), (224, 224)),
+        (0.5, 0.9, A.NoOp(), (512, 512, 3), (512, 512, 3)),
+        (0.5, 0.5, None, (512, 512), (512, 512)),
+        (0.8, 0.7, None, (512, 512, 3), (512, 512, 3)),
+        (
+            0.5,
+            0.5,
+            A.Compose([A.Blur(), A.RandomSizedCrop((50, 200), 512, 512, always_apply=True), A.HorizontalFlip()]),
+            (512, 512),
+            (512, 512),
+        ),
+    ],
+)
+def test_template_transform(image, img_weight, template_weight, template_transform, image_size, template_size):
+    img = np.random.randint(0, 256, image_size, np.uint8)
+    template = np.random.randint(0, 256, template_size, np.uint8)
+
+    aug = A.TemplateTransform(template, img_weight, template_weight, template_transform)
+    result = aug(image=img)["image"]
+
+    assert result.shape == img.shape
+
+    params = aug.get_params_dependent_on_targets({"image": img})
+    template = params["template"]
+    assert template.shape == img.shape
+    assert template.dtype == img.dtype
+
+
+def test_template_transform_incorrect_size(template):
+    image = np.random.randint(0, 256, (512, 512, 3), np.uint8)
+    with pytest.raises(ValueError) as exc_info:
+        transform = A.TemplateTransform(template, always_apply=True)
+        transform(image=image)
+
+    message = "Image and template must be the same size, got {} and {}".format(image.shape[:2], template.shape[:2])
+    assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(["img_channels", "template_channels"], [(1, 3), (6, 3)])
+def test_template_transform_incorrect_channels(img_channels, template_channels):
+    img = np.random.randint(0, 256, [512, 512, img_channels], np.uint8)
+    template = np.random.randint(0, 256, [512, 512, template_channels], np.uint8)
+
+    with pytest.raises(ValueError) as exc_info:
+        transform = A.TemplateTransform(template, always_apply=True)
+        transform(image=img)
+
+    message = (
+        "Template must be a single channel or has the same number of channels "
+        "as input image ({}), got {}".format(img_channels, template.shape[-1])
+    )
+    assert str(exc_info.value) == message

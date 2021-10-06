@@ -108,7 +108,7 @@ class ShiftScaleRotate(DualTransform):
 
 class ElasticTransform(DualTransform):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+    Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
@@ -131,6 +131,8 @@ class ElasticTransform(DualTransform):
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         approximate (boolean): Whether to smooth displacement map with fixed kernel size.
                                Enabling this option gives ~2X speedup on large images.
+        same_dxdy (boolean): Whether to use same random generated shift for x and y.
+                             Enabling this option gives ~2X speedup.
 
     Targets:
         image, mask
@@ -150,6 +152,7 @@ class ElasticTransform(DualTransform):
         mask_value=None,
         always_apply=False,
         approximate=False,
+        same_dxdy=False,
         p=0.5,
     ):
         super(ElasticTransform, self).__init__(always_apply, p)
@@ -161,6 +164,7 @@ class ElasticTransform(DualTransform):
         self.value = value
         self.mask_value = mask_value
         self.approximate = approximate
+        self.same_dxdy = same_dxdy
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
         return F.elastic_transform(
@@ -173,6 +177,7 @@ class ElasticTransform(DualTransform):
             self.value,
             np.random.RandomState(random_state),
             self.approximate,
+            self.same_dxdy,
         )
 
     def apply_to_mask(self, img, random_state=None, **params):
@@ -186,13 +191,24 @@ class ElasticTransform(DualTransform):
             self.mask_value,
             np.random.RandomState(random_state),
             self.approximate,
+            self.same_dxdy,
         )
 
     def get_params(self):
         return {"random_state": random.randint(0, 10000)}
 
     def get_transform_init_args_names(self):
-        return ("alpha", "sigma", "alpha_affine", "interpolation", "border_mode", "value", "mask_value", "approximate")
+        return (
+            "alpha",
+            "sigma",
+            "alpha_affine",
+            "interpolation",
+            "border_mode",
+            "value",
+            "mask_value",
+            "approximate",
+            "same_dxdy",
+        )
 
 
 class Perspective(DualTransform):
@@ -391,8 +407,8 @@ class Affine(DualTransform):
     The parameters `cval` and `mode` of this class deal with this.
 
     Some transformations involve interpolations between several pixels
-    of the input image to generate output pixel values. The parameter `order`
-    deals with the method of interpolation used for this.
+    of the input image to generate output pixel values. The parameters `interpolation` and
+    `mask_interpolation` deals with the method of interpolation used for this.
 
     Args:
         scale (number, tuple of number or dict): Scaling factor to use, where ``1.0`` denotes "no change" and
@@ -472,6 +488,7 @@ class Affine(DualTransform):
         rotate: Optional[Union[float, Sequence[float]]] = None,
         shear: Optional[Union[float, Sequence[float], dict]] = None,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         cval: Union[int, float, Sequence[int], Sequence[float]] = 0,
         cval_mask: Union[int, float, Sequence[int], Sequence[float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
@@ -493,6 +510,7 @@ class Affine(DualTransform):
             shear = shear if shear is not None else 0.0
 
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
         self.cval = cval
         self.cval_mask = cval_mask
         self.mode = mode
@@ -505,6 +523,7 @@ class Affine(DualTransform):
     def get_transform_init_args_names(self):
         return (
             "interpolation",
+            "mask_interpolation",
             "cval",
             "mode",
             "scale",
@@ -577,7 +596,7 @@ class Affine(DualTransform):
         return F.warp_affine(
             img,
             matrix,
-            interpolation=cv2.INTER_NEAREST,
+            interpolation=self.mask_interpolation,
             cval=self.cval_mask,
             mode=self.mode,
             output_shape=output_shape,
