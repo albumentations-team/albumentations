@@ -1,14 +1,19 @@
-import cv2
 import math
+from typing import List, Optional, Sequence, Tuple, Union
+
+import cv2
 import numpy as np
 import skimage.transform
-
 from scipy.ndimage.filters import gaussian_filter
 
 from ..bbox_utils import denormalize_bbox, normalize_bbox
-from ..functional import angle_2pi_range, preserve_channel_dim, _maybe_process_in_chunks, preserve_shape, clipped
-
-from typing import Union, List, Sequence, Tuple, Optional
+from ..functional import (
+    _maybe_process_in_chunks,
+    angle_2pi_range,
+    clipped,
+    preserve_channel_dim,
+    preserve_shape,
+)
 
 
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613

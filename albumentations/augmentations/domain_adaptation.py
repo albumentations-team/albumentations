@@ -1,5 +1,5 @@
 import random
-from typing import List, Union, Tuple, Callable
+from typing import Callable, List, Tuple, Union
 
 import cv2
 import numpy as np
@@ -8,9 +8,14 @@ from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from .functional import clipped, preserve_shape, is_grayscale_image, is_multispectral_image
-from .utils import read_rgb_image
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
+from .functional import (
+    clipped,
+    is_grayscale_image,
+    is_multispectral_image,
+    preserve_shape,
+)
+from .utils import read_rgb_image
 
 __all__ = [
     "HistogramMatching",

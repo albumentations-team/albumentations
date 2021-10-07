@@ -13,7 +13,6 @@ except ImportError:
 
 from albumentations import __version__
 
-
 __all__ = ["to_dict", "from_dict", "save", "load"]
 
 

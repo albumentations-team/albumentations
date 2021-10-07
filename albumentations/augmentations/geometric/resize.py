@@ -4,8 +4,8 @@ from typing import Dict, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from . import functional as F
 from ...core.transforms_interface import DualTransform, to_tuple
+from . import functional as F
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
 

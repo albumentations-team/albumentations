@@ -1,10 +1,11 @@
 from __future__ import absolute_import
-from abc import ABCMeta, abstractmethod
 
-from ..core.six import string_types, add_metaclass
+from abc import ABCMeta, abstractmethod
+from typing import Any, Tuple
 
 import numpy as np
-from typing import Any, Tuple
+
+from ..core.six import add_metaclass, string_types
 
 
 def get_shape(img: Any) -> Tuple[int, int]:
