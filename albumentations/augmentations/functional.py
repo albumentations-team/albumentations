@@ -2,13 +2,14 @@ from __future__ import division
 
 import math
 from functools import wraps
-from warnings import warn
 from itertools import product
+from typing import Optional, Sequence, Union
+from warnings import warn
+
 import cv2
 import numpy as np
 import skimage
 
-from typing import Sequence, Optional, Union
 from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
 
 MAX_VALUES_BY_DTYPE = {

@@ -1,12 +1,12 @@
 from __future__ import absolute_import
 
 import random
+from copy import deepcopy
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 from warnings import warn
-from typing import Sequence, Dict, List, Callable, Any, Tuple
 
 import cv2
 import numpy as np
-from copy import deepcopy
 
 from albumentations.core.serialization import (
     SerializableMeta,
