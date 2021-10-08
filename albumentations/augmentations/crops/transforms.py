@@ -1,15 +1,14 @@
-import cv2
 import math
 import random
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import cv2
 import numpy as np
 
-from . import functional as F
+from ...core.transforms_interface import DualTransform, to_tuple
 from ..bbox_utils import union_of_bboxes
 from ..geometric import functional as FGeometric
-from ...core.transforms_interface import DualTransform, to_tuple
-
-from typing import Union, Sequence, Optional, Tuple, List, Dict, Any
-
+from . import functional as F
 
 __all__ = [
     "RandomCrop",

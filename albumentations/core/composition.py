@@ -1,17 +1,22 @@
 from __future__ import division
-from collections import defaultdict
-import typing
+
 import random
+import typing
+from collections import defaultdict
 
 import numpy as np
 
-from albumentations.augmentations.keypoints_utils import KeypointsProcessor
-from albumentations.core.serialization import SerializableMeta, get_shortest_class_fullname
-from albumentations.core.six import add_metaclass
-from albumentations.core.transforms_interface import DualTransform, BasicTransform
-from albumentations.core.utils import format_args, Params, get_shape
 from albumentations.augmentations.bbox_utils import BboxProcessor
-from albumentations.core.serialization import SERIALIZABLE_REGISTRY, instantiate_nonserializable
+from albumentations.augmentations.keypoints_utils import KeypointsProcessor
+from albumentations.core.serialization import (
+    SERIALIZABLE_REGISTRY,
+    SerializableMeta,
+    get_shortest_class_fullname,
+    instantiate_nonserializable,
+)
+from albumentations.core.six import add_metaclass
+from albumentations.core.transforms_interface import BasicTransform, DualTransform
+from albumentations.core.utils import Params, format_args, get_shape
 
 __all__ = [
     "BaseCompose",

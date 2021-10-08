@@ -13,7 +13,7 @@ To create a pull request:
 
 .. code-block:: bash
 
-    pip install pre-commit black flake8
+    pip install pre-commit black flake8 isort mypy
 
 4. Initialize it from the folder with the repo:
 
