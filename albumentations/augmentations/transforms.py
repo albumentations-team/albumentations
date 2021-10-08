@@ -1,19 +1,17 @@
 from __future__ import absolute_import, division
 
 import math
-import random
 import numbers
+import random
 import warnings
-from enum import IntEnum, Enum
+from enum import Enum, IntEnum
 from types import LambdaType
-from typing import Optional, Union, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
 from skimage.measure import label
 
-from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
@@ -21,6 +19,8 @@ from ..core.transforms_interface import (
     to_tuple,
 )
 from ..core.utils import format_args
+from . import functional as F
+from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
     "Blur",
