@@ -1,11 +1,11 @@
+from typing import List, Optional, Sequence, Tuple, Union
+
 import cv2
 import numpy as np
 
-from typing import List, Union, Tuple, Sequence, Optional
-
-from ..geometric import functional as FGeometric
 from ..bbox_utils import denormalize_bbox, normalize_bbox
-from ..functional import pad_with_params, _maybe_process_in_chunks, preserve_channel_dim
+from ..functional import _maybe_process_in_chunks, pad_with_params, preserve_channel_dim
+from ..geometric import functional as FGeometric
 
 BboxType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.ndarray]
 KeypointType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.ndarray]

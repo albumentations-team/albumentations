@@ -33,13 +33,15 @@ jobs:
     - name: Install dependencies
       run: pip install .[${{ matrix.albumentations-version }}]
     - name: Install linters
-      run: pip install flake8==3.8.4 flake8-docstrings==1.5.0 mypy==0.800
+      run: pip install flake8==3.9.2 flake8-docstrings==1.6.0 mypy==0.910 isort==5.9.3 types-PyYAML==5.4.10 types-setuptools
     - name: Run PyTest
       run: pytest
     - name: Run Flake8
       run: flake8
     - name: Run mypy
       run: mypy .
+    - name: Run isort
+      run: isort --profile black albumentations
 
   check_code_formatting:
     name: Check code formatting with Black
@@ -57,7 +59,7 @@ jobs:
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install Black
-      run: pip install black==20.8b1
+      run: pip install black==21.9b0
     - name: Run Black
       run: black --config=black.toml --check .
 
