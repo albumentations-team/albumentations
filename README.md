@@ -106,6 +106,7 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 <a href="https://www.cft.ru/" target="_blank"><img src="https://habrastorage.org/webt/dv/fa/uq/dvfauqyl5cor5yzrfrpthjzm0mi.jpeg" width="100"/></a>
 <a href="https://www.pinatafarm.com/" target="_blank"><img src="https://www.pinatafarm.com/pfLogo.png" width="100"/></a>
 <a href="https://incode.com/" target="_blank"><img src="https://habrastorage.org/webt/sh/eg/bs/shegbsyzy-0lebwqxkgl_rkkx3m.png" width="100"/></a>
+<a href="https://vitechlab.com/" target="_blank"><img src="https://res2.weblium.site/res/5f842a47d2077f0022e59f1d/5f842ba81ff15b00214a447f_optimized_389.webp" width="100"/></a>
 <a href="https://borzodelivery.com/" target="_blank"><img src="https://borzodelivery.com/img/global/big-logo.svg" width="100"/></a>
 
 #### See also:
