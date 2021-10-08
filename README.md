@@ -103,7 +103,7 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 <a href="https://www.everypixel.com/" target="_blank"><img src="https://www.everypixel.com/i/logo_sq.png" width="100"/></a>
 <a href="https://neuromation.io/" target="_blank"><img src="https://habrastorage.org/webt/yd/_4/xa/yd_4xauvggn1tuz5xgrtkif6lya.png" width="100"/></a>
 <a href="https://ultralytics.com/" target="_blank"><img src="https://albumentations.ai/assets/img/industry/ultralytics.png" width="100"/></a>
-<a href="https://www.cft.ru/" target="_blank"><img src="https://habrastorage.org/webt/nm/df/s9/nmdfs9wz9qb56o7w5s8bfz3ygqi.png" width="100"/></a>
+<a href="https://www.cft.ru/" target="_blank"><img src="https://habrastorage.org/webt/dv/fa/uq/dvfauqyl5cor5yzrfrpthjzm0mi.jpeg" width="100"/></a>
 
 #### See also:
 - [A list of papers that cite Albumentations](https://albumentations.ai/whos_using#research).
