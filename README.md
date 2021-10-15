@@ -111,6 +111,7 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 <a href="https://borzodelivery.com/" target="_blank"><img src="https://borzodelivery.com/img/global/big-logo.svg" width="100"/></a>
 <a href="https://anadea.info/" target="_blank"><img src="https://habrastorage.org/webt/oc/lt/8u/oclt8uwyyc-vgmwwcgcsk5cw7wy.png" width="100"/></a>
 <a href="https://www.idrnd.ai/" target="_blank"><img src="https://www.idrnd.ai/wp-content/uploads/2019/09/Logo-IDRND.png.webp" width="100"/></a>
+<a href="https://openface.me/en/" target="_blank"><img src="https://drive.google.com/uc?export=view&id=1mC8B55CPFlpUC69Wnli2vitp6pImIfz7" width="100"/></a>
 
 #### See also:
 - [A list of papers that cite Albumentations](https://albumentations.ai/whos_using#research).
