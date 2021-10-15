@@ -7,7 +7,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        operating-system: [ubuntu-latest, windows-latest, macos-11]
         python-version: [3.6, 3.7, 3.8, 3.9]
         albumentations-version: [tests, develop]
       fail-fast: false
@@ -20,6 +20,8 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Update pip
       run: python -m pip install --upgrade pip
+    - name: Install wheel
+      run: python -m pip install --upgrade wheel
     - name: Install PyTorch on Linux and Windows
       if: >
         matrix.operating-system == 'ubuntu-latest' ||
@@ -34,6 +36,10 @@ jobs:
       run: pip install .[${{ matrix.albumentations-version }}]
     - name: Install linters
       run: pip install flake8==3.9.2 flake8-docstrings==1.6.0 mypy==0.910 isort==5.9.3 types-PyYAML==5.4.10 types-setuptools
+    - name: Cleanup the build directory
+      uses: JesseTG/rm@v1.0.2
+      with:
+        path: build
     - name: Run PyTest
       run: pytest
     - name: Run Flake8
