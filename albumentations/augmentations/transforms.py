@@ -1561,7 +1561,7 @@ class Solarize(ImageOnlyTransform):
 
     Args:
         threshold ((int, int) or int, or (float, float) or float): range for solarizing threshold.
-        If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
+            If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2603,6 +2603,18 @@ class MaskDropout(DualTransform):
     Image can be any number of channels.
 
     Inspired by https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
+    
+    Args:
+        max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
+        image_fill_value: Fill value to use when filling image.
+            Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
+        mask_fill_value: Fill value to use when filling mask.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
     """
 
     def __init__(
@@ -2613,19 +2625,6 @@ class MaskDropout(DualTransform):
         always_apply=False,
         p=0.5,
     ):
-        """
-        Args:
-            max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
-            image_fill_value: Fill value to use when filling image.
-                Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
-            mask_fill_value: Fill value to use when filling mask.
-
-        Targets:
-            image, mask
-
-        Image types:
-            uint8, float32
-        """
         super(MaskDropout, self).__init__(always_apply, p)
         self.max_objects = to_tuple(max_objects, 1)
         self.image_fill_value = image_fill_value
