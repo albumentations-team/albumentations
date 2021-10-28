@@ -4,6 +4,7 @@ import random
 import typing
 from collections import defaultdict
 
+import cv2
 import numpy as np
 
 from albumentations.augmentations.bbox_utils import BboxProcessor
@@ -135,6 +136,26 @@ class BaseCompose:
         for t in self.transforms:
             t.set_deterministic(flag, save_key)
 
+    def set_mask_interpolation(self, mask_interpolation):
+        if mask_interpolation not in {
+            cv2.INTER_NEAREST,
+            cv2.INTER_NEAREST_EXACT,
+            cv2.INTER_LINEAR,
+            cv2.INTER_LINEAR_EXACT,
+            cv2.INTER_AREA,
+            cv2.INTER_CUBIC,
+            cv2.INTER_LANCZOS4,
+            cv2.INTER_MAX,
+        }:
+            raise ValueError(
+                f"Value {mask_interpolation} is not supported. "
+                f"Choose one of the following methods: cv2.INTER_NEAREST, cv2.INTER_NEAREST_EXACT, cv2.INTER_LINEAR, "
+                f"cv2.INTER_LINEAR_EXACT, cv2.INTER_AREA, cv2.INTER_CUBIC, cv2.INTER_LANCZOS4, cv2.INTER_MAX"
+            )
+        for t in self.transforms:
+            if isinstance(t, BaseCompose) or (isinstance(t, DualTransform) and t.mask_interpolation is None):
+                t.set_mask_interpolation(mask_interpolation)
+
 
 class Compose(BaseCompose):
     """Compose transforms and handle all transformations regarding bounding boxes
@@ -147,8 +168,16 @@ class Compose(BaseCompose):
         p (float): probability of applying all list of transforms. Default: 1.0.
     """
 
-    def __init__(self, transforms, bbox_params=None, keypoint_params=None, additional_targets=None, p=1.0):
-        super(Compose, self).__init__([t for t in transforms if t is not None], p)
+    def __init__(
+        self,
+        transforms,
+        bbox_params=None,
+        keypoint_params=None,
+        additional_targets=None,
+        mask_interpolation=cv2.INTER_NEAREST,
+        p=1.0,
+    ):
+        super().__init__([t for t in transforms if t is not None], p)
 
         self.processors = {}
         if bbox_params:
@@ -178,6 +207,7 @@ class Compose(BaseCompose):
             proc.ensure_transforms_valid(self.transforms)
 
         self.add_targets(additional_targets)
+        self.set_mask_interpolation(mask_interpolation)
 
         self.is_check_args = True
         self._disable_check_args_for_transforms(self.transforms.transforms)
