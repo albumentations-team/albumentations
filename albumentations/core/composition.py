@@ -31,7 +31,7 @@ __all__ = [
 ]
 
 
-REPR_INDENT_STEP: typing.Final = 2
+REPR_INDENT_STEP = 2
 TransformType = typing.Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = typing.Sequence[TransformType]
 
