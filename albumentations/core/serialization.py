@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import abc
 import json
 import warnings
 
@@ -35,14 +36,14 @@ def get_shortest_class_fullname(cls):
     return shorten_class_name(class_fullname)
 
 
-class SerializableMeta(type):
+class SerializableMeta(abc.ABCMeta):
     """
     A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` or `NON_SERIALIZABLE_REGISTRY`
     so they can be found later while deserializing transformation pipeline using classes full names.
     """
 
     def __new__(cls, name, bases, class_dict):
-        cls_obj = type.__new__(cls, name, bases, class_dict)
+        cls_obj = super().__new__(cls, name, bases, class_dict)
         if cls_obj.is_serializable():
             SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
         else:

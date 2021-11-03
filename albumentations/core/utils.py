@@ -5,8 +5,6 @@ from typing import Any, Tuple
 
 import numpy as np
 
-from ..core.six import add_metaclass, string_types
-
 
 def get_shape(img: Any) -> Tuple[int, int]:
     if isinstance(img, np.ndarray):
@@ -30,14 +28,13 @@ def get_shape(img: Any) -> Tuple[int, int]:
 def format_args(args_dict):
     formatted_args = []
     for k, v in args_dict.items():
-        if isinstance(v, string_types):
+        if isinstance(v, str):
             v = "'{}'".format(v)
         formatted_args.append("{}={}".format(k, v))
     return ", ".join(formatted_args)
 
 
-@add_metaclass(ABCMeta)
-class Params:
+class Params(metaclass=ABCMeta):
     def __init__(self, format, label_fields=None):
         self.format = format
         self.label_fields = label_fields
@@ -46,8 +43,7 @@ class Params:
         return {"format": self.format, "label_fields": self.label_fields}
 
 
-@add_metaclass(ABCMeta)
-class DataProcessor:
+class DataProcessor(metaclass=ABCMeta):
     def __init__(self, params, additional_targets=None):
         self.params = params
         self.data_fields = [self.default_data_name]
