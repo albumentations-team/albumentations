@@ -38,7 +38,7 @@ TransformsSeqType = typing.Sequence[TransformType]
 
 def get_always_apply(transforms: typing.Union["BaseCompose", TransformsSeqType]) -> TransformsSeqType:
     new_transforms: typing.List[TransformType] = []
-    for transform in transforms:
+    for transform in transforms:  # type: ignore
         if isinstance(transform, BaseCompose):
             new_transforms.extend(get_always_apply(transform))
         elif transform.always_apply:
@@ -46,7 +46,7 @@ def get_always_apply(transforms: typing.Union["BaseCompose", TransformsSeqType])
     return new_transforms
 
 
-class BaseCompose(typing.Sequence, metaclass=SerializableMeta):
+class BaseCompose(metaclass=SerializableMeta):
     def __init__(self, transforms: TransformsSeqType, p: float):
         self.transforms = transforms
         self.p = p
