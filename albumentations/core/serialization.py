@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+import abc
 import json
 import warnings
 
@@ -42,7 +43,7 @@ class SerializableMeta(type):
     """
 
     def __new__(cls, name, bases, class_dict):
-        cls_obj = type.__new__(cls, name, bases, class_dict)
+        cls_obj = super().__new__(cls, name, bases, class_dict)
         if cls_obj.is_serializable():
             SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
         else:
