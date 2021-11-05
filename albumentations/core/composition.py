@@ -48,6 +48,12 @@ def get_always_apply(transforms: typing.Union["BaseCompose", TransformsSeqType])
 
 class BaseCompose(metaclass=SerializableMeta):
     def __init__(self, transforms: TransformsSeqType, p: float):
+        if isinstance(transforms, (BaseCompose, BasicTransform)):
+            warnings.warn(
+                "transforms is single transform, but a sequence is expected! Transform will be wrapped into list."
+            )
+            transforms = [transforms]
+
         self.transforms = transforms
         self.p = p
 
@@ -276,7 +282,7 @@ class OneOf(BaseCompose):
 
     def __init__(self, transforms: TransformsSeqType, p: float = 0.5):
         super(OneOf, self).__init__(transforms, p)
-        transforms_ps = [t.p for t in transforms]
+        transforms_ps = [t.p for t in self.transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
@@ -308,7 +314,7 @@ class SomeOf(BaseCompose):
         super(SomeOf, self).__init__(transforms, p)
         self.n = n
         self.replace = replace
-        transforms_ps = [t.p for t in transforms]
+        transforms_ps = [t.p for t in self.transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
@@ -347,9 +353,9 @@ class OneOrOther(BaseCompose):
             if first is None or second is None:
                 raise ValueError("You must set both first and second or set transforms argument.")
             transforms = [first, second]
-        elif len(transforms) != 2:
-            warnings.warn("Length of transforms is not equal to 2.")
         super(OneOrOther, self).__init__(transforms, p)
+        if len(self.transforms) != 2:
+            warnings.warn("Length of transforms is not equal to 2.")
 
     def __call__(self, *args, force_apply: bool = False, **data) -> typing.Dict[str, typing.Any]:
         if self.replay_mode:
