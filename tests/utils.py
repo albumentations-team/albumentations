@@ -74,7 +74,7 @@ def get_filtered_transforms(
 
     for name, cls in inspect.getmembers(albumentations):
         if not inspect.isclass(cls) or not issubclass(
-                cls, (albumentations.BasicTransform, albumentations.BaseCompose)
+            cls, (albumentations.BasicTransform, albumentations.BaseCompose)
         ):
             continue
 
