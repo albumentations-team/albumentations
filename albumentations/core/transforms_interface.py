@@ -12,7 +12,6 @@ from albumentations.core.serialization import (
     SerializableMeta,
     get_shortest_class_fullname,
 )
-from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
 
 __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
@@ -49,8 +48,7 @@ def to_tuple(param, low=None, bias=None):
     return tuple(param)
 
 
-@add_metaclass(SerializableMeta)
-class BasicTransform:
+class BasicTransform(metaclass=SerializableMeta):
     call_backup = None
     interpolation: Any
     fill_value: Any
