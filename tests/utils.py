@@ -1,6 +1,6 @@
+import inspect
 import random
 import typing
-import inspect
 import numpy as np
 
 from io import StringIO
@@ -73,7 +73,9 @@ def get_filtered_transforms(
     result = []
 
     for name, cls in inspect.getmembers(albumentations):
-        if not inspect.isclass(cls) or not issubclass(cls, albumentations.BasicTransform):
+        if not inspect.isclass(cls) or not issubclass(
+            cls, (albumentations.BasicTransform, albumentations.BaseCompose)
+        ):
             continue
 
         if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
