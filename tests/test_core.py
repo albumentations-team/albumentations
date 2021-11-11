@@ -1,26 +1,43 @@
 from __future__ import absolute_import
 
+import typing
 from unittest import mock
-from unittest.mock import Mock, MagicMock, call
+from unittest.mock import MagicMock, Mock, call
 
 import cv2
 import numpy as np
 import pytest
 
-from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
+from albumentations import (
+    BasicTransform,
+    Blur,
+    Crop,
+    HorizontalFlip,
+    MedianBlur,
+    Normalize,
+    PadIfNeeded,
+    Resize,
+    Rotate,
+)
 from albumentations.augmentations.bbox_utils import check_bboxes
 from albumentations.core.composition import (
-    OneOrOther,
+    BaseCompose,
+    BboxParams,
     Compose,
+    KeypointParams,
     OneOf,
+    OneOrOther,
     SomeOf,
     PerChannel,
     ReplayCompose,
-    KeypointParams,
-    BboxParams,
     Sequential,
 )
-from albumentations import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
+from albumentations.core.transforms_interface import (
+    DualTransform,
+    ImageOnlyTransform,
+    to_tuple,
+)
+from .utils import get_filtered_transforms
 
 
 def test_one_or_other():
@@ -332,3 +349,24 @@ def test_bbox_params_is_not_set(image, bboxes):
     with pytest.raises(ValueError) as exc_info:
         t(image=image, bboxes=bboxes)
     assert str(exc_info.value) == "bbox_params must be specified for bbox transformations"
+
+
+@pytest.mark.parametrize(
+    "compose_transform", get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}})
+)
+@pytest.mark.parametrize(
+    "inner_transform",
+    [(Normalize, {}), (Resize, {"height": 100, "width": 100})]
+    + get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}}),  # type: ignore
+)
+def test_single_transform_compose(
+    compose_transform: typing.Tuple[typing.Type[BaseCompose], dict],
+    inner_transform: typing.Tuple[typing.Union[typing.Type[BaseCompose], typing.Type[BasicTransform]], dict],
+):
+    compose_cls, compose_kwargs = compose_transform
+    cls, kwargs = inner_transform
+    transform = cls(transforms=[], **kwargs) if issubclass(cls, BaseCompose) else cls(**kwargs)
+
+    with pytest.warns(UserWarning):
+        res_transform = compose_cls(transforms=transform, **compose_kwargs)  # type: ignore
+    assert isinstance(res_transform.transforms, list)
