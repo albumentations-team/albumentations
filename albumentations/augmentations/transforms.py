@@ -3264,6 +3264,9 @@ class UnsharpMask(ImageOnlyTransform):
             Must be in range [0, 255]. Default: 10.
         p (float): probability of applying the transform. Default: 0.5.
 
+    Reference:
+        arxiv.org/pdf/2107.10833.pdf
+
     Targets:
         image
     """
