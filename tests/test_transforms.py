@@ -1,15 +1,15 @@
+import random
 from functools import partial
 
 import cv2
 import numpy as np
 import pytest
-import random
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 
-from .utils import get_transforms, get_image_only_transforms, get_dual_transforms
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
 
 def set_seed(seed=0):
