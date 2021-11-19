@@ -1793,3 +1793,22 @@ def superpixels(
 @clipped
 def add_weighted(img1, alpha, img2, beta):
     return img1.astype(float) * alpha + img2.astype(float) * beta
+
+
+@clipped
+@preserve_shape
+def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float = 0.2, threshold: int = 10):
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+    blur = blur_fn(image)
+    residual = image - blur
+
+    # Do not sharpen noise
+    mask = np.abs(residual) * 255 > threshold
+    mask = mask.astype("float32")
+
+    sharp = image + alpha * residual
+    # Avoid color noise artefacts.
+    sharp = np.clip(sharp, 0, 1)
+
+    soft_mask = blur_fn(mask)
+    return soft_mask * sharp + (1 - soft_mask) * image

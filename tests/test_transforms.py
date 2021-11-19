@@ -1,15 +1,15 @@
+import random
 from functools import partial
 
 import cv2
 import numpy as np
 import pytest
-import random
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 
-from .utils import get_transforms, get_image_only_transforms, get_dual_transforms
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
 
 def set_seed(seed=0):
@@ -690,6 +690,26 @@ def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
 
     res = aug(image=img)["image"]
     assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
+
+
+@pytest.mark.parametrize(
+    ["blur_limit", "sigma", "result_blur", "result_sigma"],
+    [
+        [[0, 0], [1, 1], 0, 1],
+        [[1, 1], [0, 0], 1, 0],
+        [[1, 1], [1, 1], 1, 1],
+        [[0, 0], [0, 0], 3, 0],
+        [[0, 3], [0, 0], 3, 0],
+        [[0, 3], [0.1, 0.1], 3, 0.1],
+    ],
+)
+def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
+    img = np.zeros([100, 100, 3], dtype=np.uint8)
+
+    aug = A.Compose([A.UnsharpMask(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
+
+    res = aug(image=img)["image"]
+    assert np.allclose(res, F.unsharp_mask(img, result_blur, result_sigma))
 
 
 @pytest.mark.parametrize(
