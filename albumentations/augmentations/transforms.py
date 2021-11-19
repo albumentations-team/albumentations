@@ -3250,7 +3250,7 @@ class RingingOvershoot(ImageOnlyTransform):
     Args:
         blur_limit (int, (int, int)): maximum kernel size for sinc filter.
             Should be in range [3, inf). Default: (7, 15).
-        cutoff ((float, float)): range to choose the cutoff frequency in radians.
+        cutoff (float, (float, float)): range to choose the cutoff frequency in radians.
             Should be in range (0, np.pi)
             Default: (np.pi / 4, np.pi / 2).
         p (float): probability of applying the transform. Default: 0.5.
@@ -3263,7 +3263,13 @@ class RingingOvershoot(ImageOnlyTransform):
         image
     """
 
-    def __init__(self, blur_limit=(7, 15), cutoff=(np.pi / 4, np.pi / 2), always_apply=False, p=0.5):
+    def __init__(
+        self,
+        blur_limit: Union[int, Sequence[int]] = (7, 15),
+        cutoff: Union[float, Sequence[float]] = (np.pi / 4, np.pi / 2),
+        always_apply=False,
+        p=0.5,
+    ):
         super(RingingOvershoot, self).__init__(always_apply, p)
         self.blur_limit = to_tuple(blur_limit, 3)
         self.cutoff = self.__check_values(to_tuple(cutoff, np.pi / 2), name="cutoff", bounds=(0, np.pi))
