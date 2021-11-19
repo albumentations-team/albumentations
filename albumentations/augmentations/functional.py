@@ -1799,6 +1799,13 @@ def add_weighted(img1, alpha, img2, beta):
 @preserve_shape
 def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float = 0.2, threshold: int = 10):
     blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+
+    input_dtype = image.dtype
+    if input_dtype == np.uint8:
+        image = to_float(image)
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError("Unexpected dtype {} for UnsharpMask augmentation".format(input_dtype))
+
     blur = blur_fn(image)
     residual = image - blur
 
@@ -1811,4 +1818,5 @@ def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float
     sharp = np.clip(sharp, 0, 1)
 
     soft_mask = blur_fn(mask)
-    return soft_mask * sharp + (1 - soft_mask) * image
+    output = soft_mask * sharp + (1 - soft_mask) * image
+    return from_float(output, dtype=input_dtype)
