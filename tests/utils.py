@@ -1,9 +1,9 @@
 import inspect
 import random
 import typing
-import numpy as np
-
 from io import StringIO
+
+import numpy as np
 
 import albumentations
 
@@ -120,7 +120,7 @@ def get_transforms(
 
 def check_all_augs_exists(
     augmentations: typing.List[typing.List],
-    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
+    except_augmentations: typing.Optional[typing.Set] = None,
 ) -> typing.List[typing.List]:
     existed_augs = {i[0] for i in augmentations}
     except_augmentations = except_augmentations or set()

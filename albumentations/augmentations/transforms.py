@@ -3289,7 +3289,7 @@ class AdvancedBlur(ImageOnlyTransform):
         self.sigmaY_limit = self.__check_values(to_tuple(sigmaY_limit, 0.0), name="sigmaY_limit")
         self.rotate_limit = to_tuple(rotate_limit)
         self.beta_limit = to_tuple(beta_limit, low=0.0)
-        self.noise_limit = self.__check_values(to_tuple(noise_limit, bias=1.0), name="noise_limit")
+        self.noise_limit = self.__check_values(to_tuple(noise_limit), name="noise_limit")
 
         if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
             self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
@@ -3302,15 +3302,11 @@ class AdvancedBlur(ImageOnlyTransform):
         if not (self.beta_limit[0] < 1.0 < self.beta_limit[1]):
             raise ValueError("Beta limit is expected to include 1.0")
 
-    # assume beta_range[0] < 1 < beta_range[1]
     @staticmethod
     def __check_values(value, name, bounds=(0, float("inf"))):
         if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
             raise ValueError(f"{name} values should be between {bounds}")
         return value
-
-    # def apply(self, image, kernel=None, **params):
-    #     return F.convolve(image, kernel=kernel)
 
     def apply(self, img, kernel=None, **params):
         return F.convolve(img, kernel=kernel)
@@ -3341,7 +3337,6 @@ class AdvancedBlur(ImageOnlyTransform):
         inverse_sigma = np.linalg.inv(sigma_matrix)
         # Described in "Parameter Estimation For Multivariate Generalized Gaussian Distributions"
         kernel = np.exp(-0.5 * np.power(np.sum(np.dot(grid, inverse_sigma) * grid, 2), beta))
-
         # Add noise
         kernel = kernel * noise_matrix
 
