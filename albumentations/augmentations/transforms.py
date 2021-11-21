@@ -1931,7 +1931,7 @@ class GaussianBlur(ImageOnlyTransform):
             as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
             If set single value `blur_limit` will be in range (0, blur_limit).
             Default: (3, 7).
-        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must in range [0, inf).
+        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be in range [0, inf).
             If set single value `sigma_limit` will be in range (0, sigma_limit).
             If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
         p (float): probability of applying the transform. Default: 0.5.
@@ -3259,8 +3259,11 @@ class AdvancedBlur(ImageOnlyTransform):
         sigmaY_limit: Same as `sigmaY_limit` for another dimension.
         rotate_limit: Range from which a random angle used to rotate Gaussian kernel is picked.
             If limit is a single int an angle is picked from (-rotate_limit, rotate_limit). Default: (-90, 90).
-        beta_limit: Distribution shape parameter, 1 is the normal distribution. Default: (0.5, 8.0).
-        noise_limit: Multiplicative factor that control strength of kernel noise. Default: (0.75, 1.25).
+        beta_limit: Distribution shape parameter, 1 is the normal distribution. Values below 1.0 make distribution
+            tails heavier than normal, values above 1.0 make it lighter than normal. Default: (0.5, 8.0).
+        noise_limit: Multiplicative factor that control strength of kernel noise. Must be positive and preferably
+            centered around 1.0. If set single value `noise_limit` will be in range (0, noise_limit).
+            Default: (0.75, 1.25).
         p (float): probability of applying the transform. Default: 0.5.
 
     Reference:
@@ -3279,7 +3282,7 @@ class AdvancedBlur(ImageOnlyTransform):
         sigmaY_limit: Union[float, Sequence[float]] = (0.2, 1.0),
         rotate_limit: Union[int, Sequence[int]] = 90,
         beta_limit: Union[float, Sequence[float]] = (0.5, 8.0),
-        noise_limit: Union[float, Sequence[float]] = (0.75, 1.25),
+        noise_limit: Union[float, Sequence[float]] = (0.9, 1.1),
         always_apply=False,
         p=0.5,
     ):
@@ -3289,7 +3292,7 @@ class AdvancedBlur(ImageOnlyTransform):
         self.sigmaY_limit = self.__check_values(to_tuple(sigmaY_limit, 0.0), name="sigmaY_limit")
         self.rotate_limit = to_tuple(rotate_limit)
         self.beta_limit = to_tuple(beta_limit, low=0.0)
-        self.noise_limit = self.__check_values(to_tuple(noise_limit), name="noise_limit")
+        self.noise_limit = self.__check_values(to_tuple(noise_limit, 0.0), name="noise_limit")
 
         if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
             self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
@@ -3322,7 +3325,9 @@ class AdvancedBlur(ImageOnlyTransform):
             beta = random.uniform(self.beta_limit[0], 1)
         else:
             beta = random.uniform(1, self.beta_limit[1])
-        noise_matrix = np.random.uniform(*self.noise_limit, size=[ksize, ksize])
+
+        random_state = np.random.RandomState(random.randint(0, 65536))
+        noise_matrix = random_state.uniform(*self.noise_limit, size=[ksize, ksize])
 
         # Generate mesh grid centered at zero.
         ax = np.arange(-ksize // 2 + 1.0, ksize // 2 + 1.0)
