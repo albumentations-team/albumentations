@@ -63,6 +63,7 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
             A.TemplateTransform: {
                 "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
             },
+            A.RingingOvershoot: {"blur_limit": (3, 5)},
         },
         except_augmentations={
             A.CLAHE,
