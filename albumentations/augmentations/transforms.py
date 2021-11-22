@@ -77,6 +77,7 @@ __all__ = [
     "Emboss",
     "Superpixels",
     "TemplateTransform",
+    "UnsharpMask",
 ]
 
 
@@ -3240,3 +3241,75 @@ class TemplateTransform(ImageOnlyTransform):
                 "e.g. `TemplateTransform(name='my_transform', ...)`."
             )
         return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
+
+
+class UnsharpMask(ImageOnlyTransform):
+    """
+    Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
+
+    Args:
+        blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
+            Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
+            as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
+            If set single value `blur_limit` will be in range (0, blur_limit).
+            Default: (3, 7).
+        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be in range [0, inf).
+            If set single value `sigma_limit` will be in range (0, sigma_limit).
+            If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
+        alpha (float, (float, float)): range to choose the visibility of the sharpened image.
+            At 0, only the original image is visible, at 1.0 only its sharpened version is visible.
+            Default: (0.2, 0.5).
+        threshold (int): Value to limit sharpening only for areas with high pixel difference between original image
+            and it's smoothed version. Higher threshold means less sharpening on flat areas.
+            Must be in range [0, 255]. Default: 10.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Reference:
+        arxiv.org/pdf/2107.10833.pdf
+
+    Targets:
+        image
+    """
+
+    def __init__(
+        self,
+        blur_limit: Union[int, Sequence[int]] = (3, 7),
+        sigma_limit: Union[float, Sequence[float]] = 0.0,
+        alpha: Union[float, Sequence[float]] = (0.2, 0.5),
+        threshold: int = 10,
+        always_apply=False,
+        p=0.5,
+    ):
+        super(UnsharpMask, self).__init__(always_apply, p)
+        self.blur_limit = to_tuple(blur_limit, 3)
+        self.sigma_limit = self.__check_values(to_tuple(sigma_limit, 0.0), name="sigma_limit")
+        self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
+        self.threshold = threshold
+
+        if self.blur_limit[0] == 0 and self.sigma_limit[0] == 0:
+            self.blur_limit = 3, max(3, self.blur_limit[1])
+            raise ValueError("blur_limit and sigma_limit minimum value can not be both equal to 0.")
+
+        if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
+            self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
+        ):
+            raise ValueError("UnsharpMask supports only odd blur limits.")
+
+    @staticmethod
+    def __check_values(value, name, bounds=(0, float("inf"))):
+        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+            raise ValueError(f"{name} values should be between {bounds}")
+        return value
+
+    def get_params(self):
+        return {
+            "ksize": random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2),
+            "sigma": random.uniform(*self.sigma_limit),
+            "alpha": random.uniform(*self.alpha),
+        }
+
+    def apply(self, img, ksize=3, sigma=0, alpha=0.2, **params):
+        return F.unsharp_mask(img, ksize, sigma=sigma, alpha=alpha, threshold=self.threshold)
+
+    def get_transform_init_args_names(self):
+        return ("blur_limit", "sigma_limit", "alpha", "threshold")

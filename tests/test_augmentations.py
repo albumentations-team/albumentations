@@ -1,5 +1,5 @@
 import random
-from typing import Type, Dict, Tuple
+from typing import Dict, Tuple, Type
 
 import cv2
 import numpy as np
@@ -7,7 +7,7 @@ import pytest
 
 import albumentations as A
 
-from .utils import get_image_only_transforms, get_dual_transforms, get_transforms
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
 
 @pytest.mark.parametrize(
@@ -265,6 +265,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.RandomSunFlare,
             A.ToSepia,
             A.PixelDistributionAdaptation,
+            A.UnsharpMask,
         },
     ),
 )

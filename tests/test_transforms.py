@@ -1,15 +1,15 @@
+import random
 from functools import partial
 
 import cv2
 import numpy as np
 import pytest
-import random
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 
-from .utils import get_transforms, get_image_only_transforms, get_dual_transforms
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
 
 def set_seed(seed=0):
@@ -690,6 +690,48 @@ def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
 
     res = aug(image=img)["image"]
     assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
+
+
+@pytest.mark.parametrize(
+    ["blur_limit", "sigma", "result_blur", "result_sigma"],
+    [
+        [[0, 0], [1, 1], 0, 1],
+        [[1, 1], [0, 0], 1, 0],
+        [[1, 1], [1, 1], 1, 1],
+        [[0, 3], [0.1, 0.1], 3, 0.1],
+    ],
+)
+def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
+    img = np.zeros([100, 100, 3], dtype=np.uint8)
+
+    aug = A.Compose([A.UnsharpMask(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
+
+    res = aug(image=img)["image"]
+    assert np.allclose(res, F.unsharp_mask(img, result_blur, result_sigma))
+
+
+@pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
+def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
+
+    x_uint8 = np.zeros((5, 5)).astype(np.uint8)
+    x_uint8[2, 2] = val_uint8
+
+    x_float32 = np.zeros((5, 5)).astype(np.float32)
+    x_float32[2, 2] = val_uint8 / 255.0
+
+    unsharpmask = A.UnsharpMask(blur_limit=3, always_apply=True, p=1)
+
+    random.seed(0)
+    usm_uint8 = unsharpmask(image=x_uint8)["image"]
+
+    random.seed(0)
+    usm_float32 = unsharpmask(image=x_float32)["image"]
+
+    # Before comparison, rescale the usm_float32 to [0, 255]
+    diff = np.abs(usm_uint8 - usm_float32 * 255)
+
+    # The difference between the results of float32 and uint8 will be at most 2.
+    assert np.all(diff <= 2.0)
 
 
 @pytest.mark.parametrize(
