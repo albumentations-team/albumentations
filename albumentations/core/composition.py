@@ -330,8 +330,8 @@ class SomeOf(BaseCompose):
             idx = random_state.choice(
                 len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps  # type: ignore
             )
-            transforms = [self.transforms[i] for i in idx]
-            for t in transforms:
+            for i in idx:
+                t = self.transforms[i]
                 data = t(force_apply=True, **data)
         return data
 
