@@ -599,8 +599,16 @@ def pad_with_params(
     border_mode=cv2.BORDER_REFLECT_101,
     value=None,
 ):
-    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
-    return img
+    pad_fn = _maybe_process_in_chunks(
+        cv2.copyMakeBorder,
+        top=h_pad_top,
+        bottom=h_pad_bottom,
+        left=w_pad_left,
+        right=w_pad_right,
+        borderType=border_mode,
+        value=value,
+    )
+    return pad_fn(img)
 
 
 @preserve_shape
