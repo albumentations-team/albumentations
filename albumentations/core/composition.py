@@ -294,7 +294,8 @@ class OneOf(BaseCompose):
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            t = random_state.choice(self.transforms, p=self.transforms_ps)  # type: ignore
+            idx = random_state.choice(len(self.transforms), p=self.transforms_ps)  # type: ignore
+            t = self.transforms[idx]
             data = t(force_apply=True, **data)
         return data
 
@@ -326,9 +327,10 @@ class SomeOf(BaseCompose):
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
             random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            transforms = random_state.choice(
-                self.transforms, size=self.n, replace=self.replace, p=self.transforms_ps  # type: ignore
+            idx = random_state.choice(
+                len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps  # type: ignore
             )
+            transforms = [self.transforms[i] for i in idx]
             for t in transforms:
                 data = t(force_apply=True, **data)
         return data
