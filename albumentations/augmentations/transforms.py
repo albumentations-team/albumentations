@@ -3259,7 +3259,7 @@ class RingingOvershoot(ImageOnlyTransform):
     Reference:
         dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
         https://arxiv.org/abs/2107.10833
-        
+
     Targets:
         image
     """

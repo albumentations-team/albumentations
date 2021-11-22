@@ -6,8 +6,6 @@ from typing import Optional, Set, Type
 
 import numpy as np
 
-import numpy as np
-
 import albumentations
 
 
