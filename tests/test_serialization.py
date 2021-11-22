@@ -314,6 +314,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Transpose, {}],
     [A.VerticalFlip, {}],
     [A.RingingOvershoot, dict(blur_limit=(7, 15), cutoff=(np.pi / 5, np.pi / 2))],
+    [A.UnsharpMask, {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15}],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {

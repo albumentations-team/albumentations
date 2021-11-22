@@ -266,6 +266,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.RandomSunFlare,
             A.ToSepia,
             A.PixelDistributionAdaptation,
+            A.UnsharpMask,
         },
     ),
 )
