@@ -698,7 +698,6 @@ def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
         [[0, 0], [1, 1], 0, 1],
         [[1, 1], [0, 0], 1, 0],
         [[1, 1], [1, 1], 1, 1],
-        [[0, 3], [0.1, 0.1], 3, 0.1],
     ],
 )
 def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
