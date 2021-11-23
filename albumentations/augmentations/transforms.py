@@ -1965,7 +1965,7 @@ class GaussianBlur(ImageOnlyTransform):
         return F.gaussian_blur(image, ksize, sigma=sigma)
 
     def get_params(self):
-        ksize = random.randint(self.blur_limit[0], self.blur_limit[1] + 1)
+        ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1)
         if ksize != 0 and ksize % 2 != 1:
             ksize = (ksize + 1) % (self.blur_limit[1] + 1)
 
@@ -2738,7 +2738,7 @@ class GlassBlur(Blur):
         width_pixels = img.shape[0] - self.max_delta * 2
         height_pixels = img.shape[1] - self.max_delta * 2
         total_pixels = width_pixels * height_pixels
-        dxy = random_utils.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+        dxy = random_utils.randrange(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
 
         return {"dxy": dxy}
 
