@@ -4,21 +4,22 @@ import random
 from unittest.mock import patch
 
 import cv2
-import pytest
 import numpy as np
+import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
+
 from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
-    set_seed,
-    get_transforms,
-    get_image_only_transforms,
-    get_dual_transforms,
     check_all_augs_exists,
+    get_dual_transforms,
+    get_image_only_transforms,
+    get_transforms,
+    set_seed,
 )
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
@@ -312,6 +313,8 @@ AUGMENTATION_CLS_PARAMS = [
     [A.ToSepia, {}],
     [A.Transpose, {}],
     [A.VerticalFlip, {}],
+    [A.RingingOvershoot, dict(blur_limit=(7, 15), cutoff=(np.pi / 5, np.pi / 2))],
+    [A.UnsharpMask, {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15}],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
