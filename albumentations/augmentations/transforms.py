@@ -3381,6 +3381,7 @@ class UnsharpMask(ImageOnlyTransform):
     def get_transform_init_args_names(self):
         return ("blur_limit", "sigma_limit", "alpha", "threshold")
 
+
 class AdvancedBlur(ImageOnlyTransform):
     """Blur the input image using a Generalized Normal filter with a randomly selected parameters.
         This transform also adds multiplicative noise to generated kernel before convolution.
@@ -3431,7 +3432,6 @@ class AdvancedBlur(ImageOnlyTransform):
         self.rotate_limit = to_tuple(rotate_limit)
         self.beta_limit = to_tuple(beta_limit, low=0.0)
         self.noise_limit = self.__check_values(to_tuple(noise_limit, 0.0), name="noise_limit")
-        
 
         if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
             self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
@@ -3443,7 +3443,6 @@ class AdvancedBlur(ImageOnlyTransform):
 
         if not (self.beta_limit[0] < 1.0 < self.beta_limit[1]):
             raise ValueError("Beta limit is expected to include 1.0")
-            
 
     @staticmethod
     def __check_values(value, name, bounds=(0, float("inf"))):
