@@ -591,16 +591,24 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=No
 
 @preserve_channel_dim
 def pad_with_params(
-    img,
-    h_pad_top,
-    h_pad_bottom,
-    w_pad_left,
-    w_pad_right,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-):
-    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
-    return img
+    img: np.ndarray,
+    h_pad_top: int,
+    h_pad_bottom: int,
+    w_pad_left: int,
+    w_pad_right: int,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[int] = None,
+) -> np.ndarray:
+    pad_fn = _maybe_process_in_chunks(
+        cv2.copyMakeBorder,
+        top=h_pad_top,
+        bottom=h_pad_bottom,
+        left=w_pad_left,
+        right=w_pad_right,
+        borderType=border_mode,
+        value=value,
+    )
+    return pad_fn(img)
 
 
 @preserve_shape
@@ -1793,3 +1801,30 @@ def superpixels(
 @clipped
 def add_weighted(img1, alpha, img2, beta):
     return img1.astype(float) * alpha + img2.astype(float) * beta
+
+
+@clipped
+@preserve_shape
+def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float = 0.2, threshold: int = 10):
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+
+    input_dtype = image.dtype
+    if input_dtype == np.uint8:
+        image = to_float(image)
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError("Unexpected dtype {} for UnsharpMask augmentation".format(input_dtype))
+
+    blur = blur_fn(image)
+    residual = image - blur
+
+    # Do not sharpen noise
+    mask = np.abs(residual) * 255 > threshold
+    mask = mask.astype("float32")
+
+    sharp = image + alpha * residual
+    # Avoid color noise artefacts.
+    sharp = np.clip(sharp, 0, 1)
+
+    soft_mask = blur_fn(mask)
+    output = soft_mask * sharp + (1 - soft_mask) * image
+    return from_float(output, dtype=input_dtype)

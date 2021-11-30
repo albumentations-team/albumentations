@@ -10,6 +10,7 @@ from typing import Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
+from scipy import special
 from skimage.measure import label
 
 from ..core.transforms_interface import (
@@ -77,6 +78,8 @@ __all__ = [
     "Emboss",
     "Superpixels",
     "TemplateTransform",
+    "RingingOvershoot",
+    "UnsharpMask",
     "AdvancedBlur",
 ]
 
@@ -3243,6 +3246,141 @@ class TemplateTransform(ImageOnlyTransform):
         return {"__class_fullname__": self.get_class_fullname(), "__name__": self.name}
 
 
+class RingingOvershoot(ImageOnlyTransform):
+    """Create ringing or overshoot artefacts by conlvolving image with 2D sinc filter.
+
+    Args:
+        blur_limit (int, (int, int)): maximum kernel size for sinc filter.
+            Should be in range [3, inf). Default: (7, 15).
+        cutoff (float, (float, float)): range to choose the cutoff frequency in radians.
+            Should be in range (0, np.pi)
+            Default: (np.pi / 4, np.pi / 2).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Reference:
+        dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
+        https://arxiv.org/abs/2107.10833
+
+    Targets:
+        image
+    """
+
+    def __init__(
+        self,
+        blur_limit: Union[int, Sequence[int]] = (7, 15),
+        cutoff: Union[float, Sequence[float]] = (np.pi / 4, np.pi / 2),
+        always_apply=False,
+        p=0.5,
+    ):
+        super(RingingOvershoot, self).__init__(always_apply, p)
+        self.blur_limit = to_tuple(blur_limit, 3)
+        self.cutoff = self.__check_values(to_tuple(cutoff, np.pi / 2), name="cutoff", bounds=(0, np.pi))
+
+    @staticmethod
+    def __check_values(value, name, bounds=(0, float("inf"))):
+        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+            raise ValueError(f"{name} values should be between {bounds}")
+        return value
+
+    def get_params(self):
+        ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
+        if ksize % 2 == 0:
+            raise ValueError(f"Kernel size must be odd. Got: {ksize}")
+
+        cutoff = random.uniform(*self.cutoff)
+
+        # From dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
+        kernel = np.fromfunction(
+            lambda x, y: cutoff
+            * special.j1(cutoff * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2))
+            / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
+            [ksize, ksize],
+        )
+        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff ** 2 / (4 * np.pi)
+
+        # Normalize kernel
+        kernel = kernel.astype(np.float32) / np.sum(kernel)
+
+        return {"kernel": kernel}
+
+    def apply(self, img, kernel=None, **params):
+        return F.convolve(img, kernel)
+
+    def get_transform_init_args_names(self):
+        return ("blur_limit", "cutoff")
+
+
+class UnsharpMask(ImageOnlyTransform):
+    """
+    Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
+
+    Args:
+        blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
+            Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
+            as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
+            If set single value `blur_limit` will be in range (0, blur_limit).
+            Default: (3, 7).
+        sigma_limit (float, (float, float)): Gaussian kernel standard deviation. Must be in range [0, inf).
+            If set single value `sigma_limit` will be in range (0, sigma_limit).
+            If set to 0 sigma will be computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`. Default: 0.
+        alpha (float, (float, float)): range to choose the visibility of the sharpened image.
+            At 0, only the original image is visible, at 1.0 only its sharpened version is visible.
+            Default: (0.2, 0.5).
+        threshold (int): Value to limit sharpening only for areas with high pixel difference between original image
+            and it's smoothed version. Higher threshold means less sharpening on flat areas.
+            Must be in range [0, 255]. Default: 10.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Reference:
+        arxiv.org/pdf/2107.10833.pdf
+
+    Targets:
+        image
+    """
+
+    def __init__(
+        self,
+        blur_limit: Union[int, Sequence[int]] = (3, 7),
+        sigma_limit: Union[float, Sequence[float]] = 0.0,
+        alpha: Union[float, Sequence[float]] = (0.2, 0.5),
+        threshold: int = 10,
+        always_apply=False,
+        p=0.5,
+    ):
+        super(UnsharpMask, self).__init__(always_apply, p)
+        self.blur_limit = to_tuple(blur_limit, 3)
+        self.sigma_limit = self.__check_values(to_tuple(sigma_limit, 0.0), name="sigma_limit")
+        self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
+        self.threshold = threshold
+
+        if self.blur_limit[0] == 0 and self.sigma_limit[0] == 0:
+            self.blur_limit = 3, max(3, self.blur_limit[1])
+            raise ValueError("blur_limit and sigma_limit minimum value can not be both equal to 0.")
+
+        if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
+            self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
+        ):
+            raise ValueError("UnsharpMask supports only odd blur limits.")
+
+    @staticmethod
+    def __check_values(value, name, bounds=(0, float("inf"))):
+        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+            raise ValueError(f"{name} values should be between {bounds}")
+        return value
+
+    def get_params(self):
+        return {
+            "ksize": random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2),
+            "sigma": random.uniform(*self.sigma_limit),
+            "alpha": random.uniform(*self.alpha),
+        }
+
+    def apply(self, img, ksize=3, sigma=0, alpha=0.2, **params):
+        return F.unsharp_mask(img, ksize, sigma=sigma, alpha=alpha, threshold=self.threshold)
+
+    def get_transform_init_args_names(self):
+        return ("blur_limit", "sigma_limit", "alpha", "threshold")
+
 class AdvancedBlur(ImageOnlyTransform):
     """Blur the input image using a Generalized Normal filter with a randomly selected parameters.
         This transform also adds multiplicative noise to generated kernel before convolution.
@@ -3293,6 +3431,7 @@ class AdvancedBlur(ImageOnlyTransform):
         self.rotate_limit = to_tuple(rotate_limit)
         self.beta_limit = to_tuple(beta_limit, low=0.0)
         self.noise_limit = self.__check_values(to_tuple(noise_limit, 0.0), name="noise_limit")
+        
 
         if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
             self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
@@ -3304,6 +3443,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
         if not (self.beta_limit[0] < 1.0 < self.beta_limit[1]):
             raise ValueError("Beta limit is expected to include 1.0")
+            
 
     @staticmethod
     def __check_values(value, name, bounds=(0, float("inf"))):
