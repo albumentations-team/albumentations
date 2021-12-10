@@ -3558,9 +3558,9 @@ class PixelDropout(ImageOnlyTransform):
             if img.dtype == np.uint8:
                 drop_value = rnd.randint(0, 255 + 1, drop_shape, np.uint8)
             elif img.dtype == np.int32:
-                info = np.iifo(np.int32)
+                info = np.iinfo(np.int32)
                 drop_value = rnd.randint(info.min, info.max, drop_shape, np.int32)
-            elif img.dtype in [np.float, np.double]:
+            elif img.dtype in [np.float32, np.double]:
                 drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
         else:
             drop_value = self.drop_value
