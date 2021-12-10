@@ -3562,6 +3562,8 @@ class PixelDropout(ImageOnlyTransform):
                 drop_value = rnd.randint(info.min, info.max, drop_shape, np.int32)
             elif img.dtype in [np.float32, np.double]:
                 drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
+            else:
+                raise ValueError(f"Unsupported dtype: {img.dtype}")
         else:
             drop_value = self.drop_value
 
