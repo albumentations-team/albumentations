@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 import math
 import numbers
 import random
+import typing
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
@@ -81,6 +82,7 @@ __all__ = [
     "RingingOvershoot",
     "UnsharpMask",
     "AdvancedBlur",
+    "PixelDropout",
 ]
 
 
@@ -3496,3 +3498,78 @@ class AdvancedBlur(ImageOnlyTransform):
             "beta_limit",
             "noise_limit",
         )
+
+
+class PixelDropout(ImageOnlyTransform):
+    """Set pixels to 0 with some probability.
+
+    Args:
+        dropout_prob (float): pixel drop probability. Default: 0.01
+        per_channel (bool): if set to `True` drop mask will be sampled fo each channel,
+            otherwise the same mask will be sampled for all channels. Default: False
+        drop_value (number or sequence of numbers or None): Value that will be set in dropped place.
+            If set to None value will be sampled randomly, default rangeges will be used:
+                - uint8 - [0-255]
+                - int32 - [INT_MIN, INT_MAX]
+                - float, double - [0, 1]
+            Default: 0
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+    Image types:
+        any
+    """
+
+    def __init__(
+        self,
+        dropout_prob: float = 0.01,
+        per_channel: bool = False,
+        drop_value: typing.Optional[typing.Union[float, typing.Sequence[float]]] = 0,
+        always_apply: bool = True,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.dropout_prob = dropout_prob
+        self.per_channel = per_channel
+        self.drop_value = drop_value
+
+    def apply(
+        self,
+        img: np.ndarray,
+        drop_mask: np.ndarray = None,
+        drop_value: typing.Union[float, typing.Sequence[float]] = None,
+        **params
+    ) -> np.ndarray:
+        return F.pixel_dropout(img, drop_mask, drop_value)
+
+    def get_params_dependent_on_targets(self, params: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
+        img = params["image"]
+        shape = img.shape if self.per_channel else img.shape[:2]
+
+        rnd = np.random.RandomState(random.randint(0, 1 << 31))
+        # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
+        drop_mask = rnd.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
+
+        if drop_mask.ndim != img.ndim:
+            drop_mask = np.expand_dims(drop_mask, -1)
+        if self.drop_value is None:
+            drop_shape = 1 if F.is_grayscale_image(img) else img.shape[-1]
+            if img.dtype == np.uint8:
+                drop_value = rnd.randint(0, 255 + 1, drop_shape, np.uint8)
+            elif img.dtype == np.int32:
+                info = np.iifo(np.int32)
+                drop_value = rnd.randint(info.min, info.max, drop_shape, np.int32)
+            elif img.dtype in [np.float, np.double]:
+                drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
+        else:
+            drop_value = self.drop_value
+
+        return {"drop_mask": drop_mask, "drop_value": drop_value}
+
+    @property
+    def targets_as_params(self) -> typing.List[str]:
+        return ["image"]
+
+    def get_transform_init_args_names(self) -> typing.Tuple[str, str, str]:
+        return ("dropout_prob", "per_channel", "drop_value")
