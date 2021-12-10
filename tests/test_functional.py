@@ -176,6 +176,14 @@ def test_random_crop_with_incorrectly_large_crop_size():
         A.random_crop(img, crop_height=8, crop_width=8, h_start=0, w_start=0)
     assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
 
+def test_random_crop_extrema():
+    img = np.indices((4, 4), dtype=np.uint8).transpose([1,2,0])
+    expected1 = np.indices((2, 2), dtype=np.uint8).transpose([1,2,0])
+    expected2 = expected1 + 2
+    cropped_img1 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.0, w_start=0.0)
+    cropped_img2 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.9999, w_start=0.9999)
+    assert np.array_equal(cropped_img1, expected1)
+    assert np.array_equal(cropped_img2, expected2)
 
 def test_clip():
     img = np.array([[-300, 0], [100, 400]], dtype=np.float32)
