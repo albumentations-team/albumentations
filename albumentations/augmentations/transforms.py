@@ -746,7 +746,7 @@ class CoarseDropout(DualTransform):
             in mask. If `None` - mask is not affected. Default: `None`.
 
     Targets:
-        image, mask
+        image, mask, keypoints
 
     Image types:
         uint8, float32
@@ -860,6 +860,20 @@ class CoarseDropout(DualTransform):
     @property
     def targets_as_params(self):
         return ["image"]
+
+    def _keypoint_in_hole(self, keypoint: Tuple, hole: Tuple) -> bool:
+        x1, y1, x2, y2 = hole
+        x, y = keypoint[:2]
+        return x1 <= x < x2 and y1 <= y < y2
+
+    def apply_to_keypoints(self, keypoints, holes=(), **params):
+        for hole in holes:
+            remaining_keypoints = []
+            for kp in keypoints:
+                if not self._keypoint_in_hole(kp, hole):
+                    remaining_keypoints.append(kp)
+            keypoints = remaining_keypoints
+        return keypoints
 
     def get_transform_init_args_names(self):
         return (
