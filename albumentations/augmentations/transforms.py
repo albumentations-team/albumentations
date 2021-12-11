@@ -540,7 +540,7 @@ class RandomGridShuffle(DualTransform):
         grid ((int, int)): size of grid for splitting image.
 
     Targets:
-        image, mask
+        image, mask, keypoints
 
     Image types:
         uint8, float32
@@ -561,6 +561,30 @@ class RandomGridShuffle(DualTransform):
             tiles = []
 
         return F.swap_tiles_on_image(img, tiles)
+
+    def apply_to_keypoint(self, keypoint, tiles=None, rows=0, cols=0, **params):
+        if tiles is None:
+            return keypoint
+
+        for (
+            current_left_up_corner_row,
+            current_left_up_corner_col,
+            old_left_up_corner_row,
+            old_left_up_corner_col,
+            height_tile,
+            width_tile,
+        ) in tiles:
+            x, y = keypoint[:2]
+
+            if (old_left_up_corner_row <= y < (old_left_up_corner_row + height_tile)) and (
+                old_left_up_corner_col <= x < (old_left_up_corner_col + width_tile)
+            ):
+                x = x - old_left_up_corner_col + current_left_up_corner_col
+                y = y - old_left_up_corner_row + current_left_up_corner_row
+                keypoint = (x, y) + tuple(keypoint[2:])
+                break
+
+        return keypoint
 
     def get_params_dependent_on_targets(self, params):
         height, width = params["image"].shape[:2]
