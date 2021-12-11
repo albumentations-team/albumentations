@@ -3526,7 +3526,7 @@ class PixelDropout(ImageOnlyTransform):
         dropout_prob: float = 0.01,
         per_channel: bool = False,
         drop_value: typing.Optional[typing.Union[float, typing.Sequence[float]]] = 0,
-        always_apply: bool = True,
+        always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
