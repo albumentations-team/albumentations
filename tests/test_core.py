@@ -27,16 +27,17 @@ from albumentations.core.composition import (
     KeypointParams,
     OneOf,
     OneOrOther,
-    SomeOf,
     PerChannel,
     ReplayCompose,
     Sequential,
+    SomeOf,
 )
 from albumentations.core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
     to_tuple,
 )
+
 from .utils import get_filtered_transforms
 
 
@@ -370,3 +371,13 @@ def test_single_transform_compose(
     with pytest.warns(UserWarning):
         res_transform = compose_cls(transforms=transform, **compose_kwargs)  # type: ignore
     assert isinstance(res_transform.transforms, list)
+
+
+@pytest.mark.parametrize(
+    "transforms",
+    [OneOf([Sequential([HorizontalFlip(p=1)])], p=1), SomeOf([Sequential([HorizontalFlip(p=1)])], n=1, p=1)],
+)
+def test_choice_inner_compositions(transforms):
+    """Check that the inner composition is selected without errors."""
+    image = np.empty([10, 10, 3], dtype=np.uint8)
+    transforms(image=image)
