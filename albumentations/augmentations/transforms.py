@@ -759,16 +759,16 @@ class CoarseDropout(DualTransform):
 
     def __init__(
         self,
-        max_holes=8,
-        max_height=8,
-        max_width=8,
+        max_holes: int = 8,
+        max_height: int = 8,
+        max_width: int = 8,
         min_holes=None,
         min_height=None,
         min_width=None,
-        fill_value=0,
-        mask_fill_value=None,
-        always_apply=False,
-        p=0.5,
+        fill_value: int = 0,
+        mask_fill_value: Optional[int] = None,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(CoarseDropout, self).__init__(always_apply, p)
         self.max_holes = max_holes
