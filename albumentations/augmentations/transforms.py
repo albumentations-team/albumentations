@@ -6,7 +6,7 @@ import random
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union, List
 
 import cv2
 import numpy as np
@@ -550,19 +550,21 @@ class RandomGridShuffle(DualTransform):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
-    def apply(self, img, tiles=None, **params):
+    def apply(self, img: np.ndarray, tiles: np.ndarray = None, **params):
         if tiles is None:
             tiles = []
 
         return F.swap_tiles_on_image(img, tiles)
 
-    def apply_to_mask(self, img, tiles=None, **params):
+    def apply_to_mask(self, img: np.ndarray, tiles: np.ndarray = None, **params):
         if tiles is None:
             tiles = []
 
         return F.swap_tiles_on_image(img, tiles)
 
-    def apply_to_keypoint(self, keypoint, tiles=None, rows=0, cols=0, **params):
+    def apply_to_keypoint(
+        self, keypoint: Tuple[float, ...], tiles: np.ndarray = None, rows: int = 0, cols: int = 0, **params
+    ):
         if tiles is None:
             return keypoint
 
@@ -885,12 +887,14 @@ class CoarseDropout(DualTransform):
     def targets_as_params(self):
         return ["image"]
 
-    def _keypoint_in_hole(self, keypoint: Tuple, hole: Tuple) -> bool:
+    def _keypoint_in_hole(self, keypoint: Tuple[float, ...], hole: Tuple[int, int, int, int]) -> bool:
         x1, y1, x2, y2 = hole
         x, y = keypoint[:2]
         return x1 <= x < x2 and y1 <= y < y2
 
-    def apply_to_keypoints(self, keypoints, holes=(), **params):
+    def apply_to_keypoints(
+        self, keypoints: List[Tuple[float, ...]], holes: List[Tuple[int, int, int, int]] = (), **params
+    ):
         for hole in holes:
             remaining_keypoints = []
             for kp in keypoints:

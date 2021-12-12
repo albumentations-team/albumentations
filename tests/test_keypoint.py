@@ -144,7 +144,7 @@ def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_forma
 )
 def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, labels):
     image = np.ones((100, 100, 3))
-    aug = Compose([NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": list(labels.keys())})
+    aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": list(labels.keys())})
     transformed = aug(image=image, keypoints=keypoints, **labels)
     assert np.array_equal(transformed["image"], image)
     assert transformed["keypoints"] == keypoints
@@ -273,7 +273,7 @@ def test_compose_with_additional_targets():
     image = np.ones((100, 100, 3))
     keypoints = [(10, 10), (50, 50)]
     kp1 = [(15, 15), (55, 55)]
-    aug = Compose([CenterCrop(50, 50)], keypoint_params={"format": "xy"}, additional_targets={"kp1": "keypoints"})
+    aug = A.Compose([A.CenterCrop(50, 50)], keypoint_params={"format": "xy"}, additional_targets={"kp1": "keypoints"})
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
     assert transformed["keypoints"] == [(25, 25)]
     assert transformed["kp1"] == [(30, 30)]
