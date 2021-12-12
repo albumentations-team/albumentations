@@ -6,7 +6,7 @@ import random
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
-from typing import Optional, Sequence, Tuple, Union, List
+from typing import Optional, Sequence, Tuple, Union, List, Iterable
 
 import cv2
 import numpy as np
@@ -893,7 +893,7 @@ class CoarseDropout(DualTransform):
         return x1 <= x < x2 and y1 <= y < y2
 
     def apply_to_keypoints(
-        self, keypoints: List[Tuple[float, ...]], holes: List[Tuple[int, int, int, int]] = (), **params
+        self, keypoints: List[Tuple[float, ...]], holes: Iterable[Tuple] = (), **params
     ):
         for hole in holes:
             remaining_keypoints = []
