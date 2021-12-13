@@ -824,7 +824,7 @@ class PiecewiseAffine(DualTransform):
         nb_cells = nb_cols * nb_rows
         scale = random.uniform(*self.scale)
 
-        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
+        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))  # type: ignore
         if not np.any(jitter > 0):
             return {"matrix": None}
 
