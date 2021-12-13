@@ -546,21 +546,19 @@ class RandomGridShuffle(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, grid=(3, 3), always_apply=False, p=0.5):
+    def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: bool = False, p: float = 0.5):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
     def apply(self, img: np.ndarray, tiles: np.ndarray = None, **params):
-        if tiles is None:
-            tiles = []
-
-        return F.swap_tiles_on_image(img, tiles)
+        if tiles is not None:
+            img = F.swap_tiles_on_image(img, tiles)
+        return img
 
     def apply_to_mask(self, img: np.ndarray, tiles: np.ndarray = None, **params):
-        if tiles is None:
-            tiles = []
-
-        return F.swap_tiles_on_image(img, tiles)
+        if tiles is not None:
+            img = F.swap_tiles_on_image(img, tiles)
+        return img
 
     def apply_to_keypoint(
         self, keypoint: Tuple[float, ...], tiles: np.ndarray = None, rows: int = 0, cols: int = 0, **params
@@ -892,9 +890,7 @@ class CoarseDropout(DualTransform):
         x, y = keypoint[:2]
         return x1 <= x < x2 and y1 <= y < y2
 
-    def apply_to_keypoints(
-        self, keypoints: List[Tuple[float, ...]], holes: Iterable[Tuple] = (), **params
-    ):
+    def apply_to_keypoints(self, keypoints: List[Tuple[float, ...]], holes: Iterable[Tuple] = (), **params):
         for hole in holes:
             remaining_keypoints = []
             for kp in keypoints:
