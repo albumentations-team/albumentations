@@ -592,16 +592,24 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=No
 
 @preserve_channel_dim
 def pad_with_params(
-    img,
-    h_pad_top,
-    h_pad_bottom,
-    w_pad_left,
-    w_pad_right,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-):
-    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
-    return img
+    img: np.ndarray,
+    h_pad_top: int,
+    h_pad_bottom: int,
+    w_pad_left: int,
+    w_pad_right: int,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[int] = None,
+) -> np.ndarray:
+    pad_fn = _maybe_process_in_chunks(
+        cv2.copyMakeBorder,
+        top=h_pad_top,
+        bottom=h_pad_bottom,
+        left=w_pad_left,
+        right=w_pad_right,
+        borderType=border_mode,
+        value=value,
+    )
+    return pad_fn(img)
 
 
 @preserve_shape
