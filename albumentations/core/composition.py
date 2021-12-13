@@ -326,7 +326,7 @@ class SomeOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            idx = random_utils.choice(
+            idx = random_utils.choice(  # type: ignore
                 len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps  # type: ignore
             )
             for i in idx:  # type: ignore
