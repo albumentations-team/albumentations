@@ -3,6 +3,7 @@ from __future__ import absolute_import, division
 import math
 import numbers
 import random
+import typing
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
@@ -894,7 +895,7 @@ class CoarseDropout(DualTransform):
         for hole in holes:
             remaining_keypoints = []
             for kp in keypoints:
-                if not self._keypoint_in_hole(kp, hole):
+                if not self._keypoint_in_hole(kp, typing.cast(Tuple[int, int, int, int], hole)):
                     remaining_keypoints.append(kp)
             keypoints = remaining_keypoints
         return keypoints
