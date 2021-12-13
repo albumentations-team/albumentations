@@ -2738,7 +2738,7 @@ class GlassBlur(Blur):
         width_pixels = img.shape[0] - self.max_delta * 2
         height_pixels = img.shape[1] - self.max_delta * 2
         total_pixels = width_pixels * height_pixels
-        dxy = random_utils.randrange(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+        dxy = random_utils.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
 
         return {"dxy": dxy}
 
