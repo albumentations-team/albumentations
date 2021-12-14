@@ -26,6 +26,7 @@ body:
       required: true
   - type: checkboxes
     attributes:
+      label: Confirmation
       options:
       - label: "I hereby confirm that I have permission from the company specified above to use its name, link to a website, and logo to mention it as a user of Albumentations."
         required: true
