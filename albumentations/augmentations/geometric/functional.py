@@ -461,7 +461,8 @@ def keypoint_affine(
 
     x, y, a, s = keypoint[:4]
     x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
-    a += rotation2DMatrixToEulerAngles(matrix.params[:2])
+    # OpenCV and skimage work differently with angle, so we need change the sign of angle
+    a -= rotation2DMatrixToEulerAngles(matrix.params[:2])
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
 

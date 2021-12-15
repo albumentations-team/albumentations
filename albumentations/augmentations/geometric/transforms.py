@@ -639,9 +639,11 @@ class Affine(DualTransform):
         else:
             translate = {"x": 0, "y": 0}
 
-        shear = {key: random.uniform(*value) for key, value in self.shear.items()}
+        # OpenCV and skimage work differently with angle, so we need change the sign of angle
+        shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
         rotate = random.uniform(*self.rotate)
+        rotate = -rotate  # OpenCV and skimage work differently with angle, so we need change the sign of angle
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
         # we get an ugly black border for 90deg rotations
