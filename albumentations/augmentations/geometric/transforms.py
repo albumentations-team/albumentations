@@ -639,6 +639,7 @@ class Affine(DualTransform):
         else:
             translate = {"x": 0, "y": 0}
 
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
         # OpenCV and skimage work differently with angle, so we need change the sign of angle
         shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}

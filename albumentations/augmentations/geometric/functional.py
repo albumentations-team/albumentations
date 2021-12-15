@@ -461,6 +461,7 @@ def keypoint_affine(
 
     x, y, a, s = keypoint[:4]
     x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
+    # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
     # OpenCV and skimage work differently with angle, so we need change the sign of angle
     a -= rotation2DMatrixToEulerAngles(matrix.params[:2])
     s *= np.max([scale["x"], scale["y"]])
