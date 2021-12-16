@@ -7,7 +7,7 @@ import typing
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union, List, Iterable
 
 import cv2
 import numpy as np
@@ -542,27 +542,51 @@ class RandomGridShuffle(DualTransform):
         grid ((int, int)): size of grid for splitting image.
 
     Targets:
-        image, mask
+        image, mask, keypoints
 
     Image types:
         uint8, float32
     """
 
-    def __init__(self, grid=(3, 3), always_apply=False, p=0.5):
+    def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: bool = False, p: float = 0.5):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
-    def apply(self, img, tiles=None, **params):
+    def apply(self, img: np.ndarray, tiles: np.ndarray = None, **params):
+        if tiles is not None:
+            img = F.swap_tiles_on_image(img, tiles)
+        return img
+
+    def apply_to_mask(self, img: np.ndarray, tiles: np.ndarray = None, **params):
+        if tiles is not None:
+            img = F.swap_tiles_on_image(img, tiles)
+        return img
+
+    def apply_to_keypoint(
+        self, keypoint: Tuple[float, ...], tiles: np.ndarray = None, rows: int = 0, cols: int = 0, **params
+    ):
         if tiles is None:
-            tiles = []
+            return keypoint
 
-        return F.swap_tiles_on_image(img, tiles)
+        for (
+            current_left_up_corner_row,
+            current_left_up_corner_col,
+            old_left_up_corner_row,
+            old_left_up_corner_col,
+            height_tile,
+            width_tile,
+        ) in tiles:
+            x, y = keypoint[:2]
 
-    def apply_to_mask(self, img, tiles=None, **params):
-        if tiles is None:
-            tiles = []
+            if (old_left_up_corner_row <= y < (old_left_up_corner_row + height_tile)) and (
+                old_left_up_corner_col <= x < (old_left_up_corner_col + width_tile)
+            ):
+                x = x - old_left_up_corner_col + current_left_up_corner_col
+                y = y - old_left_up_corner_row + current_left_up_corner_row
+                keypoint = (x, y) + tuple(keypoint[2:])
+                break
 
-        return F.swap_tiles_on_image(img, tiles)
+        return keypoint
 
     def get_params_dependent_on_targets(self, params):
         height, width = params["image"].shape[:2]
@@ -748,7 +772,7 @@ class CoarseDropout(DualTransform):
             in mask. If `None` - mask is not affected. Default: `None`.
 
     Targets:
-        image, mask
+        image, mask, keypoints
 
     Image types:
         uint8, float32
@@ -761,16 +785,16 @@ class CoarseDropout(DualTransform):
 
     def __init__(
         self,
-        max_holes=8,
-        max_height=8,
-        max_width=8,
+        max_holes: int = 8,
+        max_height: int = 8,
+        max_width: int = 8,
         min_holes=None,
         min_height=None,
         min_width=None,
-        fill_value=0,
-        mask_fill_value=None,
-        always_apply=False,
-        p=0.5,
+        fill_value: int = 0,
+        mask_fill_value: Optional[int] = None,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(CoarseDropout, self).__init__(always_apply, p)
         self.max_holes = max_holes
@@ -862,6 +886,20 @@ class CoarseDropout(DualTransform):
     @property
     def targets_as_params(self):
         return ["image"]
+
+    def _keypoint_in_hole(self, keypoint: Tuple[float, ...], hole: Tuple[int, int, int, int]) -> bool:
+        x1, y1, x2, y2 = hole
+        x, y = keypoint[:2]
+        return x1 <= x < x2 and y1 <= y < y2
+
+    def apply_to_keypoints(self, keypoints: List[Tuple[float, ...]], holes: Iterable[Tuple] = (), **params):
+        for hole in holes:
+            remaining_keypoints = []
+            for kp in keypoints:
+                if not self._keypoint_in_hole(kp, typing.cast(Tuple[int, int, int, int], hole)):
+                    remaining_keypoints.append(kp)
+            keypoints = remaining_keypoints
+        return keypoints
 
     def get_transform_init_args_names(self):
         return (
