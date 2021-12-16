@@ -1,4 +1,7 @@
 import random
+from typing import Tuple, Iterable
+
+import numpy as np
 
 from . import functional as F
 from ...core.transforms_interface import DualTransform
@@ -70,10 +73,12 @@ class GridDropout(DualTransform):
         if not 0 < self.ratio <= 1:
             raise ValueError("ratio must be between 0 and 1.")
 
-    def apply(self, image, holes=(), **params):
+    def apply(self, image: np.ndarray, holes=(), **params) -> np.ndarray:
         return F.cutout(image, holes, self.fill_value)
 
-    def apply_to_mask(self, image, holes=(), **params):
+    def apply_to_mask(
+        self, image: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params
+    ) -> np.ndarray:
         if self.mask_fill_value is None:
             return image
 

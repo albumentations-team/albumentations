@@ -1,4 +1,5 @@
 import random
+from typing import Union, Tuple, Any, Mapping
 
 import cv2
 import numpy as np
@@ -35,11 +36,11 @@ class MaskDropout(DualTransform):
 
     def __init__(
         self,
-        max_objects=1,
-        image_fill_value=0,
-        mask_fill_value=0,
-        always_apply=False,
-        p=0.5,
+        max_objects: int = 1,
+        image_fill_value: Union[int, float, str] = 0,
+        mask_fill_value: Union[int, float] = 0,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(MaskDropout, self).__init__(always_apply, p)
         self.max_objects = to_tuple(max_objects, 1)
@@ -50,7 +51,7 @@ class MaskDropout(DualTransform):
     def targets_as_params(self):
         return ["mask"]
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params) -> Mapping[str, Any]:
         mask = params["mask"]
 
         label_image, num_labels = label(mask, return_num=True)
@@ -72,7 +73,7 @@ class MaskDropout(DualTransform):
         params.update({"dropout_mask": dropout_mask})
         return params
 
-    def apply(self, img, dropout_mask=None, **params):
+    def apply(self, img: np.ndarray, dropout_mask: np.ndarray = None, **params) -> np.ndarray:
         if dropout_mask is None:
             return img
 
@@ -87,7 +88,7 @@ class MaskDropout(DualTransform):
 
         return img
 
-    def apply_to_mask(self, img, dropout_mask=None, **params):
+    def apply_to_mask(self, img: np.ndarray, dropout_mask: np.ndarray = None, **params) -> np.ndarray:
         if dropout_mask is None:
             return img
 
@@ -95,5 +96,5 @@ class MaskDropout(DualTransform):
         img[dropout_mask] = self.mask_fill_value
         return img
 
-    def get_transform_init_args_names(self):
-        return ("max_objects", "image_fill_value", "mask_fill_value")
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return "max_objects", "image_fill_value", "mask_fill_value"

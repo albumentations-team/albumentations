@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Iterable
 
 import numpy as np
 from ..functional import preserve_shape
@@ -18,7 +18,9 @@ def channel_dropout(
     return img
 
 
-def cutout(img: np.ndarray, holes: List[Tuple[int, int, int, int]], fill_value: Union[int, float] = 0) -> np.ndarray:
+def cutout(
+    img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], fill_value: Union[int, float] = 0
+) -> np.ndarray:
     # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
     for x1, y1, x2, y2 in holes:

@@ -1,4 +1,7 @@
 import random
+from typing import Union, Tuple, Any, Mapping
+
+import numpy as np
 
 from albumentations.core.transforms_interface import (
     ImageOnlyTransform,
@@ -23,7 +26,13 @@ class ChannelDropout(ImageOnlyTransform):
         uint8, uint16, unit32, float32
     """
 
-    def __init__(self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5):
+    def __init__(
+        self,
+        channel_drop_range: Tuple[int, int] = (1, 1),
+        fill_value: Union[int, float] = 0,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
         super(ChannelDropout, self).__init__(always_apply, p)
 
         self.channel_drop_range = channel_drop_range
@@ -36,10 +45,10 @@ class ChannelDropout(ImageOnlyTransform):
 
         self.fill_value = fill_value
 
-    def apply(self, img, channels_to_drop=(0,), **params):
+    def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params):
         return channel_dropout(img, channels_to_drop, self.fill_value)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params: Mapping[str, Any]):
         img = params["image"]
 
         num_channels = img.shape[-1]
@@ -56,8 +65,8 @@ class ChannelDropout(ImageOnlyTransform):
 
         return {"channels_to_drop": channels_to_drop}
 
-    def get_transform_init_args_names(self):
-        return ("channel_drop_range", "fill_value")
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return "channel_drop_range", "fill_value"
 
     @property
     def targets_as_params(self):

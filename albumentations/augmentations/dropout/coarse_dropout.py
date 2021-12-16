@@ -1,6 +1,9 @@
 import random
 import typing
-from typing import Optional, List, Tuple, Iterable
+from typing import Optional, List, Tuple, Iterable, Union
+
+import numpy as np
+
 from ...core.transforms_interface import DualTransform
 from .functional import cutout
 
@@ -47,9 +50,9 @@ class CoarseDropout(DualTransform):
         max_holes: int = 8,
         max_height: int = 8,
         max_width: int = 8,
-        min_holes=None,
-        min_height=None,
-        min_width=None,
+        min_holes: Optional[int] = None,
+        min_height: Optional[int] = None,
+        min_width: Optional[int] = None,
         fill_value: int = 0,
         mask_fill_value: Optional[int] = None,
         always_apply: bool = False,
@@ -85,10 +88,22 @@ class CoarseDropout(DualTransform):
                 "Invalid value {}. If using floats, the value should be in the range [0.0, 1.0)".format(dimension)
             )
 
-    def apply(self, image, fill_value=0, holes=(), **params):
+    def apply(
+        self,
+        image: np.ndarray,
+        fill_value: Union[int, float] = 0,
+        holes: Iterable[Tuple[int, int, int, int]] = (),
+        **params
+    ) -> np.ndarray:
         return cutout(image, holes, fill_value)
 
-    def apply_to_mask(self, image, mask_fill_value=0, holes=(), **params):
+    def apply_to_mask(
+        self,
+        image: np.ndarray,
+        mask_fill_value: Union[int, float] = 0,
+        holes: Iterable[Tuple[int, int, int, int]] = (),
+        **params
+    ) -> np.ndarray:
         if mask_fill_value is None:
             return image
         return cutout(image, holes, mask_fill_value)
