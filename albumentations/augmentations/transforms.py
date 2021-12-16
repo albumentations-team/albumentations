@@ -3,17 +3,17 @@ from __future__ import absolute_import, division
 import math
 import numbers
 import random
-import typing
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
-from typing import Optional, Sequence, Tuple, Union, List, Iterable
+from typing import Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
 from scipy import special
-from skimage.measure import label
 
+from . import functional as F
+from .bbox_utils import denormalize_bbox, normalize_bbox
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
@@ -21,8 +21,6 @@ from ..core.transforms_interface import (
     to_tuple,
 )
 from ..core.utils import format_args
-from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
     "Blur",
@@ -52,8 +50,6 @@ __all__ = [
     "ToSepia",
     "JpegCompression",
     "ImageCompression",
-    "Cutout",
-    "CoarseDropout",
     "ToFloat",
     "FromFloat",
     "RandomBrightnessContrast",
@@ -64,7 +60,6 @@ __all__ = [
     "RandomShadow",
     "RandomToneCurve",
     "Lambda",
-    "ChannelDropout",
     "ISONoise",
     "Solarize",
     "Equalize",
@@ -72,8 +67,6 @@ __all__ = [
     "Downscale",
     "MultiplicativeNoise",
     "FancyPCA",
-    "MaskDropout",
-    "GridDropout",
     "ColorJitter",
     "Sharpen",
     "Emboss",
@@ -680,239 +673,6 @@ class Normalize(ImageOnlyTransform):
         return ("mean", "std", "max_pixel_value")
 
 
-class Cutout(ImageOnlyTransform):
-    """CoarseDropout of the square regions in the image.
-
-    Args:
-        num_holes (int): number of regions to zero out
-        max_h_size (int): maximum height of the hole
-        max_w_size (int): maximum width of the hole
-        fill_value (int, float, list of int, list of float): value for dropped pixels.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-
-    Reference:
-    |  https://arxiv.org/abs/1708.04552
-    |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
-    |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
-    """
-
-    def __init__(
-        self,
-        num_holes=8,
-        max_h_size=8,
-        max_w_size=8,
-        fill_value=0,
-        always_apply=False,
-        p=0.5,
-    ):
-        super(Cutout, self).__init__(always_apply, p)
-        self.num_holes = num_holes
-        self.max_h_size = max_h_size
-        self.max_w_size = max_w_size
-        self.fill_value = fill_value
-        warnings.warn(
-            "This class has been deprecated. Please use CoarseDropout",
-            FutureWarning,
-        )
-
-    def apply(self, image, fill_value=0, holes=(), **params):
-        return F.cutout(image, holes, fill_value)
-
-    def get_params_dependent_on_targets(self, params):
-        img = params["image"]
-        height, width = img.shape[:2]
-
-        holes = []
-        for _n in range(self.num_holes):
-            y = random.randint(0, height)
-            x = random.randint(0, width)
-
-            y1 = np.clip(y - self.max_h_size // 2, 0, height)
-            y2 = np.clip(y1 + self.max_h_size, 0, height)
-            x1 = np.clip(x - self.max_w_size // 2, 0, width)
-            x2 = np.clip(x1 + self.max_w_size, 0, width)
-            holes.append((x1, y1, x2, y2))
-
-        return {"holes": holes}
-
-    @property
-    def targets_as_params(self):
-        return ["image"]
-
-    def get_transform_init_args_names(self):
-        return ("num_holes", "max_h_size", "max_w_size")
-
-
-class CoarseDropout(DualTransform):
-    """CoarseDropout of the rectangular regions in the image.
-
-    Args:
-        max_holes (int): Maximum number of regions to zero out.
-        max_height (int, float): Maximum height of the hole.
-        If float, it is calculated as a fraction of the image height.
-        max_width (int, float): Maximum width of the hole.
-        If float, it is calculated as a fraction of the image width.
-        min_holes (int): Minimum number of regions to zero out. If `None`,
-            `min_holes` is be set to `max_holes`. Default: `None`.
-        min_height (int, float): Minimum height of the hole. Default: None. If `None`,
-            `min_height` is set to `max_height`. Default: `None`.
-            If float, it is calculated as a fraction of the image height.
-        min_width (int, float): Minimum width of the hole. If `None`, `min_height` is
-            set to `max_width`. Default: `None`.
-            If float, it is calculated as a fraction of the image width.
-
-        fill_value (int, float, list of int, list of float): value for dropped pixels.
-        mask_fill_value (int, float, list of int, list of float): fill value for dropped pixels
-            in mask. If `None` - mask is not affected. Default: `None`.
-
-    Targets:
-        image, mask, keypoints
-
-    Image types:
-        uint8, float32
-
-    Reference:
-    |  https://arxiv.org/abs/1708.04552
-    |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
-    |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
-    """
-
-    def __init__(
-        self,
-        max_holes: int = 8,
-        max_height: int = 8,
-        max_width: int = 8,
-        min_holes=None,
-        min_height=None,
-        min_width=None,
-        fill_value: int = 0,
-        mask_fill_value: Optional[int] = None,
-        always_apply: bool = False,
-        p: float = 0.5,
-    ):
-        super(CoarseDropout, self).__init__(always_apply, p)
-        self.max_holes = max_holes
-        self.max_height = max_height
-        self.max_width = max_width
-        self.min_holes = min_holes if min_holes is not None else max_holes
-        self.min_height = min_height if min_height is not None else max_height
-        self.min_width = min_width if min_width is not None else max_width
-        self.fill_value = fill_value
-        self.mask_fill_value = mask_fill_value
-        if not 0 < self.min_holes <= self.max_holes:
-            raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
-
-        self.check_range(self.max_height)
-        self.check_range(self.min_height)
-        self.check_range(self.max_width)
-        self.check_range(self.min_width)
-
-        if not 0 < self.min_height <= self.max_height:
-            raise ValueError(
-                "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
-            )
-        if not 0 < self.min_width <= self.max_width:
-            raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
-
-    def check_range(self, dimension):
-        if isinstance(dimension, float) and not 0 <= dimension < 1.0:
-            raise ValueError(
-                "Invalid value {}. If using floats, the value should be in the range [0.0, 1.0)".format(dimension)
-            )
-
-    def apply(self, image, fill_value=0, holes=(), **params):
-        return F.cutout(image, holes, fill_value)
-
-    def apply_to_mask(self, image, mask_fill_value=0, holes=(), **params):
-        if mask_fill_value is None:
-            return image
-        return F.cutout(image, holes, mask_fill_value)
-
-    def get_params_dependent_on_targets(self, params):
-        img = params["image"]
-        height, width = img.shape[:2]
-
-        holes = []
-        for _n in range(random.randint(self.min_holes, self.max_holes)):
-            if all(
-                [
-                    isinstance(self.min_height, int),
-                    isinstance(self.min_width, int),
-                    isinstance(self.max_height, int),
-                    isinstance(self.max_width, int),
-                ]
-            ):
-                hole_height = random.randint(self.min_height, self.max_height)
-                hole_width = random.randint(self.min_width, self.max_width)
-            elif all(
-                [
-                    isinstance(self.min_height, float),
-                    isinstance(self.min_width, float),
-                    isinstance(self.max_height, float),
-                    isinstance(self.max_width, float),
-                ]
-            ):
-                hole_height = int(height * random.uniform(self.min_height, self.max_height))
-                hole_width = int(width * random.uniform(self.min_width, self.max_width))
-            else:
-                raise ValueError(
-                    "Min width, max width, \
-                    min height and max height \
-                    should all either be ints or floats. \
-                    Got: {} respectively".format(
-                        [
-                            type(self.min_width),
-                            type(self.max_width),
-                            type(self.min_height),
-                            type(self.max_height),
-                        ]
-                    )
-                )
-
-            y1 = random.randint(0, height - hole_height)
-            x1 = random.randint(0, width - hole_width)
-            y2 = y1 + hole_height
-            x2 = x1 + hole_width
-            holes.append((x1, y1, x2, y2))
-
-        return {"holes": holes}
-
-    @property
-    def targets_as_params(self):
-        return ["image"]
-
-    def _keypoint_in_hole(self, keypoint: Tuple[float, ...], hole: Tuple[int, int, int, int]) -> bool:
-        x1, y1, x2, y2 = hole
-        x, y = keypoint[:2]
-        return x1 <= x < x2 and y1 <= y < y2
-
-    def apply_to_keypoints(self, keypoints: List[Tuple[float, ...]], holes: Iterable[Tuple] = (), **params):
-        for hole in holes:
-            remaining_keypoints = []
-            for kp in keypoints:
-                if not self._keypoint_in_hole(kp, typing.cast(Tuple[int, int, int, int], hole)):
-                    remaining_keypoints.append(kp)
-            keypoints = remaining_keypoints
-        return keypoints
-
-    def get_transform_init_args_names(self):
-        return (
-            "max_holes",
-            "max_height",
-            "max_width",
-            "min_holes",
-            "min_height",
-            "min_width",
-            "fill_value",
-            "mask_fill_value",
-        )
-
-
 class ImageCompression(ImageOnlyTransform):
     """Decrease Jpeg, WebP compression of an image.
 
@@ -1006,7 +766,7 @@ class JpegCompression(ImageCompression):
             p=p,
         )
         warnings.warn(
-            "This class has been deprecated. Please use ImageCompression",
+            f"{self.__class__.__name__} has been deprecated. Please use ImageCompression",
             FutureWarning,
         )
 
@@ -1867,7 +1627,7 @@ class RandomContrast(RandomBrightnessContrast):
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
         super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
         warnings.warn(
-            "This class has been deprecated. Please use RandomBrightnessContrast",
+            f"{self.__class__.__name__} has been deprecated. Please use RandomBrightnessContrast",
             FutureWarning,
         )
 
@@ -2150,62 +1910,6 @@ class CLAHE(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ("clip_limit", "tile_grid_size")
-
-
-class ChannelDropout(ImageOnlyTransform):
-    """Randomly Drop Channels in the input Image.
-
-    Args:
-        channel_drop_range (int, int): range from which we choose the number of channels to drop.
-        fill_value (int, float): pixel value for the dropped channel.
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, uint16, unit32, float32
-    """
-
-    def __init__(self, channel_drop_range=(1, 1), fill_value=0, always_apply=False, p=0.5):
-        super(ChannelDropout, self).__init__(always_apply, p)
-
-        self.channel_drop_range = channel_drop_range
-
-        self.min_channels = channel_drop_range[0]
-        self.max_channels = channel_drop_range[1]
-
-        if not 1 <= self.min_channels <= self.max_channels:
-            raise ValueError("Invalid channel_drop_range. Got: {}".format(channel_drop_range))
-
-        self.fill_value = fill_value
-
-    def apply(self, img, channels_to_drop=(0,), **params):
-        return F.channel_dropout(img, channels_to_drop, self.fill_value)
-
-    def get_params_dependent_on_targets(self, params):
-        img = params["image"]
-
-        num_channels = img.shape[-1]
-
-        if len(img.shape) == 2 or num_channels == 1:
-            raise NotImplementedError("Images has one channel. ChannelDropout is not defined.")
-
-        if self.max_channels >= num_channels:
-            raise ValueError("Can not drop all channels in ChannelDropout.")
-
-        num_drop_channels = random.randint(self.min_channels, self.max_channels)
-
-        channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
-
-        return {"channels_to_drop": channels_to_drop}
-
-    def get_transform_init_args_names(self):
-        return ("channel_drop_range", "fill_value")
-
-    @property
-    def targets_as_params(self):
-        return ["image"]
 
 
 class ChannelShuffle(ImageOnlyTransform):
@@ -2637,95 +2341,6 @@ class FancyPCA(ImageOnlyTransform):
         return ("alpha",)
 
 
-class MaskDropout(DualTransform):
-    """
-    Image & mask augmentation that zero out mask and image regions corresponding
-    to randomly chosen object instance from mask.
-
-    Mask must be single-channel image, zero values treated as background.
-    Image can be any number of channels.
-
-    Inspired by https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
-
-    Args:
-        max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
-        image_fill_value: Fill value to use when filling image.
-            Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
-        mask_fill_value: Fill value to use when filling mask.
-
-    Targets:
-        image, mask
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(
-        self,
-        max_objects=1,
-        image_fill_value=0,
-        mask_fill_value=0,
-        always_apply=False,
-        p=0.5,
-    ):
-        super(MaskDropout, self).__init__(always_apply, p)
-        self.max_objects = to_tuple(max_objects, 1)
-        self.image_fill_value = image_fill_value
-        self.mask_fill_value = mask_fill_value
-
-    @property
-    def targets_as_params(self):
-        return ["mask"]
-
-    def get_params_dependent_on_targets(self, params):
-        mask = params["mask"]
-
-        label_image, num_labels = label(mask, return_num=True)
-
-        if num_labels == 0:
-            dropout_mask = None
-        else:
-            objects_to_drop = random.randint(self.max_objects[0], self.max_objects[1])
-            objects_to_drop = min(num_labels, objects_to_drop)
-
-            if objects_to_drop == num_labels:
-                dropout_mask = mask > 0
-            else:
-                labels_index = random.sample(range(1, num_labels + 1), objects_to_drop)
-                dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=np.bool)
-                for label_index in labels_index:
-                    dropout_mask |= label_image == label_index
-
-        params.update({"dropout_mask": dropout_mask})
-        return params
-
-    def apply(self, img, dropout_mask=None, **params):
-        if dropout_mask is None:
-            return img
-
-        if self.image_fill_value == "inpaint":
-            dropout_mask = dropout_mask.astype(np.uint8)
-            _, _, w, h = cv2.boundingRect(dropout_mask)
-            radius = min(3, max(w, h) // 2)
-            img = cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
-        else:
-            img = img.copy()
-            img[dropout_mask] = self.image_fill_value
-
-        return img
-
-    def apply_to_mask(self, img, dropout_mask=None, **params):
-        if dropout_mask is None:
-            return img
-
-        img = img.copy()
-        img[dropout_mask] = self.mask_fill_value
-        return img
-
-    def get_transform_init_args_names(self):
-        return ("max_objects", "image_fill_value", "mask_fill_value")
-
-
 class GlassBlur(Blur):
     """Apply glass noise to the input image.
 
@@ -2789,151 +2404,6 @@ class GlassBlur(Blur):
     @property
     def targets_as_params(self):
         return ["image"]
-
-
-class GridDropout(DualTransform):
-    """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
-
-    Args:
-        ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
-            Must be between 0 and 1. Default: 0.5.
-        unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
-            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
-            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-        holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
-            If 'None', grid unit width is set as image_width//10. Default: `None`.
-        holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
-            If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
-        shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
-            Clipped between 0 and grid unit_width - hole_width. Default: 0.
-        shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
-            Clipped between 0 and grid unit height - hole_height. Default: 0.
-        random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
-            If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
-        fill_value (int): value for the dropped pixels. Default = 0
-        mask_fill_value (int): value for the dropped pixels in mask.
-            If `None`, transformation is not applied to the mask. Default: `None`.
-
-    Targets:
-        image, mask
-
-    Image types:
-        uint8, float32
-
-    References:
-        https://arxiv.org/abs/2001.04086
-
-    """
-
-    def __init__(
-        self,
-        ratio: float = 0.5,
-        unit_size_min: int = None,
-        unit_size_max: int = None,
-        holes_number_x: int = None,
-        holes_number_y: int = None,
-        shift_x: int = 0,
-        shift_y: int = 0,
-        random_offset: bool = False,
-        fill_value: int = 0,
-        mask_fill_value: int = None,
-        always_apply: bool = False,
-        p: float = 0.5,
-    ):
-        super(GridDropout, self).__init__(always_apply, p)
-        self.ratio = ratio
-        self.unit_size_min = unit_size_min
-        self.unit_size_max = unit_size_max
-        self.holes_number_x = holes_number_x
-        self.holes_number_y = holes_number_y
-        self.shift_x = shift_x
-        self.shift_y = shift_y
-        self.random_offset = random_offset
-        self.fill_value = fill_value
-        self.mask_fill_value = mask_fill_value
-        if not 0 < self.ratio <= 1:
-            raise ValueError("ratio must be between 0 and 1.")
-
-    def apply(self, image, holes=(), **params):
-        return F.cutout(image, holes, self.fill_value)
-
-    def apply_to_mask(self, image, holes=(), **params):
-        if self.mask_fill_value is None:
-            return image
-
-        return F.cutout(image, holes, self.mask_fill_value)
-
-    def get_params_dependent_on_targets(self, params):
-        img = params["image"]
-        height, width = img.shape[:2]
-        # set grid using unit size limits
-        if self.unit_size_min and self.unit_size_max:
-            if not 2 <= self.unit_size_min <= self.unit_size_max:
-                raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
-            if self.unit_size_max > min(height, width):
-                raise ValueError("Grid size limits must be within the shortest image edge.")
-            unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
-            unit_height = unit_width
-        else:
-            # set grid using holes numbers
-            if self.holes_number_x is None:
-                unit_width = max(2, width // 10)
-            else:
-                if not 1 <= self.holes_number_x <= width // 2:
-                    raise ValueError("The hole_number_x must be between 1 and image width//2.")
-                unit_width = width // self.holes_number_x
-            if self.holes_number_y is None:
-                unit_height = max(min(unit_width, height), 2)
-            else:
-                if not 1 <= self.holes_number_y <= height // 2:
-                    raise ValueError("The hole_number_y must be between 1 and image height//2.")
-                unit_height = height // self.holes_number_y
-
-        hole_width = int(unit_width * self.ratio)
-        hole_height = int(unit_height * self.ratio)
-        # min 1 pixel and max unit length - 1
-        hole_width = min(max(hole_width, 1), unit_width - 1)
-        hole_height = min(max(hole_height, 1), unit_height - 1)
-        # set offset of the grid
-        if self.shift_x is None:
-            shift_x = 0
-        else:
-            shift_x = min(max(0, self.shift_x), unit_width - hole_width)
-        if self.shift_y is None:
-            shift_y = 0
-        else:
-            shift_y = min(max(0, self.shift_y), unit_height - hole_height)
-        if self.random_offset:
-            shift_x = random.randint(0, unit_width - hole_width)
-            shift_y = random.randint(0, unit_height - hole_height)
-        holes = []
-        for i in range(width // unit_width + 1):
-            for j in range(height // unit_height + 1):
-                x1 = min(shift_x + unit_width * i, width)
-                y1 = min(shift_y + unit_height * j, height)
-                x2 = min(x1 + hole_width, width)
-                y2 = min(y1 + hole_height, height)
-                holes.append((x1, y1, x2, y2))
-
-        return {"holes": holes}
-
-    @property
-    def targets_as_params(self):
-        return ["image"]
-
-    def get_transform_init_args_names(self):
-        return (
-            "ratio",
-            "unit_size_min",
-            "unit_size_max",
-            "holes_number_x",
-            "holes_number_y",
-            "shift_x",
-            "shift_y",
-            "mask_fill_value",
-            "random_offset",
-        )
 
 
 class ColorJitter(ImageOnlyTransform):

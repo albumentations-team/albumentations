@@ -19,6 +19,19 @@ MAX_VALUES_BY_DTYPE = {
     np.dtype("float32"): 1.0,
 }
 
+NPDTYPE_TO_OPENCV_DTYPE = {
+    np.uint8: cv2.CV_8U,
+    np.uint16: cv2.CV_16U,
+    np.int32: cv2.CV_32S,
+    np.float32: cv2.CV_32F,
+    np.float64: cv2.CV_64F,
+    np.dtype("uint8"): cv2.CV_8U,
+    np.dtype("uint16"): cv2.CV_16U,
+    np.dtype("int32"): cv2.CV_32S,
+    np.dtype("float32"): cv2.CV_32F,
+    np.dtype("float64"): cv2.CV_64F,
+}
+
 
 def angle_2pi_range(func):
     @wraps(func)
@@ -27,6 +40,17 @@ def angle_2pi_range(func):
         return (x, y, angle_to_2pi_range(a), s)
 
     return wrapped_function
+
+
+def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object]) -> int:
+    """
+    Return a corresponding OpenCV dtype for a numpy's dtype
+    :param value: Input dtype of numpy array
+    :return: Corresponding dtype for OpenCV
+    """
+    if isinstance(value, np.ndarray):
+        value = value.dtype
+    return NPDTYPE_TO_OPENCV_DTYPE[value]
 
 
 def clip(img, dtype, maxval):
@@ -141,14 +165,6 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     img = img.astype(np.float32)
     img -= mean
     img *= denominator
-    return img
-
-
-def cutout(img, holes, fill_value=0):
-    # Make a copy of the input image since we don't want to modify it directly
-    img = img.copy()
-    for x1, y1, x2, y2 in holes:
-        img[y1:y2, x1:x2] = fill_value
     return img
 
 
@@ -1121,18 +1137,6 @@ def invert(img):
 
 def channel_shuffle(img, channels_shuffled):
     img = img[..., channels_shuffled]
-    return img
-
-
-@preserve_shape
-def channel_dropout(img, channels_to_drop, fill_value=0):
-    if len(img.shape) == 2 or img.shape[2] == 1:
-        raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
-
-    img = img.copy()
-
-    img[..., channels_to_drop] = fill_value
-
     return img
 
 
