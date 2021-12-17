@@ -1,5 +1,5 @@
 import random
-from typing import Union, Tuple, Any, Mapping, Dict
+from typing import Union, Tuple, Any, Dict
 
 import cv2
 import numpy as np
