@@ -73,14 +73,14 @@ class GridDropout(DualTransform):
         if not 0 < self.ratio <= 1:
             raise ValueError("ratio must be between 0 and 1.")
 
-    def apply(self, image: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params) -> np.ndarray:  # type: ignore[override]
-        return F.cutout(image, holes, self.fill_value)
+    def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params) -> np.ndarray:
+        return F.cutout(img, holes, self.fill_value)
 
-    def apply_to_mask(self, image: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params) -> np.ndarray:  # type: ignore[override]
+    def apply_to_mask(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params) -> np.ndarray:
         if self.mask_fill_value is None:
-            return image
+            return img
 
-        return F.cutout(image, holes, self.mask_fill_value)
+        return F.cutout(img, holes, self.mask_fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]

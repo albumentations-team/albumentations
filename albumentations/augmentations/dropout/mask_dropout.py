@@ -1,5 +1,5 @@
 import random
-from typing import Union, Tuple, Any, Mapping
+from typing import Union, Tuple, Any, Mapping, Dict
 
 import cv2
 import numpy as np
@@ -51,7 +51,7 @@ class MaskDropout(DualTransform):
     def targets_as_params(self):
         return ["mask"]
 
-    def get_params_dependent_on_targets(self, params) -> Mapping[str, Any]:
+    def get_params_dependent_on_targets(self, params) -> Dict[str, Any]:
         mask = params["mask"]
 
         label_image, num_labels = label(mask, return_num=True)
@@ -66,7 +66,7 @@ class MaskDropout(DualTransform):
                 dropout_mask = mask > 0
             else:
                 labels_index = random.sample(range(1, num_labels + 1), objects_to_drop)
-                dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=np.bool)
+                dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=bool)
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index
 

@@ -90,23 +90,23 @@ class CoarseDropout(DualTransform):
 
     def apply(
         self,
-        image: np.ndarray,
+        img: np.ndarray,
         fill_value: Union[int, float] = 0,
         holes: Iterable[Tuple[int, int, int, int]] = (),
         **params
     ) -> np.ndarray:
-        return cutout(image, holes, fill_value)
+        return cutout(img, holes, fill_value)
 
     def apply_to_mask(
         self,
-        image: np.ndarray,
+        img: np.ndarray,
         mask_fill_value: Union[int, float] = 0,
         holes: Iterable[Tuple[int, int, int, int]] = (),
         **params
     ) -> np.ndarray:
         if mask_fill_value is None:
-            return image
-        return cutout(image, holes, mask_fill_value)
+            return img
+        return cutout(img, holes, mask_fill_value)
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]

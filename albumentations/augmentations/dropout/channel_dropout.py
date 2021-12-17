@@ -45,7 +45,7 @@ class ChannelDropout(ImageOnlyTransform):
 
         self.fill_value = fill_value
 
-    def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params):
+    def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params) -> np.ndarray:
         return channel_dropout(img, channels_to_drop, self.fill_value)
 
     def get_params_dependent_on_targets(self, params: Mapping[str, Any]):
