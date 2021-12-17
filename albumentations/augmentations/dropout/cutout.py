@@ -1,6 +1,6 @@
 import random
 import warnings
-from typing import Union, Any, Mapping
+from typing import Union, Any, Mapping, Dict, Tuple
 
 import numpy as np
 from albumentations.core.transforms_interface import (
@@ -52,10 +52,10 @@ class Cutout(ImageOnlyTransform):
             FutureWarning,
         )
 
-    def apply(self, image: np.ndarray, fill_value: Union[int, float] = 0, holes=(), **params):
-        return cutout(image, holes, fill_value)
+    def apply(self, img: np.ndarray, fill_value: Union[int, float] = 0, holes=(), **params):
+        return cutout(img, holes, fill_value)
 
-    def get_params_dependent_on_targets(self, params: Mapping[str, Any]) -> Mapping[str, Any]:
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
 
@@ -76,5 +76,5 @@ class Cutout(ImageOnlyTransform):
     def targets_as_params(self):
         return ["image"]
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("num_holes", "max_h_size", "max_w_size")
