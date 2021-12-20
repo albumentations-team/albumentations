@@ -7,7 +7,7 @@ import typing
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
-from typing import Optional, Sequence, Tuple, Union, List, Iterable
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -3589,7 +3589,7 @@ class PixelDropout(DualTransform):
     ) -> np.ndarray:
         return F.pixel_dropout(img, drop_mask, drop_value)
 
-    def apply_to_mask(self, img: np.ndarray, drop_mask: np.ndarray = None, **params) -> np.ndarray:
+    def apply_to_mask(self, img: np.ndarray, drop_mask: np.ndarray = np.array([]), **params) -> np.ndarray:
         if self.mask_drop_value is None:
             return img
 
@@ -3612,13 +3612,14 @@ class PixelDropout(DualTransform):
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
         drop_mask = rnd.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
+        drop_value: Union[float, Sequence[float], np.ndarray]
         if drop_mask.ndim != img.ndim:
             drop_mask = np.expand_dims(drop_mask, -1)
         if self.drop_value is None:
-            drop_shape = 1 if F.is_grayscale_image(img) else img.shape[-1]
+            drop_shape = 1 if F.is_grayscale_image(img) else int(img.shape[-1])
 
             if img.dtype in (np.uint8, np.uint16, np.uint32):
-                drop_value = rnd.randint(0, F.MAX_VALUES_BY_DTYPE[img.dtype], drop_shape, img.dtype)
+                drop_value = rnd.randint(0, int(F.MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
             elif img.dtype in [np.float32, np.double]:
                 drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
             else:
