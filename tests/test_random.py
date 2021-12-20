@@ -14,12 +14,12 @@ def _calc(args):
 @pytest.mark.parametrize(
     ["func", "args"],
     [
-        [random_utils.uniform, [-(1 << 31), 1 << 31, 100]],
+        [random_utils.uniform, [-(1 << 15), 1 << 15, 100]],
         [random_utils.rand, [10, 10]],
         [random_utils.normal, [0, 1, 100]],
-        [random_utils.poisson, [1 << 31, 100]],
+        [random_utils.poisson, [1 << 15, 100]],
         [random_utils.permutation, [np.arange(1000)]],
-        [random_utils.randint, [-(1 << 31), 1 << 31, 100]],
+        [random_utils.randint, [-(1 << 15), 1 << 15, 100]],
         [random_utils.random, [100]],
         [random_utils.choice, [np.arange(1000), 100]],
     ],
