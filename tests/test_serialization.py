@@ -317,6 +317,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.UnsharpMask, {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15}],
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": True, "drop_value": None}],
+    [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": False, "drop_value": None, "mask_drop_value": 15}],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {

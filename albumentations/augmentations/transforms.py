@@ -3538,7 +3538,7 @@ class AdvancedBlur(ImageOnlyTransform):
         )
 
 
-class PixelDropout(ImageOnlyTransform):
+class PixelDropout(DualTransform):
     """Set pixels to 0 with some probability.
 
     Args:
@@ -3546,15 +3546,18 @@ class PixelDropout(ImageOnlyTransform):
         per_channel (bool): if set to `True` drop mask will be sampled fo each channel,
             otherwise the same mask will be sampled for all channels. Default: False
         drop_value (number or sequence of numbers or None): Value that will be set in dropped place.
-            If set to None value will be sampled randomly, default rangeges will be used:
-                - uint8 - [0-255]
-                - int32 - [INT_MIN, INT_MAX]
+            If set to None value will be sampled randomly, default ranges will be used:
+                - uint8 - [0, 255]
+                - uint16 - [0, 65535]
+                - uint32 - [0, 4294967295]
                 - float, double - [0, 1]
             Default: 0
+        mask_drop_value (number or sequence of numbers or None): Value that will be set in dropped place in masks.
+            If set to None masks will be unchanged. Default: 0
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image
+        image, mask
     Image types:
         any
     """
@@ -3564,6 +3567,7 @@ class PixelDropout(ImageOnlyTransform):
         dropout_prob: float = 0.01,
         per_channel: bool = False,
         drop_value: typing.Optional[typing.Union[float, typing.Sequence[float]]] = 0,
+        mask_drop_value: typing.Optional[typing.Union[float, typing.Sequence[float]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -3571,6 +3575,10 @@ class PixelDropout(ImageOnlyTransform):
         self.dropout_prob = dropout_prob
         self.per_channel = per_channel
         self.drop_value = drop_value
+        self.mask_drop_value = mask_drop_value
+
+        if self.mask_drop_value is not None and self.per_channel:
+            raise ValueError("PixelDropout supports mask only with per_channel=False")
 
     def apply(
         self,
@@ -3580,6 +3588,21 @@ class PixelDropout(ImageOnlyTransform):
         **params
     ) -> np.ndarray:
         return F.pixel_dropout(img, drop_mask, drop_value)
+
+    def apply_to_mask(self, img: np.ndarray, drop_mask: np.ndarray = None, **params) -> np.ndarray:
+        if self.mask_drop_value is None:
+            return img
+
+        if img.ndim == 2:
+            drop_mask = np.squeeze(drop_mask)
+
+        return F.pixel_dropout(img, drop_mask, self.mask_drop_value)
+
+    def apply_to_bbox(self, bbox, **params):
+        return bbox
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return keypoint
 
     def get_params_dependent_on_targets(self, params: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
         img = params["image"]
@@ -3593,11 +3616,9 @@ class PixelDropout(ImageOnlyTransform):
             drop_mask = np.expand_dims(drop_mask, -1)
         if self.drop_value is None:
             drop_shape = 1 if F.is_grayscale_image(img) else img.shape[-1]
-            if img.dtype == np.uint8:
-                drop_value = rnd.randint(0, 255 + 1, drop_shape, np.uint8)
-            elif img.dtype == np.int32:
-                info = np.iinfo(np.int32)
-                drop_value = rnd.randint(info.min, info.max, drop_shape, np.int32)
+
+            if img.dtype in (np.uint8, np.uint16, np.uint32):
+                drop_value = rnd.randint(0, F.MAX_VALUES_BY_DTYPE[img.dtype], drop_shape, img.dtype)
             elif img.dtype in [np.float32, np.double]:
                 drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
             else:
@@ -3611,5 +3632,5 @@ class PixelDropout(ImageOnlyTransform):
     def targets_as_params(self) -> typing.List[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> typing.Tuple[str, str, str]:
-        return ("dropout_prob", "per_channel", "drop_value")
+    def get_transform_init_args_names(self) -> typing.Tuple[str, str, str, str]:
+        return ("dropout_prob", "per_channel", "drop_value", "mask_drop_value")
