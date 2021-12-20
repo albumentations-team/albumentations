@@ -1,12 +1,14 @@
+# Use `Any` as the return type to avoid mypy problems with Union data types,
+# because numpy can return single number and ndarray
+
 import random as py_random
-from typing import Optional, Sequence, TypeVar, Union
+from typing import Optional, Sequence, Union, Type, Any
 
 import numpy as np
 
-NumType = Union[float, np.ndarray]
+NumType = Union[int, float, np.ndarray]
 IntNumType = Union[int, np.ndarray]
 Size = Union[int, Sequence[int]]
-T = TypeVar("T")
 
 
 def get_random_state() -> np.random.RandomState:
@@ -18,16 +20,16 @@ def uniform(
     high: NumType = 1.0,
     size: Optional[Size] = None,
     random_state: Optional[np.random.RandomState] = None,
-) -> NumType:
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.uniform(low, high, size)
 
 
-def rand(d0: NumType, d1: NumType, *more, random_state: Optional[np.random.RandomState] = None, **kwargs) -> NumType:
+def rand(d0: NumType, d1: NumType, *more, random_state: Optional[np.random.RandomState] = None, **kwargs) -> Any:
     if random_state is None:
         random_state = get_random_state()
-    return random_state.randn(d0, d1, *more, **kwargs)
+    return random_state.randn(d0, d1, *more, **kwargs)  # type: ignore
 
 
 def normal(
@@ -35,7 +37,7 @@ def normal(
     scale: NumType = 1.0,
     size: Optional[Size] = None,
     random_state: Optional[np.random.RandomState] = None,
-) -> NumType:
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.normal(loc, scale, size)
@@ -43,7 +45,7 @@ def normal(
 
 def poisson(
     lam: NumType = 1.0, size: Optional[Size] = None, random_state: Optional[np.random.RandomState] = None
-) -> NumType:
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.poisson(lam, size)
@@ -51,7 +53,7 @@ def poisson(
 
 def permutation(
     x: Union[int, Sequence[float], np.ndarray], random_state: Optional[np.random.RandomState] = None
-) -> np.ndarray:
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.permutation(x)
@@ -61,27 +63,27 @@ def randint(
     low: IntNumType,
     high: Optional[IntNumType] = None,
     size: Optional[Size] = None,
-    dtype: np.dtype = np.int,
+    dtype: Type = np.int32,
     random_state: Optional[np.random.RandomState] = None,
-) -> IntNumType:
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.randint(low, high, size, dtype)
 
 
-def random(size: Optional[NumType] = None, random_state: Optional[np.random.RandomState] = None) -> NumType:
+def random(size: Optional[NumType] = None, random_state: Optional[np.random.RandomState] = None) -> Any:
     if random_state is None:
         random_state = get_random_state()
-    return random_state.random(size)
+    return random_state.random(size)  # type: ignore
 
 
 def choice(
-    a: Sequence[T],
+    a: NumType,
     size: Optional[Size] = None,
     replace: bool = True,
     p: Optional[Union[Sequence[float], np.ndarray]] = None,
     random_state: Optional[np.random.RandomState] = None,
-) -> Union[T, Sequence[T]]:
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
-    return random_state.choice(a, size, replace, p)
+    return random_state.choice(a, size, replace, p)  # type: ignore

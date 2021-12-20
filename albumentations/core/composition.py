@@ -294,8 +294,8 @@ class OneOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            idx = random_utils.choice(len(self.transforms), p=self.transforms_ps)  # type: ignore
-            t = self.transforms[idx]  # type: ignore
+            idx: int = random_utils.choice(len(self.transforms), p=self.transforms_ps)
+            t = self.transforms[idx]
             data = t(force_apply=True, **data)
         return data
 
@@ -326,9 +326,7 @@ class SomeOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            idx = random_utils.choice(  # type: ignore
-                len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps  # type: ignore
-            )
+            idx = random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
             for i in idx:  # type: ignore
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
