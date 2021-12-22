@@ -1825,3 +1825,12 @@ def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float
     soft_mask = blur_fn(mask)
     output = soft_mask * sharp + (1 - soft_mask) * image
     return from_float(output, dtype=input_dtype)
+
+
+@preserve_shape
+def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[float, Sequence[float]]) -> np.ndarray:
+    if isinstance(drop_value, (int, float)) and drop_value == 0:
+        drop_values = np.zeros_like(image)
+    else:
+        drop_values = np.full_like(image, drop_value)  # type: ignore
+    return np.where(drop_mask, drop_values, image)
