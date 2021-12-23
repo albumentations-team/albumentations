@@ -15,6 +15,42 @@ from ..functional import (
     preserve_shape,
 )
 
+__all__ = [
+    "bbox_rot90",
+    "keypoint_rot90",
+    "rotate",
+    "bbox_rotate",
+    "keypoint_rotate",
+    "shift_scale_rotate",
+    "keypoint_shift_scale_rotate",
+    "bbox_shift_scale_rotate",
+    "elastic_transform",
+    "resize",
+    "scale",
+    "keypoint_scale",
+    "py3round",
+    "_func_max_size",
+    "longest_max_size",
+    "smallest_max_size",
+    "perspective",
+    "perspective_bbox",
+    "rotation2DMatrixToEulerAngles",
+    "perspective_keypoint",
+    "_is_identity_matrix",
+    "warp_affine",
+    "keypoint_affine",
+    "bbox_affine",
+    "safe_rotate",
+    "bbox_safe_rotate",
+    "keypoint_safe_rotate",
+    "safe_rotate_enlarged_img_size",
+    "piecewise_affine",
+    "to_distance_maps",
+    "from_distance_maps",
+    "keypoint_piecewise_affine",
+    "bbox_piecewise_affine",
+]
+
 
 def bbox_rot90(bbox, factor, rows, cols):  # skipcq: PYL-W0613
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
