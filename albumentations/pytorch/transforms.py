@@ -76,7 +76,7 @@ class ToTensorV2(BasicTransform):
 
     @property
     def targets(self):
-        return {"image": self.apply, "mask": self.apply_to_mask}
+        return {"image": self.apply, "mask": self.apply_to_mask, "masks": self.apply_to_masks}
 
     def apply(self, img, **params):  # skipcq: PYL-W0613
         if len(img.shape) not in [2, 3]:
@@ -91,6 +91,9 @@ class ToTensorV2(BasicTransform):
         if self.transpose_mask and mask.ndim == 3:
             mask = mask.transpose(2, 0, 1)
         return torch.from_numpy(mask)
+
+    def apply_to_masks(self, masks, **params):
+        return [self.apply_to_mask(mask, **params) for mask in masks]
 
     def get_transform_init_args_names(self):
         return ("transpose_mask",)

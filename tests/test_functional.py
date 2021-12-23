@@ -954,3 +954,17 @@ def test_multiply_uint8_optimized():
 )
 def test_shift_hsv_gray(img):
     F.shift_hsv(img, 0.5, 0.5, 0.5)
+
+
+def test_cv_dtype_from_np():
+    assert F.get_opencv_dtype_from_numpy(np.uint8) == cv2.CV_8U
+    assert F.get_opencv_dtype_from_numpy(np.uint16) == cv2.CV_16U
+    assert F.get_opencv_dtype_from_numpy(np.float32) == cv2.CV_32F
+    assert F.get_opencv_dtype_from_numpy(np.float64) == cv2.CV_64F
+    assert F.get_opencv_dtype_from_numpy(np.int32) == cv2.CV_32S
+
+    assert F.get_opencv_dtype_from_numpy(np.dtype("uint8")) == cv2.CV_8U
+    assert F.get_opencv_dtype_from_numpy(np.dtype("uint16")) == cv2.CV_16U
+    assert F.get_opencv_dtype_from_numpy(np.dtype("float32")) == cv2.CV_32F
+    assert F.get_opencv_dtype_from_numpy(np.dtype("float64")) == cv2.CV_64F
+    assert F.get_opencv_dtype_from_numpy(np.dtype("int32")) == cv2.CV_32S

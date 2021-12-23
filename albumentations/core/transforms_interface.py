@@ -131,7 +131,7 @@ class BasicTransform(metaclass=SerializableMeta):
         target_function = self.targets.get(transform_key, lambda x, **p: x)
         return target_function
 
-    def apply(self, img, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
         raise NotImplementedError
 
     def get_params(self) -> Dict:
@@ -235,7 +235,7 @@ class DualTransform(BasicTransform):
     def apply_to_keypoints(self, keypoints, **params):
         return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
 
-    def apply_to_mask(self, img, **params):
+    def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
 
     def apply_to_masks(self, masks, **params):

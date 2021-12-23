@@ -47,15 +47,15 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
     get_image_only_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
@@ -176,15 +176,15 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
@@ -436,7 +436,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
+                "reference_images": [np.random.uniform(0.0, 1.0, (100, 100, 6)).astype(np.float32)],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
@@ -453,7 +453,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.Normalize: {"mean": 0, "std": 1},
             A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
-                "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
+                "templates": np.random.uniform(0.0, 1.0, (100, 100, 6)).astype(np.float32),
             },
         },
         except_augmentations={
