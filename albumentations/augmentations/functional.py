@@ -10,13 +10,102 @@ import cv2
 import numpy as np
 import skimage
 
-from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
+from .keypoints_utils import angle_to_2pi_range
+
+__all__ = [
+    "MAX_VALUES_BY_DTYPE",
+    "_maybe_process_in_chunks",
+    "add_fog",
+    "add_rain",
+    "add_shadow",
+    "add_snow",
+    "add_sun_flare",
+    "add_weighted",
+    "adjust_brightness_torchvision",
+    "adjust_contrast_torchvision",
+    "adjust_hue_torchvision",
+    "adjust_saturation_torchvision",
+    "angle_2pi_range",
+    "bbox_flip",
+    "bbox_hflip",
+    "bbox_transpose",
+    "bbox_vflip",
+    "blur",
+    "brightness_contrast_adjust",
+    "channel_shuffle",
+    "clahe",
+    "clip",
+    "clipped",
+    "convolve",
+    "downscale",
+    "elastic_transform_approx",
+    "equalize",
+    "fancy_pca",
+    "from_float",
+    "gamma_transform",
+    "gauss_noise",
+    "gaussian_blur",
+    "get_num_channels",
+    "get_opencv_dtype_from_numpy",
+    "glass_blur",
+    "grid_distortion",
+    "hflip",
+    "hflip_cv2",
+    "image_compression",
+    "invert",
+    "is_grayscale_image",
+    "is_multispectral_image",
+    "is_rgb_image",
+    "iso_noise",
+    "keypoint_flip",
+    "keypoint_hflip",
+    "keypoint_transpose",
+    "keypoint_vflip",
+    "linear_transformation_rgb",
+    "median_blur",
+    "move_tone_curve",
+    "multiply",
+    "non_rgb_warning",
+    "noop",
+    "normalize",
+    "optical_distortion",
+    "pad",
+    "pad_with_params",
+    "posterize",
+    "preserve_channel_dim",
+    "preserve_shape",
+    "random_flip",
+    "rot90",
+    "shift_hsv",
+    "shift_rgb",
+    "solarize",
+    "superpixels",
+    "swap_tiles_on_image",
+    "to_float",
+    "to_gray",
+    "transpose",
+    "unsharp_mask",
+    "vflip",
+]
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype("uint8"): 255,
     np.dtype("uint16"): 65535,
     np.dtype("uint32"): 4294967295,
     np.dtype("float32"): 1.0,
+}
+
+NPDTYPE_TO_OPENCV_DTYPE = {
+    np.uint8: cv2.CV_8U,
+    np.uint16: cv2.CV_16U,
+    np.int32: cv2.CV_32S,
+    np.float32: cv2.CV_32F,
+    np.float64: cv2.CV_64F,
+    np.dtype("uint8"): cv2.CV_8U,
+    np.dtype("uint16"): cv2.CV_16U,
+    np.dtype("int32"): cv2.CV_32S,
+    np.dtype("float32"): cv2.CV_32F,
+    np.dtype("float64"): cv2.CV_64F,
 }
 
 
@@ -27,6 +116,17 @@ def angle_2pi_range(func):
         return (x, y, angle_to_2pi_range(a), s)
 
     return wrapped_function
+
+
+def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object]) -> int:
+    """
+    Return a corresponding OpenCV dtype for a numpy's dtype
+    :param value: Input dtype of numpy array
+    :return: Corresponding dtype for OpenCV
+    """
+    if isinstance(value, np.ndarray):
+        value = value.dtype
+    return NPDTYPE_TO_OPENCV_DTYPE[value]
 
 
 def clip(img, dtype, maxval):
@@ -141,14 +241,6 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     img = img.astype(np.float32)
     img -= mean
     img *= denominator
-    return img
-
-
-def cutout(img, holes, fill_value=0):
-    # Make a copy of the input image since we don't want to modify it directly
-    img = img.copy()
-    for x1, y1, x2, y2 in holes:
-        img[y1:y2, x1:x2] = fill_value
     return img
 
 
@@ -1121,18 +1213,6 @@ def invert(img):
 
 def channel_shuffle(img, channels_shuffled):
     img = img[..., channels_shuffled]
-    return img
-
-
-@preserve_shape
-def channel_dropout(img, channels_to_drop, fill_value=0):
-    if len(img.shape) == 2 or img.shape[2] == 1:
-        raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
-
-    img = img.copy()
-
-    img[..., channels_to_drop] = fill_value
-
     return img
 
 
