@@ -12,6 +12,8 @@ import cv2
 import numpy as np
 from scipy import special
 
+from albumentations import random_utils
+
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
@@ -20,7 +22,6 @@ from ..core.transforms_interface import (
 )
 from ..core.utils import format_args
 from . import functional as F
-from . import random_utils
 from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
