@@ -6,14 +6,12 @@ import random
 import warnings
 from enum import Enum, IntEnum
 from types import LambdaType
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
 from scipy import special
 
-from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
@@ -21,6 +19,8 @@ from ..core.transforms_interface import (
     to_tuple,
 )
 from ..core.utils import format_args
+from . import functional as F
+from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
     "Blur",
@@ -3036,8 +3036,8 @@ class PixelDropout(DualTransform):
         self,
         dropout_prob: float = 0.01,
         per_channel: bool = False,
-        drop_value: typing.Optional[typing.Union[float, typing.Sequence[float]]] = 0,
-        mask_drop_value: typing.Optional[typing.Union[float, typing.Sequence[float]]] = None,
+        drop_value: Optional[Union[float, Sequence[float]]] = 0,
+        mask_drop_value: Optional[Union[float, Sequence[float]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -3051,11 +3051,7 @@ class PixelDropout(DualTransform):
             raise ValueError("PixelDropout supports mask only with per_channel=False")
 
     def apply(
-        self,
-        img: np.ndarray,
-        drop_mask: np.ndarray = None,
-        drop_value: typing.Union[float, typing.Sequence[float]] = None,
-        **params
+        self, img: np.ndarray, drop_mask: np.ndarray = None, drop_value: Union[float, Sequence[float]] = None, **params
     ) -> np.ndarray:
         return F.pixel_dropout(img, drop_mask, drop_value)
 
@@ -3074,7 +3070,7 @@ class PixelDropout(DualTransform):
     def apply_to_keypoint(self, keypoint, **params):
         return keypoint
 
-    def get_params_dependent_on_targets(self, params: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
         shape = img.shape if self.per_channel else img.shape[:2]
 
@@ -3100,8 +3096,8 @@ class PixelDropout(DualTransform):
         return {"drop_mask": drop_mask, "drop_value": drop_value}
 
     @property
-    def targets_as_params(self) -> typing.List[str]:
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> typing.Tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
         return ("dropout_prob", "per_channel", "drop_value", "mask_drop_value")
