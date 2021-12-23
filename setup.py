@@ -30,7 +30,7 @@ def get_long_description():
 
 
 def choose_requirement(mains, secondary):
-    """If some version version of main requirement installed, return main,
+    """If some version of main requirement installed, return main,
     else return secondary.
 
     """
