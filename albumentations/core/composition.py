@@ -7,6 +7,7 @@ from collections import defaultdict
 
 import numpy as np
 
+from albumentations import random_utils
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
 from albumentations.core.serialization import (
@@ -293,8 +294,7 @@ class OneOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            idx = random_state.choice(len(self.transforms), p=self.transforms_ps)  # type: ignore
+            idx: int = random_utils.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
         return data
@@ -326,11 +326,8 @@ class SomeOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            idx = random_state.choice(
-                len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps  # type: ignore
-            )
-            for i in idx:
+            idx = random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
+            for i in idx:  # type: ignore
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
         return data

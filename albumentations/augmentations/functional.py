@@ -10,6 +10,7 @@ import cv2
 import numpy as np
 import skimage
 
+from albumentations import random_utils
 from .keypoints_utils import angle_to_2pi_range
 
 __all__ = [
@@ -1151,9 +1152,6 @@ def elastic_transform_approx(
          Proc. of the International Conference on Document Analysis and
          Recognition, 2003.
     """
-    if random_state is None:
-        random_state = np.random.RandomState(1234)
-
     height, width = img.shape[:2]
 
     # Random affine
@@ -1170,7 +1168,9 @@ def elastic_transform_approx(
             center_square - square_size,
         ]
     )
-    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
+    pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
+        np.float32
+    )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
@@ -1183,11 +1183,11 @@ def elastic_transform_approx(
     )
     img = warp_fn(img)
 
-    dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
     dx *= alpha
 
-    dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dy = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
     dy *= alpha
 
@@ -1299,16 +1299,13 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     if not is_rgb_image(image):
         raise TypeError("Image must be RGB")
 
-    if random_state is None:
-        random_state = np.random.RandomState(42)
-
     one_over_255 = float(1.0 / 255.0)
     image = np.multiply(image, one_over_255, dtype=np.float32)
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_state.poisson(stddev[1] * intensity * 255, size=hls.shape[:2])
-    color_noise = random_state.normal(0, color_shift * 360 * intensity, size=hls.shape[:2])
+    luminance_noise = random_utils.poisson(stddev[1] * intensity * 255, size=hls.shape[:2], random_state=random_state)
+    color_noise = random_utils.normal(0, color_shift * 360 * intensity, size=hls.shape[:2], random_state=random_state)
 
     hue = hls[..., 0]
     hue += color_noise

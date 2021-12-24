@@ -6,6 +6,7 @@ import numpy as np
 import skimage.transform
 from scipy.ndimage.filters import gaussian_filter
 
+from ... import random_utils
 from ..bbox_utils import denormalize_bbox, normalize_bbox
 from ..functional import (
     _maybe_process_in_chunks,
@@ -250,9 +251,6 @@ def elastic_transform(
          Proc. of the International Conference on Document Analysis and
          Recognition, 2003.
     """
-    if random_state is None:
-        random_state = np.random.RandomState(1234)
-
     height, width = img.shape[:2]
 
     # Random affine
@@ -269,7 +267,9 @@ def elastic_transform(
             center_square - square_size,
         ]
     )
-    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
+    pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
+        np.float32
+    )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
@@ -280,23 +280,27 @@ def elastic_transform(
     if approximate:
         # Approximate computation smooth displacement map with a large enough kernel.
         # On large images (512+) this is approximately 2X times faster
-        dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
+        dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
         cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
         dx *= alpha
         if same_dxdy:
             # Speed up even more
             dy = dx
         else:
-            dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
+            dy = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
             cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
             dy *= alpha
     else:
-        dx = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
+        dx = np.float32(
+            gaussian_filter((random_utils.rand(height, width, random_state=random_state) * 2 - 1), sigma) * alpha
+        )
         if same_dxdy:
             # Speed up
             dy = dx
         else:
-            dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
+            dy = np.float32(
+                gaussian_filter((random_utils.rand(height, width, random_state=random_state) * 2 - 1), sigma) * alpha
+            )
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
 
