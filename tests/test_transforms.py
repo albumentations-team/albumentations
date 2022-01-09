@@ -1023,6 +1023,7 @@ def test_advanced_blur_raises_on_incorrect_params(params):
     ],
 )
 def test_affine_scale_ratio(params):
+    set_seed(0)
     aug = A.Affine(**params, p=1.0)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     target = {"image": image}
