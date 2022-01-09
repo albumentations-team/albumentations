@@ -1012,3 +1012,40 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
 def test_advanced_blur_raises_on_incorrect_params(params):
     with pytest.raises(ValueError):
         A.AdvancedBlur(**params)
+
+
+@pytest.mark.parametrize(
+    ["params"],
+    [
+        [{"scale": (0.5, 1.0)}],
+        [{"scale": (0.5, 1.0), "keep_ratio": False}],
+        [{"scale": (0.5, 1.0), "keep_ratio": True}],
+    ],
+)
+def test_affine_scale_ratio(params):
+    aug = A.Affine(**params, p=1.0)
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    target = {"image": image}
+    apply_params = aug.get_params_dependent_on_targets(target)
+
+    if "keep_ratio" not in params:
+        # default(keep_ratio=False)
+        assert apply_params["scale"]["x"] != apply_params["scale"]["y"]
+    elif not params["keep_ratio"]:
+        # keep_ratio=False
+        assert apply_params["scale"]["x"] != apply_params["scale"]["y"]
+    else:
+        # keep_ratio=True
+        assert apply_params["scale"]["x"] == apply_params["scale"]["y"]
+
+
+@pytest.mark.parametrize(
+    ["params"],
+    [
+        [{"scale": {"x": (0.5, 1.0), "y": (1.0, 1.5)}, "keep_ratio": True}],
+        [{"scale": {"x": 0.5, "y": 1.0}, "keep_ratio": True}],
+    ],
+)
+def test_affine_incorrect_scale_range(params):
+    with pytest.raises(ValueError):
+        A.Affine(**params)
