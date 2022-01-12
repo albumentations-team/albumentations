@@ -176,9 +176,11 @@ class SafeRotate(DualTransform):
         scale_x: float = 0,
         scale_y: float = 0,
         matrix: np.ndarray = None,
+        cols: int = 0,
+        rows: int = 0,
         **params
     ) -> Tuple[float, float, float, float]:
-        return F.keypoint_safe_rotate(keypoint, matrix, angle, scale_x, scale_y)
+        return F.keypoint_safe_rotate(keypoint, matrix, angle, scale_x, scale_y, cols, rows)
 
     @property
     def targets_as_params(self) -> List[str]:

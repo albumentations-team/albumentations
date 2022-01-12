@@ -572,15 +572,38 @@ def bbox_safe_rotate(
     x2 = points[:, 0].max()
     y1 = points[:, 1].min()
     y2 = points[:, 1].max()
+
+    def fix_point(pt1: float, pt2: float, max_val: float) -> Tuple[float, float]:
+        # In my opinion, these errors should be very low, around 1-2 pixels.
+        if pt1 < 0:
+            return 0, pt2 + pt1
+        if pt2 > max_val:
+            return pt1 - (pt2 - max_val), max_val
+        return pt1, pt2
+
+    x1, x2 = fix_point(x1, x2, cols)
+    y1, y2 = fix_point(y1, y2, rows)
+
     return normalize_bbox((x1, y1, x2, y2), rows, cols)
 
 
 def keypoint_safe_rotate(
-    keypoint: Tuple[float, float, float, float], matrix: np.ndarray, angle: float, scale_x: float, scale_y: float
+    keypoint: Tuple[float, float, float, float],
+    matrix: np.ndarray,
+    angle: float,
+    scale_x: float,
+    scale_y: float,
+    cols: int,
+    rows: int,
 ) -> Tuple[float, float, float, float]:
     x, y, a, s = keypoint
     point = np.array([[x, y, 1]])
     x, y = (point @ matrix.T)[0]
+
+    # To avoid problems with float errors
+    x = np.clip(x, 0, cols - 1)
+    y = np.clip(y, 0, rows - 1)
+
     a += angle
     s *= max(scale_x, scale_y)
     return x, y, a, s
