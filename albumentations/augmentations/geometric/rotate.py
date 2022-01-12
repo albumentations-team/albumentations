@@ -137,7 +137,7 @@ class SafeRotate(DualTransform):
 
     def __init__(
         self,
-        limit: Union[int, Tuple[int, int]] = 90,
+        limit: Union[float, Tuple[float, float]] = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
