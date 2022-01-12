@@ -1,4 +1,5 @@
 import random
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -135,13 +136,13 @@ class SafeRotate(DualTransform):
 
     def __init__(
         self,
-        limit=90,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=0.5,
+        limit: Union[int, Tuple[int, int]] = 90,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
+        mask_value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(SafeRotate, self).__init__(always_apply, p)
         self.limit = to_tuple(limit)
@@ -150,24 +151,63 @@ class SafeRotate(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img, angle=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.safe_rotate(
-            img=img, value=self.value, angle=angle, interpolation=interpolation, border_mode=self.border_mode
-        )
+    def apply(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
+        return F.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
 
-    def apply_to_mask(self, img, angle=0, **params):
-        return F.safe_rotate(
-            img=img, value=self.mask_value, angle=angle, interpolation=cv2.INTER_NEAREST, border_mode=self.border_mode
-        )
+    def apply_to_mask(
+        self, img: np.ndarray, interpolation: int = cv2.INTER_NEAREST, matrix: np.ndarray = None, **params
+    ) -> np.ndarray:
+        return F.safe_rotate(img, matrix, interpolation, self.mask_value, self.border_mode)
 
-    def get_params(self):
-        return {"angle": random.uniform(self.limit[0], self.limit[1])}
+    def apply_to_bbox(
+        self,
+        bbox: Tuple[float, float, float, float],
+        cols: int = 0,
+        rows: int = 0,
+        matrix: np.ndarray = None,
+        **params
+    ) -> Tuple[float, float, float, float]:
+        return F.bbox_safe_rotate(bbox, matrix, cols, rows)
 
-    def apply_to_bbox(self, bbox, angle=0, **params):
-        return F.bbox_safe_rotate(bbox=bbox, angle=angle, rows=params["rows"], cols=params["cols"])
+    def apply_to_keypoint(
+        self,
+        keypoint: Tuple[float, float, float, float],
+        angle: float = 0,
+        scale_x: float = 0,
+        scale_y: float = 0,
+        matrix: np.ndarray = None,
+        **params
+    ) -> Tuple[float, float, float, float]:
+        return F.keypoint_safe_rotate(keypoint, matrix, angle, scale_x, scale_y)
 
-    def apply_to_keypoint(self, keypoint, angle=0, **params):
-        return F.keypoint_safe_rotate(keypoint, angle=angle, rows=params["rows"], cols=params["cols"])
+    @property
+    def targets_as_params(self) -> List[str]:
+        return ["image"]
 
-    def get_transform_init_args_names(self):
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        angle = random.uniform(self.limit[0], self.limit[1])
+
+        image = params["image"]
+        old_rows, old_cols = image.shape[:2]
+
+        # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+        image_center = (old_cols / 2, old_rows / 2)
+
+        # Rows and columns of the rotated image (not cropped)
+        new_rows, new_cols = F.safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+
+        # Rotation Matrix
+        rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+        scale_x = old_rows / new_rows
+        scale_y = old_cols / new_cols
+        rotation_mat[0, 0] *= scale_x
+        rotation_mat[1, 1] *= scale_y
+
+        # Shift the image to create padding
+        rotation_mat[0, 2] += new_cols / 2 - image_center[0]
+        rotation_mat[1, 2] += new_rows / 2 - image_center[1]
+
+        return {"matrix": rotation_mat, "angle": angle, "scale_x": scale_x, "scale_y": scale_y}
+
+    def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str]:
         return ("limit", "interpolation", "border_mode", "value", "mask_value")
