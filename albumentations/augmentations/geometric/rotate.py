@@ -155,10 +155,8 @@ class SafeRotate(DualTransform):
     def apply(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
 
-    def apply_to_mask(
-        self, img: np.ndarray, interpolation: int = cv2.INTER_NEAREST, matrix: np.ndarray = None, **params
-    ) -> np.ndarray:
-        return F.safe_rotate(img, matrix, interpolation, self.mask_value, self.border_mode)
+    def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
+        return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
     def apply_to_bbox(
         self,
