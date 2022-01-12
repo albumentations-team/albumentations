@@ -1,3 +1,4 @@
+import math
 import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -190,24 +191,37 @@ class SafeRotate(DualTransform):
         angle = random.uniform(self.limit[0], self.limit[1])
 
         image = params["image"]
-        old_rows, old_cols = image.shape[:2]
+        h, w = image.shape[:2]
 
-        # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
-        image_center = (old_cols / 2, old_rows / 2)
-
-        # Rows and columns of the rotated image (not cropped)
-        new_rows, new_cols = F.safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
+        # https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
+        image_center = (w / 2, h / 2)
 
         # Rotation Matrix
         rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-        scale_x = old_rows / new_rows
-        scale_y = old_cols / new_cols
-        rotation_mat[0, 0] *= scale_x
-        rotation_mat[1, 1] *= scale_y
+
+        # rotation calculates the cos and sin, taking absolutes of those.
+        abs_cos = abs(rotation_mat[0, 0])
+        abs_sin = abs(rotation_mat[0, 1])
+
+        # find the new width and height bounds
+        new_w = math.ceil(h * abs_sin + w * abs_cos)
+        new_h = math.ceil(h * abs_cos + w * abs_sin)
+
+        scale_x = w / new_w
+        scale_y = h / new_h
 
         # Shift the image to create padding
-        rotation_mat[0, 2] += new_cols / 2 - image_center[0]
-        rotation_mat[1, 2] += new_rows / 2 - image_center[1]
+        rotation_mat[0, 2] += new_w / 2 - image_center[0]
+        rotation_mat[1, 2] += new_h / 2 - image_center[1]
+
+        # Rescale to original size
+        scale_mat = np.diag(np.ones(3))
+        scale_mat[0, 0] *= scale_x
+        scale_mat[1, 1] *= scale_y
+        _tmp = np.diag(np.ones(3))
+        _tmp[:2] = rotation_mat
+        _tmp = scale_mat @ _tmp
+        rotation_mat = _tmp[:2]
 
         return {"matrix": rotation_mat, "angle": angle, "scale_x": scale_x, "scale_y": scale_y}
 

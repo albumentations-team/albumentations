@@ -44,7 +44,6 @@ __all__ = [
     "safe_rotate",
     "bbox_safe_rotate",
     "keypoint_safe_rotate",
-    "safe_rotate_enlarged_img_size",
     "piecewise_affine",
     "to_distance_maps",
     "from_distance_maps",
@@ -536,6 +535,36 @@ def bbox_affine(
     return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
 
 
+def rotate_image(mat, angle):
+    """
+    Rotates an image (angle in degrees) and expands image to avoid cropping
+    """
+
+    height, width = mat.shape[:2]  # image shape has 3 dimensions
+    image_center = (
+        width / 2,
+        height / 2,
+    )  # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
+
+    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+
+    # rotation calculates the cos and sin, taking absolutes of those.
+    abs_cos = abs(rotation_mat[0, 0])
+    abs_sin = abs(rotation_mat[0, 1])
+
+    # find the new width and height bounds
+    bound_w = int(height * abs_sin + width * abs_cos) + 20
+    bound_h = int(height * abs_cos + width * abs_sin) + 20
+
+    # subtract old image center (bringing image back to origo) and adding the new image center coordinates
+    rotation_mat[0, 2] += bound_w / 2 - image_center[0]
+    rotation_mat[1, 2] += bound_h / 2 - image_center[1]
+
+    # rotate image with the new bounds and translated rotation matrix
+    rotated_mat = cv2.warpAffine(mat, rotation_mat, (bound_w, bound_h))
+    return rotated_mat
+
+
 @preserve_channel_dim
 def safe_rotate(
     img: np.ndarray,
@@ -544,10 +573,11 @@ def safe_rotate(
     value: Optional[int] = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
+    h, w = img.shape[:2]
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
-        dsize=(img.shape[1], img.shape[0]),
+        dsize=(w, h),
         flags=interpolation,
         borderMode=border_mode,
         borderValue=value,
@@ -607,26 +637,6 @@ def keypoint_safe_rotate(
     a += angle
     s *= max(scale_x, scale_y)
     return x, y, a, s
-
-
-def safe_rotate_enlarged_img_size(angle: float, rows: int, cols: int):
-
-    deg_angle = abs(angle)
-
-    # The rotation angle
-    angle = np.deg2rad(deg_angle % 90)
-
-    # The width of the frame to contain the rotated image
-    r_cols = cols * np.cos(angle) + rows * np.sin(angle)
-
-    # The height of the frame to contain the rotated image
-    r_rows = cols * np.sin(angle) + rows * np.cos(angle)
-
-    # The above calculations work as is for 0<90 degrees, and for 90<180 the cols and rows are flipped
-    if deg_angle > 90:
-        return int(r_cols), int(r_rows)
-    else:
-        return int(r_rows), int(r_cols)
 
 
 @clipped
