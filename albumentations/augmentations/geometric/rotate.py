@@ -159,14 +159,9 @@ class SafeRotate(DualTransform):
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
     def apply_to_bbox(
-        self,
-        bbox: Tuple[float, float, float, float],
-        cols: int = 0,
-        rows: int = 0,
-        matrix: np.ndarray = None,
-        **params
+        self, bbox: Tuple[float, float, float, float], cols: int = 0, rows: int = 0, **params
     ) -> Tuple[float, float, float, float]:
-        return F.bbox_safe_rotate(bbox, matrix, cols, rows)
+        return F.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
 
     def apply_to_keypoint(
         self,
@@ -174,12 +169,11 @@ class SafeRotate(DualTransform):
         angle: float = 0,
         scale_x: float = 0,
         scale_y: float = 0,
-        matrix: np.ndarray = None,
         cols: int = 0,
         rows: int = 0,
         **params
     ) -> Tuple[float, float, float, float]:
-        return F.keypoint_safe_rotate(keypoint, matrix, angle, scale_x, scale_y, cols, rows)
+        return F.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
 
     @property
     def targets_as_params(self) -> List[str]:
