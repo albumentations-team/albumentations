@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import skimage.transform
 
+from ... import random_utils
 from ...core.transforms_interface import DualTransform, to_tuple
 from . import functional as F
 
@@ -281,8 +282,8 @@ class Perspective(DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
 
-        scale = np.random.uniform(*self.scale)
-        points = np.random.normal(0, scale, [4, 2])
+        scale = random_utils.uniform(*self.scale)
+        points = random_utils.normal(0, scale, [4, 2])
         points = np.mod(np.abs(points), 1)
 
         # top left -- no changes needed, just use jitter
@@ -823,8 +824,7 @@ class PiecewiseAffine(DualTransform):
         nb_cells = nb_cols * nb_rows
         scale = random.uniform(*self.scale)
 
-        state = np.random.RandomState(random.randint(0, 1 << 31))
-        jitter = state.normal(0, scale, (nb_cells, 2))
+        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
             return {"matrix": None}
 
