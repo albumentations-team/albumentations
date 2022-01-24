@@ -46,6 +46,8 @@ __all__ = [
     "GaussNoise",
     "GlassBlur",
     "CLAHE",
+    "DCP",
+    "IBLA",
     "ChannelShuffle",
     "InvertImg",
     "ToGray",
@@ -1910,6 +1912,68 @@ class CLAHE(ImageOnlyTransform):
 
     def get_transform_init_args_names(self):
         return ("clip_limit", "tile_grid_size")
+
+
+class DCP(ImageOnlyTransform):
+    """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
+
+    Args:
+        is_TM (bool): 
+        
+    Targets:
+        image
+
+    Image types:
+        uint8
+    """
+
+    def __init__(self, is_TM = False, always_apply=False, p=1):
+        super(DCP, self).__init__(always_apply, p)
+        self.is_TM = is_TM
+        
+    def apply(self, img, **params):
+        if not F.is_rgb_image(img):
+            raise TypeError("DCP transformation expects 3-channel images.")
+
+        return F.dcp(img, self.is_TM)
+        
+
+    def get_params(self):
+        return {"bool_TM": self.is_TM}
+
+    def get_transform_init_args_names(self):
+        return ()
+    
+    
+class IBLA(ImageOnlyTransform):
+    """
+    
+    Args:
+        is_TM (bool): 
+        
+    Targets:
+        image
+
+    Image types:
+        uint8
+    """
+
+    def __init__(self, is_He = False, always_apply=False, p=1):
+        super(IBLA, self).__init__(always_apply, p)
+        self.is_He = is_He
+        
+    def apply(self, img, **params):
+        if not F.is_rgb_image(img):
+            raise TypeError("DCP transformation expects 3-channel images.")
+
+        return F.ibla(img, self.is_He)
+        
+
+    def get_params(self):
+        return {"bool_HE": self.is_He}
+
+    def get_transform_init_args_names(self):
+        return ()
 
 
 class ChannelShuffle(ImageOnlyTransform):

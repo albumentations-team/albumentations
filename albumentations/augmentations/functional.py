@@ -12,6 +12,7 @@ import skimage
 
 from albumentations import random_utils
 from .keypoints_utils import angle_to_2pi_range
+from .SingleUnderwaterImageEnhancementandColorRestoration import *
 
 __all__ = [
     "MAX_VALUES_BY_DTYPE",
@@ -35,6 +36,8 @@ __all__ = [
     "brightness_contrast_adjust",
     "channel_shuffle",
     "clahe",
+    "dcp",
+    "ibla",
     "clip",
     "clipped",
     "convolve",
@@ -650,6 +653,58 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
         img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
     return img
+
+
+@preserve_channel_dim
+def dcp(img, isTM=False):
+    transmission, sceneRadiance = getRecoverScene(img)
+    if isTM:
+        return np.uint8(transmission * 255)
+    else:
+        return sceneRadiance
+
+
+@preserve_channel_dim
+def ibla(img, isHe = False):
+    blockSize = 9
+    n = 5
+    RGB_Darkchannel = getRGB_Darkchannel(img, blockSize)
+    BlurrnessMap = blurrnessMap(img, blockSize, n)
+    AtomsphericLightOne = getAtomsphericLightDCP_Bright(RGB_Darkchannel, img, percent=0.001)
+    AtomsphericLightTwo = getAtomsphericLightLv(img)
+    AtomsphericLightThree = getAtomsphericLightLb(img, blockSize, n)
+    AtomsphericLight = ThreeAtomsphericLightFusion(AtomsphericLightOne, 
+                        AtomsphericLightTwo, AtomsphericLightThree, img)
+
+    R_map = max_R(img, blockSize)
+    mip_map = R_minus_GB(img, blockSize, R_map)
+    bluriness_map = BlurrnessMap
+
+    d_R = 1 - StretchingFusion(R_map)
+    d_D = 1 - StretchingFusion(mip_map)
+    d_B = 1 - StretchingFusion(bluriness_map)
+
+    d_n = Scene_depth(d_R, d_D, d_B, img, AtomsphericLight)
+    d_n_stretching = global_stretching(d_n)
+    d_0 = closePoint(img, AtomsphericLight)
+    d_f = 8  * (d_n +  d_0)
+
+
+    transmissionR = getTransmission(d_f)
+    transmissionB, transmissionG = getGBTransmissionESt(transmissionR, AtomsphericLight)
+    
+    transmissionB, transmissionG, transmissionR = Refinedtransmission(
+                                                    transmissionB, transmissionG, 
+                                                    transmissionR, img)
+
+    sceneRadiance = sceneRadianceRGB(img, transmissionB, 
+                                    transmissionG, transmissionR, 
+                                    AtomsphericLight)
+
+    if isHe:
+        return RecoverHE(sceneRadiance)
+    else:
+        return sceneRadiance
 
 
 @preserve_channel_dim
