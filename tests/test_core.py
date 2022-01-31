@@ -11,11 +11,13 @@ import pytest
 from albumentations import (
     BasicTransform,
     Blur,
+    ChannelShuffle,
     Crop,
     HorizontalFlip,
     MedianBlur,
     Normalize,
     PadIfNeeded,
+    RandomShadow,
     Resize,
     Rotate,
 )
@@ -381,3 +383,25 @@ def test_choice_inner_compositions(transforms):
     """Check that the inner composition is selected without errors."""
     image = np.empty([10, 10, 3], dtype=np.uint8)
     transforms(image=image)
+
+
+@pytest.mark.parametrize(
+    "transforms",
+    [
+        Compose([RandomShadow(p=1)], p=1),
+        Compose([ChannelShuffle(p=1), RandomShadow(p=1)], p=1),
+    ],
+)
+def test_non_contiguous_image(transforms):
+    image = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
+    mask = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
+
+    assert not image.flags["C_CONTIGUOUS"]
+    assert not mask.flags["C_CONTIGUOUS"]
+
+    # expect no exception
+    data = transforms(image=image, mask=mask)
+
+    # confirm output contiguous
+    assert data["image"].flags["C_CONTIGUOUS"]
+    assert data["mask"].flags["C_CONTIGUOUS"]
