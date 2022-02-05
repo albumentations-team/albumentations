@@ -50,7 +50,7 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
             )
         )
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
-    img = img[y1:y2, x1:x2]
+    img = np.ascontiguousarray(img[y1:y2, x1:x2])
     return img
 
 
@@ -143,7 +143,7 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
             )
         )
     x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
-    img = img[y1:y2, x1:x2]
+    img = np.ascontiguousarray(img[y1:y2, x1:x2])
     return img
 
 
@@ -188,8 +188,8 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
                 x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
             )
         )
-
-    return img[y_min:y_max, x_min:x_max]
+    img = np.ascontiguousarray(img[y_min:y_max, x_min:x_max])
+    return img
 
 
 def bbox_crop(bbox: BboxType, x_min: int, y_min: int, x_max: int, y_max: int, rows: int, cols: int):
@@ -224,7 +224,8 @@ def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: in
         y_max = h - 1
     if x_max >= w:
         x_max = w - 1
-    return img[int(y_min) : int(y_max), int(x_min) : int(x_max)]
+    img = img[int(y_min) : int(y_max), int(x_min) : int(x_max)]
+    return np.ascontiguousarray(img)
 
 
 @preserve_channel_dim

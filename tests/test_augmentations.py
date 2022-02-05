@@ -787,3 +787,60 @@ def test_pixel_domain_adaptation(kind):
             atol=2 if img.dtype == np.uint8 else 0.01,
             err_msg=f"{adapted.mean()} {img.mean()} {ref_img.mean()}",
         )
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            # only image
+            A.HistogramMatching: {
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.FDA: {
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
+            A.MedianBlur: {"blur_limit": (3, 5)},
+            A.TemplateTransform: {
+                "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8),
+            },
+            A.RingingOvershoot: {"blur_limit": (3, 5)},
+            # dual
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+        },
+    ),
+)
+def test_return_contiguous_ndarray(augmentation_cls, params, image, mask, bboxes):
+    if augmentation_cls == A.RandomCropNearBBox:
+        # requires "cropping_bbox" arg
+        aug = augmentation_cls(p=1, **params)
+        data = aug(image=image, mask=mask, cropping_bbox=bboxes[0])
+    elif augmentation_cls == A.RandomSizedBBoxSafeCrop:
+        # requires "bboxes" arg
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        data = aug(image=image, mask=mask, bboxes=bboxes)
+    else:
+        # standard args: image and mask
+        if augmentation_cls == A.FromFloat:
+            # requires float image
+            image = (image / 255).astype(np.float32)
+        aug = augmentation_cls(p=1, **params)
+        data = aug(image=image, mask=mask)
+
+    assert data["image"].flags["C_CONTIGUOUS"]
+    assert data["mask"].flags["C_CONTIGUOUS"]

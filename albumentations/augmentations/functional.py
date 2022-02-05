@@ -11,6 +11,7 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
+
 from .keypoints_utils import angle_to_2pi_range
 
 __all__ = [
@@ -222,7 +223,8 @@ def random_flip(img, code):
 
 
 def transpose(img):
-    return img.transpose(1, 0, 2) if len(img.shape) > 2 else img.transpose(1, 0)
+    img = img.transpose(1, 0, 2) if len(img.shape) > 2 else img.transpose(1, 0)
+    return np.ascontiguousarray(img)
 
 
 def rot90(img, factor):
@@ -1212,7 +1214,7 @@ def invert(img):
 
 
 def channel_shuffle(img, channels_shuffled):
-    img = img[..., channels_shuffled]
+    img = np.ascontiguousarray(img[..., channels_shuffled])
     return img
 
 

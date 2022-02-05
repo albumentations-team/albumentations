@@ -11,10 +11,10 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 from .functional import (
     clipped,
+    get_opencv_dtype_from_numpy,
     is_grayscale_image,
     is_multispectral_image,
     preserve_shape,
-    get_opencv_dtype_from_numpy,
 )
 from .utils import read_rgb_image
 
@@ -78,7 +78,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
     src_image_transformed = np.real(src_image_transformed)
 
-    return src_image_transformed
+    return np.ascontiguousarray(src_image_transformed)
 
 
 @preserve_shape
