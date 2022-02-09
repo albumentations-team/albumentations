@@ -87,8 +87,12 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
         raise RuntimeError(
             f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}"
         )
-    reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
-    matched = match_histograms(np.squeeze(img), np.squeeze(reference_image), multichannel=True)
+    if img.shape[:2] != reference_image.shape[:2]:
+        reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
+
+    img, reference_image = np.squeeze(img), np.squeeze(reference_image)
+
+    matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
     img = cv2.addWeighted(
         matched,
         blend_ratio,
