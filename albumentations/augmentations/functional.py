@@ -223,8 +223,7 @@ def random_flip(img, code):
 
 
 def transpose(img):
-    img = img.transpose(1, 0, 2) if len(img.shape) > 2 else img.transpose(1, 0)
-    return np.ascontiguousarray(img)
+    return img.transpose(1, 0, 2) if len(img.shape) > 2 else img.transpose(1, 0)
 
 
 def rot90(img, factor):
@@ -1214,7 +1213,7 @@ def invert(img):
 
 
 def channel_shuffle(img, channels_shuffled):
-    img = np.ascontiguousarray(img[..., channels_shuffled])
+    img = img[..., channels_shuffled]
     return img
 
 

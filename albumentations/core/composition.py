@@ -201,12 +201,13 @@ class Compose(BaseCompose):
         for p in self.processors.values():
             p.preprocess(data)
 
-        data = Compose._make_targets_contiguous(data)  # some transforms require contiguous input
+        data = self._make_targets_contiguous(data)  # some transforms require contiguous input
         for idx, t in enumerate(transforms):
             data = t(force_apply=force_apply, **data)
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
+            data = self._make_targets_contiguous(data)
 
         for p in self.processors.values():
             p.postprocess(data)
@@ -272,14 +273,12 @@ class Compose(BaseCompose):
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 raise ValueError("bbox_params must be specified for bbox transformations")
 
-    @staticmethod
-    def _make_targets_contiguous(data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
-        result = {}
-        for key, value in data.items():
-            if isinstance(value, np.ndarray):
-                value = np.ascontiguousarray(value)
-            result[key] = value
-        return result
+    def _make_targets_contiguous(self, data):
+        targets = ["image", "mask"]
+        for target in targets:
+            if target in data and isinstance(data[target], np.ndarray) and not data[target].flags["C_CONTIGUOUS"]:
+                data[target] = np.ascontiguousarray(data[target])
+        return data
 
 
 class OneOf(BaseCompose):

@@ -78,7 +78,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
     src_image_transformed = np.real(src_image_transformed)
 
-    return np.ascontiguousarray(src_image_transformed)
+    return src_image_transformed
 
 
 @preserve_shape
