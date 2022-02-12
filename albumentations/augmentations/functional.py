@@ -178,6 +178,20 @@ def preserve_channel_dim(func):
     return wrapped_function
 
 
+def ensure_contiguous(func):
+    """
+    Ensure that input img is contiguous.
+    """
+
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        img = np.require(img, requirements=["C_CONTIGUOUS"])
+        result = func(img, *args, **kwargs)
+        return result
+
+    return wrapped_function
+
+
 def is_rgb_image(image):
     return len(image.shape) == 3 and image.shape[-1] == 3
 
@@ -986,6 +1000,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     return image_rgb
 
 
+@ensure_contiguous
 @preserve_shape
 def add_shadow(img, vertices_list):
     """Add shadows to the image.

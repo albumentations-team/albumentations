@@ -388,18 +388,19 @@ def test_choice_inner_compositions(transforms):
 @pytest.mark.parametrize(
     "transforms",
     [
-        Compose([RandomShadow(p=1)], p=1),
-        Compose([ChannelShuffle(p=1), RandomShadow(p=1)], p=1),
+        Compose([ChannelShuffle(p=1)], p=1),
+        Compose([ChannelShuffle(p=0)], p=0),
     ],
 )
-def test_non_contiguous_image(transforms):
+def test_contiguous_output(transforms):
     image = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
     mask = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
 
+    # check preconditions
     assert not image.flags["C_CONTIGUOUS"]
     assert not mask.flags["C_CONTIGUOUS"]
 
-    # expect no exception
+    # pipeline always outputs contiguous results
     data = transforms(image=image, mask=mask)
 
     # confirm output contiguous
