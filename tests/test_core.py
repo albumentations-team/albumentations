@@ -17,7 +17,6 @@ from albumentations import (
     MedianBlur,
     Normalize,
     PadIfNeeded,
-    RandomShadow,
     Resize,
     Rotate,
 )
