@@ -206,6 +206,7 @@ class Compose(BaseCompose):
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
+        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
         for p in self.processors.values():
             p.postprocess(data)
@@ -270,6 +271,15 @@ class Compose(BaseCompose):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 raise ValueError("bbox_params must be specified for bbox transformations")
+
+    @staticmethod
+    def _make_targets_contiguous(data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
+        result = {}
+        for key, value in data.items():
+            if isinstance(value, np.ndarray):
+                value = np.ascontiguousarray(value)
+            result[key] = value
+        return result
 
 
 class OneOf(BaseCompose):
