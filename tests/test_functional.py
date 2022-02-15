@@ -6,13 +6,21 @@ import pytest
 from numpy.testing import assert_array_almost_equal_nulp
 
 import albumentations as A
+import albumentations.augmentations.crops.functional as FCrop
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.utils import (
     get_opencv_dtype_from_numpy,
     is_multispectral_image,
 )
-from albumentations.core.bbox_utils import filter_bboxes
+from albumentations.core.bbox_utils import (
+    denormalize_bboxes2,
+    filter_bboxes,
+    normalize_bboxes2,
+    to_ndarray_bboxes,
+    to_tuple_bboxes,
+)
+
 from tests.utils import convert_2d_to_target_format
 
 
@@ -1012,3 +1020,385 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     image_float = (image_float * 255).astype(int)
 
     assert np.abs(image_int.astype(int) - image_float).max() <= 1
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "expect"],
+    [
+        (
+            [(0, 0, 10, 10), (0, 0, 20, 20)],
+            [(0, 0, 10, 10), (0, 0, 20, 20)],
+        ),
+        (
+            [[0, 0, 10, 10], [0, 0, 20, 20]],
+            [(0, 0, 10, 10), (0, 0, 20, 20)],
+        ),
+        (
+            np.array([[0, 0, 10, 10], [0, 0, 20, 20]]),
+            [(0, 0, 10, 10), (0, 0, 20, 20)],
+        ),
+        (
+            np.array([]).reshape(0, 4),
+            [],
+        ),
+    ],
+)
+def test_to_tuple_bboxes_no_labels(bboxes, expect):
+    actual = to_tuple_bboxes(bboxes)
+    assert actual == expect
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "labels", "expect"],
+    [
+        (
+            np.array([[0, 0, 10, 10, 1], [0, 0, 20, 20, 0]]),
+            [("dog",), ("cat",)],
+            [(0, 0, 10, 10, "cat"), (0, 0, 20, 20, "dog")],
+        ),
+    ],
+)
+def test_to_tuple_with_labels(bboxes, labels, expect):
+    actual = to_tuple_bboxes(bboxes, labels)
+    assert actual == expect
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "expect_bboxes", "expect_labels"],
+    [
+        (
+            [(0, 0, 10, 10), (0, 0, 20, 20)],
+            np.array([[0, 0, 10, 10], [0, 0, 20, 20]]),
+            [],
+        ),
+        (
+            [(0, 0, 10, 10, "dog"), (0, 0, 20, 20, "cat")],
+            np.array([[0, 0, 10, 10, 0], [0, 0, 20, 20, 1]]),
+            [("dog",), ("cat",)],
+        ),
+    ],
+)
+def test_to_ndarray_bboxes(bboxes, expect_bboxes, expect_labels):
+    actual_bboxes, actual_labels = to_ndarray_bboxes(bboxes)
+
+    np.testing.assert_array_equal(actual_bboxes, expect_bboxes)
+    np.testing.assert_array_equal(actual_labels, expect_labels)
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "expect"],
+    [
+        (
+            np.array([(0, 0, 10, 10), (0, 0, 20, 20)]),
+            np.array([[0, 0, 0.1, 0.1], [0, 0, 0.2, 0.2]]),
+        ),
+        (
+            np.array([(0, 0, 10, 10, 1), (0, 0, 20, 20, 2)]),
+            np.array([[0, 0, 0.1, 0.1, 1], [0, 0, 0.2, 0.2, 2]]),
+        ),
+    ],
+)
+def test_normalize_bboxes2(bboxes, expect):
+    rows, cols = 100, 100
+    actual = normalize_bboxes2(bboxes, rows, cols)
+    np.testing.assert_array_equal(actual, expect)
+
+
+def test_bboxes_hflip():
+    rows, cols = 100, 100
+    TL = (0.0, 0.0, 0.1, 0.1)
+    TR = (0.9, 0.0, 1.0, 0.1)
+    BL = (0.0, 0.9, 0.1, 1.0)
+    BR = (0.9, 0.9, 1.0, 1.0)
+
+    bboxes = np.array([TL, BL])
+    expect = np.array([TR, BR])
+    actual = FGeometric.bboxes_hflip(bboxes, rows, cols)
+    np.testing.assert_array_equal(actual, expect)
+
+
+def test_bboxes_vflip():
+    rows, cols = 100, 100
+    TL = (0.0, 0.0, 0.1, 0.1)
+    TR = (0.9, 0.0, 1.0, 0.1)
+    BL = (0.0, 0.9, 0.1, 1.0)
+    BR = (0.9, 0.9, 1.0, 1.0)
+
+    bboxes = np.array([TL, TR])
+    expect = np.array([BL, BR])
+    actual = FGeometric.bboxes_vflip(bboxes, rows, cols)
+    np.testing.assert_array_equal(actual, expect)
+
+
+def test_crop_bboxes_by_coords():
+    rows, cols = 100, 100
+    bboxes = np.array([[0.45, 0.45, 0.55, 0.55], [0.4, 0.4, 0.6, 0.6]])
+    crop_coords = (40, 40, 60, 60)
+    crop_width = 20
+    crop_height = 20
+    actual = FCrop.crop_bboxes_by_coords(bboxes, crop_coords, crop_height, crop_width, rows, cols)
+    expect = np.array([[0.25, 0.25, 0.75, 0.75], [0.0, 0.0, 1.0, 1.0]])
+    np.testing.assert_allclose(actual, expect)
+
+
+def test_bboxes_shift_scale_rotate():
+    rows, cols = 100, 100
+    angle = 30
+    scale = 1.2
+    dx, dy = 0.15, 0.05
+    bboxes = np.array([[0.1, 0.1, 0.2, 0.2], [0.6, 0.5, 0.8, 0.6]])
+    # Use the result of bbox_shift_scale_rotate as a truth result.
+    expect = []
+    for bbox in bboxes:
+        box = FGeometric.bbox_shift_scale_rotate(bbox, angle=angle, scale=scale, dx=dx, dy=dy, rotate_method='largest_box', rows=rows, cols=cols)
+        expect.append(box)
+    expect = np.array(expect)
+    actual = FGeometric.bboxes_shift_scale_rotate(bboxes, angle=angle, scale=scale, dx=dx, dy=dy, rows=rows, cols=cols)
+    np.testing.assert_allclose(actual, expect)
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "n_x", "n_y", "border_mode", "expect"],
+    [
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            3,
+            3,
+            cv2.BORDER_WRAP,
+            np.array(
+                [
+                    (0.0, 0.0, 0.1, 0.1),
+                    (1.0, 0.0, 1.1, 0.1),
+                    (2.0, 0.0, 2.1, 0.1),
+                    (0.0, 1.0, 0.1, 1.1),
+                    (1.0, 1.0, 1.1, 1.1),
+                    (2.0, 1.0, 2.1, 1.1),
+                    (0.0, 2.0, 0.1, 2.1),
+                    (1.0, 2.0, 1.1, 2.1),
+                    (2.0, 2.0, 2.1, 2.1),
+                ]
+            )
+            / 3,
+        ),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            3,
+            3,
+            cv2.BORDER_REFLECT,
+            np.array(
+                [
+                    (0.9, 0.9, 1.0, 1.0),
+                    (1.0, 0.9, 1.1, 1.0),
+                    (2.9, 0.9, 3.0, 1.0),
+                    (0.9, 1.0, 1.0, 1.1),
+                    (1.0, 1.0, 1.1, 1.1),
+                    (2.9, 1.0, 3.0, 1.1),
+                    (0.9, 2.9, 1.0, 3.0),
+                    (1.0, 2.9, 1.1, 3.0),
+                    (2.9, 2.9, 3.0, 3.0),
+                ]
+            )
+            / 3,
+        ),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            3,
+            3,
+            cv2.BORDER_REFLECT_101,
+            np.array(
+                [
+                    (0.9, 0.9, 1.0, 1.0),
+                    (1.0, 0.9, 1.1, 1.0),
+                    (2.9, 0.9, 3.0, 1.0),
+                    (0.9, 1.0, 1.0, 1.1),
+                    (1.0, 1.0, 1.1, 1.1),
+                    (2.9, 1.0, 3.0, 1.1),
+                    (0.9, 2.9, 1.0, 3.0),
+                    (1.0, 2.9, 1.1, 3.0),
+                    (2.9, 2.9, 3.0, 3.0),
+                ]
+            )
+            / 3,
+        ),
+    ],
+)
+def test_bboxes_expand_grid(bboxes, n_x, n_y, border_mode, expect):
+    rows, cols = 100, 100
+    actual = FGeometric.bboxes_expand_grid(bboxes, n_x, n_y, rows, cols, border_mode)
+    np.testing.assert_allclose(actual, expect)
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "angle", "scale", "dx", "dy", "border_mode", "expect"],
+    [
+        # BORDER_REFLECT_101
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            1,
+            0,
+            0,
+            cv2.BORDER_REFLECT_101,
+            np.array(
+                [
+                    (0.0, 0.0, 0.1, 0.1),
+                ]
+            ),
+        ),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            1,
+            0.5,
+            0.0,
+            cv2.BORDER_REFLECT_101,
+            np.array(
+                [
+                    (0.4, 0.0, 0.5, 0.1),
+                    (0.5, 0.0, 0.6, 0.1),
+                ]
+            ),
+        ),
+        (np.array([(0, 0, 0.1, 0.1)]), 0, 1, 0.0, -0.5, cv2.BORDER_REFLECT_101, np.array([]).reshape(0, 4)),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            0.5,
+            0.0,
+            0.0,
+            cv2.BORDER_REFLECT_101,
+            np.array(
+                [
+                    (0.20, 0.20, 0.25, 0.25),
+                    (0.25, 0.20, 0.30, 0.25),
+                    (0.20, 0.25, 0.25, 0.30),
+                    (0.25, 0.25, 0.30, 0.30),
+                ]
+            ),
+        ),
+        # BORDER_REFLECT
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            1,
+            0,
+            0,
+            cv2.BORDER_REFLECT,
+            np.array(
+                [
+                    (0.0, 0.0, 0.1, 0.1),
+                ]
+            ),
+        ),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            1,
+            0.5,
+            0.0,
+            cv2.BORDER_REFLECT,
+            np.array(
+                [
+                    (0.4, 0.0, 0.5, 0.1),
+                    (0.5, 0.0, 0.6, 0.1),
+                ]
+            ),
+        ),
+        (np.array([(0, 0, 0.1, 0.1)]), 0, 1, 0.0, -0.5, cv2.BORDER_REFLECT, np.array([]).reshape(0, 4)),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            0.5,
+            0.0,
+            0.0,
+            cv2.BORDER_REFLECT,
+            np.array(
+                [
+                    (0.20, 0.20, 0.25, 0.25),
+                    (0.25, 0.20, 0.30, 0.25),
+                    (0.20, 0.25, 0.25, 0.30),
+                    (0.25, 0.25, 0.30, 0.30),
+                ]
+            ),
+        ),
+        # BORDER_WRAP
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            1,
+            0,
+            0,
+            cv2.BORDER_WRAP,
+            np.array(
+                [
+                    (0.0, 0.0, 0.1, 0.1),
+                ]
+            ),
+        ),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            1,
+            0.5,
+            0.0,
+            cv2.BORDER_WRAP,
+            np.array(
+                [
+                    (0.5, 0.0, 0.6, 0.1),
+                ]
+            ),
+        ),
+        (np.array([(0, 0, 0.1, 0.1)]), 0, 1, 0.0, -0.5, cv2.BORDER_WRAP, np.array([(0.0, 0.5, 0.1, 0.6)])),
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            0.5,
+            0.0,
+            0.0,
+            cv2.BORDER_WRAP,
+            np.array(
+                [
+                    (0.25, 0.25, 0.30, 0.30),
+                    (0.75, 0.25, 0.80, 0.30),
+                    (0.25, 0.75, 0.30, 0.80),
+                    (0.75, 0.75, 0.80, 0.80),
+                ]
+            ),
+        ),
+        # BORDER_CONSTANT
+        (
+            np.array([(0, 0, 0.1, 0.1)]),
+            0,
+            0.5,
+            0,
+            0,
+            cv2.BORDER_CONSTANT,
+            np.array(
+                [
+                    (0.25, 0.25, 0.30, 0.30),
+                ]
+            ),
+        ),
+        # reserve label_index
+        (
+            np.array([(0, 0, 0.1, 0.1, 9)]),
+            0,
+            0.5,
+            0.0,
+            0.0,
+            cv2.BORDER_REFLECT_101,
+            np.array(
+                [
+                    (0.20, 0.20, 0.25, 0.25, 9),
+                    (0.25, 0.20, 0.30, 0.25, 9),
+                    (0.20, 0.25, 0.25, 0.30, 9),
+                    (0.25, 0.25, 0.30, 0.30, 9),
+                ]
+            ),
+        ),
+    ],
+)
+def test_bboxes_shift_scale_rotate_with_reflect(bboxes, angle, scale, dx, dy, border_mode, expect):
+    rows, cols = 100, 100
+    actual = FGeometric.bboxes_shift_scale_rotate_reflect(bboxes, angle, scale, dx, dy, rows, cols, border_mode)
+    np.testing.assert_allclose(actual, expect)

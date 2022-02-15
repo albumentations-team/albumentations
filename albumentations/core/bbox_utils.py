@@ -12,6 +12,8 @@ __all__ = [
     "denormalize_bbox",
     "normalize_bboxes",
     "denormalize_bboxes",
+    "normalize_bboxes2",
+    "denormalize_bboxes2",
     "calculate_bbox_area",
     "filter_bboxes_by_visibility",
     "convert_bbox_to_albumentations",
@@ -24,6 +26,8 @@ __all__ = [
     "union_of_bboxes",
     "BboxProcessor",
     "BboxParams",
+    "to_tuple_bboxes",
+    "to_ndarray_bboxes",
 ]
 
 TBox = TypeVar("TBox", BoxType, BoxInternalType)
@@ -484,3 +488,125 @@ def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_
         x1, y1 = np.min([x1, lim_x1]), np.min([y1, lim_y1])
         x2, y2 = np.max([x2, lim_x2]), np.max([y2, lim_y2])
     return x1, y1, x2, y2
+
+
+def to_tuple_bboxes(bboxes, labels=None):
+    """Convert a two dimensional ndarray to a list of tuple: `[(x_min, y_min, x_max, y_max, label1, ...), ...]`
+    If the labels are given, they are merged to the bboxes.
+
+    Args:
+        bboxes (np.ndarray): A two dimensional ndarray. Each row is `x_min, y_min, x_max, y_max` or
+        `x_min, y_min, x_max, y_max, label_index`.
+        labels (List[tuple]): Label information to be merged.
+    Returns:
+        bboxes (List[tuple]): A new list of bounding box. The bounding box can have more than zero labels:
+        `(x_min, y_min, x_max, y_max, label1, ...)`.
+    """
+    n = len(bboxes)
+    if n == 0:
+        # ex. np.array([])
+        return []
+
+    if isinstance(bboxes[0], tuple):
+        return bboxes
+
+    if labels is not None and len(labels) > 0:
+        new_bboxes = []
+        for i in range(n):
+            n_elements = len(bboxes[i])
+            if n_elements == 4:
+                # no label index
+                if len(bboxes) != len(labels):
+                    raise ValueError("The length of bboxes does not match with the given labels")
+                bbox = bboxes[i][:4]
+                label = labels[i]
+                new_bboxes.append((*bbox, *label))
+            elif n_elements == 5:
+                label_index = int(bboxes[i][4])
+                label = labels[label_index]
+                bbox = bboxes[i][:4]
+                new_bboxes.append((*bbox, *label))
+            else:
+                raise ValueError("Each bbox should have 4 or 5 elements, got {}".format(n_elements))
+        return new_bboxes
+
+    # no label info
+    return [tuple(bboxes[i]) for i in range(n)]
+
+
+def to_ndarray_bboxes(bboxes):
+    """Convert a list of bounding box to a two dimensional ndarray
+    If each item has more than five elements, the item is split into coordinates part `(x_min, y_min, x_max, y_max)`
+    and label information.
+    And to be able to merge the coordinates part and split label information later, labels_index is added at the fifth
+    element of the coordinates part.
+
+    Args:
+        bboxes (List[tuple]): A list of tuple with elements: `[(x_min, y_min, x_max, y_max, label1, label2, ...), ...]`
+    Returns:
+        bboxes (np.ndarray): A two dimensional ndarray. Each row is `x_min, y_min, x_max, y_max` or
+        `x_min, y_min, x_max, y_max, label_index`.
+        labels (List[tuple]): Label information that had been attached at bboxes.
+
+    """
+    if isinstance(bboxes, np.ndarray):
+        return bboxes, []
+
+    n = len(bboxes)
+
+    if n == 0:
+        return np.array([]).reshape((0, 4)), []
+
+    dtype = type(bboxes[0][0])
+    if len(bboxes[0]) == 4:
+        new_bboxes = np.array(bboxes, dtype=dtype)
+        return new_bboxes, []
+    else:
+        new_bboxes = np.array([(*bboxes[i][:4], i) for i in range(n)], dtype=dtype)
+        labels = [tuple(bboxes[i][4:]) for i in range(n)]
+    return new_bboxes, labels
+
+
+def normalize_bboxes2(bboxes, rows, cols):
+    """Normalize a list of bounding boxes. (numpy version of normalize_bboxes)
+    Args:
+        bboxes (np.ndarray): Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        rows (int): Image height.
+        cols (int): Image width.
+        return_numpy_bboxes (bool): Specifies whether to return bounding box as a np.ndarray or not.
+    Returns:
+        bboxes (np.ndarray): Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+    """
+
+    if not isinstance(bboxes, np.ndarray):
+        raise ValueError("bboxes should be np.ndarray")
+
+    new_bboxes = bboxes.copy().astype(float)
+    new_bboxes[:, 0] = bboxes[:, 0] / cols
+    new_bboxes[:, 1] = bboxes[:, 1] / rows
+    new_bboxes[:, 2] = bboxes[:, 2] / cols
+    new_bboxes[:, 3] = bboxes[:, 3] / rows
+
+    return new_bboxes
+
+
+def denormalize_bboxes2(bboxes, rows, cols):
+    """Denormalize a list of bounding boxes. (numpy version of denormalize_bboxes)
+    Args:
+        bboxes (np.ndarray): Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        rows (int): Image height.
+        cols (int): Image width.
+    Returns:
+        bboxes (np.ndarray): Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+    """
+
+    if not isinstance(bboxes, np.ndarray):
+        raise ValueError("bboxes should be np.ndarray")
+
+    new_bboxes = bboxes.copy()
+    new_bboxes[:, 0] = bboxes[:, 0] * cols
+    new_bboxes[:, 1] = bboxes[:, 1] * rows
+    new_bboxes[:, 2] = bboxes[:, 2] * cols
+    new_bboxes[:, 3] = bboxes[:, 3] * rows
+
+    return new_bboxes
