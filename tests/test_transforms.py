@@ -158,8 +158,9 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.PixelDropout},
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -182,8 +183,9 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.RandomResizedCrop: {"height": 10, "width": 10},
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad, A.PixelDropout},
     ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -846,10 +848,10 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
 
     glassblur = A.GlassBlur(always_apply=True, max_delta=1)
 
-    np.random.seed(0)
+    random.seed(0)
     blur_uint8 = glassblur(image=x_uint8)["image"]
 
-    np.random.seed(0)
+    random.seed(0)
     blur_float32 = glassblur(image=x_float32)["image"]
 
     # Before comparison, rescale the blur_float32 to [0, 255]

@@ -10,13 +10,104 @@ import cv2
 import numpy as np
 import skimage
 
-from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
+from albumentations import random_utils
+
+from .keypoints_utils import angle_to_2pi_range
+
+__all__ = [
+    "MAX_VALUES_BY_DTYPE",
+    "_maybe_process_in_chunks",
+    "add_fog",
+    "add_rain",
+    "add_shadow",
+    "add_snow",
+    "add_sun_flare",
+    "add_weighted",
+    "adjust_brightness_torchvision",
+    "adjust_contrast_torchvision",
+    "adjust_hue_torchvision",
+    "adjust_saturation_torchvision",
+    "angle_2pi_range",
+    "bbox_flip",
+    "bbox_hflip",
+    "bbox_transpose",
+    "bbox_vflip",
+    "blur",
+    "brightness_contrast_adjust",
+    "channel_shuffle",
+    "clahe",
+    "clip",
+    "clipped",
+    "convolve",
+    "downscale",
+    "elastic_transform_approx",
+    "equalize",
+    "fancy_pca",
+    "from_float",
+    "gamma_transform",
+    "gauss_noise",
+    "gaussian_blur",
+    "get_num_channels",
+    "get_opencv_dtype_from_numpy",
+    "glass_blur",
+    "grid_distortion",
+    "hflip",
+    "hflip_cv2",
+    "image_compression",
+    "invert",
+    "is_grayscale_image",
+    "is_multispectral_image",
+    "is_rgb_image",
+    "iso_noise",
+    "keypoint_flip",
+    "keypoint_hflip",
+    "keypoint_transpose",
+    "keypoint_vflip",
+    "linear_transformation_rgb",
+    "median_blur",
+    "move_tone_curve",
+    "multiply",
+    "non_rgb_warning",
+    "noop",
+    "normalize",
+    "optical_distortion",
+    "pad",
+    "pad_with_params",
+    "posterize",
+    "preserve_channel_dim",
+    "preserve_shape",
+    "random_flip",
+    "rot90",
+    "shift_hsv",
+    "shift_rgb",
+    "solarize",
+    "superpixels",
+    "swap_tiles_on_image",
+    "to_float",
+    "to_gray",
+    "transpose",
+    "unsharp_mask",
+    "vflip",
+]
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype("uint8"): 255,
     np.dtype("uint16"): 65535,
     np.dtype("uint32"): 4294967295,
     np.dtype("float32"): 1.0,
+}
+
+NPDTYPE_TO_OPENCV_DTYPE = {
+    np.uint8: cv2.CV_8U,
+    np.uint16: cv2.CV_16U,
+    np.int32: cv2.CV_32S,
+    np.float32: cv2.CV_32F,
+    np.float64: cv2.CV_64F,
+    np.dtype("uint8"): cv2.CV_8U,
+    np.dtype("uint16"): cv2.CV_16U,
+    np.dtype("int32"): cv2.CV_32S,
+    np.dtype("float32"): cv2.CV_32F,
+    np.dtype("float64"): cv2.CV_64F,
 }
 
 
@@ -27,6 +118,17 @@ def angle_2pi_range(func):
         return (x, y, angle_to_2pi_range(a), s)
 
     return wrapped_function
+
+
+def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object]) -> int:
+    """
+    Return a corresponding OpenCV dtype for a numpy's dtype
+    :param value: Input dtype of numpy array
+    :return: Corresponding dtype for OpenCV
+    """
+    if isinstance(value, np.ndarray):
+        value = value.dtype
+    return NPDTYPE_TO_OPENCV_DTYPE[value]
 
 
 def clip(img, dtype, maxval):
@@ -71,6 +173,20 @@ def preserve_channel_dim(func):
         result = func(img, *args, **kwargs)
         if len(shape) == 3 and shape[-1] == 1 and len(result.shape) == 2:
             result = np.expand_dims(result, axis=-1)
+        return result
+
+    return wrapped_function
+
+
+def ensure_contiguous(func):
+    """
+    Ensure that input img is contiguous.
+    """
+
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        img = np.require(img, requirements=["C_CONTIGUOUS"])
+        result = func(img, *args, **kwargs)
         return result
 
     return wrapped_function
@@ -141,14 +257,6 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     img = img.astype(np.float32)
     img -= mean
     img *= denominator
-    return img
-
-
-def cutout(img, holes, fill_value=0):
-    # Make a copy of the input image since we don't want to modify it directly
-    img = img.copy()
-    for x1, y1, x2, y2 in holes:
-        img[y1:y2, x1:x2] = fill_value
     return img
 
 
@@ -892,6 +1000,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     return image_rgb
 
 
+@ensure_contiguous
 @preserve_shape
 def add_shadow(img, vertices_list):
     """Add shadows to the image.
@@ -1059,9 +1168,6 @@ def elastic_transform_approx(
          Proc. of the International Conference on Document Analysis and
          Recognition, 2003.
     """
-    if random_state is None:
-        random_state = np.random.RandomState(1234)
-
     height, width = img.shape[:2]
 
     # Random affine
@@ -1078,7 +1184,9 @@ def elastic_transform_approx(
             center_square - square_size,
         ]
     )
-    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
+    pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
+        np.float32
+    )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
@@ -1091,11 +1199,11 @@ def elastic_transform_approx(
     )
     img = warp_fn(img)
 
-    dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
     dx *= alpha
 
-    dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dy = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
     dy *= alpha
 
@@ -1121,18 +1229,6 @@ def invert(img):
 
 def channel_shuffle(img, channels_shuffled):
     img = img[..., channels_shuffled]
-    return img
-
-
-@preserve_shape
-def channel_dropout(img, channels_to_drop, fill_value=0):
-    if len(img.shape) == 2 or img.shape[2] == 1:
-        raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
-
-    img = img.copy()
-
-    img[..., channels_to_drop] = fill_value
-
     return img
 
 
@@ -1219,16 +1315,13 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     if not is_rgb_image(image):
         raise TypeError("Image must be RGB")
 
-    if random_state is None:
-        random_state = np.random.RandomState(42)
-
     one_over_255 = float(1.0 / 255.0)
     image = np.multiply(image, one_over_255, dtype=np.float32)
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_state.poisson(stddev[1] * intensity * 255, size=hls.shape[:2])
-    color_noise = random_state.normal(0, color_shift * 360 * intensity, size=hls.shape[:2])
+    luminance_noise = random_utils.poisson(stddev[1] * intensity * 255, size=hls.shape[:2], random_state=random_state)
+    color_noise = random_utils.normal(0, color_shift * 360 * intensity, size=hls.shape[:2], random_state=random_state)
 
     hue = hls[..., 0]
     hue += color_noise
@@ -1828,3 +1921,12 @@ def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float
     soft_mask = blur_fn(mask)
     output = soft_mask * sharp + (1 - soft_mask) * image
     return from_float(output, dtype=input_dtype)
+
+
+@preserve_shape
+def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[float, Sequence[float]]) -> np.ndarray:
+    if isinstance(drop_value, (int, float)) and drop_value == 0:
+        drop_values = np.zeros_like(image)
+    else:
+        drop_values = np.full_like(image, drop_value)  # type: ignore
+    return np.where(drop_mask, drop_values, image)
