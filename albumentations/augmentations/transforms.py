@@ -22,7 +22,11 @@ from ..core.transforms_interface import (
 )
 from ..core.utils import format_args
 from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
+from .bbox_utils import (
+    convert_bboxes_to_albumentations,
+    denormalize_bbox,
+    normalize_bbox,
+)
 
 __all__ = [
     "Blur",
@@ -40,6 +44,7 @@ __all__ = [
     "RGBShift",
     "RandomBrightness",
     "RandomContrast",
+    "Mosaic",
     "MotionBlur",
     "MedianBlur",
     "GaussianBlur",
@@ -3100,3 +3105,160 @@ class PixelDropout(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
         return ("dropout_prob", "per_channel", "drop_value", "mask_drop_value")
+
+
+class Mosaic(DualTransform):
+    """Mosaic augmentation arranges randomly selected four images into single one like the 2x2 grid layout.
+
+    Note:
+        This augmentation requires additional helper targets as sources of additional
+        image and bboxes.
+        The targets are:
+        - `image_cache`: list of images or 4 dimensional np.nadarray whose first dimension is batch size.
+        - `bboxes_cache`: list of bounding boxes. The bounding box format is specified in `bboxes_format`.
+        You should make sure that the bounding boxes of i-th image (image_cache[i]) are given by bboxes_cache[i].
+
+        Here is a typical usage:
+        ```
+        data = transform(image=image, image_cache=image_cache)
+        # or
+        data = transform(image=image, image_cache=image_cache, bboxes=bboxes, bboxes_cache=bboxes_cache)
+        ```
+
+        You can set `image_cache` whose length is less than 3. In such a case, the same image will be selected
+        multiple times.
+        Note that the image specified by `image` argument is always included.
+
+    Args:
+        height (int)): height of the mosaiced image.
+        width (int): width of the mosaiced image.
+        fill_value (int): padding value.
+        replace (bool): whether to allow replacement in sampling or not. When the value is `True`, the same image
+            can be selected multiple times. When False, the length of `image_cache` (and `bboxes_cache`) should
+            be at least 3.
+            This replacement rule is applied only to `image_cache`. So, if the `image_cache` contains the same image as
+            the one specified in `image` argument, it can make image that includes duplication for the `image` even if
+            `replace=False` is set.
+        bboxes_forma (str)t: format of bounding box. Should be on of "pascal_voc", "coco", "yolo".
+
+    Targets:
+        image, mask, bboxes, image_cache, mask_cache, bboxes_cache
+
+    Image types:
+        uint8, float32
+
+    Reference:
+    [Bochkovskiy] Bochkovskiy A, Wang CY, Liao HYM. （2020） "YOLOv 4 : Optimal speed and accuracy of object detection.",
+    https://arxiv.org/pdf/2004.10934.pdf
+
+    """
+
+    def __init__(
+        self,
+        height,
+        width,
+        replace=True,
+        fill_value=0,
+        bboxes_format="pascal_voc",
+        always_apply=False,
+        p=0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+        self.height = height
+        self.width = width
+        self.replace = replace
+        self.fill_value = fill_value
+        self.bboxes_format = bboxes_format
+        self.__target_dependence = {}
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("height", "width", "replace", "fill_value", "bboxes_cache_format")
+
+    def __call__(self, *args, force_apply: bool = False, **kwargs) -> Dict[str, Any]:
+        if args:
+            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
+        self.update_target_dependence(**kwargs)
+        return super().__call__(force_apply=force_apply, **kwargs)
+
+    @property
+    def target_dependence(self) -> Dict:
+        return self.__target_dependence
+
+    @target_dependence.setter
+    def target_dependence(self, value):
+        self.__target_dependence = value
+
+    def update_target_dependence(self, **kwargs):
+        """Update target dependence dynamically."""
+        self.target_dependence = {}
+        if "image" in kwargs:
+            self.target_dependence["image"] = {"image_cache": kwargs["image_cache"]}
+        if "mask" in kwargs:
+            self.target_dependence["mask"] = {"mask_cache": kwargs["mask_cache"]}
+        if "bboxes" in kwargs:
+            self.target_dependence["bboxes"] = {
+                "image": kwargs["image"],
+                "image_cache": kwargs["image_cache"],
+                "bboxes_cache": kwargs["image_cache"],
+            }
+
+    def apply(self, image, image_cache, indices, height, width, fill_value, **params):
+        image_batch = []
+        for i in indices:
+            if i == 0:
+                image_batch.append(image)
+            else:
+                image_batch.append(image_cache[i - 1])
+        return F.mosaic4(image_batch, height, width, fill_value)
+
+    def apply_to_mask(self, mask, mask_cache, indices, height, width, fill_value, **params):
+        mask_batch = []
+        for i in indices:
+            if i == 0:
+                mask_batch.append(mask)
+            else:
+                mask_batch.append(mask_cache[i - 1])
+        return F.mosaic4(mask_batch, height, width, fill_value)
+
+    def apply_to_bbox(self, bbox, image_shape, position, height, width, **params):
+        rows, cols = image_shape[:2]
+        return F.bbox_mosaic4(bbox, rows, cols, position, height, width)
+
+    def apply_to_bboxes(
+        self, bboxes, bboxes_cache, image, image_cache, indices, height, width, bboxes_format, **params
+    ):
+        new_bboxes = []
+        for i, index in enumerate(indices):
+            if index == 0:
+                image_shape = image.shape
+                target_bboxes = bboxes
+            else:
+                image_shape = image_cache[index - 1].shape
+                target_bboxes = bboxes_cache[index - 1]
+                rows, cols = image_shape[:2]
+                target_bboxes = convert_bboxes_to_albumentations(
+                    target_bboxes, source_format=bboxes_format, rows=rows, cols=cols
+                )
+            for bbox in target_bboxes:
+                new_bbox = self.apply_to_bbox(bbox, image_shape, i, height, width)
+                new_bboxes.append(new_bbox)
+        return new_bboxes
+
+    def apply_to_keypoint(self, **params):
+        pass  # TODO
+
+    def get_params(self) -> Dict[str, Any]:
+        image_cache = self.target_dependence["image"]["image_cache"]
+        n = len(image_cache)
+        indices = 1 + np.random.choice(
+            range(n), size=3, replace=self.replace
+        )  # 3 additional image indices. The 0-th index is reserved for the target image.
+        indices = [0] + list(indices)
+        random.shuffle(indices)  # target image + additional images
+        return {
+            "indices": indices,
+            "height": self.height,
+            "width": self.width,
+            "fill_value": self.fill_value,
+            "bboxes_format": self.bboxes_format,
+        }
