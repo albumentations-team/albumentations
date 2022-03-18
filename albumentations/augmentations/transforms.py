@@ -721,9 +721,11 @@ class ImageCompression(ImageOnlyTransform):
         self.quality_upper = quality_upper
 
     def apply(self, image, quality=100, image_type=".jpg", **params):
+        params.update({"quality": quality, "image_type": image_type})
+        params.update(self.get_params())
         if not image.ndim == 2 and image.shape[-1] not in (1, 3, 4):
             raise TypeError("ImageCompression transformation expects 1, 3 or 4 channel images.")
-        return F.image_compression(image, quality, image_type)
+        return F.image_compression(image, **params)
 
     def get_params(self):
         image_type = ".jpg"
