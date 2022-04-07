@@ -1,12 +1,11 @@
 import random
 import typing
-from typing import Optional, List, Tuple, Iterable, Union
+from typing import Iterable, List, Optional, Tuple, Union
 
 import numpy as np
 
 from ...core.transforms_interface import DualTransform
 from .functional import cutout
-
 
 __all__ = ["CoarseDropout"]
 

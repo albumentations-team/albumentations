@@ -1,12 +1,11 @@
 import random
-from typing import Union, Tuple, Any, Dict
+from typing import Any, Dict, Tuple, Union
 
 import cv2
 import numpy as np
 from skimage.measure import label
 
-from ...core.transforms_interface import DualTransform
-from ...core.transforms_interface import to_tuple
+from ...core.transforms_interface import DualTransform, to_tuple
 
 __all__ = ["MaskDropout"]
 

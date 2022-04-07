@@ -2,7 +2,7 @@
 # because numpy can return single number and ndarray
 
 import random as py_random
-from typing import Optional, Sequence, Union, Type, Any
+from typing import Any, Optional, Sequence, Type, Union
 
 import numpy as np
 
