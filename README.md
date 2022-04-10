@@ -227,8 +227,11 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 ### Object Removal augmentation
 Using `startEraser(parentDir, imgType, imgExpType)` one can easily equalise strength of different classes of a dataset. The dataset must contain two folders, 'images' folder and 'labels' folder. Using the 'labels' folder, `startEraser()` finds the minority class and then avoids images that doesn't contain the minority classes for synthesis. Later on the rest of images that has the minority class, `startEraser()` blurs out instances of classes that are in excess from the images. It also returns proper labels of the synthesised images.
+#### Original Image
 ![object blurring 1](/albumentations/augmentations/eraser/sampleImages/000277.png)
-![object blurring 1](/albumentations/augmentations/eraser/sampleImages/000277.png)
+#### Sythesised Image
+![object blurring 1](/albumentations/augmentations/eraser/sampleImages/000277.jpg)
+#### Newly Generated Label Comparison
 ![old new lable](/albumentations/augmentations/eraser/sampleImages/oldNewLabels.png)
 
 ## Benchmarking results
