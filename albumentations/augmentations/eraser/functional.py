@@ -94,8 +94,6 @@ def startEraser(parentDir, imgType, imgExpType):
         imgType (string): Type of image present in the Image directory
         imgExpType (string): Type of synthesised image to be generated
     """
-    # currentDir = os.getcwd()
-    # parentDir = os.path.dirname(currentDir)
     imgDir = os.path.join(parentDir, "images")
     synthImgDir = os.path.join(parentDir, "syntheticImages")
     synthLabDir = os.path.join(parentDir, "syntheticLabels")
@@ -109,7 +107,7 @@ def startEraser(parentDir, imgType, imgExpType):
     obj1 = MetaData(parentDir, imgType)
     obj1.loadData()
     print(obj1.data)
-    # print(obj1.distribution)
+    print(obj1.distribution)
     minorityLabel, minorityStrength = obj1.identifyMinority()
 
     for filePath in glob.glob(f"{imgDir}/*"):
@@ -128,17 +126,8 @@ def startEraser(parentDir, imgType, imgExpType):
                 coord = labelData[labelname][tag]["coord"]
                 cv2.rectangle(mask, coord[0], coord[1], 0, -1)
 
-        # cv.imshow("Mask", mask)
-        # cv.waitKey(1000)
         invMask = 255 - mask
-        # palette = cv2.bitwise_and(img, img, mask=mask)
-        # print(palette)
-        # print(invMask)
-        # cv.imshow("Inverted Mask", invMask)
-        # cv.waitKey(1000)
         inPaint = cv2.inpaint(img, invMask, 3, cv2.INPAINT_NS)
-        # cv.imshow("Inpainted Pic", inPaint)
-        # cv.waitKey(5000)
         text = []
         for label in labelData.keys():
             if label != minorityLabel:
@@ -168,8 +157,6 @@ def startEraser(parentDir, imgType, imgExpType):
 
                     line = " ".join([set1, set2, set3, set4, set5])
                     text.append(line)
-                    # cv.imshow("ROI", img[ymin:ymax, xmin:xmax, :])
-                    # cv.waitKey(5000)
                 print(f"Adding these tags of {label}:{tagAdd}")
             else:
                 minTags = list(labelData[label].keys())
@@ -191,11 +178,7 @@ def startEraser(parentDir, imgType, imgExpType):
 
                     line = " ".join([set1, set2, set3, set4, set5])
                     text.append(line)
-                    # cv.imshow("ROI", img[ymin:ymax, xmin:xmax, :])
-                    # cv.waitKey(5000)
 
-        # cv.imshow("Synthetic Image", inPaint)
-        # cv.waitKey(5000)
         cv2.imwrite(os.path.join(synthImgDir, f"{filename}.{imgExpType}"), inPaint)
         print(f"Synthesised synthetic Image for {filename}.")
         fileContents = "\n".join(text)

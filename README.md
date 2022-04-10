@@ -225,6 +225,11 @@ Spatial-level transforms will simultaneously change both an input image as well 
 ### Keypoints augmentation
 <img src="https://habrastorage.org/webt/e-/6k/z-/e-6kz-fugp2heak3jzns3bc-r8o.jpeg" width=100%>
 
+### Object Removal augmentation
+Using `startEraser(parentDir, imgType, imgExpType)` one can easily equalise strength of different classes of a dataset. The dataset must contain two folders, 'images' folder and 'labels' folder. Using the 'labels' folder, `startEraser()` finds the minority class and then avoids images that doesn't contain the minority classes for synthesis. Later on the rest of images that has the minority class, `startEraser()` blurs out instances of classes that are in excess from the images. It also returns proper labels of the synthesised images.
+![object blurring 1](/albumentations/augmentations/eraser/sampleImages/000277.png)
+![object blurring 1](/albumentations/augmentations/eraser/sampleImages/000277.png)
+![old new lable](/albumentations/augmentations/eraser/sampleImages/oldNewLabels.png)
 
 ## Benchmarking results
 To run the benchmark yourself, follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
