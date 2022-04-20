@@ -91,7 +91,7 @@ class PadIfNeeded(DualTransform):
         pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         position (Union[str, PositionType]): Position of the image. should be PositionType.CENTER or
             PositionType.TOP_LEFT or PositionType.TOP_RIGHT or PositionType.BOTTOM_LEFT or PositionType.BOTTOM_RIGHT.
-            Default: PositionType.CENTER.
+            or PositionType.RANDOM. Default: PositionType.CENTER.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -112,6 +112,7 @@ class PadIfNeeded(DualTransform):
         TOP_RIGHT = "top_right"
         BOTTOM_LEFT = "bottom_left"
         BOTTOM_RIGHT = "bottom_right"
+        RANDOM = "random"
 
     def __init__(
         self,
@@ -258,6 +259,14 @@ class PadIfNeeded(DualTransform):
             w_left += w_right
             h_bottom = 0
             w_right = 0
+            
+        elif self.position == PadIfNeeded.PositionType.RANDOM:
+            h_pad = h_top + h_bottom
+            w_pad = w_left + w_right
+            h_top = random.randint(0, h_pad)
+            h_bottom = h_pad - h_top
+            w_left = random.randint(0, w_pad)
+            w_right = w_pad - w_left
 
         return h_top, h_bottom, w_left, w_right
 
