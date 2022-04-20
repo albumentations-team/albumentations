@@ -134,20 +134,35 @@ def bbox_rotate(bbox, angle, rows, cols):
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
+
     x_min, y_min, x_max, y_max = bbox[:4]
-    scale = cols / float(rows)
-    x = np.array([x_min, x_max, x_max, x_min]) - 0.5
-    y = np.array([y_min, y_min, y_max, y_max]) - 0.5
-    angle = np.deg2rad(angle)
-    x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
-    y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
-    x_t = x_t + 0.5
-    y_t = y_t + 0.5
 
-    x_min, x_max = min(x_t), max(x_t)
-    y_min, y_max = min(y_t), max(y_t)
+    w2 = (x_max-x_min)/2
+    h2 = (y_max-y_min)/2
 
-    return x_min, y_min, x_max, y_max
+    x_ellipse = []
+    y_ellipse = []
+
+    # generate coordinates for ellipse
+    for i in range(360):
+        x_ellipse.append(w2 * math.sin(math.radians(i)) + w2 + x_min)
+        y_ellipse.append(h2 * math.cos(math.radians(i)) + h2 + y_min)
+
+    # combine X and Y coords
+    points = list(zip(x_ellipse,y_ellipse))
+  
+    # rotate points by the angle with respect to the midpoint
+    angle_rad = np.deg2rad(angle)
+    R = np.array([[np.cos(angle_rad), -np.sin(angle_rad)],
+                  [np.sin(angle_rad),  np.cos(angle_rad)]])
+    o = np.atleast_2d((w2 + x_min, h2 + y_min))
+    p = np.atleast_2d(points)
+    points_rotated = np.squeeze((R @ (p.T-o.T) + o.T).T)
+
+    x_ellipse_rotated = [p[0] for p in points_rotated]
+    y_ellipse_rotated = [p[1] for p in points_rotated]
+
+    return min(x_ellipse_rotated), min(y_ellipse_rotated), max(x_ellipse_rotated), max(y_ellipse_rotated)
 
 
 @angle_2pi_range
