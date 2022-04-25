@@ -669,7 +669,7 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, imag
 )
 def test_pad_if_needed_position(params, image_shape):
     random.seed(42)
-    
+
     image = np.zeros(image_shape)
     pad = A.PadIfNeeded(**params)
     image_padded = pad(image=image)["image"]
@@ -697,11 +697,10 @@ def test_pad_if_needed_position(params, image_shape):
     elif params["position"] == "bottom_right":
         true_result[-image_shape[0] :, -image_shape[1] :] = 0
         assert (image_padded == true_result).all()
-        
+
     elif params["position"] == "random":
         true_result[0:5, -7:-1] = 0
         assert (image_padded == true_result).all()
-    
 
 
 @pytest.mark.parametrize(

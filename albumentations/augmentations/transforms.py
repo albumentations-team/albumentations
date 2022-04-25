@@ -259,7 +259,7 @@ class PadIfNeeded(DualTransform):
             w_left += w_right
             h_bottom = 0
             w_right = 0
-            
+
         elif self.position == PadIfNeeded.PositionType.RANDOM:
             h_pad = h_top + h_bottom
             w_pad = w_left + w_right
