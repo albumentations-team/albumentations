@@ -1639,12 +1639,12 @@ def fancy_pca(img, alpha=0.1):
     http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
 
     Args:
-        img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
-        alpha:  how much to perturb/scale the eigen vecs and vals
+        img (numpy.ndarray): numpy array with (h, w, rgb) shape, as ints between 0-255
+        alpha (float): how much to perturb/scale the eigen vecs and vals
                 the paper used std=0.1
 
     Returns:
-        numpy image-like array as float range(0, 1)
+        numpy.ndarray: numpy image-like array as uint8 range(0, 255)
 
     """
     if not is_rgb_image(img) or img.dtype != np.uint8:
