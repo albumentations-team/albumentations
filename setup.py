@@ -10,7 +10,7 @@ INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "scikit-image>=0.16.1,<0.19", "PyY
 # If none of packages in first installed, install second package
 CHOOSE_INSTALL_REQUIRES = [
     (
-        ("opencv-python>=4.1.1", "opencv-contrib-python>=4.1.1", "opencv-contrib-python-headless>=4.1.1"),
+        ("opencv-python>=4.1.1", "opencv-contrib-python>=4.1.1", "opencv-contrib-python-headless>=4.1.1", "opencv-python-inference-engine"),
         "opencv-python-headless>=4.1.1",
     )
 ]
