@@ -11,6 +11,7 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
+
 from .keypoints_utils import angle_to_2pi_range
 
 __all__ = [
@@ -172,6 +173,20 @@ def preserve_channel_dim(func):
         result = func(img, *args, **kwargs)
         if len(shape) == 3 and shape[-1] == 1 and len(result.shape) == 2:
             result = np.expand_dims(result, axis=-1)
+        return result
+
+    return wrapped_function
+
+
+def ensure_contiguous(func):
+    """
+    Ensure that input img is contiguous.
+    """
+
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        img = np.require(img, requirements=["C_CONTIGUOUS"])
+        result = func(img, *args, **kwargs)
         return result
 
     return wrapped_function
@@ -985,6 +1000,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     return image_rgb
 
 
+@ensure_contiguous
 @preserve_shape
 def add_shadow(img, vertices_list):
     """Add shadows to the image.
