@@ -1,9 +1,10 @@
-import multiprocessing
 import sys
 import warnings
+import multiprocessing
 
 import numpy as np
 import pytest
+
 
 try:
     import torch  # skipcq: PYL-W0611

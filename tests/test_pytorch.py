@@ -1,5 +1,6 @@
-import numpy as np
 import pytest
+
+import numpy as np
 import torch
 from PIL import Image
 from torchvision.transforms import ColorJitter

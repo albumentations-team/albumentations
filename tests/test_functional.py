@@ -773,8 +773,8 @@ def test_solarize(dtype):
     max_value = F.MAX_VALUES_BY_DTYPE[dtype]
 
     if dtype == np.dtype("float32"):
-        img = np.arange(2**10, dtype=np.float32) / (2**10)
-        img = img.reshape([2**5, 2**5])
+        img = np.arange(2 ** 10, dtype=np.float32) / (2 ** 10)
+        img = img.reshape([2 ** 5, 2 ** 5])
     else:
         max_count = 1024
         count = min(max_value + 1, 1024)

@@ -1,10 +1,11 @@
 import random
-from typing import Any, Mapping, Tuple, Union
+from typing import Union, Tuple, Any, Mapping
 
 import numpy as np
 
-from albumentations.core.transforms_interface import ImageOnlyTransform
-
+from albumentations.core.transforms_interface import (
+    ImageOnlyTransform,
+)
 from .functional import channel_dropout
 
 __all__ = ["ChannelDropout"]

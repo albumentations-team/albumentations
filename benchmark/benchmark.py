@@ -1,37 +1,34 @@
 from __future__ import division, print_function
-
 import argparse
 import math
 import os
 import sys
 from abc import ABC
-from collections import defaultdict
 from timeit import Timer
-
-import cv2
-import keras_preprocessing.image as keras
-import numpy as np
-import pandas as pd
+from collections import defaultdict
 import pkg_resources
-import solt.core as slc
-import solt.transforms as slt
-import solt.utils as slu
-import torchvision.transforms.functional as torchvision
+
 from Augmentor import Operations, Pipeline
-from imgaug import augmenters as iaa
 from PIL import Image, ImageOps
 from pytablewriter import MarkdownTableWriter
 from pytablewriter.style import Style
-from tqdm import tqdm
 
-import albumentations as A
+import cv2
+
+from tqdm import tqdm
+import numpy as np
+import pandas as pd
+import torchvision.transforms.functional as torchvision
+import keras_preprocessing.image as keras
+from imgaug import augmenters as iaa
+import solt.transforms as slt
+import solt.core as slc
+import solt.utils as slu
+
 import albumentations.augmentations.functional as albumentations
+import albumentations as A
+from albumentations.augmentations.geometric.functional import rotate, resize, shift_scale_rotate
 from albumentations.augmentations.crops.functional import random_crop
-from albumentations.augmentations.geometric.functional import (
-    resize,
-    rotate,
-    shift_scale_rotate,
-)
 
 cv2.setNumThreads(0)  # noqa E402
 cv2.ocl.setUseOpenCL(False)  # noqa E402

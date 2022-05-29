@@ -1,7 +1,6 @@
-from typing import Iterable, List, Tuple, Union
+from typing import List, Tuple, Union, Iterable
 
 import numpy as np
-
 from ..functional import preserve_shape
 
 __all__ = ["cutout", "channel_dropout"]

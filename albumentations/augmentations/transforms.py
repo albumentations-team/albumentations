@@ -1822,7 +1822,7 @@ class GaussNoise(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         image = params["image"]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        sigma = var**0.5
+        sigma = var ** 0.5
 
         if self.per_channel:
             gauss = random_utils.normal(self.mean, sigma, image.shape)
@@ -2804,7 +2804,7 @@ class RingingOvershoot(ImageOnlyTransform):
             / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
             [ksize, ksize],
         )
-        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff**2 / (4 * np.pi)
+        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff ** 2 / (4 * np.pi)
 
         # Normalize kernel
         kernel = kernel.astype(np.float32) / np.sum(kernel)
@@ -2982,7 +2982,7 @@ class AdvancedBlur(ImageOnlyTransform):
         grid = np.stack(np.meshgrid(ax, ax), axis=-1)
 
         # Calculate rotated sigma matrix
-        d_matrix = np.array([[sigmaX**2, 0], [0, sigmaY**2]])
+        d_matrix = np.array([[sigmaX ** 2, 0], [0, sigmaY ** 2]])
         u_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
         sigma_matrix = np.dot(u_matrix, np.dot(d_matrix, u_matrix.T))
 

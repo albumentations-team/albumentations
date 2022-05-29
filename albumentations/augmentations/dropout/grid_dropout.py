@@ -1,10 +1,10 @@
 import random
-from typing import Iterable, Tuple
+from typing import Tuple, Iterable
 
 import numpy as np
 
-from ...core.transforms_interface import DualTransform
 from . import functional as F
+from ...core.transforms_interface import DualTransform
 
 __all__ = ["GridDropout"]
 

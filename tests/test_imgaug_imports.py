@@ -2,7 +2,7 @@ import pytest
 
 import albumentations as A
 from albumentations.imgaug.stubs import IAAStub
-from tests.conftest import skipif_imgaug, skipif_no_imgaug
+from tests.conftest import skipif_no_imgaug, skipif_imgaug
 
 
 @skipif_no_imgaug

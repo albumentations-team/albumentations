@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import datetime
-import os
-import re
-import sys
-from typing import Any, Dict
+from typing import Dict, Any
 from unittest.mock import MagicMock
+
+import re
+import os
+import sys
 
 sys.path.insert(0, os.path.abspath("../"))
 

@@ -3,24 +3,25 @@ import imgaug as ia
 import numpy as np
 import pytest
 
-import albumentations as A
 from albumentations import Compose
 from albumentations.augmentations.bbox_utils import (
     convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
 )
+import albumentations as A
 from albumentations.imgaug.transforms import (
-    IAAAdditiveGaussianNoise,
-    IAAAffine,
-    IAACropAndPad,
+    IAAPiecewiseAffine,
     IAAFliplr,
     IAAFlipud,
-    IAAPerspective,
-    IAAPiecewiseAffine,
-    IAASharpen,
     IAASuperpixels,
+    IAASharpen,
+    IAAAdditiveGaussianNoise,
+    IAAPerspective,
+    IAAAffine,
+    IAACropAndPad,
 )
 from tests.utils import set_seed
+
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 
