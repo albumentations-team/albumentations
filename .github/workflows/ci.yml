@@ -69,26 +69,6 @@ jobs:
     - name: Run Black
       run: black --config=black.toml --check .
 
-  check_sphinx_build:
-    name: Check Sphinx build for docs
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8]
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Update pip
-      run: python -m pip install --upgrade pip
-    - name: Install dependencies
-      run: pip install -r docs/requirements.txt
-    - name: Run Sphinx
-      run: sphinx-build -b html docs /tmp/_docs_build
-
   check_transforms_docs:
     name: Check that transforms docs are not outdated
     runs-on: ubuntu-latest
