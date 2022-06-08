@@ -543,8 +543,8 @@ class Affine(DualTransform):
                 raise ValueError(
                     f'Expected {name} dictionary to contain at least key "x" or ' 'key "y". Found neither of them.'
                 )
-            x = val.get("x", 1.0)
-            y = val.get("y", 1.0)
+            x = val.get("x", 0.0)
+            y = val.get("y", 0.0)
             return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
         return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
