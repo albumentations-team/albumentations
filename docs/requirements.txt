@@ -1,6 +1,6 @@
 https://download.pytorch.org/whl/cpu/torch-1.6.0%2Bcpu-cp38-cp38-linux_x86_64.whl
 mock
-numpy==1.15.4
+numpy==1.21.0
 scikit-image
 sphinx<2
 sphinx-autobuild
