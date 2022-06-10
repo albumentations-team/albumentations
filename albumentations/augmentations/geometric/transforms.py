@@ -537,14 +537,14 @@ class Affine(DualTransform):
         )
 
     @staticmethod
-    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str):
+    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str, default: float = 1.0):
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
                     f'Expected {name} dictionary to contain at least key "x" or ' 'key "y". Found neither of them.'
                 )
-            x = val.get("x", 1.0)
-            y = val.get("y", 1.0)
+            x = val.get("x", default)
+            y = val.get("y", default)
             return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
         return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
@@ -564,7 +564,7 @@ class Affine(DualTransform):
 
         if translate_percent is not None:
             # translate by percent
-            return cls._handle_dict_arg(translate_percent, "translate_percent"), translate_px
+            return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
 
         if translate_px is None:
             raise ValueError("translate_px is None.")
