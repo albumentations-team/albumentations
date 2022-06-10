@@ -9,7 +9,7 @@ jobs:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-11]
         python-version: [3.6, 3.7, 3.8, 3.9]
-        albumentations-version: [tests, develop]
+        albumentations-version: [tests]
       fail-fast: false
     steps:
     - name: Checkout
