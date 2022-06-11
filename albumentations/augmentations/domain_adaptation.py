@@ -11,10 +11,10 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 from .functional import (
     clipped,
+    get_opencv_dtype_from_numpy,
     is_grayscale_image,
     is_multispectral_image,
     preserve_shape,
-    get_opencv_dtype_from_numpy,
 )
 from .utils import read_rgb_image
 

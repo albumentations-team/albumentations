@@ -2,7 +2,7 @@
 # because numpy can return single number and ndarray
 
 import random as py_random
-from typing import Optional, Sequence, Union, Type, Any
+from typing import Any, Optional, Sequence, Type, Union
 
 import numpy as np
 
@@ -27,6 +27,12 @@ def uniform(
 
 
 def rand(d0: NumType, d1: NumType, *more, random_state: Optional[np.random.RandomState] = None, **kwargs) -> Any:
+    if random_state is None:
+        random_state = get_random_state()
+    return random_state.rand(d0, d1, *more, **kwargs)  # type: ignore
+
+
+def randn(d0: NumType, d1: NumType, *more, random_state: Optional[np.random.RandomState] = None, **kwargs) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.randn(d0, d1, *more, **kwargs)  # type: ignore
