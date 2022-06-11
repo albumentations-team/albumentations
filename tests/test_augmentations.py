@@ -664,9 +664,12 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, imag
         [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_right"}, (5, 6)],
         [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_left"}, (5, 6)],
         [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_right"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "random"}, (5, 6)],
     ],
 )
 def test_pad_if_needed_position(params, image_shape):
+    random.seed(42)
+
     image = np.zeros(image_shape)
     pad = A.PadIfNeeded(**params)
     image_padded = pad(image=image)["image"]
@@ -691,8 +694,12 @@ def test_pad_if_needed_position(params, image_shape):
         true_result[-image_shape[0] :, : image_shape[1]] = 0
         assert (image_padded == true_result).all()
 
-    if params["position"] == "bottom_right":
+    elif params["position"] == "bottom_right":
         true_result[-image_shape[0] :, -image_shape[1] :] = 0
+        assert (image_padded == true_result).all()
+
+    elif params["position"] == "random":
+        true_result[0:5, -7:-1] = 0
         assert (image_padded == true_result).all()
 
 

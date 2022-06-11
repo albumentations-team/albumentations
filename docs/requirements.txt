@@ -1,7 +1,0 @@
-https://download.pytorch.org/whl/cpu/torch-1.6.0%2Bcpu-cp38-cp38-linux_x86_64.whl
-mock
-numpy==1.15.4
-scikit-image
-sphinx<2
-sphinx-autobuild
-sphinx_rtd_theme
