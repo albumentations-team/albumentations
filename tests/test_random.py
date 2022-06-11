@@ -16,6 +16,7 @@ def _calc(args):
     [
         [random_utils.uniform, [-(1 << 15), 1 << 15, 100]],
         [random_utils.rand, [10, 10]],
+        [random_utils.randn, [10, 10]],
         [random_utils.normal, [0, 1, 100]],
         [random_utils.poisson, [1 << 15, 100]],
         [random_utils.permutation, [np.arange(1000)]],

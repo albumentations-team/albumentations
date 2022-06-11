@@ -20,7 +20,9 @@ class ShiftScaleRotate(DualTransform):
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
             upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (-scale_limit, scale_limit). Default: (-0.1, 0.1).
+            range will be (-scale_limit, scale_limit). Note that the scale_limit will be biased by 1.
+            If scale_limit is a tuple, like (low, high), sampling will be done from the range (1 + low, 1 + high).
+            Default: (-0.1, 0.1).
         rotate_limit ((int, int) or int): rotation range. If rotate_limit is a single int value, the
             range will be (-rotate_limit, rotate_limit). Default: (-45, 45).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -537,14 +539,14 @@ class Affine(DualTransform):
         )
 
     @staticmethod
-    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str):
+    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str, default: float = 1.0):
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
                     f'Expected {name} dictionary to contain at least key "x" or ' 'key "y". Found neither of them.'
                 )
-            x = val.get("x", 1.0)
-            y = val.get("y", 1.0)
+            x = val.get("x", default)
+            y = val.get("y", default)
             return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
         return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
@@ -564,7 +566,7 @@ class Affine(DualTransform):
 
         if translate_percent is not None:
             # translate by percent
-            return cls._handle_dict_arg(translate_percent, "translate_percent"), translate_px
+            return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
 
         if translate_px is None:
             raise ValueError("translate_px is None.")
