@@ -13,7 +13,7 @@ repos:
       - id: isort
         args: [ "--profile", "black" ]
   - repo: https://github.com/psf/black
-    rev: 21.9b0
+    rev: 22.3.0
     hooks:
       - id: black
         args: [ --config=black.toml ]
