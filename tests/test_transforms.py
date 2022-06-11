@@ -848,10 +848,10 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
 
     glassblur = A.GlassBlur(always_apply=True, max_delta=1)
 
-    np.random.seed(0)
+    random.seed(0)
     blur_uint8 = glassblur(image=x_uint8)["image"]
 
-    np.random.seed(0)
+    random.seed(0)
     blur_float32 = glassblur(image=x_float32)["image"]
 
     # Before comparison, rescale the blur_float32 to [0, 255]

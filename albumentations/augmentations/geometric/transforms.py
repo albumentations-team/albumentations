@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import skimage.transform
 
+from ... import random_utils
 from ...core.transforms_interface import DualTransform, to_tuple
 from . import functional as F
 
@@ -19,7 +20,9 @@ class ShiftScaleRotate(DualTransform):
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
             upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (-scale_limit, scale_limit). Default: (-0.1, 0.1).
+            range will be (-scale_limit, scale_limit). Note that the scale_limit will be biased by 1.
+            If scale_limit is a tuple, like (low, high), sampling will be done from the range (1 + low, 1 + high).
+            Default: (-0.1, 0.1).
         rotate_limit ((int, int) or int): rotation range. If rotate_limit is a single int value, the
             range will be (-rotate_limit, rotate_limit). Default: (-45, 45).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -281,8 +284,8 @@ class Perspective(DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
 
-        scale = np.random.uniform(*self.scale)
-        points = np.random.normal(0, scale, [4, 2])
+        scale = random_utils.uniform(*self.scale)
+        points = random_utils.normal(0, scale, [4, 2])
         points = np.mod(np.abs(points), 1)
 
         # top left -- no changes needed, just use jitter
@@ -536,14 +539,14 @@ class Affine(DualTransform):
         )
 
     @staticmethod
-    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str):
+    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str, default: float = 1.0):
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
                     f'Expected {name} dictionary to contain at least key "x" or ' 'key "y". Found neither of them.'
                 )
-            x = val.get("x", 1.0)
-            y = val.get("y", 1.0)
+            x = val.get("x", default)
+            y = val.get("y", default)
             return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
         return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
@@ -563,7 +566,7 @@ class Affine(DualTransform):
 
         if translate_percent is not None:
             # translate by percent
-            return cls._handle_dict_arg(translate_percent, "translate_percent"), translate_px
+            return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
 
         if translate_px is None:
             raise ValueError("translate_px is None.")
@@ -823,8 +826,7 @@ class PiecewiseAffine(DualTransform):
         nb_cells = nb_cols * nb_rows
         scale = random.uniform(*self.scale)
 
-        state = np.random.RandomState(random.randint(0, 1 << 31))
-        jitter = state.normal(0, scale, (nb_cells, 2))
+        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
             return {"matrix": None}
 

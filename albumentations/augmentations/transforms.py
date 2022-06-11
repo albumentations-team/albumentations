@@ -12,6 +12,8 @@ import cv2
 import numpy as np
 from scipy import special
 
+from albumentations import random_utils
+
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
@@ -89,7 +91,7 @@ class PadIfNeeded(DualTransform):
         pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         position (Union[str, PositionType]): Position of the image. should be PositionType.CENTER or
             PositionType.TOP_LEFT or PositionType.TOP_RIGHT or PositionType.BOTTOM_LEFT or PositionType.BOTTOM_RIGHT.
-            Default: PositionType.CENTER.
+            or PositionType.RANDOM. Default: PositionType.CENTER.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -110,6 +112,7 @@ class PadIfNeeded(DualTransform):
         TOP_RIGHT = "top_right"
         BOTTOM_LEFT = "bottom_left"
         BOTTOM_RIGHT = "bottom_right"
+        RANDOM = "random"
 
     def __init__(
         self,
@@ -256,6 +259,14 @@ class PadIfNeeded(DualTransform):
             w_left += w_right
             h_bottom = 0
             w_right = 0
+
+        elif self.position == PadIfNeeded.PositionType.RANDOM:
+            h_pad = h_top + h_bottom
+            w_pad = w_left + w_right
+            h_top = random.randint(0, h_pad)
+            h_bottom = h_pad - h_top
+            w_left = random.randint(0, w_pad)
+            w_right = w_pad - w_left
 
         return h_top, h_bottom, w_left, w_right
 
@@ -591,8 +602,6 @@ class RandomGridShuffle(DualTransform):
         if n > height // 2 or m > width // 2:
             raise ValueError("Incorrect size cell of grid. Just shuffle pixels of image")
 
-        random_state = np.random.RandomState(random.randint(0, 10000))
-
         height_split = np.linspace(0, height, n + 1, dtype=np.int)
         width_split = np.linspace(0, width, m + 1, dtype=np.int)
 
@@ -614,7 +623,7 @@ class RandomGridShuffle(DualTransform):
 
         for bbox_size in np.unique(tiles_sizes.reshape(-1, 2), axis=0):
             eq_mat = np.all(tiles_sizes == bbox_size, axis=2)
-            new_index_matrix[eq_mat] = random_state.permutation(new_index_matrix[eq_mat])
+            new_index_matrix[eq_mat] = random_utils.permutation(new_index_matrix[eq_mat])
 
         new_index_matrix = np.split(new_index_matrix, 2, axis=2)
 
@@ -938,7 +947,7 @@ class RandomRain(ImageOnlyTransform):
 
             rain_drops.append((x, y))
 
-        return {"drop_length": drop_length, "rain_drops": rain_drops}
+        return {"drop_length": drop_length, "slant": slant, "rain_drops": rain_drops}
 
     def get_transform_init_args_names(self):
         return (
@@ -1304,8 +1313,8 @@ class RandomToneCurve(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "low_y": np.clip(np.random.normal(loc=0.25, scale=self.scale), 0, 1),
-            "high_y": np.clip(np.random.normal(loc=0.75, scale=self.scale), 0, 1),
+            "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1),
+            "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1),
         }
 
     def get_transform_init_args_names(self):
@@ -1767,7 +1776,7 @@ class GaussianBlur(ImageOnlyTransform):
         return F.gaussian_blur(image, ksize, sigma=sigma)
 
     def get_params(self):
-        ksize = np.random.randint(self.blur_limit[0], self.blur_limit[1] + 1)
+        ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1)
         if ksize != 0 and ksize % 2 != 1:
             ksize = (ksize + 1) % (self.blur_limit[1] + 1)
 
@@ -1822,13 +1831,12 @@ class GaussNoise(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         image = params["image"]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        sigma = var ** 0.5
-        random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+        sigma = var**0.5
 
         if self.per_channel:
-            gauss = random_state.normal(self.mean, sigma, image.shape)
+            gauss = random_utils.normal(self.mean, sigma, image.shape)
         else:
-            gauss = random_state.normal(self.mean, sigma, image.shape[:2])
+            gauss = random_utils.normal(self.mean, sigma, image.shape[:2])
             if len(image.shape) == 3:
                 gauss = np.expand_dims(gauss, -1)
 
@@ -2150,7 +2158,7 @@ class Downscale(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "scale": np.random.uniform(self.scale_min, self.scale_max),
+            "scale": random.uniform(self.scale_min, self.scale_max),
             "interpolation": self.interpolation,
         }
 
@@ -2293,7 +2301,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         else:
             shape = [c]
 
-        multiplier = np.random.uniform(self.multiplier[0], self.multiplier[1], shape)
+        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape)
         if F.is_grayscale_image(img) and img.ndim == 2:
             multiplier = np.squeeze(multiplier)
 
@@ -2395,7 +2403,7 @@ class GlassBlur(Blur):
         width_pixels = img.shape[0] - self.max_delta * 2
         height_pixels = img.shape[1] - self.max_delta * 2
         total_pixels = width_pixels * height_pixels
-        dxy = np.random.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
+        dxy = random_utils.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
 
         return {"dxy": dxy}
 
@@ -2654,7 +2662,7 @@ class Superpixels(ImageOnlyTransform):
     def get_params(self) -> dict:
         n_segments = random.randint(*self.n_segments)
         p = random.uniform(*self.p_replace)
-        return {"replace_samples": np.random.random(n_segments) < p, "n_segments": n_segments}
+        return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
 
     def apply(self, img: np.ndarray, replace_samples: Sequence[bool] = (False,), n_segments: int = 1, **kwargs):
         return F.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)
@@ -2805,7 +2813,7 @@ class RingingOvershoot(ImageOnlyTransform):
             / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
             [ksize, ksize],
         )
-        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff ** 2 / (4 * np.pi)
+        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff**2 / (4 * np.pi)
 
         # Normalize kernel
         kernel = kernel.astype(np.float32) / np.sum(kernel)
@@ -2983,7 +2991,7 @@ class AdvancedBlur(ImageOnlyTransform):
         grid = np.stack(np.meshgrid(ax, ax), axis=-1)
 
         # Calculate rotated sigma matrix
-        d_matrix = np.array([[sigmaX ** 2, 0], [0, sigmaY ** 2]])
+        d_matrix = np.array([[sigmaX**2, 0], [0, sigmaY**2]])
         u_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
         sigma_matrix = np.dot(u_matrix, np.dot(d_matrix, u_matrix.T))
 

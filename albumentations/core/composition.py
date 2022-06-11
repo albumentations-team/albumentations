@@ -7,6 +7,7 @@ from collections import defaultdict
 
 import numpy as np
 
+from albumentations import random_utils
 from albumentations.augmentations.bbox_utils import BboxProcessor
 from albumentations.augmentations.keypoints_utils import KeypointsProcessor
 from albumentations.core.serialization import (
@@ -205,6 +206,7 @@ class Compose(BaseCompose):
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
+        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
         for p in self.processors.values():
             p.postprocess(data)
@@ -270,6 +272,15 @@ class Compose(BaseCompose):
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 raise ValueError("bbox_params must be specified for bbox transformations")
 
+    @staticmethod
+    def _make_targets_contiguous(data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
+        result = {}
+        for key, value in data.items():
+            if isinstance(value, np.ndarray):
+                value = np.ascontiguousarray(value)
+            result[key] = value
+        return result
+
 
 class OneOf(BaseCompose):
     """Select one of transforms to apply. Selected transform will be called with `force_apply=True`.
@@ -293,8 +304,7 @@ class OneOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            idx = random_state.choice(len(self.transforms), p=self.transforms_ps)  # type: ignore
+            idx: int = random_utils.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
         return data
@@ -326,11 +336,8 @@ class SomeOf(BaseCompose):
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
-            random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
-            idx = random_state.choice(
-                len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps  # type: ignore
-            )
-            for i in idx:
+            idx = random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
+            for i in idx:  # type: ignore
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
         return data
