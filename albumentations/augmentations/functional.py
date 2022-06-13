@@ -11,6 +11,7 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
+
 from .keypoints_utils import angle_to_2pi_range
 
 __all__ = [
@@ -172,6 +173,20 @@ def preserve_channel_dim(func):
         result = func(img, *args, **kwargs)
         if len(shape) == 3 and shape[-1] == 1 and len(result.shape) == 2:
             result = np.expand_dims(result, axis=-1)
+        return result
+
+    return wrapped_function
+
+
+def ensure_contiguous(func):
+    """
+    Ensure that input img is contiguous.
+    """
+
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        img = np.require(img, requirements=["C_CONTIGUOUS"])
+        result = func(img, *args, **kwargs)
         return result
 
     return wrapped_function
@@ -572,7 +587,7 @@ def move_tone_curve(img, low_y, high_y):
 
     # Defines responze of a four-point bezier curve
     def evaluate_bez(t):
-        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t ** 2 * high_y + t ** 3
+        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t**2 * high_y + t**3
 
     evaluate_bez = np.vectorize(evaluate_bez)
     remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
@@ -985,6 +1000,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     return image_rgb
 
 
+@ensure_contiguous
 @preserve_shape
 def add_shadow(img, vertices_list):
     """Add shadows to the image.
@@ -1623,12 +1639,12 @@ def fancy_pca(img, alpha=0.1):
     http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
 
     Args:
-        img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
-        alpha:  how much to perturb/scale the eigen vecs and vals
+        img (numpy.ndarray): numpy array with (h, w, rgb) shape, as ints between 0-255
+        alpha (float): how much to perturb/scale the eigen vecs and vals
                 the paper used std=0.1
 
     Returns:
-        numpy image-like array as float range(0, 1)
+        numpy.ndarray: numpy image-like array as uint8 range(0, 255)
 
     """
     if not is_rgb_image(img) or img.dtype != np.uint8:

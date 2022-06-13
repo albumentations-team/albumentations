@@ -44,7 +44,6 @@ __all__ = [
     "safe_rotate",
     "bbox_safe_rotate",
     "keypoint_safe_rotate",
-    "safe_rotate_enlarged_img_size",
     "piecewise_affine",
     "to_distance_maps",
     "from_distance_maps",
@@ -539,112 +538,75 @@ def bbox_affine(
 @preserve_channel_dim
 def safe_rotate(
     img: np.ndarray,
-    angle: int = 0,
-    interpolation: int = cv2.INTER_LINEAR,
-    value: int = None,
+    matrix: np.ndarray,
+    interpolation: int,
+    value: Optional[int] = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
-):
-
-    old_rows, old_cols = img.shape[:2]
-
-    # getRotationMatrix2D needs coordinates in reverse order (width, height) compared to shape
-    image_center = (old_cols / 2, old_rows / 2)
-
-    # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
-
-    # Rotation Matrix
-    rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-
-    # Shift the image to create padding
-    rotation_mat[0, 2] += new_cols / 2 - image_center[0]
-    rotation_mat[1, 2] += new_rows / 2 - image_center[1]
-
-    # CV2 Transformation function
-    warp_affine_fn = _maybe_process_in_chunks(
+) -> np.ndarray:
+    h, w = img.shape[:2]
+    warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine,
-        M=rotation_mat,
-        dsize=(new_cols, new_rows),
+        M=matrix,
+        dsize=(w, h),
         flags=interpolation,
         borderMode=border_mode,
         borderValue=value,
     )
-
-    # rotate image with the new bounds
-    rotated_img = warp_affine_fn(img)
-
-    # Resize image back to the original size
-    resized_img = resize(img=rotated_img, height=old_rows, width=old_cols, interpolation=interpolation)
-
-    return resized_img
+    return warp_fn(img)
 
 
-def bbox_safe_rotate(bbox, angle, rows, cols):
-    old_rows = rows
-    old_cols = cols
-
-    # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
-
-    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
-    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
-
-    # Normalize shifts
-    norm_col_shift = col_diff / new_cols
-    norm_row_shift = row_diff / new_rows
-
-    # shift bbox
-    shifted_bbox = (
-        bbox[0] + norm_col_shift,
-        bbox[1] + norm_row_shift,
-        bbox[2] + norm_col_shift,
-        bbox[3] + norm_row_shift,
+def bbox_safe_rotate(
+    bbox: Tuple[float, float, float, float], matrix: np.ndarray, cols: int, rows: int
+) -> Tuple[float, float, float, float]:
+    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
+    points = np.array(
+        [
+            [x1, y1, 1],
+            [x2, y1, 1],
+            [x2, y2, 1],
+            [x1, y2, 1],
+        ]
     )
+    points = points @ matrix.T
+    x1 = points[:, 0].min()
+    x2 = points[:, 0].max()
+    y1 = points[:, 1].min()
+    y2 = points[:, 1].max()
 
-    rotated_bbox = bbox_rotate(bbox=shifted_bbox, angle=angle, rows=new_rows, cols=new_cols)
+    def fix_point(pt1: float, pt2: float, max_val: float) -> Tuple[float, float]:
+        # In my opinion, these errors should be very low, around 1-2 pixels.
+        if pt1 < 0:
+            return 0, pt2 + pt1
+        if pt2 > max_val:
+            return pt1 - (pt2 - max_val), max_val
+        return pt1, pt2
 
-    # Bounding boxes are scale invariant, so this does not need to be rescaled to the old size
-    return rotated_bbox
+    x1, x2 = fix_point(x1, x2, cols)
+    y1, y2 = fix_point(y1, y2, rows)
 
-
-def keypoint_safe_rotate(keypoint, angle, rows, cols):
-    old_rows = rows
-    old_cols = cols
-
-    # Rows and columns of the rotated image (not cropped)
-    new_rows, new_cols = safe_rotate_enlarged_img_size(angle=angle, rows=old_rows, cols=old_cols)
-
-    col_diff = int(np.ceil(abs(new_cols - old_cols) / 2))
-    row_diff = int(np.ceil(abs(new_rows - old_rows) / 2))
-
-    # Shift keypoint
-    shifted_keypoint = (keypoint[0] + col_diff, keypoint[1] + row_diff, keypoint[2], keypoint[3])
-
-    # Rotate keypoint
-    rotated_keypoint = keypoint_rotate(shifted_keypoint, angle, rows=new_rows, cols=new_cols)
-
-    # Scale the keypoint
-    return keypoint_scale(rotated_keypoint, old_cols / new_cols, old_rows / new_rows)
+    return normalize_bbox((x1, y1, x2, y2), rows, cols)
 
 
-def safe_rotate_enlarged_img_size(angle: float, rows: int, cols: int):
+def keypoint_safe_rotate(
+    keypoint: Tuple[float, float, float, float],
+    matrix: np.ndarray,
+    angle: float,
+    scale_x: float,
+    scale_y: float,
+    cols: int,
+    rows: int,
+) -> Tuple[float, float, float, float]:
+    x, y, a, s = keypoint
+    point = np.array([[x, y, 1]])
+    x, y = (point @ matrix.T)[0]
 
-    deg_angle = abs(angle)
+    # To avoid problems with float errors
+    x = np.clip(x, 0, cols - 1)
+    y = np.clip(y, 0, rows - 1)
 
-    # The rotation angle
-    angle = np.deg2rad(deg_angle % 90)
-
-    # The width of the frame to contain the rotated image
-    r_cols = cols * np.cos(angle) + rows * np.sin(angle)
-
-    # The height of the frame to contain the rotated image
-    r_rows = cols * np.sin(angle) + rows * np.cos(angle)
-
-    # The above calculations work as is for 0<90 degrees, and for 90<180 the cols and rows are flipped
-    if deg_angle > 90:
-        return int(r_cols), int(r_rows)
-    else:
-        return int(r_rows), int(r_cols)
+    a += angle
+    s *= max(scale_x, scale_y)
+    return x, y, a, s
 
 
 @clipped
