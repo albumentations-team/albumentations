@@ -33,9 +33,12 @@ __all__ = [
 
 
 def get_random_crop_coords(height: int, width: int, crop_height: int, crop_width: int, h_start: float, w_start: float):
-    y1 = int((height - crop_height) * h_start)
+    # h_start is [0, 1) and should map to [0, (height - crop_height)]  (note inclusive)
+    # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
+    # See: https://github.com/albumentations-team/albumentations/pull/1080
+    y1 = int((height - crop_height + 1) * h_start)
     y2 = y1 + crop_height
-    x1 = int((width - crop_width) * w_start)
+    x1 = int((width - crop_width + 1) * w_start)
     x2 = x1 + crop_width
     return x1, y1, x2, y2
 
