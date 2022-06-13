@@ -270,10 +270,7 @@ def crop_and_pad_bbox(
         top, bottom, left, right = pad_params
         x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
 
-    if keep_size:
-        bbox = normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
-    else:
-        bbox = normalize_bbox((x1, y1, x2, y2), rows, cols)
+    bbox = normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
 
     return bbox
 
