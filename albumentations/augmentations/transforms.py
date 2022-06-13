@@ -2807,14 +2807,14 @@ class RingingOvershoot(ImageOnlyTransform):
         cutoff = random.uniform(*self.cutoff)
 
         # From dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
-        with np.errstate(divide='ignore',invalid='ignore'):
+        with np.errstate(divide="ignore", invalid="ignore"):
             kernel = np.fromfunction(
                 lambda x, y: cutoff
                 * special.j1(cutoff * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2))
                 / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
                 [ksize, ksize],
             )
-        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff ** 2 / (4 * np.pi)
+        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff**2 / (4 * np.pi)
 
         # Normalize kernel
         kernel = kernel.astype(np.float32) / np.sum(kernel)
