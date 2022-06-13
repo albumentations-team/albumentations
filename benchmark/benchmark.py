@@ -21,12 +21,14 @@ import pandas as pd
 import torchvision.transforms.functional as torchvision
 import keras_preprocessing.image as keras
 from imgaug import augmenters as iaa
-import solt.core as slc
 import solt.transforms as slt
-import solt.data as sld
+import solt.core as slc
+import solt.utils as slu
 
 import albumentations.augmentations.functional as albumentations
 import albumentations as A
+from albumentations.augmentations.geometric.functional import rotate, resize, shift_scale_rotate
+from albumentations.augmentations.crops.functional import random_crop
 
 cv2.setNumThreads(0)  # noqa E402
 cv2.ocl.setUseOpenCL(False)  # noqa E402
@@ -172,16 +174,14 @@ class BenchmarkTest(ABC):
 
     def augmentor(self, img):
         img = self.augmentor_op.perform_operation([img])[0]
-        return np.array(img, np.uint8, copy=True)
+        return np.array(img, np.uint8, copy=False)
 
     def solt(self, img):
-        dc = sld.DataContainer(img, "I")
-        dc = self.solt_stream(dc)
-        return dc.data[0]
+        return self.solt_stream({"image": img}, return_torch=False).data[0]
 
     def torchvision(self, img):
         img = self.torchvision_transform(img)
-        return np.array(img, np.uint8, copy=True)
+        return np.array(img, np.uint8, copy=False)
 
     def is_supported_by(self, library):
         if library == "imgaug":
@@ -205,7 +205,7 @@ class HorizontalFlip(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Fliplr(p=1)
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="LEFT_RIGHT")
-        self.solt_stream = slc.Stream([slt.RandomFlip(p=1, axis=1)])
+        self.solt_stream = slc.Stream([slt.Flip(p=1, axis=1)])
 
     def albumentations(self, img):
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
@@ -227,7 +227,7 @@ class VerticalFlip(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Flipud(p=1)
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="TOP_BOTTOM")
-        self.solt_stream = slc.Stream([slt.RandomFlip(p=1, axis=0)])
+        self.solt_stream = slc.Stream([slt.Flip(p=1, axis=0)])
 
     def albumentations(self, img):
         return albumentations.vflip(img)
@@ -246,10 +246,10 @@ class Rotate(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Affine(rotate=(45, 45), order=1, mode="reflect")
         self.augmentor_op = Operations.RotateStandard(probability=1, max_left_rotation=45, max_right_rotation=45)
-        self.solt_stream = slc.Stream([slt.RandomRotate(p=1, rotation_range=(45, 45))], padding="r")
+        self.solt_stream = slc.Stream([slt.Rotate(p=1, angle_range=(45, 45))], padding="r")
 
     def albumentations(self, img):
-        return albumentations.rotate(img, angle=-45)
+        return rotate(img, angle=-45)
 
     def torchvision_transform(self, img):
         return torchvision.rotate(img, angle=-45, resample=Image.BILINEAR)
@@ -263,7 +263,7 @@ class Brightness(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Add((127, 127), per_channel=False)
         self.augmentor_op = Operations.RandomBrightness(probability=1, min_factor=1.5, max_factor=1.5)
-        self.solt_stream = slc.Stream([slt.ImageRandomBrightness(p=1, brightness_range=(127, 127))])
+        self.solt_stream = slc.Stream([slt.Brightness(p=1, brightness_range=(127, 127))])
 
     def albumentations(self, img):
         return albumentations.brightness_contrast_adjust(img, beta=0.5, beta_by_max=True)
@@ -279,7 +279,7 @@ class Contrast(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Multiply((1.5, 1.5), per_channel=False)
         self.augmentor_op = Operations.RandomContrast(probability=1, min_factor=1.5, max_factor=1.5)
-        self.solt_stream = slc.Stream([slt.ImageRandomContrast(p=1, contrast_range=(1.5, 1.5))])
+        self.solt_stream = slc.Stream([slt.Contrast(p=1, contrast_range=(1.5, 1.5))])
 
     def albumentations(self, img):
         return albumentations.brightness_contrast_adjust(img, alpha=1.5)
@@ -299,10 +299,7 @@ class BrightnessContrast(BenchmarkTest):
         )
         self.augmentor_pipeline.add_operation(Operations.RandomContrast(probability=1, min_factor=1.5, max_factor=1.5))
         self.solt_stream = slc.Stream(
-            [
-                slt.ImageRandomBrightness(p=1, brightness_range=(127, 127)),
-                slt.ImageRandomContrast(p=1, contrast_range=(1.5, 1.5)),
-            ]
+            [slt.Brightness(p=1, brightness_range=(127, 127)), slt.Contrast(p=1, contrast_range=(1.5, 1.5))]
         )
 
     def albumentations(self, img):
@@ -315,8 +312,8 @@ class BrightnessContrast(BenchmarkTest):
 
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
-            img, = operation.perform_operation([img])
-        return np.array(img, np.uint8, copy=True)
+            (img,) = operation.perform_operation([img])
+        return np.array(img, np.uint8, copy=False)
 
 
 class ShiftScaleRotate(BenchmarkTest):
@@ -326,7 +323,7 @@ class ShiftScaleRotate(BenchmarkTest):
         )
 
     def albumentations(self, img):
-        return albumentations.shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
+        return shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
 
     def torchvision_transform(self, img):
         return torchvision.affine(img, angle=45, translate=(50, 50), scale=2, shear=0, resample=Image.BILINEAR)
@@ -339,7 +336,7 @@ class ShiftScaleRotate(BenchmarkTest):
 class ShiftHSV(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.AddToHueAndSaturation((20, 20), per_channel=False)
-        self.solt_stream = slc.Stream([slt.ImageRandomHSV(p=1, h_range=(20, 20), s_range=(20, 20), v_range=(20, 20))])
+        self.solt_stream = slc.Stream([slt.HSV(p=1, h_range=(20, 20), s_range=(20, 20), v_range=(20, 20))])
 
     def albumentations(self, img):
         return albumentations.shift_hsv(img, hue_shift=20, sat_shift=20, val_shift=20)
@@ -382,19 +379,18 @@ class RandomCrop64(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.CropToFixedSize(width=64, height=64)
         self.augmentor_op = Operations.Crop(probability=1, width=64, height=64, centre=False)
-        self.solt_stream = slc.Stream([slt.CropTransform(crop_size=(64, 64), crop_mode="r")])
+        self.solt_stream = slc.Stream([slt.Crop(crop_to=(64, 64), crop_mode="r")])
 
     def albumentations(self, img):
-        img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        img = random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
         return np.ascontiguousarray(img)
 
     def torchvision_transform(self, img):
         return torchvision.crop(img, top=0, left=0, height=64, width=64)
 
     def solt(self, img):
-        dc = sld.DataContainer(img, "I")
-        dc = self.solt_stream(dc)
-        return np.ascontiguousarray(dc.data[0])
+        img = self.solt_stream({"image": img}, return_torch=False).data[0]
+        return np.ascontiguousarray(img)
 
 
 class RandomSizedCrop_64_512(BenchmarkTest):
@@ -407,18 +403,16 @@ class RandomSizedCrop_64_512(BenchmarkTest):
         self.imgaug_transform = iaa.Sequential(
             [iaa.CropToFixedSize(width=64, height=64), iaa.Scale(size=512, interpolation="linear")]
         )
-        self.solt_stream = slc.Stream(
-            [slt.CropTransform(crop_size=(64, 64), crop_mode="r"), slt.ResizeTransform(resize_to=(512, 512))]
-        )
+        self.solt_stream = slc.Stream([slt.Crop(crop_to=(64, 64), crop_mode="r"), slt.Resize(resize_to=(512, 512))])
 
     def albumentations(self, img):
-        img = albumentations.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
-        return albumentations.resize(img, height=512, width=512)
+        img = random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        return resize(img, height=512, width=512)
 
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
-            img, = operation.perform_operation([img])
-        return np.array(img, np.uint8, copy=True)
+            (img,) = operation.perform_operation([img])
+        return np.array(img, np.uint8, copy=False)
 
     def torchvision_transform(self, img):
         img = torchvision.crop(img, top=0, left=0, height=64, width=64)
@@ -439,7 +433,7 @@ class ShiftRGB(BenchmarkTest):
 
 class PadToSize512(BenchmarkTest):
     def __init__(self):
-        self.solt_stream = slc.Stream([slt.PadTransform(pad_to=(512, 512), padding="r")])
+        self.solt_stream = slc.Stream([slt.Pad(pad_to=(512, 512), padding="r")])
 
     def albumentations(self, img):
         return albumentations.pad(img, min_height=512, min_width=512)
@@ -455,11 +449,11 @@ class PadToSize512(BenchmarkTest):
 class Resize512(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Scale(size=512, interpolation="linear")
-        self.solt_stream = slc.Stream([slt.ResizeTransform(resize_to=(512, 512))])
+        self.solt_stream = slc.Stream([slt.Resize(resize_to=(512, 512))])
         self.augmentor_op = Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
 
     def albumentations(self, img):
-        return albumentations.resize(img, height=512, width=512)
+        return resize(img, height=512, width=512)
 
     def torchvision_transform(self, img):
         return torchvision.resize(img, (512, 512))
@@ -467,7 +461,7 @@ class Resize512(BenchmarkTest):
 
 class Gamma(BenchmarkTest):
     def __init__(self):
-        self.solt_stream = slc.Stream([slt.ImageGammaCorrection(p=1, gamma_range=(0.5, 0.5))])
+        self.solt_stream = slc.Stream([slt.GammaCorrection(p=1, gamma_range=(0.5, 0.5))])
 
     def albumentations(self, img):
         return albumentations.gamma_transform(img, gamma=0.5)
@@ -480,7 +474,7 @@ class Grayscale(BenchmarkTest):
     def __init__(self):
         self.augmentor_op = Operations.Greyscale(probability=1)
         self.imgaug_transform = iaa.Grayscale(alpha=1.0)
-        self.solt_stream = slc.Stream([slt.ImageColorTransform(mode="rgb2gs")])
+        self.solt_stream = slc.Stream([slt.CvtColor(mode="rgb2gs")])
 
     def albumentations(self, img):
         return albumentations.to_gray(img)
@@ -488,14 +482,9 @@ class Grayscale(BenchmarkTest):
     def torchvision_transform(self, img):
         return torchvision.to_grayscale(img, num_output_channels=3)
 
-    def solt(self, img):
-        dc = sld.DataContainer(img, "I")
-        dc = self.solt_stream(dc)
-        return cv2.cvtColor(dc.data[0], cv2.COLOR_GRAY2RGB)
-
     def augmentor(self, img):
         img = self.augmentor_op.perform_operation([img])[0]
-        img = np.array(img, np.uint8, copy=True)
+        img = np.array(img, np.uint8, copy=False)
         return np.dstack([img, img, img])
 
 
@@ -522,6 +511,33 @@ class MultiplyElementwise(BenchmarkTest):
 
     def albumentations(self, img):
         return self.aug(image=img)["image"]
+
+
+class ColorJitter(BenchmarkTest):
+    def __init__(self):
+        imgaug_hue_param = int(0.5 * 255)
+        self.imgaug_transform = iaa.AddToHue((imgaug_hue_param, imgaug_hue_param))
+
+    def imgaug(self, img):
+        img = iaa.pillike.enhance_brightness(img, 1.5)
+        img = iaa.pillike.enhance_contrast(img, 1.5)
+        img = iaa.pillike.enhance_color(img, 1.5)
+        img = self.imgaug_transform.augment_image(img)
+        return img
+
+    def albumentations(self, img):
+        img = albumentations.adjust_brightness_torchvision(img, 1.5)
+        img = albumentations.adjust_contrast_torchvision(img, 1.5)
+        img = albumentations.adjust_saturation_torchvision(img, 1.5)
+        img = albumentations.adjust_hue_torchvision(img, 0.5)
+        return img
+
+    def torchvision_transform(self, img):
+        img = torchvision.adjust_brightness(img, 1.5)
+        img = torchvision.adjust_contrast(img, 1.5)
+        img = torchvision.adjust_saturation(img, 1.5)
+        img = torchvision.adjust_hue(img, 0.5)
+        return img
 
 
 def main():
@@ -558,6 +574,7 @@ def main():
         Equalize(),
         Multiply(),
         MultiplyElementwise(),
+        ColorJitter(),
     ]
     for library in libraries:
         imgs = imgs_pillow if library in ("torchvision", "augmentor", "pillow") else imgs_cv2

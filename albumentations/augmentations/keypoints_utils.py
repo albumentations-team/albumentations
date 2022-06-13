@@ -1,4 +1,5 @@
 from __future__ import division
+
 import math
 import warnings
 
@@ -39,7 +40,11 @@ class KeypointsProcessor(DataProcessor):
         # If your keypoints formats is other than 'xy' we emit warning to let user
         # be aware that angle and size will not be modified.
 
-        from albumentations.imgaug.transforms import DualIAATransform
+        try:
+            from albumentations.imgaug.transforms import DualIAATransform
+        except ImportError:
+            # imgaug is not installed so we skip imgaug checks.
+            return
 
         if self.params.format is not None and self.params.format != "xy":
             for transform in transforms:
@@ -155,11 +160,11 @@ def convert_keypoint_from_albumentations(
     # type (tuple, str, int, int, bool, bool) -> tuple
     if target_format not in keypoint_formats:
         raise ValueError("Unknown target_format {}. Supported formats are: {}".format(target_format, keypoint_formats))
-    if check_validity:
-        check_keypoint(keypoint, rows, cols)
 
     (x, y, angle, scale), tail = keypoint[:4], tuple(keypoint[4:])
     angle = angle_to_2pi_range(angle)
+    if check_validity:
+        check_keypoint((x, y, angle, scale), rows, cols)
     if angle_in_degrees:
         angle = math.degrees(angle)
 

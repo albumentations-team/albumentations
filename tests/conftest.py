@@ -15,6 +15,23 @@ except ImportError:
     torch_available = False
 
 
+try:
+    import imgaug
+
+    imgaug_available = True
+except ImportError:
+    imgaug_available = False
+
+
+skipif_imgaug = pytest.mark.skipif(imgaug_available, reason="The test was skipped because imgaug is installed")
+skipif_no_imgaug = pytest.mark.skipif(
+    not imgaug_available, reason="The test was skipped because imgaug is not installed"
+)
+skipif_no_torch = pytest.mark.skipif(
+    not torch_available, reason="The test was skipped because PyTorch and torchvision are not installed"
+)
+
+
 def pytest_ignore_collect(path):
     if not torch_available and path.fnmatch("test_pytorch.py"):
         warnings.warn(
@@ -23,6 +40,11 @@ def pytest_ignore_collect(path):
             )
         )
         return True
+
+    if not imgaug_available and path.fnmatch("test_imgaug.py"):
+        warnings.warn(UserWarning("Tests that require imgaug were skipped because this library is not installed."))
+        return True
+
     return False
 
 
@@ -53,6 +75,16 @@ def keypoints():
 
 @pytest.fixture
 def float_image():
+    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
+
+
+@pytest.fixture
+def template():
+    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+
+
+@pytest.fixture
+def float_template():
     return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
 
 
