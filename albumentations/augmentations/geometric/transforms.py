@@ -418,11 +418,13 @@ class Affine(DualTransform):
             ``0.5`` is zoomed out to ``50`` percent of the original size.
                 * If a single number, then that value will be used for all images.
                 * If a tuple ``(a, b)``, then a value will be uniformly sampled per image from the interval ``[a, b]``.
-                  That value will be used identically for both x- and y-axis.
+                  That the same range will be used for both x- and y-axis. To keep the aspect ratio, set
+                  ``keep_ratio=True``, then the same value will be used for both x- and y-axis.
                 * If a dictionary, then it is expected to have the keys ``x`` and/or ``y``.
                   Each of these keys can have the same values as described above.
                   Using a dictionary allows to set different values for the two axis and sampling will then happen
-                  *independently* per axis, resulting in samples that differ between the axes.
+                  *independently* per axis, resulting in samples that differ between the axes. Note that when
+                  the ``keep_ratio=True``, the x- and y-axis ranges should be the same.
         translate_percent (None, number, tuple of number or dict): Translation as a fraction of the image height/width
             (x-translation, y-translation), where ``0`` denotes "no change"
             and ``0.5`` denotes "half of the axis size".
@@ -473,6 +475,8 @@ class Affine(DualTransform):
             and then applying a second transformation to "zoom in" on the new image so that it fits the image plane,
             This is useful to avoid corners of the image being outside of the image plane after applying rotations.
             It will however negate translation and scaling.
+        keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
+                           Default: False.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -496,6 +500,7 @@ class Affine(DualTransform):
         cval_mask: Union[int, float, Sequence[int], Sequence[float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
         fit_output: bool = False,
+        keep_ratio: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -522,6 +527,12 @@ class Affine(DualTransform):
         self.rotate = to_tuple(rotate, rotate)
         self.fit_output = fit_output
         self.shear = self._handle_dict_arg(shear, "shear")
+        self.keep_ratio = keep_ratio
+
+        if self.keep_ratio and self.scale["x"] != self.scale["y"]:
+            raise ValueError(
+                "When keep_ratio is True, the x and y scale range should be identical. got {}".format(self.scale)
+            )
 
     def get_transform_init_args_names(self):
         return (
@@ -536,6 +547,7 @@ class Affine(DualTransform):
             "fit_output",
             "shear",
             "cval_mask",
+            "keep_ratio",
         )
 
     @staticmethod
@@ -644,6 +656,8 @@ class Affine(DualTransform):
 
         shear = {key: random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
+        if self.keep_ratio:
+            scale["y"] = scale["x"]
         rotate = random.uniform(*self.rotate)
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
