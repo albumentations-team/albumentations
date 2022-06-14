@@ -151,5 +151,5 @@ class GridDropout(DualTransform):
             "shift_y",
             "random_offset",
             "fill_value",
-            "mask_fill_value",            
+            "mask_fill_value",
         )
