@@ -177,6 +177,16 @@ def test_random_crop_with_incorrectly_large_crop_size():
     assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
 
 
+def test_random_crop_extrema():
+    img = np.indices((4, 4), dtype=np.uint8).transpose([1, 2, 0])
+    expected1 = np.indices((2, 2), dtype=np.uint8).transpose([1, 2, 0])
+    expected2 = expected1 + 2
+    cropped_img1 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.0, w_start=0.0)
+    cropped_img2 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.9999, w_start=0.9999)
+    assert np.array_equal(cropped_img1, expected1)
+    assert np.array_equal(cropped_img2, expected2)
+
+
 def test_clip():
     img = np.array([[-300, 0], [100, 400]], dtype=np.float32)
     expected = np.array([[0, 0], [100, 255]], dtype=np.float32)
@@ -773,8 +783,8 @@ def test_solarize(dtype):
     max_value = F.MAX_VALUES_BY_DTYPE[dtype]
 
     if dtype == np.dtype("float32"):
-        img = np.arange(2 ** 10, dtype=np.float32) / (2 ** 10)
-        img = img.reshape([2 ** 5, 2 ** 5])
+        img = np.arange(2**10, dtype=np.float32) / (2**10)
+        img = img.reshape([2**5, 2**5])
     else:
         max_count = 1024
         count = min(max_value + 1, 1024)
@@ -944,3 +954,17 @@ def test_multiply_uint8_optimized():
 )
 def test_shift_hsv_gray(img):
     F.shift_hsv(img, 0.5, 0.5, 0.5)
+
+
+def test_cv_dtype_from_np():
+    assert F.get_opencv_dtype_from_numpy(np.uint8) == cv2.CV_8U
+    assert F.get_opencv_dtype_from_numpy(np.uint16) == cv2.CV_16U
+    assert F.get_opencv_dtype_from_numpy(np.float32) == cv2.CV_32F
+    assert F.get_opencv_dtype_from_numpy(np.float64) == cv2.CV_64F
+    assert F.get_opencv_dtype_from_numpy(np.int32) == cv2.CV_32S
+
+    assert F.get_opencv_dtype_from_numpy(np.dtype("uint8")) == cv2.CV_8U
+    assert F.get_opencv_dtype_from_numpy(np.dtype("uint16")) == cv2.CV_16U
+    assert F.get_opencv_dtype_from_numpy(np.dtype("float32")) == cv2.CV_32F
+    assert F.get_opencv_dtype_from_numpy(np.dtype("float64")) == cv2.CV_64F
+    assert F.get_opencv_dtype_from_numpy(np.dtype("int32")) == cv2.CV_32S

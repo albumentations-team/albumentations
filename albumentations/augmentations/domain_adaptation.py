@@ -1,5 +1,5 @@
 import random
-from typing import List, Union, Tuple, Callable
+from typing import Callable, List, Tuple, Union
 
 import cv2
 import numpy as np
@@ -8,9 +8,15 @@ from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from .functional import clipped, preserve_shape, is_grayscale_image, is_multispectral_image
-from .utils import read_rgb_image
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
+from .functional import (
+    clipped,
+    get_opencv_dtype_from_numpy,
+    is_grayscale_image,
+    is_multispectral_image,
+    preserve_shape,
+)
+from .utils import read_rgb_image
 
 __all__ = [
     "HistogramMatching",
@@ -76,10 +82,21 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 
 
 @preserve_shape
-def apply_histogram(img, reference_image, blend_ratio):
+def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
+    if img.dtype != reference_image.dtype:
+        raise RuntimeError(
+            f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}"
+        )
     reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
     matched = match_histograms(np.squeeze(img), np.squeeze(reference_image), multichannel=True)
-    img = cv2.addWeighted(matched, blend_ratio, img, 1 - blend_ratio, 0)
+    img = cv2.addWeighted(
+        matched,
+        blend_ratio,
+        img,
+        1 - blend_ratio,
+        0,
+        dtype=get_opencv_dtype_from_numpy(img.dtype),
+    )
     return img
 
 

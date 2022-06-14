@@ -1,12 +1,13 @@
-import cv2
 import random
+from typing import Dict, Optional, Sequence, Tuple, Union
+
+import cv2
 import numpy as np
 import skimage.transform
 
-from typing import Union, Optional, Sequence, Tuple, Dict
-
-from . import functional as F
+from ... import random_utils
 from ...core.transforms_interface import DualTransform, to_tuple
+from . import functional as F
 
 __all__ = ["ShiftScaleRotate", "ElasticTransform", "Perspective", "Affine", "PiecewiseAffine"]
 
@@ -19,7 +20,9 @@ class ShiftScaleRotate(DualTransform):
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
             upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (-scale_limit, scale_limit). Default: (-0.1, 0.1).
+            range will be (-scale_limit, scale_limit). Note that the scale_limit will be biased by 1.
+            If scale_limit is a tuple, like (low, high), sampling will be done from the range (1 + low, 1 + high).
+            Default: (-0.1, 0.1).
         rotate_limit ((int, int) or int): rotation range. If rotate_limit is a single int value, the
             range will be (-rotate_limit, rotate_limit). Default: (-45, 45).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -281,8 +284,8 @@ class Perspective(DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
 
-        scale = np.random.uniform(*self.scale)
-        points = np.random.normal(0, scale, [4, 2])
+        scale = random_utils.uniform(*self.scale)
+        points = random_utils.normal(0, scale, [4, 2])
         points = np.mod(np.abs(points), 1)
 
         # top left -- no changes needed, just use jitter
@@ -415,11 +418,13 @@ class Affine(DualTransform):
             ``0.5`` is zoomed out to ``50`` percent of the original size.
                 * If a single number, then that value will be used for all images.
                 * If a tuple ``(a, b)``, then a value will be uniformly sampled per image from the interval ``[a, b]``.
-                  That value will be used identically for both x- and y-axis.
+                  That the same range will be used for both x- and y-axis. To keep the aspect ratio, set
+                  ``keep_ratio=True``, then the same value will be used for both x- and y-axis.
                 * If a dictionary, then it is expected to have the keys ``x`` and/or ``y``.
                   Each of these keys can have the same values as described above.
                   Using a dictionary allows to set different values for the two axis and sampling will then happen
-                  *independently* per axis, resulting in samples that differ between the axes.
+                  *independently* per axis, resulting in samples that differ between the axes. Note that when
+                  the ``keep_ratio=True``, the x- and y-axis ranges should be the same.
         translate_percent (None, number, tuple of number or dict): Translation as a fraction of the image height/width
             (x-translation, y-translation), where ``0`` denotes "no change"
             and ``0.5`` denotes "half of the axis size".
@@ -470,6 +475,8 @@ class Affine(DualTransform):
             and then applying a second transformation to "zoom in" on the new image so that it fits the image plane,
             This is useful to avoid corners of the image being outside of the image plane after applying rotations.
             It will however negate translation and scaling.
+        keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
+                           Default: False.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -493,6 +500,7 @@ class Affine(DualTransform):
         cval_mask: Union[int, float, Sequence[int], Sequence[float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
         fit_output: bool = False,
+        keep_ratio: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -519,6 +527,12 @@ class Affine(DualTransform):
         self.rotate = to_tuple(rotate, rotate)
         self.fit_output = fit_output
         self.shear = self._handle_dict_arg(shear, "shear")
+        self.keep_ratio = keep_ratio
+
+        if self.keep_ratio and self.scale["x"] != self.scale["y"]:
+            raise ValueError(
+                "When keep_ratio is True, the x and y scale range should be identical. got {}".format(self.scale)
+            )
 
     def get_transform_init_args_names(self):
         return (
@@ -533,17 +547,18 @@ class Affine(DualTransform):
             "fit_output",
             "shear",
             "cval_mask",
+            "keep_ratio",
         )
 
     @staticmethod
-    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str):
+    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str, default: float = 1.0):
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
                     f'Expected {name} dictionary to contain at least key "x" or ' 'key "y". Found neither of them.'
                 )
-            x = val.get("x", 1.0)
-            y = val.get("y", 1.0)
+            x = val.get("x", default)
+            y = val.get("y", default)
             return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
         return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
@@ -563,7 +578,7 @@ class Affine(DualTransform):
 
         if translate_percent is not None:
             # translate by percent
-            return cls._handle_dict_arg(translate_percent, "translate_percent"), translate_px
+            return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
 
         if translate_px is None:
             raise ValueError("translate_px is None.")
@@ -641,6 +656,8 @@ class Affine(DualTransform):
 
         shear = {key: random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
+        if self.keep_ratio:
+            scale["y"] = scale["x"]
         rotate = random.uniform(*self.rotate)
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
@@ -823,8 +840,7 @@ class PiecewiseAffine(DualTransform):
         nb_cells = nb_cols * nb_rows
         scale = random.uniform(*self.scale)
 
-        state = np.random.RandomState(random.randint(0, 1 << 31))
-        jitter = state.normal(0, scale, (nb_cells, 2))
+        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
             return {"matrix": None}
 

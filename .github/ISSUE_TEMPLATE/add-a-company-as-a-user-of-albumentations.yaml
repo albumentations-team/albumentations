@@ -1,0 +1,32 @@
+name: Add a company as a user of Albumentations
+description: Add a company that uses Albumentations to https://albumentations.ai and README.md
+title: "[Company] <Put a company name here>"
+labels: [Company]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Name
+      description: "Company name"
+    validations:
+      required: true
+  - type: input
+    id: website
+    attributes:
+      label: Website
+      description: "Link to a company's website"
+    validations:
+      required: true
+  - type: input
+    id: logo
+    attributes:
+      label: Link to a logo
+      description: "Link to an image file (.jpg, .png, .svg, etc) with a company logo"
+    validations:
+      required: true
+  - type: checkboxes
+    attributes:
+      label: Confirmation
+      options:
+      - label: "I hereby confirm that I have permission from the company specified above to use its name, link to a website, and logo to mention it as a user of Albumentations."
+        required: true

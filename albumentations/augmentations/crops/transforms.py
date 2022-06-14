@@ -1,15 +1,14 @@
-import cv2
 import math
 import random
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+
+import cv2
 import numpy as np
 
-from . import functional as F
+from ...core.transforms_interface import DualTransform, to_tuple
 from ..bbox_utils import union_of_bboxes
 from ..geometric import functional as FGeometric
-from ...core.transforms_interface import DualTransform, to_tuple
-
-from typing import Union, Sequence, Optional, Tuple, List, Dict, Any
-
+from . import functional as F
 
 __all__ = [
     "RandomCrop",
@@ -407,8 +406,8 @@ class RandomCropNearBBox(DualTransform):
         uint8, float32
 
     Examples:
-        >>> aug = Compose(RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_box_key='test_box'),
-        >>>               bbox_params=BboxParams("pascal_voc"))
+        >>> aug = Compose([RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_box_key='test_box')],
+        >>>              bbox_params=BboxParams("pascal_voc"))
         >>> result = aug(image=image, bboxes=bboxes, test_box=[0, 5, 10, 20])
 
     """
@@ -801,12 +800,12 @@ class CropAndPad(DualTransform):
             params = [self.px] * 4
         elif len(self.px) == 2:
             if self.sample_independently:
-                params = [np.random.randint(*self.px) for _ in range(4)]
+                params = [random.randrange(*self.px) for _ in range(4)]
             else:
-                px = np.random.randint(*self.px)
+                px = random.randrange(*self.px)
                 params = [px] * 4
         else:
-            params = [i if isinstance(i, int) else np.random.randint(*i) for i in self.px]  # type: ignore
+            params = [i if isinstance(i, int) else random.randrange(*i) for i in self.px]  # type: ignore
 
         return params  # [top, right, bottom, left]
 

@@ -1,4 +1,5 @@
 from __future__ import division
+
 import math
 import warnings
 
@@ -159,11 +160,11 @@ def convert_keypoint_from_albumentations(
     # type (tuple, str, int, int, bool, bool) -> tuple
     if target_format not in keypoint_formats:
         raise ValueError("Unknown target_format {}. Supported formats are: {}".format(target_format, keypoint_formats))
-    if check_validity:
-        check_keypoint(keypoint, rows, cols)
 
     (x, y, angle, scale), tail = keypoint[:4], tuple(keypoint[4:])
     angle = angle_to_2pi_range(angle)
+    if check_validity:
+        check_keypoint((x, y, angle, scale), rows, cols)
     if angle_in_degrees:
         angle = math.degrees(angle)
 

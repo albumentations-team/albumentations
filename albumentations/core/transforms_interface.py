@@ -1,18 +1,17 @@
 from __future__ import absolute_import
 
 import random
+from copy import deepcopy
+from typing import Any, Callable, Dict, List, Sequence, Tuple
 from warnings import warn
-from typing import Sequence, Dict, List, Callable, Any, Tuple
 
 import cv2
 import numpy as np
-from copy import deepcopy
 
 from albumentations.core.serialization import (
     SerializableMeta,
     get_shortest_class_fullname,
 )
-from albumentations.core.six import add_metaclass
 from albumentations.core.utils import format_args
 
 __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
@@ -49,8 +48,7 @@ def to_tuple(param, low=None, bias=None):
     return tuple(param)
 
 
-@add_metaclass(SerializableMeta)
-class BasicTransform:
+class BasicTransform(metaclass=SerializableMeta):
     call_backup = None
     interpolation: Any
     fill_value: Any
@@ -133,7 +131,7 @@ class BasicTransform:
         target_function = self.targets.get(transform_key, lambda x, **p: x)
         return target_function
 
-    def apply(self, img, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
         raise NotImplementedError
 
     def get_params(self) -> Dict:
@@ -237,7 +235,7 @@ class DualTransform(BasicTransform):
     def apply_to_keypoints(self, keypoints, **params):
         return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
 
-    def apply_to_mask(self, img, **params):
+    def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
 
     def apply_to_masks(self, masks, **params):

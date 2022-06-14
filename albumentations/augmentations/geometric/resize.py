@@ -4,8 +4,8 @@ from typing import Dict, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from . import functional as F
 from ...core.transforms_interface import DualTransform, to_tuple
+from . import functional as F
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
 
@@ -15,7 +15,9 @@ class RandomScale(DualTransform):
 
     Args:
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (1 - scale_limit, 1 + scale_limit). Default: (0.9, 1.1).
+            range will be (-scale_limit, scale_limit). Note that the scale_limit will be biased by 1.
+            If scale_limit is a tuple, like (low, high), sampling will be done from the range (1 + low, 1 + high).
+            Default: (-0.1, 0.1).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
