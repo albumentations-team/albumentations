@@ -470,9 +470,10 @@ class Affine(DualTransform):
         cval_mask (number or tuple of number): Same as cval but only for masks.
         mode (int): OpenCV border flag.
         fit_output (bool): If True, the image plane size and position will be adjusted to tightly capture
-            the whole image after affine transformation (`translate_percent` and `translate_px` are ignored). Otherwise (``False``), 
-            parts of the transformed image may end up outside of the image plane. Fitting the output shape can be useful
-            to avoid corners of the image being outside of the image plane after applying rotations. Default: False
+            the whole image after affine transformation (`translate_percent` and `translate_px` are ignored).
+            Otherwise (``False``),  parts of the transformed image may end up outside the image plane.
+            Fitting the output shape can be useful to avoid corners of the image being outside the image plane
+            after applying rotations. Default: False
         keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
                            Default: False.
         p (float): probability of applying the transform. Default: 0.5.
