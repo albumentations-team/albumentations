@@ -371,14 +371,20 @@ def test_crop_non_empty_mask():
             np.testing.assert_array_equal(augmented["image"], crop)
             np.testing.assert_array_equal(augmented["mask"], crop)
 
+    def _test_crops(masks, crops, aug, n=1):
+        for _ in range(n):
+            augmented = aug(image=masks[0], masks=masks)
+            for crop, augment in zip(crops, augmented["masks"]):
+                np.testing.assert_array_equal(augment, crop)
+
     # test general case
-    mask_1 = np.zeros([10, 10])
+    mask_1 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_1 as `masks` (which uses bitwise or)
     mask_1[0, 0] = 1
     crop_1 = np.array([[1]])
     aug_1 = A.CropNonEmptyMaskIfExists(1, 1)
 
     # test empty mask
-    mask_2 = np.zeros([10, 10])
+    mask_2 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_2 as `masks` (which uses bitwise or)
     crop_2 = np.array([[0]])
     aug_2 = A.CropNonEmptyMaskIfExists(1, 1)
 
@@ -411,6 +417,7 @@ def test_crop_non_empty_mask():
     _test_crop(mask_4, crop_4, aug_4, n=5)
     _test_crop(mask_5, crop_5, aug_5, n=1)
     _test_crop(mask_6, crop_6, aug_6, n=10)
+    _test_crops([mask_2, mask_1], [crop_2, crop_1], aug_1, n=1)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
