@@ -92,7 +92,10 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
 
     img, reference_image = np.squeeze(img), np.squeeze(reference_image)
 
-    matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
+    try:
+        matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
+    except TypeError:
+        matched = match_histograms(img, reference_image, multichannel=True)  # case for scikit-image<0.19.1
     img = cv2.addWeighted(
         matched,
         blend_ratio,
