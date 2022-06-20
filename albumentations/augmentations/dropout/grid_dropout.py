@@ -149,6 +149,7 @@ class GridDropout(DualTransform):
             "holes_number_y",
             "shift_x",
             "shift_y",
-            "mask_fill_value",
             "random_offset",
+            "fill_value",
+            "mask_fill_value",
         )
