@@ -2960,7 +2960,8 @@ class ColorJitter(ImageOnlyTransform):
         saturation = random.uniform(self.saturation[0], self.saturation[1])
         hue = random.uniform(self.hue[0], self.hue[1])
 
-        order = random.shuffle([0, 1, 2, 3])
+        order = [0, 1, 2, 3]
+        random.shuffle(order)
 
         return {
             "brightness": brightness,
@@ -2970,7 +2971,7 @@ class ColorJitter(ImageOnlyTransform):
             "order": order,
         }
 
-    def apply(self, img, brigntness, contrast, saturation, hue, order, **params):
+    def apply(self, img, brigntness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
 
