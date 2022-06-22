@@ -1,9 +1,9 @@
 import io
 import os
 import re
-from setuptools import setup, find_packages
-from pkg_resources import DistributionNotFound, get_distribution
 
+from pkg_resources import DistributionNotFound, get_distribution
+from setuptools import find_packages, setup
 
 INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "scikit-image>=0.16.1", "PyYAML", "qudida>=0.0.4"]
 
@@ -30,7 +30,7 @@ def get_long_description():
 
 
 def choose_requirement(mains, secondary):
-    """If some version version of main requirement installed, return main,
+    """If some version of main requirement installed, return main,
     else return secondary.
 
     """

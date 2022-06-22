@@ -11,6 +11,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 from .functional import (
     clipped,
+    get_opencv_dtype_from_numpy,
     is_grayscale_image,
     is_multispectral_image,
     preserve_shape,
@@ -81,10 +82,28 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 
 
 @preserve_shape
-def apply_histogram(img, reference_image, blend_ratio):
-    reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
-    matched = match_histograms(np.squeeze(img), np.squeeze(reference_image), multichannel=True)
-    img = cv2.addWeighted(matched, blend_ratio, img, 1 - blend_ratio, 0)
+def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
+    if img.dtype != reference_image.dtype:
+        raise RuntimeError(
+            f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}"
+        )
+    if img.shape[:2] != reference_image.shape[:2]:
+        reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
+
+    img, reference_image = np.squeeze(img), np.squeeze(reference_image)
+
+    try:
+        matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
+    except TypeError:
+        matched = match_histograms(img, reference_image, multichannel=True)  # case for scikit-image<0.19.1
+    img = cv2.addWeighted(
+        matched,
+        blend_ratio,
+        img,
+        1 - blend_ratio,
+        0,
+        dtype=get_opencv_dtype_from_numpy(img.dtype),
+    )
     return img
 
 

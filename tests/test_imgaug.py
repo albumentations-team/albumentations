@@ -239,24 +239,15 @@ def test_imgaug_transforms_multiprocessing_support(augmentation_cls, params, mul
 
 
 @pytest.mark.parametrize(
-    ["img_dtype", "px", "percent", "pad_mode", "pad_cval", "keep_size"],
+    ["img_dtype", "px", "percent", "pad_mode", "pad_cval"],
     [
-        [np.uint8, 10, None, cv2.BORDER_CONSTANT, 0, True],
-        [np.uint8, -10, None, cv2.BORDER_CONSTANT, 0, True],
-        [np.uint8, 10, None, cv2.BORDER_CONSTANT, 0, False],
-        [np.uint8, -10, None, cv2.BORDER_CONSTANT, 0, False],
-        [np.uint8, None, 0.1, cv2.BORDER_CONSTANT, 0, True],
-        [np.uint8, None, -0.1, cv2.BORDER_CONSTANT, 0, True],
-        [np.uint8, None, 0.1, cv2.BORDER_CONSTANT, 0, False],
-        [np.uint8, None, -0.1, cv2.BORDER_CONSTANT, 0, False],
-        [np.float32, None, 0.1, cv2.BORDER_CONSTANT, 0, False],
-        [np.float32, None, -0.1, cv2.BORDER_CONSTANT, 0, False],
-        [np.uint8, None, 0.1, cv2.BORDER_WRAP, 0, False],
-        [np.uint8, None, 0.1, cv2.BORDER_REPLICATE, 0, False],
-        [np.uint8, None, 0.1, cv2.BORDER_REFLECT101, 0, False],
+        [np.uint8, 10, None, cv2.BORDER_CONSTANT, 0],
+        [np.uint8, -10, None, cv2.BORDER_CONSTANT, 0],
+        [np.uint8, None, 0.1, cv2.BORDER_CONSTANT, 0],
+        [np.uint8, None, -0.1, cv2.BORDER_CONSTANT, 0],
     ],
 )
-def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval, keep_size):
+def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval):
     h, w, c = 100, 100, 3
     mode_mapping = {
         cv2.BORDER_CONSTANT: "constant",
@@ -285,7 +276,7 @@ def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval, keep_s
                 percent=percent,
                 pad_mode=pad_mode,
                 pad_cval=pad_cval,
-                keep_size=keep_size,
+                keep_size=True,
                 p=1,
                 interpolation=cv2.INTER_AREA
                 if (px is not None and px < 0) or (percent is not None and percent < 0)
@@ -296,7 +287,7 @@ def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval, keep_s
         keypoint_params=keypoint_params,
     )
     transform_iaa = A.Compose(
-        [IAACropAndPad(px=px, percent=percent, pad_mode=pad_mode_iaa, pad_cval=pad_cval, keep_size=keep_size, p=1)],
+        [IAACropAndPad(px=px, percent=percent, pad_mode=pad_mode_iaa, pad_cval=pad_cval, keep_size=True, p=1)],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
