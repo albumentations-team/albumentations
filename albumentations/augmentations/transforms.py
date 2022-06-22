@@ -2018,8 +2018,8 @@ class GaussNoise(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         image = params["image"]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        sigma = var ** 0.5
-        random_state = np.random.RandomState(random.randint(0, 2 ** 32 - 1))
+        sigma = var**0.5
+        random_state = np.random.RandomState(random.randint(0, 2**32 - 1))
 
         if self.per_channel:
             gauss = random_state.normal(self.mean, sigma, image.shape)
@@ -2931,6 +2931,13 @@ class ColorJitter(ImageOnlyTransform):
         self.saturation = self.__check_values(saturation, "saturation")
         self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
 
+        self.transforms = [
+            F.adjust_brightness_torchvision,
+            F.adjust_contrast_torchvision,
+            F.adjust_saturation_torchvision,
+            F.adjust_hue_torchvision,
+        ]
+
     @staticmethod
     def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
         if isinstance(value, numbers.Number):
@@ -2953,22 +2960,23 @@ class ColorJitter(ImageOnlyTransform):
         saturation = random.uniform(self.saturation[0], self.saturation[1])
         hue = random.uniform(self.hue[0], self.hue[1])
 
-        transforms = [
-            lambda x: F.adjust_brightness_torchvision(x, brightness),
-            lambda x: F.adjust_contrast_torchvision(x, contrast),
-            lambda x: F.adjust_saturation_torchvision(x, saturation),
-            lambda x: F.adjust_hue_torchvision(x, hue),
-        ]
-        random.shuffle(transforms)
+        order = random.shuffle([0, 1, 2, 3])
 
-        return {"transforms": transforms}
+        return {
+            "brightness": brightness,
+            "contrast": contrast,
+            "saturation": saturation,
+            "hue": hue,
+            "order": order,
+        }
 
-    def apply(self, img, transforms=(), **params):
+    def apply(self, img, brigntness, contrast, saturation, hue, order, **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
 
-        for transform in transforms:
-            img = transform(img)
+        params = [brigntness, contrast, saturation, hue]
+        for i in order:
+            img = self.transforms[i](img, params[i])
         return img
 
     def get_transform_init_args_names(self):
