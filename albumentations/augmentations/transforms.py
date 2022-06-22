@@ -2492,11 +2492,10 @@ class ColorJitter(ImageOnlyTransform):
             "order": order,
         }
 
-    def apply(self, img, brigntness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
+    def apply(self, img, brightness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
-
-        params = [brigntness, contrast, saturation, hue]
+        params = [brightness, contrast, saturation, hue]
         for i in order:
             img = self.transforms[i](img, params[i])
         return img
