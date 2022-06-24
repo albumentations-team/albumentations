@@ -163,7 +163,8 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, 1.0)
+    center = (cols / 2, rows / 2)
+    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
     x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     return x, y, a + math.radians(angle), s
@@ -506,7 +507,7 @@ def keypoint_affine(
         return keypoint
 
     x, y, a, s = keypoint[:4]
-    x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
     a += rotation2DMatrixToEulerAngles(matrix.params[:2])
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
