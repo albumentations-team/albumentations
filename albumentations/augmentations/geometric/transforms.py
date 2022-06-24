@@ -654,13 +654,11 @@ class Affine(DualTransform):
             translate = {"x": 0, "y": 0}
 
         # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
-        # OpenCV and skimage work differently with angle, so we need change the sign of angle
-        shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
+        shear = {key: random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
         if self.keep_ratio:
             scale["y"] = scale["x"]
         rotate = random.uniform(*self.rotate)
-        rotate = -rotate  # OpenCV and skimage work differently with angle, so we need change the sign of angle
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
         # we get an ugly black border for 90deg rotations
@@ -690,6 +688,12 @@ class Affine(DualTransform):
             matrix, output_shape = self._compute_affine_warp_output_shape(matrix, params["image"].shape)
         else:
             output_shape = params["image"].shape
+
+        # Switch Y axis (in skimage Y looks up, in OpenCv it is looks down)
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
+        matrix.params[0, 1] = -matrix.params[0, 1]
+        matrix.params[1, 0] = -matrix.params[1, 0]
+        matrix.params[0, -1], matrix.params[1, -1] = matrix.params[1, -1], matrix.params[0, -1]
 
         return {
             "rotate": rotate,

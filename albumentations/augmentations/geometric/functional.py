@@ -432,8 +432,15 @@ def perspective_bbox(
     )
 
 
-def rotation2DMatrixToEulerAngles(matrix: np.ndarray):
-    return np.arctan2(matrix[1, 0], matrix[0, 0])
+def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
+    """
+    Args:
+        matrix (np.ndarray): Rotation matrix
+        y_up (bool): is Y axis looks up or down
+    """
+    if y_up:
+        return np.arctan2(matrix[1, 0], matrix[0, 0])
+    return np.arctan2(-matrix[1, 0], matrix[0, 0])
 
 
 @angle_2pi_range
@@ -451,7 +458,7 @@ def perspective_keypoint(
     keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
 
     x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
-    angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
+    angle += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
 
     scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
     scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
@@ -500,9 +507,7 @@ def keypoint_affine(
 
     x, y, a, s = keypoint[:4]
     x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
-    # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
-    # OpenCV and skimage work differently with angle, so we need change the sign of angle
-    a -= rotation2DMatrixToEulerAngles(matrix.params[:2])
+    a += rotation2DMatrixToEulerAngles(matrix.params[:2])
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
 
