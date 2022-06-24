@@ -2452,6 +2452,13 @@ class ColorJitter(ImageOnlyTransform):
         self.saturation = self.__check_values(saturation, "saturation")
         self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
 
+        self.transforms = [
+            F.adjust_brightness_torchvision,
+            F.adjust_contrast_torchvision,
+            F.adjust_saturation_torchvision,
+            F.adjust_hue_torchvision,
+        ]
+
     @staticmethod
     def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
         if isinstance(value, numbers.Number):
@@ -2474,22 +2481,23 @@ class ColorJitter(ImageOnlyTransform):
         saturation = random.uniform(self.saturation[0], self.saturation[1])
         hue = random.uniform(self.hue[0], self.hue[1])
 
-        transforms = [
-            lambda x: F.adjust_brightness_torchvision(x, brightness),
-            lambda x: F.adjust_contrast_torchvision(x, contrast),
-            lambda x: F.adjust_saturation_torchvision(x, saturation),
-            lambda x: F.adjust_hue_torchvision(x, hue),
-        ]
-        random.shuffle(transforms)
+        order = [0, 1, 2, 3]
+        random.shuffle(order)
 
-        return {"transforms": transforms}
+        return {
+            "brightness": brightness,
+            "contrast": contrast,
+            "saturation": saturation,
+            "hue": hue,
+            "order": order,
+        }
 
-    def apply(self, img, transforms=(), **params):
+    def apply(self, img, brightness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
-
-        for transform in transforms:
-            img = transform(img)
+        params = [brightness, contrast, saturation, hue]
+        for i in order:
+            img = self.transforms[i](img, params[i])
         return img
 
     def get_transform_init_args_names(self):
@@ -2807,12 +2815,13 @@ class RingingOvershoot(ImageOnlyTransform):
         cutoff = random.uniform(*self.cutoff)
 
         # From dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
-        kernel = np.fromfunction(
-            lambda x, y: cutoff
-            * special.j1(cutoff * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2))
-            / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
-            [ksize, ksize],
-        )
+        with np.errstate(divide="ignore", invalid="ignore"):
+            kernel = np.fromfunction(
+                lambda x, y: cutoff
+                * special.j1(cutoff * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2))
+                / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
+                [ksize, ksize],
+            )
         kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff**2 / (4 * np.pi)
 
         # Normalize kernel

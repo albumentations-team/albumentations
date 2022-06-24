@@ -1,5 +1,9 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   test_and_lint:
@@ -9,7 +13,6 @@ jobs:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-11]
         python-version: [3.6, 3.7, 3.8, 3.9]
-        albumentations-version: [tests, develop]
       fail-fast: false
     steps:
     - name: Checkout
@@ -33,7 +36,7 @@ jobs:
       if: matrix.operating-system == 'macos-latest'
       run: pip install torch==1.8.1 torchvision==0.9.1
     - name: Install dependencies
-      run: pip install .[${{ matrix.albumentations-version }}]
+      run: pip install .[tests]
     - name: Install linters
       run: pip install flake8==3.9.2 flake8-docstrings==1.6.0 mypy==0.910 isort==5.9.3 types-PyYAML==5.4.10 types-setuptools
     - name: Cleanup the build directory

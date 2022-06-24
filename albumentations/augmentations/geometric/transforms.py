@@ -418,11 +418,13 @@ class Affine(DualTransform):
             ``0.5`` is zoomed out to ``50`` percent of the original size.
                 * If a single number, then that value will be used for all images.
                 * If a tuple ``(a, b)``, then a value will be uniformly sampled per image from the interval ``[a, b]``.
-                  That value will be used identically for both x- and y-axis.
+                  That the same range will be used for both x- and y-axis. To keep the aspect ratio, set
+                  ``keep_ratio=True``, then the same value will be used for both x- and y-axis.
                 * If a dictionary, then it is expected to have the keys ``x`` and/or ``y``.
                   Each of these keys can have the same values as described above.
                   Using a dictionary allows to set different values for the two axis and sampling will then happen
-                  *independently* per axis, resulting in samples that differ between the axes.
+                  *independently* per axis, resulting in samples that differ between the axes. Note that when
+                  the ``keep_ratio=True``, the x- and y-axis ranges should be the same.
         translate_percent (None, number, tuple of number or dict): Translation as a fraction of the image height/width
             (x-translation, y-translation), where ``0`` denotes "no change"
             and ``0.5`` denotes "half of the axis size".
@@ -467,12 +469,13 @@ class Affine(DualTransform):
             The value is only used when `mode=constant`. The expected value range is ``[0, 255]`` for ``uint8`` images.
         cval_mask (number or tuple of number): Same as cval but only for masks.
         mode (int): OpenCV border flag.
-        fit_output (bool): Whether to modify the affine transformation so that the whole output image is always
-            contained in the image plane (``True``) or accept parts of the image being outside
-            the image plane (``False``). This can be thought of as first applying the affine transformation
-            and then applying a second transformation to "zoom in" on the new image so that it fits the image plane,
-            This is useful to avoid corners of the image being outside of the image plane after applying rotations.
-            It will however negate translation and scaling.
+        fit_output (bool): If True, the image plane size and position will be adjusted to tightly capture
+            the whole image after affine transformation (`translate_percent` and `translate_px` are ignored).
+            Otherwise (``False``),  parts of the transformed image may end up outside the image plane.
+            Fitting the output shape can be useful to avoid corners of the image being outside the image plane
+            after applying rotations. Default: False
+        keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
+                           Default: False.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -496,6 +499,7 @@ class Affine(DualTransform):
         cval_mask: Union[int, float, Sequence[int], Sequence[float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
         fit_output: bool = False,
+        keep_ratio: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -522,6 +526,12 @@ class Affine(DualTransform):
         self.rotate = to_tuple(rotate, rotate)
         self.fit_output = fit_output
         self.shear = self._handle_dict_arg(shear, "shear")
+        self.keep_ratio = keep_ratio
+
+        if self.keep_ratio and self.scale["x"] != self.scale["y"]:
+            raise ValueError(
+                "When keep_ratio is True, the x and y scale range should be identical. got {}".format(self.scale)
+            )
 
     def get_transform_init_args_names(self):
         return (
@@ -536,6 +546,7 @@ class Affine(DualTransform):
             "fit_output",
             "shear",
             "cval_mask",
+            "keep_ratio",
         )
 
     @staticmethod
@@ -646,6 +657,8 @@ class Affine(DualTransform):
         # OpenCV and skimage work differently with angle, so we need change the sign of angle
         shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
+        if self.keep_ratio:
+            scale["y"] = scale["x"]
         rotate = random.uniform(*self.rotate)
         rotate = -rotate  # OpenCV and skimage work differently with angle, so we need change the sign of angle
 
