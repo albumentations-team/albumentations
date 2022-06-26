@@ -77,6 +77,7 @@ class Rotate(DualTransform):
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
+        method="largest_box",
         always_apply=False,
         p=0.5,
     ):
@@ -86,6 +87,10 @@ class Rotate(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.method = method
+
+        if method not in ["largest_box", "ellipse"]:
+            raise ValueError(f"Rotation method {self.method} is not valid.")
 
     def apply(self, img, angle=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.rotate(img, angle, interpolation, self.border_mode, self.value)
@@ -96,14 +101,14 @@ class Rotate(DualTransform):
     def get_params(self):
         return {"angle": random.uniform(self.limit[0], self.limit[1])}
 
-    def apply_to_bbox(self, bbox, angle=0, **params):
-        return F.bbox_rotate(bbox, angle, params["rows"], params["cols"])
+    def apply_to_bbox(self, bbox, angle=0, method="largest_box", **params):
+        return F.bbox_rotate(bbox, angle, params["rows"], params["cols"], method)
 
     def apply_to_keypoint(self, keypoint, angle=0, **params):
         return F.keypoint_rotate(keypoint, angle, **params)
 
     def get_transform_init_args_names(self):
-        return ("limit", "interpolation", "border_mode", "value", "mask_value")
+        return ("limit", "interpolation", "border_mode", "value", "mask_value", "method")
 
 
 class SafeRotate(DualTransform):

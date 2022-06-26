@@ -63,6 +63,7 @@ class ShiftScaleRotate(DualTransform):
         mask_value=None,
         shift_limit_x=None,
         shift_limit_y=None,
+        rotate_method="largest_box",
         always_apply=False,
         p=0.5,
     ):
@@ -75,6 +76,10 @@ class ShiftScaleRotate(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.rotate_method = rotate_method
+
+        if self.rotate_method not in ["largest_box", "ellipse"]:
+            raise ValueError(f"Rotation method {self.method} is not valid.")
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
@@ -93,8 +98,8 @@ class ShiftScaleRotate(DualTransform):
             "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, **params)
+    def apply_to_bbox(self, bbox, angle, scale, dx, dy, rotate_method, **params):
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, **params)
 
     def get_transform_init_args(self):
         return {
@@ -106,6 +111,7 @@ class ShiftScaleRotate(DualTransform):
             "border_mode": self.border_mode,
             "value": self.value,
             "mask_value": self.mask_value,
+            "method": self.rotate_method,
         }
 
 

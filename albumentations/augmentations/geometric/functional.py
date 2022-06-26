@@ -120,7 +120,7 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
     return warp_fn(img)
 
 
-def bbox_rotate(bbox, angle, rows, cols):
+def bbox_rotate(bbox, angle, rows, cols, method):
     """Rotates a bounding box by angle degrees.
 
     Args:
@@ -128,6 +128,7 @@ def bbox_rotate(bbox, angle, rows, cols):
         angle (int): Angle of rotation in degrees.
         rows (int): Image rows.
         cols (int): Image cols.
+        method(str): Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -135,8 +136,16 @@ def bbox_rotate(bbox, angle, rows, cols):
     """
     x_min, y_min, x_max, y_max = bbox[:4]
     scale = cols / float(rows)
-    x = np.array([x_min, x_max, x_max, x_min]) - 0.5
-    y = np.array([y_min, y_min, y_max, y_max]) - 0.5
+    if method == 'largest_box':
+        x = np.array([x_min, x_max, x_max, x_min]) - 0.5
+        y = np.array([y_min, y_min, y_max, y_max]) - 0.5
+    elif method == 'ellipse':
+        w = (x_max - x_min) / 2
+        h = (y_max - y_min) / 2
+        x = np.array([w * np.sin(np.radians(i)) + w + x_min for i in range(360)]) - 0.5
+        y = np.array([h * np.cos(np.radians(i)) + h + y_min for i in range(360)]) - 0.5
+    else:
+        raise ValueError(f"Method {method} is not a valid rotation method.")
     angle = np.deg2rad(angle)
     x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
     y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
@@ -147,6 +156,7 @@ def bbox_rotate(bbox, angle, rows, cols):
     y_min, y_max = min(y_t), max(y_t)
 
     return x_min, y_min, x_max, y_max
+
 
 
 @angle_2pi_range
@@ -171,7 +181,7 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
 
 @preserve_channel_dim
 def shift_scale_rotate(
-    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+        img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
 ):
     height, width = img.shape[:2]
     center = (width / 2, height / 2)
@@ -206,11 +216,30 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
     return x, y, angle, scale
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
-    x_min, y_min, x_max, y_max = bbox[:4]
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, rotate_method, **kwargs):  # skipcq: PYL-W0613
+    """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
+        scaling is made by scale factor and shifting is made by dx and dy.
+
+
+        Args:
+            bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+            angle (int): Angle of rotation in degrees.
+            scale (int): Scale factor.
+            dx (int): Shift along x-axis in pixel units.
+            dy (int): Shift along y-axis in pixel units.
+            rows (int): Image rows.
+            cols (int): Image cols.
+            rotate_method(str): Rotation method used. Should be one of: "largest_box", "ellipse".
+                Default: "largest_box".
+
+        Returns:
+            A bounding box `(x_min, y_min, x_max, y_max)`.
+
+        """
     height, width = rows, cols
     center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rows, cols, rotate_method)
+    matrix = cv2.getRotationMatrix2D(center, 0, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
     x = np.array([x_min, x_max, x_max, x_min])
@@ -231,16 +260,16 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  
 
 @preserve_shape
 def elastic_transform(
-    img,
-    alpha,
-    sigma,
-    alpha_affine,
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-    random_state=None,
-    approximate=False,
-    same_dxdy=False,
+        img,
+        alpha,
+        sigma,
+        alpha_affine,
+        interpolation=cv2.INTER_LINEAR,
+        border_mode=cv2.BORDER_REFLECT_101,
+        value=None,
+        random_state=None,
+        approximate=False,
+        same_dxdy=False,
 ):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
@@ -375,14 +404,14 @@ def smallest_max_size(img, max_size, interpolation):
 
 @preserve_channel_dim
 def perspective(
-    img: np.ndarray,
-    matrix: np.ndarray,
-    max_width: int,
-    max_height: int,
-    border_val: Union[int, float, List[int], List[float], np.ndarray],
-    border_mode: int,
-    keep_size: bool,
-    interpolation: int,
+        img: np.ndarray,
+        matrix: np.ndarray,
+        max_width: int,
+        max_height: int,
+        border_val: Union[int, float, List[int], List[float], np.ndarray],
+        border_mode: int,
+        keep_size: bool,
+        interpolation: int,
 ):
     h, w = img.shape[:2]
     perspective_func = _maybe_process_in_chunks(
@@ -402,13 +431,13 @@ def perspective(
 
 
 def perspective_bbox(
-    bbox: Sequence[float],
-    height: int,
-    width: int,
-    matrix: np.ndarray,
-    max_width: int,
-    max_height: int,
-    keep_size: bool,
+        bbox: Sequence[float],
+        height: int,
+        width: int,
+        matrix: np.ndarray,
+        max_width: int,
+        max_height: int,
+        keep_size: bool,
 ):
     x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)
 
@@ -438,13 +467,13 @@ def rotation2DMatrixToEulerAngles(matrix: np.ndarray):
 
 @angle_2pi_range
 def perspective_keypoint(
-    keypoint: Union[List[int], List[float]],
-    height: int,
-    width: int,
-    matrix: np.ndarray,
-    max_width: int,
-    max_height: int,
-    keep_size: bool,
+        keypoint: Union[List[int], List[float]],
+        height: int,
+        width: int,
+        matrix: np.ndarray,
+        max_width: int,
+        max_height: int,
+        keep_size: bool,
 ):
     x, y, angle, scale = keypoint
 
@@ -471,12 +500,12 @@ def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
 
 @preserve_channel_dim
 def warp_affine(
-    image: np.ndarray,
-    matrix: skimage.transform.ProjectiveTransform,
-    interpolation: int,
-    cval: Union[int, float, Sequence[int], Sequence[float]],
-    mode: int,
-    output_shape: Sequence[int],
+        image: np.ndarray,
+        matrix: skimage.transform.ProjectiveTransform,
+        interpolation: int,
+        cval: Union[int, float, Sequence[int], Sequence[float]],
+        mode: int,
+        output_shape: Sequence[int],
 ) -> np.ndarray:
     if _is_identity_matrix(matrix):
         return image
@@ -491,9 +520,9 @@ def warp_affine(
 
 @angle_2pi_range
 def keypoint_affine(
-    keypoint: Sequence[float],
-    matrix: skimage.transform.ProjectiveTransform,
-    scale: dict,
+        keypoint: Sequence[float],
+        matrix: skimage.transform.ProjectiveTransform,
+        scale: dict,
 ) -> Sequence[float]:
     if _is_identity_matrix(matrix):
         return keypoint
@@ -556,7 +585,7 @@ def safe_rotate(
 
 
 def bbox_safe_rotate(
-    bbox: Tuple[float, float, float, float], matrix: np.ndarray, cols: int, rows: int
+        bbox: Tuple[float, float, float, float], matrix: np.ndarray, cols: int, rows: int
 ) -> Tuple[float, float, float, float]:
     x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
     points = np.array(
@@ -588,13 +617,13 @@ def bbox_safe_rotate(
 
 
 def keypoint_safe_rotate(
-    keypoint: Tuple[float, float, float, float],
-    matrix: np.ndarray,
-    angle: float,
-    scale_x: float,
-    scale_y: float,
-    cols: int,
-    rows: int,
+        keypoint: Tuple[float, float, float, float],
+        matrix: np.ndarray,
+        angle: float,
+        scale_x: float,
+        scale_y: float,
+        cols: int,
+        rows: int,
 ) -> Tuple[float, float, float, float]:
     x, y, a, s = keypoint
     point = np.array([[x, y, 1]])
@@ -611,11 +640,11 @@ def keypoint_safe_rotate(
 
 @clipped
 def piecewise_affine(
-    img: np.ndarray,
-    matrix: skimage.transform.PiecewiseAffineTransform,
-    interpolation: int,
-    mode: str,
-    cval: float,
+        img: np.ndarray,
+        matrix: skimage.transform.PiecewiseAffineTransform,
+        interpolation: int,
+        mode: str,
+        cval: float,
 ) -> np.ndarray:
     return skimage.transform.warp(
         img, matrix, order=interpolation, mode=mode, cval=cval, preserve_range=True, output_shape=img.shape
@@ -623,7 +652,7 @@ def piecewise_affine(
 
 
 def to_distance_maps(
-    keypoints: Sequence[Sequence[float]], height: int, width: int, inverted: bool = False
+        keypoints: Sequence[Sequence[float]], height: int, width: int, inverted: bool = False
 ) -> np.ndarray:
     """Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
 
@@ -667,10 +696,10 @@ def to_distance_maps(
 
 
 def from_distance_maps(
-    distance_maps: np.ndarray,
-    inverted: bool,
-    if_not_found_coords: Optional[Union[Sequence[int], dict]],
-    threshold: Optional[float] = None,
+        distance_maps: np.ndarray,
+        inverted: bool,
+        if_not_found_coords: Optional[Union[Sequence[int], dict]],
+        threshold: Optional[float] = None,
 ) -> List[Tuple[float, float]]:
     """Convert outputs of ``to_distance_maps()`` to ``KeypointsOnImage``.
     This is the inverse of `to_distance_maps`.
@@ -744,11 +773,11 @@ def from_distance_maps(
 
 
 def keypoint_piecewise_affine(
-    keypoint: Sequence[float],
-    matrix: skimage.transform.PiecewiseAffineTransform,
-    h: int,
-    w: int,
-    keypoints_threshold: float,
+        keypoint: Sequence[float],
+        matrix: skimage.transform.PiecewiseAffineTransform,
+        h: int,
+        w: int,
+        keypoints_threshold: float,
 ) -> Tuple[float, float, float, float]:
     x, y, a, s = keypoint
     dist_maps = to_distance_maps([(x, y)], h, w, True)
@@ -758,11 +787,11 @@ def keypoint_piecewise_affine(
 
 
 def bbox_piecewise_affine(
-    bbox: Sequence[float],
-    matrix: skimage.transform.PiecewiseAffineTransform,
-    h: int,
-    w: int,
-    keypoints_threshold: float,
+        bbox: Sequence[float],
+        matrix: skimage.transform.PiecewiseAffineTransform,
+        h: int,
+        w: int,
+        keypoints_threshold: float,
 ) -> Tuple[float, float, float, float]:
     x1, y1, x2, y2 = denormalize_bbox(tuple(bbox), h, w)
     keypoints = [
