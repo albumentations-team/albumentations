@@ -61,6 +61,8 @@ class Rotate(DualTransform):
         mask_value (int, float,
                     list of ints,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
+            Default: "largest_box"
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -102,7 +104,7 @@ class Rotate(DualTransform):
         return {"angle": random.uniform(self.limit[0], self.limit[1])}
 
     def apply_to_bbox(self, bbox, angle=0, method="largest_box", **params):
-        return F.bbox_rotate(bbox, angle, params["rows"], params["cols"], method)
+        return F.bbox_rotate(bbox, angle, method, params["rows"], params["cols"])
 
     def apply_to_keypoint(self, keypoint, angle=0, **params):
         return F.keypoint_rotate(keypoint, angle, **params)

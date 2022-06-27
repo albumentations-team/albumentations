@@ -120,18 +120,21 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
     return warp_fn(img)
 
 
-def bbox_rotate(bbox, angle, rows, cols, method):
+def bbox_rotate(bbox, angle, method, rows, cols):
     """Rotates a bounding box by angle degrees.
 
     Args:
         bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
         angle (int): Angle of rotation in degrees.
+        method(str): Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
         rows (int): Image rows.
         cols (int): Image cols.
-        method(str): Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
+
+    References:
+        https://arxiv.org/abs/2109.13488
 
     """
     x_min, y_min, x_max, y_max = bbox[:4]
@@ -215,7 +218,7 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
     return x, y, angle, scale
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, rotate_method, **kwargs):  # skipcq: PYL-W0613
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, cols, **kwargs):  # skipcq: PYL-W0613
     """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
     scaling is made by scale factor and shifting is made by dx and dy.
 
@@ -226,10 +229,10 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, rotate_metho
         scale (int): Scale factor.
         dx (int): Shift along x-axis in pixel units.
         dy (int): Shift along y-axis in pixel units.
-        rows (int): Image rows.
-        cols (int): Image cols.
         rotate_method(str): Rotation method used. Should be one of: "largest_box", "ellipse".
             Default: "largest_box".
+        rows (int): Image rows.
+        cols (int): Image cols.
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -237,7 +240,7 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, rotate_metho
     """
     height, width = rows, cols
     center = (width / 2, height / 2)
-    x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rows, cols, rotate_method)
+    x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rotate_method, rows, cols)
     matrix = cv2.getRotationMatrix2D(center, 0, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
