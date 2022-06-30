@@ -100,8 +100,8 @@ class ShiftScaleRotate(DualTransform):
             "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, rotate_method="largest_box", **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, **params)
+    def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, self.rotate_method, **params)
 
     def get_transform_init_args(self):
         return {

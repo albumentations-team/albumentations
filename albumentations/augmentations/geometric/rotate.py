@@ -103,8 +103,8 @@ class Rotate(DualTransform):
     def get_params(self):
         return {"angle": random.uniform(self.limit[0], self.limit[1])}
 
-    def apply_to_bbox(self, bbox, angle=0, method="largest_box", **params):
-        return F.bbox_rotate(bbox, angle, method, params["rows"], params["cols"])
+    def apply_to_bbox(self, bbox, angle=0, **params):
+        return F.bbox_rotate(bbox, angle, self.method, params["rows"], params["cols"])
 
     def apply_to_keypoint(self, keypoint, angle=0, **params):
         return F.keypoint_rotate(keypoint, angle, **params)

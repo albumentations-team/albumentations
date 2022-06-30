@@ -145,8 +145,9 @@ def bbox_rotate(bbox, angle, method, rows, cols):
     elif method == "ellipse":
         w = (x_max - x_min) / 2
         h = (y_max - y_min) / 2
-        x = np.array([w * np.sin(np.radians(i)) + w + x_min for i in range(360)]) - 0.5
-        y = np.array([h * np.cos(np.radians(i)) + h + y_min for i in range(360)]) - 0.5
+        data = np.arange(0, 360, dtype=np.float32)
+        x = w * np.sin(np.radians(data)) + (w + x_min - 0.5)
+        y = h * np.cos(np.radians(data)) + (h + y_min - 0.5)
     else:
         raise ValueError(f"Method {method} is not a valid rotation method.")
     angle = np.deg2rad(angle)
@@ -240,8 +241,12 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, col
     """
     height, width = rows, cols
     center = (width / 2, height / 2)
-    x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rotate_method, rows, cols)
-    matrix = cv2.getRotationMatrix2D(center, 0, scale)
+    if rotate_method == "ellipse":
+        x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rotate_method, rows, cols)
+        matrix = cv2.getRotationMatrix2D(center, 0, scale)
+    else:
+        x_min, y_min, x_max, y_max = bbox[:4]
+        matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
     x = np.array([x_min, x_max, x_max, x_min])
