@@ -43,6 +43,8 @@ class ShiftScaleRotate(DualTransform):
             instead of shift_limit will be used for shifting height.  If shift_limit_y is a single float value,
             the range will be (-shift_limit_y, shift_limit_y). Absolute values for lower and upper bounds should lie
             in the range [0, 1]. Default: None.
+        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
+            Default: "largest_box"
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -63,6 +65,7 @@ class ShiftScaleRotate(DualTransform):
         mask_value=None,
         shift_limit_x=None,
         shift_limit_y=None,
+        rotate_method="largest_box",
         always_apply=False,
         p=0.5,
     ):
@@ -75,6 +78,10 @@ class ShiftScaleRotate(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.rotate_method = rotate_method
+
+        if self.rotate_method not in ["largest_box", "ellipse"]:
+            raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
@@ -94,7 +101,7 @@ class ShiftScaleRotate(DualTransform):
         }
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, **params)
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, self.rotate_method, **params)
 
     def get_transform_init_args(self):
         return {
@@ -106,6 +113,7 @@ class ShiftScaleRotate(DualTransform):
             "border_mode": self.border_mode,
             "value": self.value,
             "mask_value": self.mask_value,
+            "rotate_method": self.rotate_method,
         }
 
 
