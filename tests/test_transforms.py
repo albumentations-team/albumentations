@@ -38,6 +38,16 @@ def test_rotate_interpolation(interpolation):
     assert np.array_equal(data["mask"], expected_mask)
 
 
+def test_rotate_crop_border():
+    image = np.random.randint(low=100, high=256, size=(100, 100, 3), dtype=np.uint8)
+    border_value = 13
+    aug = A.Rotate(limit=(45, 45), p=1, value=border_value, border_mode=cv2.BORDER_CONSTANT, crop_border=True)
+    aug_img = aug(image=image)["image"]
+    expected_size = int(np.round(100 / np.sqrt(2)))
+    assert aug_img.shape[0] == expected_size
+    assert (aug_img == border_value).sum() == 0
+
+
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 def test_shift_scale_rotate_interpolation(interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
