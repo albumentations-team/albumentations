@@ -13,15 +13,16 @@ except ImportError:
 
 import warnings
 
-from ..augmentations import Emboss, Perspective, Sharpen
-from ..augmentations.bbox_utils import (
+from albumentations.core.bbox_utils import (
     convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
 )
-from ..augmentations.keypoints_utils import (
+from albumentations.core.keypoints_utils import (
     convert_keypoints_from_albumentations,
     convert_keypoints_to_albumentations,
 )
+
+from ..augmentations import Perspective
 from ..core.transforms_interface import (
     BasicTransform,
     DualTransform,

@@ -1,12 +1,11 @@
 import random
-from typing import Union, Tuple, Any, Dict
+from typing import Any, Dict, Tuple, Union
 
 import cv2
 import numpy as np
 from skimage.measure import label
 
-from ...core.transforms_interface import DualTransform
-from ...core.transforms_interface import to_tuple
+from ...core.transforms_interface import DualTransform, to_tuple
 
 __all__ = ["MaskDropout"]
 
@@ -59,7 +58,7 @@ class MaskDropout(DualTransform):
         if num_labels == 0:
             dropout_mask = None
         else:
-            objects_to_drop = random.randint(self.max_objects[0], self.max_objects[1])
+            objects_to_drop = random.randint(int(self.max_objects[0]), int(self.max_objects[1]))
             objects_to_drop = min(num_labels, objects_to_drop)
 
             if objects_to_drop == num_labels:

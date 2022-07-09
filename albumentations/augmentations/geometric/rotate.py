@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
 from ..crops import functional as FCrops
 from . import functional as F
 
@@ -227,21 +227,19 @@ class SafeRotate(DualTransform):
     def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bbox(
-        self, bbox: Tuple[float, float, float, float], cols: int = 0, rows: int = 0, **params
-    ) -> Tuple[float, float, float, float]:
+    def apply_to_bbox(self, bbox: BoxType, cols: int = 0, rows: int = 0, **params) -> BoxType:
         return F.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
 
     def apply_to_keypoint(
         self,
-        keypoint: Tuple[float, float, float, float],
+        keypoint: KeypointType,
         angle: float = 0,
         scale_x: float = 0,
         scale_y: float = 0,
         cols: int = 0,
         rows: int = 0,
         **params
-    ) -> Tuple[float, float, float, float]:
+    ) -> KeypointType:
         return F.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
 
     @property

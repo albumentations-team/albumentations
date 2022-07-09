@@ -1,4 +1,5 @@
 import math
+import typing
 from typing import List, Optional, Sequence, Tuple, Union
 
 import cv2
@@ -7,7 +8,8 @@ import skimage.transform
 from scipy.ndimage.filters import gaussian_filter
 
 from ... import random_utils
-from ..bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.transforms_interface import BoxType, KeypointType
 from ..functional import (
     _maybe_process_in_chunks,
     angle_2pi_range,
@@ -527,10 +529,10 @@ def warp_affine(
 
 @angle_2pi_range
 def keypoint_affine(
-    keypoint: Sequence[float],
+    keypoint: KeypointType,
     matrix: skimage.transform.ProjectiveTransform,
     scale: dict,
-) -> Sequence[float]:
+) -> KeypointType:
     if _is_identity_matrix(matrix):
         return keypoint
 
@@ -542,12 +544,12 @@ def keypoint_affine(
 
 
 def bbox_affine(
-    bbox: Sequence[float],
+    bbox: BoxType,
     matrix: skimage.transform.ProjectiveTransform,
     rows: int,
     cols: int,
     output_shape: Sequence[int],
-) -> Sequence[float]:
+) -> BoxType:
     if _is_identity_matrix(matrix):
         return bbox
 
@@ -568,7 +570,7 @@ def bbox_affine(
     y_min = np.min(points[:, 1])
     y_max = np.max(points[:, 1])
 
-    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
+    return typing.cast(BoxType, normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1]))
 
 
 @preserve_channel_dim
@@ -591,9 +593,7 @@ def safe_rotate(
     return warp_fn(img)
 
 
-def bbox_safe_rotate(
-    bbox: Tuple[float, float, float, float], matrix: np.ndarray, cols: int, rows: int
-) -> Tuple[float, float, float, float]:
+def bbox_safe_rotate(bbox: BoxType, matrix: np.ndarray, cols: int, rows: int) -> BoxType:
     x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
     points = np.array(
         [
@@ -620,18 +620,18 @@ def bbox_safe_rotate(
     x1, x2 = fix_point(x1, x2, cols)
     y1, y2 = fix_point(y1, y2, rows)
 
-    return normalize_bbox((x1, y1, x2, y2), rows, cols)
+    return typing.cast(BoxType, normalize_bbox((x1, y1, x2, y2), rows, cols))
 
 
 def keypoint_safe_rotate(
-    keypoint: Tuple[float, float, float, float],
+    keypoint: KeypointType,
     matrix: np.ndarray,
     angle: float,
     scale_x: float,
     scale_y: float,
     cols: int,
     rows: int,
-) -> Tuple[float, float, float, float]:
+) -> KeypointType:
     x, y, a, s = keypoint
     point = np.array([[x, y, 1]])
     x, y = (point @ matrix.T)[0]
@@ -816,4 +816,4 @@ def bbox_piecewise_affine(
     y1 = keypoints_arr[:, 1].min()
     x2 = keypoints_arr[:, 0].max()
     y2 = keypoints_arr[:, 1].max()
-    return normalize_bbox((x1, y1, x2, y2), h, w)
+    return typing.cast(BoxType, normalize_bbox((x1, y1, x2, y2), h, w))
