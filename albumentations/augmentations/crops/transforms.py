@@ -202,7 +202,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
             mask = self._preprocess_mask(kwargs["mask"])
         elif "masks" in kwargs and len(kwargs["masks"]):
             masks = kwargs["masks"]
-            mask = self._preprocess_mask(masks[0])
+            mask = self._preprocess_mask(np.copy(masks[0]))  # need copy as we perform in-place mod afterwards
             for m in masks[1:]:
                 mask |= self._preprocess_mask(m)
         else:

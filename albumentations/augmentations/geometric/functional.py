@@ -120,23 +120,36 @@ def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_RE
     return warp_fn(img)
 
 
-def bbox_rotate(bbox, angle, rows, cols):
+def bbox_rotate(bbox, angle, method, rows, cols):
     """Rotates a bounding box by angle degrees.
 
     Args:
         bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
         angle (int): Angle of rotation in degrees.
+        method(str): Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
         rows (int): Image rows.
         cols (int): Image cols.
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
+    References:
+        https://arxiv.org/abs/2109.13488
+
     """
     x_min, y_min, x_max, y_max = bbox[:4]
     scale = cols / float(rows)
-    x = np.array([x_min, x_max, x_max, x_min]) - 0.5
-    y = np.array([y_min, y_min, y_max, y_max]) - 0.5
+    if method == "largest_box":
+        x = np.array([x_min, x_max, x_max, x_min]) - 0.5
+        y = np.array([y_min, y_min, y_max, y_max]) - 0.5
+    elif method == "ellipse":
+        w = (x_max - x_min) / 2
+        h = (y_max - y_min) / 2
+        data = np.arange(0, 360, dtype=np.float32)
+        x = w * np.sin(np.radians(data)) + (w + x_min - 0.5)
+        y = h * np.cos(np.radians(data)) + (h + y_min - 0.5)
+    else:
+        raise ValueError(f"Method {method} is not a valid rotation method.")
     angle = np.deg2rad(angle)
     x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
     y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
@@ -206,11 +219,34 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
     return x, y, angle, scale
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rows, cols, **kwargs):  # skipcq: PYL-W0613
-    x_min, y_min, x_max, y_max = bbox[:4]
+def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, cols, **kwargs):  # skipcq: PYL-W0613
+    """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
+    scaling is made by scale factor and shifting is made by dx and dy.
+
+
+    Args:
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        angle (int): Angle of rotation in degrees.
+        scale (int): Scale factor.
+        dx (int): Shift along x-axis in pixel units.
+        dy (int): Shift along y-axis in pixel units.
+        rotate_method(str): Rotation method used. Should be one of: "largest_box", "ellipse".
+            Default: "largest_box".
+        rows (int): Image rows.
+        cols (int): Image cols.
+
+    Returns:
+        A bounding box `(x_min, y_min, x_max, y_max)`.
+
+    """
     height, width = rows, cols
     center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+    if rotate_method == "ellipse":
+        x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rotate_method, rows, cols)
+        matrix = cv2.getRotationMatrix2D(center, 0, scale)
+    else:
+        x_min, y_min, x_max, y_max = bbox[:4]
+        matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
     x = np.array([x_min, x_max, x_max, x_min])
