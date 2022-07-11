@@ -1133,3 +1133,58 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
 
     for key, value in expected.items():
         assert np.allclose(np.array(value), np.array(res[key])), key
+
+
+@pytest.mark.parametrize(
+    "aug_cls",
+    [
+        (lambda rotate: A.Affine(rotate=rotate, p=1, mode=cv2.BORDER_CONSTANT, cval=0)),
+        (
+            lambda rotate: A.ShiftScaleRotate(
+                shift_limit=(0, 0),
+                scale_limit=(0, 0),
+                rotate_limit=rotate,
+                p=1,
+                border_mode=cv2.BORDER_CONSTANT,
+                value=0,
+            )
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "img",
+    [
+        np.random.randint(0, 256, [100, 100, 3], np.uint8),
+        np.random.randint(0, 256, [25, 100, 3], np.uint8),
+        np.random.randint(0, 256, [100, 25, 3], np.uint8),
+    ],
+)
+@pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
+def test_rotate_equal(img, aug_cls, angle):
+    random.seed(0)
+
+    h, w = img.shape[:2]
+    kp = [[random.randint(0, w - 1), random.randint(0, h - 1), random.randint(0, 360)] for _ in range(50)]
+    kp += [
+        [round(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [0, 0, 0],
+        [w - 1, h - 1, 0],
+    ]
+    keypoint_params = A.KeypointParams("xya", remove_invisible=False)
+
+    a = A.Compose([aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params)
+    b = A.Compose(
+        [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, value=0, p=1)], keypoint_params=keypoint_params
+    )
+
+    res_a = a(image=img, keypoints=kp)
+    res_b = b(image=img, keypoints=kp)
+    assert np.allclose(res_a["image"], res_b["image"])
+    res_a = np.array(res_a["keypoints"])
+    res_b = np.array(res_b["keypoints"])
+    diff = np.round(np.abs(res_a - res_b))
+    assert diff[:, :2].max() <= 2
+    assert (diff[:, -1] % 360).max() <= 1

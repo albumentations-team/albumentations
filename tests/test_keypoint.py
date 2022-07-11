@@ -261,7 +261,7 @@ def test_keypoint_scale(keypoint, expected, scale):
 
 @pytest.mark.parametrize(
     ["keypoint", "expected", "angle", "scale", "dx", "dy"],
-    [[[50, 50, 0, 5], [120, 160, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
+    [[[50, 50, 0, 5], [120, 158, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
     actual = FGeometric.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)

@@ -661,11 +661,14 @@ class Affine(DualTransform):
         else:
             translate = {"x": 0, "y": 0}
 
-        shear = {key: random.uniform(*value) for key, value in self.shear.items()}
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
+        shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
         if self.keep_ratio:
             scale["y"] = scale["x"]
-        rotate = random.uniform(*self.rotate)
+
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
+        rotate = -random.uniform(*self.rotate)
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
         # we get an ugly black border for 90deg rotations
