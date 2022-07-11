@@ -6,7 +6,7 @@ import numpy as np
 import skimage.transform
 
 from ... import random_utils
-from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
 from . import functional as F
 
 __all__ = ["ShiftScaleRotate", "ElasticTransform", "Perspective", "Affine", "PiecewiseAffine"]
@@ -626,22 +626,22 @@ class Affine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: Sequence[float],
+        bbox: BoxType,
         matrix: skimage.transform.ProjectiveTransform = None,
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
         **params
-    ) -> Sequence[float]:
+    ) -> BoxType:
         return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
 
     def apply_to_keypoint(
         self,
-        keypoint: Sequence[float],
+        keypoint: KeypointType,
         matrix: skimage.transform.ProjectiveTransform = None,
         scale: dict = None,
         **params
-    ) -> Sequence[float]:
+    ) -> KeypointType:
         return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @property
@@ -900,12 +900,12 @@ class PiecewiseAffine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: Sequence[float],
+        bbox: BoxType,
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
-    ) -> Sequence[float]:
+    ) -> BoxType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
     def apply_to_keypoint(

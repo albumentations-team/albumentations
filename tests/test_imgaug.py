@@ -5,7 +5,7 @@ import pytest
 
 import albumentations as A
 from albumentations import Compose
-from albumentations.augmentations.bbox_utils import (
+from albumentations.core.bbox_utils import (
     convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
 )

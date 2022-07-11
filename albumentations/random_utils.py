@@ -6,7 +6,8 @@ from typing import Any, Optional, Sequence, Type, Union
 
 import numpy as np
 
-NumType = Union[int, float, np.ndarray]
+from .core.transforms_interface import NumType
+
 IntNumType = Union[int, np.ndarray]
 Size = Union[int, Sequence[int]]
 
