@@ -3,25 +3,24 @@ import imgaug as ia
 import numpy as np
 import pytest
 
+import albumentations as A
 from albumentations import Compose
-from albumentations.augmentations.bbox_utils import (
+from albumentations.core.bbox_utils import (
     convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
 )
-import albumentations as A
 from albumentations.imgaug.transforms import (
-    IAAPiecewiseAffine,
-    IAAFliplr,
-    IAAFlipud,
-    IAASuperpixels,
-    IAASharpen,
     IAAAdditiveGaussianNoise,
-    IAAPerspective,
     IAAAffine,
     IAACropAndPad,
+    IAAFliplr,
+    IAAFlipud,
+    IAAPerspective,
+    IAAPiecewiseAffine,
+    IAASharpen,
+    IAASuperpixels,
 )
 from tests.utils import set_seed
-
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 
@@ -227,15 +226,12 @@ def __test_multiprocessing_support_proc(args):
         [IAAPerspective, {}],
     ],
 )
-def test_imgaug_transforms_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
+def test_imgaug_transforms_multiprocessing_support(augmentation_cls, params, mp_pool):
     """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    pool = multiprocessing_context.Pool(8)
-    pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
-    pool.close()
-    pool.join()
+    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
 
 
 @pytest.mark.parametrize(

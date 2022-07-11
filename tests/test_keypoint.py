@@ -1,17 +1,16 @@
 import math
 
-import albumentations as A
 import numpy as np
 import pytest
 
+import albumentations as A
 import albumentations.augmentations.geometric.functional as FGeometric
-
-from albumentations.augmentations.keypoints_utils import (
-    convert_keypoint_from_albumentations,
-    convert_keypoints_from_albumentations,
-    convert_keypoint_to_albumentations,
-    convert_keypoints_to_albumentations,
+from albumentations.core.keypoints_utils import (
     angle_to_2pi_range,
+    convert_keypoint_from_albumentations,
+    convert_keypoint_to_albumentations,
+    convert_keypoints_from_albumentations,
+    convert_keypoints_to_albumentations,
 )
 
 

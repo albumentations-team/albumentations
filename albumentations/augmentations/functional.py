@@ -11,8 +11,7 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
-
-from .keypoints_utils import angle_to_2pi_range
+from albumentations.core.keypoints_utils import angle_to_2pi_range
 
 __all__ = [
     "MAX_VALUES_BY_DTYPE",
@@ -1771,7 +1770,9 @@ def adjust_contrast_torchvision(img, factor):
         mean = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).mean()
 
     if factor == 0:
-        return np.full_like(img, int(mean + 0.5), dtype=img.dtype)
+        if img.dtype != np.float32:
+            mean = int(mean + 0.5)
+        return np.full_like(img, mean, dtype=img.dtype)
 
     if img.dtype == np.uint8:
         return _adjust_contrast_torchvision_uint8(img, factor, mean)
