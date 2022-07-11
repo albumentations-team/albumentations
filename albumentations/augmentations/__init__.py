@@ -10,6 +10,7 @@ from .dropout.cutout import *
 from .dropout.functional import *
 from .dropout.grid_dropout import *
 from .dropout.mask_dropout import *
+from .eraser.functional import *
 from .functional import *
 from .geometric.functional import *
 from .geometric.resize import *
