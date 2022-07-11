@@ -1,10 +1,9 @@
+import multiprocessing
 import sys
 import warnings
-import multiprocessing
 
 import numpy as np
 import pytest
-
 
 try:
     import torch  # skipcq: PYL-W0611
@@ -88,8 +87,8 @@ def float_template():
     return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
 
 
-@pytest.fixture
-def multiprocessing_context():
+@pytest.fixture(scope="package")
+def mp_pool():
     # Usage of `fork` as a start method for multiprocessing could lead to deadlocks on macOS.
     # Because `fork` was the default start method for macOS until Python 3.8
     # we had to manually set the start method to `spawn` to avoid those issues.
@@ -97,4 +96,4 @@ def multiprocessing_context():
         method = "spawn"
     else:
         method = None
-    return multiprocessing.get_context(method)
+    return multiprocessing.get_context(method).Pool(8)

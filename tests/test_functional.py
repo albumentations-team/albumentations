@@ -8,7 +8,7 @@ from numpy.testing import assert_array_almost_equal_nulp
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.augmentations.bbox_utils import filter_bboxes
+from albumentations.core.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 
 
@@ -177,6 +177,16 @@ def test_random_crop_with_incorrectly_large_crop_size():
     assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
 
 
+def test_random_crop_extrema():
+    img = np.indices((4, 4), dtype=np.uint8).transpose([1, 2, 0])
+    expected1 = np.indices((2, 2), dtype=np.uint8).transpose([1, 2, 0])
+    expected2 = expected1 + 2
+    cropped_img1 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.0, w_start=0.0)
+    cropped_img2 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.9999, w_start=0.9999)
+    assert np.array_equal(cropped_img1, expected1)
+    assert np.array_equal(cropped_img2, expected2)
+
+
 def test_clip():
     img = np.array([[-300, 0], [100, 400]], dtype=np.float32)
     expected = np.array([[0, 0], [100, 255]], dtype=np.float32)
@@ -214,7 +224,8 @@ def test_pad_float(target):
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_rotate_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[0, 0, 0, 0], [4, 8, 12, 16], [3, 7, 11, 15], [2, 6, 10, 14]], dtype=np.uint8)
+    expected = np.array([[4, 8, 12, 16], [3, 7, 11, 15], [2, 6, 10, 14], [1, 5, 9, 13]], dtype=np.uint8)
+
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     rotated_img = FGeometric.shift_scale_rotate(
         img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
@@ -229,7 +240,7 @@ def test_rotate_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     expected = np.array(
-        [[0.00, 0.00, 0.00, 0.00], [0.04, 0.08, 0.12, 0.16], [0.03, 0.07, 0.11, 0.15], [0.02, 0.06, 0.10, 0.14]],
+        [[0.04, 0.08, 0.12, 0.16], [0.03, 0.07, 0.11, 0.15], [0.02, 0.06, 0.10, 0.14], [0.01, 0.05, 0.09, 0.13]],
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
@@ -242,7 +253,7 @@ def test_rotate_float_from_shift_scale_rotate(target):
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_scale_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[6, 7, 7, 8], [10, 11, 11, 12], [10, 11, 11, 12], [14, 15, 15, 16]], dtype=np.uint8)
+    expected = np.array([[6, 6, 7, 7], [6, 6, 7, 7], [10, 10, 11, 11], [10, 10, 11, 11]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     scaled_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
@@ -257,7 +268,7 @@ def test_scale_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     expected = np.array(
-        [[0.06, 0.07, 0.07, 0.08], [0.10, 0.11, 0.11, 0.12], [0.10, 0.11, 0.11, 0.12], [0.14, 0.15, 0.15, 0.16]],
+        [[0.06, 0.06, 0.07, 0.07], [0.06, 0.06, 0.07, 0.07], [0.10, 0.10, 0.11, 0.11], [0.10, 0.10, 0.11, 0.11]],
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
@@ -773,8 +784,8 @@ def test_solarize(dtype):
     max_value = F.MAX_VALUES_BY_DTYPE[dtype]
 
     if dtype == np.dtype("float32"):
-        img = np.arange(2 ** 10, dtype=np.float32) / (2 ** 10)
-        img = img.reshape([2 ** 5, 2 ** 5])
+        img = np.arange(2**10, dtype=np.float32) / (2**10)
+        img = img.reshape([2**5, 2**5])
     else:
         max_count = 1024
         count = min(max_value + 1, 1024)

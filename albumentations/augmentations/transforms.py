@@ -13,6 +13,7 @@ import numpy as np
 from scipy import special
 
 from albumentations import random_utils
+from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 
 from ..core.transforms_interface import (
     DualTransform,
@@ -22,7 +23,6 @@ from ..core.transforms_interface import (
 )
 from ..core.utils import format_args
 from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
     "Blur",
@@ -91,7 +91,7 @@ class PadIfNeeded(DualTransform):
         pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
         position (Union[str, PositionType]): Position of the image. should be PositionType.CENTER or
             PositionType.TOP_LEFT or PositionType.TOP_RIGHT or PositionType.BOTTOM_LEFT or PositionType.BOTTOM_RIGHT.
-            Default: PositionType.CENTER.
+            or PositionType.RANDOM. Default: PositionType.CENTER.
         border_mode (OpenCV flag): OpenCV border mode.
         value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
         mask_value (int, float,
@@ -112,6 +112,7 @@ class PadIfNeeded(DualTransform):
         TOP_RIGHT = "top_right"
         BOTTOM_LEFT = "bottom_left"
         BOTTOM_RIGHT = "bottom_right"
+        RANDOM = "random"
 
     def __init__(
         self,
@@ -258,6 +259,14 @@ class PadIfNeeded(DualTransform):
             w_left += w_right
             h_bottom = 0
             w_right = 0
+
+        elif self.position == PadIfNeeded.PositionType.RANDOM:
+            h_pad = h_top + h_bottom
+            w_pad = w_left + w_right
+            h_top = random.randint(0, h_pad)
+            h_bottom = h_pad - h_top
+            w_left = random.randint(0, w_pad)
+            w_right = w_pad - w_left
 
         return h_top, h_bottom, w_left, w_right
 
@@ -938,7 +947,7 @@ class RandomRain(ImageOnlyTransform):
 
             rain_drops.append((x, y))
 
-        return {"drop_length": drop_length, "rain_drops": rain_drops}
+        return {"drop_length": drop_length, "slant": slant, "rain_drops": rain_drops}
 
     def get_transform_init_args_names(self):
         return (
@@ -1822,7 +1831,7 @@ class GaussNoise(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         image = params["image"]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        sigma = var ** 0.5
+        sigma = var**0.5
 
         if self.per_channel:
             gauss = random_utils.normal(self.mean, sigma, image.shape)
@@ -2443,6 +2452,13 @@ class ColorJitter(ImageOnlyTransform):
         self.saturation = self.__check_values(saturation, "saturation")
         self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
 
+        self.transforms = [
+            F.adjust_brightness_torchvision,
+            F.adjust_contrast_torchvision,
+            F.adjust_saturation_torchvision,
+            F.adjust_hue_torchvision,
+        ]
+
     @staticmethod
     def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
         if isinstance(value, numbers.Number):
@@ -2465,22 +2481,23 @@ class ColorJitter(ImageOnlyTransform):
         saturation = random.uniform(self.saturation[0], self.saturation[1])
         hue = random.uniform(self.hue[0], self.hue[1])
 
-        transforms = [
-            lambda x: F.adjust_brightness_torchvision(x, brightness),
-            lambda x: F.adjust_contrast_torchvision(x, contrast),
-            lambda x: F.adjust_saturation_torchvision(x, saturation),
-            lambda x: F.adjust_hue_torchvision(x, hue),
-        ]
-        random.shuffle(transforms)
+        order = [0, 1, 2, 3]
+        random.shuffle(order)
 
-        return {"transforms": transforms}
+        return {
+            "brightness": brightness,
+            "contrast": contrast,
+            "saturation": saturation,
+            "hue": hue,
+            "order": order,
+        }
 
-    def apply(self, img, transforms=(), **params):
+    def apply(self, img, brightness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
-
-        for transform in transforms:
-            img = transform(img)
+        params = [brightness, contrast, saturation, hue]
+        for i in order:
+            img = self.transforms[i](img, params[i])
         return img
 
     def get_transform_init_args_names(self):
@@ -2798,13 +2815,14 @@ class RingingOvershoot(ImageOnlyTransform):
         cutoff = random.uniform(*self.cutoff)
 
         # From dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
-        kernel = np.fromfunction(
-            lambda x, y: cutoff
-            * special.j1(cutoff * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2))
-            / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
-            [ksize, ksize],
-        )
-        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff ** 2 / (4 * np.pi)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            kernel = np.fromfunction(
+                lambda x, y: cutoff
+                * special.j1(cutoff * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2))
+                / (2 * np.pi * np.sqrt((x - (ksize - 1) / 2) ** 2 + (y - (ksize - 1) / 2) ** 2)),
+                [ksize, ksize],
+            )
+        kernel[(ksize - 1) // 2, (ksize - 1) // 2] = cutoff**2 / (4 * np.pi)
 
         # Normalize kernel
         kernel = kernel.astype(np.float32) / np.sum(kernel)
@@ -2982,7 +3000,7 @@ class AdvancedBlur(ImageOnlyTransform):
         grid = np.stack(np.meshgrid(ax, ax), axis=-1)
 
         # Calculate rotated sigma matrix
-        d_matrix = np.array([[sigmaX ** 2, 0], [0, sigmaY ** 2]])
+        d_matrix = np.array([[sigmaX**2, 0], [0, sigmaY**2]])
         u_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
         sigma_matrix = np.dot(u_matrix, np.dot(d_matrix, u_matrix.T))
 

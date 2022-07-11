@@ -27,20 +27,6 @@ def test_transpose_both_image_and_mask():
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_safe_rotate_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    aug = A.SafeRotate(limit=(45, 45), interpolation=interpolation, p=1)
-    data = aug(image=image, mask=mask)
-    expected_image = FGeometric.safe_rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
-    expected_mask = FGeometric.safe_rotate(
-        mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
-    )
-    assert np.array_equal(data["image"], expected_image)
-    assert np.array_equal(data["mask"], expected_mask)
-
-
-@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 def test_rotate_interpolation(interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
@@ -50,6 +36,16 @@ def test_rotate_interpolation(interpolation):
     expected_mask = FGeometric.rotate(mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
+
+
+def test_rotate_crop_border():
+    image = np.random.randint(low=100, high=256, size=(100, 100, 3), dtype=np.uint8)
+    border_value = 13
+    aug = A.Rotate(limit=(45, 45), p=1, value=border_value, border_mode=cv2.BORDER_CONSTANT, crop_border=True)
+    aug_img = aug(image=image)["image"]
+    expected_size = int(np.round(100 / np.sqrt(2)))
+    assert aug_img.shape[0] == expected_size
+    assert (aug_img == border_value).sum() == 0
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
@@ -232,15 +228,12 @@ def __test_multiprocessing_support_proc(args):
         },
     ),
 )
-def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
+def test_multiprocessing_support(mp_pool, augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    pool = multiprocessing_context.Pool(8)
-    pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
-    pool.close()
-    pool.join()
+    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10))
 
 
 def test_force_apply():
@@ -385,14 +378,20 @@ def test_crop_non_empty_mask():
             np.testing.assert_array_equal(augmented["image"], crop)
             np.testing.assert_array_equal(augmented["mask"], crop)
 
+    def _test_crops(masks, crops, aug, n=1):
+        for _ in range(n):
+            augmented = aug(image=masks[0], masks=masks)
+            for crop, augment in zip(crops, augmented["masks"]):
+                np.testing.assert_array_equal(augment, crop)
+
     # test general case
-    mask_1 = np.zeros([10, 10])
+    mask_1 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_1 as `masks` (which uses bitwise or)
     mask_1[0, 0] = 1
     crop_1 = np.array([[1]])
     aug_1 = A.CropNonEmptyMaskIfExists(1, 1)
 
     # test empty mask
-    mask_2 = np.zeros([10, 10])
+    mask_2 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_2 as `masks` (which uses bitwise or)
     crop_2 = np.array([[0]])
     aug_2 = A.CropNonEmptyMaskIfExists(1, 1)
 
@@ -425,6 +424,7 @@ def test_crop_non_empty_mask():
     _test_crop(mask_4, crop_4, aug_4, n=5)
     _test_crop(mask_5, crop_5, aug_5, n=1)
     _test_crop(mask_6, crop_6, aug_6, n=10)
+    _test_crops([mask_2, mask_1], [crop_2, crop_1], aug_1, n=1)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
@@ -1012,3 +1012,179 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
 def test_advanced_blur_raises_on_incorrect_params(params):
     with pytest.raises(ValueError):
         A.AdvancedBlur(**params)
+
+
+@pytest.mark.parametrize(
+    ["params"],
+    [
+        [{"scale": (0.5, 1.0)}],
+        [{"scale": (0.5, 1.0), "keep_ratio": False}],
+        [{"scale": (0.5, 1.0), "keep_ratio": True}],
+    ],
+)
+def test_affine_scale_ratio(params):
+    set_seed(0)
+    aug = A.Affine(**params, p=1.0)
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    target = {"image": image}
+    apply_params = aug.get_params_dependent_on_targets(target)
+
+    if "keep_ratio" not in params:
+        # default(keep_ratio=False)
+        assert apply_params["scale"]["x"] != apply_params["scale"]["y"]
+    elif not params["keep_ratio"]:
+        # keep_ratio=False
+        assert apply_params["scale"]["x"] != apply_params["scale"]["y"]
+    else:
+        # keep_ratio=True
+        assert apply_params["scale"]["x"] == apply_params["scale"]["y"]
+
+
+@pytest.mark.parametrize(
+    ["params"],
+    [
+        [{"scale": {"x": (0.5, 1.0), "y": (1.0, 1.5)}, "keep_ratio": True}],
+        [{"scale": {"x": 0.5, "y": 1.0}, "keep_ratio": True}],
+    ],
+)
+def test_affine_incorrect_scale_range(params):
+    with pytest.raises(ValueError):
+        A.Affine(**params)
+
+
+@pytest.mark.parametrize(
+    ["angle", "targets", "expected"],
+    [
+        [
+            -10,
+            {
+                "bboxes": [
+                    [0, 0, 5, 5, 0],
+                    [195, 0, 200, 5, 0],
+                    [195, 95, 200, 100, 0],
+                    [0, 95, 5, 99, 0],
+                ],
+                "keypoints": [
+                    [0, 0, 0, 0],
+                    [199, 0, 10, 10],
+                    [199, 99, 20, 20],
+                    [0, 99, 30, 30],
+                ],
+            },
+            {
+                "bboxes": [
+                    [15.65896994771262, 0.2946228229078849, 21.047137067150473, 4.617219579173327, 0],
+                    [194.29851584295034, 25.564320319214918, 199.68668296238818, 29.88691707548036, 0],
+                    [178.9528629328495, 95.38278042082668, 184.34103005228735, 99.70537717709212, 0],
+                    [0.47485022613917677, 70.11308292451965, 5.701484157049652, 73.70074852182076, 0],
+                ],
+                "keypoints": [
+                    [16.466635890349504, 0.2946228229078849, 147.04220486917677, 0.0],
+                    [198.770582727028, 26.08267308836993, 157.04220486917674, 9.30232558139535],
+                    [182.77879706281766, 98.84085782583904, 167.04220486917674, 18.6046511627907],
+                    [0.4748502261391767, 73.05280756037699, 177.04220486917674, 27.90697674418604],
+                ],
+            },
+        ],
+        [
+            10,
+            {
+                "bboxes": [
+                    [0, 0, 5, 5, 0],
+                    [195, 0, 200, 5, 0],
+                    [195, 95, 200, 100, 0],
+                    [0, 95, 5, 99, 0],
+                ],
+                "keypoints": [
+                    [0, 0, 0, 0],
+                    [199, 0, 10, 10],
+                    [199, 99, 20, 20],
+                    [0, 99, 30, 30],
+                ],
+            },
+            {
+                "bboxes": [
+                    [0.3133170376117963, 25.564320319214918, 5.701484157049649, 29.88691707548036, 0],
+                    [178.9528629328495, 0.2946228229078862, 184.34103005228735, 4.617219579173327, 0],
+                    [194.29851584295034, 70.11308292451965, 199.68668296238818, 74.43567968078509, 0],
+                    [15.658969947712617, 95.38278042082668, 20.88560387862309, 98.97044601812779, 0],
+                ],
+                "keypoints": [
+                    [0.3133170376117963, 26.212261280658684, 212.95779513082323, 0.0],
+                    [182.6172638742903, 0.42421101519664006, 222.95779513082323, 9.30232558139535],
+                    [198.60904953850064, 73.18239575266574, 232.9577951308232, 18.6046511627907],
+                    [16.305102701822126, 98.97044601812779, 242.9577951308232, 27.906976744186046],
+                ],
+            },
+        ],
+    ],
+)
+def test_safe_rotate(angle: float, targets: dict, expected: dict):
+    image = np.empty([100, 200, 3], dtype=np.uint8)
+    t = A.Compose(
+        [
+            A.SafeRotate(limit=(angle, angle), border_mode=0, value=0, p=1),
+        ],
+        bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.0),
+        keypoint_params=A.KeypointParams("xyas"),
+        p=1,
+    )
+    res = t(image=image, **targets)
+
+    for key, value in expected.items():
+        assert np.allclose(np.array(value), np.array(res[key])), key
+
+
+@pytest.mark.parametrize(
+    "aug_cls",
+    [
+        (lambda rotate: A.Affine(rotate=rotate, p=1, mode=cv2.BORDER_CONSTANT, cval=0)),
+        (
+            lambda rotate: A.ShiftScaleRotate(
+                shift_limit=(0, 0),
+                scale_limit=(0, 0),
+                rotate_limit=rotate,
+                p=1,
+                border_mode=cv2.BORDER_CONSTANT,
+                value=0,
+            )
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "img",
+    [
+        np.random.randint(0, 256, [100, 100, 3], np.uint8),
+        np.random.randint(0, 256, [25, 100, 3], np.uint8),
+        np.random.randint(0, 256, [100, 25, 3], np.uint8),
+    ],
+)
+@pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
+def test_rotate_equal(img, aug_cls, angle):
+    random.seed(0)
+
+    h, w = img.shape[:2]
+    kp = [[random.randint(0, w - 1), random.randint(0, h - 1), random.randint(0, 360)] for _ in range(50)]
+    kp += [
+        [round(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [0, 0, 0],
+        [w - 1, h - 1, 0],
+    ]
+    keypoint_params = A.KeypointParams("xya", remove_invisible=False)
+
+    a = A.Compose([aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params)
+    b = A.Compose(
+        [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, value=0, p=1)], keypoint_params=keypoint_params
+    )
+
+    res_a = a(image=img, keypoints=kp)
+    res_b = b(image=img, keypoints=kp)
+    assert np.allclose(res_a["image"], res_b["image"])
+    res_a = np.array(res_a["keypoints"])
+    res_b = np.array(res_b["keypoints"])
+    diff = np.round(np.abs(res_a - res_b))
+    assert diff[:, :2].max() <= 2
+    assert (diff[:, -1] % 360).max() <= 1

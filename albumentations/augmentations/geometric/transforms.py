@@ -6,7 +6,7 @@ import numpy as np
 import skimage.transform
 
 from ... import random_utils
-from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
 from . import functional as F
 
 __all__ = ["ShiftScaleRotate", "ElasticTransform", "Perspective", "Affine", "PiecewiseAffine"]
@@ -20,7 +20,9 @@ class ShiftScaleRotate(DualTransform):
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
             upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
         scale_limit ((float, float) or float): scaling factor range. If scale_limit is a single float value, the
-            range will be (-scale_limit, scale_limit). Default: (-0.1, 0.1).
+            range will be (-scale_limit, scale_limit). Note that the scale_limit will be biased by 1.
+            If scale_limit is a tuple, like (low, high), sampling will be done from the range (1 + low, 1 + high).
+            Default: (-0.1, 0.1).
         rotate_limit ((int, int) or int): rotation range. If rotate_limit is a single int value, the
             range will be (-rotate_limit, rotate_limit). Default: (-45, 45).
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -41,6 +43,8 @@ class ShiftScaleRotate(DualTransform):
             instead of shift_limit will be used for shifting height.  If shift_limit_y is a single float value,
             the range will be (-shift_limit_y, shift_limit_y). Absolute values for lower and upper bounds should lie
             in the range [0, 1]. Default: None.
+        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
+            Default: "largest_box"
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -61,6 +65,7 @@ class ShiftScaleRotate(DualTransform):
         mask_value=None,
         shift_limit_x=None,
         shift_limit_y=None,
+        rotate_method="largest_box",
         always_apply=False,
         p=0.5,
     ):
@@ -73,6 +78,10 @@ class ShiftScaleRotate(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.rotate_method = rotate_method
+
+        if self.rotate_method not in ["largest_box", "ellipse"]:
+            raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
@@ -92,7 +101,7 @@ class ShiftScaleRotate(DualTransform):
         }
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, **params)
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, self.rotate_method, **params)
 
     def get_transform_init_args(self):
         return {
@@ -104,6 +113,7 @@ class ShiftScaleRotate(DualTransform):
             "border_mode": self.border_mode,
             "value": self.value,
             "mask_value": self.mask_value,
+            "rotate_method": self.rotate_method,
         }
 
 
@@ -416,11 +426,13 @@ class Affine(DualTransform):
             ``0.5`` is zoomed out to ``50`` percent of the original size.
                 * If a single number, then that value will be used for all images.
                 * If a tuple ``(a, b)``, then a value will be uniformly sampled per image from the interval ``[a, b]``.
-                  That value will be used identically for both x- and y-axis.
+                  That the same range will be used for both x- and y-axis. To keep the aspect ratio, set
+                  ``keep_ratio=True``, then the same value will be used for both x- and y-axis.
                 * If a dictionary, then it is expected to have the keys ``x`` and/or ``y``.
                   Each of these keys can have the same values as described above.
                   Using a dictionary allows to set different values for the two axis and sampling will then happen
-                  *independently* per axis, resulting in samples that differ between the axes.
+                  *independently* per axis, resulting in samples that differ between the axes. Note that when
+                  the ``keep_ratio=True``, the x- and y-axis ranges should be the same.
         translate_percent (None, number, tuple of number or dict): Translation as a fraction of the image height/width
             (x-translation, y-translation), where ``0`` denotes "no change"
             and ``0.5`` denotes "half of the axis size".
@@ -465,12 +477,13 @@ class Affine(DualTransform):
             The value is only used when `mode=constant`. The expected value range is ``[0, 255]`` for ``uint8`` images.
         cval_mask (number or tuple of number): Same as cval but only for masks.
         mode (int): OpenCV border flag.
-        fit_output (bool): Whether to modify the affine transformation so that the whole output image is always
-            contained in the image plane (``True``) or accept parts of the image being outside
-            the image plane (``False``). This can be thought of as first applying the affine transformation
-            and then applying a second transformation to "zoom in" on the new image so that it fits the image plane,
-            This is useful to avoid corners of the image being outside of the image plane after applying rotations.
-            It will however negate translation and scaling.
+        fit_output (bool): If True, the image plane size and position will be adjusted to tightly capture
+            the whole image after affine transformation (`translate_percent` and `translate_px` are ignored).
+            Otherwise (``False``),  parts of the transformed image may end up outside the image plane.
+            Fitting the output shape can be useful to avoid corners of the image being outside the image plane
+            after applying rotations. Default: False
+        keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
+                           Default: False.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -494,6 +507,7 @@ class Affine(DualTransform):
         cval_mask: Union[int, float, Sequence[int], Sequence[float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
         fit_output: bool = False,
+        keep_ratio: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -520,6 +534,12 @@ class Affine(DualTransform):
         self.rotate = to_tuple(rotate, rotate)
         self.fit_output = fit_output
         self.shear = self._handle_dict_arg(shear, "shear")
+        self.keep_ratio = keep_ratio
+
+        if self.keep_ratio and self.scale["x"] != self.scale["y"]:
+            raise ValueError(
+                "When keep_ratio is True, the x and y scale range should be identical. got {}".format(self.scale)
+            )
 
     def get_transform_init_args_names(self):
         return (
@@ -534,17 +554,18 @@ class Affine(DualTransform):
             "fit_output",
             "shear",
             "cval_mask",
+            "keep_ratio",
         )
 
     @staticmethod
-    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str):
+    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str, default: float = 1.0):
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
                     f'Expected {name} dictionary to contain at least key "x" or ' 'key "y". Found neither of them.'
                 )
-            x = val.get("x", 1.0)
-            y = val.get("y", 1.0)
+            x = val.get("x", default)
+            y = val.get("y", default)
             return {"x": to_tuple(x, x), "y": to_tuple(y, y)}
         return {"x": to_tuple(val, val), "y": to_tuple(val, val)}
 
@@ -564,7 +585,7 @@ class Affine(DualTransform):
 
         if translate_percent is not None:
             # translate by percent
-            return cls._handle_dict_arg(translate_percent, "translate_percent"), translate_px
+            return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
 
         if translate_px is None:
             raise ValueError("translate_px is None.")
@@ -605,22 +626,22 @@ class Affine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: Sequence[float],
+        bbox: BoxType,
         matrix: skimage.transform.ProjectiveTransform = None,
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
         **params
-    ) -> Sequence[float]:
+    ) -> BoxType:
         return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
 
     def apply_to_keypoint(
         self,
-        keypoint: Sequence[float],
+        keypoint: KeypointType,
         matrix: skimage.transform.ProjectiveTransform = None,
         scale: dict = None,
         **params
-    ) -> Sequence[float]:
+    ) -> KeypointType:
         return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @property
@@ -640,9 +661,14 @@ class Affine(DualTransform):
         else:
             translate = {"x": 0, "y": 0}
 
-        shear = {key: random.uniform(*value) for key, value in self.shear.items()}
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
+        shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
-        rotate = random.uniform(*self.rotate)
+        if self.keep_ratio:
+            scale["y"] = scale["x"]
+
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
+        rotate = -random.uniform(*self.rotate)
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
         # we get an ugly black border for 90deg rotations
@@ -874,12 +900,12 @@ class PiecewiseAffine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: Sequence[float],
+        bbox: BoxType,
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
-    ) -> Sequence[float]:
+    ) -> BoxType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
     def apply_to_keypoint(

@@ -133,6 +133,7 @@ AUGMENTATION_CLS_PARAMS = [
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
             "value": (10, 10, 10),
+            "crop_border": False,
         },
     ],
     [

@@ -2,19 +2,20 @@ from __future__ import absolute_import
 
 import random
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import cv2
 import numpy as np
 
-from albumentations.core.serialization import (
-    SerializableMeta,
-    get_shortest_class_fullname,
-)
-from albumentations.core.utils import format_args
+from .serialization import Serializable, get_shortest_class_fullname
+from .utils import format_args
 
 __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
+
+NumType = Union[int, float, np.ndarray]
+BoxType = Tuple[float, float, float, float]
+KeypointType = Tuple[float, float, float, float]
 
 
 def to_tuple(param, low=None, bias=None):
@@ -38,6 +39,8 @@ def to_tuple(param, low=None, bias=None):
         else:
             param = (low, param) if low < param else (param, low)
     elif isinstance(param, Sequence):
+        if len(param) != 2:
+            raise ValueError("to_tuple expects 1 or 2 values")
         param = tuple(param)
     else:
         raise ValueError("Argument param must be either scalar (int, float) or tuple")
@@ -48,7 +51,7 @@ def to_tuple(param, low=None, bias=None):
     return tuple(param)
 
 
-class BasicTransform(metaclass=SerializableMeta):
+class BasicTransform(Serializable):
     call_backup = None
     interpolation: Any
     fill_value: Any
@@ -96,9 +99,7 @@ class BasicTransform(metaclass=SerializableMeta):
 
         return kwargs
 
-    def apply_with_params(
-        self, params: Dict[str, Any], force_apply: bool = False, **kwargs
-    ) -> Dict[str, Any]:  # skipcq: PYL-W0613
+    def apply_with_params(self, params: Dict[str, Any], **kwargs) -> Dict[str, Any]:  # skipcq: PYL-W0613
         if params is None:
             return kwargs
         params = self.update_params(params, **kwargs)
@@ -223,22 +224,22 @@ class DualTransform(BasicTransform):
             "keypoints": self.apply_to_keypoints,
         }
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
         raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
 
-    def apply_to_bboxes(self, bboxes, **params):
-        return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]  # type: ignore
 
-    def apply_to_keypoints(self, keypoints, **params):
-        return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]
+    def apply_to_keypoints(self, keypoints: Sequence[KeypointType], **params) -> List[KeypointType]:
+        return [self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:]) for keypoint in keypoints]  # type: ignore # noqa
 
     def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
 
-    def apply_to_masks(self, masks, **params):
+    def apply_to_masks(self, masks: Sequence[np.ndarray], **params) -> List[np.ndarray]:
         return [self.apply_to_mask(mask, **params) for mask in masks]
 
 
@@ -246,24 +247,24 @@ class ImageOnlyTransform(BasicTransform):
     """Transform applied to image only."""
 
     @property
-    def targets(self):
+    def targets(self) -> Dict[str, Callable]:
         return {"image": self.apply}
 
 
 class NoOp(DualTransform):
     """Does nothing"""
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
         return keypoint
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         return bbox
 
-    def apply(self, img, **params):
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return img
 
-    def apply_to_mask(self, img, **params):
+    def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
         return img
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple:
         return ()
