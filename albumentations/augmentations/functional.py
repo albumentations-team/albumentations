@@ -11,8 +11,7 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
-
-from .keypoints_utils import angle_to_2pi_range
+from albumentations.core.keypoints_utils import angle_to_2pi_range
 
 __all__ = [
     "MAX_VALUES_BY_DTYPE",

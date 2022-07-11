@@ -13,6 +13,7 @@ import numpy as np
 from scipy import special
 
 from albumentations import random_utils
+from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 
 from ..core.transforms_interface import (
     DualTransform,
@@ -22,7 +23,6 @@ from ..core.transforms_interface import (
 )
 from ..core.utils import format_args
 from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
     "Blur",
