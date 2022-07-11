@@ -114,7 +114,9 @@ def keypoint_rot90(keypoint, factor, rows, cols, **params):
 @preserve_channel_dim
 def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
     height, width = img.shape[:2]
-    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
+    # for images we use additional shifts of (0.5, 0.5) as otherwise
+    # we get an ugly black border for 90deg rotations
+    matrix = cv2.getRotationMatrix2D((width / 2 - 0.5, height / 2 - 0.5), angle, 1.0)
 
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
@@ -178,7 +180,8 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
-    matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, 1.0)
+    center = (cols - 1) * 0.5, (rows - 1) * 0.5
+    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
     x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     return x, y, a + math.radians(angle), s
@@ -189,7 +192,9 @@ def shift_scale_rotate(
     img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
 ):
     height, width = img.shape[:2]
-    center = (width / 2, height / 2)
+    # for images we use additional shifts of (0.5, 0.5) as otherwise
+    # we get an ugly black border for 90deg rotations
+    center = (width / 2 - 0.5, height / 2 - 0.5)
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
@@ -209,7 +214,7 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
         s,
     ) = keypoint[:4]
     height, width = rows, cols
-    center = (width / 2, height / 2)
+    center = (cols - 1) * 0.5, (rows - 1) * 0.5
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
@@ -470,8 +475,15 @@ def perspective_bbox(
     )
 
 
-def rotation2DMatrixToEulerAngles(matrix: np.ndarray):
-    return np.arctan2(matrix[1, 0], matrix[0, 0])
+def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
+    """
+    Args:
+        matrix (np.ndarray): Rotation matrix
+        y_up (bool): is Y axis looks up or down
+    """
+    if y_up:
+        return np.arctan2(matrix[1, 0], matrix[0, 0])
+    return np.arctan2(-matrix[1, 0], matrix[0, 0])
 
 
 @angle_2pi_range
@@ -489,7 +501,7 @@ def perspective_keypoint(
     keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
 
     x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
-    angle += rotation2DMatrixToEulerAngles(matrix[:2, :2])
+    angle += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
 
     scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
     scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
@@ -537,7 +549,7 @@ def keypoint_affine(
         return keypoint
 
     x, y, a, s = keypoint[:4]
-    x, y = skimage.transform.matrix_transform(np.array([[x, y]]), matrix.params).ravel()
+    x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
     a += rotation2DMatrixToEulerAngles(matrix.params[:2])
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
