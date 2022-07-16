@@ -2,20 +2,111 @@ from __future__ import division
 
 import math
 from functools import wraps
-from warnings import warn
 from itertools import product
+from typing import Optional, Sequence, Union
+from warnings import warn
+
 import cv2
 import numpy as np
-from scipy.ndimage.filters import gaussian_filter
+import skimage
 
-from albumentations.augmentations.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.augmentations.keypoints_utils import angle_to_2pi_range
+from albumentations import random_utils
+from albumentations.core.keypoints_utils import angle_to_2pi_range
+
+__all__ = [
+    "MAX_VALUES_BY_DTYPE",
+    "_maybe_process_in_chunks",
+    "add_fog",
+    "add_rain",
+    "add_shadow",
+    "add_snow",
+    "add_sun_flare",
+    "add_weighted",
+    "adjust_brightness_torchvision",
+    "adjust_contrast_torchvision",
+    "adjust_hue_torchvision",
+    "adjust_saturation_torchvision",
+    "angle_2pi_range",
+    "bbox_flip",
+    "bbox_hflip",
+    "bbox_transpose",
+    "bbox_vflip",
+    "blur",
+    "brightness_contrast_adjust",
+    "channel_shuffle",
+    "clahe",
+    "clip",
+    "clipped",
+    "convolve",
+    "downscale",
+    "elastic_transform_approx",
+    "equalize",
+    "fancy_pca",
+    "from_float",
+    "gamma_transform",
+    "gauss_noise",
+    "gaussian_blur",
+    "get_num_channels",
+    "get_opencv_dtype_from_numpy",
+    "glass_blur",
+    "grid_distortion",
+    "hflip",
+    "hflip_cv2",
+    "image_compression",
+    "invert",
+    "is_grayscale_image",
+    "is_multispectral_image",
+    "is_rgb_image",
+    "iso_noise",
+    "keypoint_flip",
+    "keypoint_hflip",
+    "keypoint_transpose",
+    "keypoint_vflip",
+    "linear_transformation_rgb",
+    "median_blur",
+    "move_tone_curve",
+    "multiply",
+    "non_rgb_warning",
+    "noop",
+    "normalize",
+    "optical_distortion",
+    "pad",
+    "pad_with_params",
+    "posterize",
+    "preserve_channel_dim",
+    "preserve_shape",
+    "random_flip",
+    "rot90",
+    "shift_hsv",
+    "shift_rgb",
+    "solarize",
+    "superpixels",
+    "swap_tiles_on_image",
+    "to_float",
+    "to_gray",
+    "transpose",
+    "unsharp_mask",
+    "vflip",
+]
 
 MAX_VALUES_BY_DTYPE = {
     np.dtype("uint8"): 255,
     np.dtype("uint16"): 65535,
     np.dtype("uint32"): 4294967295,
     np.dtype("float32"): 1.0,
+}
+
+NPDTYPE_TO_OPENCV_DTYPE = {
+    np.uint8: cv2.CV_8U,
+    np.uint16: cv2.CV_16U,
+    np.int32: cv2.CV_32S,
+    np.float32: cv2.CV_32F,
+    np.float64: cv2.CV_64F,
+    np.dtype("uint8"): cv2.CV_8U,
+    np.dtype("uint16"): cv2.CV_16U,
+    np.dtype("int32"): cv2.CV_32S,
+    np.dtype("float32"): cv2.CV_32F,
+    np.dtype("float64"): cv2.CV_64F,
 }
 
 
@@ -26,6 +117,17 @@ def angle_2pi_range(func):
         return (x, y, angle_to_2pi_range(a), s)
 
     return wrapped_function
+
+
+def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object]) -> int:
+    """
+    Return a corresponding OpenCV dtype for a numpy's dtype
+    :param value: Input dtype of numpy array
+    :return: Corresponding dtype for OpenCV
+    """
+    if isinstance(value, np.ndarray):
+        value = value.dtype
+    return NPDTYPE_TO_OPENCV_DTYPE[value]
 
 
 def clip(img, dtype, maxval):
@@ -70,6 +172,20 @@ def preserve_channel_dim(func):
         result = func(img, *args, **kwargs)
         if len(shape) == 3 and shape[-1] == 1 and len(result.shape) == 2:
             result = np.expand_dims(result, axis=-1)
+        return result
+
+    return wrapped_function
+
+
+def ensure_contiguous(func):
+    """
+    Ensure that input img is contiguous.
+    """
+
+    @wraps(func)
+    def wrapped_function(img, *args, **kwargs):
+        img = np.require(img, requirements=["C_CONTIGUOUS"])
+        result = func(img, *args, **kwargs)
         return result
 
     return wrapped_function
@@ -128,6 +244,27 @@ def rot90(img, factor):
     return np.ascontiguousarray(img)
 
 
+def normalize_cv2(img, mean, denominator):
+    if mean.shape and len(mean) != 4 and mean.shape != img.shape:
+        mean = np.array(mean.tolist() + [0] * (4 - len(mean)), dtype=np.float64)
+    if not denominator.shape:
+        denominator = np.array([denominator.tolist()] * 4, dtype=np.float64)
+    elif len(denominator) != 4 and denominator.shape != img.shape:
+        denominator = np.array(denominator.tolist() + [1] * (4 - len(denominator)), dtype=np.float64)
+
+    img = np.ascontiguousarray(img.astype("float32"))
+    cv2.subtract(img, mean.astype(np.float64), img)
+    cv2.multiply(img, denominator.astype(np.float64), img)
+    return img
+
+
+def normalize_numpy(img, mean, denominator):
+    img = img.astype(np.float32)
+    img -= mean
+    img *= denominator
+    return img
+
+
 def normalize(img, mean, std, max_pixel_value=255.0):
     mean = np.array(mean, dtype=np.float32)
     mean *= max_pixel_value
@@ -137,18 +274,9 @@ def normalize(img, mean, std, max_pixel_value=255.0):
 
     denominator = np.reciprocal(std, dtype=np.float32)
 
-    img = img.astype(np.float32)
-    img -= mean
-    img *= denominator
-    return img
-
-
-def cutout(img, holes, fill_value=0):
-    # Make a copy of the input image since we don't want to modify it directly
-    img = img.copy()
-    for x1, y1, x2, y2 in holes:
-        img[y1:y2, x1:x2] = fill_value
-    return img
+    if img.ndim == 3 and img.shape[-1] == 3:
+        return normalize_cv2(img, mean, denominator)
+    return normalize_numpy(img, mean, denominator)
 
 
 def _maybe_process_in_chunks(process_fn, **kwargs):
@@ -167,14 +295,23 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
 
     """
 
+    @wraps(process_fn)
     def __process_fn(img):
         num_channels = get_num_channels(img)
         if num_channels > 4:
             chunks = []
             for index in range(0, num_channels, 4):
-                chunk = img[:, :, index : index + 4]
-                chunk = process_fn(chunk, **kwargs)
-                chunks.append(chunk)
+                if num_channels - index == 2:
+                    # Many OpenCV functions cannot work with 2-channel images
+                    for i in range(2):
+                        chunk = img[:, :, index + i : index + i + 1]
+                        chunk = process_fn(chunk, **kwargs)
+                        chunk = np.expand_dims(chunk, -1)
+                        chunks.append(chunk)
+                else:
+                    chunk = img[:, :, index : index + 4]
+                    chunk = process_fn(chunk, **kwargs)
+                    chunks.append(chunk)
             img = np.dstack(chunks)
         else:
             img = process_fn(img, **kwargs)
@@ -183,181 +320,25 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
     return __process_fn
 
 
-@preserve_channel_dim
-def rotate(img, angle, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None):
-    height, width = img.shape[:2]
-    matrix = cv2.getRotationMatrix2D((width / 2, height / 2), angle, 1.0)
-
-    warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
-    )
-    return warp_fn(img)
-
-
-@preserve_channel_dim
-def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
-    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
-    return resize_fn(img)
-
-
-@preserve_channel_dim
-def scale(img, scale, interpolation=cv2.INTER_LINEAR):
-    height, width = img.shape[:2]
-    new_height, new_width = int(height * scale), int(width * scale)
-    return resize(img, new_height, new_width, interpolation)
-
-
-@preserve_channel_dim
-def shift_scale_rotate(
-    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
-):
-    height, width = img.shape[:2]
-    center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-
-    warp_affine_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
-    )
-    return warp_affine_fn(img)
-
-
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, interpolation, rows, cols, **params):
-    x_min, y_min, x_max, y_max = bbox[:4]
-    height, width = rows, cols
-    center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-    x = np.array([x_min, x_max, x_max, x_min])
-    y = np.array([y_min, y_min, y_max, y_max])
-    ones = np.ones(shape=(len(x)))
-    points_ones = np.vstack([x, y, ones]).transpose()
-    points_ones[:, 0] *= width
-    points_ones[:, 1] *= height
-    tr_points = matrix.dot(points_ones.T).T
-    tr_points[:, 0] /= width
-    tr_points[:, 1] /= height
-
-    x_min, x_max = min(tr_points[:, 0]), max(tr_points[:, 0])
-    y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
-
-    return x_min, y_min, x_max, y_max
-
-
-@angle_2pi_range
-def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
-    x, y, a, s, = keypoint[:4]
-    height, width = rows, cols
-    center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    angle = a + math.radians(angle)
-    scale = s * scale
-
-    return x, y, angle, scale
-
-
-def crop(img, x_min, y_min, x_max, y_max):
-    height, width = img.shape[:2]
-    if x_max <= x_min or y_max <= y_min:
-        raise ValueError(
-            "We should have x_min < x_max and y_min < y_max. But we got"
-            " (x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max
-            )
-        )
-
-    if x_min < 0 or x_max > width or y_min < 0 or y_max > height:
-        raise ValueError(
-            "Values for crop should be non negative and equal or smaller than image sizes"
-            "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}"
-            "height = {height}, width = {width})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
-            )
-        )
-
-    return img[y_min:y_max, x_min:x_max]
-
-
-def get_center_crop_coords(height, width, crop_height, crop_width):
-    y1 = (height - crop_height) // 2
-    y2 = y1 + crop_height
-    x1 = (width - crop_width) // 2
-    x2 = x1 + crop_width
-    return x1, y1, x2, y2
-
-
-def center_crop(img, crop_height, crop_width):
-    height, width = img.shape[:2]
-    if height < crop_height or width < crop_width:
-        raise ValueError(
-            "Requested crop size ({crop_height}, {crop_width}) is "
-            "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
-            )
-        )
-    x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
-    img = img[y1:y2, x1:x2]
-    return img
-
-
-def get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start):
-    y1 = int((height - crop_height) * h_start)
-    y2 = y1 + crop_height
-    x1 = int((width - crop_width) * w_start)
-    x2 = x1 + crop_width
-    return x1, y1, x2, y2
-
-
-def random_crop(img, crop_height, crop_width, h_start, w_start):
-    height, width = img.shape[:2]
-    if height < crop_height or width < crop_width:
-        raise ValueError(
-            "Requested crop size ({crop_height}, {crop_width}) is "
-            "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
-            )
-        )
-    x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
-    img = img[y1:y2, x1:x2]
-    return img
-
-
-def clamping_crop(img, x_min, y_min, x_max, y_max):
-    h, w = img.shape[:2]
-    if x_min < 0:
-        x_min = 0
-    if y_min < 0:
-        y_min = 0
-    if y_max >= h:
-        y_max = h - 1
-    if x_max >= w:
-        x_max = w - 1
-    return img[int(y_min) : int(y_max), int(x_min) : int(x_max)]
-
-
 def _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift):
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, sat, val = cv2.split(img)
 
-    lut_hue = np.arange(0, 256, dtype=np.int16)
-    lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
+    if hue_shift != 0:
+        lut_hue = np.arange(0, 256, dtype=np.int16)
+        lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
+        hue = cv2.LUT(hue, lut_hue)
 
-    lut_sat = np.arange(0, 256, dtype=np.int16)
-    lut_sat = np.clip(lut_sat + sat_shift, 0, 255).astype(dtype)
+    if sat_shift != 0:
+        lut_sat = np.arange(0, 256, dtype=np.int16)
+        lut_sat = np.clip(lut_sat + sat_shift, 0, 255).astype(dtype)
+        sat = cv2.LUT(sat, lut_sat)
 
-    lut_val = np.arange(0, 256, dtype=np.int16)
-    lut_val = np.clip(lut_val + val_shift, 0, 255).astype(dtype)
-
-    hue = cv2.LUT(hue, lut_hue)
-    sat = cv2.LUT(sat, lut_sat)
-    val = cv2.LUT(val, lut_val)
+    if val_shift != 0:
+        lut_val = np.arange(0, 256, dtype=np.int16)
+        lut_val = np.clip(lut_val + val_shift, 0, 255).astype(dtype)
+        val = cv2.LUT(val, lut_val)
 
     img = cv2.merge((hue, sat, val)).astype(dtype)
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
@@ -371,23 +352,24 @@ def _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift):
 
     if hue_shift != 0:
         hue = cv2.add(hue, hue_shift)
-        hue = np.where(hue < 0, hue + 180, hue)
-        hue = np.where(hue > 180, hue - 180, hue)
-        hue = hue.astype(dtype)
+        hue = np.mod(hue, 360)  # OpenCV fails with negative values
 
     if sat_shift != 0:
-        sat = clip(cv2.add(sat, sat_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+        sat = clip(cv2.add(sat, sat_shift), dtype, 1.0)
 
     if val_shift != 0:
-        val = clip(cv2.add(val, val_shift), dtype, 255 if dtype == np.uint8 else 1.0)
+        val = clip(cv2.add(val, val_shift), dtype, 1.0)
 
-    img = cv2.merge((hue, sat, val)).astype(dtype)
+    img = cv2.merge((hue, sat, val))
     img = cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
     return img
 
 
 @preserve_shape
 def shift_hsv(img, hue_shift, sat_shift, val_shift):
+    if hue_shift == 0 and sat_shift == 0 and val_shift == 0:
+        return img
+
     is_gray = is_grayscale_image(img)
     if is_gray:
         if hue_shift != 0 or sat_shift != 0:
@@ -454,13 +436,15 @@ def posterize(img, bits):
     """
     bits = np.uint8(bits)
 
-    assert img.dtype == np.uint8, "Image must have uint8 channel type"
-    assert np.all((0 <= bits) & (bits <= 8)), "bits must be in range [0, 8]"
+    if img.dtype != np.uint8:
+        raise TypeError("Image must have uint8 channel type")
+    if np.any((bits < 0) | (bits > 8)):
+        raise ValueError("bits must be in range [0, 8]")
 
     if not bits.shape or len(bits) == 1:
         if bits == 0:
             return np.zeros_like(img)
-        elif bits == 8:
+        if bits == 8:
             return img.copy()
 
         lut = np.arange(0, 256, dtype=np.uint8)
@@ -469,22 +453,21 @@ def posterize(img, bits):
 
         return cv2.LUT(img, lut)
 
-    assert is_rgb_image(img), "If bits is iterable image must be RGB"
+    if not is_rgb_image(img):
+        raise TypeError("If bits is iterable image must be RGB")
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits):
         if channel_bits == 0:
             result_img[..., i] = np.zeros_like(img[..., i])
-            continue
         elif channel_bits == 8:
             result_img[..., i] = img[..., i].copy()
-            continue
+        else:
+            lut = np.arange(0, 256, dtype=np.uint8)
+            mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
+            lut &= mask
 
-        lut = np.arange(0, 256, dtype=np.uint8)
-        mask = ~np.uint8(2 ** (8 - channel_bits) - 1)
-        lut &= mask
-
-        result_img[..., i] = cv2.LUT(img[..., i], lut)
+            result_img[..., i] = cv2.LUT(img[..., i], lut)
 
     return result_img
 
@@ -553,7 +536,8 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
         numpy.ndarray: Equalized image.
 
     """
-    assert img.dtype == np.uint8, "Image must have uint8 channel type"
+    if img.dtype != np.uint8:
+        raise TypeError("Image must have uint8 channel type")
 
     modes = ["cv", "pil"]
 
@@ -595,6 +579,41 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
         result_img[..., i] = function(img[..., i], _mask)
 
     return result_img
+
+
+@preserve_shape
+def move_tone_curve(img, low_y, high_y):
+    """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
+
+    Args:
+        img (numpy.ndarray): RGB or grayscale image.
+        low_y (float): y-position of a Bezier control point used
+            to adjust the tone curve, must be in range [0, 1]
+        high_y (float): y-position of a Bezier control point used
+            to adjust image tone curve, must be in range [0, 1]
+    """
+    input_dtype = img.dtype
+
+    if low_y < 0 or low_y > 1:
+        raise ValueError("low_shift must be in range [0, 1]")
+    if high_y < 0 or high_y > 1:
+        raise ValueError("high_shift must be in range [0, 1]")
+
+    if input_dtype != np.uint8:
+        raise ValueError("Unsupported image type {}".format(input_dtype))
+
+    t = np.linspace(0.0, 1.0, 256)
+
+    # Defines responze of a four-point bezier curve
+    def evaluate_bez(t):
+        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t**2 * high_y + t**3
+
+    evaluate_bez = np.vectorize(evaluate_bez)
+    remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
+
+    lut_fn = _maybe_process_in_chunks(cv2.LUT, lut=remapping)
+    img = lut_fn(img)
+    return img
 
 
 @clipped
@@ -655,13 +674,13 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
     if img.dtype != np.uint8:
         raise TypeError("clahe supports only uint8 inputs")
 
-    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
 
     if len(img.shape) == 2 or img.shape[2] == 1:
-        img = clahe.apply(img)
+        img = clahe_mat.apply(img)
     else:
         img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
-        img[:, :, 0] = clahe.apply(img[:, :, 0])
+        img[:, :, 0] = clahe_mat.apply(img[:, :, 0])
         img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
     return img
@@ -687,18 +706,36 @@ def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=No
 
     img = pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value)
 
-    assert img.shape[0] == max(min_height, height)
-    assert img.shape[1] == max(min_width, width)
+    if img.shape[:2] != (max(min_height, height), max(min_width, width)):
+        raise RuntimeError(
+            "Invalid result shape. Got: {}. Expected: {}".format(
+                img.shape[:2], (max(min_height, height), max(min_width, width))
+            )
+        )
 
     return img
 
 
 @preserve_channel_dim
 def pad_with_params(
-    img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode=cv2.BORDER_REFLECT_101, value=None
-):
-    img = cv2.copyMakeBorder(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value=value)
-    return img
+    img: np.ndarray,
+    h_pad_top: int,
+    h_pad_bottom: int,
+    w_pad_left: int,
+    w_pad_right: int,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[int] = None,
+) -> np.ndarray:
+    pad_fn = _maybe_process_in_chunks(
+        cv2.copyMakeBorder,
+        top=h_pad_top,
+        bottom=h_pad_bottom,
+        left=w_pad_left,
+        right=w_pad_right,
+        borderType=border_mode,
+        value=value,
+    )
+    return pad_fn(img)
 
 
 @preserve_shape
@@ -708,31 +745,10 @@ def blur(img, ksize):
 
 
 @preserve_shape
-def gaussian_blur(img, ksize):
+def gaussian_blur(img, ksize, sigma=0):
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=0)
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
     return blur_fn(img)
-
-
-def _func_max_size(img, max_size, interpolation, func):
-    height, width = img.shape[:2]
-
-    scale = max_size / float(func(width, height))
-
-    if scale != 1.0:
-        new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
-        img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
-    return img
-
-
-@preserve_channel_dim
-def longest_max_size(img, max_size, interpolation):
-    return _func_max_size(img, max_size, interpolation, max)
-
-
-@preserve_channel_dim
-def smallest_max_size(img, max_size, interpolation):
-    return _func_max_size(img, max_size, interpolation, min)
 
 
 @preserve_shape
@@ -747,14 +763,14 @@ def median_blur(img, ksize):
 
 
 @preserve_shape
-def motion_blur(img, kernel):
-    blur_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
-    return blur_fn(img)
+def convolve(img, kernel):
+    conv_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
+    return conv_fn(img)
 
 
 @preserve_shape
 def image_compression(img, quality, image_type):
-    if image_type == ".jpeg" or image_type == ".jpg":
+    if image_type in [".jpeg", ".jpg"]:
         quality_flag = cv2.IMWRITE_JPEG_QUALITY
     elif image_type == ".webp":
         quality_flag = cv2.IMWRITE_WEBP_QUALITY
@@ -831,7 +847,16 @@ def add_snow(img, snow_point, brightness_coeff):
 
 
 @preserve_shape
-def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, brightness_coefficient, rain_drops):
+def add_rain(
+    img,
+    slant,
+    drop_length,
+    drop_width,
+    drop_color,
+    blur_value,
+    brightness_coefficient,
+    rain_drops,
+):
     """
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -859,7 +884,7 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError("Unexpected dtype {} for RandomRain augmentation".format(input_dtype))
 
     image = img.copy()
 
@@ -867,13 +892,19 @@ def add_rain(img, slant, drop_length, drop_width, drop_color, blur_value, bright
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
 
-        cv2.line(image, (rain_drop_x0, rain_drop_y0), (rain_drop_x1, rain_drop_y1), drop_color, drop_width)
+        cv2.line(
+            image,
+            (rain_drop_x0, rain_drop_y0),
+            (rain_drop_x1, rain_drop_y1),
+            drop_color,
+            drop_width,
+        )
 
     image = cv2.blur(image, (blur_value, blur_value))  # rainy view are blurry
-    image_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS).astype(np.float32)
-    image_hls[:, :, 1] *= brightness_coefficient
+    image_hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV).astype(np.float32)
+    image_hsv[:, :, 2] *= brightness_coefficient
 
-    image_rgb = cv2.cvtColor(image_hls.astype(np.uint8), cv2.COLOR_HLS2RGB)
+    image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
     if needs_float:
         image_rgb = to_float(image_rgb, max_value=255)
@@ -908,7 +939,7 @@ def add_fog(img, fog_coef, alpha_coef, haze_list):
     elif input_dtype not in (np.uint8, np.float32):
         raise ValueError("Unexpected dtype {} for RandomFog augmentation".format(input_dtype))
 
-    height, width = img.shape[:2]
+    width = img.shape[1]
 
     hw = max(int(width // 3 * fog_coef), 10)
 
@@ -988,6 +1019,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     return image_rgb
 
 
+@ensure_contiguous
 @preserve_shape
 def add_shadow(img, vertices_list):
     """Add shadows to the image.
@@ -1010,7 +1042,7 @@ def add_shadow(img, vertices_list):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError("Unexpected dtype {} for RandomShadow augmentation".format(input_dtype))
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     mask = np.zeros_like(img)
@@ -1033,7 +1065,13 @@ def add_shadow(img, vertices_list):
 
 @preserve_shape
 def optical_distortion(
-    img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
+    img,
+    k=0,
+    dx=0,
+    dy=0,
+    interpolation=cv2.INTER_LINEAR,
+    border_mode=cv2.BORDER_REFLECT_101,
+    value=None,
 ):
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -1055,7 +1093,14 @@ def optical_distortion(
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
     map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
-    img = cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
+    img = cv2.remap(
+        img,
+        map1,
+        map2,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
+    )
     return img
 
 
@@ -1063,13 +1108,14 @@ def optical_distortion(
 def grid_distortion(
     img,
     num_steps=10,
-    xsteps=[],
-    ysteps=[],
+    xsteps=(),
+    ysteps=(),
     interpolation=cv2.INTER_LINEAR,
     border_mode=cv2.BORDER_REFLECT_101,
     value=None,
 ):
-    """
+    """Perform a grid distortion of an input image.
+
     Reference:
         http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
     """
@@ -1078,7 +1124,7 @@ def grid_distortion(
     x_step = width // num_steps
     xx = np.zeros(width, np.float32)
     prev = 0
-    for idx in range(num_steps):
+    for idx in range(num_steps + 1):
         x = idx * x_step
         start = int(x)
         end = int(x) + x_step
@@ -1094,7 +1140,7 @@ def grid_distortion(
     y_step = height // num_steps
     yy = np.zeros(height, np.float32)
     prev = 0
-    for idx in range(num_steps):
+    for idx in range(num_steps + 1):
         y = idx * y_step
         start = int(y)
         end = int(y) + y_step
@@ -1112,79 +1158,12 @@ def grid_distortion(
     map_y = map_y.astype(np.float32)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
-    )
-    return remap_fn(img)
-
-
-@preserve_shape
-def elastic_transform(
-    img,
-    alpha,
-    sigma,
-    alpha_affine,
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-    random_state=None,
-    approximate=False,
-):
-    """Elastic deformation of images as described in [Simard2003]_ (with modifications).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
-
-    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
-         Convolutional Neural Networks applied to Visual Document Analysis", in
-         Proc. of the International Conference on Document Analysis and
-         Recognition, 2003.
-    """
-    if random_state is None:
-        random_state = np.random.RandomState(1234)
-
-    height, width = img.shape[:2]
-
-    # Random affine
-    center_square = np.float32((height, width)) // 2
-    square_size = min((height, width)) // 3
-    alpha = float(alpha)
-    sigma = float(sigma)
-    alpha_affine = float(alpha_affine)
-
-    pts1 = np.float32(
-        [
-            center_square + square_size,
-            [center_square[0] + square_size, center_square[1] - square_size],
-            center_square - square_size,
-        ]
-    )
-    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
-    matrix = cv2.getAffineTransform(pts1, pts2)
-
-    warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
-    )
-    img = warp_fn(img)
-
-    if approximate:
-        # Approximate computation smooth displacement map with a large enough kernel.
-        # On large images (512+) this is approximately 2X times faster
-        dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
-        cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
-        dx *= alpha
-
-        dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
-        cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
-        dy *= alpha
-    else:
-        dx = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
-        dy = np.float32(gaussian_filter((random_state.rand(height, width) * 2 - 1), sigma) * alpha)
-
-    x, y = np.meshgrid(np.arange(width), np.arange(height))
-
-    map_x = np.float32(x + dx)
-    map_y = np.float32(y + dy)
-
-    remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -1201,16 +1180,13 @@ def elastic_transform_approx(
     random_state=None,
 ):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
-    Based on https://gist.github.com/erniejunior/601cdf56d2b424757de5
+    Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
     .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
          Convolutional Neural Networks applied to Visual Document Analysis", in
          Proc. of the International Conference on Document Analysis and
          Recognition, 2003.
     """
-    if random_state is None:
-        random_state = np.random.RandomState(1234)
-
     height, width = img.shape[:2]
 
     # Random affine
@@ -1227,19 +1203,26 @@ def elastic_transform_approx(
             center_square - square_size,
         ]
     )
-    pts2 = pts1 + random_state.uniform(-alpha_affine, alpha_affine, size=pts1.shape).astype(np.float32)
+    pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
+        np.float32
+    )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     img = warp_fn(img)
 
-    dx = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
     dx *= alpha
 
-    dy = random_state.rand(height, width).astype(np.float32) * 2 - 1
+    dy = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
     dy *= alpha
 
@@ -1249,7 +1232,12 @@ def elastic_transform_approx(
     map_y = np.float32(y + dy)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -1260,18 +1248,6 @@ def invert(img):
 
 def channel_shuffle(img, channels_shuffled):
     img = img[..., channels_shuffled]
-    return img
-
-
-@preserve_shape
-def channel_dropout(img, channels_to_drop, fill_value=0):
-    if len(img.shape) == 2 or img.shape[2] == 1:
-        raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
-
-    img = img.copy()
-
-    img[..., channels_to_drop] = fill_value
-
     return img
 
 
@@ -1322,7 +1298,7 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
         if beta_by_max:
             lut += beta * max_value
         else:
-            lut += beta * np.mean(img)
+            lut += (alpha * beta) * np.mean(img)
 
     lut = np.clip(lut, 0, max_value).astype(dtype)
     img = cv2.LUT(img, lut)
@@ -1332,8 +1308,8 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
 def brightness_contrast_adjust(img, alpha=1, beta=0, beta_by_max=False):
     if img.dtype == np.uint8:
         return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
-    else:
-        return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
+
+    return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
 
 
 @clipped
@@ -1353,19 +1329,18 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
         numpy.ndarray: Noised image
 
     """
-    assert image.dtype == np.uint8, "Image must have uint8 channel type"
-    assert image.shape[2] == 3, "Image must be RGB"
-
-    if random_state is None:
-        random_state = np.random.RandomState(42)
+    if image.dtype != np.uint8:
+        raise TypeError("Image must have uint8 channel type")
+    if not is_rgb_image(image):
+        raise TypeError("Image must be RGB")
 
     one_over_255 = float(1.0 / 255.0)
     image = np.multiply(image, one_over_255, dtype=np.float32)
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-    mean, stddev = cv2.meanStdDev(hls)
+    _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_state.poisson(stddev[1] * intensity * 255, size=hls.shape[:2])
-    color_noise = random_state.normal(0, color_shift * 360 * intensity, size=hls.shape[:2])
+    luminance_noise = random_utils.poisson(stddev[1] * intensity * 255, size=hls.shape[:2], random_state=random_state)
+    color_noise = random_utils.normal(0, color_shift * 360 * intensity, size=hls.shape[:2], random_state=random_state)
 
     hue = hls[..., 0]
     hue += color_noise
@@ -1422,7 +1397,7 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
-def bbox_vflip(bbox, rows, cols):
+def bbox_vflip(bbox, rows, cols):  # skipcq: PYL-W0613
     """Flip a bounding box vertically around the x-axis.
 
     Args:
@@ -1438,7 +1413,7 @@ def bbox_vflip(bbox, rows, cols):
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox, rows, cols):
+def bbox_hflip(bbox, rows, cols):  # skipcq: PYL-W0613
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
@@ -1482,117 +1457,7 @@ def bbox_flip(bbox, d, rows, cols):
     return bbox
 
 
-def crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols):
-    """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
-
-    Args:
-        bbox (tuple): A cropped box `(x_min, y_min, x_max, y_max)`.
-        crop_coords (tuple): Crop coordinates `(x1, y1, x2, y2)`.
-        crop_height (int):
-        crop_width (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = bbox[:4]
-    x1, y1, x2, y2 = crop_coords
-    cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
-    return normalize_bbox(cropped_bbox, crop_height, crop_width)
-
-
-def bbox_crop(bbox, x_min, y_min, x_max, y_max, rows, cols):
-    """Crop a bounding box.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        x_min (int):
-        y_min (int):
-        x_max (int):
-        y_max (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    crop_coords = x_min, y_min, x_max, y_max
-    crop_height = y_max - y_min
-    crop_width = x_max - x_min
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def bbox_center_crop(bbox, crop_height, crop_width, rows, cols):
-    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols):
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def bbox_rot90(bbox, factor, rows, cols):
-    """Rotates a bounding box by 90 degrees CCW (see np.rot90)
-
-    Args:
-        bbox (tuple): A bounding box tuple (x_min, y_min, x_max, y_max).
-        factor (int): Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
-
-    """
-    if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
-    x_min, y_min, x_max, y_max = bbox[:4]
-    if factor == 1:
-        bbox = y_min, 1 - x_max, y_max, 1 - x_min
-    elif factor == 2:
-        bbox = 1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min
-    elif factor == 3:
-        bbox = 1 - y_max, x_min, 1 - y_min, x_max
-    return bbox
-
-
-def bbox_rotate(bbox, angle, rows, cols, interpolation):
-    """Rotates a bounding box by angle degrees.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        angle (int): Angle of rotation in degrees.
-        rows (int): Image rows.
-        cols (int): Image cols.
-        interpolation (int): Interpolation method. TODO: Fix this, tt's not used in function
-
-    Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    scale = cols / float(rows)
-    x = np.array([x_min, x_max, x_max, x_min]) - 0.5
-    y = np.array([y_min, y_min, y_max, y_max]) - 0.5
-    angle = np.deg2rad(angle)
-    x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
-    y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
-    x_t = x_t + 0.5
-    y_t = y_t + 0.5
-
-    x_min, x_max = min(x_t), max(x_t)
-    y_min, y_max = min(y_t), max(y_t)
-
-    return x_min, y_min, x_max, y_max
-
-
-def bbox_transpose(bbox, axis, rows, cols):
+def bbox_transpose(bbox, axis, rows, cols):  # skipcq: PYL-W0613
     """Transposes a bounding box along given axis.
 
     Args:
@@ -1685,144 +1550,7 @@ def keypoint_flip(keypoint, d, rows, cols):
     return keypoint
 
 
-@angle_2pi_range
-def keypoint_rot90(keypoint, factor, rows, cols, **params):
-    """Rotates a keypoint by 90 degrees CCW (see np.rot90)
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    Raises:
-        ValueError: if factor not in set {0, 1, 2, 3}
-
-    """
-    x, y, angle, scale = keypoint[:4]
-
-    if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
-
-    if factor == 1:
-        x, y, angle = y, (cols - 1) - x, angle - math.pi / 2
-    elif factor == 2:
-        x, y, angle = (cols - 1) - x, (rows - 1) - y, angle - math.pi
-    elif factor == 3:
-        x, y, angle = (rows - 1) - y, x, angle + math.pi / 2
-
-    return x, y, angle, scale
-
-
-@angle_2pi_range
-def keypoint_rotate(keypoint, angle, rows, cols, **params):
-    """Rotate a keypoint by angle.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        angle (float): Rotation angle.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    """
-    matrix = cv2.getRotationMatrix2D(((cols - 1) * 0.5, (rows - 1) * 0.5), angle, 1.0)
-    x, y, a, s = keypoint[:4]
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    return x, y, a + math.radians(angle), s
-
-
-def keypoint_scale(keypoint, scale_x, scale_y, **params):
-    """Scales a keypoint by scale_x and scale_y.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        scale_x (int): Scale coefficient x-axis.
-        scale_y (int): Scale coefficient y-axis.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint[:4]
-    return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
-
-
-def crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols):
-    """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
-        crop height (int): Crop height.
-        crop_width (int): Crop width.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint[:4]
-    x1, y1, x2, y2 = crop_coords
-    return x - x1, y - y1, angle, scale
-
-
-def keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols):
-    """Keypoint random crop.
-
-    Args:
-        keypoint: (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_height (int): Crop height.
-        crop_width (int): Crop width.
-        h_start (int): Crop height start.
-        w_start (int): Crop width start.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def keypoint_center_crop(keypoint, crop_height, crop_width, rows, cols):
-    """Keypoint center crop.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_height (int): Crop height.
-        crop_width (int): Crop width.
-        h_start (int): Crop height start.
-        w_start (int): Crop width start.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    """
-    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_keypoint_by_coords(keypoint, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def py3round(number):
-    """Unified rounding in all python versions."""
-    if abs(round(number) - number) == 0.5:
-        return int(2.0 * round(number / 2.0))
-
-    return int(round(number))
-
-
-def noop(input_obj, **params):
+def noop(input_obj, **params):  # skipcq: PYL-W0613
     return input_obj
 
 
@@ -1919,10 +1647,10 @@ def multiply(img, multiplier):
     if img.dtype == np.uint8:
         if len(multiplier.shape) == 1:
             return _multiply_uint8_optimized(img, multiplier)
-        else:
-            return _multiply_uint8(img, multiplier)
-    else:
-        return _multiply_non_uint8(img, multiplier)
+
+        return _multiply_uint8(img, multiplier)
+
+    return _multiply_non_uint8(img, multiplier)
 
 
 def fancy_pca(img, alpha=0.1):
@@ -1930,15 +1658,16 @@ def fancy_pca(img, alpha=0.1):
     http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
 
     Args:
-        img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
-        alpha:  how much to perturb/scale the eigen vecs and vals
+        img (numpy.ndarray): numpy array with (h, w, rgb) shape, as ints between 0-255
+        alpha (float): how much to perturb/scale the eigen vecs and vals
                 the paper used std=0.1
 
     Returns:
-        numpy image-like array as float range(0, 1)
+        numpy.ndarray: numpy image-like array as uint8 range(0, 255)
 
     """
-    assert is_rgb_image(img) and img.dtype == np.uint8
+    if not is_rgb_image(img) or img.dtype != np.uint8:
+        raise TypeError("Image must be RGB image in uint8 format.")
 
     orig_img = img.astype(float).copy()
 
@@ -1991,10 +1720,9 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
-@clipped
+@preserve_shape
 def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
-    coef = MAX_VALUES_BY_DTYPE[img.dtype]
-    x = np.uint8(cv2.GaussianBlur(np.array(img) / coef, sigmaX=sigma, ksize=(0, 0)) * coef)
+    x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
     if mode == "fast":
 
@@ -2021,4 +1749,205 @@ def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
             dx = dxy[ind, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
 
-    return np.clip(cv2.GaussianBlur(x / coef, sigmaX=sigma, ksize=(0, 0)), 0, 1) * coef
+    return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
+
+
+def _adjust_brightness_torchvision_uint8(img, factor):
+    lut = np.arange(0, 256) * factor
+    lut = np.clip(lut, 0, 255).astype(np.uint8)
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def adjust_brightness_torchvision(img, factor):
+    if factor == 0:
+        return np.zeros_like(img)
+    elif factor == 1:
+        return img
+
+    if img.dtype == np.uint8:
+        return _adjust_brightness_torchvision_uint8(img, factor)
+
+    return clip(img * factor, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+def _adjust_contrast_torchvision_uint8(img, factor, mean):
+    lut = np.arange(0, 256) * factor
+    lut = lut + mean * (1 - factor)
+    lut = clip(lut, img.dtype, 255)
+
+    return cv2.LUT(img, lut)
+
+
+@preserve_shape
+def adjust_contrast_torchvision(img, factor):
+    if factor == 1:
+        return img
+
+    if is_grayscale_image(img):
+        mean = img.mean()
+    else:
+        mean = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).mean()
+
+    if factor == 0:
+        if img.dtype != np.float32:
+            mean = int(mean + 0.5)
+        return np.full_like(img, mean, dtype=img.dtype)
+
+    if img.dtype == np.uint8:
+        return _adjust_contrast_torchvision_uint8(img, factor, mean)
+
+    return clip(
+        img.astype(np.float32) * factor + mean * (1 - factor),
+        img.dtype,
+        MAX_VALUES_BY_DTYPE[img.dtype],
+    )
+
+
+@preserve_shape
+def adjust_saturation_torchvision(img, factor, gamma=0):
+    if factor == 1:
+        return img
+
+    if is_grayscale_image(img):
+        gray = img
+        return gray
+    else:
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+    if factor == 0:
+        return gray
+
+    result = cv2.addWeighted(img, factor, gray, 1 - factor, gamma=gamma)
+    if img.dtype == np.uint8:
+        return result
+
+    # OpenCV does not clip values for float dtype
+    return clip(result, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+
+
+def _adjust_hue_torchvision_uint8(img, factor):
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+
+    lut = np.arange(0, 256, dtype=np.int16)
+    lut = np.mod(lut + 180 * factor, 180).astype(np.uint8)
+    img[..., 0] = cv2.LUT(img[..., 0], lut)
+
+    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+
+
+def adjust_hue_torchvision(img, factor):
+    if is_grayscale_image(img):
+        return img
+
+    if factor == 0:
+        return img
+
+    if img.dtype == np.uint8:
+        return _adjust_hue_torchvision_uint8(img, factor)
+
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    img[..., 0] = np.mod(img[..., 0] + factor * 360, 360)
+    return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
+
+
+@preserve_shape
+def superpixels(
+    image: np.ndarray, n_segments: int, replace_samples: Sequence[bool], max_size: Optional[int], interpolation: int
+) -> np.ndarray:
+    if not np.any(replace_samples):
+        return image
+
+    orig_shape = image.shape
+    if max_size is not None:
+        size = max(image.shape[:2])
+        if size > max_size:
+            scale = max_size / size
+            height, width = image.shape[:2]
+            new_height, new_width = int(height * scale), int(width * scale)
+            resize_fn = _maybe_process_in_chunks(
+                cv2.resize, dsize=(new_width, new_height), interpolation=interpolation
+            )
+            image = resize_fn(image)
+
+    from skimage.segmentation import slic
+
+    segments = skimage.segmentation.slic(image, n_segments=n_segments, compactness=10)
+
+    min_value = 0
+    max_value = MAX_VALUES_BY_DTYPE[image.dtype]
+    image = np.copy(image)
+    if image.ndim == 2:
+        image = image.reshape(*image.shape, 1)
+    nb_channels = image.shape[2]
+    for c in range(nb_channels):
+        # segments+1 here because otherwise regionprops always misses the last label
+        regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
+        for ridx, region in enumerate(regions):
+            # with mod here, because slic can sometimes create more superpixel than requested.
+            # replace_samples then does not have enough values, so we just start over with the first one again.
+            if replace_samples[ridx % len(replace_samples)]:
+                mean_intensity = region.mean_intensity
+                image_sp_c = image[..., c]
+
+                if image_sp_c.dtype.kind in ["i", "u", "b"]:
+                    # After rounding the value can end up slightly outside of the value_range. Hence, we need to clip.
+                    # We do clip via min(max(...)) instead of np.clip because
+                    # the latter one does not seem to keep dtypes for dtypes with large itemsizes (e.g. uint64).
+                    value: Union[int, float]
+                    value = int(np.round(mean_intensity))
+                    value = min(max(value, min_value), max_value)
+                else:
+                    value = mean_intensity
+
+                image_sp_c[segments == ridx] = value
+
+    if orig_shape != image.shape:
+        resize_fn = _maybe_process_in_chunks(
+            cv2.resize, dsize=(orig_shape[1], orig_shape[0]), interpolation=interpolation
+        )
+        image = resize_fn(image)
+
+    return image
+
+
+@clipped
+def add_weighted(img1, alpha, img2, beta):
+    return img1.astype(float) * alpha + img2.astype(float) * beta
+
+
+@clipped
+@preserve_shape
+def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float = 0.2, threshold: int = 10):
+    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+
+    input_dtype = image.dtype
+    if input_dtype == np.uint8:
+        image = to_float(image)
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError("Unexpected dtype {} for UnsharpMask augmentation".format(input_dtype))
+
+    blur = blur_fn(image)
+    residual = image - blur
+
+    # Do not sharpen noise
+    mask = np.abs(residual) * 255 > threshold
+    mask = mask.astype("float32")
+
+    sharp = image + alpha * residual
+    # Avoid color noise artefacts.
+    sharp = np.clip(sharp, 0, 1)
+
+    soft_mask = blur_fn(mask)
+    output = soft_mask * sharp + (1 - soft_mask) * image
+    return from_float(output, dtype=input_dtype)
+
+
+@preserve_shape
+def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[float, Sequence[float]]) -> np.ndarray:
+    if isinstance(drop_value, (int, float)) and drop_value == 0:
+        drop_values = np.zeros_like(image)
+    else:
+        drop_values = np.full_like(image, drop_value)  # type: ignore
+    return np.where(drop_mask, drop_values, image)
