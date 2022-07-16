@@ -986,3 +986,19 @@ def test_normalize_np_cv_equal(image, mean, std):
     res1 = F.normalize_cv2(image, mean, std)
     res2 = F.normalize_numpy(image, mean, std)
     assert np.allclose(res1, res2)
+
+
+@pytest.mark.parametrize("beta_by_max", [True, False])
+def test_brightness_contrast_adjust_equal(beta_by_max):
+    image_int = np.random.randint(0, 256, [512, 512, 3], dtype=np.uint8)
+    image_float = image_int.astype(np.float32) / 255
+
+    alpha = 1.3
+    beta = 0.14
+
+    image_int = F.brightness_contrast_adjust(image_int, alpha, beta, beta_by_max)
+    image_float = F.brightness_contrast_adjust(image_float, alpha, beta, beta_by_max)
+
+    image_float = (image_float * 255).astype(int)
+
+    assert np.abs(image_int.astype(int) - image_float).max() <= 1

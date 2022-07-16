@@ -1298,7 +1298,7 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
         if beta_by_max:
             lut += beta * max_value
         else:
-            lut += beta * np.mean(img)
+            lut += (alpha * beta) * np.mean(img)
 
     lut = np.clip(lut, 0, max_value).astype(dtype)
     img = cv2.LUT(img, lut)
