@@ -252,7 +252,7 @@ def normalize_cv2(img, mean, denominator):
     elif len(denominator) != 4 and denominator.shape != img.shape:
         denominator = np.array(denominator.tolist() + [1] * (4 - len(denominator)), dtype=np.float64)
 
-    img = img.astype("float32")
+    img = np.ascontiguousarray(img.astype("float32"))
     cv2.subtract(img, mean.astype(np.float64), img)
     cv2.multiply(img, denominator.astype(np.float64), img)
     return img
