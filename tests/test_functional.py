@@ -969,3 +969,20 @@ def test_cv_dtype_from_np():
     assert F.get_opencv_dtype_from_numpy(np.dtype("float32")) == cv2.CV_32F
     assert F.get_opencv_dtype_from_numpy(np.dtype("float64")) == cv2.CV_64F
     assert F.get_opencv_dtype_from_numpy(np.dtype("int32")) == cv2.CV_32S
+
+
+@pytest.mark.parametrize(
+    ["image", "mean", "std"],
+    [
+        [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]],
+        [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8), 0.5, 0.5],
+        [np.random.randint(0, 256, [100, 100], dtype=np.uint8), 0.5, 0.5],
+    ],
+)
+def test_normalize_np_cv_equal(image, mean, std):
+    mean = np.array(mean, dtype=np.float32)
+    std = np.array(std, dtype=np.float32)
+
+    res1 = F.normalize_cv2(image, mean, std)
+    res2 = F.normalize_numpy(image, mean, std)
+    assert np.allclose(res1, res2)
