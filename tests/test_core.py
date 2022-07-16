@@ -1,25 +1,45 @@
 from __future__ import absolute_import
 
+import typing
 from unittest import mock
-from unittest.mock import Mock, MagicMock, call
+from unittest.mock import MagicMock, Mock, call
 
 import cv2
 import numpy as np
 import pytest
 
-from albumentations.core.transforms_interface import to_tuple, ImageOnlyTransform, DualTransform
-from albumentations.augmentations.bbox_utils import check_bboxes
+from albumentations import (
+    BasicTransform,
+    Blur,
+    ChannelShuffle,
+    Crop,
+    HorizontalFlip,
+    MedianBlur,
+    Normalize,
+    PadIfNeeded,
+    Resize,
+    Rotate,
+)
+from albumentations.core.bbox_utils import check_bboxes
 from albumentations.core.composition import (
-    OneOrOther,
+    BaseCompose,
+    BboxParams,
     Compose,
+    KeypointParams,
     OneOf,
+    OneOrOther,
     PerChannel,
     ReplayCompose,
-    KeypointParams,
-    BboxParams,
     Sequential,
+    SomeOf,
 )
-from albumentations.augmentations.transforms import HorizontalFlip, Rotate, Blur, MedianBlur, PadIfNeeded, Crop
+from albumentations.core.transforms_interface import (
+    DualTransform,
+    ImageOnlyTransform,
+    to_tuple,
+)
+
+from .utils import get_filtered_transforms
 
 
 def test_one_or_other():
@@ -66,8 +86,21 @@ def test_one_of():
     assert len([transform for transform in transforms if transform.called]) == 1
 
 
+@pytest.mark.parametrize("N", [1, 2, 5, 10])
+@pytest.mark.parametrize("replace", [True, False])
+def test_n_of(N, replace):
+    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)]
+    augmentation = SomeOf(transforms, N, p=1, replace=replace)
+    print(augmentation.n)
+    image = np.ones((8, 8))
+    augmentation(image=image)
+    if not replace:
+        assert len([transform for transform in transforms if transform.called]) == N
+    assert sum([transform.call_count for transform in transforms]) == N
+
+
 def test_sequential():
-    transforms = [Mock(side_effect=lambda **kw: kw) for _ in range(1)]
+    transforms = [Mock(side_effect=lambda **kw: kw) for _ in range(10)]
     augmentation = Sequential(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -311,3 +344,64 @@ def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
 
     for key, item in expected.items():
         assert np.all(np.array(item) == np.array(res[key]))
+
+
+def test_bbox_params_is_not_set(image, bboxes):
+    t = Compose([])
+    with pytest.raises(ValueError) as exc_info:
+        t(image=image, bboxes=bboxes)
+    assert str(exc_info.value) == "bbox_params must be specified for bbox transformations"
+
+
+@pytest.mark.parametrize(
+    "compose_transform", get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}})
+)
+@pytest.mark.parametrize(
+    "inner_transform",
+    [(Normalize, {}), (Resize, {"height": 100, "width": 100})]
+    + get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}}),  # type: ignore
+)
+def test_single_transform_compose(
+    compose_transform: typing.Tuple[typing.Type[BaseCompose], dict],
+    inner_transform: typing.Tuple[typing.Union[typing.Type[BaseCompose], typing.Type[BasicTransform]], dict],
+):
+    compose_cls, compose_kwargs = compose_transform
+    cls, kwargs = inner_transform
+    transform = cls(transforms=[], **kwargs) if issubclass(cls, BaseCompose) else cls(**kwargs)
+
+    with pytest.warns(UserWarning):
+        res_transform = compose_cls(transforms=transform, **compose_kwargs)  # type: ignore
+    assert isinstance(res_transform.transforms, list)
+
+
+@pytest.mark.parametrize(
+    "transforms",
+    [OneOf([Sequential([HorizontalFlip(p=1)])], p=1), SomeOf([Sequential([HorizontalFlip(p=1)])], n=1, p=1)],
+)
+def test_choice_inner_compositions(transforms):
+    """Check that the inner composition is selected without errors."""
+    image = np.empty([10, 10, 3], dtype=np.uint8)
+    transforms(image=image)
+
+
+@pytest.mark.parametrize(
+    "transforms",
+    [
+        Compose([ChannelShuffle(p=1)], p=1),
+        Compose([ChannelShuffle(p=0)], p=0),
+    ],
+)
+def test_contiguous_output(transforms):
+    image = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
+    mask = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
+
+    # check preconditions
+    assert not image.flags["C_CONTIGUOUS"]
+    assert not mask.flags["C_CONTIGUOUS"]
+
+    # pipeline always outputs contiguous results
+    data = transforms(image=image, mask=mask)
+
+    # confirm output contiguous
+    assert data["image"].flags["C_CONTIGUOUS"]
+    assert data["mask"].flags["C_CONTIGUOUS"]
