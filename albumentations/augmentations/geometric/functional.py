@@ -461,18 +461,12 @@ def perspective_bbox(
     for pt in points:
         pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
         x, y = pt[:2]
-        x = np.clip(x, 0, width if keep_size else max_width)
-        y = np.clip(y, 0, height if keep_size else max_height)
         x1 = min(x1, x)
         x2 = max(x2, x)
         y1 = min(y1, y)
         y2 = max(y2, y)
 
-    x = np.clip([x1, x2], 0, width if keep_size else max_width)
-    y = np.clip([y1, y2], 0, height if keep_size else max_height)
-    return normalize_bbox(
-        (x[0], y[0], x[1], y[1]), height if keep_size else max_height, width if keep_size else max_width
-    )
+    return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
 
 
 def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:

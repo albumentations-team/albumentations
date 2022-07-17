@@ -1213,3 +1213,15 @@ def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: f
 
     res = transform(image=image, bboxes=bboxes)["bboxes"]
     assert res == expected
+
+
+def test_bbox_clipping_perspective():
+    random.seed(0)
+    transform = A.Compose(
+        [A.Perspective(scale=(0.05, 0.05), p=1)], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6)
+    )
+
+    image = np.empty([1000, 1000, 3], dtype=np.uint8)
+    bboxes = np.array([[0, 0, 100, 100, 1]])
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert len(res) == 0
