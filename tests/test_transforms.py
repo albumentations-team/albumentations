@@ -1188,3 +1188,28 @@ def test_rotate_equal(img, aug_cls, angle):
     diff = np.round(np.abs(res_a - res_b))
     assert diff[:, :2].max() <= 2
     assert (diff[:, -1] % 360).max() <= 1
+
+
+@pytest.mark.parametrize(
+    "get_transform",
+    [
+        lambda sign: A.Affine(translate_px=sign * 2),
+        lambda sign: A.ShiftScaleRotate(shift_limit=(sign * 0.02, sign * 0.02), scale_limit=0, rotate_limit=0),
+    ],
+)
+@pytest.mark.parametrize(
+    ["bboxes", "expected", "min_visibility", "sign"],
+    [
+        [[(0, 0, 10, 10, 1)], [], 0.9, -1],
+        [[(0, 0, 10, 10, 1)], [(0, 0, 8, 8, 1)], 0.6, -1],
+        [[(90, 90, 100, 100, 1)], [], 0.9, 1],
+        [[(90, 90, 100, 100, 1)], [(92, 92, 100, 100, 1)], 0.6, 1],
+    ],
+)
+def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: float, sign: int):
+    transform = get_transform(sign)
+    transform.p = 1
+    transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
+
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert res == expected

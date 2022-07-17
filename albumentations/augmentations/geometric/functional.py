@@ -575,8 +575,6 @@ def bbox_affine(
         ]
     )
     points = skimage.transform.matrix_transform(points, matrix.params)
-    points[:, 0] = np.clip(points[:, 0], 0, output_shape[1])
-    points[:, 1] = np.clip(points[:, 1], 0, output_shape[0])
     x_min = np.min(points[:, 0])
     x_max = np.max(points[:, 0])
     y_min = np.min(points[:, 1])
