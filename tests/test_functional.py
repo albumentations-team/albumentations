@@ -8,7 +8,7 @@ from numpy.testing import assert_array_almost_equal_nulp
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.augmentations.bbox_utils import filter_bboxes
+from albumentations.core.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 
 
@@ -224,7 +224,8 @@ def test_pad_float(target):
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_rotate_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[0, 0, 0, 0], [4, 8, 12, 16], [3, 7, 11, 15], [2, 6, 10, 14]], dtype=np.uint8)
+    expected = np.array([[4, 8, 12, 16], [3, 7, 11, 15], [2, 6, 10, 14], [1, 5, 9, 13]], dtype=np.uint8)
+
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     rotated_img = FGeometric.shift_scale_rotate(
         img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
@@ -239,7 +240,7 @@ def test_rotate_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     expected = np.array(
-        [[0.00, 0.00, 0.00, 0.00], [0.04, 0.08, 0.12, 0.16], [0.03, 0.07, 0.11, 0.15], [0.02, 0.06, 0.10, 0.14]],
+        [[0.04, 0.08, 0.12, 0.16], [0.03, 0.07, 0.11, 0.15], [0.02, 0.06, 0.10, 0.14], [0.01, 0.05, 0.09, 0.13]],
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
@@ -252,7 +253,7 @@ def test_rotate_float_from_shift_scale_rotate(target):
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_scale_from_shift_scale_rotate(target):
     img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[6, 7, 7, 8], [10, 11, 11, 12], [10, 11, 11, 12], [14, 15, 15, 16]], dtype=np.uint8)
+    expected = np.array([[6, 6, 7, 7], [6, 6, 7, 7], [10, 10, 11, 11], [10, 10, 11, 11]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     scaled_img = FGeometric.shift_scale_rotate(
         img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
@@ -267,7 +268,7 @@ def test_scale_float_from_shift_scale_rotate(target):
         dtype=np.float32,
     )
     expected = np.array(
-        [[0.06, 0.07, 0.07, 0.08], [0.10, 0.11, 0.11, 0.12], [0.10, 0.11, 0.11, 0.12], [0.14, 0.15, 0.15, 0.16]],
+        [[0.06, 0.06, 0.07, 0.07], [0.06, 0.06, 0.07, 0.07], [0.10, 0.10, 0.11, 0.11], [0.10, 0.10, 0.11, 0.11]],
         dtype=np.float32,
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
@@ -968,3 +969,36 @@ def test_cv_dtype_from_np():
     assert F.get_opencv_dtype_from_numpy(np.dtype("float32")) == cv2.CV_32F
     assert F.get_opencv_dtype_from_numpy(np.dtype("float64")) == cv2.CV_64F
     assert F.get_opencv_dtype_from_numpy(np.dtype("int32")) == cv2.CV_32S
+
+
+@pytest.mark.parametrize(
+    ["image", "mean", "std"],
+    [
+        [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]],
+        [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8), 0.5, 0.5],
+        [np.random.randint(0, 256, [100, 100], dtype=np.uint8), 0.5, 0.5],
+    ],
+)
+def test_normalize_np_cv_equal(image, mean, std):
+    mean = np.array(mean, dtype=np.float32)
+    std = np.array(std, dtype=np.float32)
+
+    res1 = F.normalize_cv2(image, mean, std)
+    res2 = F.normalize_numpy(image, mean, std)
+    assert np.allclose(res1, res2)
+
+
+@pytest.mark.parametrize("beta_by_max", [True, False])
+def test_brightness_contrast_adjust_equal(beta_by_max):
+    image_int = np.random.randint(0, 256, [512, 512, 3], dtype=np.uint8)
+    image_float = image_int.astype(np.float32) / 255
+
+    alpha = 1.3
+    beta = 0.14
+
+    image_int = F.brightness_contrast_adjust(image_int, alpha, beta, beta_by_max)
+    image_float = F.brightness_contrast_adjust(image_float, alpha, beta, beta_by_max)
+
+    image_float = (image_float * 255).astype(int)
+
+    assert np.abs(image_int.astype(int) - image_float).max() <= 1

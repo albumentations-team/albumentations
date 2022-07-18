@@ -1,5 +1,4 @@
 import random
-from multiprocessing.pool import Pool
 
 import numpy as np
 import pytest
@@ -25,7 +24,7 @@ def _calc(args):
         [random_utils.choice, [np.arange(1000), 100]],
     ],
 )
-def test_multiprocessing(func, args):
+def test_multiprocessing(func, args, mp_pool):
     seed = 0
     random.seed(seed)
     np.random.seed(seed)
@@ -33,8 +32,7 @@ def test_multiprocessing(func, args):
     n = 10
     status = False
     for _ in range(n):
-        with Pool(2) as pool:
-            res = pool.map(_calc, [(func, args), (func, args)])
+        res = mp_pool.map(_calc, [(func, args), (func, args)])
         status = not np.allclose(res[0], res[1])
         if status:
             break

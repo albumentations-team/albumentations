@@ -38,6 +38,16 @@ def test_rotate_interpolation(interpolation):
     assert np.array_equal(data["mask"], expected_mask)
 
 
+def test_rotate_crop_border():
+    image = np.random.randint(low=100, high=256, size=(100, 100, 3), dtype=np.uint8)
+    border_value = 13
+    aug = A.Rotate(limit=(45, 45), p=1, value=border_value, border_mode=cv2.BORDER_CONSTANT, crop_border=True)
+    aug_img = aug(image=image)["image"]
+    expected_size = int(np.round(100 / np.sqrt(2)))
+    assert aug_img.shape[0] == expected_size
+    assert (aug_img == border_value).sum() == 0
+
+
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 def test_shift_scale_rotate_interpolation(interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
@@ -218,15 +228,12 @@ def __test_multiprocessing_support_proc(args):
         },
     ),
 )
-def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
+def test_multiprocessing_support(mp_pool, augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    pool = multiprocessing_context.Pool(8)
-    pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
-    pool.close()
-    pool.join()
+    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10))
 
 
 def test_force_apply():
@@ -371,14 +378,20 @@ def test_crop_non_empty_mask():
             np.testing.assert_array_equal(augmented["image"], crop)
             np.testing.assert_array_equal(augmented["mask"], crop)
 
+    def _test_crops(masks, crops, aug, n=1):
+        for _ in range(n):
+            augmented = aug(image=masks[0], masks=masks)
+            for crop, augment in zip(crops, augmented["masks"]):
+                np.testing.assert_array_equal(augment, crop)
+
     # test general case
-    mask_1 = np.zeros([10, 10])
+    mask_1 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_1 as `masks` (which uses bitwise or)
     mask_1[0, 0] = 1
     crop_1 = np.array([[1]])
     aug_1 = A.CropNonEmptyMaskIfExists(1, 1)
 
     # test empty mask
-    mask_2 = np.zeros([10, 10])
+    mask_2 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_2 as `masks` (which uses bitwise or)
     crop_2 = np.array([[0]])
     aug_2 = A.CropNonEmptyMaskIfExists(1, 1)
 
@@ -411,6 +424,7 @@ def test_crop_non_empty_mask():
     _test_crop(mask_4, crop_4, aug_4, n=5)
     _test_crop(mask_5, crop_5, aug_5, n=1)
     _test_crop(mask_6, crop_6, aug_6, n=10)
+    _test_crops([mask_2, mask_1], [crop_2, crop_1], aug_1, n=1)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
@@ -1119,3 +1133,95 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
 
     for key, value in expected.items():
         assert np.allclose(np.array(value), np.array(res[key])), key
+
+
+@pytest.mark.parametrize(
+    "aug_cls",
+    [
+        (lambda rotate: A.Affine(rotate=rotate, p=1, mode=cv2.BORDER_CONSTANT, cval=0)),
+        (
+            lambda rotate: A.ShiftScaleRotate(
+                shift_limit=(0, 0),
+                scale_limit=(0, 0),
+                rotate_limit=rotate,
+                p=1,
+                border_mode=cv2.BORDER_CONSTANT,
+                value=0,
+            )
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "img",
+    [
+        np.random.randint(0, 256, [100, 100, 3], np.uint8),
+        np.random.randint(0, 256, [25, 100, 3], np.uint8),
+        np.random.randint(0, 256, [100, 25, 3], np.uint8),
+    ],
+)
+@pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
+def test_rotate_equal(img, aug_cls, angle):
+    random.seed(0)
+
+    h, w = img.shape[:2]
+    kp = [[random.randint(0, w - 1), random.randint(0, h - 1), random.randint(0, 360)] for _ in range(50)]
+    kp += [
+        [round(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [0, 0, 0],
+        [w - 1, h - 1, 0],
+    ]
+    keypoint_params = A.KeypointParams("xya", remove_invisible=False)
+
+    a = A.Compose([aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params)
+    b = A.Compose(
+        [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, value=0, p=1)], keypoint_params=keypoint_params
+    )
+
+    res_a = a(image=img, keypoints=kp)
+    res_b = b(image=img, keypoints=kp)
+    assert np.allclose(res_a["image"], res_b["image"])
+    res_a = np.array(res_a["keypoints"])
+    res_b = np.array(res_b["keypoints"])
+    diff = np.round(np.abs(res_a - res_b))
+    assert diff[:, :2].max() <= 2
+    assert (diff[:, -1] % 360).max() <= 1
+
+
+@pytest.mark.parametrize(
+    "get_transform",
+    [
+        lambda sign: A.Affine(translate_px=sign * 2),
+        lambda sign: A.ShiftScaleRotate(shift_limit=(sign * 0.02, sign * 0.02), scale_limit=0, rotate_limit=0),
+    ],
+)
+@pytest.mark.parametrize(
+    ["bboxes", "expected", "min_visibility", "sign"],
+    [
+        [[(0, 0, 10, 10, 1)], [], 0.9, -1],
+        [[(0, 0, 10, 10, 1)], [(0, 0, 8, 8, 1)], 0.6, -1],
+        [[(90, 90, 100, 100, 1)], [], 0.9, 1],
+        [[(90, 90, 100, 100, 1)], [(92, 92, 100, 100, 1)], 0.6, 1],
+    ],
+)
+def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: float, sign: int):
+    transform = get_transform(sign)
+    transform.p = 1
+    transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
+
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert res == expected
+
+
+def test_bbox_clipping_perspective():
+    random.seed(0)
+    transform = A.Compose(
+        [A.Perspective(scale=(0.05, 0.05), p=1)], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6)
+    )
+
+    image = np.empty([1000, 1000, 3], dtype=np.uint8)
+    bboxes = np.array([[0, 0, 100, 100, 1]])
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert len(res) == 0

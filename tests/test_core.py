@@ -20,7 +20,7 @@ from albumentations import (
     Resize,
     Rotate,
 )
-from albumentations.augmentations.bbox_utils import check_bboxes
+from albumentations.core.bbox_utils import check_bboxes
 from albumentations.core.composition import (
     BaseCompose,
     BboxParams,

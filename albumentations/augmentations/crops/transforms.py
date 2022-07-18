@@ -5,8 +5,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import DualTransform, to_tuple
-from ..bbox_utils import union_of_bboxes
+from albumentations.core.bbox_utils import union_of_bboxes
+
+from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
 from ..geometric import functional as FGeometric
 from . import functional as F
 
@@ -202,7 +203,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
             mask = self._preprocess_mask(kwargs["mask"])
         elif "masks" in kwargs and len(kwargs["masks"]):
             masks = kwargs["masks"]
-            mask = self._preprocess_mask(masks[0])
+            mask = self._preprocess_mask(np.copy(masks[0]))  # need copy as we perform in-place mod afterwards
             for m in masks[1:]:
                 mask |= self._preprocess_mask(m)
         else:
@@ -686,7 +687,7 @@ class CropAndPad(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: Sequence[float],
+        bbox: BoxType,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
         rows: int = 0,
@@ -694,12 +695,12 @@ class CropAndPad(DualTransform):
         result_rows: int = 0,
         result_cols: int = 0,
         **params
-    ) -> Sequence[float]:
+    ) -> BoxType:
         return F.crop_and_pad_bbox(bbox, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size)
 
     def apply_to_keypoint(
         self,
-        keypoint: Sequence[float],
+        keypoint: KeypointType,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
         rows: int = 0,
@@ -707,7 +708,7 @@ class CropAndPad(DualTransform):
         result_rows: int = 0,
         result_cols: int = 0,
         **params
-    ) -> Sequence[float]:
+    ) -> KeypointType:
         return F.crop_and_pad_keypoint(
             keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
         )

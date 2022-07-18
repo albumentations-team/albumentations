@@ -6,7 +6,7 @@ import numpy as np
 import skimage.transform
 
 from ... import random_utils
-from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
 from . import functional as F
 
 __all__ = ["ShiftScaleRotate", "ElasticTransform", "Perspective", "Affine", "PiecewiseAffine"]
@@ -43,6 +43,8 @@ class ShiftScaleRotate(DualTransform):
             instead of shift_limit will be used for shifting height.  If shift_limit_y is a single float value,
             the range will be (-shift_limit_y, shift_limit_y). Absolute values for lower and upper bounds should lie
             in the range [0, 1]. Default: None.
+        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
+            Default: "largest_box"
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -63,6 +65,7 @@ class ShiftScaleRotate(DualTransform):
         mask_value=None,
         shift_limit_x=None,
         shift_limit_y=None,
+        rotate_method="largest_box",
         always_apply=False,
         p=0.5,
     ):
@@ -75,6 +78,10 @@ class ShiftScaleRotate(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.rotate_method = rotate_method
+
+        if self.rotate_method not in ["largest_box", "ellipse"]:
+            raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
     def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
@@ -94,7 +101,7 @@ class ShiftScaleRotate(DualTransform):
         }
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, **params)
+        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, self.rotate_method, **params)
 
     def get_transform_init_args(self):
         return {
@@ -106,6 +113,7 @@ class ShiftScaleRotate(DualTransform):
             "border_mode": self.border_mode,
             "value": self.value,
             "mask_value": self.mask_value,
+            "rotate_method": self.rotate_method,
         }
 
 
@@ -469,12 +477,11 @@ class Affine(DualTransform):
             The value is only used when `mode=constant`. The expected value range is ``[0, 255]`` for ``uint8`` images.
         cval_mask (number or tuple of number): Same as cval but only for masks.
         mode (int): OpenCV border flag.
-        fit_output (bool): Whether to modify the affine transformation so that the whole output image is always
-            contained in the image plane (``True``) or accept parts of the image being outside
-            the image plane (``False``). This can be thought of as first applying the affine transformation
-            and then applying a second transformation to "zoom in" on the new image so that it fits the image plane,
-            This is useful to avoid corners of the image being outside of the image plane after applying rotations.
-            It will however negate translation and scaling.
+        fit_output (bool): If True, the image plane size and position will be adjusted to tightly capture
+            the whole image after affine transformation (`translate_percent` and `translate_px` are ignored).
+            Otherwise (``False``),  parts of the transformed image may end up outside the image plane.
+            Fitting the output shape can be useful to avoid corners of the image being outside the image plane
+            after applying rotations. Default: False
         keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
                            Default: False.
         p (float): probability of applying the transform. Default: 0.5.
@@ -619,22 +626,22 @@ class Affine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: Sequence[float],
+        bbox: BoxType,
         matrix: skimage.transform.ProjectiveTransform = None,
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
         **params
-    ) -> Sequence[float]:
+    ) -> BoxType:
         return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
 
     def apply_to_keypoint(
         self,
-        keypoint: Sequence[float],
+        keypoint: KeypointType,
         matrix: skimage.transform.ProjectiveTransform = None,
         scale: dict = None,
         **params
-    ) -> Sequence[float]:
+    ) -> KeypointType:
         return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @property
@@ -654,11 +661,14 @@ class Affine(DualTransform):
         else:
             translate = {"x": 0, "y": 0}
 
-        shear = {key: random.uniform(*value) for key, value in self.shear.items()}
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
+        shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
         scale = {key: random.uniform(*value) for key, value in self.scale.items()}
         if self.keep_ratio:
             scale["y"] = scale["x"]
-        rotate = random.uniform(*self.rotate)
+
+        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
+        rotate = -random.uniform(*self.rotate)
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
         # we get an ugly black border for 90deg rotations
@@ -890,12 +900,12 @@ class PiecewiseAffine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: Sequence[float],
+        bbox: BoxType,
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
-    ) -> Sequence[float]:
+    ) -> BoxType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
     def apply_to_keypoint(

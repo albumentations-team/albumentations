@@ -58,7 +58,7 @@ class MaskDropout(DualTransform):
         if num_labels == 0:
             dropout_mask = None
         else:
-            objects_to_drop = random.randint(self.max_objects[0], self.max_objects[1])
+            objects_to_drop = random.randint(int(self.max_objects[0]), int(self.max_objects[1]))
             objects_to_drop = min(num_labels, objects_to_drop)
 
             if objects_to_drop == num_labels:

@@ -13,6 +13,7 @@ import numpy as np
 from scipy import special
 
 from albumentations import random_utils
+from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 
 from ..core.transforms_interface import (
     DualTransform,
@@ -22,7 +23,6 @@ from ..core.transforms_interface import (
 )
 from ..core.utils import format_args
 from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
     "Blur",
@@ -2452,6 +2452,13 @@ class ColorJitter(ImageOnlyTransform):
         self.saturation = self.__check_values(saturation, "saturation")
         self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
 
+        self.transforms = [
+            F.adjust_brightness_torchvision,
+            F.adjust_contrast_torchvision,
+            F.adjust_saturation_torchvision,
+            F.adjust_hue_torchvision,
+        ]
+
     @staticmethod
     def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
         if isinstance(value, numbers.Number):
@@ -2474,22 +2481,23 @@ class ColorJitter(ImageOnlyTransform):
         saturation = random.uniform(self.saturation[0], self.saturation[1])
         hue = random.uniform(self.hue[0], self.hue[1])
 
-        transforms = [
-            lambda x: F.adjust_brightness_torchvision(x, brightness),
-            lambda x: F.adjust_contrast_torchvision(x, contrast),
-            lambda x: F.adjust_saturation_torchvision(x, saturation),
-            lambda x: F.adjust_hue_torchvision(x, hue),
-        ]
-        random.shuffle(transforms)
+        order = [0, 1, 2, 3]
+        random.shuffle(order)
 
-        return {"transforms": transforms}
+        return {
+            "brightness": brightness,
+            "contrast": contrast,
+            "saturation": saturation,
+            "hue": hue,
+            "order": order,
+        }
 
-    def apply(self, img, transforms=(), **params):
+    def apply(self, img, brightness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
-
-        for transform in transforms:
-            img = transform(img)
+        params = [brightness, contrast, saturation, hue]
+        for i in order:
+            img = self.transforms[i](img, params[i])
         return img
 
     def get_transform_init_args_names(self):
