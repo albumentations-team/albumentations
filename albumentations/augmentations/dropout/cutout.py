@@ -1,12 +1,11 @@
 import random
 import warnings
-from typing import Union, Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Union
 
 import numpy as np
 
-from albumentations.core.transforms_interface import (
-    ImageOnlyTransform,
-)
+from albumentations.core.transforms_interface import ImageOnlyTransform
+
 from .functional import cutout
 
 __all__ = ["Cutout"]
