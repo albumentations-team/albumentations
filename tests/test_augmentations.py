@@ -267,6 +267,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.ToSepia,
             A.PixelDistributionAdaptation,
             A.UnsharpMask,
+            A.RandomCropFromBorders,
         },
     ),
 )
@@ -325,6 +326,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             A.SmallestMaxSize,
             A.PadIfNeeded,
             A.RandomScale,
+            A.RandomCropFromBorders,
         },
     ),
 )
