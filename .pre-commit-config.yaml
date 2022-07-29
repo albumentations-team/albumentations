@@ -1,18 +1,29 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v2.3.0
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
     hooks:
-    - id: flake8
-    - id: trailing-whitespace
-    - id: check-yaml
-    - id: end-of-file-fixer
-    - id: requirements-txt-fixer
--   repo: https://github.com/psf/black
-    rev: 19.3b0
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: requirements-txt-fixer
+      - id: check-json
+      - id: check-yaml
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: 1ba6bfc # Use the revision sha / tag you want to point at
     hooks:
-    -   id: black
-        args: [--config=black.toml]
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.761
+      - id: isort
+        args: [ "--profile", "black" ]
+  - repo: https://github.com/psf/black
+    rev: 22.3.0
     hooks:
-    - id: mypy
+      - id: black
+        args: [ --config=black.toml ]
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v0.910
+    hooks:
+      - id: mypy
+        additional_dependencies: [ types-PyYAML ]
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.9.2
+    hooks:
+      - id: flake8
+        additional_dependencies: [ flake8-docstrings==1.6.0 ]
