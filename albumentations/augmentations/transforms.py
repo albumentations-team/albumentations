@@ -1680,6 +1680,8 @@ class MotionBlur(Blur):
     Args:
         blur_limit (int): maximum kernel size for blurring the input image.
             Should be in range [3, inf). Default: (3, 7).
+        allow_shifted (bool): if set to true creates non shifted kernels only,
+            otherwise creates randomly shifted kernels. Default: True.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1689,6 +1691,22 @@ class MotionBlur(Blur):
         uint8, float32
     """
 
+    def __init__(
+        self,
+        blur_limit: Union[int, Sequence[int]] = 7,
+        allow_shifted: bool = True,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(blur_limit=blur_limit, always_apply=always_apply, p=p)
+        self.allow_shifted = allow_shifted
+
+        if not allow_shifted and self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+            raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
+
+    def get_transform_init_args_names(self):
+        return super().get_transform_init_args_names() + ("allow_shifted",)
+
     def apply(self, img, kernel=None, **params):
         return F.convolve(img, kernel=kernel)
 
@@ -1697,12 +1715,35 @@ class MotionBlur(Blur):
         if ksize <= 2:
             raise ValueError("ksize must be > 2. Got: {}".format(ksize))
         kernel = np.zeros((ksize, ksize), dtype=np.uint8)
-        xs, xe = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
-        if xs == xe:
-            ys, ye = random.sample(range(ksize), 2)
+        x1, x2 = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+        if x1 == x2:
+            y1, y2 = random.sample(range(ksize), 2)
         else:
-            ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
-        cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
+            y1, y2 = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+
+        def make_odd_val(v1, v2):
+            len_v = abs(v1 - v2) + 1
+            if len_v % 2 != 1:
+                if v2 > v1:
+                    v2 -= 1
+                else:
+                    v1 -= 1
+            return v1, v2
+
+        if not self.allow_shifted:
+            x1, x2 = make_odd_val(x1, x2)
+            y1, y2 = make_odd_val(y1, y2)
+
+            xc = (x1 + x2) / 2
+            yc = (y1 + y2) / 2
+
+            center = ksize / 2 - 0.5
+            dx = xc - center
+            dy = yc - center
+            x1, x2 = [int(i - dx) for i in [x1, x2]]
+            y1, y2 = [int(i - dy) for i in [y1, y2]]
+
+        cv2.line(kernel, (x1, y1), (x2, y2), 1, thickness=1)
 
         # Normalize kernel
         kernel = kernel.astype(np.float32) / np.sum(kernel)
