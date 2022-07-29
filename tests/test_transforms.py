@@ -1,3 +1,4 @@
+import random
 from functools import partial
 
 import cv2
@@ -6,6 +7,14 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+import albumentations.augmentations.geometric.functional as FGeometric
+
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
+
+
+def set_seed(seed=0):
+    random.seed(seed)
+    np.random.seed(seed)
 
 
 def test_transpose_both_image_and_mask():
@@ -23,10 +32,20 @@ def test_rotate_interpolation(interpolation):
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     aug = A.Rotate(limit=(45, 45), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
-    expected_mask = F.rotate(mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
+    expected_image = FGeometric.rotate(image, 45, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101)
+    expected_mask = FGeometric.rotate(mask, 45, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101)
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
+
+
+def test_rotate_crop_border():
+    image = np.random.randint(low=100, high=256, size=(100, 100, 3), dtype=np.uint8)
+    border_value = 13
+    aug = A.Rotate(limit=(45, 45), p=1, value=border_value, border_mode=cv2.BORDER_CONSTANT, crop_border=True)
+    aug_img = aug(image=image)["image"]
+    expected_size = int(np.round(100 / np.sqrt(2)))
+    assert aug_img.shape[0] == expected_size
+    assert (aug_img == border_value).sum() == 0
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
@@ -37,10 +56,10 @@ def test_shift_scale_rotate_interpolation(interpolation):
         shift_limit=(0.2, 0.2), scale_limit=(1.1, 1.1), rotate_limit=(45, 45), interpolation=interpolation, p=1
     )
     data = aug(image=image, mask=mask)
-    expected_image = F.shift_scale_rotate(
+    expected_image = FGeometric.shift_scale_rotate(
         image, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
     )
-    expected_mask = F.shift_scale_rotate(
+    expected_mask = FGeometric.shift_scale_rotate(
         mask, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
     )
     assert np.array_equal(data["image"], expected_image)
@@ -97,11 +116,11 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     monkeypatch.setattr(
-        "albumentations.augmentations.transforms.ElasticTransform.get_params", lambda *_: {"random_state": 1111}
+        "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_state": 1111}
     )
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.elastic_transform(
+    expected_image = FGeometric.elastic_transform(
         image,
         alpha=1,
         sigma=50,
@@ -110,7 +129,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         border_mode=cv2.BORDER_REFLECT_101,
         random_state=np.random.RandomState(1111),
     )
-    expected_mask = F.elastic_transform(
+    expected_mask = FGeometric.elastic_transform(
         mask,
         alpha=1,
         sigma=50,
@@ -125,20 +144,20 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.IAAAffine, {"scale": 1.5}],
-        [A.IAAPiecewiseAffine, {"scale": 1.5}],
-        [A.IAAPerspective, {}],
-        [A.GlassBlur, {}],
-    ],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.PixelDropout},
+    ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
@@ -151,19 +170,19 @@ def test_binary_mask_interpolation(augmentation_cls, params):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.Resize, {"height": 80, "width": 90}],
-        [A.Resize, {"height": 120, "width": 130}],
-        [A.OpticalDistortion, {}],
-        [A.GlassBlur, {}],
-    ],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+        },
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad, A.PixelDropout},
+    ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts.
@@ -184,37 +203,42 @@ def __test_multiprocessing_support_proc(args):
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ElasticTransform, {}],
-        [A.GridDistortion, {}],
-        [A.ShiftScaleRotate, {"rotate_limit": 45}],
-        [A.RandomScale, {"scale_limit": 0.5}],
-        [A.RandomSizedCrop, {"min_max_height": (80, 90), "height": 100, "width": 100}],
-        [A.LongestMaxSize, {"max_size": 50}],
-        [A.Rotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.IAAAffine, {"scale": 1.5}],
-        [A.IAAPiecewiseAffine, {"scale": 1.5}],
-        [A.IAAPerspective, {}],
-        [A.IAASharpen, {}],
-        [A.FancyPCA, {}],
-        [A.GlassBlur, {}],
-    ],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+        },
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.MaskDropout,
+        },
+    ),
 )
-def test_multiprocessing_support(augmentation_cls, params, multiprocessing_context):
+def test_multiprocessing_support(mp_pool, augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    pool = multiprocessing_context.Pool(8)
-    pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
-    pool.close()
-    pool.join()
+    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10))
 
 
 def test_force_apply():
     """
-    Unit test for https://github.com/albu/albumentations/issues/189
+    Unit test for https://github.com/albumentations-team/albumentations/issues/189
     """
     aug = A.Compose(
         [
@@ -249,43 +273,26 @@ def test_force_apply():
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    [
-        [A.ChannelShuffle, {}],
-        [A.GaussNoise, {}],
-        [A.Cutout, {}],
-        [A.CoarseDropout, {}],
-        [A.ImageCompression, {}],
-        [A.HueSaturationValue, {}],
-        [A.RGBShift, {}],
-        [A.RandomBrightnessContrast, {}],
-        [A.Blur, {}],
-        [A.MotionBlur, {}],
-        [A.MedianBlur, {}],
-        [A.CLAHE, {}],
-        [A.InvertImg, {}],
-        [A.RandomGamma, {}],
-        [A.ToGray, {}],
-        [A.VerticalFlip, {}],
-        [A.HorizontalFlip, {}],
-        [A.Flip, {}],
-        [A.Transpose, {}],
-        [A.RandomRotate90, {}],
-        [A.Rotate, {}],
-        [A.OpticalDistortion, {}],
-        [A.GridDistortion, {}],
-        [A.ElasticTransform, {}],
-        [A.Normalize, {}],
-        [A.ToFloat, {}],
-        [A.FromFloat, {}],
-        [A.ChannelDropout, {}],
-        [A.Solarize, {}],
-        [A.Posterize, {}],
-        [A.Equalize, {}],
-        [A.MultiplicativeNoise, {}],
-        [A.FancyPCA, {}],
-        [A.GlassBlur, {}],
-        [A.GridDropout, {}],
-    ],
+    get_image_only_transforms(
+        custom_arguments={
+            A.HistogramMatching: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.FDA: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+        },
+    ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(always_apply=True, **params)], additional_targets={"image2": "image"})
@@ -371,14 +378,20 @@ def test_crop_non_empty_mask():
             np.testing.assert_array_equal(augmented["image"], crop)
             np.testing.assert_array_equal(augmented["mask"], crop)
 
+    def _test_crops(masks, crops, aug, n=1):
+        for _ in range(n):
+            augmented = aug(image=masks[0], masks=masks)
+            for crop, augment in zip(crops, augmented["masks"]):
+                np.testing.assert_array_equal(augment, crop)
+
     # test general case
-    mask_1 = np.zeros([10, 10])
+    mask_1 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_1 as `masks` (which uses bitwise or)
     mask_1[0, 0] = 1
     crop_1 = np.array([[1]])
     aug_1 = A.CropNonEmptyMaskIfExists(1, 1)
 
     # test empty mask
-    mask_2 = np.zeros([10, 10])
+    mask_2 = np.zeros([10, 10], dtype=np.uint8)  # uint8 required for passing mask_2 as `masks` (which uses bitwise or)
     crop_2 = np.array([[0]])
     aug_2 = A.CropNonEmptyMaskIfExists(1, 1)
 
@@ -411,6 +424,7 @@ def test_crop_non_empty_mask():
     _test_crop(mask_4, crop_4, aug_4, n=5)
     _test_crop(mask_5, crop_5, aug_5, n=1)
     _test_crop(mask_6, crop_6, aug_6, n=10)
+    _test_crops([mask_2, mask_1], [crop_2, crop_1], aug_1, n=1)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
@@ -487,7 +501,13 @@ def test_resize_keypoints():
 
 
 @pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320], np.uint8), np.random.random([256, 320]).astype(np.float32)]
+    "image",
+    [
+        np.random.randint(0, 256, [256, 320], np.uint8),
+        np.random.random([256, 320]).astype(np.float32),
+        np.random.randint(0, 256, [256, 320, 1], np.uint8),
+        np.random.random([256, 320, 1]).astype(np.float32),
+    ],
 )
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
@@ -652,3 +672,556 @@ def test_gauss_noise_incorrect_var_limit_type():
         A.GaussNoise(var_limit={"low": 70, "high": 90})
     message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
     assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(
+    ["blur_limit", "sigma", "result_blur", "result_sigma"],
+    [
+        [[0, 0], [1, 1], 0, 1],
+        [[1, 1], [0, 0], 1, 0],
+        [[1, 1], [1, 1], 1, 1],
+        [[0, 0], [0, 0], 3, 0],
+        [[0, 3], [0, 0], 3, 0],
+        [[0, 3], [0.1, 0.1], 3, 0.1],
+    ],
+)
+def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
+    img = np.zeros([100, 100, 3], dtype=np.uint8)
+
+    aug = A.Compose([A.GaussianBlur(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
+
+    res = aug(image=img)["image"]
+    assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
+
+
+@pytest.mark.parametrize(
+    ["blur_limit", "sigma", "result_blur", "result_sigma"],
+    [
+        [[0, 0], [1, 1], 0, 1],
+        [[1, 1], [0, 0], 1, 0],
+        [[1, 1], [1, 1], 1, 1],
+    ],
+)
+def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
+    img = np.zeros([100, 100, 3], dtype=np.uint8)
+
+    aug = A.Compose([A.UnsharpMask(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
+
+    res = aug(image=img)["image"]
+    assert np.allclose(res, F.unsharp_mask(img, result_blur, result_sigma))
+
+
+@pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
+def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
+
+    x_uint8 = np.zeros((5, 5)).astype(np.uint8)
+    x_uint8[2, 2] = val_uint8
+
+    x_float32 = np.zeros((5, 5)).astype(np.float32)
+    x_float32[2, 2] = val_uint8 / 255.0
+
+    unsharpmask = A.UnsharpMask(blur_limit=3, always_apply=True, p=1)
+
+    random.seed(0)
+    usm_uint8 = unsharpmask(image=x_uint8)["image"]
+
+    random.seed(0)
+    usm_float32 = unsharpmask(image=x_float32)["image"]
+
+    # Before comparison, rescale the usm_float32 to [0, 255]
+    diff = np.abs(usm_uint8 - usm_float32 * 255)
+
+    # The difference between the results of float32 and uint8 will be at most 2.
+    assert np.all(diff <= 2.0)
+
+
+@pytest.mark.parametrize(
+    ["brightness", "contrast", "saturation", "hue"],
+    [
+        [1, 1, 1, 0],
+        [0.123, 1, 1, 0],
+        [1.321, 1, 1, 0],
+        [1, 0.234, 1, 0],
+        [1, 1.432, 1, 0],
+        [1, 1, 0.345, 0],
+        [1, 1, 1.543, 0],
+        [1, 1, 1, 0.456],
+        [1, 1, 1, -0.432],
+    ],
+)
+def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+    transform = A.Compose(
+        [
+            A.ColorJitter(
+                brightness=[brightness, brightness],
+                contrast=[contrast, contrast],
+                saturation=[saturation, saturation],
+                hue=[hue, hue],
+                p=1,
+            )
+        ]
+    )
+
+    res1 = transform(image=img)["image"]
+    res2 = (transform(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
+
+    _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
+
+    if hue != 0:
+        assert _max <= 10, "Max: {}".format(_max)
+    else:
+        assert _max <= 2, "Max: {}".format(_max)
+
+
+@pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
+def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
+    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+
+    for i in range(2):
+        sign = 1 if i == 0 else -1
+        for i in range(4):
+            if i == 0:
+                _hue = hue * sign
+                _sat = 0
+                _val = 0
+            elif i == 1:
+                _hue = 0
+                _sat = sat * sign
+                _val = 0
+            elif i == 2:
+                _hue = 0
+                _sat = 0
+                _val = val * sign
+            else:
+                _hue = hue * sign
+                _sat = sat * sign
+                _val = val * sign
+
+            t1 = A.Compose(
+                [
+                    A.HueSaturationValue(
+                        hue_shift_limit=[_hue, _hue], sat_shift_limit=[_sat, _sat], val_shift_limit=[_val, _val], p=1
+                    )
+                ]
+            )
+            t2 = A.Compose(
+                [
+                    A.HueSaturationValue(
+                        hue_shift_limit=[_hue / 180 * 360, _hue / 180 * 360],
+                        sat_shift_limit=[_sat / 255, _sat / 255],
+                        val_shift_limit=[_val / 255, _val / 255],
+                        p=1,
+                    )
+                ]
+            )
+
+            res1 = t1(image=img)["image"]
+            res2 = (t2(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
+
+            _max = np.abs(res1.astype(np.int) - res2).max()
+            assert _max <= 10, "Max value: {}".format(_max)
+
+
+def test_shift_scale_separate_shift_x_shift_y(image, mask):
+    aug = A.ShiftScaleRotate(shift_limit=(0.3, 0.3), shift_limit_y=(0.4, 0.4), scale_limit=0, rotate_limit=0, p=1)
+    data = aug(image=image, mask=mask)
+    expected_image = FGeometric.shift_scale_rotate(
+        image, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101
+    )
+    expected_mask = FGeometric.shift_scale_rotate(
+        mask, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
+    )
+    assert np.array_equal(data["image"], expected_image)
+    assert np.array_equal(data["mask"], expected_mask)
+
+
+@pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
+def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
+
+    x_uint8 = np.zeros((5, 5)).astype(np.uint8)
+    x_uint8[2, 2] = val_uint8
+
+    x_float32 = np.zeros((5, 5)).astype(np.float32)
+    x_float32[2, 2] = val_uint8 / 255.0
+
+    glassblur = A.GlassBlur(always_apply=True, max_delta=1)
+
+    random.seed(0)
+    blur_uint8 = glassblur(image=x_uint8)["image"]
+
+    random.seed(0)
+    blur_float32 = glassblur(image=x_float32)["image"]
+
+    # Before comparison, rescale the blur_float32 to [0, 255]
+    diff = np.abs(blur_uint8 - blur_float32 * 255)
+
+    # The difference between the results of float32 and uint8 will be at most 2.
+    assert np.all(diff <= 2.0)
+
+
+def test_perspective_keep_size():
+    h, w = 100, 100
+    img = np.zeros([h, w, 3], dtype=np.uint8)
+    h, w = img.shape[:2]
+    bboxes = []
+    for _ in range(10):
+        x1 = np.random.randint(0, w - 1)
+        y1 = np.random.randint(0, h - 1)
+        x2 = np.random.randint(x1 + 1, w)
+        y2 = np.random.randint(y1 + 1, h)
+        bboxes.append([x1, y1, x2, y2])
+    keypoints = [(np.random.randint(0, w), np.random.randint(0, h), np.random.random()) for _ in range(10)]
+
+    transform_1 = A.Compose(
+        [A.Perspective(keep_size=True, p=1)],
+        keypoint_params=A.KeypointParams("xys"),
+        bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
+    )
+    transform_2 = A.Compose(
+        [A.Perspective(keep_size=False, p=1), A.Resize(h, w)],
+        keypoint_params=A.KeypointParams("xys"),
+        bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
+    )
+
+    set_seed()
+    res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
+    set_seed()
+    res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
+
+    assert np.allclose(res_1["bboxes"], res_2["bboxes"])
+    assert np.allclose(res_1["keypoints"], res_2["keypoints"])
+
+
+def test_longest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [(9, 5, 0, 0)]
+
+    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(10, 2), (5, 1)]
+    assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
+
+
+def test_smallest_max_size_list():
+    img = np.random.randint(0, 256, [50, 10], np.uint8)
+    keypoints = [(9, 5, 0, 0)]
+
+    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+    result = aug(image=img, keypoints=keypoints)
+    assert result["image"].shape in [(250, 50), (500, 100)]
+    assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
+
+
+@pytest.mark.parametrize(
+    ["img_weight", "template_weight", "template_transform", "image_size", "template_size"],
+    [
+        (0.5, 0.5, A.RandomSizedCrop((50, 200), 513, 450, always_apply=True), (513, 450), (224, 224)),
+        (0.3, 0.5, A.RandomResizedCrop(513, 450, always_apply=True), (513, 450), (224, 224)),
+        (1.0, 0.5, A.CenterCrop(500, 450, always_apply=True), (500, 450, 3), (512, 512, 3)),
+        (0.5, 0.8, A.Resize(513, 450, always_apply=True), (513, 450), (512, 512)),
+        (0.5, 0.2, A.NoOp(), (224, 224), (224, 224)),
+        (0.5, 0.9, A.NoOp(), (512, 512, 3), (512, 512, 3)),
+        (0.5, 0.5, None, (512, 512), (512, 512)),
+        (0.8, 0.7, None, (512, 512, 3), (512, 512, 3)),
+        (
+            0.5,
+            0.5,
+            A.Compose([A.Blur(), A.RandomSizedCrop((50, 200), 512, 512, always_apply=True), A.HorizontalFlip()]),
+            (512, 512),
+            (512, 512),
+        ),
+    ],
+)
+def test_template_transform(image, img_weight, template_weight, template_transform, image_size, template_size):
+    img = np.random.randint(0, 256, image_size, np.uint8)
+    template = np.random.randint(0, 256, template_size, np.uint8)
+
+    aug = A.TemplateTransform(template, img_weight, template_weight, template_transform)
+    result = aug(image=img)["image"]
+
+    assert result.shape == img.shape
+
+    params = aug.get_params_dependent_on_targets({"image": img})
+    template = params["template"]
+    assert template.shape == img.shape
+    assert template.dtype == img.dtype
+
+
+def test_template_transform_incorrect_size(template):
+    image = np.random.randint(0, 256, (512, 512, 3), np.uint8)
+    with pytest.raises(ValueError) as exc_info:
+        transform = A.TemplateTransform(template, always_apply=True)
+        transform(image=image)
+
+    message = "Image and template must be the same size, got {} and {}".format(image.shape[:2], template.shape[:2])
+    assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(["img_channels", "template_channels"], [(1, 3), (6, 3)])
+def test_template_transform_incorrect_channels(img_channels, template_channels):
+    img = np.random.randint(0, 256, [512, 512, img_channels], np.uint8)
+    template = np.random.randint(0, 256, [512, 512, template_channels], np.uint8)
+
+    with pytest.raises(ValueError) as exc_info:
+        transform = A.TemplateTransform(template, always_apply=True)
+        transform(image=img)
+
+    message = (
+        "Template must be a single channel or has the same number of channels "
+        "as input image ({}), got {}".format(img_channels, template.shape[-1])
+    )
+    assert str(exc_info.value) == message
+
+
+@pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
+def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
+
+    x_uint8 = np.zeros((5, 5)).astype(np.uint8)
+    x_uint8[2, 2] = val_uint8
+
+    x_float32 = np.zeros((5, 5)).astype(np.float32)
+    x_float32[2, 2] = val_uint8 / 255.0
+
+    adv_blur = A.AdvancedBlur(blur_limit=(3, 5), always_apply=True)
+
+    set_seed(0)
+    adv_blur_uint8 = adv_blur(image=x_uint8)["image"]
+
+    set_seed(0)
+    adv_blur_float32 = adv_blur(image=x_float32)["image"]
+
+    # Before comparison, rescale the adv_blur_float32 to [0, 255]
+    diff = np.abs(adv_blur_uint8 - adv_blur_float32 * 255)
+
+    # The difference between the results of float32 and uint8 will be at most 2.
+    assert np.all(diff <= 2.0)
+
+
+@pytest.mark.parametrize(
+    ["params"],
+    [
+        [{"blur_limit": (2, 5)}],
+        [{"blur_limit": (3, 6)}],
+        [{"sigmaX_limit": (0.0, 1.0), "sigmaY_limit": (0.0, 1.0)}],
+        [{"beta_limit": (0.1, 0.9)}],
+        [{"beta_limit": (1.1, 8.0)}],
+    ],
+)
+def test_advanced_blur_raises_on_incorrect_params(params):
+    with pytest.raises(ValueError):
+        A.AdvancedBlur(**params)
+
+
+@pytest.mark.parametrize(
+    ["params"],
+    [
+        [{"scale": (0.5, 1.0)}],
+        [{"scale": (0.5, 1.0), "keep_ratio": False}],
+        [{"scale": (0.5, 1.0), "keep_ratio": True}],
+    ],
+)
+def test_affine_scale_ratio(params):
+    set_seed(0)
+    aug = A.Affine(**params, p=1.0)
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    target = {"image": image}
+    apply_params = aug.get_params_dependent_on_targets(target)
+
+    if "keep_ratio" not in params:
+        # default(keep_ratio=False)
+        assert apply_params["scale"]["x"] != apply_params["scale"]["y"]
+    elif not params["keep_ratio"]:
+        # keep_ratio=False
+        assert apply_params["scale"]["x"] != apply_params["scale"]["y"]
+    else:
+        # keep_ratio=True
+        assert apply_params["scale"]["x"] == apply_params["scale"]["y"]
+
+
+@pytest.mark.parametrize(
+    ["params"],
+    [
+        [{"scale": {"x": (0.5, 1.0), "y": (1.0, 1.5)}, "keep_ratio": True}],
+        [{"scale": {"x": 0.5, "y": 1.0}, "keep_ratio": True}],
+    ],
+)
+def test_affine_incorrect_scale_range(params):
+    with pytest.raises(ValueError):
+        A.Affine(**params)
+
+
+@pytest.mark.parametrize(
+    ["angle", "targets", "expected"],
+    [
+        [
+            -10,
+            {
+                "bboxes": [
+                    [0, 0, 5, 5, 0],
+                    [195, 0, 200, 5, 0],
+                    [195, 95, 200, 100, 0],
+                    [0, 95, 5, 99, 0],
+                ],
+                "keypoints": [
+                    [0, 0, 0, 0],
+                    [199, 0, 10, 10],
+                    [199, 99, 20, 20],
+                    [0, 99, 30, 30],
+                ],
+            },
+            {
+                "bboxes": [
+                    [15.65896994771262, 0.2946228229078849, 21.047137067150473, 4.617219579173327, 0],
+                    [194.29851584295034, 25.564320319214918, 199.68668296238818, 29.88691707548036, 0],
+                    [178.9528629328495, 95.38278042082668, 184.34103005228735, 99.70537717709212, 0],
+                    [0.47485022613917677, 70.11308292451965, 5.701484157049652, 73.70074852182076, 0],
+                ],
+                "keypoints": [
+                    [16.466635890349504, 0.2946228229078849, 147.04220486917677, 0.0],
+                    [198.770582727028, 26.08267308836993, 157.04220486917674, 9.30232558139535],
+                    [182.77879706281766, 98.84085782583904, 167.04220486917674, 18.6046511627907],
+                    [0.4748502261391767, 73.05280756037699, 177.04220486917674, 27.90697674418604],
+                ],
+            },
+        ],
+        [
+            10,
+            {
+                "bboxes": [
+                    [0, 0, 5, 5, 0],
+                    [195, 0, 200, 5, 0],
+                    [195, 95, 200, 100, 0],
+                    [0, 95, 5, 99, 0],
+                ],
+                "keypoints": [
+                    [0, 0, 0, 0],
+                    [199, 0, 10, 10],
+                    [199, 99, 20, 20],
+                    [0, 99, 30, 30],
+                ],
+            },
+            {
+                "bboxes": [
+                    [0.3133170376117963, 25.564320319214918, 5.701484157049649, 29.88691707548036, 0],
+                    [178.9528629328495, 0.2946228229078862, 184.34103005228735, 4.617219579173327, 0],
+                    [194.29851584295034, 70.11308292451965, 199.68668296238818, 74.43567968078509, 0],
+                    [15.658969947712617, 95.38278042082668, 20.88560387862309, 98.97044601812779, 0],
+                ],
+                "keypoints": [
+                    [0.3133170376117963, 26.212261280658684, 212.95779513082323, 0.0],
+                    [182.6172638742903, 0.42421101519664006, 222.95779513082323, 9.30232558139535],
+                    [198.60904953850064, 73.18239575266574, 232.9577951308232, 18.6046511627907],
+                    [16.305102701822126, 98.97044601812779, 242.9577951308232, 27.906976744186046],
+                ],
+            },
+        ],
+    ],
+)
+def test_safe_rotate(angle: float, targets: dict, expected: dict):
+    image = np.empty([100, 200, 3], dtype=np.uint8)
+    t = A.Compose(
+        [
+            A.SafeRotate(limit=(angle, angle), border_mode=0, value=0, p=1),
+        ],
+        bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.0),
+        keypoint_params=A.KeypointParams("xyas"),
+        p=1,
+    )
+    res = t(image=image, **targets)
+
+    for key, value in expected.items():
+        assert np.allclose(np.array(value), np.array(res[key])), key
+
+
+@pytest.mark.parametrize(
+    "aug_cls",
+    [
+        (lambda rotate: A.Affine(rotate=rotate, p=1, mode=cv2.BORDER_CONSTANT, cval=0)),
+        (
+            lambda rotate: A.ShiftScaleRotate(
+                shift_limit=(0, 0),
+                scale_limit=(0, 0),
+                rotate_limit=rotate,
+                p=1,
+                border_mode=cv2.BORDER_CONSTANT,
+                value=0,
+            )
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "img",
+    [
+        np.random.randint(0, 256, [100, 100, 3], np.uint8),
+        np.random.randint(0, 256, [25, 100, 3], np.uint8),
+        np.random.randint(0, 256, [100, 25, 3], np.uint8),
+    ],
+)
+@pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
+def test_rotate_equal(img, aug_cls, angle):
+    random.seed(0)
+
+    h, w = img.shape[:2]
+    kp = [[random.randint(0, w - 1), random.randint(0, h - 1), random.randint(0, 360)] for _ in range(50)]
+    kp += [
+        [round(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [int(w * 0.2), int(h * 0.3), 90],
+        [0, 0, 0],
+        [w - 1, h - 1, 0],
+    ]
+    keypoint_params = A.KeypointParams("xya", remove_invisible=False)
+
+    a = A.Compose([aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params)
+    b = A.Compose(
+        [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, value=0, p=1)], keypoint_params=keypoint_params
+    )
+
+    res_a = a(image=img, keypoints=kp)
+    res_b = b(image=img, keypoints=kp)
+    assert np.allclose(res_a["image"], res_b["image"])
+    res_a = np.array(res_a["keypoints"])
+    res_b = np.array(res_b["keypoints"])
+    diff = np.round(np.abs(res_a - res_b))
+    assert diff[:, :2].max() <= 2
+    assert (diff[:, -1] % 360).max() <= 1
+
+
+@pytest.mark.parametrize(
+    "get_transform",
+    [
+        lambda sign: A.Affine(translate_px=sign * 2),
+        lambda sign: A.ShiftScaleRotate(shift_limit=(sign * 0.02, sign * 0.02), scale_limit=0, rotate_limit=0),
+    ],
+)
+@pytest.mark.parametrize(
+    ["bboxes", "expected", "min_visibility", "sign"],
+    [
+        [[(0, 0, 10, 10, 1)], [], 0.9, -1],
+        [[(0, 0, 10, 10, 1)], [(0, 0, 8, 8, 1)], 0.6, -1],
+        [[(90, 90, 100, 100, 1)], [], 0.9, 1],
+        [[(90, 90, 100, 100, 1)], [(92, 92, 100, 100, 1)], 0.6, 1],
+    ],
+)
+def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: float, sign: int):
+    transform = get_transform(sign)
+    transform.p = 1
+    transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
+
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert res == expected
+
+
+def test_bbox_clipping_perspective():
+    random.seed(0)
+    transform = A.Compose(
+        [A.Perspective(scale=(0.05, 0.05), p=1)], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6)
+    )
+
+    image = np.empty([1000, 1000, 3], dtype=np.uint8)
+    bboxes = np.array([[0, 0, 100, 100, 1]])
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert len(res) == 0

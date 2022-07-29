@@ -18,12 +18,12 @@ IGNORED_CLASSES = {
 }
 
 
-READTHEDOCS_TEMPLATE_ALBU = (
-    "[{name}](https://albumentations.readthedocs.io/en/latest/api/augmentations.html#albumentations"
-)
-READTHEDOCS_TEMPLATE_IMGAUG = "[{name}](https://albumentations.readthedocs.io/en/latest/api/imgaug.html#albumentations"
-TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_ALBU + ".augmentations.transforms.{name})"
-IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE = READTHEDOCS_TEMPLATE_IMGAUG + ".imgaug.transforms.{name})"
+def make_augmentation_docs_link(cls):
+    module_parts = cls.__module__.split(".")
+    module_page = "/".join(module_parts[1:])
+    return (
+        "[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
+    ).format(module_page=module_page, cls=cls)
 
 
 class Targets(Enum):
@@ -50,21 +50,30 @@ def make_separator(width, align_center):
 
 def get_transforms_info():
     transforms_info = {}
-    for name, cls in inspect.getmembers(albumentations):
+    members = inspect.getmembers(albumentations)
+    for name, cls in members:
         if inspect.isclass(cls) and issubclass(cls, albumentations.BasicTransform) and name not in IGNORED_CLASSES:
-            if "DeprecationWarning" in inspect.getsource(cls):
+            if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
                 continue
 
             targets = {Targets.IMAGE}
             if issubclass(cls, albumentations.DualTransform):
                 targets.add(Targets.MASKS)
 
-            if hasattr(cls, "apply_to_bbox") and cls.apply_to_bbox is not albumentations.DualTransform.apply_to_bbox:
+            if (
+                hasattr(cls, "apply_to_bbox") and cls.apply_to_bbox is not albumentations.DualTransform.apply_to_bbox
+            ) or (
+                hasattr(cls, "apply_to_bboxes")
+                and cls.apply_to_bboxes is not albumentations.DualTransform.apply_to_bboxes
+            ):
                 targets.add(Targets.BBOXES)
 
             if (
                 hasattr(cls, "apply_to_keypoint")
                 and cls.apply_to_keypoint is not albumentations.DualTransform.apply_to_keypoint
+            ) or (
+                hasattr(cls, "apply_to_keypoints")
+                and cls.apply_to_keypoints is not albumentations.DualTransform.apply_to_keypoints
             ):
                 targets.add(Targets.KEYPOINTS)
 
@@ -76,15 +85,9 @@ def get_transforms_info():
                 targets.add(Targets.BBOXES)
                 targets.add(Targets.KEYPOINTS)
 
-            docs_link = None
-            if cls.__module__ == "albumentations.augmentations.transforms":
-                docs_link = TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
-            elif cls.__module__ == "albumentations.imgaug.transforms":
-                docs_link = IMGAUG_TRANSFORM_NAME_WITH_LINK_TEMPLATE.format(name=name)
-
             transforms_info[name] = {
                 "targets": targets,
-                "docs_link": docs_link,
+                "docs_link": make_augmentation_docs_link(cls),
                 "image_only": issubclass(cls, albumentations.ImageOnlyTransform),
             }
     return transforms_info
@@ -138,24 +141,27 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
         if line not in text:
             dual_lines_not_in_text.append(line)
             outdated_docs.update(["Spatial-level"])
-    if not outdated_docs:
-        return
-
-    raise ValueError(
-        "Docs for the following transform types are outdated: {outdated_docs_headers}. "
-        "Generate new docs by executing the `python tools/{py_file} make` command "
-        "and paste them to {filename}.\n"
-        "# Image only transforms lines not in file:\n"
-        "{image_only_lines}\n"
-        "# Dual transforms lines not in file:\n"
-        "{dual_lines}".format(
-            outdated_docs_headers=", ".join(outdated_docs),
-            py_file=os.path.basename(os.path.realpath(__file__)),
-            filename=os.path.basename(filepath),
-            image_only_lines="\n".join(image_only_lines_not_in_text),
-            dual_lines="\n".join(dual_lines_not_in_text),
+    if outdated_docs:
+        raise ValueError(
+            "Docs for the following transform types are outdated: {outdated_docs_headers}. "
+            "Generate new docs by executing the `python tools/{py_file} make` command "
+            "and paste them to {filename}.\n"
+            "# Pixel-level transforms lines not in file:\n"
+            "{image_only_lines}\n"
+            "# Spatial-level transforms lines not in file:\n"
+            "{dual_lines}".format(
+                outdated_docs_headers=", ".join(outdated_docs),
+                py_file=os.path.basename(os.path.realpath(__file__)),
+                filename=os.path.basename(filepath),
+                image_only_lines="\n".join(image_only_lines_not_in_text),
+                dual_lines="\n".join(dual_lines_not_in_text),
+            )
         )
-    )
+
+    if image_only_transforms_links not in text:
+        raise ValueError("Image only transforms links are outdated.")
+    if dual_transforms_table not in text:
+        raise ValueError("Dual transforms table are outdated.")
 
 
 def main():
@@ -173,8 +179,13 @@ def main():
         dual_transforms, header=["Transform"] + [target.value for target in Targets]
     )
     if command == "make":
+        print("===== COPY THIS TABLE TO README.MD BELOW ### Pixel-level transforms =====")
         print(image_only_transforms_links)
+        print("===== END OF COPY =====")
+        print()
+        print("===== COPY THIS TABLE TO README.MD BELOW ### Spatial-level transforms =====")
         print(dual_transforms_table)
+        print("===== END OF COPY =====")
     else:
         check_docs(args.filepath, image_only_transforms_links, dual_transforms_table)
 
