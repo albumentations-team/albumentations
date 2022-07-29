@@ -1,7 +1,0 @@
-https://download.pytorch.org/whl/cpu/torch-1.0.1.post2-cp37-cp37m-linux_x86_64.whl
-mock
-numpy==1.15.4
-scikit-image
-sphinx-autobuild
-sphinx<2
-sphinx_rtd_theme
