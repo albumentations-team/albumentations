@@ -408,7 +408,7 @@ class OpticalDistortion(DualTransform):
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
 
     Targets:
-        image, mask
+        image, mask, bbox
 
     Image types:
         uint8, float32
@@ -438,6 +438,18 @@ class OpticalDistortion(DualTransform):
 
     def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+
+    def apply_to_bbox(self, bbox, k=0, dx=0, dy=0, **params):
+        rows, cols = params["rows"], params["cols"]
+        mask = np.zeros((rows, cols), dtype=np.uint8)
+        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_denorm[:4]
+        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        mask[y_min:y_max, x_min:x_max] = 1
+        mask = F.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        bbox_returned = F.bbox_from_mask(mask)
+        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
+        return bbox_returned
 
     def get_params(self):
         return {
@@ -521,6 +533,20 @@ class GridDistortion(DualTransform):
             self.border_mode,
             self.mask_value,
         )
+
+    def apply_to_bbox(self, bbox, stepsx=[], stepsy=[], **params):
+        rows, cols = params["rows"], params["cols"]
+        mask = np.zeros((rows, cols), dtype=np.uint8)
+        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_denorm[:4]
+        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        mask[y_min:y_max, x_min:x_max] = 1
+        mask = F.grid_distortion(
+            mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+        )
+        bbox_returned = F.bbox_from_mask(mask)
+        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
+        return bbox_returned
 
     def get_params(self):
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
