@@ -1,5 +1,4 @@
 import math
-import typing
 from typing import List, Optional, Sequence, Tuple, Union
 
 import cv2
@@ -296,16 +295,16 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, col
 
 @preserve_shape
 def elastic_transform(
-    img,
-    alpha,
-    sigma,
-    alpha_affine,
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-    random_state=None,
-    approximate=False,
-    same_dxdy=False,
+    img: np.ndarray,
+    alpha: float,
+    sigma: float,
+    alpha_affine: float,
+    interpolation: int = cv2.INTER_LINEAR,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[ImageColorType] = None,
+    random_state: Optional[np.random.RandomState] = None,
+    approximate: bool = False,
+    same_dxdy: bool = False,
 ):
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
@@ -318,18 +317,19 @@ def elastic_transform(
     height, width = img.shape[:2]
 
     # Random affine
-    center_square = np.float32((height, width)) // 2
+    center_square = np.array((height, width), dtype=np.float32) // 2
     square_size = min((height, width)) // 3
     alpha = float(alpha)
     sigma = float(sigma)
     alpha_affine = float(alpha_affine)
 
-    pts1 = np.float32(
+    pts1 = np.array(
         [
             center_square + square_size,
             [center_square[0] + square_size, center_square[1] - square_size],
             center_square - square_size,
-        ]
+        ],
+        dtype=np.float32,
     )
     pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
         np.float32
@@ -1088,7 +1088,7 @@ def pad_with_params(
     w_pad_left: int,
     w_pad_right: int,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[int] = None,
+    value: Optional[ImageColorType] = None,
 ) -> np.ndarray:
     pad_fn = _maybe_process_in_chunks(
         cv2.copyMakeBorder,
@@ -1104,14 +1104,14 @@ def pad_with_params(
 
 @preserve_shape
 def optical_distortion(
-    img,
-    k=0,
-    dx=0,
-    dy=0,
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-):
+    img: np.ndarray,
+    k: int = 0,
+    dx: int = 0,
+    dy: int = 0,
+    interpolation: int = cv2.INTER_LINEAR,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[ImageColorType] = None,
+) -> np.ndarray:
     """Barrel / pincushion distortion. Unconventional augment.
 
     Reference:
@@ -1132,27 +1132,19 @@ def optical_distortion(
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
     map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
-    img = cv2.remap(
-        img,
-        map1,
-        map2,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return img
+    return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
 
 
 @preserve_shape
 def grid_distortion(
-    img,
-    num_steps=10,
-    xsteps=(),
-    ysteps=(),
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-):
+    img: np.ndarray,
+    num_steps: int = 10,
+    xsteps: Tuple = (),
+    ysteps: Tuple = (),
+    interpolation: int = cv2.INTER_LINEAR,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[ImageColorType] = None,
+) -> np.ndarray:
     """Perform a grid distortion of an input image.
 
     Reference:
@@ -1209,15 +1201,15 @@ def grid_distortion(
 
 @preserve_shape
 def elastic_transform_approx(
-    img,
-    alpha,
-    sigma,
-    alpha_affine,
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-    random_state=None,
-):
+    img: np.ndarray,
+    alpha: float,
+    sigma: float,
+    alpha_affine: float,
+    interpolation: int = cv2.INTER_LINEAR,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[ImageColorType] = None,
+    random_state: Optional[np.random.RandomState] = None,
+) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
@@ -1229,18 +1221,19 @@ def elastic_transform_approx(
     height, width = img.shape[:2]
 
     # Random affine
-    center_square = np.float32((height, width)) // 2
+    center_square = np.array((height, width), dtype=np.float32) // 2
     square_size = min((height, width)) // 3
     alpha = float(alpha)
     sigma = float(sigma)
     alpha_affine = float(alpha_affine)
 
-    pts1 = np.float32(
+    pts1 = np.array(
         [
             center_square + square_size,
             [center_square[0] + square_size, center_square[1] - square_size],
             center_square - square_size,
-        ]
+        ],
+        dtype=np.float32,
     )
     pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
         np.float32
