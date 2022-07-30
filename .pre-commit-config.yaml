@@ -22,6 +22,12 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies: [ types-PyYAML ]
+        args:
+          [
+            --ignore-missing-imports,
+            --warn-no-return,
+            --warn-redundant-casts,
+          ]
   - repo: https://gitlab.com/pycqa/flake8
     rev: 3.9.2
     hooks:

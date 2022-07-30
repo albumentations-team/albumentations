@@ -72,7 +72,7 @@ def crop_bbox_by_coords(
         tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
-    bbox = typing.cast(BoxType, denormalize_bbox(bbox, rows, cols))
+    bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox[:4]
     x1, y1, _, _ = crop_coords
     cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1

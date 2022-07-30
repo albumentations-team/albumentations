@@ -596,7 +596,7 @@ def bbox_affine(
     y_min = np.min(points[:, 1])
     y_max = np.max(points[:, 1])
 
-    return typing.cast(BoxType, normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1]))
+    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
 
 
 @preserve_channel_dim
@@ -646,7 +646,7 @@ def bbox_safe_rotate(bbox: BoxType, matrix: np.ndarray, cols: int, rows: int) ->
     x1, x2 = fix_point(x1, x2, cols)
     y1, y2 = fix_point(y1, y2, rows)
 
-    return typing.cast(BoxType, normalize_bbox((x1, y1, x2, y2), rows, cols))
+    return normalize_bbox((x1, y1, x2, y2), rows, cols)
 
 
 def keypoint_safe_rotate(
@@ -842,7 +842,7 @@ def bbox_piecewise_affine(
     y1 = keypoints_arr[:, 1].min()
     x2 = keypoints_arr[:, 0].max()
     y2 = keypoints_arr[:, 1].max()
-    return typing.cast(BoxType, normalize_bbox((x1, y1, x2, y2), h, w))
+    return normalize_bbox((x1, y1, x2, y2), h, w)
 
 
 def vflip(img: np.ndarray) -> np.ndarray:
