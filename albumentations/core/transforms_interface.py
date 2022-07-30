@@ -11,11 +11,27 @@ import numpy as np
 from .serialization import Serializable, get_shortest_class_fullname
 from .utils import format_args
 
-__all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "BoxType", "KeypointType"]
+__all__ = [
+    "to_tuple",
+    "BasicTransform",
+    "DualTransform",
+    "ImageOnlyTransform",
+    "NoOp",
+    "BoxType",
+    "KeypointType",
+    "ImageColorType",
+    "ScaleFloatType",
+    "ScaleIntType",
+    "ImageColorType",
+]
 
 NumType = Union[int, float, np.ndarray]
 BoxType = Union[Tuple[float, float, float, float], Tuple[float, float, float, float, Any]]
 KeypointType = Union[Tuple[float, float, float, float], Tuple[float, float, float, float, Any]]
+ImageColorType = Union[float, Sequence[float]]
+
+ScaleFloatType = Union[float, Tuple[float, float]]
+ScaleIntType = Union[int, Tuple[int, int]]
 
 
 def to_tuple(param, low=None, bias=None):

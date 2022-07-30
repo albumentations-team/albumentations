@@ -2,7 +2,7 @@ from __future__ import division
 
 from functools import wraps
 from itertools import product
-from typing import Optional, Sequence, Union
+from typing import Callable, Optional, Sequence, Union
 from warnings import warn
 
 import cv2
@@ -233,7 +233,7 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     return normalize_numpy(img, mean, denominator)
 
 
-def _maybe_process_in_chunks(process_fn, **kwargs):
+def _maybe_process_in_chunks(process_fn, **kwargs) -> Callable[[np.ndarray], np.ndarray]:
     """
     Wrap OpenCV function to enable processing images with more than 4 channels.
 
@@ -250,7 +250,7 @@ def _maybe_process_in_chunks(process_fn, **kwargs):
     """
 
     @wraps(process_fn)
-    def __process_fn(img):
+    def __process_fn(img: np.ndarray) -> np.ndarray:
         num_channels = get_num_channels(img)
         if num_channels > 4:
             chunks = []

@@ -9,7 +9,14 @@ import skimage.transform
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 
 from ... import random_utils
-from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
+from ...core.transforms_interface import (
+    BoxType,
+    DualTransform,
+    ImageColorType,
+    KeypointType,
+    ScaleFloatType,
+    to_tuple,
+)
 from ..functional import bbox_from_mask
 from . import functional as F
 
@@ -815,7 +822,7 @@ class PiecewiseAffine(DualTransform):
 
     def __init__(
         self,
-        scale: Union[float, Sequence[float]] = (0.03, 0.05),
+        scale: ScaleFloatType = (0.03, 0.05),
         nb_rows: Union[int, Sequence[int]] = 4,
         nb_cols: Union[int, Sequence[int]] = 4,
         interpolation: int = 1,
@@ -1161,13 +1168,13 @@ class VerticalFlip(DualTransform):
         uint8, float32
     """
 
-    def apply(self, img, **params):
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.vflip(img)
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         return F.bbox_vflip(bbox, **params)
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
         return F.keypoint_vflip(keypoint, **params)
 
     def get_transform_init_args_names(self):
@@ -1187,7 +1194,7 @@ class HorizontalFlip(DualTransform):
         uint8, float32
     """
 
-    def apply(self, img, **params):
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
             # Opencv is faster than numpy only in case of
             # non-gray scale 8bits images
@@ -1195,10 +1202,10 @@ class HorizontalFlip(DualTransform):
 
         return F.hflip(img)
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         return F.bbox_hflip(bbox, **params)
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
         return F.keypoint_hflip(keypoint, **params)
 
     def get_transform_init_args_names(self):
@@ -1218,7 +1225,7 @@ class Flip(DualTransform):
         uint8, float32
     """
 
-    def apply(self, img, d=0, **params):
+    def apply(self, img: np.ndarray, d: int = 0, **params) -> np.ndarray:
         """Args:
         d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
                 -1 for both vertical and horizontal flipping (which is also could be seen as rotating the input by
@@ -1230,10 +1237,10 @@ class Flip(DualTransform):
         # Random int in the range [-1, 1]
         return {"d": random.randint(-1, 1)}
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         return F.bbox_flip(bbox, **params)
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
         return F.keypoint_flip(keypoint, **params)
 
     def get_transform_init_args_names(self):
@@ -1253,13 +1260,13 @@ class Transpose(DualTransform):
         uint8, float32
     """
 
-    def apply(self, img, **params):
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.transpose(img)
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         return F.bbox_transpose(bbox, 0, **params)
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
         return F.keypoint_transpose(keypoint)
 
     def get_transform_init_args_names(self):
@@ -1293,14 +1300,14 @@ class OpticalDistortion(DualTransform):
 
     def __init__(
         self,
-        distort_limit=0.05,
-        shift_limit=0.05,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=0.5,
+        distort_limit: ScaleFloatType = 0.05,
+        shift_limit: ScaleFloatType = 0.05,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: Optional[ImageColorType] = None,
+        mask_value: Optional[ImageColorType] = None,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(OpticalDistortion, self).__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
@@ -1310,13 +1317,15 @@ class OpticalDistortion(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self, img: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, interpolation: int = cv2.INTER_LINEAR, **params
+    ) -> np.ndarray:
         return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
 
-    def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
+    def apply_to_mask(self, img: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, **params) -> np.ndarray:
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_bbox(self, bbox, k=0, dx=0, dy=0, **params):
+    def apply_to_bbox(self, bbox: BoxType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
@@ -1372,14 +1381,14 @@ class GridDistortion(DualTransform):
 
     def __init__(
         self,
-        num_steps=5,
-        distort_limit=0.3,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=0.5,
+        num_steps: int = 5,
+        distort_limit: ScaleFloatType = 0.3,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: Optional[ImageColorType] = None,
+        mask_value: Optional[ImageColorType] = None,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(GridDistortion, self).__init__(always_apply, p)
         self.num_steps = num_steps
@@ -1389,15 +1398,17 @@ class GridDistortion(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self, img: np.ndarray, stepsx: Tuple = (), stepsy: Tuple = (), interpolation: int = cv2.INTER_LINEAR, **params
+    ) -> np.ndarray:
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode, self.value)
 
-    def apply_to_mask(self, img, stepsx=(), stepsy=(), **params):
+    def apply_to_mask(self, img: np.ndarray, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> np.ndarray:
         return F.grid_distortion(
             img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
 
-    def apply_to_bbox(self, bbox, stepsx=[], stepsy=[], **params):
+    def apply_to_bbox(self, bbox: BoxType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)

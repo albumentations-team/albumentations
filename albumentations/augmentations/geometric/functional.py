@@ -9,7 +9,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 from ... import random_utils
 from ...core.bbox_utils import denormalize_bbox, normalize_bbox
-from ...core.transforms_interface import BoxType, KeypointType
+from ...core.transforms_interface import BoxType, ImageColorType, KeypointType
 from ..functional import (
     _maybe_process_in_chunks,
     angle_2pi_range,
@@ -130,10 +130,10 @@ def keypoint_rot90(keypoint: KeypointType, factor: int, rows: int, cols: int, **
 @preserve_channel_dim
 def rotate(
     img: np.ndarray,
-    angle: int,
+    angle: float,
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[Tuple[int, ...]] = None,
+    value: Optional[ImageColorType] = None,
 ):
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
@@ -146,7 +146,7 @@ def rotate(
     return warp_fn(img)
 
 
-def bbox_rotate(bbox: BoxType, angle: int, method: str, rows: int, cols: int) -> BoxType:
+def bbox_rotate(bbox: BoxType, angle: float, method: str, rows: int, cols: int) -> BoxType:
     """Rotates a bounding box by angle degrees.
 
     Args:
@@ -858,7 +858,7 @@ def hflip_cv2(img: np.ndarray) -> np.ndarray:
 
 
 @preserve_shape
-def random_flip(img, code):
+def random_flip(img: np.ndarray, code: int) -> np.ndarray:
     return cv2.flip(img, code)
 
 
@@ -1050,7 +1050,7 @@ def pad(
     min_height: int,
     min_width: int,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[Tuple[int, ...]] = None,
+    value: Optional[ImageColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
