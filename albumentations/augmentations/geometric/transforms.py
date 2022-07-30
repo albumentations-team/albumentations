@@ -983,11 +983,11 @@ class PadIfNeeded(DualTransform):
         pad_height_divisor: Optional[int] = None,
         pad_width_divisor: Optional[int] = None,
         position: Union[PositionType, str] = PositionType.CENTER,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=1.0,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: Optional[ImageColorType] = None,
+        mask_value: Optional[ImageColorType] = None,
+        always_apply: bool = False,
+        p: float = 1.0,
     ):
         if (min_height is None) == (pad_height_divisor is None):
             raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
@@ -1054,7 +1054,7 @@ class PadIfNeeded(DualTransform):
 
     def apply(
         self, img: np.ndarray, pad_top: int = 0, pad_bottom: int = 0, pad_left: int = 0, pad_right: int = 0, **params
-    ):
+    ) -> np.ndarray:
         return F.pad_with_params(
             img,
             pad_top,
@@ -1067,7 +1067,7 @@ class PadIfNeeded(DualTransform):
 
     def apply_to_mask(
         self, img: np.ndarray, pad_top: int = 0, pad_bottom: int = 0, pad_left: int = 0, pad_right: int = 0, **params
-    ):
+    ) -> np.ndarray:
         return F.pad_with_params(
             img,
             pad_top,
@@ -1088,12 +1088,11 @@ class PadIfNeeded(DualTransform):
         rows: int = 0,
         cols: int = 0,
         **params
-    ):
+    ) -> BoxType:
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
         bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
         return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
-    # skipcq: PYL-W0613
     def apply_to_keypoint(
         self,
         keypoint: KeypointType,
@@ -1102,7 +1101,7 @@ class PadIfNeeded(DualTransform):
         pad_left: int = 0,
         pad_right: int = 0,
         **params
-    ):
+    ) -> KeypointType:
         x, y, angle, scale = keypoint[:4]
         return x + pad_left, y + pad_top, angle, scale
 
