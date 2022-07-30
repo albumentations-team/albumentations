@@ -305,8 +305,6 @@ def convert_bbox_to_albumentations(
         raise ValueError(
             f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
         )
-    # if isinstance(bbox, np.ndarray):
-    #     bbox = bbox.tolist()
 
     if source_format == "coco":
         (x_min, y_min, width, height), tail = bbox[:4], bbox[4:]
