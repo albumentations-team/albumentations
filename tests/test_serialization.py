@@ -9,6 +9,7 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
@@ -16,7 +17,6 @@ from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
     check_all_augs_exists,
-    get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
     set_seed,
@@ -656,16 +656,16 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 @pytest.mark.parametrize("p", [1])
 def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, seed, p):
     def vflip_image(image, **kwargs):
-        return F.vflip(image)
+        return FGeometric.vflip(image)
 
     def vflip_mask(mask, **kwargs):
-        return F.vflip(mask)
+        return FGeometric.vflip(mask)
 
     def vflip_bbox(bbox, **kwargs):
-        return F.bbox_vflip(bbox, **kwargs)
+        return FGeometric.bbox_vflip(bbox, **kwargs)
 
     def vflip_keypoint(keypoint, **kwargs):
-        return F.keypoint_vflip(keypoint, **kwargs)
+        return FGeometric.keypoint_vflip(keypoint, **kwargs)
 
     aug = A.Lambda(name="vflip", image=vflip_image, mask=vflip_mask, bbox=vflip_bbox, keypoint=vflip_keypoint, p=p)
 
