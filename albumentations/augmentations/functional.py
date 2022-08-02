@@ -1453,9 +1453,7 @@ def superpixels(
             scale = max_size / size
             height, width = image.shape[:2]
             new_height, new_width = int(height * scale), int(width * scale)
-            resize_fn = _maybe_process_in_chunks(
-                cv2.resize, dsize=(new_width, new_height), interpolation=interpolation
-            )
+            resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(new_width, new_height), interpolation=interpolation)
             image = resize_fn(image)
 
     from skimage.segmentation import slic

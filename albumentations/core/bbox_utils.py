@@ -112,9 +112,7 @@ class BboxProcessor(DataProcessor):
 
     def filter(self, data: Sequence, rows: int, cols: int) -> List:
         self.params: BboxParams
-        return filter_bboxes(
-            data, rows, cols, min_area=self.params.min_area, min_visibility=self.params.min_visibility
-        )
+        return filter_bboxes(data, rows, cols, min_area=self.params.min_area, min_visibility=self.params.min_visibility)
 
     def check(self, data: Sequence, rows: int, cols: int) -> None:
         check_bboxes(data)

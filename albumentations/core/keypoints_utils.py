@@ -167,9 +167,7 @@ def check_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int) -> None
         check_keypoint(kp, rows, cols)
 
 
-def filter_keypoints(
-    keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool
-) -> Sequence[Sequence]:
+def filter_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool) -> Sequence[Sequence]:
     if not remove_invisible:
         return keypoints
 

@@ -287,9 +287,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         self.blend_ratio = blend_ratio
         expected_transformers = ("pca", "standard", "minmax")
         if transform_type not in expected_transformers:
-            raise ValueError(
-                f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}"
-            )
+            raise ValueError(f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}")
         self.transform_type = transform_type
 
     @staticmethod
