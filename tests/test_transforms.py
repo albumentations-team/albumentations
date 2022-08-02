@@ -1223,3 +1223,31 @@ def test_bbox_clipping_perspective():
     bboxes = np.array([[0, 0, 100, 100, 1]])
     res = transform(image=image, bboxes=bboxes)["bboxes"]
     assert len(res) == 0
+
+
+@pytest.mark.parametrize("seed", [i for i in range(10)])
+def test_motion_blur_allow_shifted(seed):
+    random.seed(seed)
+
+    transform = A.MotionBlur(allow_shifted=False)
+    kernel = transform.get_params()["kernel"]
+
+    center = kernel.shape[0] / 2 - 0.5
+
+    def check_center(vector):
+        start = None
+        end = None
+
+        for i, v in enumerate(vector):
+            if start is None and v != 0:
+                start = i
+            elif start is not None and v == 0:
+                end = i
+                break
+        if end is None:
+            end = len(vector)
+
+        assert (end + start - 1) / 2 == center
+
+    check_center(kernel.sum(axis=0))
+    check_center(kernel.sum(axis=1))
