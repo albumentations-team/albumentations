@@ -660,11 +660,7 @@ class Affine(DualTransform):
         return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
 
     def apply_to_keypoint(
-        self,
-        keypoint: KeypointType,
-        matrix: skimage.transform.ProjectiveTransform = None,
-        scale: dict = None,
-        **params
+        self, keypoint: KeypointType, matrix: skimage.transform.ProjectiveTransform = None, scale: dict = None, **params
     ) -> KeypointType:
         return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
@@ -912,9 +908,7 @@ class PiecewiseAffine(DualTransform):
             "matrix": matrix,
         }
 
-    def apply(
-        self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params
-    ) -> np.ndarray:
+    def apply(self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
 
     def apply_to_mask(
