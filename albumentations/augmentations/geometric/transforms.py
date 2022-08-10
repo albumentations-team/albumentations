@@ -1366,6 +1366,7 @@ class GridDistortion(DualTransform):
                     list of ints,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         normalized (bool): if true, distortion will be normalized to do not go outside the image. Default: False
+            See for more information: https://github.com/albumentations-team/albumentations/pull/722
 
     Targets:
         image, mask
