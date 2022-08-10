@@ -449,7 +449,7 @@ class RandomCropNearBBox(DualTransform):
 
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
-    def apply_to_bbox(self, bbox: Tuple[float, float, float, float], **params) -> Tuple[float, float, float, float]:
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         return F.bbox_crop(bbox, **params)
 
     def apply_to_keypoint(

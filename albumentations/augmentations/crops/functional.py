@@ -6,7 +6,7 @@ import numpy as np
 
 from ...core.bbox_utils import denormalize_bbox, normalize_bbox
 from ...core.transforms_interface import BoxType, KeypointType
-from ..functional import _maybe_process_in_chunks, pad_with_params, preserve_channel_dim
+from ..functional import _maybe_process_in_chunks, preserve_channel_dim
 from ..geometric import functional as FGeometric
 
 __all__ = [
@@ -72,7 +72,7 @@ def crop_bbox_by_coords(
         tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
-    bbox = typing.cast(BoxType, denormalize_bbox(bbox, rows, cols))
+    bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox[:4]
     x1, y1, _, _ = crop_coords
     cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
@@ -242,7 +242,7 @@ def crop_and_pad(
     if crop_params is not None and any(i != 0 for i in crop_params):
         img = crop(img, *crop_params)
     if pad_params is not None and any(i != 0 for i in pad_params):
-        img = pad_with_params(img, *pad_params, border_mode=pad_mode, value=pad_value)
+        img = FGeometric.pad_with_params(img, *pad_params, border_mode=pad_mode, value=pad_value)
 
     if keep_size:
         resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
@@ -261,7 +261,7 @@ def crop_and_pad_bbox(
     result_cols,
     keep_size: bool,
 ) -> BoxType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
+    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)[:4]
 
     if crop_params is not None:
         crop_x, crop_y = crop_params[:2]
@@ -270,9 +270,7 @@ def crop_and_pad_bbox(
         top, bottom, left, right = pad_params
         x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
 
-    bbox = typing.cast(BoxType, normalize_bbox((x1, y1, x2, y2), result_rows, result_cols))
-
-    return bbox
+    return normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
 
 
 def crop_and_pad_keypoint(
@@ -285,7 +283,7 @@ def crop_and_pad_keypoint(
     result_cols: int,
     keep_size: bool,
 ) -> KeypointType:
-    x, y, angle, scale = keypoint
+    x, y, angle, scale = keypoint[:4]
 
     if crop_params is not None:
         crop_x1, crop_y1, crop_x2, crop_y2 = crop_params
