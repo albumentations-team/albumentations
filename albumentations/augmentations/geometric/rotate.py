@@ -123,7 +123,7 @@ class Rotate(DualTransform):
     ):
         keypoint_out = F.keypoint_rotate(keypoint, angle, rows, cols, **params)
         if self.crop_border:
-            keypoint_out = FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, x_max, y_min, y_max))
+            keypoint_out = FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
         return keypoint_out
 
     @staticmethod
