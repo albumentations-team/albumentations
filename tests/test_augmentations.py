@@ -833,7 +833,6 @@ def test_pixel_domain_adaptation(kind):
     ),
 )
 def test_non_contiguous_input(augmentation_cls, params, bboxes):
-
     image = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
     mask = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
 
