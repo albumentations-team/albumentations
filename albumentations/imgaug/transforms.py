@@ -1,13 +1,34 @@
-import imgaug as ia
+try:
+    import imgaug as ia
+except ImportError as e:
+    raise ImportError(
+        "You are trying to import an augmentation that depends on the imgaug library, but imgaug is not installed. To "
+        "install a version of Albumentations that contains imgaug please run 'pip install -U albumentations[imgaug]'"
+    ) from e
 
 try:
     from imgaug import augmenters as iaa
 except ImportError:
     import imgaug.imgaug.augmenters as iaa
 
-from ..augmentations.bbox_utils import convert_bboxes_from_albumentations, convert_bboxes_to_albumentations
-from ..augmentations.keypoints_utils import convert_keypoints_from_albumentations, convert_keypoints_to_albumentations
-from ..core.transforms_interface import BasicTransform, DualTransform, ImageOnlyTransform, to_tuple
+import warnings
+
+from albumentations.core.bbox_utils import (
+    convert_bboxes_from_albumentations,
+    convert_bboxes_to_albumentations,
+)
+from albumentations.core.keypoints_utils import (
+    convert_keypoints_from_albumentations,
+    convert_keypoints_to_albumentations,
+)
+
+from ..augmentations import Perspective
+from ..core.transforms_interface import (
+    BasicTransform,
+    DualTransform,
+    ImageOnlyTransform,
+    to_tuple,
+)
 
 __all__ = [
     "BasicIAATransform",
@@ -83,15 +104,16 @@ class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):
 
 
 class IAACropAndPad(DualIAATransform):
-    def __init__(
-        self, px=None, percent=None, pad_mode="constant", pad_cval=0, keep_size=True, always_apply=False, p=1
-    ):
+    """This augmentation is deprecated. Please use CropAndPad instead."""
+
+    def __init__(self, px=None, percent=None, pad_mode="constant", pad_cval=0, keep_size=True, always_apply=False, p=1):
         super(IAACropAndPad, self).__init__(always_apply, p)
         self.px = px
         self.percent = percent
         self.pad_mode = pad_mode
         self.pad_cval = pad_cval
         self.keep_size = keep_size
+        warnings.warn("IAACropAndPad is deprecated. Please use CropAndPad instead", FutureWarning)
 
     @property
     def processor(self):
@@ -102,6 +124,12 @@ class IAACropAndPad(DualIAATransform):
 
 
 class IAAFliplr(DualIAATransform):
+    """This augmentation is deprecated. Please use HorizontalFlip instead."""
+
+    def __init__(self, always_apply=False, p=0.5):
+        super().__init__(always_apply, p)
+        warnings.warn("IAAFliplr is deprecated. Please use HorizontalFlip instead.", FutureWarning)
+
     @property
     def processor(self):
         return iaa.Fliplr(1)
@@ -111,6 +139,12 @@ class IAAFliplr(DualIAATransform):
 
 
 class IAAFlipud(DualIAATransform):
+    """This augmentation is deprecated. Please use VerticalFlip instead."""
+
+    def __init__(self, always_apply=False, p=0.5):
+        super().__init__(always_apply, p)
+        warnings.warn("IAAFlipud is deprecated. Please use VerticalFlip instead.", FutureWarning)
+
     @property
     def processor(self):
         return iaa.Flipud(1)
@@ -121,6 +155,7 @@ class IAAFlipud(DualIAATransform):
 
 class IAAEmboss(ImageOnlyIAATransform):
     """Emboss the input image and overlays the result with the original image.
+    This augmentation is deprecated. Please use Emboss instead.
 
     Args:
         alpha ((float, float)): range to choose the visibility of the embossed image. At 0, only the original image is
@@ -136,6 +171,7 @@ class IAAEmboss(ImageOnlyIAATransform):
         super(IAAEmboss, self).__init__(always_apply, p)
         self.alpha = to_tuple(alpha, 0.0)
         self.strength = to_tuple(strength, 0.0)
+        warnings.warn("This augmentation is deprecated. Please use Emboss instead", FutureWarning)
 
     @property
     def processor(self):
@@ -148,6 +184,8 @@ class IAAEmboss(ImageOnlyIAATransform):
 class IAASuperpixels(ImageOnlyIAATransform):
     """Completely or partially transform the input image to its superpixel representation. Uses skimage's version
     of the SLIC algorithm. May be slow.
+
+    This augmentation is deprecated. Please use Superpixels instead.
 
     Args:
         p_replace (float): defines the probability of any superpixel area being replaced by the superpixel, i.e. by
@@ -163,6 +201,7 @@ class IAASuperpixels(ImageOnlyIAATransform):
         super(IAASuperpixels, self).__init__(always_apply, p)
         self.p_replace = p_replace
         self.n_segments = n_segments
+        warnings.warn("IAASuperpixels is deprecated. Please use Superpixels instead.", FutureWarning)
 
     @property
     def processor(self):
@@ -174,7 +213,7 @@ class IAASuperpixels(ImageOnlyIAATransform):
 
 class IAASharpen(ImageOnlyIAATransform):
     """Sharpen the input image and overlays the result with the original image.
-
+    This augmentation is deprecated. Please use Sharpen instead
     Args:
         alpha ((float, float)): range to choose the visibility of the sharpened image. At 0, only the original image is
             visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
@@ -189,6 +228,7 @@ class IAASharpen(ImageOnlyIAATransform):
         super(IAASharpen, self).__init__(always_apply, p)
         self.alpha = to_tuple(alpha, 0)
         self.lightness = to_tuple(lightness, 0)
+        warnings.warn("IAASharpen is deprecated. Please use Sharpen instead", FutureWarning)
 
     @property
     def processor(self):
@@ -200,6 +240,8 @@ class IAASharpen(ImageOnlyIAATransform):
 
 class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
     """Add gaussian noise to the input image.
+
+    This augmentation is deprecated. Please use GaussNoise instead.
 
     Args:
         loc (int): mean of the normal distribution that generates the noise. Default: 0.
@@ -216,6 +258,7 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
         self.loc = loc
         self.scale = to_tuple(scale, 0.0)
         self.per_channel = per_channel
+        warnings.warn("IAAAdditiveGaussianNoise is deprecated. Please use GaussNoise instead", FutureWarning)
 
     @property
     def processor(self):
@@ -228,6 +271,8 @@ class IAAAdditiveGaussianNoise(ImageOnlyIAATransform):
 class IAAPiecewiseAffine(DualIAATransform):
     """Place a regular grid of points on the input and randomly move the neighbourhood of these point around
     via affine transformations.
+
+    This augmentation is deprecated. Please use PiecewiseAffine instead.
 
     Note: This class introduce interpolation artifacts to mask if it has values other than {0;1}
 
@@ -251,6 +296,7 @@ class IAAPiecewiseAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
+        warnings.warn("This IAAPiecewiseAffine is deprecated. Please use PiecewiseAffine instead", FutureWarning)
 
     @property
     def processor(self):
@@ -263,6 +309,8 @@ class IAAPiecewiseAffine(DualIAATransform):
 class IAAAffine(DualIAATransform):
     """Place a regular grid of points on the input and randomly move the neighbourhood of these point around
     via affine transformations.
+
+    This augmentation is deprecated. Please use Affine instead.
 
     Note: This class introduce interpolation artifacts to mask if it has values other than {0;1}
 
@@ -295,6 +343,7 @@ class IAAAffine(DualIAATransform):
         self.order = order
         self.cval = cval
         self.mode = mode
+        warnings.warn("This IAAAffine is deprecated. Please use Affine instead", FutureWarning)
 
     @property
     def processor(self):
@@ -313,8 +362,9 @@ class IAAAffine(DualIAATransform):
         return ("scale", "translate_percent", "translate_px", "rotate", "shear", "order", "cval", "mode")
 
 
-class IAAPerspective(DualIAATransform):
+class IAAPerspective(Perspective):
     """Perform a random four point perspective transform of the input.
+    This augmentation is deprecated. Please use Perspective instead.
 
     Note: This class introduce interpolation artifacts to mask if it has values other than {0;1}
 
@@ -331,6 +381,7 @@ class IAAPerspective(DualIAATransform):
         super(IAAPerspective, self).__init__(always_apply, p)
         self.scale = to_tuple(scale, 1.0)
         self.keep_size = keep_size
+        warnings.warn("This IAAPerspective is deprecated. Please use Perspective instead", FutureWarning)
 
     @property
     def processor(self):
