@@ -319,6 +319,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": True, "drop_value": None}],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": False, "drop_value": None, "mask_drop_value": 15}],
+    [A.RandomCropFromBorders, dict(crop_left=0.2, crop_right=0.3, crop_top=0.05, crop_bottom=0.5)],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
