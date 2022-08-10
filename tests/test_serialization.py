@@ -189,16 +189,6 @@ AUGMENTATION_CLS_PARAMS = [
         },
     ],
     [
-        A.NormalizedGridDistortion,
-        {
-            "num_steps": 10,
-            "distort_limit": 0.5,
-            "interpolation": cv2.INTER_CUBIC,
-            "border_mode": cv2.BORDER_CONSTANT,
-            "value": (10, 10, 10),
-        },
-    ],
-    [
         A.ElasticTransform,
         {
             "alpha": 2,
@@ -466,7 +456,6 @@ def test_augmentations_for_bboxes_serialization(
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
             A.TemplateTransform,
-            A.NormalizedGridDistortion,
         },
     ),
 )

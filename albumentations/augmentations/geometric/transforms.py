@@ -1,3 +1,4 @@
+import math
 import random
 from enum import Enum
 from typing import Dict, Optional, Sequence, Tuple, Union
@@ -33,7 +34,6 @@ __all__ = [
     "OpticalDistortion",
     "GridDistortion",
     "PadIfNeeded",
-    "NormalizedGridDistortion",
 ]
 
 
@@ -1365,6 +1365,7 @@ class GridDistortion(DualTransform):
         mask_value (int, float,
                     list of ints,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        normalized (bool): if true, distortion will be normalized to do not go outside the image. Default: False
 
     Targets:
         image, mask
@@ -1381,6 +1382,7 @@ class GridDistortion(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ImageColorType] = None,
         mask_value: Optional[ImageColorType] = None,
+        normalized: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -1391,6 +1393,7 @@ class GridDistortion(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.normalized = normalized
 
     def apply(
         self, img: np.ndarray, stepsx: Tuple = (), stepsy: Tuple = (), interpolation: int = cv2.INTER_LINEAR, **params
@@ -1416,45 +1419,39 @@ class GridDistortion(DualTransform):
         bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
         return bbox_returned
 
-    def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+    def _normalize(self, h, w, xsteps, ysteps):
+
+        # compensate for smaller last steps in source image.
+        x_step = w // self.num_steps
+        last_x_step = min(w, ((self.num_steps + 1) * x_step)) - (self.num_steps * x_step)
+        xsteps[-1] *= last_x_step / x_step
+
+        y_step = h // self.num_steps
+        last_y_step = min(h, ((self.num_steps + 1) * y_step)) - (self.num_steps * y_step)
+        ysteps[-1] *= last_y_step / y_step
+
+        # now normalize such that distortion never leaves image bounds.
+        tx = w / math.floor(w / self.num_steps)
+        ty = h / math.floor(h / self.num_steps)
+        xsteps = np.array(xsteps) * (tx / np.sum(xsteps))
+        ysteps = np.array(ysteps) * (ty / np.sum(ysteps))
+
+        return {"stepsx": xsteps, "stepsy": ysteps}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params):
+        h, w = params["image"].shape[:2]
+
+        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+
+        if self.normalized:
+            return self._normalize(h, w, stepsx, stepsy)
+
         return {"stepsx": stepsx, "stepsy": stepsy}
 
     def get_transform_init_args_names(self):
-        return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value"
-
-
-class NormalizedGridDistortion(GridDistortion):
-    """
-    Args:
-        num_steps (int): count of grid cells on each side.
-        distort_limit (float, (float, float)): If distort_limit is a single float, the range
-            will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
-            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-
-    Targets:
-        image, mask
-
-    Image types:
-        uint8, float32
-    """
-
-    def apply(self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params):
-        return F.normalized_grid_distortion(
-            img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode, self.value
-        )
-
-    def apply_to_mask(self, img, stepsx=(), stepsy=(), **params):
-        return F.normalized_grid_distortion(
-            img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
-        )
+        return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
