@@ -7,17 +7,17 @@ from collections import defaultdict
 
 import numpy as np
 
-from albumentations import random_utils
-from albumentations.augmentations.bbox_utils import BboxProcessor
-from albumentations.augmentations.keypoints_utils import KeypointsProcessor
-from albumentations.core.serialization import (
+from .. import random_utils
+from .bbox_utils import BboxParams, BboxProcessor
+from .keypoints_utils import KeypointParams, KeypointsProcessor
+from .serialization import (
     SERIALIZABLE_REGISTRY,
-    SerializableMeta,
+    Serializable,
     get_shortest_class_fullname,
     instantiate_nonserializable,
 )
-from albumentations.core.transforms_interface import BasicTransform
-from albumentations.core.utils import Params, format_args, get_shape
+from .transforms_interface import BasicTransform
+from .utils import format_args, get_shape
 
 __all__ = [
     "BaseCompose",
@@ -47,7 +47,7 @@ def get_always_apply(transforms: typing.Union["BaseCompose", TransformsSeqType])
     return new_transforms
 
 
-class BaseCompose(metaclass=SerializableMeta):
+class BaseCompose(Serializable):
     def __init__(self, transforms: TransformsSeqType, p: float):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -202,7 +202,7 @@ class Compose(BaseCompose):
             p.preprocess(data)
 
         for idx, t in enumerate(transforms):
-            data = t(force_apply=force_apply, **data)
+            data = t(**data)
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
@@ -471,7 +471,9 @@ class ReplayCompose(Compose):
                 ]
             transform = cls(**args)
 
-        transform.params = params
+        transform = typing.cast(BasicTransform, transform)
+        if isinstance(transform, BasicTransform):
+            transform.params = params
         transform.replay_mode = True
         transform.applied_in_replay = applied
         return transform
@@ -495,105 +497,6 @@ class ReplayCompose(Compose):
         dictionary = super(ReplayCompose, self)._to_dict()
         dictionary.update({"save_key": self.save_key})
         return dictionary
-
-
-class BboxParams(Params):
-    """
-    Parameters of bounding boxes
-
-    Args:
-        format (str): format of bounding boxes. Should be 'coco', 'pascal_voc', 'albumentations' or 'yolo'.
-
-            The `coco` format
-                `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
-            The `pascal_voc` format
-                `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
-            The `albumentations` format
-                is like `pascal_voc`, but normalized,
-                in other words: `[x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
-            The `yolo` format
-                `[x, y, width, height]`, e.g. [0.1, 0.2, 0.3, 0.4];
-                `x`, `y` - normalized bbox center; `width`, `height` - normalized bbox width and height.
-        label_fields (list): list of fields that are joined with boxes, e.g labels.
-            Should be same type as boxes.
-        min_area (float): minimum area of a bounding box. All bounding boxes whose
-            visible area in pixels is less than this value will be removed. Default: 0.0.
-        min_visibility (float): minimum fraction of area for a bounding box
-            to remain this box in list. Default: 0.0.
-        check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
-            Default: `True`
-    """
-
-    def __init__(
-        self,
-        format: str,
-        label_fields: typing.Optional[typing.Sequence[str]] = None,
-        min_area: float = 0.0,
-        min_visibility: float = 0.0,
-        check_each_transform: bool = True,
-    ):
-        super(BboxParams, self).__init__(format, label_fields)
-        self.min_area = min_area
-        self.min_visibility = min_visibility
-        self.check_each_transform = check_each_transform
-
-    def _to_dict(self) -> typing.Dict[str, typing.Any]:
-        data = super(BboxParams, self)._to_dict()
-        data.update(
-            {
-                "min_area": self.min_area,
-                "min_visibility": self.min_visibility,
-                "check_each_transform": self.check_each_transform,
-            }
-        )
-        return data
-
-
-class KeypointParams(Params):
-    """
-    Parameters of keypoints
-
-    Args:
-        format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
-
-            x - X coordinate,
-
-            y - Y coordinate
-
-            s - Keypoint scale
-
-            a - Keypoint orientation in radians or degrees (depending on KeypointParams.angle_in_degrees)
-        label_fields (list): list of fields that are joined with keypoints, e.g labels.
-            Should be same type as keypoints.
-        remove_invisible (bool): to remove invisible points after transform or not
-        angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
-        check_each_transform (bool): if `True`, then keypoints will be checked after each dual transform.
-            Default: `True`
-    """
-
-    def __init__(
-        self,
-        format: str,  # skipcq: PYL-W0622
-        label_fields: typing.Optional[typing.Sequence[str]] = None,
-        remove_invisible: bool = True,
-        angle_in_degrees: bool = True,
-        check_each_transform: bool = True,
-    ):
-        super(KeypointParams, self).__init__(format, label_fields)
-        self.remove_invisible = remove_invisible
-        self.angle_in_degrees = angle_in_degrees
-        self.check_each_transform = check_each_transform
-
-    def _to_dict(self) -> typing.Dict[str, typing.Any]:
-        data = super(KeypointParams, self)._to_dict()
-        data.update(
-            {
-                "remove_invisible": self.remove_invisible,
-                "angle_in_degrees": self.angle_in_degrees,
-                "check_each_transform": self.check_each_transform,
-            }
-        )
-        return data
 
 
 class Sequential(BaseCompose):

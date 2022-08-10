@@ -1,19 +1,19 @@
 import numpy as np
 import pytest
 
-from albumentations.augmentations.bbox_utils import (
-    normalize_bbox,
-    denormalize_bbox,
-    normalize_bboxes,
-    denormalize_bboxes,
+from albumentations import Crop, RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotate
+from albumentations.core.bbox_utils import (
     calculate_bbox_area,
-    convert_bbox_to_albumentations,
     convert_bbox_from_albumentations,
+    convert_bbox_to_albumentations,
     convert_bboxes_to_albumentations,
+    denormalize_bbox,
+    denormalize_bboxes,
+    normalize_bbox,
+    normalize_bboxes,
 )
-from albumentations.core.composition import Compose, ReplayCompose, BboxParams
+from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp
-from albumentations import RandomSizedCrop, RandomResizedCrop, Rotate, RandomCrop
 
 
 @pytest.mark.parametrize(
@@ -267,3 +267,18 @@ def test_crop_boxes_replay_compose():
     transformed2 = ReplayCompose.replay(transformed["replay"], **input_data)
 
     np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])
+
+
+@pytest.mark.parametrize(
+    ["transforms", "bboxes", "result_bboxes", "min_area", "min_visibility"],
+    [
+        [[Crop(10, 10, 20, 20)], [[0, 0, 10, 10, 0]], [], 0, 0],
+        [[Crop(0, 0, 90, 90)], [[0, 0, 91, 91, 0], [0, 0, 90, 90, 0]], [[0, 0, 90, 90, 0]], 0, 1],
+        [[Crop(0, 0, 90, 90)], [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]], [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]], 10, 0],
+    ],
+)
+def test_bbox_params_edges(transforms, bboxes, result_bboxes, min_area, min_visibility):
+    image = np.empty([100, 100, 3], dtype=np.uint8)
+    aug = Compose(transforms, bbox_params=BboxParams("pascal_voc", min_area=min_area, min_visibility=min_visibility))
+    res = aug(image=image, bboxes=bboxes)["bboxes"]
+    assert np.allclose(res, result_bboxes)

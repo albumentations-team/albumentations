@@ -1,10 +1,10 @@
 import random
-from typing import Tuple, Iterable
+from typing import Iterable, Tuple
 
 import numpy as np
 
-from . import functional as F
 from ...core.transforms_interface import DualTransform
+from . import functional as F
 
 __all__ = ["GridDropout"]
 
@@ -149,6 +149,7 @@ class GridDropout(DualTransform):
             "holes_number_y",
             "shift_x",
             "shift_y",
-            "mask_fill_value",
             "random_offset",
+            "fill_value",
+            "mask_fill_value",
         )

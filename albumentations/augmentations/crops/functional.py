@@ -1,18 +1,15 @@
-from typing import List, Optional, Sequence, Tuple, Union
+import typing
+from typing import Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
 
-from ..bbox_utils import denormalize_bbox, normalize_bbox
-from ..functional import _maybe_process_in_chunks, pad_with_params, preserve_channel_dim
+from ...core.bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.transforms_interface import BoxType, KeypointType
+from ..functional import _maybe_process_in_chunks, preserve_channel_dim
 from ..geometric import functional as FGeometric
 
-BboxType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.ndarray]
-KeypointType = Union[List[int], List[float], Tuple[int, ...], Tuple[float, ...], np.ndarray]
-
 __all__ = [
-    "BboxType",
-    "KeypointType",
     "get_random_crop_coords",
     "random_crop",
     "crop_bbox_by_coords",
@@ -58,7 +55,7 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
 
 
 def crop_bbox_by_coords(
-    bbox: BboxType, crop_coords: Tuple[int, int, int, int], crop_height: int, crop_width: int, rows: int, cols: int
+    bbox: BoxType, crop_coords: Tuple[int, int, int, int], crop_height: int, crop_width: int, rows: int, cols: int
 ):
     """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
@@ -83,7 +80,7 @@ def crop_bbox_by_coords(
 
 
 def bbox_random_crop(
-    bbox: BboxType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
+    bbox: BoxType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
 ):
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
@@ -150,7 +147,7 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
     return img
 
 
-def bbox_center_crop(bbox: BboxType, crop_height: int, crop_width: int, rows: int, cols: int):
+def bbox_center_crop(bbox: BoxType, crop_height: int, crop_width: int, rows: int, cols: int):
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
@@ -195,7 +192,7 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
     return img[y_min:y_max, x_min:x_max]
 
 
-def bbox_crop(bbox: BboxType, x_min: int, y_min: int, x_max: int, y_max: int, rows: int, cols: int):
+def bbox_crop(bbox: BoxType, x_min: int, y_min: int, x_max: int, y_max: int, rows: int, cols: int):
     """Crop a bounding box.
 
     Args:
@@ -245,7 +242,7 @@ def crop_and_pad(
     if crop_params is not None and any(i != 0 for i in crop_params):
         img = crop(img, *crop_params)
     if pad_params is not None and any(i != 0 for i in pad_params):
-        img = pad_with_params(img, *pad_params, border_mode=pad_mode, value=pad_value)
+        img = FGeometric.pad_with_params(img, *pad_params, border_mode=pad_mode, value=pad_value)
 
     if keep_size:
         resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
@@ -255,7 +252,7 @@ def crop_and_pad(
 
 
 def crop_and_pad_bbox(
-    bbox: Sequence[float],
+    bbox: BoxType,
     crop_params: Optional[Sequence[int]],
     pad_params: Optional[Sequence[int]],
     rows,
@@ -263,8 +260,8 @@ def crop_and_pad_bbox(
     result_rows,
     result_cols,
     keep_size: bool,
-) -> Sequence[float]:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)
+) -> BoxType:
+    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)[:4]
 
     if crop_params is not None:
         crop_x, crop_y = crop_params[:2]
@@ -273,13 +270,11 @@ def crop_and_pad_bbox(
         top, bottom, left, right = pad_params
         x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
 
-    bbox = normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
-
-    return bbox
+    return normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
 
 
 def crop_and_pad_keypoint(
-    keypoint: Sequence[float],
+    keypoint: KeypointType,
     crop_params: Optional[Sequence[int]],
     pad_params: Optional[Sequence[int]],
     rows: int,
@@ -287,8 +282,8 @@ def crop_and_pad_keypoint(
     result_rows: int,
     result_cols: int,
     keep_size: bool,
-) -> Sequence[float]:
-    x, y, angle, scale = keypoint
+) -> KeypointType:
+    x, y, angle, scale = keypoint[:4]
 
     if crop_params is not None:
         crop_x1, crop_y1, crop_x2, crop_y2 = crop_params

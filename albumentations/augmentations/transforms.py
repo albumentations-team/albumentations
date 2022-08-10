@@ -4,7 +4,7 @@ import math
 import numbers
 import random
 import warnings
-from enum import Enum, IntEnum
+from enum import IntEnum
 from types import LambdaType
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
@@ -22,21 +22,13 @@ from ..core.transforms_interface import (
 )
 from ..core.utils import format_args
 from . import functional as F
-from .bbox_utils import denormalize_bbox, normalize_bbox
 
 __all__ = [
     "Blur",
-    "VerticalFlip",
-    "HorizontalFlip",
-    "Flip",
     "Normalize",
-    "Transpose",
     "RandomGamma",
-    "OpticalDistortion",
-    "GridDistortion",
     "RandomGridShuffle",
     "HueSaturationValue",
-    "PadIfNeeded",
     "RGBShift",
     "RandomBrightness",
     "RandomContrast",
@@ -80,463 +72,6 @@ __all__ = [
     "AdvancedBlur",
     "PixelDropout",
 ]
-
-
-class PadIfNeeded(DualTransform):
-    """Pad side of the image / max if side is less than desired number.
-
-    Args:
-        min_height (int): minimal result image height.
-        min_width (int): minimal result image width.
-        pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
-        pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
-        position (Union[str, PositionType]): Position of the image. should be PositionType.CENTER or
-            PositionType.TOP_LEFT or PositionType.TOP_RIGHT or PositionType.BOTTOM_LEFT or PositionType.BOTTOM_RIGHT.
-            or PositionType.RANDOM. Default: PositionType.CENTER.
-        border_mode (OpenCV flag): OpenCV border mode.
-        value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of int,
-                    list of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
-        p (float): probability of applying the transform. Default: 1.0.
-
-    Targets:
-        image, mask, bbox, keypoints
-
-    Image types:
-        uint8, float32
-    """
-
-    class PositionType(Enum):
-        CENTER = "center"
-        TOP_LEFT = "top_left"
-        TOP_RIGHT = "top_right"
-        BOTTOM_LEFT = "bottom_left"
-        BOTTOM_RIGHT = "bottom_right"
-        RANDOM = "random"
-
-    def __init__(
-        self,
-        min_height: Optional[int] = 1024,
-        min_width: Optional[int] = 1024,
-        pad_height_divisor: Optional[int] = None,
-        pad_width_divisor: Optional[int] = None,
-        position: Union[PositionType, str] = PositionType.CENTER,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=1.0,
-    ):
-        if (min_height is None) == (pad_height_divisor is None):
-            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
-
-        if (min_width is None) == (pad_width_divisor is None):
-            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
-
-        super(PadIfNeeded, self).__init__(always_apply, p)
-        self.min_height = min_height
-        self.min_width = min_width
-        self.pad_width_divisor = pad_width_divisor
-        self.pad_height_divisor = pad_height_divisor
-        self.position = PadIfNeeded.PositionType(position)
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
-
-    def update_params(self, params, **kwargs):
-        params = super(PadIfNeeded, self).update_params(params, **kwargs)
-        rows = params["rows"]
-        cols = params["cols"]
-
-        if self.min_height is not None:
-            if rows < self.min_height:
-                h_pad_top = int((self.min_height - rows) / 2.0)
-                h_pad_bottom = self.min_height - rows - h_pad_top
-            else:
-                h_pad_top = 0
-                h_pad_bottom = 0
-        else:
-            pad_remained = rows % self.pad_height_divisor
-            pad_rows = self.pad_height_divisor - pad_remained if pad_remained > 0 else 0
-
-            h_pad_top = pad_rows // 2
-            h_pad_bottom = pad_rows - h_pad_top
-
-        if self.min_width is not None:
-            if cols < self.min_width:
-                w_pad_left = int((self.min_width - cols) / 2.0)
-                w_pad_right = self.min_width - cols - w_pad_left
-            else:
-                w_pad_left = 0
-                w_pad_right = 0
-        else:
-            pad_remainder = cols % self.pad_width_divisor
-            pad_cols = self.pad_width_divisor - pad_remainder if pad_remainder > 0 else 0
-
-            w_pad_left = pad_cols // 2
-            w_pad_right = pad_cols - w_pad_left
-
-        h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = self.__update_position_params(
-            h_top=h_pad_top, h_bottom=h_pad_bottom, w_left=w_pad_left, w_right=w_pad_right
-        )
-
-        params.update(
-            {
-                "pad_top": h_pad_top,
-                "pad_bottom": h_pad_bottom,
-                "pad_left": w_pad_left,
-                "pad_right": w_pad_right,
-            }
-        )
-        return params
-
-    def apply(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
-        return F.pad_with_params(
-            img,
-            pad_top,
-            pad_bottom,
-            pad_left,
-            pad_right,
-            border_mode=self.border_mode,
-            value=self.value,
-        )
-
-    def apply_to_mask(self, img, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
-        return F.pad_with_params(
-            img,
-            pad_top,
-            pad_bottom,
-            pad_left,
-            pad_right,
-            border_mode=self.border_mode,
-            value=self.mask_value,
-        )
-
-    def apply_to_bbox(self, bbox, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, rows=0, cols=0, **params):
-        x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)
-        bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
-        return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
-
-    # skipcq: PYL-W0613
-    def apply_to_keypoint(self, keypoint, pad_top=0, pad_bottom=0, pad_left=0, pad_right=0, **params):
-        x, y, angle, scale = keypoint
-        return x + pad_left, y + pad_top, angle, scale
-
-    def get_transform_init_args_names(self):
-        return (
-            "min_height",
-            "min_width",
-            "pad_height_divisor",
-            "pad_width_divisor",
-            "border_mode",
-            "value",
-            "mask_value",
-        )
-
-    def __update_position_params(
-        self, h_top: int, h_bottom: int, w_left: int, w_right: int
-    ) -> Tuple[int, int, int, int]:
-        if self.position == PadIfNeeded.PositionType.TOP_LEFT:
-            h_bottom += h_top
-            w_right += w_left
-            h_top = 0
-            w_left = 0
-
-        elif self.position == PadIfNeeded.PositionType.TOP_RIGHT:
-            h_bottom += h_top
-            w_left += w_right
-            h_top = 0
-            w_right = 0
-
-        elif self.position == PadIfNeeded.PositionType.BOTTOM_LEFT:
-            h_top += h_bottom
-            w_right += w_left
-            h_bottom = 0
-            w_left = 0
-
-        elif self.position == PadIfNeeded.PositionType.BOTTOM_RIGHT:
-            h_top += h_bottom
-            w_left += w_right
-            h_bottom = 0
-            w_right = 0
-
-        elif self.position == PadIfNeeded.PositionType.RANDOM:
-            h_pad = h_top + h_bottom
-            w_pad = w_left + w_right
-            h_top = random.randint(0, h_pad)
-            h_bottom = h_pad - h_top
-            w_left = random.randint(0, w_pad)
-            w_right = w_pad - w_left
-
-        return h_top, h_bottom, w_left, w_right
-
-
-class VerticalFlip(DualTransform):
-    """Flip the input vertically around the x-axis.
-
-    Args:
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image, mask, bboxes, keypoints
-
-    Image types:
-        uint8, float32
-    """
-
-    def apply(self, img, **params):
-        return F.vflip(img)
-
-    def apply_to_bbox(self, bbox, **params):
-        return F.bbox_vflip(bbox, **params)
-
-    def apply_to_keypoint(self, keypoint, **params):
-        return F.keypoint_vflip(keypoint, **params)
-
-    def get_transform_init_args_names(self):
-        return ()
-
-
-class HorizontalFlip(DualTransform):
-    """Flip the input horizontally around the y-axis.
-
-    Args:
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image, mask, bboxes, keypoints
-
-    Image types:
-        uint8, float32
-    """
-
-    def apply(self, img, **params):
-        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
-            # Opencv is faster than numpy only in case of
-            # non-gray scale 8bits images
-            return F.hflip_cv2(img)
-
-        return F.hflip(img)
-
-    def apply_to_bbox(self, bbox, **params):
-        return F.bbox_hflip(bbox, **params)
-
-    def apply_to_keypoint(self, keypoint, **params):
-        return F.keypoint_hflip(keypoint, **params)
-
-    def get_transform_init_args_names(self):
-        return ()
-
-
-class Flip(DualTransform):
-    """Flip the input either horizontally, vertically or both horizontally and vertically.
-
-    Args:
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image, mask, bboxes, keypoints
-
-    Image types:
-        uint8, float32
-    """
-
-    def apply(self, img, d=0, **params):
-        """Args:
-        d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
-                -1 for both vertical and horizontal flipping (which is also could be seen as rotating the input by
-                180 degrees).
-        """
-        return F.random_flip(img, d)
-
-    def get_params(self):
-        # Random int in the range [-1, 1]
-        return {"d": random.randint(-1, 1)}
-
-    def apply_to_bbox(self, bbox, **params):
-        return F.bbox_flip(bbox, **params)
-
-    def apply_to_keypoint(self, keypoint, **params):
-        return F.keypoint_flip(keypoint, **params)
-
-    def get_transform_init_args_names(self):
-        return ()
-
-
-class Transpose(DualTransform):
-    """Transpose the input by swapping rows and columns.
-
-    Args:
-        p (float): probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image, mask, bboxes, keypoints
-
-    Image types:
-        uint8, float32
-    """
-
-    def apply(self, img, **params):
-        return F.transpose(img)
-
-    def apply_to_bbox(self, bbox, **params):
-        return F.bbox_transpose(bbox, 0, **params)
-
-    def apply_to_keypoint(self, keypoint, **params):
-        return F.keypoint_transpose(keypoint)
-
-    def get_transform_init_args_names(self):
-        return ()
-
-
-class OpticalDistortion(DualTransform):
-    """
-    Args:
-        distort_limit (float, (float, float)): If distort_limit is a single float, the range
-            will be (-distort_limit, distort_limit). Default: (-0.05, 0.05).
-        shift_limit (float, (float, float))): If shift_limit is a single float, the range
-            will be (-shift_limit, shift_limit). Default: (-0.05, 0.05).
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
-            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-
-    Targets:
-        image, mask
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(
-        self,
-        distort_limit=0.05,
-        shift_limit=0.05,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=0.5,
-    ):
-        super(OpticalDistortion, self).__init__(always_apply, p)
-        self.shift_limit = to_tuple(shift_limit)
-        self.distort_limit = to_tuple(distort_limit)
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
-
-    def apply(self, img, k=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
-        return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
-
-    def apply_to_mask(self, img, k=0, dx=0, dy=0, **params):
-        return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
-
-    def get_params(self):
-        return {
-            "k": random.uniform(self.distort_limit[0], self.distort_limit[1]),
-            "dx": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-            "dy": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-        }
-
-    def get_transform_init_args_names(self):
-        return (
-            "distort_limit",
-            "shift_limit",
-            "interpolation",
-            "border_mode",
-            "value",
-            "mask_value",
-        )
-
-
-class GridDistortion(DualTransform):
-    """
-    Args:
-        num_steps (int): count of grid cells on each side.
-        distort_limit (float, (float, float)): If distort_limit is a single float, the range
-            will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
-            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-
-    Targets:
-        image, mask
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(
-        self,
-        num_steps=5,
-        distort_limit=0.3,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        p=0.5,
-    ):
-        super(GridDistortion, self).__init__(always_apply, p)
-        self.num_steps = num_steps
-        self.distort_limit = to_tuple(distort_limit)
-        self.interpolation = interpolation
-        self.border_mode = border_mode
-        self.value = value
-        self.mask_value = mask_value
-
-    def apply(self, img, stepsx=(), stepsy=(), interpolation=cv2.INTER_LINEAR, **params):
-        return F.grid_distortion(
-            img,
-            self.num_steps,
-            stepsx,
-            stepsy,
-            interpolation,
-            self.border_mode,
-            self.value,
-        )
-
-    def apply_to_mask(self, img, stepsx=(), stepsy=(), **params):
-        return F.grid_distortion(
-            img,
-            self.num_steps,
-            stepsx,
-            stepsy,
-            cv2.INTER_NEAREST,
-            self.border_mode,
-            self.mask_value,
-        )
-
-    def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        return {"stepsx": stepsx, "stepsy": stepsy}
-
-    def get_transform_init_args_names(self):
-        return (
-            "num_steps",
-            "distort_limit",
-            "interpolation",
-            "border_mode",
-            "value",
-            "mask_value",
-        )
 
 
 class RandomGridShuffle(DualTransform):
@@ -1705,9 +1240,7 @@ class RandomBrightness(RandomBrightnessContrast):
     """
 
     def __init__(self, limit=0.2, always_apply=False, p=0.5):
-        super(RandomBrightness, self).__init__(
-            brightness_limit=limit, contrast_limit=0, always_apply=always_apply, p=p
-        )
+        super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0, always_apply=always_apply, p=p)
         warnings.warn(
             "This class has been deprecated. Please use RandomBrightnessContrast",
             FutureWarning,
@@ -1778,6 +1311,8 @@ class MotionBlur(Blur):
     Args:
         blur_limit (int): maximum kernel size for blurring the input image.
             Should be in range [3, inf). Default: (3, 7).
+        allow_shifted (bool): if set to true creates non shifted kernels only,
+            otherwise creates randomly shifted kernels. Default: True.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1787,6 +1322,22 @@ class MotionBlur(Blur):
         uint8, float32
     """
 
+    def __init__(
+        self,
+        blur_limit: Union[int, Sequence[int]] = 7,
+        allow_shifted: bool = True,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(blur_limit=blur_limit, always_apply=always_apply, p=p)
+        self.allow_shifted = allow_shifted
+
+        if not allow_shifted and self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
+            raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
+
+    def get_transform_init_args_names(self):
+        return super().get_transform_init_args_names() + ("allow_shifted",)
+
     def apply(self, img, kernel=None, **params):
         return F.convolve(img, kernel=kernel)
 
@@ -1795,12 +1346,35 @@ class MotionBlur(Blur):
         if ksize <= 2:
             raise ValueError("ksize must be > 2. Got: {}".format(ksize))
         kernel = np.zeros((ksize, ksize), dtype=np.uint8)
-        xs, xe = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
-        if xs == xe:
-            ys, ye = random.sample(range(ksize), 2)
+        x1, x2 = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+        if x1 == x2:
+            y1, y2 = random.sample(range(ksize), 2)
         else:
-            ys, ye = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
-        cv2.line(kernel, (xs, ys), (xe, ye), 1, thickness=1)
+            y1, y2 = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
+
+        def make_odd_val(v1, v2):
+            len_v = abs(v1 - v2) + 1
+            if len_v % 2 != 1:
+                if v2 > v1:
+                    v2 -= 1
+                else:
+                    v1 -= 1
+            return v1, v2
+
+        if not self.allow_shifted:
+            x1, x2 = make_odd_val(x1, x2)
+            y1, y2 = make_odd_val(y1, y2)
+
+            xc = (x1 + x2) / 2
+            yc = (y1 + y2) / 2
+
+            center = ksize / 2 - 0.5
+            dx = xc - center
+            dy = yc - center
+            x1, x2 = [int(i - dx) for i in [x1, x2]]
+            y1, y2 = [int(i - dy) for i in [y1, y2]]
+
+        cv2.line(kernel, (x1, y1), (x2, y2), 1, thickness=1)
 
         # Normalize kernel
         kernel = kernel.astype(np.float32) / np.sum(kernel)
@@ -2550,6 +2124,13 @@ class ColorJitter(ImageOnlyTransform):
         self.saturation = self.__check_values(saturation, "saturation")
         self.hue = self.__check_values(hue, "hue", offset=0, bounds=[-0.5, 0.5], clip=False)
 
+        self.transforms = [
+            F.adjust_brightness_torchvision,
+            F.adjust_contrast_torchvision,
+            F.adjust_saturation_torchvision,
+            F.adjust_hue_torchvision,
+        ]
+
     @staticmethod
     def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
         if isinstance(value, numbers.Number):
@@ -2572,22 +2153,23 @@ class ColorJitter(ImageOnlyTransform):
         saturation = random.uniform(self.saturation[0], self.saturation[1])
         hue = random.uniform(self.hue[0], self.hue[1])
 
-        transforms = [
-            lambda x: F.adjust_brightness_torchvision(x, brightness),
-            lambda x: F.adjust_contrast_torchvision(x, contrast),
-            lambda x: F.adjust_saturation_torchvision(x, saturation),
-            lambda x: F.adjust_hue_torchvision(x, hue),
-        ]
-        random.shuffle(transforms)
+        order = [0, 1, 2, 3]
+        random.shuffle(order)
 
-        return {"transforms": transforms}
+        return {
+            "brightness": brightness,
+            "contrast": contrast,
+            "saturation": saturation,
+            "hue": hue,
+            "order": order,
+        }
 
-    def apply(self, img, transforms=(), **params):
+    def apply(self, img, brightness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
         if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
-
-        for transform in transforms:
-            img = transform(img)
+        params = [brightness, contrast, saturation, hue]
+        for i in order:
+            img = self.transforms[i](img, params[i])
         return img
 
     def get_transform_init_args_names(self):

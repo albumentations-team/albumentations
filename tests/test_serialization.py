@@ -9,6 +9,7 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
@@ -16,7 +17,6 @@ from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
     check_all_augs_exists,
-    get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
     set_seed,
@@ -133,6 +133,7 @@ AUGMENTATION_CLS_PARAMS = [
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
             "value": (10, 10, 10),
+            "crop_border": False,
         },
     ],
     [
@@ -318,6 +319,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": True, "drop_value": None}],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": False, "drop_value": None, "mask_drop_value": 15}],
+    [A.RandomCropFromBorders, dict(crop_left=0.2, crop_right=0.3, crop_top=0.05, crop_bottom=0.5)],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -655,16 +657,16 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 @pytest.mark.parametrize("p", [1])
 def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, seed, p):
     def vflip_image(image, **kwargs):
-        return F.vflip(image)
+        return FGeometric.vflip(image)
 
     def vflip_mask(mask, **kwargs):
-        return F.vflip(mask)
+        return FGeometric.vflip(mask)
 
     def vflip_bbox(bbox, **kwargs):
-        return F.bbox_vflip(bbox, **kwargs)
+        return FGeometric.bbox_vflip(bbox, **kwargs)
 
     def vflip_keypoint(keypoint, **kwargs):
-        return F.keypoint_vflip(keypoint, **kwargs)
+        return FGeometric.keypoint_vflip(keypoint, **kwargs)
 
     aug = A.Lambda(name="vflip", image=vflip_image, mask=vflip_mask, bbox=vflip_bbox, keypoint=vflip_keypoint, p=p)
 

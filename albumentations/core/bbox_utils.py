@@ -1,8 +1,11 @@
 from __future__ import division
 
+from typing import Any, Dict, List, Optional, Sequence, TypeVar, cast
+
 import numpy as np
 
-from albumentations.core.utils import DataProcessor
+from .transforms_interface import BoxType
+from .utils import DataProcessor, Params
 
 __all__ = [
     "normalize_bbox",
@@ -20,15 +23,81 @@ __all__ = [
     "filter_bboxes",
     "union_of_bboxes",
     "BboxProcessor",
+    "BboxParams",
 ]
+
+T = TypeVar("T")
+
+
+class BboxParams(Params):
+    """
+    Parameters of bounding boxes
+
+    Args:
+        format (str): format of bounding boxes. Should be 'coco', 'pascal_voc', 'albumentations' or 'yolo'.
+
+            The `coco` format
+                `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
+            The `pascal_voc` format
+                `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
+            The `albumentations` format
+                is like `pascal_voc`, but normalized,
+                in other words: `[x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
+            The `yolo` format
+                `[x, y, width, height]`, e.g. [0.1, 0.2, 0.3, 0.4];
+                `x`, `y` - normalized bbox center; `width`, `height` - normalized bbox width and height.
+        label_fields (list): list of fields that are joined with boxes, e.g labels.
+            Should be same type as boxes.
+        min_area (float): minimum area of a bounding box. All bounding boxes whose
+            visible area in pixels is less than this value will be removed. Default: 0.0.
+        min_visibility (float): minimum fraction of area for a bounding box
+            to remain this box in list. Default: 0.0.
+        check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
+            Default: `True`
+    """
+
+    def __init__(
+        self,
+        format: str,
+        label_fields: Optional[Sequence[str]] = None,
+        min_area: float = 0.0,
+        min_visibility: float = 0.0,
+        check_each_transform: bool = True,
+    ):
+        super(BboxParams, self).__init__(format, label_fields)
+        self.min_area = min_area
+        self.min_visibility = min_visibility
+        self.check_each_transform = check_each_transform
+
+    def _to_dict(self) -> Dict[str, Any]:
+        data = super(BboxParams, self)._to_dict()
+        data.update(
+            {
+                "min_area": self.min_area,
+                "min_visibility": self.min_visibility,
+                "check_each_transform": self.check_each_transform,
+            }
+        )
+        return data
+
+    @classmethod
+    def is_serializable(cls) -> bool:
+        return True
+
+    @classmethod
+    def get_class_fullname(cls) -> str:
+        return "BboxParams"
 
 
 class BboxProcessor(DataProcessor):
+    def __init__(self, params: BboxParams, additional_targets: Optional[Dict[str, str]] = None):
+        super().__init__(params, additional_targets)
+
     @property
-    def default_data_name(self):
+    def default_data_name(self) -> str:
         return "bboxes"
 
-    def ensure_data_valid(self, data):
+    def ensure_data_valid(self, data: Dict[str, Any]) -> None:
         for data_name in self.data_fields:
             data_exists = data_name in data and len(data[data_name])
             if data_exists and len(data[data_name][0]) < 5:
@@ -41,61 +110,61 @@ class BboxProcessor(DataProcessor):
             if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
-    def filter(self, data, rows, cols):
-        return filter_bboxes(
-            data, rows, cols, min_area=self.params.min_area, min_visibility=self.params.min_visibility
-        )
+    def filter(self, data: Sequence, rows: int, cols: int) -> List:
+        self.params: BboxParams
+        return filter_bboxes(data, rows, cols, min_area=self.params.min_area, min_visibility=self.params.min_visibility)
 
-    def check(self, data, rows, cols):
-        return check_bboxes(data)
+    def check(self, data: Sequence, rows: int, cols: int) -> None:
+        check_bboxes(data)
 
-    def convert_from_albumentations(self, data, rows, cols):
+    def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> List[BoxType]:
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
-    def convert_to_albumentations(self, data, rows, cols):
+    def convert_to_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
-def normalize_bbox(bbox, rows, cols):
+def normalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
     by image height.
 
     Args:
-        bbox (tuple): Denormalized bounding box `(x_min, y_min, x_max, y_max)`.
-        rows (int): Image height.
-        cols (int): Image width.
+        bbox: Denormalized bounding box `(x_min, y_min, x_max, y_max)`.
+        rows: Image height.
+        cols: Image width.
 
     Returns:
-        tuple: Normalized bounding box `(x_min, y_min, x_max, y_max)`.
+        Normalized bounding box `(x_min, y_min, x_max, y_max)`.
 
     Raises:
         ValueError: If rows or cols is less or equal zero
 
     """
-    (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
     if rows <= 0:
         raise ValueError("Argument rows must be positive integer")
     if cols <= 0:
         raise ValueError("Argument cols must be positive integer")
 
+    (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
+
     x_min, x_max = x_min / cols, x_max / cols
     y_min, y_max = y_min / rows, y_max / rows
 
-    return (x_min, y_min, x_max, y_max) + tail
+    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)
 
 
-def denormalize_bbox(bbox, rows, cols):
+def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
     by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
 
     Args:
-        bbox (tuple): Normalized bounding box `(x_min, y_min, x_max, y_max)`.
-        rows (int): Image height.
-        cols (int): Image width.
+        bbox: Normalized bounding box `(x_min, y_min, x_max, y_max)`.
+        rows: Image height.
+        cols: Image width.
 
     Returns:
-        tuple: Denormalized bounding box `(x_min, y_min, x_max, y_max)`.
+        Denormalized bounding box `(x_min, y_min, x_max, y_max)`.
 
     Raises:
         ValueError: If rows or cols is less or equal zero
@@ -111,73 +180,78 @@ def denormalize_bbox(bbox, rows, cols):
     x_min, x_max = x_min * cols, x_max * cols
     y_min, y_max = y_min * rows, y_max * rows
 
-    return (x_min, y_min, x_max, y_max) + tail
+    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)
 
 
-def normalize_bboxes(bboxes, rows, cols):
+def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
     """Normalize a list of bounding boxes.
 
     Args:
-        bboxes (List[tuple]): Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        rows (int): Image height.
-        cols (int): Image width.
+        bboxes: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        rows: Image height.
+        cols: Image width.
 
     Returns:
-        List[tuple]: Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
     return [normalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
-def denormalize_bboxes(bboxes, rows, cols):
+def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
     """Denormalize a list of bounding boxes.
 
     Args:
-        bboxes (List[tuple]): Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        rows (int): Image height.
-        cols (int): Image width.
+        bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        rows: Image height.
+        cols: Image width.
 
     Returns:
-        List[tuple]: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
     return [denormalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
-def calculate_bbox_area(bbox, rows, cols):
+def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> int:
     """Calculate the area of a bounding box in pixels.
 
     Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows (int): Image height.
-        cols (int): Image width.
+        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows: Image height.
+        cols: Image width.
 
     Return:
-        int: Area of a bounding box in pixels.
+        Area of a bounding box in pixels.
 
     """
     bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox[:4]
     area = (x_max - x_min) * (y_max - y_min)
-    return area
+    return cast(int, area)
 
 
 def filter_bboxes_by_visibility(
-    original_shape, bboxes, transformed_shape, transformed_bboxes, threshold=0.0, min_area=0.0
-):
+    original_shape: Sequence[int],
+    bboxes: Sequence[BoxType],
+    transformed_shape: Sequence[int],
+    transformed_bboxes: Sequence[BoxType],
+    threshold: float = 0.0,
+    min_area: float = 0.0,
+) -> List[BoxType]:
     """Filter bounding boxes and return only those boxes whose visibility after transformation is above
     the threshold and minimal area of bounding box in pixels is more then min_area.
 
     Args:
-        original_shape (tuple): Original image shape `(height, width)`.
-        bboxes (List[tuple]): Original bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        transformed_shape (tuple): Transformed image shape `(height, width)`.
-        transformed_bboxes (List[tuple]): Transformed bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        threshold (float): visibility threshold. Should be a value in the range [0.0, 1.0].
-        min_area (float): Minimal area threshold.
+        original_shape: Original image shape `(height, width, ...)`.
+        bboxes: Original bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        transformed_shape: Transformed image shape `(height, width)`.
+        transformed_bboxes: Transformed bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        threshold: visibility threshold. Should be a value in the range [0.0, 1.0].
+        min_area: Minimal area threshold.
 
     Returns:
-        List[tuple]: Filtered bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        Filtered bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
     img_height, img_width = original_shape[:2]
@@ -197,17 +271,19 @@ def filter_bboxes_by_visibility(
     return visible_bboxes
 
 
-def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity=False):
+def convert_bbox_to_albumentations(
+    bbox: BoxType, source_format: str, rows: int, cols: int, check_validity: bool = False
+) -> BoxType:
     """Convert a bounding box from a format specified in `source_format` to the format used by albumentations:
     normalized coordinates of top-left and bottom-right corners of the bounding box in a form of
     `(x_min, y_min, x_max, y_max)` e.g. `(0.15, 0.27, 0.67, 0.5)`.
 
     Args:
-        bbox (tuple): A bounding box tuple.
-        source_format (str): format of the bounding box. Should be 'coco', 'pascal_voc', or 'yolo'.
-        check_validity (bool): Check if all boxes are valid boxes.
-        rows (int): Image height.
-        cols (int): Image width.
+        bbox: A bounding box tuple.
+        source_format: format of the bounding box. Should be 'coco', 'pascal_voc', or 'yolo'.
+        check_validity: Check if all boxes are valid boxes.
+        rows: Image height.
+        cols: Image width.
 
     Returns:
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -225,18 +301,16 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
     """
     if source_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
-            "Unknown source_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(source_format)
+            f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
         )
-    if isinstance(bbox, np.ndarray):
-        bbox = bbox.tolist()
 
     if source_format == "coco":
-        (x_min, y_min, width, height), tail = bbox[:4], tuple(bbox[4:])
+        (x_min, y_min, width, height), tail = bbox[:4], bbox[4:]
         x_max = x_min + width
         y_max = y_min + height
     elif source_format == "yolo":
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
-        bbox, tail = bbox[:4], tuple(bbox[4:])
+        bbox, tail = bbox[:4], bbox[4:]
         _bbox = np.array(bbox[:4])
         if check_validity and np.any((_bbox <= 0) | (_bbox > 1)):
             raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
@@ -249,9 +323,9 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
         x_max = x_min + w
         y_max = y_min + h
     else:
-        (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
+        (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
 
-    bbox = (x_min, y_min, x_max, y_max) + tail
+    bbox = cast(BoxType, (x_min, y_min, x_max, y_max) + tuple(tail))
 
     if source_format != "yolo":
         bbox = normalize_bbox(bbox, rows, cols)
@@ -260,15 +334,17 @@ def convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validi
     return bbox
 
 
-def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_validity=False):
+def convert_bbox_from_albumentations(
+    bbox: BoxType, target_format: str, rows: int, cols: int, check_validity: bool = False
+) -> BoxType:
     """Convert a bounding box from the format used by albumentations to a format, specified in `target_format`.
 
     Args:
-        bbox (tuple): An albumentation bounding box `(x_min, y_min, x_max, y_max)`.
-        target_format (str): required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
-        rows (int): Image height.
-        cols (int): Image width.
-        check_validity (bool): Check if all boxes are valid boxes.
+        bbox: An albumentations bounding box `(x_min, y_min, x_max, y_max)`.
+        target_format: required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
+        rows: Image height.
+        cols: Image width.
+        check_validity: Check if all boxes are valid boxes.
 
     Returns:
         tuple: A bounding box.
@@ -284,7 +360,7 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
     """
     if target_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
-            "Unknown target_format {}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'".format(target_format)
+            f"Unknown target_format {target_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
         )
     if check_validity:
         check_bbox(bbox)
@@ -295,93 +371,95 @@ def convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_vali
         (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
         width = x_max - x_min
         height = y_max - y_min
-        bbox = (x_min, y_min, width, height) + tail
+        bbox = cast(BoxType, (x_min, y_min, width, height) + tail)
     elif target_format == "yolo":
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
         x = (x_min + x_max) / 2.0
         y = (y_min + y_max) / 2.0
         w = x_max - x_min
         h = y_max - y_min
-        bbox = (x, y, w, h) + tail
+        bbox = cast(BoxType, (x, y, w, h) + tail)
     return bbox
 
 
-def convert_bboxes_to_albumentations(bboxes, source_format, rows, cols, check_validity=False):
+def convert_bboxes_to_albumentations(
+    bboxes: Sequence[BoxType], source_format, rows, cols, check_validity=False
+) -> List[BoxType]:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     return [convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity) for bbox in bboxes]
 
 
-def convert_bboxes_from_albumentations(bboxes, target_format, rows, cols, check_validity=False):
+def convert_bboxes_from_albumentations(
+    bboxes: Sequence[BoxType], target_format: str, rows: int, cols: int, check_validity: bool = False
+) -> List[BoxType]:
     """Convert a list of bounding boxes from the format used by albumentations to a format, specified
     in `target_format`.
 
     Args:
-        bboxes (List[tuple]): List of albumentation bounding box `(x_min, y_min, x_max, y_max)`.
-        target_format (str): required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
-        rows (int): Image height.
-        cols (int): Image width.
-        check_validity (bool): Check if all boxes are valid boxes.
+        bboxes: List of albumentation bounding box `(x_min, y_min, x_max, y_max)`.
+        target_format: required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
+        rows: Image height.
+        cols: Image width.
+        check_validity: Check if all boxes are valid boxes.
 
     Returns:
-        list[tuple]: List of bounding box.
+        List of bounding boxes.
 
     """
     return [convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_validity) for bbox in bboxes]
 
 
-def check_bbox(bbox):
+def check_bbox(bbox: BoxType) -> None:
     """Check if bbox boundaries are in range 0, 1 and minimums are lesser then maximums"""
     for name, value in zip(["x_min", "y_min", "x_max", "y_max"], bbox[:4]):
         if not 0 <= value <= 1 and not np.isclose(value, 0) and not np.isclose(value, 1):
-            raise ValueError(
-                "Expected {name} for bbox {bbox} "
-                "to be in the range [0.0, 1.0], got {value}.".format(bbox=bbox, name=name, value=value)
-            )
+            raise ValueError(f"Expected {name} for bbox {bbox} to be in the range [0.0, 1.0], got {value}.")
     x_min, y_min, x_max, y_max = bbox[:4]
     if x_max <= x_min:
-        raise ValueError("x_max is less than or equal to x_min for bbox {bbox}.".format(bbox=bbox))
+        raise ValueError(f"x_max is less than or equal to x_min for bbox {bbox}.")
     if y_max <= y_min:
-        raise ValueError("y_max is less than or equal to y_min for bbox {bbox}.".format(bbox=bbox))
+        raise ValueError(f"y_max is less than or equal to y_min for bbox {bbox}.")
 
 
-def check_bboxes(bboxes):
+def check_bboxes(bboxes: Sequence[BoxType]) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     for bbox in bboxes:
         check_bbox(bbox)
 
 
-def filter_bboxes(bboxes, rows, cols, min_area=0.0, min_visibility=0.0):
+def filter_bboxes(
+    bboxes: Sequence[BoxType], rows: int, cols: int, min_area: float = 0.0, min_visibility: float = 0.0
+) -> List[BoxType]:
     """Remove bounding boxes that either lie outside of the visible area by more then min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
     Args:
-        bboxes (List[tuple]): List of albumentation bounding box `(x_min, y_min, x_max, y_max)`.
-        rows (int): Image height.
-        cols (int): Image width.
-        min_area (float): Minimum area of a bounding box. All bounding boxes whose visible area in pixels.
+        bboxes: List of albumentation bounding box `(x_min, y_min, x_max, y_max)`.
+        rows: Image height.
+        cols: Image width.
+        min_area: Minimum area of a bounding box. All bounding boxes whose visible area in pixels.
             is less than this value will be removed. Default: 0.0.
-        min_visibility (float): Minimum fraction of area for a bounding box to remain this box in list. Default: 0.0.
+        min_visibility: Minimum fraction of area for a bounding box to remain this box in list. Default: 0.0.
 
     Returns:
-        List[tuple]: List of bounding box.
+        List of bounding boxes.
 
     """
-    resulting_boxes = []
+    resulting_boxes: List[BoxType] = []
     for bbox in bboxes:
         transformed_box_area = calculate_bbox_area(bbox, rows, cols)
-        bbox, tail = tuple(np.clip(bbox[:4], 0, 1.0)), tuple(bbox[4:])
+        bbox, tail = cast(BoxType, tuple(np.clip(bbox[:4], 0, 1.0))), tuple(bbox[4:])
         clipped_box_area = calculate_bbox_area(bbox, rows, cols)
-        if not transformed_box_area or clipped_box_area / transformed_box_area <= min_visibility:
-            continue
-        else:
-            bbox = tuple(np.clip(bbox[:4], 0, 1.0))
-        if calculate_bbox_area(bbox, rows, cols) <= min_area:
-            continue
-        resulting_boxes.append(bbox + tail)
+        if (
+            clipped_box_area != 0  # to ensure transformed_box_area!=0 and to handle min_area=0 or min_visibility=0
+            and clipped_box_area >= min_area
+            and clipped_box_area / transformed_box_area >= min_visibility
+        ):
+            resulting_boxes.append(cast(BoxType, bbox + tail))
     return resulting_boxes
 
 
-def union_of_bboxes(height, width, bboxes, erosion_rate=0.0):
+def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_rate: float = 0.0) -> BoxType:
     """Calculate union of bounding boxes.
 
     Args:

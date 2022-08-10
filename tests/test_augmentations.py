@@ -267,6 +267,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.ToSepia,
             A.PixelDistributionAdaptation,
             A.UnsharpMask,
+            A.RandomCropFromBorders,
         },
     ),
 )
@@ -325,6 +326,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             A.SmallestMaxSize,
             A.PadIfNeeded,
             A.RandomScale,
+            A.RandomCropFromBorders,
         },
     ),
 )
@@ -833,7 +835,6 @@ def test_pixel_domain_adaptation(kind):
     ),
 )
 def test_non_contiguous_input(augmentation_cls, params, bboxes):
-
     image = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
     mask = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
 
