@@ -1744,7 +1744,7 @@ class Downscale(ImageOnlyTransform):
         )
 
     def get_params(self):
-        return {"scale": np.random.uniform(self.scale_min, self.scale_max)}
+        return {"scale": random.uniform(self.scale_min, self.scale_max)}
 
     def get_transform_init_args_names(self):
         return "scale_min", "scale_max", "interpolation"
