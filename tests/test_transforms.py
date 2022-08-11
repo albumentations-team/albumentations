@@ -436,7 +436,7 @@ def test_downscale(interpolation):
 
     for img in (img_float, img_uint):
         transformed = aug(image=img)["image"]
-        func_applied = F.downscale(img, scale=0.5, interpolation=interpolation)
+        func_applied = F.downscale(img, scale=0.5, down_interpolation=interpolation, up_interpolation=interpolation)
         np.testing.assert_almost_equal(transformed, func_applied)
 
 
