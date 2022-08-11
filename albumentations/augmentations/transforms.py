@@ -1720,16 +1720,16 @@ class Downscale(ImageOnlyTransform):
     ):
         super(Downscale, self).__init__(always_apply, p)
         if interpolation is None:
-            self.down_interpolation, self.up_interpolation = cv2.INTER_NEAREST, cv2.INTER_NEAREST
+            self.interpolation = cv2.INTER_NEAREST, cv2.INTER_NEAREST
             warnings.warn(
                 "Using default interpolation INTER_NEAREST, which is sub-optimal."
                 "Please specify interpolation mode for downscale and upscale explicitly."
                 "For additional information see this PR https://github.com/albumentations-team/albumentations/pull/584"
             )
         elif isinstance(interpolation, int):
-            self.down_interpolation, self.up_interpolation = interpolation, interpolation
+            self.interpolation = interpolation, interpolation
         else:
-            self.down_interpolation, self.up_interpolation = interpolation
+            self.interpolation = interpolation
 
         if scale_min > scale_max:
             raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
@@ -1738,20 +1738,16 @@ class Downscale(ImageOnlyTransform):
         self.scale_min = scale_min
         self.scale_max = scale_max
 
-    def apply(self, image, scale, down_interpolation, up_interpolation, **params):
+    def apply(self, image, scale=None, **params):
         return F.downscale(
-            image, scale=scale, down_interpolation=self.down_interpolation, up_interpolation=self.up_interpolation
+            image, scale=scale, down_interpolation=self.interpolation[0], up_interpolation=self.interpolation[1]
         )
 
     def get_params(self):
-        return {
-            "scale": np.random.uniform(self.scale_min, self.scale_max),
-            "down_interpolation": self.down_interpolation,
-            "up_interpolation": self.up_interpolation,
-        }
+        return {"scale": np.random.uniform(self.scale_min, self.scale_max)}
 
     def get_transform_init_args_names(self):
-        return "scale_min", "scale_max", "down_interpolation", "up_interpolation"
+        return "scale_min", "scale_max", "interpolation"
 
 
 class Lambda(NoOp):

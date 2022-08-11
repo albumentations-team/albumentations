@@ -1086,7 +1086,9 @@ def to_gray(img):
 def downscale(img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR):
     h, w = img.shape[:2]
 
-    need_cast = up_interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
+    need_cast = (
+        up_interpolation != cv2.INTER_NEAREST or down_interpolation != cv2.INTER_NEAREST
+    ) and img.dtype == np.uint8
     if need_cast:
         img = to_float(img)
     downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
