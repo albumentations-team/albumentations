@@ -523,7 +523,7 @@ class BBoxSafeRandomCrop(DualTransform):
         return ["image", "bboxes"]
 
     def get_transform_init_args_names(self):
-        return ("height", "width", "erosion_rate", "interpolation")
+        return ("erosion_rate",)
 
 
 class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
@@ -551,6 +551,9 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
     def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
         return FGeometric.resize(crop, self.height, self.width, interpolation)
+
+    def get_transform_init_args_names(self):
+        return super().get_transform_init_args_names() + ("height", "width", "interpolation")
 
 
 class CropAndPad(DualTransform):
