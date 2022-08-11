@@ -1,3 +1,4 @@
+import math
 import random
 from enum import Enum
 from typing import Dict, Optional, Sequence, Tuple, Union
@@ -1364,6 +1365,8 @@ class GridDistortion(DualTransform):
         mask_value (int, float,
                     list of ints,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        normalized (bool): if true, distortion will be normalized to do not go outside the image. Default: False
+            See for more information: https://github.com/albumentations-team/albumentations/pull/722
 
     Targets:
         image, mask
@@ -1380,6 +1383,7 @@ class GridDistortion(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ImageColorType] = None,
         mask_value: Optional[ImageColorType] = None,
+        normalized: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -1390,6 +1394,7 @@ class GridDistortion(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
+        self.normalized = normalized
 
     def apply(
         self, img: np.ndarray, stepsx: Tuple = (), stepsy: Tuple = (), interpolation: int = cv2.INTER_LINEAR, **params
@@ -1415,10 +1420,39 @@ class GridDistortion(DualTransform):
         bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
         return bbox_returned
 
-    def get_params(self):
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for i in range(self.num_steps + 1)]
+    def _normalize(self, h, w, xsteps, ysteps):
+
+        # compensate for smaller last steps in source image.
+        x_step = w // self.num_steps
+        last_x_step = min(w, ((self.num_steps + 1) * x_step)) - (self.num_steps * x_step)
+        xsteps[-1] *= last_x_step / x_step
+
+        y_step = h // self.num_steps
+        last_y_step = min(h, ((self.num_steps + 1) * y_step)) - (self.num_steps * y_step)
+        ysteps[-1] *= last_y_step / y_step
+
+        # now normalize such that distortion never leaves image bounds.
+        tx = w / math.floor(w / self.num_steps)
+        ty = h / math.floor(h / self.num_steps)
+        xsteps = np.array(xsteps) * (tx / np.sum(xsteps))
+        ysteps = np.array(ysteps) * (ty / np.sum(ysteps))
+
+        return {"stepsx": xsteps, "stepsy": ysteps}
+
+    @property
+    def targets_as_params(self):
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params):
+        h, w = params["image"].shape[:2]
+
+        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+
+        if self.normalized:
+            return self._normalize(h, w, stepsx, stepsy)
+
         return {"stepsx": stepsx, "stepsy": stepsy}
 
     def get_transform_init_args_names(self):
-        return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value"
+        return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
