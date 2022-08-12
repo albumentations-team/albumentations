@@ -1,0 +1,15 @@
+version: 2
+
+sphinx:
+  configuration: docs/conf.py
+
+formats:
+  - htmlzip
+  - pdf
+  - epub
+
+python:
+  version: 3.8
+  system_packages: true
+  install:
+    - requirements: docs/requirements.txt
