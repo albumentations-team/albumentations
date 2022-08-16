@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 
-import abc
 import random
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Sequence, Tuple, Union, cast
@@ -149,7 +148,6 @@ class BasicTransform(Serializable):
         target_function = self.targets.get(transform_key, lambda x, **p: x)
         return target_function
 
-    @abc.abstractmethod
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         raise NotImplementedError
 
