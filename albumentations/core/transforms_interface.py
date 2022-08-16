@@ -150,7 +150,7 @@ class BasicTransform(Serializable):
         return target_function
 
     @abc.abstractmethod
-    def apply(self, img: np.ndarray) -> np.ndarray:
+    def apply(self, img: np.ndarray, **params) -> np.ndarray:
         raise NotImplementedError
 
     def get_params(self) -> Dict:

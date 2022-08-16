@@ -1756,9 +1756,9 @@ class Downscale(ImageOnlyTransform):
         self.scale_min = scale_min
         self.scale_max = scale_max
 
-    def apply(self, image: np.ndarray, scale: float = None) -> np.ndarray:
+    def apply(self, img: np.ndarray, scale: Optional[float] = None, **params) -> np.ndarray:
         return F.downscale(
-            image,
+            img,
             scale=scale,
             down_interpolation=self.interpolation.downscale,
             up_interpolation=self.interpolation.upscale,
