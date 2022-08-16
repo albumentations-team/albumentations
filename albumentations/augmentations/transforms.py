@@ -4,6 +4,7 @@ import math
 import numbers
 import random
 import warnings
+from dataclasses import dataclass
 from enum import IntEnum
 from types import LambdaType
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -18,6 +19,7 @@ from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
     NoOp,
+    ScaleFloatType,
     to_tuple,
 )
 from ..core.utils import format_args
@@ -1701,7 +1703,11 @@ class Downscale(ImageOnlyTransform):
     Args:
         scale_min (float): lower bound on the image scale. Should be < 1.
         scale_max (float):  lower bound on the image scale. Should be .
-        interpolation: cv2 interpolation method. cv2.INTER_NEAREST by default
+        interpolation: cv2 interpolation method. Could be:
+            - single cv2 interpolation flag - selected method will be used for downscale and upscale.
+            - dict(downscale=flag, upscale=flag)
+            - Downscale.Interpolation(downscale=flag, upscale=flag) -
+            Default: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
 
     Targets:
         image
@@ -1710,26 +1716,38 @@ class Downscale(ImageOnlyTransform):
         uint8, float32
     """
 
+    @dataclass
+    class Interpolation:
+        downscale: int = cv2.INTER_NEAREST
+        upscale: int = cv2.INTER_NEAREST
+
     def __init__(
         self,
-        scale_min=0.25,
-        scale_max=0.25,
-        interpolation=None,
-        always_apply=False,
-        p=0.5,
+        scale_min: float = 0.25,
+        scale_max: float = 0.25,
+        interpolation: Optional[Union[int, Interpolation, Dict[str, int]]] = None,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(Downscale, self).__init__(always_apply, p)
         if interpolation is None:
-            self.interpolation = cv2.INTER_NEAREST, cv2.INTER_NEAREST
+            self.interpolation = self.Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
             warnings.warn(
                 "Using default interpolation INTER_NEAREST, which is sub-optimal."
                 "Please specify interpolation mode for downscale and upscale explicitly."
                 "For additional information see this PR https://github.com/albumentations-team/albumentations/pull/584"
             )
         elif isinstance(interpolation, int):
-            self.interpolation = interpolation, interpolation
-        else:
+            self.interpolation = self.Interpolation(downscale=interpolation, upscale=interpolation)
+        elif isinstance(interpolation, self.Interpolation):
             self.interpolation = interpolation
+        elif isinstance(interpolation, dict):
+            self.interpolation = self.Interpolation(**interpolation)
+        else:
+            raise ValueError(
+                "Wrong interpolation data type. Supported types: `Optional[Union[int, Interpolation, Dict[str, int]]]`."
+                f" Got: {type(interpolation)}"
+            )
 
         if scale_min > scale_max:
             raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
@@ -1738,16 +1756,24 @@ class Downscale(ImageOnlyTransform):
         self.scale_min = scale_min
         self.scale_max = scale_max
 
-    def apply(self, image, scale=None, **params):
+    def apply(self, image: np.ndarray, scale: float = None) -> np.ndarray:
         return F.downscale(
-            image, scale=scale, down_interpolation=self.interpolation[0], up_interpolation=self.interpolation[1]
+            image,
+            scale=scale,
+            down_interpolation=self.interpolation.downscale,
+            up_interpolation=self.interpolation.upscale,
         )
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, Any]:
         return {"scale": random.uniform(self.scale_min, self.scale_max)}
 
-    def get_transform_init_args_names(self):
-        return "scale_min", "scale_max", "interpolation"
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return "scale_min", "scale_max"
+
+    def _to_dict(self) -> Dict[str, Any]:
+        result = super()._to_dict()
+        result["interpolation"] = {"upscale": self.interpolation.upscale, "downscale": self.interpolation.downscale}
+        return result
 
 
 class Lambda(NoOp):
