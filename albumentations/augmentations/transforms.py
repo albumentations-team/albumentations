@@ -4,7 +4,6 @@ import math
 import numbers
 import random
 import warnings
-from dataclasses import dataclass
 from enum import IntEnum
 from types import LambdaType
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -1716,10 +1715,10 @@ class Downscale(ImageOnlyTransform):
         uint8, float32
     """
 
-    @dataclass
     class Interpolation:
-        downscale: int = cv2.INTER_NEAREST
-        upscale: int = cv2.INTER_NEAREST
+        def __init__(self, *, downscale: int = cv2.INTER_NEAREST, upscale: int = cv2.INTER_NEAREST):
+            self.downscale = downscale
+            self.upscale = upscale
 
     def __init__(
         self,
