@@ -2,6 +2,7 @@ from __future__ import division
 
 from functools import wraps
 from itertools import product
+from math import ceil
 from typing import Callable, Optional, Sequence, Union
 from warnings import warn
 
@@ -1540,23 +1541,20 @@ def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[fl
     return np.where(drop_mask, drop_values, image)
 
 
-def defocus(img, radius, alias_blur):
-    def get_kernel(radius, alias_blur):
-        L = np.arange(-max(8, radius), max(8, radius) + 1)
-        ksize = 3 if radius <= 8 else 5
+def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
+    L = np.arange(-max(8, radius), max(8, radius) + 1)
+    ksize = 3 if radius <= 8 else 5
 
-        X, Y = np.meshgrid(L, L)
-        aliased_disk = np.array((X**2 + Y**2) <= radius**2, dtype=np.float32)
-        aliased_disk /= np.sum(aliased_disk)
+    X, Y = np.meshgrid(L, L)
+    aliased_disk = np.array((X**2 + Y**2) <= radius**2, dtype=np.float32)
+    aliased_disk /= np.sum(aliased_disk)
 
-        return gaussian_blur(aliased_disk, ksize, sigma=alias_blur)
-
-    kernel = get_kernel(radius, alias_blur)
+    kernel = gaussian_blur(aliased_disk, ksize, sigma=alias_blur)
     return convolve(img, kernel=kernel)
 
 
 @preserve_channel_dim
-def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+def resize(img: np.ndarray, height: int, width: int, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
     img_height, img_width = img.shape[:2]
     if height == img_height and width == img_width:
         return img
@@ -1565,15 +1563,13 @@ def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
 
 
 @preserve_channel_dim
-def scale(img, scale, interpolation=cv2.INTER_LINEAR):
+def scale(img: np.ndarray, scale: float, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
     return resize(img, new_height, new_width, interpolation)
 
 
-def central_zoom(img, zoom_factor):
-    from math import ceil
-
+def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
     h, w = img.shape[:2]
     h_ch, w_ch = ceil(h / zoom_factor), ceil(w / zoom_factor)
     h_top, w_top = (h - h_ch) // 2, (w - w_ch) // 2
@@ -1584,7 +1580,7 @@ def central_zoom(img, zoom_factor):
 
 
 @clipped
-def zoom_blur(img, zoom_factors):
+def zoom_blur(img: np.ndarray, zoom_factors: Sequence[int]) -> np.ndarray:
     out = np.zeros_like(img, dtype=np.float32)
     for zoom_factor in zoom_factors:
         out += central_zoom(img, zoom_factor)

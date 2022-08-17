@@ -18,6 +18,8 @@ from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
     NoOp,
+    ScaleFloatType,
+    ScaleIntType,
     to_tuple,
 )
 from ..core.utils import format_args
@@ -2698,7 +2700,7 @@ class PixelDropout(DualTransform):
 
 class Defocus(ImageOnlyTransform):
     """
-    Apply defocus transform. See arXiv:1903.12261 [cs.LG].
+    Apply defocus transform. See https://arxiv.org/abs/1903.12261.
 
     Args:
         radius ((int, int) or int): range for radius of defocusing.
@@ -2714,8 +2716,14 @@ class Defocus(ImageOnlyTransform):
         Any
     """
 
-    def __init__(self, radius=(3, 10), alias_blur=(0.1, 0.5), always_apply=False, p=0.5):
-        super(Defocus, self).__init__(always_apply, p)
+    def __init__(
+        self,
+        radius: ScaleIntType = (3, 10),
+        alias_blur: ScaleFloatType = (0.1, 0.5),
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
         self.radius = to_tuple(radius, low=1)
         self.alias_blur = to_tuple(alias_blur, low=0)
 
@@ -2725,22 +2733,22 @@ class Defocus(ImageOnlyTransform):
         if self.alias_blur[0] < 0:
             raise ValueError("Parameter alias_blur must be non-negative")
 
-    def apply(self, img, radius=3, alias_blur=0.5, **params):
+    def apply(self, img: np.ndarray, radius: int = 3, alias_blur: float = 0.5, **params) -> np.ndarray:
         return F.defocus(img, radius, alias_blur)
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, Any]:
         return {
-            "radius": np.random.randint(self.radius[0], self.radius[1] + 1),
-            "alias_blur": random.uniform(self.alias_blur[0], self.alias_blur[1]),
+            "radius": random_utils.randint(self.radius[0], self.radius[1] + 1),
+            "alias_blur": random_utils.uniform(self.alias_blur[0], self.alias_blur[1]),
         }
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
         return ("radius", "alias_blur")
 
 
 class ZoomBlur(ImageOnlyTransform):
     """
-    Apply zoom blur transform. See arXiv:1903.12261 [cs.LG].
+    Apply zoom blur transform. See https://arxiv.org/abs/1903.12261.
 
     Args:
         max_factor ((float, float) or float): range for max factor for blurring.
@@ -2758,7 +2766,13 @@ class ZoomBlur(ImageOnlyTransform):
         Any
     """
 
-    def __init__(self, max_factor=1.31, step_factor=(0.01, 0.03), always_apply=False, p=0.5):
+    def __init__(
+        self,
+        max_factor: ScaleFloatType = 1.31,
+        step_factor: ScaleFloatType = (0.01, 0.03),
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
         super().__init__(always_apply, p)
         self.max_factor = to_tuple(max_factor, low=1.0)
         self.step_factor = to_tuple(step_factor, step_factor)
@@ -2768,13 +2782,13 @@ class ZoomBlur(ImageOnlyTransform):
         if self.step_factor[0] <= 0:
             raise ValueError("Step factor must be positive")
 
-    def apply(self, img, zoom_factors=np.arange(1, 1.11, 0.01), **params):
+    def apply(self, img: np.ndarray, zoom_factors: np.ndarray = None, **params) -> np.ndarray:
         return F.zoom_blur(img, zoom_factors)
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, Any]:
         max_factor = random.uniform(self.max_factor[0], self.max_factor[1])
         step_factor = random.uniform(self.step_factor[0], self.step_factor[1])
         return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
         return ("max_factor", "step_factor")
