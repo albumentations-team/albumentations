@@ -1541,42 +1541,23 @@ def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[fl
 
 @clipped
 @preserve_shape
-def spatter(img, mean, std, sigma, cutout_treshold, intensity, mode):
+def spatter(
+    img: np.ndarray,
+    non_mud: Optional[np.ndarray],
+    mud: Optional[np.ndarray],
+    rain: Optional[np.ndarray],
+    mode: str,
+) -> np.ndarray:
     non_rgb_warning(img)
 
-    if mode not in ["rain", "mud"]:
-        raise ValueError("Unsupported color mode: " + str(mode))
-
     coef = MAX_VALUES_BY_DTYPE[img.dtype]
-    img = img.astype(np.float32) / coef
-
-    liquid_layer = np.random.normal(size=img.shape[:2], loc=mean, scale=std)
-    liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
-    liquid_layer[liquid_layer < cutout_treshold] = 0
+    img = img.astype(np.float32) * (1 / coef)
 
     if mode == "rain":
-        liquid_layer = (liquid_layer * 255).astype(np.uint8)
-        dist = 255 - cv2.Canny(liquid_layer, 50, 150)
-        dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
-        _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
-        dist = blur(dist, 3).astype(np.uint8)
-        dist = equalize(dist)
-
-        ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
-        dist = convolve(dist, ker)
-        dist = blur(dist, 3).astype(np.float32)
-
-        m = liquid_layer * dist
-        m /= np.max(m, axis=(0, 1))
-        drops = m[:, :, None] * np.array([238 / 255.0, 238 / 255.0, 175 / 255.0]) * intensity
-
-        img = img + drops
+        img = img + rain
+    elif mode == "mud":
+        img = img * non_mud + mud
     else:
-        m = np.where(liquid_layer > cutout_treshold, 1, 0)
-        m = gaussian_filter(m.astype(np.float32), sigma=sigma, mode="nearest")
-        m[m < 1.2 * cutout_treshold] = 0
-        m = m[..., np.newaxis]
-        mud = m * np.array([20 / 255.0, 42 / 255.0, 63 / 255.0])
-        img = img * (1 - m) + mud
+        raise ValueError("Unsupported spatter mode: " + str(mode))
 
-    return img * coef
+    return img * 255

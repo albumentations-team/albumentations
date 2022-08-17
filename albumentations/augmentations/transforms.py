@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 from scipy import special
+from scipy.ndimage.filters import gaussian_filter
 
 from albumentations import random_utils
 
@@ -18,6 +19,7 @@ from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
     NoOp,
+    ScaleFloatType,
     to_tuple,
 )
 from ..core.utils import format_args
@@ -2701,27 +2703,28 @@ class Spatter(ImageOnlyTransform):
 
     Args:
         mean (float, or tuple of floats): Mean value of normal distribution for generating liquid layer.
-            If single float it will used as mean.
-            If tuple of float mean will sampled from range `[mean[0], mean[1])`. Default: (0.65).
+            If single float it will be used as mean.
+            If tuple of float mean will be sampled from range `[mean[0], mean[1])`. Default: (0.65).
         std (float, or tuple of floats): Standard deviation value of normal distribution for generating liquid layer.
-            If single float it will used as std.
-            If tuple of float std will sampled from range `[std[0], std[1])`. Default: (0.3).
+            If single float it will be used as std.
+            If tuple of float std will be sampled from range `[std[0], std[1])`. Default: (0.3).
         gauss_sigma (float, or tuple of floats): Sigma value for gaussian filtering of liquid layer.
-            If single float it will used as gauss_sigma.
-            If tuple of float gauss_sigma will sampled from range `[sigma[0], sigma[1])`. Default: (2).
+            If single float it will be used as gauss_sigma.
+            If tuple of float gauss_sigma will be sampled from range `[sigma[0], sigma[1])`. Default: (2).
         cutout_threshold (float, or tuple of floats): Threshold for filtering liqued layer
             (determines number of drops). If single float it will used as cutout_threshold.
-            If tuple of float cutout_threshold will sampled from range `[cutout_threshold[0], cutout_threshold[1])`.
+            If tuple of float cutout_threshold will be sampled from range `[cutout_threshold[0], cutout_threshold[1])`.
             Default: (0.68).
         intensity (float, or tuple of floats): Intensity of corruption.
-            If single float it will used as intensity.
-            If tuple of float intensity will sampled from range `[intensity[0], intensity[1])`. Default: (0.6).
-        mode (string, or list of strings): Type of corruption. Currently supported options are 'rain' and 'mud'.
+            If single float it will be used as intensity.
+            If tuple of float intensity will be sampled from range `[intensity[0], intensity[1])`. Default: (0.6).
+        mode (string, or list of strings): Type of corruption. Currently, supported options are 'rain' and 'mud'.
              If list is provided type of corruption will be sampled list. Default: ("rain").
-
         p (float): probability of applying the transform. Default: 0.5.
+
     Targets:
         image
+
     Image types:
         uint8, float32
 
@@ -2732,14 +2735,14 @@ class Spatter(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean=0.65,
-        std=0.3,
-        gauss_sigma=2,
-        cutout_threshold=0.68,
-        intensity=0.6,
-        mode="rain",
-        always_apply=False,
-        p=0.5,
+        mean: ScaleFloatType = 0.65,
+        std: ScaleFloatType = 0.3,
+        gauss_sigma: ScaleFloatType = 2,
+        cutout_threshold: ScaleFloatType = 0.68,
+        intensity: ScaleFloatType = 0.6,
+        mode: Union[str, Sequence[str]] = "rain",
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
 
@@ -2749,21 +2752,72 @@ class Spatter(ImageOnlyTransform):
         self.intensity = to_tuple(intensity, intensity)
         self.cutout_threshold = to_tuple(cutout_threshold, cutout_threshold)
         self.mode = mode if isinstance(mode, (list, tuple)) else [mode]
+        for i in self.mode:
+            if i not in ["rain", "mud"]:
+                raise ValueError(f"Unsupported color mode: {mode}. Transform supports only `rain` and `mud` mods.")
 
     def apply(
-        self, img, mean=0.65, std=0.3, gauss_sigma=2, cutout_threshold=0.68, intensity=0.6, mode="rain", **params
-    ):
-        return F.spatter(img, mean, std, gauss_sigma, cutout_threshold, intensity, mode)
+        self,
+        img: np.ndarray,
+        non_mud: Optional[np.ndarray] = None,
+        mud: Optional[np.ndarray] = None,
+        drops: Optional[np.ndarray] = None,
+        mode: str = None,
+        **params
+    ) -> np.ndarray:
+        return F.spatter(img, non_mud, mud, drops, mode)
 
-    def get_params(self):
+    @property
+    def targets_as_params(self) -> List[str]:
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        h, w = params["image"].shape[:2]
+
+        mean = random.uniform(self.mean[0], self.mean[1])
+        std = random.uniform(self.std[0], self.std[1])
+        cutout_threshold = random.uniform(self.cutout_threshold[0], self.cutout_threshold[1])
+        sigma = random.uniform(self.gauss_sigma[0], self.gauss_sigma[1])
+        mode = random.choice(self.mode)
+        intensity = random.uniform(self.intensity[0], self.intensity[1])
+
+        liquid_layer = random_utils.normal(size=(h, w), loc=mean, scale=std)
+        liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
+        liquid_layer[liquid_layer < cutout_threshold] = 0
+
+        if mode == "rain":
+            liquid_layer = (liquid_layer * 255).astype(np.uint8)
+            dist = 255 - cv2.Canny(liquid_layer, 50, 150)
+            dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
+            _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
+            dist = F.blur(dist, 3).astype(np.uint8)
+            dist = F.equalize(dist)
+
+            ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])
+            dist = F.convolve(dist, ker)
+            dist = F.blur(dist, 3).astype(np.float32)
+
+            m = liquid_layer * dist
+            m *= 1 / np.max(m, axis=(0, 1))
+
+            drops = m[:, :, None] * np.array([238 / 255.0, 238 / 255.0, 175 / 255.0]) * intensity
+            mud = None
+            non_mud = None
+        else:
+            m = np.where(liquid_layer > cutout_threshold, 1, 0)
+            m = gaussian_filter(m.astype(np.float32), sigma=sigma, mode="nearest")
+            m[m < 1.2 * cutout_threshold] = 0
+            m = m[..., np.newaxis]
+            mud = m * np.array([20 / 255.0, 42 / 255.0, 63 / 255.0])
+            non_mud = 1 - m
+            drops = None
+
         return {
-            "mean": random.uniform(self.mean[0], self.mean[1]),
-            "std": random.uniform(self.std[0], self.std[1]),
-            "gauss_sigma": random.uniform(self.gauss_sigma[0], self.gauss_sigma[1]),
-            "intensity": random.uniform(self.intensity[0], self.intensity[1]),
-            "cutout_threshold": random.uniform(self.cutout_threshold[0], self.cutout_threshold[1]),
-            "mode": random.choice(self.mode),
+            "non_mud": non_mud,
+            "mud": mud,
+            "drops": drops,
+            "mode": mode,
         }
 
-    def get_transform_init_args_names(self):
-        return ("mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode")
+    def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str]:
+        return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode"

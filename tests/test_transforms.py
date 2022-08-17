@@ -1276,10 +1276,8 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
 
 def test_spatter_incorrect_mode(image):
     unsupported_mode = "unsupported"
-    aug = A.Spatter(mode=unsupported_mode)
-
     with pytest.raises(ValueError) as exc_info:
-        aug(image=image, force_apply=True)
+        A.Spatter(mode=unsupported_mode)
 
-    message = "Unsupported color mode: " + unsupported_mode
+    message = f"Unsupported color mode: {unsupported_mode}. Transform supports only `rain` and `mud` mods."
     assert str(exc_info.value).startswith(message)
