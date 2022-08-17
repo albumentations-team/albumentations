@@ -72,10 +72,10 @@ def test_optical_distortion_interpolation(interpolation):
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     aug = A.OpticalDistortion(distort_limit=(0.05, 0.05), shift_limit=(0, 0), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.optical_distortion(
+    expected_image = FGeometric.optical_distortion(
         image, k=0.05, dx=0, dy=0, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
     )
-    expected_mask = F.optical_distortion(
+    expected_mask = FGeometric.optical_distortion(
         mask, k=0.05, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
     )
     assert np.array_equal(data["image"], expected_image)
@@ -88,10 +88,10 @@ def test_grid_distortion_interpolation(interpolation):
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
     aug = A.GridDistortion(num_steps=1, distort_limit=(0.3, 0.3), interpolation=interpolation, p=1)
     data = aug(image=image, mask=mask)
-    expected_image = F.grid_distortion(
+    expected_image = FGeometric.grid_distortion(
         image, num_steps=1, xsteps=[1.3], ysteps=[1.3], interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
     )
-    expected_mask = F.grid_distortion(
+    expected_mask = FGeometric.grid_distortion(
         mask,
         num_steps=1,
         xsteps=[1.3],
@@ -156,7 +156,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.PixelDropout},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout},
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -181,7 +181,13 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad, A.PixelDropout},
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.CropAndPad,
+            A.PixelDropout,
+        },
     ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -220,6 +226,7 @@ def __test_multiprocessing_support_proc(args):
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
@@ -314,10 +321,10 @@ def test_lambda_transform():
         return new_mask
 
     def vflip_bbox(bbox, **kwargs):
-        return F.bbox_vflip(bbox, **kwargs)
+        return FGeometric.bbox_vflip(bbox, **kwargs)
 
     def vflip_keypoint(keypoint, **kwargs):
-        return F.keypoint_vflip(keypoint, **kwargs)
+        return FGeometric.keypoint_vflip(keypoint, **kwargs)
 
     aug = A.Lambda(
         image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
@@ -331,8 +338,8 @@ def test_lambda_transform():
     )
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [F.bbox_vflip((10, 15, 25, 35), 10, 10)]
-    assert output["keypoints"] == [F.keypoint_vflip((20, 30, 40, 50), 10, 10)]
+    assert output["bboxes"] == [FGeometric.bbox_vflip((10, 15, 25, 35), 10, 10)]
+    assert output["keypoints"] == [FGeometric.keypoint_vflip((20, 30, 40, 50), 10, 10)]
 
 
 def test_channel_droput():
@@ -713,7 +720,6 @@ def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
 
 @pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
 def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
-
     x_uint8 = np.zeros((5, 5)).astype(np.uint8)
     x_uint8[2, 2] = val_uint8
 
@@ -977,7 +983,6 @@ def test_template_transform_incorrect_channels(img_channels, template_channels):
 
 @pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
 def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
-
     x_uint8 = np.zeros((5, 5)).astype(np.uint8)
     x_uint8[2, 2] = val_uint8
 
@@ -1225,3 +1230,31 @@ def test_bbox_clipping_perspective():
     bboxes = np.array([[0, 0, 100, 100, 1]])
     res = transform(image=image, bboxes=bboxes)["bboxes"]
     assert len(res) == 0
+
+
+@pytest.mark.parametrize("seed", [i for i in range(10)])
+def test_motion_blur_allow_shifted(seed):
+    random.seed(seed)
+
+    transform = A.MotionBlur(allow_shifted=False)
+    kernel = transform.get_params()["kernel"]
+
+    center = kernel.shape[0] / 2 - 0.5
+
+    def check_center(vector):
+        start = None
+        end = None
+
+        for i, v in enumerate(vector):
+            if start is None and v != 0:
+                start = i
+            elif start is not None and v == 0:
+                end = i
+                break
+        if end is None:
+            end = len(vector)
+
+        assert (end + start - 1) / 2 == center
+
+    check_center(kernel.sum(axis=0))
+    check_center(kernel.sum(axis=1))

@@ -106,9 +106,7 @@ class ImageOnlyIAATransform(ImageOnlyTransform, BasicIAATransform):
 class IAACropAndPad(DualIAATransform):
     """This augmentation is deprecated. Please use CropAndPad instead."""
 
-    def __init__(
-        self, px=None, percent=None, pad_mode="constant", pad_cval=0, keep_size=True, always_apply=False, p=1
-    ):
+    def __init__(self, px=None, percent=None, pad_mode="constant", pad_cval=0, keep_size=True, always_apply=False, p=1):
         super(IAACropAndPad, self).__init__(always_apply, p)
         self.px = px
         self.percent = percent

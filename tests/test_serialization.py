@@ -9,6 +9,7 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
@@ -16,7 +17,6 @@ from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
     check_all_augs_exists,
-    get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
     set_seed,
@@ -41,6 +41,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
@@ -319,6 +320,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": True, "drop_value": None}],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": False, "drop_value": None, "mask_drop_value": 15}],
+    [A.RandomCropFromBorders, dict(crop_left=0.2, crop_right=0.3, crop_top=0.05, crop_bottom=0.5)],
     [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
     [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
 ]
@@ -330,6 +332,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.Lambda,
     A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
+    A.BBoxSafeRandomCrop,
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
@@ -392,6 +395,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+            A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -456,6 +460,7 @@ def test_augmentations_for_bboxes_serialization(
             A.MaskDropout,
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.TemplateTransform,
         },
     ),
@@ -658,16 +663,16 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 @pytest.mark.parametrize("p", [1])
 def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, seed, p):
     def vflip_image(image, **kwargs):
-        return F.vflip(image)
+        return FGeometric.vflip(image)
 
     def vflip_mask(mask, **kwargs):
-        return F.vflip(mask)
+        return FGeometric.vflip(mask)
 
     def vflip_bbox(bbox, **kwargs):
-        return F.bbox_vflip(bbox, **kwargs)
+        return FGeometric.bbox_vflip(bbox, **kwargs)
 
     def vflip_keypoint(keypoint, **kwargs):
-        return F.keypoint_vflip(keypoint, **kwargs)
+        return FGeometric.keypoint_vflip(keypoint, **kwargs)
 
     aug = A.Lambda(name="vflip", image=vflip_image, mask=vflip_mask, bbox=vflip_bbox, keypoint=vflip_keypoint, p=p)
 
