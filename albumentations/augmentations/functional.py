@@ -1554,8 +1554,10 @@ def spatter(
     img = img.astype(np.float32) * (1 / coef)
 
     if mode == "rain":
+        assert rain is not None
         img = img + rain
     elif mode == "mud":
+        assert non_mud is not None and mud is not None
         img = img * non_mud + mud
     else:
         raise ValueError("Unsupported spatter mode: " + str(mode))
