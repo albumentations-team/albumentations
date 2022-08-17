@@ -156,7 +156,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.PixelDropout},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout},
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -181,7 +181,13 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.CropAndPad, A.PixelDropout},
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.CropAndPad,
+            A.PixelDropout,
+        },
     ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
@@ -220,6 +226,7 @@ def __test_multiprocessing_support_proc(args):
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,

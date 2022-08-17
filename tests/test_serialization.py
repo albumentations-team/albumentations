@@ -41,6 +41,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
@@ -330,6 +331,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.Lambda,
     A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
+    A.BBoxSafeRandomCrop,
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
@@ -392,6 +394,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+            A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -456,6 +459,7 @@ def test_augmentations_for_bboxes_serialization(
             A.MaskDropout,
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.TemplateTransform,
         },
     ),
