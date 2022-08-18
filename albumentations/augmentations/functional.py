@@ -8,6 +8,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
+from scipy.ndimage.filters import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.core.keypoints_utils import angle_to_2pi_range
@@ -1538,3 +1539,29 @@ def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[fl
     else:
         drop_values = np.full_like(image, drop_value)  # type: ignore
     return np.where(drop_mask, drop_values, image)
+
+
+@clipped
+@preserve_shape
+def spatter(
+    img: np.ndarray,
+    non_mud: Optional[np.ndarray],
+    mud: Optional[np.ndarray],
+    rain: Optional[np.ndarray],
+    mode: str,
+) -> np.ndarray:
+    non_rgb_warning(img)
+
+    coef = MAX_VALUES_BY_DTYPE[img.dtype]
+    img = img.astype(np.float32) * (1 / coef)
+
+    if mode == "rain":
+        assert rain is not None
+        img = img + rain
+    elif mode == "mud":
+        assert non_mud is not None and mud is not None
+        img = img * non_mud + mud
+    else:
+        raise ValueError("Unsupported spatter mode: " + str(mode))
+
+    return img * 255
