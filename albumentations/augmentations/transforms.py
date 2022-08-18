@@ -34,6 +34,7 @@ __all__ = [
     "RGBShift",
     "RandomBrightness",
     "RandomContrast",
+    "GaussNoise",
     "CLAHE",
     "ChannelShuffle",
     "InvertImg",

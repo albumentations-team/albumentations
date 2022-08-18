@@ -1,5 +1,6 @@
 # Common classes
-from .blur import *
+from .blur.functional import *
+from .blur.transforms import *
 from .crops.functional import *
 from .crops.transforms import *
 

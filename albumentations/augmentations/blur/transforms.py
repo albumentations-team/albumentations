@@ -15,7 +15,7 @@ from albumentations.core.transforms_interface import (
     to_tuple,
 )
 
-__all__ = ["Blur", "MotionBlur", "GaussianBlur", "GlassBlur", "AdvancedBlur"]
+__all__ = ["Blur", "MotionBlur", "GaussianBlur", "GlassBlur", "AdvancedBlur", "MedianBlur"]
 
 
 class Blur(ImageOnlyTransform):
