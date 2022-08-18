@@ -321,6 +321,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": True, "drop_value": None}],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": False, "drop_value": None, "mask_drop_value": 15}],
     [A.RandomCropFromBorders, dict(crop_left=0.2, crop_right=0.3, crop_top=0.05, crop_bottom=0.5)],
+    [A.Spatter, dict(mean=0.2, std=0.1, gauss_sigma=3, cutout_threshold=0.4, intensity=0.7, mode="mud")],
     [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
     [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
 ]

@@ -1258,3 +1258,26 @@ def test_motion_blur_allow_shifted(seed):
 
     check_center(kernel.sum(axis=0))
     check_center(kernel.sum(axis=1))
+
+
+@pytest.mark.parametrize(
+    "augmentation", [A.RandomSnow(), A.RandomRain(), A.RandomFog(), A.RandomSunFlare(), A.RandomShadow(), A.Spatter()]
+)
+@pytest.mark.parametrize("img_channels", [1, 6])
+def test_non_rgb_transform_warning(augmentation, img_channels):
+    img = np.random.randint(0, 256, (512, 512, img_channels), dtype=np.uint8)
+
+    with pytest.raises(ValueError) as exc_info:
+        augmentation(image=img, force_apply=True)
+
+    message = "This transformation expects 3-channel images"
+    assert str(exc_info.value).startswith(message)
+
+
+def test_spatter_incorrect_mode(image):
+    unsupported_mode = "unsupported"
+    with pytest.raises(ValueError) as exc_info:
+        A.Spatter(mode=unsupported_mode)
+
+    message = f"Unsupported color mode: {unsupported_mode}. Transform supports only `rain` and `mud` mods."
+    assert str(exc_info.value).startswith(message)
