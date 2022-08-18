@@ -270,6 +270,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.PixelDistributionAdaptation,
             A.UnsharpMask,
             A.RandomCropFromBorders,
+            A.Spatter,
         },
     ),
 )
@@ -426,6 +427,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.ToSepia,
             A.FancyPCA,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
@@ -487,6 +489,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.Posterize,
             A.RandomToneCurve,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
@@ -539,6 +542,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
@@ -595,6 +599,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
