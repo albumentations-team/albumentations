@@ -8,6 +8,7 @@ import pytest
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
+from albumentations.augmentations.blur.functional import gaussian_blur
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -698,7 +699,7 @@ def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
     aug = A.Compose([A.GaussianBlur(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
 
     res = aug(image=img)["image"]
-    assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
+    assert np.allclose(res, gaussian_blur(img, result_blur, result_sigma))
 
 
 @pytest.mark.parametrize(
