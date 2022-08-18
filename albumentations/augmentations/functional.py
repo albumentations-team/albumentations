@@ -1,14 +1,12 @@
 from __future__ import division
 
 from functools import wraps
-from itertools import product
 from typing import Callable, Optional, Sequence, Union
 from warnings import warn
 
 import cv2
 import numpy as np
 import skimage
-from scipy.ndimage.filters import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.core.keypoints_utils import angle_to_2pi_range
@@ -27,7 +25,6 @@ __all__ = [
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
     "angle_2pi_range",
-    "blur",
     "brightness_contrast_adjust",
     "channel_shuffle",
     "clahe",
@@ -40,10 +37,8 @@ __all__ = [
     "from_float",
     "gamma_transform",
     "gauss_noise",
-    "gaussian_blur",
     "get_num_channels",
     "get_opencv_dtype_from_numpy",
-    "glass_blur",
     "image_compression",
     "invert",
     "is_grayscale_image",
@@ -51,7 +46,6 @@ __all__ = [
     "is_rgb_image",
     "iso_noise",
     "linear_transformation_rgb",
-    "median_blur",
     "move_tone_curve",
     "multiply",
     "non_rgb_warning",
@@ -639,30 +633,6 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
         img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
     return img
-
-
-@preserve_shape
-def blur(img, ksize):
-    blur_fn = _maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
-    return blur_fn(img)
-
-
-@preserve_shape
-def gaussian_blur(img, ksize, sigma=0):
-    # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
-    return blur_fn(img)
-
-
-@preserve_shape
-def median_blur(img, ksize):
-    if img.dtype == np.float32 and ksize not in {3, 5}:
-        raise ValueError(
-            "Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5".format(ksize)
-        )
-
-    blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
-    return blur_fn(img)
 
 
 @preserve_shape
@@ -1308,38 +1278,6 @@ def fancy_pca(img, alpha=0.1):
     orig_img = orig_img.astype(np.uint8)
 
     return orig_img
-
-
-@preserve_shape
-def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
-    x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
-
-    if mode == "fast":
-
-        hs = np.arange(img.shape[0] - max_delta, max_delta, -1)
-        ws = np.arange(img.shape[1] - max_delta, max_delta, -1)
-        h = np.tile(hs, ws.shape[0])
-        w = np.repeat(ws, hs.shape[0])
-
-        for i in range(iterations):
-            dy = dxy[:, i, 0]
-            dx = dxy[:, i, 1]
-            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
-
-    elif mode == "exact":
-        for ind, (i, h, w) in enumerate(
-            product(
-                range(iterations),
-                range(img.shape[0] - max_delta, max_delta, -1),
-                range(img.shape[1] - max_delta, max_delta, -1),
-            )
-        ):
-            ind = ind if ind < len(dxy) else ind % len(dxy)
-            dy = dxy[ind, i, 0]
-            dx = dxy[ind, i, 1]
-            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
-
-    return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
 
 
 def _adjust_brightness_torchvision_uint8(img, factor):
