@@ -72,6 +72,8 @@ __all__ = [
     "UnsharpMask",
     "AdvancedBlur",
     "PixelDropout",
+    "Defocus",
+    "ZoomBlur",
 ]
 
 
