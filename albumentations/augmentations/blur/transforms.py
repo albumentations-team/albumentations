@@ -119,8 +119,7 @@ class MotionBlur(Blur):
         cv2.line(kernel, (x1, y1), (x2, y2), 1, thickness=1)
 
         # Normalize kernel
-        kernel = kernel.astype(np.float32) / np.sum(kernel)
-        return {"kernel": kernel}
+        return {"kernel": kernel.astype(np.float32) / np.sum(kernel)}
 
 
 class MedianBlur(Blur):
