@@ -40,7 +40,7 @@ class Blur(ImageOnlyTransform):
     def apply(self, img: np.ndarray, ksize: int = 3, **params) -> np.ndarray:
         return F.blur(img, ksize)
 
-    def get_params(self) -> Dict[str, int]:
+    def get_params(self) -> Dict[str, Any]:
         return {"ksize": int(random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
@@ -83,7 +83,7 @@ class MotionBlur(Blur):
     def apply(self, img: np.ndarray, kernel: np.ndarray = None, **params) -> np.ndarray:  # type: ignore
         return FMain.convolve(img, kernel=kernel)
 
-    def get_params(self) -> Dict[str, np.ndarray]:
+    def get_params(self) -> Dict[str, Any]:
         ksize = random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
         if ksize <= 2:
             raise ValueError("ksize must be > 2. Got: {}".format(ksize))
@@ -356,8 +356,7 @@ class AdvancedBlur(ImageOnlyTransform):
         else:
             beta = random.uniform(1, self.beta_limit[1])
 
-        random_state = np.random.RandomState(random.randint(0, 65536))
-        noise_matrix = random_state.uniform(*self.noise_limit, size=[ksize, ksize])
+        noise_matrix = random_utils.uniform(self.noise_limit[0], self.noise_limit[1], size=[ksize, ksize])
 
         # Generate mesh grid centered at zero.
         ax = np.arange(-ksize // 2 + 1.0, ksize // 2 + 1.0)

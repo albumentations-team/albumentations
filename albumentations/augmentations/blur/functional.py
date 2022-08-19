@@ -1,4 +1,5 @@
 from itertools import product
+from typing import Union
 
 import cv2
 import numpy as np
@@ -42,8 +43,8 @@ def glass_blur(
     if mode == "fast":
         hs = np.arange(img.shape[0] - max_delta, max_delta, -1)
         ws = np.arange(img.shape[1] - max_delta, max_delta, -1)
-        h = np.tile(hs, ws.shape[0])
-        w = np.repeat(ws, hs.shape[0])
+        h: Union[int, np.ndarray] = np.tile(hs, ws.shape[0])
+        w: Union[int, np.ndarray] = np.repeat(ws, hs.shape[0])
 
         for i in range(iterations):
             dy = dxy[:, i, 0]
@@ -62,5 +63,7 @@ def glass_blur(
             dy = dxy[ind, i, 0]
             dx = dxy[ind, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
+    else:
+        ValueError(f"Unsupported mode `{mode}`. Supports only `fast` and `exact`.")
 
     return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
