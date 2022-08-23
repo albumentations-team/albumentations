@@ -1,21 +1,28 @@
 from __future__ import division
 
-from functools import wraps
 from itertools import product
-from typing import Callable, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 from warnings import warn
 
 import cv2
 import numpy as np
 import skimage
-from scipy.ndimage.filters import gaussian_filter
 
 from albumentations import random_utils
-from albumentations.core.keypoints_utils import angle_to_2pi_range
+from albumentations.augmentations.utils import (
+    MAX_VALUES_BY_DTYPE,
+    _maybe_process_in_chunks,
+    clip,
+    clipped,
+    ensure_contiguous,
+    is_grayscale_image,
+    is_rgb_image,
+    non_rgb_warning,
+    preserve_channel_dim,
+    preserve_shape,
+)
 
 __all__ = [
-    "MAX_VALUES_BY_DTYPE",
-    "_maybe_process_in_chunks",
     "add_fog",
     "add_rain",
     "add_shadow",
@@ -26,13 +33,10 @@ __all__ = [
     "adjust_contrast_torchvision",
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
-    "angle_2pi_range",
     "blur",
     "brightness_contrast_adjust",
     "channel_shuffle",
     "clahe",
-    "clip",
-    "clipped",
     "convolve",
     "downscale",
     "equalize",
@@ -41,25 +45,17 @@ __all__ = [
     "gamma_transform",
     "gauss_noise",
     "gaussian_blur",
-    "get_num_channels",
-    "get_opencv_dtype_from_numpy",
     "glass_blur",
     "image_compression",
     "invert",
-    "is_grayscale_image",
-    "is_multispectral_image",
-    "is_rgb_image",
     "iso_noise",
     "linear_transformation_rgb",
     "median_blur",
     "move_tone_curve",
     "multiply",
-    "non_rgb_warning",
     "noop",
     "normalize",
     "posterize",
-    "preserve_channel_dim",
-    "preserve_shape",
     "shift_hsv",
     "shift_rgb",
     "solarize",
@@ -69,134 +65,6 @@ __all__ = [
     "to_gray",
     "unsharp_mask",
 ]
-
-MAX_VALUES_BY_DTYPE = {
-    np.dtype("uint8"): 255,
-    np.dtype("uint16"): 65535,
-    np.dtype("uint32"): 4294967295,
-    np.dtype("float32"): 1.0,
-}
-
-NPDTYPE_TO_OPENCV_DTYPE = {
-    np.uint8: cv2.CV_8U,
-    np.uint16: cv2.CV_16U,
-    np.int32: cv2.CV_32S,
-    np.float32: cv2.CV_32F,
-    np.float64: cv2.CV_64F,
-    np.dtype("uint8"): cv2.CV_8U,
-    np.dtype("uint16"): cv2.CV_16U,
-    np.dtype("int32"): cv2.CV_32S,
-    np.dtype("float32"): cv2.CV_32F,
-    np.dtype("float64"): cv2.CV_64F,
-}
-
-
-def angle_2pi_range(func):
-    @wraps(func)
-    def wrapped_function(keypoint, *args, **kwargs):
-        (x, y, a, s) = func(keypoint, *args, **kwargs)
-        return (x, y, angle_to_2pi_range(a), s)
-
-    return wrapped_function
-
-
-def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object]) -> int:
-    """
-    Return a corresponding OpenCV dtype for a numpy's dtype
-    :param value: Input dtype of numpy array
-    :return: Corresponding dtype for OpenCV
-    """
-    if isinstance(value, np.ndarray):
-        value = value.dtype
-    return NPDTYPE_TO_OPENCV_DTYPE[value]
-
-
-def clip(img, dtype, maxval):
-    return np.clip(img, 0, maxval).astype(dtype)
-
-
-def clipped(func):
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        dtype = img.dtype
-        maxval = MAX_VALUES_BY_DTYPE.get(dtype, 1.0)
-        return clip(func(img, *args, **kwargs), dtype, maxval)
-
-    return wrapped_function
-
-
-def preserve_shape(func):
-    """
-    Preserve shape of the image
-
-    """
-
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        shape = img.shape
-        result = func(img, *args, **kwargs)
-        result = result.reshape(shape)
-        return result
-
-    return wrapped_function
-
-
-def preserve_channel_dim(func):
-    """
-    Preserve dummy channel dim.
-
-    """
-
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        shape = img.shape
-        result = func(img, *args, **kwargs)
-        if len(shape) == 3 and shape[-1] == 1 and len(result.shape) == 2:
-            result = np.expand_dims(result, axis=-1)
-        return result
-
-    return wrapped_function
-
-
-def ensure_contiguous(func):
-    """
-    Ensure that input img is contiguous.
-    """
-
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        img = np.require(img, requirements=["C_CONTIGUOUS"])
-        result = func(img, *args, **kwargs)
-        return result
-
-    return wrapped_function
-
-
-def is_rgb_image(image):
-    return len(image.shape) == 3 and image.shape[-1] == 3
-
-
-def is_grayscale_image(image):
-    return (len(image.shape) == 2) or (len(image.shape) == 3 and image.shape[-1] == 1)
-
-
-def is_multispectral_image(image):
-    return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
-
-
-def get_num_channels(image):
-    return image.shape[2] if len(image.shape) == 3 else 1
-
-
-def non_rgb_warning(image):
-    if not is_rgb_image(image):
-        message = "This transformation expects 3-channel images"
-        if is_grayscale_image(image):
-            message += "\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))"
-        if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
-            message += "\nThis transformation cannot be applied to multi-spectral images"
-
-        raise ValueError(message)
 
 
 def normalize_cv2(img, mean, denominator):
@@ -232,47 +100,6 @@ def normalize(img, mean, std, max_pixel_value=255.0):
     if img.ndim == 3 and img.shape[-1] == 3:
         return normalize_cv2(img, mean, denominator)
     return normalize_numpy(img, mean, denominator)
-
-
-def _maybe_process_in_chunks(process_fn, **kwargs) -> Callable[[np.ndarray], np.ndarray]:
-    """
-    Wrap OpenCV function to enable processing images with more than 4 channels.
-
-    Limitations:
-        This wrapper requires image to be the first argument and rest must be sent via named arguments.
-
-    Args:
-        process_fn: Transform function (e.g cv2.resize).
-        kwargs: Additional parameters.
-
-    Returns:
-        numpy.ndarray: Transformed image.
-
-    """
-
-    @wraps(process_fn)
-    def __process_fn(img: np.ndarray) -> np.ndarray:
-        num_channels = get_num_channels(img)
-        if num_channels > 4:
-            chunks = []
-            for index in range(0, num_channels, 4):
-                if num_channels - index == 2:
-                    # Many OpenCV functions cannot work with 2-channel images
-                    for i in range(2):
-                        chunk = img[:, :, index + i : index + i + 1]
-                        chunk = process_fn(chunk, **kwargs)
-                        chunk = np.expand_dims(chunk, -1)
-                        chunks.append(chunk)
-                else:
-                    chunk = img[:, :, index : index + 4]
-                    chunk = process_fn(chunk, **kwargs)
-                    chunks.append(chunk)
-            img = np.dstack(chunks)
-        else:
-            img = process_fn(img, **kwargs)
-        return img
-
-    return __process_fn
 
 
 def _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift):

@@ -7,7 +7,12 @@ import numpy as np
 
 from albumentations.core.bbox_utils import union_of_bboxes
 
-from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
+from ...core.transforms_interface import (
+    BoxInternalType,
+    DualTransform,
+    KeypointInternalType,
+    to_tuple,
+)
 from ..geometric import functional as FGeometric
 from . import functional as F
 
@@ -450,7 +455,7 @@ class RandomCropNearBBox(DualTransform):
 
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return F.bbox_crop(bbox, **params)
 
     def apply_to_keypoint(
@@ -678,11 +683,11 @@ class CropAndPad(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        crop_params: Sequence[int] = None,
-        pad_params: Sequence[int] = None,
-        pad_value: Union[int, float] = None,
-        rows: int = None,
-        cols: int = None,
+        crop_params: Sequence[int] = (),
+        pad_params: Sequence[int] = (),
+        pad_value: Union[int, float] = 0,
+        rows: int = 0,
+        cols: int = 0,
         interpolation: int = cv2.INTER_LINEAR,
         **params
     ) -> np.ndarray:
@@ -695,9 +700,9 @@ class CropAndPad(DualTransform):
         img: np.ndarray,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
-        pad_value_mask: Union[int, float] = None,
-        rows: int = None,
-        cols: int = None,
+        pad_value_mask: float = None,
+        rows: int = 0,
+        cols: int = 0,
         interpolation: int = cv2.INTER_NEAREST,
         **params
     ) -> np.ndarray:
@@ -707,7 +712,7 @@ class CropAndPad(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: BoxType,
+        bbox: BoxInternalType,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
         rows: int = 0,
@@ -715,12 +720,12 @@ class CropAndPad(DualTransform):
         result_rows: int = 0,
         result_cols: int = 0,
         **params
-    ) -> BoxType:
-        return F.crop_and_pad_bbox(bbox, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size)
+    ) -> BoxInternalType:
+        return F.crop_and_pad_bbox(bbox, crop_params, pad_params, rows, cols, result_rows, result_cols)
 
     def apply_to_keypoint(
         self,
-        keypoint: KeypointType,
+        keypoint: KeypointInternalType,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
         rows: int = 0,
@@ -728,7 +733,7 @@ class CropAndPad(DualTransform):
         result_rows: int = 0,
         result_cols: int = 0,
         **params
-    ) -> KeypointType:
+    ) -> KeypointInternalType:
         return F.crop_and_pad_keypoint(
             keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
         )

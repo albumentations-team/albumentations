@@ -2,7 +2,7 @@ from typing import Iterable, List, Tuple, Union
 
 import numpy as np
 
-from ..functional import preserve_shape
+from albumentations.augmentations.utils import preserve_shape
 
 __all__ = ["cutout", "channel_dropout"]
 

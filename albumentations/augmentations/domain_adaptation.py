@@ -8,15 +8,16 @@ from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from ..core.transforms_interface import ImageOnlyTransform, to_tuple
-from .functional import (
+from albumentations.augmentations.utils import (
     clipped,
     get_opencv_dtype_from_numpy,
     is_grayscale_image,
     is_multispectral_image,
     preserve_shape,
+    read_rgb_image,
 )
-from .utils import read_rgb_image
+
+from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 
 __all__ = [
     "HistogramMatching",
