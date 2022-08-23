@@ -15,6 +15,8 @@ from ..functional import (
     clipped,
     preserve_channel_dim,
     preserve_shape,
+    resize,
+    scale,
 )
 
 __all__ = [
@@ -375,22 +377,6 @@ def elastic_transform(
         cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
     )
     return remap_fn(img)
-
-
-@preserve_channel_dim
-def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
-    img_height, img_width = img.shape[:2]
-    if height == img_height and width == img_width:
-        return img
-    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
-    return resize_fn(img)
-
-
-@preserve_channel_dim
-def scale(img: np.ndarray, scale: float, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
-    height, width = img.shape[:2]
-    new_height, new_width = int(height * scale), int(width * scale)
-    return resize(img, new_height, new_width, interpolation)
 
 
 def keypoint_scale(keypoint: KeypointType, scale_x: float, scale_y: float) -> KeypointType:
