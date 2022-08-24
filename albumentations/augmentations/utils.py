@@ -153,7 +153,7 @@ def is_multispectral_image(image: np.ndarray) -> bool:
     return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
 
 
-def get_num_channels(image: np.ndarray) -> bool:
+def get_num_channels(image: np.ndarray) -> int:
     return image.shape[2] if len(image.shape) == 3 else 1
 
 

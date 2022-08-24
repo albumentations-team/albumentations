@@ -2689,6 +2689,7 @@ class PixelDropout(DualTransform):
     def apply(
         self, img: np.ndarray, drop_mask: np.ndarray = None, drop_value: Union[float, Sequence[float]] = (), **params
     ) -> np.ndarray:
+        assert drop_mask is not None
         return F.pixel_dropout(img, drop_mask, drop_value)
 
     def apply_to_mask(self, img: np.ndarray, drop_mask: np.ndarray = np.array([]), **params) -> np.ndarray:
@@ -2950,6 +2951,7 @@ class ZoomBlur(ImageOnlyTransform):
             raise ValueError("Step factor must be positive")
 
     def apply(self, img: np.ndarray, zoom_factors: np.ndarray = None, **params) -> np.ndarray:
+        assert zoom_factors is not None
         return F.zoom_blur(img, zoom_factors)
 
     def get_params(self) -> Dict[str, Any]:
