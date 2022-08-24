@@ -1,10 +1,10 @@
 from __future__ import division
 
-from typing import Any, Dict, List, Optional, Sequence, TypeVar, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, cast
 
 import numpy as np
 
-from .transforms_interface import BoxType
+from .transforms_interface import BoxInternalType, BoxType
 from .utils import DataProcessor, Params
 
 __all__ = [
@@ -26,7 +26,7 @@ __all__ = [
     "BboxParams",
 ]
 
-T = TypeVar("T")
+TBox = TypeVar("TBox", BoxType, BoxInternalType)
 
 
 class BboxParams(Params):
@@ -124,7 +124,7 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
-def normalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
+def normalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
     """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
     by image height.
 
@@ -146,15 +146,16 @@ def normalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     if cols <= 0:
         raise ValueError("Argument cols must be positive integer")
 
+    tail: Tuple[Any, ...]
     (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
     x_min, x_max = x_min / cols, x_max / cols
     y_min, y_max = y_min / rows, y_max / rows
 
-    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)
+    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
 
 
-def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
+def denormalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
     """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
     by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
 
@@ -170,6 +171,7 @@ def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
         ValueError: If rows or cols is less or equal zero
 
     """
+    tail: Tuple[Any, ...]
     (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
     if rows <= 0:
@@ -180,7 +182,7 @@ def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     x_min, x_max = x_min * cols, x_max * cols
     y_min, y_max = y_min * rows, y_max * rows
 
-    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)
+    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
 
 
 def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
@@ -310,12 +312,11 @@ def convert_bbox_to_albumentations(
         y_max = y_min + height
     elif source_format == "yolo":
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
-        bbox, tail = bbox[:4], bbox[4:]
         _bbox = np.array(bbox[:4])
         if check_validity and np.any((_bbox <= 0) | (_bbox > 1)):
             raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
 
-        x, y, w, h = bbox
+        (x, y, w, h), tail = bbox[:4], bbox[4:]
 
         w_half, h_half = w / 2, h / 2
         x_min = x - w_half
@@ -325,7 +326,7 @@ def convert_bbox_to_albumentations(
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
 
-    bbox = cast(BoxType, (x_min, y_min, x_max, y_max) + tuple(tail))
+    bbox = (x_min, y_min, x_max, y_max) + tuple(tail)  # type: ignore
 
     if source_format != "yolo":
         bbox = normalize_bbox(bbox, rows, cols)

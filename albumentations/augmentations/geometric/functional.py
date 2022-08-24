@@ -6,17 +6,21 @@ import numpy as np
 import skimage.transform
 from scipy.ndimage.filters import gaussian_filter
 
-from ... import random_utils
-from ...core.bbox_utils import denormalize_bbox, normalize_bbox
-from ...core.transforms_interface import BoxType, ImageColorType, KeypointType
-from ..functional import (
+from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     angle_2pi_range,
     clipped,
     preserve_channel_dim,
     preserve_shape,
-    resize,
-    scale,
+)
+
+from ... import random_utils
+from ...core.bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.transforms_interface import (
+    BoxInternalType,
+    FillValueType,
+    ImageColorType,
+    KeypointInternalType,
 )
 
 __all__ = [
@@ -71,7 +75,7 @@ __all__ = [
 ]
 
 
-def bbox_rot90(bbox: BoxType, factor: int, rows: int, cols: int) -> BoxType:  # skipcq: PYL-W0613
+def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -97,7 +101,7 @@ def bbox_rot90(bbox: BoxType, factor: int, rows: int, cols: int) -> BoxType:  # 
 
 
 @angle_2pi_range
-def keypoint_rot90(keypoint: KeypointType, factor: int, rows: int, cols: int, **params) -> KeypointType:
+def keypoint_rot90(keypoint: KeypointInternalType, factor: int, rows: int, cols: int, **params) -> KeypointInternalType:
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -147,7 +151,7 @@ def rotate(
     return warp_fn(img)
 
 
-def bbox_rotate(bbox: BoxType, angle: float, method: str, rows: int, cols: int) -> BoxType:
+def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, cols: int) -> BoxInternalType:
     """Rotates a bounding box by angle degrees.
 
     Args:
@@ -379,7 +383,23 @@ def elastic_transform(
     return remap_fn(img)
 
 
-def keypoint_scale(keypoint: KeypointType, scale_x: float, scale_y: float) -> KeypointType:
+@preserve_channel_dim
+def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+    img_height, img_width = img.shape[:2]
+    if height == img_height and width == img_width:
+        return img
+    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
+    return resize_fn(img)
+
+
+@preserve_channel_dim
+def scale(img: np.ndarray, scale: float, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
+    height, width = img.shape[:2]
+    new_height, new_width = int(height * scale), int(width * scale)
+    return resize(img, new_height, new_width, interpolation)
+
+
+def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: float) -> KeypointInternalType:
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
@@ -453,14 +473,14 @@ def perspective(
 
 
 def perspective_bbox(
-    bbox: BoxType,
+    bbox: BoxInternalType,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> BoxType:
+) -> BoxInternalType:
     x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)[:4]
 
     points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
@@ -490,14 +510,14 @@ def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> flo
 
 @angle_2pi_range
 def perspective_keypoint(
-    keypoint: Union[List[int], List[float]],
+    keypoint: KeypointInternalType,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-):
+) -> KeypointInternalType:
     x, y, angle, scale = keypoint
 
     keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
@@ -543,10 +563,10 @@ def warp_affine(
 
 @angle_2pi_range
 def keypoint_affine(
-    keypoint: KeypointType,
+    keypoint: KeypointInternalType,
     matrix: skimage.transform.ProjectiveTransform,
     scale: dict,
-) -> KeypointType:
+) -> KeypointInternalType:
     if _is_identity_matrix(matrix):
         return keypoint
 
@@ -558,12 +578,12 @@ def keypoint_affine(
 
 
 def bbox_affine(
-    bbox: BoxType,
+    bbox: BoxInternalType,
     matrix: skimage.transform.ProjectiveTransform,
     rows: int,
     cols: int,
     output_shape: Sequence[int],
-) -> BoxType:
+) -> BoxInternalType:
     if _is_identity_matrix(matrix):
         return bbox
 
@@ -590,7 +610,7 @@ def safe_rotate(
     img: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    value: Optional[int] = None,
+    value: FillValueType = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
     h, w = img.shape[:2]
@@ -605,7 +625,7 @@ def safe_rotate(
     return warp_fn(img)
 
 
-def bbox_safe_rotate(bbox: BoxType, matrix: np.ndarray, cols: int, rows: int) -> BoxType:
+def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows: int) -> BoxInternalType:
     x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)[:4]
     points = np.array(
         [
@@ -636,14 +656,14 @@ def bbox_safe_rotate(bbox: BoxType, matrix: np.ndarray, cols: int, rows: int) ->
 
 
 def keypoint_safe_rotate(
-    keypoint: KeypointType,
+    keypoint: KeypointInternalType,
     matrix: np.ndarray,
     angle: float,
     scale_x: float,
     scale_y: float,
     cols: int,
     rows: int,
-) -> KeypointType:
+) -> KeypointInternalType:
     x, y, a, s = keypoint[:4]
     point = np.array([[x, y, 1]])
     x, y = (point @ matrix.T)[0]
@@ -792,12 +812,12 @@ def from_distance_maps(
 
 
 def keypoint_piecewise_affine(
-    keypoint: KeypointType,
+    keypoint: KeypointInternalType,
     matrix: skimage.transform.PiecewiseAffineTransform,
     h: int,
     w: int,
     keypoints_threshold: float,
-) -> KeypointType:
+) -> KeypointInternalType:
     x, y, a, s = keypoint[:4]
     dist_maps = to_distance_maps([(x, y)], h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
@@ -806,12 +826,12 @@ def keypoint_piecewise_affine(
 
 
 def bbox_piecewise_affine(
-    bbox: BoxType,
+    bbox: BoxInternalType,
     matrix: skimage.transform.PiecewiseAffineTransform,
     h: int,
     w: int,
     keypoints_threshold: float,
-) -> BoxType:
+) -> BoxInternalType:
     x1, y1, x2, y2 = denormalize_bbox(bbox, h, w)[:4]
     keypoints = [
         (x1, y1),
@@ -857,7 +877,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
-def bbox_vflip(bbox: BoxType, rows: int, cols: int) -> BoxType:  # skipcq: PYL-W0613
+def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
     """Flip a bounding box vertically around the x-axis.
 
     Args:
@@ -873,7 +893,7 @@ def bbox_vflip(bbox: BoxType, rows: int, cols: int) -> BoxType:  # skipcq: PYL-W
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox: BoxType, rows: int, cols: int) -> BoxType:  # skipcq: PYL-W0613
+def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
@@ -889,7 +909,7 @@ def bbox_hflip(bbox: BoxType, rows: int, cols: int) -> BoxType:  # skipcq: PYL-W
     return 1 - x_max, y_min, 1 - x_min, y_max
 
 
-def bbox_flip(bbox: BoxType, d: int, rows: int, cols: int) -> BoxType:
+def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -917,7 +937,9 @@ def bbox_flip(bbox: BoxType, d: int, rows: int, cols: int) -> BoxType:
     return bbox
 
 
-def bbox_transpose(bbox: KeypointType, axis: int, rows: int, cols: int) -> KeypointType:  # skipcq: PYL-W0613
+def bbox_transpose(
+    bbox: KeypointInternalType, axis: int, rows: int, cols: int
+) -> KeypointInternalType:  # skipcq: PYL-W0613
     """Transposes a bounding box along given axis.
 
     Args:
@@ -944,7 +966,7 @@ def bbox_transpose(bbox: KeypointType, axis: int, rows: int, cols: int) -> Keypo
 
 
 @angle_2pi_range
-def keypoint_vflip(keypoint: KeypointType, rows: int, cols: int) -> KeypointType:
+def keypoint_vflip(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Flip a keypoint vertically around the x-axis.
 
     Args:
@@ -962,7 +984,7 @@ def keypoint_vflip(keypoint: KeypointType, rows: int, cols: int) -> KeypointType
 
 
 @angle_2pi_range
-def keypoint_hflip(keypoint: KeypointType, rows: int, cols: int) -> KeypointType:
+def keypoint_hflip(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Flip a keypoint horizontally around the y-axis.
 
     Args:
@@ -979,7 +1001,7 @@ def keypoint_hflip(keypoint: KeypointType, rows: int, cols: int) -> KeypointType
     return (cols - 1) - x, y, angle, scale
 
 
-def keypoint_flip(keypoint: KeypointType, d: int, rows: int, cols: int) -> KeypointType:
+def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) -> KeypointInternalType:
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1010,7 +1032,7 @@ def keypoint_flip(keypoint: KeypointType, d: int, rows: int, cols: int) -> Keypo
     return keypoint
 
 
-def keypoint_transpose(keypoint: KeypointType) -> KeypointType:
+def keypoint_transpose(keypoint: KeypointInternalType) -> KeypointInternalType:
     """Rotate a keypoint by angle.
 
     Args:
