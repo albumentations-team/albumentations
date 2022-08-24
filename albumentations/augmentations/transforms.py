@@ -25,6 +25,7 @@ from ..core.transforms_interface import (
     ImageOnlyTransform,
     NoOp,
     ScaleFloatType,
+    ScaleIntType,
     to_tuple,
 )
 from ..core.utils import format_args
@@ -78,6 +79,8 @@ __all__ = [
     "AdvancedBlur",
     "PixelDropout",
     "Spatter",
+    "Defocus",
+    "ZoomBlur",
 ]
 
 
@@ -2860,3 +2863,99 @@ class Spatter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode"
+
+
+class Defocus(ImageOnlyTransform):
+    """
+    Apply defocus transform. See https://arxiv.org/abs/1903.12261.
+
+    Args:
+        radius ((int, int) or int): range for radius of defocusing.
+            If limit is a single int, the range will be [1, limit]. Default: (3, 10).
+        alias_blur ((float, float) or float): range for alias_blur of defocusing (sigma of gaussian blur).
+            If limit is a single float, the range will be (0, limit). Default: (0.1, 0.5).
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        Any
+    """
+
+    def __init__(
+        self,
+        radius: ScaleIntType = (3, 10),
+        alias_blur: ScaleFloatType = (0.1, 0.5),
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.radius = to_tuple(radius, low=1)
+        self.alias_blur = to_tuple(alias_blur, low=0)
+
+        if self.radius[0] <= 0:
+            raise ValueError("Parameter radius must be positive")
+
+        if self.alias_blur[0] < 0:
+            raise ValueError("Parameter alias_blur must be non-negative")
+
+    def apply(self, img: np.ndarray, radius: int = 3, alias_blur: float = 0.5, **params) -> np.ndarray:
+        return F.defocus(img, radius, alias_blur)
+
+    def get_params(self) -> Dict[str, Any]:
+        return {
+            "radius": random_utils.randint(self.radius[0], self.radius[1] + 1),
+            "alias_blur": random_utils.uniform(self.alias_blur[0], self.alias_blur[1]),
+        }
+
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return ("radius", "alias_blur")
+
+
+class ZoomBlur(ImageOnlyTransform):
+    """
+    Apply zoom blur transform. See https://arxiv.org/abs/1903.12261.
+
+    Args:
+        max_factor ((float, float) or float): range for max factor for blurring.
+            If max_factor is a single float, the range will be (1, limit). Default: (1, 1.31).
+            All max_factor values should be larger than 1.
+        step_factor ((float, float) or float): If single float will be used as step parameter for np.arange.
+            If tuple of float step_factor will be in range `[step_factor[0], step_factor[1])`. Default: (0.01, 0.03).
+            All step_factor values should be positive.
+        p (float): probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        Any
+    """
+
+    def __init__(
+        self,
+        max_factor: ScaleFloatType = 1.31,
+        step_factor: ScaleFloatType = (0.01, 0.03),
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.max_factor = to_tuple(max_factor, low=1.0)
+        self.step_factor = to_tuple(step_factor, step_factor)
+
+        if self.max_factor[0] < 1:
+            raise ValueError("Max factor must be larger or equal 1")
+        if self.step_factor[0] <= 0:
+            raise ValueError("Step factor must be positive")
+
+    def apply(self, img: np.ndarray, zoom_factors: np.ndarray = None, **params) -> np.ndarray:
+        return F.zoom_blur(img, zoom_factors)
+
+    def get_params(self) -> Dict[str, Any]:
+        max_factor = random.uniform(self.max_factor[0], self.max_factor[1])
+        step_factor = random.uniform(self.step_factor[0], self.step_factor[1])
+        return {"zoom_factors": np.arange(1.0, max_factor, step_factor)}
+
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return ("max_factor", "step_factor")

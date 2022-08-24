@@ -1,6 +1,7 @@
 from __future__ import division
 
 from itertools import product
+from math import ceil
 from typing import Optional, Sequence, Union
 from warnings import warn
 
@@ -9,6 +10,7 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
+from albumentations.augmentations.geometric.functional import scale
 from albumentations.augmentations.utils import (
     MAX_VALUES_BY_DTYPE,
     _maybe_process_in_chunks,
@@ -1392,3 +1394,36 @@ def spatter(
         raise ValueError("Unsupported spatter mode: " + str(mode))
 
     return img * 255
+
+
+def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
+    L = np.arange(-max(8, radius), max(8, radius) + 1)
+    ksize = 3 if radius <= 8 else 5
+
+    X, Y = np.meshgrid(L, L)
+    aliased_disk = np.array((X**2 + Y**2) <= radius**2, dtype=np.float32)
+    aliased_disk /= np.sum(aliased_disk)
+
+    kernel = gaussian_blur(aliased_disk, ksize, sigma=alias_blur)
+    return convolve(img, kernel=kernel)
+
+
+def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
+    h, w = img.shape[:2]
+    h_ch, w_ch = ceil(h / zoom_factor), ceil(w / zoom_factor)
+    h_top, w_top = (h - h_ch) // 2, (w - w_ch) // 2
+
+    img = scale(img[h_top : h_top + h_ch, w_top : w_top + w_ch], zoom_factor, cv2.INTER_LINEAR)
+    h_trim_top, w_trim_top = (img.shape[0] - h) // 2, (img.shape[1] - w) // 2
+    return img[h_trim_top : h_trim_top + h, w_trim_top : w_trim_top + w]
+
+
+@clipped
+def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -> np.ndarray:
+    out = np.zeros_like(img, dtype=np.float32)
+    for zoom_factor in zoom_factors:
+        out += central_zoom(img, zoom_factor)
+
+    img = ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)
+
+    return img
