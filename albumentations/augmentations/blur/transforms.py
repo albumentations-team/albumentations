@@ -249,6 +249,7 @@ class GlassBlur(Blur):
         self.mode = mode
 
     def apply(self, img: np.ndarray, dxy: np.ndarray = None, **params) -> np.ndarray:  # type: ignore
+        assert dxy is not None
         return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
