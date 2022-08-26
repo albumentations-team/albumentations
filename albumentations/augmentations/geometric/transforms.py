@@ -11,10 +11,10 @@ from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 
 from ... import random_utils
 from ...core.transforms_interface import (
-    BoxType,
+    BoxInternalType,
     DualTransform,
     ImageColorType,
-    KeypointType,
+    KeypointInternalType,
     ScaleFloatType,
     to_tuple,
 )
@@ -621,7 +621,7 @@ class Affine(DualTransform):
         self,
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
-        output_shape: Sequence[int] = None,
+        output_shape: Sequence[int] = (),
         **params
     ) -> np.ndarray:
         return F.warp_affine(
@@ -637,7 +637,7 @@ class Affine(DualTransform):
         self,
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
-        output_shape: Sequence[int] = None,
+        output_shape: Sequence[int] = (),
         **params
     ) -> np.ndarray:
         return F.warp_affine(
@@ -651,18 +651,23 @@ class Affine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: BoxType,
+        bbox: BoxInternalType,
         matrix: skimage.transform.ProjectiveTransform = None,
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
         **params
-    ) -> BoxType:
+    ) -> BoxInternalType:
         return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
 
     def apply_to_keypoint(
-        self, keypoint: KeypointType, matrix: skimage.transform.ProjectiveTransform = None, scale: dict = None, **params
-    ) -> KeypointType:
+        self,
+        keypoint: KeypointInternalType,
+        matrix: skimage.transform.ProjectiveTransform = None,
+        scale: dict = None,
+        **params
+    ) -> KeypointInternalType:
+        assert scale is not None and matrix is not None
         return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @property
@@ -919,17 +924,17 @@ class PiecewiseAffine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: BoxType,
+        bbox: BoxInternalType,
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
-    ) -> BoxType:
+    ) -> BoxInternalType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
     def apply_to_keypoint(
         self,
-        keypoint: KeypointType,
+        keypoint: KeypointInternalType,
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
@@ -1075,7 +1080,7 @@ class PadIfNeeded(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: BoxType,
+        bbox: BoxInternalType,
         pad_top: int = 0,
         pad_bottom: int = 0,
         pad_left: int = 0,
@@ -1083,20 +1088,20 @@ class PadIfNeeded(DualTransform):
         rows: int = 0,
         cols: int = 0,
         **params
-    ) -> BoxType:
+    ) -> BoxInternalType:
         x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
         bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
         return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
     def apply_to_keypoint(
         self,
-        keypoint: KeypointType,
+        keypoint: KeypointInternalType,
         pad_top: int = 0,
         pad_bottom: int = 0,
         pad_left: int = 0,
         pad_right: int = 0,
         **params
-    ) -> KeypointType:
+    ) -> KeypointInternalType:
         x, y, angle, scale = keypoint[:4]
         return x + pad_left, y + pad_top, angle, scale
 
@@ -1165,10 +1170,10 @@ class VerticalFlip(DualTransform):
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.vflip(img)
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return F.bbox_vflip(bbox, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_vflip(keypoint, **params)
 
     def get_transform_init_args_names(self):
@@ -1196,10 +1201,10 @@ class HorizontalFlip(DualTransform):
 
         return F.hflip(img)
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return F.bbox_hflip(bbox, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_hflip(keypoint, **params)
 
     def get_transform_init_args_names(self):
@@ -1231,10 +1236,10 @@ class Flip(DualTransform):
         # Random int in the range [-1, 1]
         return {"d": random.randint(-1, 1)}
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return F.bbox_flip(bbox, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_flip(keypoint, **params)
 
     def get_transform_init_args_names(self):
@@ -1257,10 +1262,10 @@ class Transpose(DualTransform):
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.transpose(img)
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return F.bbox_transpose(bbox, 0, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_transpose(keypoint)
 
     def get_transform_init_args_names(self):
@@ -1319,7 +1324,7 @@ class OpticalDistortion(DualTransform):
     def apply_to_mask(self, img: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, **params) -> np.ndarray:
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_bbox(self, bbox: BoxType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
@@ -1406,7 +1411,7 @@ class GridDistortion(DualTransform):
             img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
 
-    def apply_to_bbox(self, bbox: BoxType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)

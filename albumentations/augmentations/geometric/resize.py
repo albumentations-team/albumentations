@@ -4,7 +4,12 @@ from typing import Dict, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
+from ...core.transforms_interface import (
+    BoxInternalType,
+    DualTransform,
+    KeypointInternalType,
+    to_tuple,
+)
 from . import functional as F
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
@@ -84,11 +89,11 @@ class LongestMaxSize(DualTransform):
     ) -> np.ndarray:
         return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
         return bbox
 
-    def apply_to_keypoint(self, keypoint: KeypointType, max_size: int = 1024, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
         height = params["rows"]
         width = params["cols"]
 
@@ -134,10 +139,10 @@ class SmallestMaxSize(DualTransform):
     ) -> np.ndarray:
         return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return bbox
 
-    def apply_to_keypoint(self, keypoint: KeypointType, max_size: int = 1024, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
         height = params["rows"]
         width = params["cols"]
 

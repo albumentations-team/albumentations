@@ -15,6 +15,11 @@ from scipy.ndimage.filters import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
+from albumentations.augmentations.utils import (
+    get_num_channels,
+    is_grayscale_image,
+    is_rgb_image,
+)
 
 from ..core.transforms_interface import (
     DualTransform,
@@ -887,7 +892,7 @@ class HueSaturationValue(ImageOnlyTransform):
         self.val_shift_limit = to_tuple(val_shift_limit)
 
     def apply(self, image, hue_shift=0, sat_shift=0, val_shift=0, **params):
-        if not F.is_rgb_image(image) and not F.is_grayscale_image(image):
+        if not is_rgb_image(image) and not is_grayscale_image(image):
             raise TypeError("HueSaturationValue transformation expects 1-channel or 3-channel images.")
         return F.shift_hsv(image, hue_shift, sat_shift, val_shift)
 
@@ -1064,7 +1069,7 @@ class RGBShift(ImageOnlyTransform):
         self.b_shift_limit = to_tuple(b_shift_limit)
 
     def apply(self, image, r_shift=0, g_shift=0, b_shift=0, **params):
-        if not F.is_rgb_image(image):
+        if not is_rgb_image(image):
             raise TypeError("RGBShift transformation expects 3-channel images.")
         return F.shift_rgb(image, r_shift, g_shift, b_shift)
 
@@ -1299,7 +1304,7 @@ class CLAHE(ImageOnlyTransform):
         self.tile_grid_size = tuple(tile_grid_size)
 
     def apply(self, img, clip_limit=2, **params):
-        if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
+        if not is_rgb_image(img) and not is_grayscale_image(img):
             raise TypeError("CLAHE transformation expects 1-channel or 3-channel images.")
 
         return F.clahe(img, clip_limit, self.tile_grid_size)
@@ -1405,10 +1410,10 @@ class ToGray(ImageOnlyTransform):
     """
 
     def apply(self, img, **params):
-        if F.is_grayscale_image(img):
+        if is_grayscale_image(img):
             warnings.warn("The image is already gray.")
             return img
-        if not F.is_rgb_image(img):
+        if not is_rgb_image(img):
             raise TypeError("ToGray transformation expects 3-channel images.")
 
         return F.to_gray(img)
@@ -1437,7 +1442,7 @@ class ToSepia(ImageOnlyTransform):
         )
 
     def apply(self, image, **params):
-        if not F.is_rgb_image(image):
+        if not is_rgb_image(image):
             raise TypeError("ToSepia transformation expects 3-channel images.")
         return F.linear_transformation_rgb(image, self.sepia_transformation_matrix)
 
@@ -1716,7 +1721,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         h, w = img.shape[:2]
 
         if self.per_channel:
-            c = 1 if F.is_grayscale_image(img) else img.shape[-1]
+            c = 1 if is_grayscale_image(img) else img.shape[-1]
         else:
             c = 1
 
@@ -1726,7 +1731,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
             shape = [c]
 
         multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape)
-        if F.is_grayscale_image(img) and img.ndim == 2:
+        if is_grayscale_image(img) and img.ndim == 2:
             multiplier = np.squeeze(multiplier)
 
         return {"multiplier": multiplier}
@@ -1852,7 +1857,7 @@ class ColorJitter(ImageOnlyTransform):
         }
 
     def apply(self, img, brightness=1.0, contrast=1.0, saturation=1.0, hue=0, order=[0, 1, 2, 3], **params):
-        if not F.is_rgb_image(img) and not F.is_grayscale_image(img):
+        if not is_rgb_image(img) and not is_grayscale_image(img):
             raise TypeError("ColorJitter transformation expects 1-channel or 3-channel images.")
         params = [brightness, contrast, saturation, hue]
         for i in order:
@@ -2089,11 +2094,11 @@ class TemplateTransform(ImageOnlyTransform):
         if self.template_transform is not None:
             template = self.template_transform(image=template)["image"]
 
-        if F.get_num_channels(template) not in [1, F.get_num_channels(img)]:
+        if get_num_channels(template) not in [1, get_num_channels(img)]:
             raise ValueError(
                 "Template must be a single channel or "
                 "has the same number of channels as input image ({}), got {}".format(
-                    F.get_num_channels(img), F.get_num_channels(template)
+                    get_num_channels(img), get_num_channels(template)
                 )
             )
 
@@ -2105,8 +2110,8 @@ class TemplateTransform(ImageOnlyTransform):
                 "Image and template must be the same size, got {} and {}".format(img.shape[:2], template.shape[:2])
             )
 
-        if F.get_num_channels(template) == 1 and F.get_num_channels(img) > 1:
-            template = np.stack((template,) * F.get_num_channels(img), axis=-1)
+        if get_num_channels(template) == 1 and get_num_channels(img) > 1:
+            template = np.stack((template,) * get_num_channels(img), axis=-1)
 
         # in order to support grayscale image with dummy dim
         template = template.reshape(img.shape)
@@ -2310,8 +2315,9 @@ class PixelDropout(DualTransform):
             raise ValueError("PixelDropout supports mask only with per_channel=False")
 
     def apply(
-        self, img: np.ndarray, drop_mask: np.ndarray = None, drop_value: Union[float, Sequence[float]] = None, **params
+        self, img: np.ndarray, drop_mask: np.ndarray = None, drop_value: Union[float, Sequence[float]] = (), **params
     ) -> np.ndarray:
+        assert drop_mask is not None
         return F.pixel_dropout(img, drop_mask, drop_value)
 
     def apply_to_mask(self, img: np.ndarray, drop_mask: np.ndarray = np.array([]), **params) -> np.ndarray:
@@ -2341,7 +2347,7 @@ class PixelDropout(DualTransform):
         if drop_mask.ndim != img.ndim:
             drop_mask = np.expand_dims(drop_mask, -1)
         if self.drop_value is None:
-            drop_shape = 1 if F.is_grayscale_image(img) else int(img.shape[-1])
+            drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
 
             if img.dtype in (np.uint8, np.uint16, np.uint32):
                 drop_value = rnd.randint(0, int(F.MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
@@ -2427,7 +2433,7 @@ class Spatter(ImageOnlyTransform):
         non_mud: Optional[np.ndarray] = None,
         mud: Optional[np.ndarray] = None,
         drops: Optional[np.ndarray] = None,
-        mode: str = None,
+        mode: str = "",
         **params
     ) -> np.ndarray:
         return F.spatter(img, non_mud, mud, drops, mode)

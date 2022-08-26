@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 import random
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -26,12 +26,16 @@ __all__ = [
 ]
 
 NumType = Union[int, float, np.ndarray]
-BoxType = Union[Tuple[float, float, float, float], Tuple[float, float, float, float, Any]]
-KeypointType = Union[Tuple[float, float, float, float], Tuple[float, float, float, float, Any]]
+BoxInternalType = Tuple[float, float, float, float]
+BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
+KeypointInternalType = Tuple[float, float, float, float]
+KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]
 ImageColorType = Union[float, Sequence[float]]
 
 ScaleFloatType = Union[float, Tuple[float, float]]
 ScaleIntType = Union[int, Tuple[int, int]]
+
+FillValueType = Optional[Union[int, float, Sequence[int], Sequence[float]]]
 
 
 def to_tuple(param, low=None, bias=None):
@@ -240,24 +244,20 @@ class DualTransform(BasicTransform):
             "keypoints": self.apply_to_keypoints,
         }
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
 
-    def apply_to_keypoint(self, keypoint: Tuple[float, float, float, float], **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
         return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]  # type: ignore
 
     def apply_to_keypoints(self, keypoints: Sequence[KeypointType], **params) -> List[KeypointType]:
-        return [
-            cast(
-                KeypointType,
-                self.apply_to_keypoint(cast(Tuple[float, float, float, float], tuple(keypoint[:4])), **params)
-                + tuple(keypoint[4:]),
-            )
+        return [  # type: ignore
+            self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:])  # type: ignore
             for keypoint in keypoints
-        ]  # type: ignore # noqa
+        ]
 
     def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
         return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
@@ -277,10 +277,10 @@ class ImageOnlyTransform(BasicTransform):
 class NoOp(DualTransform):
     """Does nothing"""
 
-    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return keypoint
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return bbox
 
     def apply(self, img: np.ndarray, **params) -> np.ndarray:

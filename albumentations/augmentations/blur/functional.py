@@ -1,11 +1,15 @@
 from itertools import product
-from typing import Union
+from math import ceil
+from typing import Sequence, Union
 
 import cv2
 import numpy as np
 
-from albumentations.augmentations.functional import (
+from albumentations.augmentations.functional import convolve
+from albumentations.augmentations.geometric.functional import scale
+from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
+    clipped,
     preserve_shape,
 )
 
@@ -67,3 +71,36 @@ def glass_blur(
         ValueError(f"Unsupported mode `{mode}`. Supports only `fast` and `exact`.")
 
     return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
+
+
+def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
+    length = np.arange(-max(8, radius), max(8, radius) + 1)
+    ksize = 3 if radius <= 8 else 5
+
+    x, y = np.meshgrid(length, length)
+    aliased_disk = np.array((x**2 + y**2) <= radius**2, dtype=np.float32)
+    aliased_disk /= np.sum(aliased_disk)
+
+    kernel = gaussian_blur(aliased_disk, ksize, sigma=alias_blur)
+    return convolve(img, kernel=kernel)
+
+
+def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
+    h, w = img.shape[:2]
+    h_ch, w_ch = ceil(h / zoom_factor), ceil(w / zoom_factor)
+    h_top, w_top = (h - h_ch) // 2, (w - w_ch) // 2
+
+    img = scale(img[h_top : h_top + h_ch, w_top : w_top + w_ch], zoom_factor, cv2.INTER_LINEAR)
+    h_trim_top, w_trim_top = (img.shape[0] - h) // 2, (img.shape[1] - w) // 2
+    return img[h_trim_top : h_trim_top + h, w_trim_top : w_trim_top + w]
+
+
+@clipped
+def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -> np.ndarray:
+    out = np.zeros_like(img, dtype=np.float32)
+    for zoom_factor in zoom_factors:
+        out += central_zoom(img, zoom_factor)
+
+    img = ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)
+
+    return img

@@ -8,6 +8,10 @@ from numpy.testing import assert_array_almost_equal_nulp
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
+from albumentations.augmentations.utils import (
+    get_opencv_dtype_from_numpy,
+    is_multispectral_image,
+)
 from albumentations.core.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 
@@ -711,16 +715,16 @@ def test_is_grayscale_image():
 
 def test_is_multispectral_image():
     image = np.ones((5, 5, 3), dtype=np.uint8)
-    assert not F.is_multispectral_image(image)
+    assert not is_multispectral_image(image)
 
     multispectral_image = np.ones((5, 5, 4), dtype=np.uint8)
-    assert F.is_multispectral_image(multispectral_image)
+    assert is_multispectral_image(multispectral_image)
 
     gray_image = np.ones((5, 5), dtype=np.uint8)
-    assert not F.is_multispectral_image(gray_image)
+    assert not is_multispectral_image(gray_image)
 
     gray_image = np.ones((5, 5, 1), dtype=np.uint8)
-    assert not F.is_multispectral_image(gray_image)
+    assert not is_multispectral_image(gray_image)
 
 
 def test_brightness_contrast():
@@ -964,17 +968,17 @@ def test_shift_hsv_gray(img):
 
 
 def test_cv_dtype_from_np():
-    assert F.get_opencv_dtype_from_numpy(np.uint8) == cv2.CV_8U
-    assert F.get_opencv_dtype_from_numpy(np.uint16) == cv2.CV_16U
-    assert F.get_opencv_dtype_from_numpy(np.float32) == cv2.CV_32F
-    assert F.get_opencv_dtype_from_numpy(np.float64) == cv2.CV_64F
-    assert F.get_opencv_dtype_from_numpy(np.int32) == cv2.CV_32S
+    assert get_opencv_dtype_from_numpy(np.uint8) == cv2.CV_8U
+    assert get_opencv_dtype_from_numpy(np.uint16) == cv2.CV_16U
+    assert get_opencv_dtype_from_numpy(np.float32) == cv2.CV_32F
+    assert get_opencv_dtype_from_numpy(np.float64) == cv2.CV_64F
+    assert get_opencv_dtype_from_numpy(np.int32) == cv2.CV_32S
 
-    assert F.get_opencv_dtype_from_numpy(np.dtype("uint8")) == cv2.CV_8U
-    assert F.get_opencv_dtype_from_numpy(np.dtype("uint16")) == cv2.CV_16U
-    assert F.get_opencv_dtype_from_numpy(np.dtype("float32")) == cv2.CV_32F
-    assert F.get_opencv_dtype_from_numpy(np.dtype("float64")) == cv2.CV_64F
-    assert F.get_opencv_dtype_from_numpy(np.dtype("int32")) == cv2.CV_32S
+    assert get_opencv_dtype_from_numpy(np.dtype("uint8")) == cv2.CV_8U
+    assert get_opencv_dtype_from_numpy(np.dtype("uint16")) == cv2.CV_16U
+    assert get_opencv_dtype_from_numpy(np.dtype("float32")) == cv2.CV_32F
+    assert get_opencv_dtype_from_numpy(np.dtype("float64")) == cv2.CV_64F
+    assert get_opencv_dtype_from_numpy(np.dtype("int32")) == cv2.CV_32S
 
 
 @pytest.mark.parametrize(
