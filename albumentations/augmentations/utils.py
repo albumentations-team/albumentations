@@ -1,5 +1,5 @@
 from functools import wraps
-from typing import Callable, Union
+from typing import Callable, Optional, Union
 
 import cv2
 import numpy as np
@@ -26,6 +26,8 @@ __all__ = [
     "get_num_channels",
     "non_rgb_warning",
     "_maybe_process_in_chunks",
+    "to_float",
+    "from_float",
 ]
 
 P = ParamSpec("P")
@@ -209,3 +211,27 @@ def _maybe_process_in_chunks(
         return img
 
     return __process_fn
+
+
+def to_float(img: np.ndarray, max_value: Optional[float] = None) -> np.ndarray:
+    if max_value is None:
+        try:
+            max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+        except KeyError:
+            raise RuntimeError(
+                f"Can't infer the maximum value for dtype {img.dtype}."
+                f" You need to specify the maximum value manually by passing the max_value argument"
+            )
+    return img.astype("float32") / max_value
+
+
+def from_float(img: np.ndarray, dtype: np.dtype, max_value: Optional[float] = None) -> np.ndarray:
+    if max_value is None:
+        try:
+            max_value = MAX_VALUES_BY_DTYPE[dtype]
+        except KeyError:
+            raise RuntimeError(
+                f"Can't infer the maximum value for dtype {dtype}. You need to specify the maximum value manually by "
+                "passing the max_value argument"
+            )
+    return (img * max_value).astype(dtype)

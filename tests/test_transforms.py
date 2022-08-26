@@ -8,6 +8,7 @@ import pytest
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
+from albumentations.augmentations.color.functional import equalize
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -362,13 +363,13 @@ def test_equalize():
 
     img = np.random.randint(0, 256, 256 * 256 * 3, np.uint8).reshape((256, 256, 3))
     a = aug(image=img)["image"]
-    b = F.equalize(img)
+    b = equalize(img)
     assert np.all(a == b)
 
     mask = np.random.randint(0, 2, 256 * 256, np.uint8).reshape((256, 256))
     aug = A.Equalize(mask=mask, p=1)
     a = aug(image=img)["image"]
-    b = F.equalize(img, mask=mask)
+    b = equalize(img, mask=mask)
     assert np.all(a == b)
 
     def mask_func(image, test):  # skipcq: PYL-W0613
