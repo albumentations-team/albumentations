@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, SupportsIndex, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -426,7 +426,7 @@ def equalize(
 
 
 @preserve_shape
-def posterize(img: np.ndarray, bits: Union[int, Sequence[int]]) -> np.ndarray:
+def posterize(img: np.ndarray, bits: Union[int, SupportsIndex]) -> np.ndarray:
     """Reduce the number of bits for each color channel.
 
     Args:
@@ -437,7 +437,7 @@ def posterize(img: np.ndarray, bits: Union[int, Sequence[int]]) -> np.ndarray:
         numpy.ndarray: Image with reduced color channels.
 
     """
-    bits_arr: np.ndarray = np.uint8(bits)
+    bits_arr = cast(np.ndarray, np.uint8(bits))
 
     if img.dtype != np.uint8:
         raise TypeError("Image must have uint8 channel type")
@@ -614,7 +614,7 @@ def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
     eig_vecs = eig_vecs[:, sort_perm]
 
     # get [p1, p2, p3]
-    m1 = np.column_stack((eig_vecs))
+    m1 = np.column_stack(eig_vecs)  # type: ignore
 
     # get 3x1 matrix of eigen values multiplied by random variable draw from normal
     # distribution with mean of 0 and standard deviation of 0.1

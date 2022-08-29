@@ -72,7 +72,7 @@ def clipped(func: Callable[Concatenate[np.ndarray, P], np.ndarray]) -> Callable[
     return wrapped_function
 
 
-def clip(img: np.ndarray, dtype: np.dtype, maxval: float) -> np.ndarray:
+def clip(img: Union[float, np.ndarray], dtype: np.dtype, maxval: float) -> np.ndarray:
     return np.clip(img, 0, maxval).astype(dtype)
 
 

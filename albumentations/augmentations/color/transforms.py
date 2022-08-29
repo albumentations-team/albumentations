@@ -1,7 +1,18 @@
 import numbers
 import random
 import warnings
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    SupportsIndex,
+    Tuple,
+    Union,
+    cast,
+)
 
 import numpy as np
 
@@ -510,7 +521,7 @@ class ToSepia(ImageOnlyTransform):
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
         super().__init__(always_apply, p)
-        self.sepia_transformation_matrix = np.matrix(
+        self.sepia_transformation_matrix: np.ndarray = np.matrix(
             [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
         )
 
@@ -597,7 +608,7 @@ class Equalize(ImageOnlyTransform):
     def apply(self, img: np.ndarray, mask: Optional[np.ndarray] = None, **params) -> np.ndarray:
         return F.equalize(img, mode=self.mode, by_channels=self.by_channels, mask=mask)
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         if not callable(self.mask):
             return {"mask": self.mask}
 
@@ -640,7 +651,7 @@ class Posterize(ImageOnlyTransform):
         else:
             self.num_bits = to_tuple(num_bits, num_bits)
 
-    def apply(self, img: np.ndarray, num_bits: Union[int, Sequence[int]] = 1, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, num_bits: Union[int, SupportsIndex] = 1, **params) -> np.ndarray:
         return F.posterize(img, num_bits)
 
     def get_params(self) -> Dict[str, Union[int, Sequence[int]]]:
