@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, SupportsIndex, Tuple, Union, cast
+from typing import Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -426,7 +426,7 @@ def equalize(
 
 
 @preserve_shape
-def posterize(img: np.ndarray, bits: Union[int, SupportsIndex]) -> np.ndarray:
+def posterize(img: np.ndarray, bits: Union[int, Sequence[int]]) -> np.ndarray:
     """Reduce the number of bits for each color channel.
 
     Args:
@@ -437,7 +437,7 @@ def posterize(img: np.ndarray, bits: Union[int, SupportsIndex]) -> np.ndarray:
         numpy.ndarray: Image with reduced color channels.
 
     """
-    bits_arr = cast(np.ndarray, np.uint8(bits))
+    bits_arr = cast(np.ndarray, np.uint8(bits))  # type: ignore
 
     if img.dtype != np.uint8:
         raise TypeError("Image must have uint8 channel type")

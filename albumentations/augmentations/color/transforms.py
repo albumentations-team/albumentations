@@ -1,18 +1,7 @@
 import numbers
 import random
 import warnings
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    SupportsIndex,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 
@@ -651,7 +640,7 @@ class Posterize(ImageOnlyTransform):
         else:
             self.num_bits = to_tuple(num_bits, num_bits)
 
-    def apply(self, img: np.ndarray, num_bits: Union[int, SupportsIndex] = 1, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, num_bits: Union[int, Sequence[int]] = 1, **params) -> np.ndarray:
         return F.posterize(img, num_bits)
 
     def get_params(self) -> Dict[str, Union[int, Sequence[int]]]:
