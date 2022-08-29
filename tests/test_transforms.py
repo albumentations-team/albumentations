@@ -376,7 +376,7 @@ def test_equalize():
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
-    assert np.all(aug(image=img, test=mask)["image"] == F.equalize(img, mask=mask))
+    assert np.all(aug(image=img, test=mask)["image"] == equalize(img, mask=mask))
 
 
 def test_crop_non_empty_mask():
