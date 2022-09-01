@@ -20,7 +20,6 @@ from albumentations.core.bbox_utils import (
     to_ndarray_bboxes,
     to_tuple_bboxes,
 )
-
 from tests.utils import convert_2d_to_target_format
 
 
@@ -1150,7 +1149,9 @@ def test_bboxes_shift_scale_rotate():
     # Use the result of bbox_shift_scale_rotate as a truth result.
     expect = []
     for bbox in bboxes:
-        box = FGeometric.bbox_shift_scale_rotate(bbox, angle=angle, scale=scale, dx=dx, dy=dy, rotate_method='largest_box', rows=rows, cols=cols)
+        box = FGeometric.bbox_shift_scale_rotate(
+            bbox, angle=angle, scale=scale, dx=dx, dy=dy, rotate_method="largest_box", rows=rows, cols=cols
+        )
         expect.append(box)
     expect = np.array(expect)
     actual = FGeometric.bboxes_shift_scale_rotate(bboxes, angle=angle, scale=scale, dx=dx, dy=dy, rows=rows, cols=cols)

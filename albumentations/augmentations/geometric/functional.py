@@ -6,7 +6,6 @@ import numpy as np
 import skimage.transform
 from scipy.ndimage.filters import gaussian_filter
 
-
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     angle_2pi_range,
@@ -14,7 +13,7 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-from ..crops import functional as FCrop
+
 from ... import random_utils
 from ...core.bbox_utils import denormalize_bbox, normalize_bbox
 from ...core.transforms_interface import (
@@ -23,6 +22,7 @@ from ...core.transforms_interface import (
     ImageColorType,
     KeypointInternalType,
 )
+from ..crops import functional as FCrop
 
 __all__ = [
     "optical_distortion",

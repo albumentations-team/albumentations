@@ -7,9 +7,12 @@ from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     preserve_channel_dim,
 )
+
 from ...core.bbox_utils import (
-    denormalize_bbox, normalize_bbox,
-    denormalize_bboxes2, normalize_bboxes2,
+    denormalize_bbox,
+    denormalize_bboxes2,
+    normalize_bbox,
+    normalize_bboxes2,
 )
 from ...core.transforms_interface import BoxInternalType, KeypointInternalType
 from ..geometric import functional as FGeometric
