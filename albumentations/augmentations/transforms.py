@@ -1546,11 +1546,8 @@ class InvertImg(ImageOnlyTransform):
         image
 
     Image types:
-        uint8
+        uint8, float32
     """
-
-    def __init__(self, always_apply=False, p=0.5):
-        super(InvertImg, self).__init__(always_apply, p)
 
     def apply(self, img, **params):
         return F.invert(img)

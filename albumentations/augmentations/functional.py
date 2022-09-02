@@ -798,7 +798,7 @@ def add_shadow(img, vertices_list):
 def invert(img: np.ndarray) -> np.ndarray:
     # Supports all the valid dtypes
     # clips the img to avoid unexpected behaviour.
-    return MAX_VALUES_BY_DTYPE[img.dtype] - clip(img, img.dtype, MAX_VALUES_BY_DTYPE[img.dtype])
+    return MAX_VALUES_BY_DTYPE[img.dtype] - img
 
 
 def channel_shuffle(img, channels_shuffled):
