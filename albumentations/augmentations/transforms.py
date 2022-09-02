@@ -1549,8 +1549,15 @@ class InvertImg(ImageOnlyTransform):
         uint8
     """
 
+    def __init__(self, always_apply=False, p=0.1):
+        super(InvertImg, self).__init__(always_apply, p)
+        self.p: float = p
+
     def apply(self, img, **params):
-        return F.invert(img)
+        if random.random() < self.p:
+            return F.invert(img)
+        else:
+            return img
 
     def get_transform_init_args_names(self):
         return ()
