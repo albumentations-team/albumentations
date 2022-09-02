@@ -171,7 +171,7 @@ class ElasticTransform(DualTransform):
                              Enabling this option gives ~2X speedup.
 
     Targets:
-        image, mask
+        image, mask, bbox
 
     Image types:
         uint8, float32
@@ -229,6 +229,28 @@ class ElasticTransform(DualTransform):
             self.approximate,
             self.same_dxdy,
         )
+
+    def apply_to_bbox(self, bbox, random_state=None, **params):
+        rows, cols = params["rows"], params["cols"]
+        mask = np.zeros((rows, cols), dtype=np.uint8)
+        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_denorm[:4]
+        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        mask[y_min:y_max, x_min:x_max] = 1
+        mask = F.elastic_transform(
+            mask,
+            self.alpha,
+            self.sigma,
+            self.alpha_affine,
+            cv2.INTER_NEAREST,
+            self.border_mode,
+            self.mask_value,
+            np.random.RandomState(random_state),
+            self.approximate,
+        )
+        bbox_returned = bbox_from_mask(mask)
+        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
+        return bbox_returned
 
     def get_params(self):
         return {"random_state": random.randint(0, 10000)}
