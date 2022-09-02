@@ -298,7 +298,6 @@ def test_force_apply():
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
-            A.InvertImg: {"p": 0},
         },
     ),
 )
@@ -311,6 +310,15 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         aug1 = res["image"]
         aug2 = res["image2"]
         assert np.array_equal(aug1, aug2)
+
+
+def test_image_invert():
+    # test for np.uint8 dtype
+    image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    image2 = image1.copy()
+    r1 = F.invert(image1)
+    r2 = F.invert(r1)
+    assert np.array_equal(image2, r2)
 
 
 def test_lambda_transform():
