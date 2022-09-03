@@ -125,7 +125,7 @@ class KeypointsProcessor(DataProcessor):
         check_keypoints(data, rows, cols)
 
     def convert_from_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
-        params = typing.cast(KeypointParams, self.params)
+        params = self.params
         return convert_keypoints_from_albumentations(
             data,
             params.format,
@@ -136,7 +136,7 @@ class KeypointsProcessor(DataProcessor):
         )
 
     def convert_to_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
-        params = typing.cast(KeypointParams, self.params)
+        params = self.params
         return convert_keypoints_to_albumentations(
             data,
             params.format,
@@ -167,9 +167,7 @@ def check_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int) -> None
         check_keypoint(kp, rows, cols)
 
 
-def filter_keypoints(
-    keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool
-) -> Sequence[Sequence]:
+def filter_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool) -> Sequence[Sequence]:
     if not remove_invisible:
         return keypoints
 

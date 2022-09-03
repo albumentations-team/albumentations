@@ -97,7 +97,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
     ),
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -120,7 +120,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
     ),
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -159,7 +159,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
     ),
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -210,6 +210,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.RandomToneCurve,
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
             A.MaskDropout,
         },
@@ -246,6 +247,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.ISONoise,
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.CenterCrop,
             A.Crop,
             A.CropNonEmptyMaskIfExists,
@@ -267,6 +269,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.ToSepia,
             A.PixelDistributionAdaptation,
             A.UnsharpMask,
+            A.RandomCropFromBorders,
+            A.Spatter,
         },
     ),
 )
@@ -313,6 +317,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.CenterCrop,
             A.Crop,
             A.CropNonEmptyMaskIfExists,
@@ -325,6 +330,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             A.SmallestMaxSize,
             A.PadIfNeeded,
             A.RandomScale,
+            A.RandomCropFromBorders,
         },
     ),
 )
@@ -413,6 +419,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToFloat,
@@ -420,6 +427,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.ToSepia,
             A.FancyPCA,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
@@ -471,6 +479,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToGray,
@@ -480,6 +489,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.Posterize,
             A.RandomToneCurve,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
@@ -522,6 +532,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToFloat,
@@ -531,6 +542,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
@@ -575,6 +587,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToGray,
@@ -586,6 +599,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
+            A.Spatter,
         },
     ),
 )
@@ -829,11 +843,11 @@ def test_pixel_domain_adaptation(kind):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+            A.BBoxSafeRandomCrop: {"erosion_rate": 0.5},
         },
     ),
 )
 def test_non_contiguous_input(augmentation_cls, params, bboxes):
-
     image = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
     mask = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
 
@@ -845,7 +859,7 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         # requires "cropping_bbox" arg
         aug = augmentation_cls(p=1, **params)
         aug(image=image, mask=mask, cropping_bbox=bboxes[0])
-    elif augmentation_cls == A.RandomSizedBBoxSafeCrop:
+    elif augmentation_cls in [A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop]:
         # requires "bboxes" arg
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
         aug(image=image, mask=mask, bboxes=bboxes)

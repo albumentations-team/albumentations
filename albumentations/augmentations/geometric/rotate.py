@@ -5,7 +5,13 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import BoxType, DualTransform, KeypointType, to_tuple
+from ...core.transforms_interface import (
+    BoxInternalType,
+    DualTransform,
+    FillValueType,
+    KeypointInternalType,
+    to_tuple,
+)
 from ..crops import functional as FCrops
 from . import functional as F
 
@@ -62,7 +68,7 @@ class Rotate(DualTransform):
         mask_value (int, float,
                     list of ints,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-        method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
+        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
             Default: "largest_box"
         crop_border (bool): If True would make a largest possible crop within rotated image
         p (float): probability of applying the transform. Default: 0.5.
@@ -81,7 +87,7 @@ class Rotate(DualTransform):
         border_mode=cv2.BORDER_REFLECT_101,
         value=None,
         mask_value=None,
-        method="largest_box",
+        rotate_method="largest_box",
         crop_border=False,
         always_apply=False,
         p=0.5,
@@ -92,11 +98,11 @@ class Rotate(DualTransform):
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
-        self.method = method
+        self.rotate_method = rotate_method
         self.crop_border = crop_border
 
-        if method not in ["largest_box", "ellipse"]:
-            raise ValueError(f"Rotation method {self.method} is not valid.")
+        if rotate_method not in ["largest_box", "ellipse"]:
+            raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
     def apply(
         self, img, angle=0, interpolation=cv2.INTER_LINEAR, x_min=None, x_max=None, y_min=None, y_max=None, **params
@@ -113,7 +119,7 @@ class Rotate(DualTransform):
         return img_out
 
     def apply_to_bbox(self, bbox, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params):
-        bbox_out = F.bbox_rotate(bbox, angle, self.method, rows, cols)
+        bbox_out = F.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
         if self.crop_border:
             bbox_out = FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
         return bbox_out
@@ -123,7 +129,7 @@ class Rotate(DualTransform):
     ):
         keypoint_out = F.keypoint_rotate(keypoint, angle, rows, cols, **params)
         if self.crop_border:
-            keypoint_out = FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, x_max, y_min, y_max))
+            keypoint_out = FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
         return keypoint_out
 
     @staticmethod
@@ -172,7 +178,7 @@ class Rotate(DualTransform):
         return out_params
 
     def get_transform_init_args_names(self):
-        return ("limit", "interpolation", "border_mode", "value", "mask_value", "method", "crop_border")
+        return ("limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border")
 
 
 class SafeRotate(DualTransform):
@@ -209,7 +215,7 @@ class SafeRotate(DualTransform):
         limit: Union[float, Tuple[float, float]] = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
+        value: FillValueType = None,
         mask_value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
@@ -222,24 +228,26 @@ class SafeRotate(DualTransform):
         self.mask_value = mask_value
 
     def apply(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
+        assert matrix is not None
         return F.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
 
     def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
+        assert matrix is not None
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bbox(self, bbox: BoxType, cols: int = 0, rows: int = 0, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, cols: int = 0, rows: int = 0, **params) -> BoxInternalType:
         return F.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
 
     def apply_to_keypoint(
         self,
-        keypoint: KeypointType,
+        keypoint: KeypointInternalType,
         angle: float = 0,
         scale_x: float = 0,
         scale_y: float = 0,
         cols: int = 0,
         rows: int = 0,
         **params
-    ) -> KeypointType:
+    ) -> KeypointInternalType:
         return F.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
 
     @property

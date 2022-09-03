@@ -202,7 +202,7 @@ class Compose(BaseCompose):
             p.preprocess(data)
 
         for idx, t in enumerate(transforms):
-            data = t(force_apply=force_apply, **data)
+            data = t(**data)
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
