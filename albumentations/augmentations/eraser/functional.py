@@ -106,8 +106,8 @@ def startEraser(parentDir, imgType, imgExpType):
 
     obj1 = MetaData(parentDir, imgType)
     obj1.loadData()
-    print(obj1.data)
-    print(obj1.distribution)
+    # print(obj1.data)
+    print(f"Identified:{obj1.distribution}")
     minorityLabel, minorityStrength = obj1.identifyMinority()
 
     for filePath in glob.glob(f"{imgDir}/*"):
