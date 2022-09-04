@@ -302,7 +302,7 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, col
     return x_min, y_min, x_max, y_max
 
 
-def bboxes_shift_scale_rotate(bboxes, angle, scale, dx, dy, rows, cols, **kwargs):
+def bboxes_shift_scale_rotate(bboxes, angle, scale, dx, dy, rotate_method, rows, cols, **kwargs):
     """(numpy version of bbox_shift_scale_rotate)"""
     if not isinstance(bboxes, np.ndarray):
         raise ValueError("bboxes should be np.ndarray")
@@ -310,7 +310,15 @@ def bboxes_shift_scale_rotate(bboxes, angle, scale, dx, dy, rows, cols, **kwargs
 
     height, width = rows, cols
     center = (width / 2, height / 2)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
+
+    if rotate_method == "ellipse":
+        bboxes = np.array(
+            [bbox_rotate(bbox[:4], angle, rotate_method, rows, cols) + tuple(bbox[4:]) for bbox in bboxes]
+        )
+        matrix = cv2.getRotationMatrix2D(center, 0, scale)
+    else:
+        matrix = cv2.getRotationMatrix2D(center, angle, scale)
+
     matrix[0, 2] += dx * width
     matrix[1, 2] += dy * height
 
@@ -468,7 +476,9 @@ def bboxes_expand_grid(bboxes, n_x, n_y, rows, cols, border_mode=cv2.BORDER_WRAP
     return bboxes_exp
 
 
-def bboxes_shift_scale_rotate_reflect(bboxes, angle, scale, dx, dy, rows, cols, border_mode=cv2.BORDER_REFLECT_101):
+def bboxes_shift_scale_rotate_reflect(
+    bboxes, angle, scale, dx, dy, rotate_method, rows, cols, border_mode=cv2.BORDER_REFLECT_101
+):
 
     if not isinstance(bboxes, np.ndarray):
         raise ValueError("bboxes should be np.ndarray")
@@ -505,7 +515,9 @@ def bboxes_shift_scale_rotate_reflect(bboxes, angle, scale, dx, dy, rows, cols, 
     #    +-+-+-+      +-+-+-+
     #    |q|p|q|      | | | |
     #    +-+-+-+      +-+-+-+
-    tr_bboxes = bboxes_shift_scale_rotate(bboxes_exp, angle, scale, dx / n_x, dy / n_y, n_y * rows, n_x * cols)
+    tr_bboxes = bboxes_shift_scale_rotate(
+        bboxes_exp, angle, scale, dx / n_x, dy / n_y, rotate_method, n_y * rows, n_x * cols
+    )
     # Crop the center cell from the grid, and remove boxes outside the cropped cell.
     #      q p q
     #   +-+-+-+
