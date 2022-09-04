@@ -75,8 +75,9 @@ class ShiftScaleRotate(DualTransform):
             in the range [0, 1]. Default: None.
         rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
             Default: "largest_box"
-        reflec_annotation: If True and the border_mode is one of: cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101,
-            then annotations(keypoints are not supported yet) are also reflected or wrapped in the same way as image.
+        reflec_annotation: If True and the border_mode is one of: cv2.BORDER_REFLECT, cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101, then annotations(keypoints are not supported yet) are also reflected or wrapped
+            in the same way as the image.
             Default: False
         p (float): probability of applying the transform. Default: 0.5.
 
