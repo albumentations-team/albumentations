@@ -1146,15 +1146,18 @@ def test_bboxes_shift_scale_rotate():
     scale = 1.2
     dx, dy = 0.15, 0.05
     bboxes = np.array([[0.1, 0.1, 0.2, 0.2], [0.6, 0.5, 0.8, 0.6]])
+    rotate_method = "largest_bbox"
     # Use the result of bbox_shift_scale_rotate as a truth result.
     expect = []
     for bbox in bboxes:
         box = FGeometric.bbox_shift_scale_rotate(
-            bbox, angle=angle, scale=scale, dx=dx, dy=dy, rotate_method="largest_box", rows=rows, cols=cols
+            bbox, angle=angle, scale=scale, dx=dx, dy=dy, rotate_method=rotate_method, rows=rows, cols=cols
         )
         expect.append(box)
     expect = np.array(expect)
-    actual = FGeometric.bboxes_shift_scale_rotate(bboxes, angle=angle, scale=scale, dx=dx, dy=dy, rows=rows, cols=cols)
+    actual = FGeometric.bboxes_shift_scale_rotate(
+        bboxes, angle=angle, scale=scale, dx=dx, dy=dy, rotate_method=rotate_method, rows=rows, cols=cols
+    )
     np.testing.assert_allclose(actual, expect)
 
 
@@ -1401,5 +1404,8 @@ def test_bboxes_expand_grid(bboxes, n_x, n_y, border_mode, expect):
 )
 def test_bboxes_shift_scale_rotate_with_reflect(bboxes, angle, scale, dx, dy, border_mode, expect):
     rows, cols = 100, 100
-    actual = FGeometric.bboxes_shift_scale_rotate_reflect(bboxes, angle, scale, dx, dy, rows, cols, border_mode)
+    rotate_method = "largest_box"
+    actual = FGeometric.bboxes_shift_scale_rotate_reflect(
+        bboxes, angle, scale, dx, dy, rotate_method, rows, cols, border_mode
+    )
     np.testing.assert_allclose(actual, expect)
