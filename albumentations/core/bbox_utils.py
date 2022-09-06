@@ -326,6 +326,8 @@ def convert_bbox_to_albumentations(
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
 
+    clamp = np.clip(x, 0.0, 1.0)
+    x_min, x_max, y_min, y_max = map(clamp, (x_min, x_max, y_min, y_max))
     bbox = (x_min, y_min, x_max, y_max) + tuple(tail)  # type: ignore
 
     if source_format != "yolo":
