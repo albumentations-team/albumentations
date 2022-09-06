@@ -63,6 +63,7 @@ class BboxParams(Params):
         min_area: float = 0.0,
         min_visibility: float = 0.0,
         check_each_transform: bool = True,
+        clamp_bbox=False
     ):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
@@ -118,7 +119,7 @@ class BboxProcessor(DataProcessor):
         check_bboxes(data)
 
     def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> List[BoxType]:
-        return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
+        return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True, clamp_bbox=self.params.clamp_bbox)
 
     def convert_to_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
@@ -274,7 +275,7 @@ def filter_bboxes_by_visibility(
 
 
 def convert_bbox_to_albumentations(
-    bbox: BoxType, source_format: str, rows: int, cols: int, check_validity: bool = False
+    bbox: BoxType, source_format: str, rows: int, cols: int, check_validity: bool = False, clamp_bbox=False
 ) -> BoxType:
     """Convert a bounding box from a format specified in `source_format` to the format used by albumentations:
     normalized coordinates of top-left and bottom-right corners of the bounding box in a form of
@@ -326,8 +327,9 @@ def convert_bbox_to_albumentations(
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
 
-    clamp = np.clip(x, 0.0, 1.0)
-    x_min, x_max, y_min, y_max = map(clamp, (x_min, x_max, y_min, y_max))
+    if clamp_bbox:
+        clamp = np.clip(x, 0.0, 1.0)
+        x_min, x_max, y_min, y_max = map(clamp, (x_min, x_max, y_min, y_max))
     bbox = (x_min, y_min, x_max, y_max) + tuple(tail)  # type: ignore
 
     if source_format != "yolo":
