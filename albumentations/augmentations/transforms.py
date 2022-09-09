@@ -1546,7 +1546,7 @@ class InvertImg(ImageOnlyTransform):
         image
 
     Image types:
-        uint8
+        uint8, float32
     """
 
     def apply(self, img, **params):
