@@ -388,7 +388,7 @@ class RandomRain(ImageOnlyTransform):
         drop_color (list of (r, g, b)): rain lines color.
         blur_value (int): rainy view are blurry
         brightness_coefficient (float): rainy days are usually shady. Should be in range [0, 1].
-        rain_type: One of [None, "drizzle", "heavy", "torrestial"]
+        rain_type: One of [None, "drizzle", "heavy", "torrential"]
 
     Targets:
         image
@@ -1356,7 +1356,7 @@ class InvertImg(ImageOnlyTransform):
         image
 
     Image types:
-        uint8
+        uint8, float32
     """
 
     def apply(self, img, **params):

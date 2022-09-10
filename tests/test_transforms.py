@@ -313,6 +313,17 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         assert np.array_equal(aug1, aug2)
 
 
+def test_image_invert():
+    for _ in range(10):
+        # test for np.uint8 dtype
+        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image2 = A.to_float(image1)
+        r_int = F.invert(F.invert(image1))
+        r_float = F.invert(F.invert(image2))
+        r_to_float = A.to_float(r_int)
+        assert np.allclose(r_float, r_to_float, atol=0.01)
+
+
 def test_lambda_transform():
     def negate_image(image, **kwargs):
         return -image
