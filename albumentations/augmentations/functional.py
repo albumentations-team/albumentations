@@ -1,7 +1,5 @@
 from __future__ import division
 
-from itertools import product
-from math import ceil
 from typing import Optional, Sequence, Union
 from warnings import warn
 
@@ -10,7 +8,6 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
-from albumentations.augmentations.geometric.functional import scale
 from albumentations.augmentations.utils import (
     MAX_VALUES_BY_DTYPE,
     _maybe_process_in_chunks,
@@ -35,7 +32,6 @@ __all__ = [
     "adjust_contrast_torchvision",
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
-    "blur",
     "brightness_contrast_adjust",
     "channel_shuffle",
     "clahe",
@@ -46,13 +42,10 @@ __all__ = [
     "from_float",
     "gamma_transform",
     "gauss_noise",
-    "gaussian_blur",
-    "glass_blur",
     "image_compression",
     "invert",
     "iso_noise",
     "linear_transformation_rgb",
-    "median_blur",
     "move_tone_curve",
     "multiply",
     "noop",
@@ -468,30 +461,6 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
         img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
     return img
-
-
-@preserve_shape
-def blur(img, ksize):
-    blur_fn = _maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
-    return blur_fn(img)
-
-
-@preserve_shape
-def gaussian_blur(img, ksize, sigma=0):
-    # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
-    return blur_fn(img)
-
-
-@preserve_shape
-def median_blur(img, ksize):
-    if img.dtype == np.float32 and ksize not in {3, 5}:
-        raise ValueError(
-            "Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5".format(ksize)
-        )
-
-    blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
-    return blur_fn(img)
 
 
 @preserve_shape
@@ -1141,38 +1110,6 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
-@preserve_shape
-def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
-    x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
-
-    if mode == "fast":
-
-        hs = np.arange(img.shape[0] - max_delta, max_delta, -1)
-        ws = np.arange(img.shape[1] - max_delta, max_delta, -1)
-        h = np.tile(hs, ws.shape[0])
-        w = np.repeat(ws, hs.shape[0])
-
-        for i in range(iterations):
-            dy = dxy[:, i, 0]
-            dx = dxy[:, i, 1]
-            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
-
-    elif mode == "exact":
-        for ind, (i, h, w) in enumerate(
-            product(
-                range(iterations),
-                range(img.shape[0] - max_delta, max_delta, -1),
-                range(img.shape[1] - max_delta, max_delta, -1),
-            )
-        ):
-            ind = ind if ind < len(dxy) else ind % len(dxy)
-            dy = dxy[ind, i, 0]
-            dx = dxy[ind, i, 1]
-            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
-
-    return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
-
-
 def _adjust_brightness_torchvision_uint8(img, factor):
     lut = np.arange(0, 256) * factor
     lut = np.clip(lut, 0, 255).astype(np.uint8)
@@ -1396,36 +1333,3 @@ def spatter(
         raise ValueError("Unsupported spatter mode: " + str(mode))
 
     return img * 255
-
-
-def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
-    L = np.arange(-max(8, radius), max(8, radius) + 1)
-    ksize = 3 if radius <= 8 else 5
-
-    X, Y = np.meshgrid(L, L)
-    aliased_disk = np.array((X**2 + Y**2) <= radius**2, dtype=np.float32)
-    aliased_disk /= np.sum(aliased_disk)
-
-    kernel = gaussian_blur(aliased_disk, ksize, sigma=alias_blur)
-    return convolve(img, kernel=kernel)
-
-
-def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
-    h, w = img.shape[:2]
-    h_ch, w_ch = ceil(h / zoom_factor), ceil(w / zoom_factor)
-    h_top, w_top = (h - h_ch) // 2, (w - w_ch) // 2
-
-    img = scale(img[h_top : h_top + h_ch, w_top : w_top + w_ch], zoom_factor, cv2.INTER_LINEAR)
-    h_trim_top, w_trim_top = (img.shape[0] - h) // 2, (img.shape[1] - w) // 2
-    return img[h_trim_top : h_trim_top + h, w_trim_top : w_trim_top + w]
-
-
-@clipped
-def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -> np.ndarray:
-    out = np.zeros_like(img, dtype=np.float32)
-    for zoom_factor in zoom_factors:
-        out += central_zoom(img, zoom_factor)
-
-    img = ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)
-
-    return img
