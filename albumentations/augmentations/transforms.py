@@ -695,8 +695,8 @@ class RandomSunFlare(ImageOnlyTransform):
             rad = random.randint(1, max(height // 100 - 2, 2))
 
             r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
-            g_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
-            b_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            g_color = random.randint(max(self.src_color[1] - 50, 0), self.src_color[1])
+            b_color = random.randint(max(self.src_color[2] - 50, 0), self.src_color[2])
 
             circles += [
                 (
