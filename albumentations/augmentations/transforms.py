@@ -1389,7 +1389,7 @@ class RandomGamma(ImageOnlyTransform):
         return F.gamma_transform(img, gamma=gamma)
 
     def get_params(self):
-        return {"gamma": random.randint(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
+        return {"gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
 
     def get_transform_init_args_names(self):
         return ("gamma_limit", "eps")
