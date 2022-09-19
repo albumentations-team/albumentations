@@ -8,6 +8,7 @@ import pytest
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
+from albumentations.augmentations.blur.functional import gaussian_blur
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -310,6 +311,17 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         aug1 = res["image"]
         aug2 = res["image2"]
         assert np.array_equal(aug1, aug2)
+
+
+def test_image_invert():
+    for _ in range(10):
+        # test for np.uint8 dtype
+        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image2 = A.to_float(image1)
+        r_int = F.invert(F.invert(image1))
+        r_float = F.invert(F.invert(image2))
+        r_to_float = A.to_float(r_int)
+        assert np.allclose(r_float, r_to_float, atol=0.01)
 
 
 def test_lambda_transform():
@@ -698,7 +710,7 @@ def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
     aug = A.Compose([A.GaussianBlur(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
 
     res = aug(image=img)["image"]
-    assert np.allclose(res, F.gaussian_blur(img, result_blur, result_sigma))
+    assert np.allclose(res, gaussian_blur(img, result_blur, result_sigma))
 
 
 @pytest.mark.parametrize(
