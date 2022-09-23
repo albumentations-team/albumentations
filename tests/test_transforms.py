@@ -157,7 +157,13 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout},
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.PixelDropout,
+            A.CutAndPaste,
+        },
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -188,6 +194,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.BBoxSafeRandomCrop,
             A.CropAndPad,
             A.PixelDropout,
+            A.CutAndPaste,
         },
     ),
 )
@@ -233,6 +240,7 @@ def __test_multiprocessing_support_proc(args):
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
+            A.CutAndPaste,
         },
     ),
 )

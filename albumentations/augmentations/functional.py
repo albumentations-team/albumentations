@@ -50,6 +50,7 @@ __all__ = [
     "multiply",
     "noop",
     "normalize",
+    "paste",
     "posterize",
     "shift_hsv",
     "shift_rgb",
@@ -197,6 +198,59 @@ def solarize(img, threshold=128):
     cond = img >= threshold
     result_img[cond] = max_val - result_img[cond]
     return result_img
+
+
+BLEND_METHODS = ("GAUSSIAN", "NORMAL_CLONE", "MIXED_CLONE", "MONOCHROME_TRANSFER")
+CV2_BLEND_METHOD_MAP = {
+    "NORMAL_CLONE": cv2.NORMAL_CLONE,
+    "MIXED_CLONE": cv2.MIXED_CLONE,
+    "MONOCHROME_TRANSFER": cv2.MONOCHROME_TRANSFER,
+}
+
+
+def paste(base_img, obj_img, obj_mask, obj_top, obj_left, sigma=1, blend_method="GAUSSIAN"):
+
+    blend_method = blend_method.upper()
+
+    if blend_method not in BLEND_METHODS:
+        raise ValueError(f"blend_method should be one of {BLEND_METHODS}, but got {blend_method}")
+
+    h, w = base_img.shape[:2]
+    obj_h, obj_w = obj_img.shape[:2]
+
+    if h < obj_top + obj_h:
+        raise ValueError(
+            f"obj_img height(={obj_h}) + obj_top(={obj_top}) should be less than or equal to base_img height(={h})"
+            + f", got {obj_h + obj_top} > {h}"
+        )
+
+    if w < obj_left + obj_w:
+        raise ValueError(
+            f"obj_img width(={obj_w}) + obj_left(={obj_left}) should be less than or equal to base_img width(={w})"
+            + f", got {obj_w + obj_left} > {w}"
+        )
+
+    if blend_method in CV2_BLEND_METHOD_MAP:
+        # poisson blending
+        obj_mask = np.where(obj_mask > 0, 255, 0).astype(np.uint8)
+        # calc object center position
+        obj_cent = (int(obj_left + obj_w / 2), int(obj_top + obj_h / 2))
+        blend_img = cv2.seamlessClone(obj_img, base_img, obj_mask, p=obj_cent, flags=CV2_BLEND_METHOD_MAP[blend_method])
+    else:
+        # gaussian blending
+        alpha = np.where(obj_mask > 0, 1.0, 0.0).astype(np.float32)
+        alpha = skimage.filters.gaussian(alpha, sigma=sigma, preserve_range=True)
+        alpha = alpha[:, :, None]
+
+        idx_row = slice(obj_top, obj_top + obj_h)
+        idx_col = slice(obj_left, obj_left + obj_w)
+
+        blend_img = base_img.copy()
+        img_dtype = base_img.dtype
+
+        blend_img[idx_row, idx_col] = obj_img * alpha + blend_img[idx_row, idx_col] * (1 - alpha)
+        blend_img = blend_img.astype(img_dtype)
+    return blend_img
 
 
 @preserve_shape

@@ -1,4 +1,5 @@
 import random
+import tempfile
 from typing import Dict, Tuple, Type
 
 import cv2
@@ -97,7 +98,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.CutAndPaste},
     ),
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -120,7 +121,7 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.CutAndPaste},
     ),
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -159,7 +160,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.CutAndPaste},
     ),
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -213,6 +214,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
             A.MaskDropout,
+            A.CutAndPaste,
         },
     ),
 )
@@ -271,6 +273,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.UnsharpMask,
             A.RandomCropFromBorders,
             A.Spatter,
+            A.CutAndPaste,
         },
     ),
 )
@@ -331,6 +334,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             A.PadIfNeeded,
             A.RandomScale,
             A.RandomCropFromBorders,
+            A.CutAndPaste,
         },
     ),
 )
@@ -428,6 +432,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.FancyPCA,
             A.PixelDistributionAdaptation,
             A.Spatter,
+            A.CutAndPaste,
         },
     ),
 )
@@ -490,6 +495,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomToneCurve,
             A.PixelDistributionAdaptation,
             A.Spatter,
+            A.CutAndPaste,
         },
     ),
 )
@@ -543,6 +549,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Spatter,
+            A.CutAndPaste,
         },
     ),
 )
@@ -600,6 +607,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Spatter,
+            A.CutAndPaste,
         },
     ),
 )
@@ -845,6 +853,7 @@ def test_pixel_domain_adaptation(kind):
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.5},
         },
+        except_augmentations={A.CutAndPaste},
     ),
 )
 def test_non_contiguous_input(augmentation_cls, params, bboxes):
@@ -877,3 +886,21 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         aug(image=image, mask=mask)
 
     # OK, if no exception is raised
+
+
+def test_cut_and_paste():
+    with tempfile.TemporaryDirectory() as tempdir:
+        img_png = np.zeros((10, 10, 4))
+        obj_path = f"{tempdir}/obj_01_23.png"
+        cv2.imwrite(obj_path, img_png)
+        transform = A.CutAndPaste(paste_image_dir=tempdir)
+        assert len(transform.paste_image_paths) == 1
+
+        # TODO
+        # test num of maks
+        # test masks overlap order
+        # test num of bboxes
+        # test pasted image
+        # test input size validation
+        #
+        # ...
