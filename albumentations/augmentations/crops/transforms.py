@@ -658,6 +658,7 @@ class CropAndPad(DualTransform):
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         always_apply: bool = False,
         p: float = 1.0,
     ):
@@ -679,6 +680,7 @@ class CropAndPad(DualTransform):
         self.sample_independently = sample_independently
 
         self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
     def apply(
         self,
@@ -688,11 +690,10 @@ class CropAndPad(DualTransform):
         pad_value: Union[int, float] = 0,
         rows: int = 0,
         cols: int = 0,
-        interpolation: int = cv2.INTER_LINEAR,
         **params
     ) -> np.ndarray:
         return F.crop_and_pad(
-            img, crop_params, pad_params, pad_value, rows, cols, interpolation, self.pad_mode, self.keep_size
+            img, crop_params, pad_params, pad_value, rows, cols, self.interpolation, self.pad_mode, self.keep_size
         )
 
     def apply_to_mask(
@@ -703,11 +704,18 @@ class CropAndPad(DualTransform):
         pad_value_mask: float = None,
         rows: int = 0,
         cols: int = 0,
-        interpolation: int = cv2.INTER_NEAREST,
         **params
     ) -> np.ndarray:
         return F.crop_and_pad(
-            img, crop_params, pad_params, pad_value_mask, rows, cols, interpolation, self.pad_mode, self.keep_size
+            img,
+            crop_params,
+            pad_params,
+            pad_value_mask,
+            rows,
+            cols,
+            self.mask_interpolation,
+            self.pad_mode,
+            self.keep_size,
         )
 
     def apply_to_bbox(
@@ -876,6 +884,7 @@ class CropAndPad(DualTransform):
             "keep_size",
             "sample_independently",
             "interpolation",
+            "mask_interpolation",
         )
 
 
