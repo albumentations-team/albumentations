@@ -122,13 +122,13 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 ### Pixel-level transforms
 Pixel-level transforms will change just an input image and will leave any additional targets such as masks, bounding boxes, and keypoints unchanged. The list of pixel-level transforms:
 
-- [AdvancedBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.AdvancedBlur)
-- [Blur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Blur)
+- [AdvancedBlur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.AdvancedBlur)
+- [Blur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.Blur)
 - [CLAHE](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.CLAHE)
 - [ChannelDropout](https://albumentations.ai/docs/api_reference/augmentations/dropout/channel_dropout/#albumentations.augmentations.dropout.channel_dropout.ChannelDropout)
 - [ChannelShuffle](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.ChannelShuffle)
 - [ColorJitter](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.ColorJitter)
-- [Defocus](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Defocus)
+- [Defocus](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.Defocus)
 - [Downscale](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Downscale)
 - [Emboss](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Emboss)
 - [Equalize](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.Equalize)
@@ -136,15 +136,15 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [FancyPCA](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.FancyPCA)
 - [FromFloat](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.FromFloat)
 - [GaussNoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GaussNoise)
-- [GaussianBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GaussianBlur)
-- [GlassBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.GlassBlur)
+- [GaussianBlur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.GaussianBlur)
+- [GlassBlur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.GlassBlur)
 - [HistogramMatching](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.HistogramMatching)
 - [HueSaturationValue](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.HueSaturationValue)
 - [ISONoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ISONoise)
 - [ImageCompression](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ImageCompression)
 - [InvertImg](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.InvertImg)
-- [MedianBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MedianBlur)
-- [MotionBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MotionBlur)
+- [MedianBlur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.MedianBlur)
+- [MotionBlur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.MotionBlur)
 - [MultiplicativeNoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MultiplicativeNoise)
 - [Normalize](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.Normalize)
 - [PixelDistributionAdaptation](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.PixelDistributionAdaptation)
@@ -168,7 +168,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [ToGray](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.ToGray)
 - [ToSepia](https://albumentations.ai/docs/api_reference/augmentations/color/transforms/#albumentations.augmentations.color.transforms.ToSepia)
 - [UnsharpMask](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.UnsharpMask)
-- [ZoomBlur](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ZoomBlur)
+- [ZoomBlur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.ZoomBlur)
 
 ### Spatial-level transforms
 Spatial-level transforms will simultaneously change both an input image as well as additional targets such as masks, bounding boxes, and keypoints. The following table shows which additional targets are supported by each transform.

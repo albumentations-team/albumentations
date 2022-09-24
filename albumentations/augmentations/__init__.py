@@ -1,4 +1,6 @@
 # Common classes
+from .blur.functional import *
+from .blur.transforms import *
 from .color.functional import *
 from .color.transforms import *
 
