@@ -208,8 +208,35 @@ CV2_BLEND_METHOD_MAP = {
 }
 
 
-def paste(base_img, obj_img, obj_mask, obj_top, obj_left, sigma=1, blend_method="GAUSSIAN"):
+def paste(
+    base_img: np.ndarray,
+    obj_img: np.ndarray,
+    obj_mask: np.ndarray,
+    obj_top: int,
+    obj_left: int,
+    sigma: float = 1,
+    blend_method: str = "GAUSSIAN",
+):
+    """
+    Args:
+        base_img (numpy.ndarray): An image where another object will be pasted onto it.
+        obj_img (numpy.ndarray): An image to be pasted onto the base_img.
+        obj_mask (numpy.ndarray): An mask cover the pasted object. The height and with should be the same
+                                  as the obj_img's ones.
+        obj_top (int): The y position of the top of the obj_img in the base_img coordinate.
+        obj_left (int): The x position of the left of the obj_img in the base_img cooridate.
+        sigma (float): Standard deviation for Gaussian kernel used in the "GAUSSIAN" blending method.
+        blend_method (str): keyword to select a blending method. Should be one of:
+                            ["GAUSSIAN", "NORMAL_CLONE", "MIXED_CLONE", "MONOCHROME_TRANSFER"].
+                            Lower cases will be capitalized. Default is "GAUSSIAN".
+    Returns:
+        numpy.ndarray: Blended image.
 
+    Reference:
+        Golnaz Ghiasi, Yin Cui, Aravind Srinivas, Rui Qian, Tsung-Yi Lin, Ekin D. Cubuk, Quoc V. Le, Barret Zoph:
+        "Simple Copy-Paste is a Strong Data Augmentation Method for Instance Segmentation"
+        Patrick Perez, Michel Gangnet, Andrew Blake: "Poisson Image Editing"
+    """
     blend_method = blend_method.upper()
 
     if blend_method not in BLEND_METHODS:
