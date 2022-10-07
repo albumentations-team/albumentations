@@ -2503,5 +2503,5 @@ class Spatter(ImageOnlyTransform):
             "mode": mode,
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str]:
-        return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode"
+    def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
+        return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
