@@ -1293,3 +1293,12 @@ def test_spatter_incorrect_mode(image):
 
     message = f"Unsupported color mode: {unsupported_mode}. Transform supports only `rain` and `mud` mods."
     assert str(exc_info.value).startswith(message)
+
+
+def test_spatter_incorrect_color(image):
+    unsupported_color = (255, 255)
+    with pytest.raises(ValueError) as exc_info:
+        A.Spatter(color=unsupported_color)
+
+    message = f"Unsupported color: {unsupported_color}. Color should be presented in RGB format."
+    assert str(exc_info.value).startswith(message)

@@ -2391,6 +2391,8 @@ class Spatter(ImageOnlyTransform):
             If tuple of float intensity will be sampled from range `[intensity[0], intensity[1])`. Default: (0.6).
         mode (string, or list of strings): Type of corruption. Currently, supported options are 'rain' and 'mud'.
              If list is provided type of corruption will be sampled list. Default: ("rain").
+        color (list of (r, g, b) or None): Corruption elements color. If None uses default colors (rain: (238, 238, 175)
+             mud: (20, 42, 63)).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2412,6 +2414,7 @@ class Spatter(ImageOnlyTransform):
         cutout_threshold: ScaleFloatType = 0.68,
         intensity: ScaleFloatType = 0.6,
         mode: Union[str, Sequence[str]] = "rain",
+        color: Optional[Sequence[int]] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -2422,10 +2425,13 @@ class Spatter(ImageOnlyTransform):
         self.gauss_sigma = to_tuple(gauss_sigma, gauss_sigma)
         self.intensity = to_tuple(intensity, intensity)
         self.cutout_threshold = to_tuple(cutout_threshold, cutout_threshold)
+        self.color = color
         self.mode = mode if isinstance(mode, (list, tuple)) else [mode]
         for i in self.mode:
             if i not in ["rain", "mud"]:
                 raise ValueError(f"Unsupported color mode: {mode}. Transform supports only `rain` and `mud` mods.")
+        if self.color is not None and len(self.color) < 3:
+            raise ValueError(f"Unsupported color: {color}. Color should be presented in RGB format.")
 
     def apply(
         self,
@@ -2445,12 +2451,18 @@ class Spatter(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         h, w = params["image"].shape[:2]
 
+        mode2color = {
+            "rain": [238, 238, 175],
+            "mud": [20, 42, 63],
+        }
+
         mean = random.uniform(self.mean[0], self.mean[1])
         std = random.uniform(self.std[0], self.std[1])
         cutout_threshold = random.uniform(self.cutout_threshold[0], self.cutout_threshold[1])
         sigma = random.uniform(self.gauss_sigma[0], self.gauss_sigma[1])
         mode = random.choice(self.mode)
         intensity = random.uniform(self.intensity[0], self.intensity[1])
+        color = np.array(mode2color[mode] if self.color is None else self.color) / 255.0
 
         liquid_layer = random_utils.normal(size=(h, w), loc=mean, scale=std)
         liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
@@ -2471,7 +2483,7 @@ class Spatter(ImageOnlyTransform):
             m = liquid_layer * dist
             m *= 1 / np.max(m, axis=(0, 1))
 
-            drops = m[:, :, None] * np.array([238 / 255.0, 238 / 255.0, 175 / 255.0]) * intensity
+            drops = m[:, :, None] * color * intensity
             mud = None
             non_mud = None
         else:
@@ -2479,7 +2491,8 @@ class Spatter(ImageOnlyTransform):
             m = gaussian_filter(m.astype(np.float32), sigma=sigma, mode="nearest")
             m[m < 1.2 * cutout_threshold] = 0
             m = m[..., np.newaxis]
-            mud = m * np.array([20 / 255.0, 42 / 255.0, 63 / 255.0])
+
+            mud = m * color
             non_mud = 1 - m
             drops = None
 
