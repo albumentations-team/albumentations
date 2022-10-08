@@ -2448,7 +2448,7 @@ class Spatter(ImageOnlyTransform):
                     raise ValueError(f"Wrong color definition: {self.color}. Color for mode: {i} not specified.")
                 if len(self.color[i]) != 3:
                     raise ValueError(
-                        f"Unsupported color: {self.color[i]} for mode {i}. Color should be presented " f"in RGB format."
+                        f"Unsupported color: {self.color[i]} for mode {i}. Color should be presented in RGB format."
                     )
 
         if isinstance(self.color, (list, tuple)):

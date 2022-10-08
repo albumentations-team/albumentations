@@ -1302,17 +1302,17 @@ def test_spatter_incorrect_mode(image):
         (
             {"rain": [255, 255, 255]},
             "mud",
-            "Wrong color definition: {'rain': [255, 255, 255]}. Color for mode: mud not " "specified.",
+            "Wrong color definition: {'rain': [255, 255, 255]}. Color for mode: mud not specified.",
         ),
         (
             {"rain": [255, 255]},
             "rain",
-            "Unsupported color: [255, 255] for mode rain. Color should be presented in " "RGB format.",
+            "Unsupported color: [255, 255] for mode rain. Color should be presented in RGB format.",
         ),
         (
             [255, 255, 255],
             ["rain", "mud"],
-            "Unsupported color: [255, 255, 255]. Please specify color for each mode " "(use dict for it).",
+            "Unsupported color: [255, 255, 255]. Please specify color for each mode (use dict for it).",
         ),
     ],
 )
