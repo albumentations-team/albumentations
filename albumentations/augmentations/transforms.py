@@ -2391,8 +2391,10 @@ class Spatter(ImageOnlyTransform):
             If tuple of float intensity will be sampled from range `[intensity[0], intensity[1])`. Default: (0.6).
         mode (string, or list of strings): Type of corruption. Currently, supported options are 'rain' and 'mud'.
              If list is provided type of corruption will be sampled list. Default: ("rain").
-        color (list of (r, g, b) or None): Corruption elements color. If None uses default colors (rain: (238, 238, 175)
-             mud: (20, 42, 63)).
+        color (list of (r, g, b) or dict or None): Corruption elements color.
+            If list uses provided list as color for specified mode.
+            If dict uses provided color for specified mode. Color for each specified mode should be provided in dict.
+            If None uses default colors (rain: (238, 238, 175), mud: (20, 42, 63)).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -2414,7 +2416,7 @@ class Spatter(ImageOnlyTransform):
         cutout_threshold: ScaleFloatType = 0.68,
         intensity: ScaleFloatType = 0.6,
         mode: Union[str, Sequence[str]] = "rain",
-        color: Optional[Sequence[int]] = None,
+        color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -2425,13 +2427,34 @@ class Spatter(ImageOnlyTransform):
         self.gauss_sigma = to_tuple(gauss_sigma, gauss_sigma)
         self.intensity = to_tuple(intensity, intensity)
         self.cutout_threshold = to_tuple(cutout_threshold, cutout_threshold)
-        self.color = color
+        self.color = (
+            color
+            if color is not None
+            else {
+                "rain": [238, 238, 175],
+                "mud": [20, 42, 63],
+            }
+        )
         self.mode = mode if isinstance(mode, (list, tuple)) else [mode]
+
+        if len(set(self.mode)) > 1 and not isinstance(self.color, dict):
+            raise ValueError(f"Unsupported color: {self.color}. Please specify color for each mode (use dict for it).")
+
         for i in self.mode:
             if i not in ["rain", "mud"]:
                 raise ValueError(f"Unsupported color mode: {mode}. Transform supports only `rain` and `mud` mods.")
-        if self.color is not None and len(self.color) < 3:
-            raise ValueError(f"Unsupported color: {color}. Color should be presented in RGB format.")
+            if isinstance(self.color, dict):
+                if i not in self.color:
+                    raise ValueError(f"Wrong color definition: {self.color}. Color for mode: {i} not specified.")
+                if len(self.color[i]) != 3:
+                    raise ValueError(
+                        f"Unsupported color: {self.color[i]} for mode {i}. Color should be presented " f"in RGB format."
+                    )
+
+        if isinstance(self.color, (list, tuple)):
+            if len(self.color) != 3:
+                raise ValueError(f"Unsupported color: {self.color}. Color should be presented in RGB format.")
+            self.color = {self.mode[0]: self.color}
 
     def apply(
         self,
@@ -2451,18 +2474,13 @@ class Spatter(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         h, w = params["image"].shape[:2]
 
-        mode2color = {
-            "rain": [238, 238, 175],
-            "mud": [20, 42, 63],
-        }
-
         mean = random.uniform(self.mean[0], self.mean[1])
         std = random.uniform(self.std[0], self.std[1])
         cutout_threshold = random.uniform(self.cutout_threshold[0], self.cutout_threshold[1])
         sigma = random.uniform(self.gauss_sigma[0], self.gauss_sigma[1])
         mode = random.choice(self.mode)
         intensity = random.uniform(self.intensity[0], self.intensity[1])
-        color = np.array(mode2color[mode] if self.color is None else self.color) / 255.0
+        color = np.array(self.color[mode]) / 255.0
 
         liquid_layer = random_utils.normal(size=(h, w), loc=mean, scale=std)
         liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
