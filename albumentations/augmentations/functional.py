@@ -786,6 +786,17 @@ def gamma_transform(img, gamma):
     return img
 
 
+@preserve_shape
+def gamma_invert_transform(img, gamma):
+    if img.dtype == np.uint8:
+        table = (1 - ((1 - np.arange(0, 256.0 / 255, 1.0 / 255)) ** gamma)) * 255
+        img = cv2.LUT(img, np.round(table).astype(np.uint8))
+    else:
+        img = 1 - np.power(1 - img, gamma)
+
+    return img
+
+
 @clipped
 def gauss_noise(image, gauss):
     image = image.astype("float32")

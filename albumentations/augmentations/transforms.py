@@ -1371,6 +1371,8 @@ class RandomGamma(ImageOnlyTransform):
     Args:
         gamma_limit (float or (float, float)): If gamma_limit is a single float value,
             the range will be (-gamma_limit, gamma_limit). Default: (80, 120).
+        p_invert (float): Probability of applying transform simmetrical to gamma transform with respect to the y=x.
+            Similar to sequentially applied InvertImg, RandomGamma and InvertImg transforms. Default: 0.0.
         eps: Deprecated.
 
     Targets:
@@ -1380,16 +1382,23 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), eps=None, always_apply=False, p=0.5):
+    def __init__(self, gamma_limit=(80, 120), p_invert=0.0, eps=None, always_apply=False, p=0.5):
         super(RandomGamma, self).__init__(always_apply, p)
         self.gamma_limit = to_tuple(gamma_limit)
+        self.p_invert = p_invert
         self.eps = eps
 
-    def apply(self, img, gamma=1, **params):
-        return F.gamma_transform(img, gamma=gamma)
+    def apply(self, img, gamma=1, invert=False, **params):
+        if invert:
+            return F.gamma_invert_transform(img, gamma=gamma)
+        else:
+            return F.gamma_transform(img, gamma=gamma)
 
     def get_params(self):
-        return {"gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
+        return {
+            "gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0,
+            "invert": random.random() > self.p_invert,
+        }
 
     def get_transform_init_args_names(self):
         return ("gamma_limit", "eps")
