@@ -260,17 +260,23 @@ class Compose(BaseCompose):
         checked_multi = ["masks"]
         check_bbox_param = ["bboxes"]
         # ["bboxes", "keypoints"] could be almost any type, no need to check them
+        shapes = []
         for data_name, data in kwargs.items():
             internal_data_name = self.additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
                     raise TypeError("{} must be numpy array type".format(data_name))
+                shapes.append(data.shape[:2])
             if internal_data_name in checked_multi:
                 if data:
                     if not isinstance(data[0], np.ndarray):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
+                    shapes.append(data[0].shape[:2])
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 raise ValueError("bbox_params must be specified for bbox transformations")
+
+        if shapes and shapes.count(shapes[0]) != len(shapes):
+            raise ValueError("Height and Width of image, mask or masks should be equal.")
 
     @staticmethod
     def _make_targets_contiguous(data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
