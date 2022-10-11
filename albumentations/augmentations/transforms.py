@@ -1371,8 +1371,8 @@ class RandomGamma(ImageOnlyTransform):
     Args:
         gamma_limit (float or (float, float)): If gamma_limit is a single float value,
             the range will be (-gamma_limit, gamma_limit). Default: (80, 120).
-        p_invert (float): Probability of applying transform simmetrical to gamma transform with respect to the y=x.
-            Similar to sequentially applied InvertImg, RandomGamma and InvertImg transforms. Default: 0.0.
+        p_invert (float): Probability of applying transform symmetrical to gamma transform with respect to the y=x.
+            Identical to sequentially applied InvertImg, RandomGamma and InvertImg. Default: 0.0.
         eps: Deprecated.
 
     Targets:
