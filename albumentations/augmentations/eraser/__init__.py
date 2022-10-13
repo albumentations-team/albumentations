@@ -1,1 +1,1 @@
-from .functional import *
+from .metadata import *
