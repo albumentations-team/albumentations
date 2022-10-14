@@ -222,7 +222,7 @@ class Normalize(ImageOnlyTransform):
 
 
 class ImageCompression(ImageOnlyTransform):
-    """Decrease Jpeg, WebP compression of an image.
+    """Decreases image quality by Jpeg, WebP compression of an image.
 
     Args:
         quality_lower (float): lower bound on the image quality.
@@ -292,7 +292,7 @@ class ImageCompression(ImageOnlyTransform):
 
 
 class JpegCompression(ImageCompression):
-    """Decrease Jpeg compression of an image.
+    """Decreases image quality by Jpeg, WebP compression of an image.
 
     Args:
         quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
