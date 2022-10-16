@@ -427,4 +427,11 @@ def test_compose_image_mask_equal_size(targets):
     with pytest.raises(ValueError) as exc_info:
         transforms(**targets)
 
-    assert str(exc_info.value).startswith("Height and Width of image, mask or masks should be equal.")
+    assert str(exc_info.value).startswith(
+        "Height and Width of image, mask or masks should be equal. "
+        "You can disable shapes check by calling disable_shapes_check method "
+        "of Compose class (do it only if you are sure about your data consistency)."
+    )
+    # test after disabling shapes check
+    transforms.disable_shapes_check()
+    transforms(**targets)

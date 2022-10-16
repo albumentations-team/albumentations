@@ -172,6 +172,8 @@ class Compose(BaseCompose):
         self.is_check_args = True
         self._disable_check_args_for_transforms(self.transforms)
 
+        self.is_check_shapes = True
+
     @staticmethod
     def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:
         for transform in transforms:
@@ -182,6 +184,9 @@ class Compose(BaseCompose):
 
     def _disable_check_args(self) -> None:
         self.is_check_args = False
+
+    def disable_shapes_check(self) -> None:
+        self.is_check_shapes = False
 
     def __call__(self, *args, force_apply: bool = False, **data) -> typing.Dict[str, typing.Any]:
         if args:
@@ -275,8 +280,12 @@ class Compose(BaseCompose):
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 raise ValueError("bbox_params must be specified for bbox transformations")
 
-        if shapes and shapes.count(shapes[0]) != len(shapes):
-            raise ValueError("Height and Width of image, mask or masks should be equal.")
+        if self.is_check_shapes and shapes and shapes.count(shapes[0]) != len(shapes):
+            raise ValueError(
+                "Height and Width of image, mask or masks should be equal. You can disable shapes check "
+                "by calling disable_shapes_check method of Compose class (do it only if you are sure "
+                "about your data consistency)."
+            )
 
     @staticmethod
     def _make_targets_contiguous(data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
