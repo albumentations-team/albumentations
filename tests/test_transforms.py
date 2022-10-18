@@ -1305,6 +1305,34 @@ def test_spatter_incorrect_mode(image):
 
 
 @pytest.mark.parametrize(
+    "unsupported_color,mode,message",
+    [
+        ([255, 255], "rain", "Unsupported color: [255, 255]. Color should be presented in RGB format."),
+        (
+            {"rain": [255, 255, 255]},
+            "mud",
+            "Wrong color definition: {'rain': [255, 255, 255]}. Color for mode: mud not specified.",
+        ),
+        (
+            {"rain": [255, 255]},
+            "rain",
+            "Unsupported color: [255, 255] for mode rain. Color should be presented in RGB format.",
+        ),
+        (
+            [255, 255, 255],
+            ["rain", "mud"],
+            "Unsupported color: [255, 255, 255]. Please specify color for each mode (use dict for it).",
+        ),
+    ],
+)
+def test_spatter_incorrect_color(unsupported_color, mode, message):
+    with pytest.raises(ValueError) as exc_info:
+        A.Spatter(mode=mode, color=unsupported_color)
+
+    assert str(exc_info.value).startswith(message)
+
+
+@pytest.mark.parametrize(
     ["params", "expected_masks", "expected_bboxes"],
     [
         [
