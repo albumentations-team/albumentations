@@ -7,7 +7,7 @@ import random
 import warnings
 from enum import IntEnum
 from types import LambdaType
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -2505,6 +2505,10 @@ class CutAndPaste(DualTransform):
             directory path where objects to be pasted exist.
         paste_image_glob (str):
             pattern string to match object files. Default is "*.png".
+        get_label_from_path (callable):
+            function to extract label information from object path. The signature should be:
+            `get_label_from_path(path: pathlib.Path) -> Optional[int, str, Tuple[any]]`.
+            The return values should be consistent with bbox's label information.
         blend_method (str):
             keyword to select a blending method. Should be one of:
             ["GAUSSIAN", "NORMAL_CLONE", "MIXED_CLONE", "MONOCHROME_TRANSFER"].
@@ -2550,6 +2554,7 @@ class CutAndPaste(DualTransform):
     def __init__(
         self,
         paste_image_dir: Union[str, pathlib.Path],
+        get_label_from_path: Callable,
         paste_image_glob: str = "*.png",
         blend_method: str = "GAUSSIAN",
         sigma: float = 1.0,  # for gaussian blend
@@ -2573,7 +2578,7 @@ class CutAndPaste(DualTransform):
         self.paste_image_paths = sorted(list(self.paste_image_dir.glob(self.paste_image_glob)))
         if len(self.paste_image_paths) == 0:
             raise ValueError(f"No png file is found in {self.paste_image_dir}")
-
+        self.get_label_from_path = get_label_from_path
         self.blend_method = blend_method.upper()
         if self.blend_method not in F.BLEND_METHODS:
             raise ValueError(f"blend_method should be one of {F.BLEND_METHODS}, but got {blend_method}")
@@ -2588,10 +2593,12 @@ class CutAndPaste(DualTransform):
         self.obj_min_area = obj_min_area
 
     def apply(
-        self, img, paste_image_paths, obj_toplefts, obj_shapes, blend_method, sigma, angles, vflips, hflips, **params
+        self, img, paste_image_paths, blend_method, sigma, x_shifts, y_shifts, scales, angles, vflips, hflips, **params
     ):
+        h, w = img.shape[:2]
         n_obj = len(paste_image_paths)
-        for i in range(n_obj):
+        self.img_hist = []
+        for i in reversed(range(n_obj)):
             obj_img, obj_mask, _ = self.load_paste_image(paste_image_paths[i])
             if vflips[i]:
                 obj_img = vflip(obj_img)
@@ -2603,12 +2610,15 @@ class CutAndPaste(DualTransform):
             obj_img = rotate_bound(obj_img, angle)
             obj_mask = rotate_bound(obj_mask, angle)
 
-            obj_h, obj_w = obj_shapes[i]
-
+            scale = scales[i]
+            obj_h, obj_w = self.calc_object_shape(obj_mask, scale, h, w)
             obj_img = self.resize(obj_img, w=obj_w, h=obj_h)
             obj_mask = self.resize(obj_mask, w=obj_w, h=obj_h)
-            obj_top, obj_left = obj_toplefts[i]
+
+            obj_top = int((h - obj_h) * y_shifts[i])
+            obj_left = int((w - obj_w) * x_shifts[i])
             img = F.paste(img, obj_img, obj_mask, obj_top, obj_left, sigma=sigma, blend_method=blend_method)
+            self.img_hist.append(img)
         return img
 
     def apply_to_bboxes(self, bboxes, new_masks, new_labels, rows, cols, **params):
@@ -2619,7 +2629,7 @@ class CutAndPaste(DualTransform):
             mask = new_masks[i]
             x, y, w, h = self.mask2bbox(mask)
             label = new_labels[i]
-            new_bboxes.append([x / cols, y / rows, (x + w) / cols, (y + h) / rows, label])
+            new_bboxes.append((x / cols, y / rows, (x + w) / cols, (y + h) / rows, *label))
         return new_bboxes
 
     def apply_to_bbox(self, **params):
@@ -2632,10 +2642,19 @@ class CutAndPaste(DualTransform):
         raise NotImplementedError("mask target is not supported, use masks target")
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("paste_image_dir", "blend_method", "sigma", "obj_min_visibility", "obj_min_area")
-
-    def apply_to_keypoints(self, **params):
-        return
+        return (
+            "paste_image_dir",
+            "paste_image_glob",
+            "blend_method",
+            "sigma",
+            "num_object_limit",
+            "scale_limit",
+            "rotate_limit",
+            "hflip",
+            "vflip",
+            "obj_min_visibility",
+            "obj_min_area",
+        )
 
     @property
     def targets_as_params(self):
@@ -2648,6 +2667,9 @@ class CutAndPaste(DualTransform):
         paste_image_paths = random.choices(self.paste_image_paths, k=n_obj)
         scales = np.random.uniform(self.scale_limit[0] + 1, self.scale_limit[1] + 1, n_obj)
         angles = np.random.uniform(self.rotate_limit[0], self.rotate_limit[1], n_obj)
+        x_shifts = np.random.uniform(0, 1, n_obj)
+        y_shifts = np.random.uniform(0, 1, n_obj)
+
         if self.hflip:
             hflips = random.choices([True, False], k=n_obj)
         else:
@@ -2657,11 +2679,32 @@ class CutAndPaste(DualTransform):
         else:
             vflips = [False] * n_obj
 
-        # collect paste image props
-        obj_masks = []
+        # pre-compute mask augmentation because bbox depend on the augmented masks
+        labels = [bbox[4:] for bbox in params["bboxes"]]
+        new_masks, new_labels = self._apply_to_masks(
+            paste_image_paths, vflips, hflips, angles, scales, x_shifts, y_shifts, params["masks"], labels, h, w
+        )
+
+        return {
+            "paste_image_paths": paste_image_paths,
+            "new_masks": new_masks,
+            "new_labels": new_labels,
+            "blend_method": self.blend_method,
+            "sigma": self.sigma,
+            "x_shifts": x_shifts,
+            "y_shifts": y_shifts,
+            "scales": scales,
+            "angles": angles,
+            "vflips": vflips,
+            "hflips": hflips,
+        }
+
+    def _apply_to_masks(
+        self, paste_image_paths, vflips, hflips, angles, scales, x_shifts, y_shifts, masks, labels, rows, cols
+    ):
+        n_obj = len(paste_image_paths)
+        obj_masks = np.zeros((rows, cols, n_obj), bool)
         obj_labels = []
-        obj_toplefts = []
-        obj_shapes = []
 
         for i in range(n_obj):
             paste_image_path = paste_image_paths[i]
@@ -2676,64 +2719,31 @@ class CutAndPaste(DualTransform):
             obj_mask = rotate_bound(obj_mask, angle)
 
             scale = scales[i]
-            obj_h, obj_w = obj_mask.shape[:2]
-            # Get resized shape
-            obj_h, obj_w = int(scale * obj_h), int(scale * obj_w)
-            if obj_h > h or obj_w > w:
-                # If object size is larger than base image, resize object
-                r = min(h / obj_h, w / obj_w)
-                obj_h = int(r * obj_h)
-                obj_w = int(r * obj_w)
-            obj_mask = self.resize(obj_mask, w=obj_w, h=obj_h, interpolation=cv2.INTER_NEAREST)
+            obj_h, obj_w = self.calc_object_shape(obj_mask, scale, rows, cols)
+            obj_mask = self.resize(obj_mask, w=obj_w, h=obj_h)
 
-            obj_top = int((h - obj_h) * random.uniform(0, 1))
-            obj_left = int((w - obj_w) * random.uniform(0, 1))
-            obj_masks.append(obj_mask)
+            obj_y = int((rows - obj_h) * y_shifts[i])
+            obj_x = int((cols - obj_w) * x_shifts[i])
+            obj_masks[obj_y : obj_y + obj_h, obj_x : obj_x + obj_w, i] = np.where(obj_mask > 0, True, False)
+
             obj_labels.append(obj_label)
-            obj_toplefts.append((obj_top, obj_left))
-            obj_shapes.append((obj_h, obj_w))
 
-        # get masks and labels of base image
-        masks = params["masks"]
-        labels = [bbox[4] for bbox in params["bboxes"]]
-
-        # pre-compute mask augmentation because bbox depend on the augmented masks
-        new_masks, new_labels = self._apply_to_masks(
-            masks, labels, obj_masks, obj_labels, obj_toplefts, obj_shapes, h, w
-        )
-        return {
-            "obj_toplefts": obj_toplefts,
-            "obj_shapes": obj_shapes,
-            "paste_image_paths": paste_image_paths,
-            "blend_method": self.blend_method,
-            "sigma": self.sigma,
-            "new_masks": new_masks,
-            "new_labels": new_labels,
-            "scales": scales,
-            "angles": angles,
-            "vflips": vflips,
-            "hflips": hflips,
-        }
+        new_masks, new_labels = self.remove_hidden_area(masks, labels, obj_masks, obj_labels, rows, cols)
+        return new_masks, new_labels
 
     def load_paste_image(self, image_path):
-        if isinstance(image_path, pathlib.Path):
-            image_path = str(image_path)
-        img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        img = cv2.imread(str(image_path), cv2.IMREAD_UNCHANGED)
         if img.shape[2] != 4:
             raise ValueError(f"RGBA image is expected, but the {image_path} has the shape: {img.shape}")
         img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+        if isinstance(image_path, str):
+            image_path = pathlib.Path(image_path)
         label = self.get_label_from_path(image_path)
+        if not isinstance(label, (list, tuple)):
+            label = (label,)
         mask = np.where(img[:, :, 3] > 0, 1, 0).astype(np.uint8)[:, :, None]
         img = img[:, :, :3]
         return img, mask, label
-
-    def get_label_from_path(self, image_path):
-        if not isinstance(image_path, pathlib.Path):
-            image_path = pathlib.Path(image_path)
-        label = image_path.stem.split("_")[-1]
-        if label.isdigit():
-            label = int(label)
-        return label
 
     def mask2bbox(self, mask):
         contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -2744,11 +2754,22 @@ class CutAndPaste(DualTransform):
     def resize(self, img, w, h, interpolation=cv2.INTER_LINEAR):
         return cv2.resize(img, (w, h), interpolation=interpolation)
 
-    def _apply_to_masks(self, base_masks, base_labels, obj_masks, obj_labels, obj_toplefts, obj_shapes, rows, cols):
+    def calc_object_shape(self, obj, scale, rows, cols):
+        obj_h, obj_w = obj.shape[:2]
+        # Get resized shape
+        obj_h, obj_w = int(scale * obj_h), int(scale * obj_w)
+        if obj_h > rows or obj_w > cols:
+            # If object size is larger than base image, resize object
+            r = min(rows / obj_h, cols / obj_w)
+            obj_h = int(r * obj_h)
+            obj_w = int(r * obj_w)
+        return obj_h, obj_w
+
+    def remove_hidden_area(self, base_masks, base_labels, obj_masks, obj_labels, rows, cols):
         # To make the obj_masks and base_masks mutually exclusive, we assign a depth for each binary mask and
         # select the shallowest mask's pixels as visible ones.
         # The pixels hidden by the visible pixels are reset to zero.
-        n_paste = len(obj_masks)
+        n_paste = len(obj_labels)
         n_base = len(base_masks)
         n_obj = n_paste + n_base
 
@@ -2763,13 +2784,9 @@ class CutAndPaste(DualTransform):
 
         # The depth is assigned in an index order while all paste images are shallower than base images.
         for i in range(n_paste):
-            # get binary mask
-            obj_mask = obj_masks[i] > 0
-            original_mask_areas.append(obj_mask.sum())
-            obj_h, obj_w = obj_shapes[i]
-            obj_top, obj_left = obj_toplefts[i]
+            original_mask_areas.append(obj_masks[:, :, i].sum())
             depth = i + 1
-            masks[obj_top : obj_top + obj_h, obj_left : obj_left + obj_w, i] = obj_mask * depth
+            masks[:, :, i] = obj_masks[:, :, i] * depth
 
         for i in range(n_base):
             # Get binary mask
@@ -2780,10 +2797,8 @@ class CutAndPaste(DualTransform):
 
         # Set the deepest value to the background area
         masks = np.where(masks == 0, bg, masks)
-
         # Select minimum (shallowest) pixels along the depth axis
         merged = masks.min(axis=2)
-        self.merged = merged
         # Expand to n_obj binary masks from the aggregated mask
         masks = merged[:, :, None] == np.arange(1, n_obj + 1).reshape((1, 1, n_obj))
 
@@ -2791,10 +2806,11 @@ class CutAndPaste(DualTransform):
         mask_areas = np.array([masks[:, :, i].sum() for i in range(n_obj)])
         original_mask_areas = np.array(original_mask_areas)
         is_visibles = np.logical_and(
-            mask_areas > self.obj_min_area, original_mask_areas / mask_areas > self.obj_min_visibility
+            mask_areas > self.obj_min_area, mask_areas / original_mask_areas > self.obj_min_visibility
         )
         indices = np.where(is_visibles)[0]
         masks = [masks[:, :, i].astype(np.uint8) for i in indices]
+
         labels = obj_labels + base_labels
         labels = [labels[i] for i in indices]
 

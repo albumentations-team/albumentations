@@ -1,4 +1,5 @@
 import random
+import tempfile
 from functools import partial
 
 import cv2
@@ -1301,3 +1302,207 @@ def test_spatter_incorrect_mode(image):
 
     message = f"Unsupported color mode: {unsupported_mode}. Transform supports only `rain` and `mud` mods."
     assert str(exc_info.value).startswith(message)
+
+
+@pytest.mark.parametrize(
+    ["params", "expected_masks", "expected_bboxes"],
+    [
+        [
+            # obj_1  obj_2  base                        mask_1 mask_2 mask_3
+            # 1,1,0  2,0,0  3,3,3  paste 1,1,3  expand  1,1,0  0,0,0  0,0,1
+            # 1,0,0  2,2,0  3,3,0   -->  1,2,0   -->    1,0,0  0,1,0  0,0,0
+            # 0,0,0  2,0,0  3,3,0        2,3,0          0,0,0  1,0,0  0,1,0
+            # params
+            dict(
+                vflips=[False, False],
+                hflips=[False, False],
+                angles=[0, 0],
+                scales=[1, 1],
+                x_shifts=[0, 0],
+                y_shifts=[0, 0],
+            ),
+            # masks
+            [
+                [
+                    [1, 1, 0],
+                    [1, 0, 0],
+                    [0, 0, 0],
+                ],
+                [
+                    [0, 0, 0],
+                    [0, 1, 0],
+                    [1, 0, 0],
+                ],
+                [
+                    [0, 0, 1],
+                    [0, 0, 0],
+                    [0, 1, 0],
+                ],
+            ],
+            # bboxes
+            [(0, 0, 2 / 3, 2 / 3, 1), (0, 1 / 3, 2 / 3, 1, 2), (1 / 3, 0, 1, 1, 0)],
+        ],
+        [
+            # obj_1  obj_2  base                        mask_1 mask_2 mask_3
+            # 0,0,0  2,2,2  3,3,3  paste 2,2,2  expand  0,0,0  1,1,1  0,0,0
+            # 0,0,1  0,2,0  3,3,0   -->  3,2,1   -->    0,0,1  0,1,0  1,0,0
+            # 0,1,1  0,0,0  3,3,0        3,1,1          0,1,1  0,0,0  1,0,0
+            # params
+            dict(
+                vflips=[True, False],
+                hflips=[True, False],
+                angles=[0, 90],
+                scales=[1, 1],
+                x_shifts=[1, 0],
+                y_shifts=[1, 0],
+            ),
+            # masks
+            [
+                [
+                    [0, 0, 0],
+                    [0, 0, 1],
+                    [0, 1, 1],
+                ],
+                [
+                    [1, 1, 1],
+                    [0, 1, 0],
+                    [0, 0, 0],
+                ],
+                [
+                    [0, 0, 0],
+                    [1, 0, 0],
+                    [1, 0, 0],
+                ],
+            ],
+            # bboxes
+            [(1 / 3, 1 / 3, 1, 1, 1), (0, 0, 1, 2 / 3, 2), (0, 1 / 3, 1 / 3, 1, 0)],
+        ],
+        [
+            # obj_1  obj_2  base                        mask_1 mask_2 mask_3
+            # 1,1,1  2,0,0  3,3,3  paste 1,1,1  expand  1,1,1  0,0,0  0,0,0
+            # 1,1,1  2,2,0  3,3,0   -->  1,1,1   -->    1,1,1  0,0,0  0,0,0
+            # 1,0,0  2,0,0  3,3,0        1,3,0          1,0,0  0,0,0  0,1,0
+            # params
+            dict(
+                vflips=[False, False],
+                hflips=[False, False],
+                angles=[0, 0],
+                scales=[2, 1],
+                x_shifts=[0, 0],
+                y_shifts=[0, 0],
+            ),
+            # masks
+            [
+                [
+                    [1, 1, 1],
+                    [1, 1, 1],
+                    [1, 0, 0],
+                ],
+                # 2nd mask is filtered out.
+                # [
+                #    [0, 0, 0],
+                #    [0, 0, 0],
+                #    [0, 0, 0],
+                # ],
+                [
+                    [0, 0, 0],
+                    [0, 0, 0],
+                    [0, 1, 0],
+                ],
+            ],
+            # bboxes
+            [(0, 0, 1, 1, 1), (1 / 3, 2 / 3, 2 / 3, 1, 0)],
+        ],
+    ],
+)
+def test_cut_and_paste(params, expected_masks, expected_bboxes):
+
+    # define inputs
+    rows = 3
+    cols = 3
+
+    # base_image (3,3,4)
+    # R            G      B
+    # 0,0,0  0,0,0  255,255,255
+    # 0,0,0  0,0,0  255,255,  0
+    # 0,0,0  0,0,0  255,255,  0
+    base_image = np.zeros((rows, cols, 3), np.uint8)
+    base_image[:, :2, [2]] = 255
+    base_image[0, 2, [2]] = 255
+
+    # base_mask (3,3)
+    # 1,1,1
+    # 1,1,0
+    # 1,1,0
+    base_mask = np.zeros((rows, cols), np.uint8)
+    base_mask[:, :2] = 1
+    base_mask[0, 2] = 1
+
+    base_label = 0
+    base_bboxes = [(0, 0, 1, 1, base_label)]
+
+    # obj_1 (2,2,4)
+    # R        G    B    A
+    # 255,255  0,0  0,0  255,255
+    # 255,  0  0,0  0,0  255,  0
+    #
+    obj_1 = np.zeros((2, 2, 4), np.uint8)
+    obj_1[0, :, [0, 3]] = 255
+    obj_1[1, 0, [0, 3]] = 255
+
+    # obj_2 (3,2,4)
+    # R    G        B    A
+    # 0,0  255,  0  0,0  255,  0
+    # 0,0  255,255  0,0  255,255
+    # 0,0  255,  0  0,0  255,  0
+    obj_2 = np.zeros((3, 2, 4), np.uint8)
+    obj_2[:, 0, [1, 3]] = 255
+    obj_2[1, 1, [1, 3]] = 255
+
+    obj_labels = [1, 2]
+
+    # parameter of paste
+    sigma = 0.01
+    blend_method = "GAUSSIAN"
+
+    def get_label_from_path(image_path):
+        label = image_path.stem.split("_")[-1]
+        if label.isdigit():
+            label = int(label)
+        return label
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        obj_1_path = f"{tempdir}/obj_1_{obj_labels[0]}.png"
+        obj_2_path = f"{tempdir}/obj_2_{obj_labels[1]}.png"
+        cv2.imwrite(obj_1_path, cv2.cvtColor(obj_1, cv2.COLOR_RGBA2BGRA))
+        cv2.imwrite(obj_2_path, cv2.cvtColor(obj_2, cv2.COLOR_RGBA2BGRA))
+
+        transform = A.CutAndPaste(paste_image_dir=tempdir, get_label_from_path=get_label_from_path)
+        actual_masks, actual_labels = transform._apply_to_masks(
+            paste_image_paths=transform.paste_image_paths,
+            masks=[base_mask],
+            labels=[(base_label,)],
+            rows=rows,
+            cols=cols,
+            **params,
+        )
+        actual_image = transform.apply(
+            img=base_image,
+            paste_image_paths=transform.paste_image_paths,
+            blend_method=blend_method,
+            sigma=sigma,
+            **params,
+        )
+        actual_bboxes = transform.apply_to_bboxes(
+            bboxes=base_bboxes, new_masks=actual_masks, new_labels=actual_labels, rows=rows, cols=cols
+        )
+
+        if len(expected_masks) == 3:
+            expected_image = 255 * np.dstack(expected_masks)
+        else:
+            expected_image = 255 * np.dstack([expected_masks[0], np.zeros((3, 3)), expected_masks[1]])
+
+        np.testing.assert_array_equal(expected_masks, actual_masks)
+        np.testing.assert_array_equal(expected_bboxes, actual_bboxes)
+        # ignore differences by interpolation.
+        np.testing.assert_array_equal(expected_image, np.where(actual_image > 127, 255, 0))

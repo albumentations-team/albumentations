@@ -1285,7 +1285,7 @@ def elastic_transform_approx(
 
 def rotate_bound(image, angle):
     """Rotate image with boundary."""
-    # This code is borrowed from imutils:
+    # This code is based on the imutils rotation_bound:
     # https://github.com/PyImageSearch/imutils/blob/master/imutils/convenience.py
 
     # grab the dimensions of the image and then determine the
@@ -1296,7 +1296,9 @@ def rotate_bound(image, angle):
     # grab the rotation matrix (applying the negative of the
     # angle to rotate clockwise), then grab the sine and cosine
     # (i.e., the rotation components of the matrix)
-    M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
+    #
+    # Added 0.5 center shift as the rotate function does to avoid border artifact.
+    M = cv2.getRotationMatrix2D((cX - 0.5, cY - 0.5), -angle, 1.0)
     cos = np.abs(M[0, 0])
     sin = np.abs(M[0, 1])
 

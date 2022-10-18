@@ -1,5 +1,4 @@
 import random
-import tempfile
 from typing import Dict, Tuple, Type
 
 import cv2
@@ -886,21 +885,3 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         aug(image=image, mask=mask)
 
     # OK, if no exception is raised
-
-
-def test_cut_and_paste():
-    with tempfile.TemporaryDirectory() as tempdir:
-        img_png = np.zeros((10, 10, 4))
-        obj_path = f"{tempdir}/obj_01_23.png"
-        cv2.imwrite(obj_path, img_png)
-        transform = A.CutAndPaste(paste_image_dir=tempdir)
-        assert len(transform.paste_image_paths) == 1
-
-        # TODO
-        # test num of maks
-        # test masks overlap order
-        # test num of bboxes
-        # test pasted image
-        # test input size validation
-        #
-        # ...
