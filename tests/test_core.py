@@ -433,5 +433,5 @@ def test_compose_image_mask_equal_size(targets):
         "of Compose class (do it only if you are sure about your data consistency)."
     )
     # test after disabling shapes check
-    transforms.disable_shapes_check()
+    transforms = Compose([], is_check_shapes=False)
     transforms(**targets)

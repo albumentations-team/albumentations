@@ -128,6 +128,8 @@ class Compose(BaseCompose):
         keypoint_params (KeypointParams): Parameters for keypoints transforms
         additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
         p (float): probability of applying all list of transforms. Default: 1.0.
+        is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
+            would like to disable this check - pass False (do it only if you are sure in your data consistency).
     """
 
     def __init__(
@@ -137,6 +139,7 @@ class Compose(BaseCompose):
         keypoint_params: typing.Optional[typing.Union[dict, "KeypointParams"]] = None,
         additional_targets: typing.Optional[typing.Dict[str, str]] = None,
         p: float = 1.0,
+        is_check_shapes: bool = True,
     ):
         super(Compose, self).__init__(transforms, p)
 
@@ -172,7 +175,7 @@ class Compose(BaseCompose):
         self.is_check_args = True
         self._disable_check_args_for_transforms(self.transforms)
 
-        self.is_check_shapes = True
+        self.is_check_shapes = is_check_shapes
 
     @staticmethod
     def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:
@@ -184,9 +187,6 @@ class Compose(BaseCompose):
 
     def _disable_check_args(self) -> None:
         self.is_check_args = False
-
-    def disable_shapes_check(self) -> None:
-        self.is_check_shapes = False
 
     def __call__(self, *args, force_apply: bool = False, **data) -> typing.Dict[str, typing.Any]:
         if args:
@@ -240,6 +240,7 @@ class Compose(BaseCompose):
                 if keypoints_processor
                 else None,
                 "additional_targets": self.additional_targets,
+                "is_check_shapes": self.is_check_shapes,
             }
         )
         return dictionary
@@ -256,6 +257,7 @@ class Compose(BaseCompose):
                 else None,
                 "additional_targets": self.additional_targets,
                 "params": None,
+                "is_check_shapes": self.is_check_shapes,
             }
         )
         return dictionary
@@ -438,9 +440,12 @@ class ReplayCompose(Compose):
         keypoint_params: typing.Optional[typing.Union[dict, "KeypointParams"]] = None,
         additional_targets: typing.Optional[typing.Dict[str, str]] = None,
         p: float = 1.0,
+        is_check_shapes: bool = True,
         save_key: str = "replay",
     ):
-        super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
+        super(ReplayCompose, self).__init__(
+            transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes
+        )
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
 
