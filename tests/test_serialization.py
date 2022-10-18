@@ -761,6 +761,7 @@ def test_serialization_v2_to_dict():
         "bbox_params": None,
         "keypoint_params": None,
         "additional_targets": {},
+        "is_check_shapes": True,
     }
 
 
