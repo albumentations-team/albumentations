@@ -2626,11 +2626,18 @@ class CutAndPaste(DualTransform):
     def apply(
         self, img, paste_image_paths, blend_method, sigma, x_shifts, y_shifts, scales, angles, vflips, hflips, **params
     ):
+        img_dtype = img.dtype
+        img_max_value = MAX_VALUES_BY_DTYPE[img_dtype]
+
         h, w = img.shape[:2]
         n_obj = len(paste_image_paths)
-        self.img_hist = []
         for i in reversed(range(n_obj)):
             obj_img, obj_mask, _ = self.load_paste_image(paste_image_paths[i])
+
+            obj_dtype = obj_img.dtype
+            obj_max_value = MAX_VALUES_BY_DTYPE[obj_dtype]
+            obj_img = (img_max_value * (obj_img / obj_max_value)).astype(img_dtype)
+
             if vflips[i]:
                 obj_img = vflip(obj_img)
                 obj_mask = vflip(obj_mask)
@@ -2648,8 +2655,8 @@ class CutAndPaste(DualTransform):
 
             obj_top = int((h - obj_h) * y_shifts[i])
             obj_left = int((w - obj_w) * x_shifts[i])
+
             img = F.paste(img, obj_img, obj_mask, obj_top, obj_left, sigma=sigma, blend_method=blend_method)
-            self.img_hist.append(img)
         return img
 
     def apply_to_bboxes(self, bboxes, new_masks, new_labels, rows, cols, **params):
@@ -2772,7 +2779,7 @@ class CutAndPaste(DualTransform):
         label = self.get_label_from_path(image_path)
         if not isinstance(label, (list, tuple)):
             label = (label,)
-        mask = np.where(img[:, :, 3] > 0, 1, 0).astype(np.uint8)[:, :, None]
+        mask = img[:, :, 3]
         img = img[:, :, :3]
         return img, mask, label
 

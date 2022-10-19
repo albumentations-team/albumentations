@@ -237,6 +237,7 @@ def paste(
         "Simple Copy-Paste is a Strong Data Augmentation Method for Instance Segmentation"
         Patrick Perez, Michel Gangnet, Andrew Blake: "Poisson Image Editing"
     """
+
     blend_method = blend_method.upper()
 
     if blend_method not in BLEND_METHODS:
@@ -257,23 +258,44 @@ def paste(
             + f", got {obj_w + obj_left} > {w}"
         )
 
+    if base_img.dtype != obj_img.dtype:
+        raise ValueError(
+            "dtypes of base_img and obj_img should be the same, "
+            + f"got {base_img.dtype} (base_img) and {obj_img.dtype} (obj_img)"
+        )
+
+    img_dtype = base_img.dtype
+    if img_dtype not in (np.float32, np.uint8):
+        raise ValueError(f"dtype of base_img should be np.uint8 or np.float32, got {base_img.dtype}")
+    mask_dtype = obj_mask.dtype
+    if mask_dtype not in (np.float32, np.uint8):
+        raise ValueError(f"dtype of obj_mask should be np.uint8 or np.float32, got {obj_mask.dtype}")
+
+    img_max_value = MAX_VALUES_BY_DTYPE[img_dtype]
+    mask_max_value = MAX_VALUES_BY_DTYPE[mask_dtype]
+
     if blend_method in CV2_BLEND_METHOD_MAP:
         # poisson blending
-        obj_mask = np.where(obj_mask > 0, 255, 0).astype(np.uint8)
+
+        # convert to uint8
+        base_img = (255 * (base_img / img_max_value)).astype(np.uint8)
+        obj_img = (255 * (obj_img / img_max_value)).astype(np.uint8)
+        obj_mask = (255 * (obj_mask / mask_max_value)).astype(np.uint8)
+
         # calc object center position
         obj_cent = (int(obj_left + obj_w / 2), int(obj_top + obj_h / 2))
+
         blend_img = cv2.seamlessClone(obj_img, base_img, obj_mask, p=obj_cent, flags=CV2_BLEND_METHOD_MAP[blend_method])
+        blend_img = (img_max_value * (blend_img / 255)).astype(img_dtype)
     else:
         # gaussian blending
-        alpha = np.where(obj_mask > 0, 1.0, 0.0).astype(np.float32)
-        alpha = skimage.filters.gaussian(alpha, sigma=sigma, preserve_range=True)
+        alpha = skimage.filters.gaussian(obj_mask / mask_max_value, sigma=sigma, preserve_range=True)
         alpha = alpha[:, :, None]
 
         idx_row = slice(obj_top, obj_top + obj_h)
         idx_col = slice(obj_left, obj_left + obj_w)
 
         blend_img = base_img.copy()
-        img_dtype = base_img.dtype
 
         blend_img[idx_row, idx_col] = obj_img * alpha + blend_img[idx_row, idx_col] * (1 - alpha)
         blend_img = blend_img.astype(img_dtype)
