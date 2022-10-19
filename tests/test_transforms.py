@@ -1409,7 +1409,7 @@ def test_spatter_incorrect_color(unsupported_color, mode, message):
             # obj_1  obj_2  base                        mask_1 mask_2 mask_3
             # 1,1,1  2,0,0  3,3,3  paste 1,1,1  expand  1,1,1  0,0,0  0,0,0
             # 1,1,1  2,2,0  3,3,0   -->  1,1,1   -->    1,1,1  0,0,0  0,0,0
-            # 1,0,0  2,0,0  3,3,0        1,3,0          1,0,0  0,0,0  0,1,0
+            # 1,1,0  2,0,0  3,3,0        1,1,0          1,1,0  0,0,0  0,0,0
             # params
             dict(
                 vflips=[False, False],
@@ -1424,7 +1424,7 @@ def test_spatter_incorrect_color(unsupported_color, mode, message):
                 [
                     [1, 1, 1],
                     [1, 1, 1],
-                    [1, 0, 0],
+                    [1, 1, 0],
                 ],
                 # 2nd mask is filtered out.
                 # [
@@ -1432,14 +1432,14 @@ def test_spatter_incorrect_color(unsupported_color, mode, message):
                 #    [0, 0, 0],
                 #    [0, 0, 0],
                 # ],
-                [
-                    [0, 0, 0],
-                    [0, 0, 0],
-                    [0, 1, 0],
-                ],
+                # [
+                #    [0, 0, 0],
+                #    [0, 0, 0],
+                #    [0, 0, 0],
+                # ],
             ],
             # bboxes
-            [(0, 0, 1, 1, 1), (1 / 3, 2 / 3, 2 / 3, 1, 0)],
+            [(0, 0, 1, 1, 1)],
         ],
     ],
 )
@@ -1528,7 +1528,26 @@ def test_cut_and_paste(params, expected_masks, expected_bboxes):
         if len(expected_masks) == 3:
             expected_image = 255 * np.dstack(expected_masks)
         else:
-            expected_image = 255 * np.dstack([expected_masks[0], np.zeros((3, 3)), expected_masks[1]])
+            # this is non trivial
+            expected_image = np.dstack(
+                [
+                    [
+                        [255, 255, 255],
+                        [255, 255, 0],
+                        [255, 0, 0],
+                    ],
+                    [
+                        [0, 0, 0],
+                        [0, 0, 0],
+                        [0, 0, 0],
+                    ],
+                    [
+                        [0, 0, 0],
+                        [0, 0, 0],
+                        [0, 255, 0],
+                    ],
+                ]
+            )
 
         np.testing.assert_array_equal(expected_masks, actual_masks)
         np.testing.assert_array_equal(expected_bboxes, actual_bboxes)
