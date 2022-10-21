@@ -566,8 +566,8 @@ class RandomFog(ImageOnlyTransform):
                 y = random.randint(midy, height - midy - hw)
                 haze_list.append((x, y))
 
-            midx -= 3 * hw * width // sum(imshape)
-            midy -= 3 * hw * height // sum(imshape)
+            midx -= 3 * hw * max(1, width // sum(imshape))
+            midy -= 3 * hw * max(1, height // sum(imshape))
             index += 1
 
         return {"haze_list": haze_list, "fog_coef": fog_coef}
