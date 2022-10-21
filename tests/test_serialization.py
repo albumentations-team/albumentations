@@ -312,6 +312,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.FancyPCA, dict(alpha=0.3)],
     [A.RandomRotate90, {}],
     [A.ToGray, {}],
+    [A.ToRGB, {}],
     [A.ToSepia, {}],
     [A.Transpose, {}],
     [A.VerticalFlip, {}],
