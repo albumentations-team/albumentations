@@ -6,6 +6,7 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 import skimage.transform
+from scipy.interpolate import interp2d
 
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 
@@ -201,9 +202,13 @@ class ElasticTransform(DualTransform):
         self.mask_value = mask_value
         self.approximate = approximate
         self.same_dxdy = same_dxdy
+        self.dx = None
+        self.dy = None
+        self.warp_mat = None
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
-        return F.elastic_transform(
+        # For supporting ``apply_to_keypoint`` function, Using ``elastic_transform_v2`` to replace ``elastic_transform``
+        img, warp_mat, dx, dy = F.elastic_transform_v2(
             img,
             self.alpha,
             self.sigma,
@@ -215,6 +220,10 @@ class ElasticTransform(DualTransform):
             self.approximate,
             self.same_dxdy,
         )
+        self.warp_mat = warp_mat
+        self.dx = dx
+        self.dy = dy
+        return img
 
     def apply_to_mask(self, img, random_state=None, **params):
         return F.elastic_transform(
@@ -251,6 +260,33 @@ class ElasticTransform(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
         return bbox_returned
+    
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, random_state=None, half_win=9, **params) -> KeypointInternalType:
+        """
+            Only consider 2-D case.
+        """
+        if self.dx is not None and self.dy is not None:
+            # Apply Affine
+            keypoint = np.dot(self.warp_mat, np.append(np.array(keypoint[:2]), 1))
+            # Apply Elastic Transform
+            if self.interpolation == cv2.INTER_LINEAR:
+                kind = "linear"
+            elif self.interpolation == cv2.INTER_CUBIC:
+                kind = "cubic"
+            else:
+                raise ValueError("Only support ``linear`` and ``cubic`` interpolation.")
+            keypoint_x, keypoint_y = keypoint[0], keypoint[1]
+            x1, x2, y1, y2 = int(keypoint_x)-half_win, int(keypoint_x)+half_win+1, int(keypoint_y)-half_win, int(keypoint_y)+half_win+1
+            interp_x = interp2d(x=np.arange(x1, x2),
+                                y=np.arange(y1, y2),
+                                z=self.dx[x1:x2, y1:y2],
+                                kind=kind)
+            interp_y = interp2d(x=np.arange(x1, x2),
+                                y=np.arange(y1, y2),
+                                z=self.dy[x1:x2, y1:y2],
+                                kind=kind)
+            return (keypoint_x - interp_x(keypoint_x, keypoint_y),
+                    keypoint_y - interp_y(keypoint_x, keypoint_y), 0.0, 0.0)
 
     def get_params(self):
         return {"random_state": random.randint(0, 10000)}
