@@ -169,11 +169,9 @@ class CoarseDropout(DualTransform):
     ) -> List[KeypointType]:
         result = set(keypoints)
         for hole in holes:
-            remaining_keypoints = []
             for kp in keypoints:
-                if not self._keypoint_in_hole(kp, hole):
-                    remaining_keypoints.append(kp)
-            result.intersection_update(remaining_keypoints)
+                if self._keypoint_in_hole(kp, hole):
+                    result.discard(kp)
         return list(result)
 
     def get_transform_init_args_names(self):
