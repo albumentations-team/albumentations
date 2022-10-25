@@ -233,8 +233,8 @@ def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[
     return [denormalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
-def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> int:
-    """Calculate the area of a bounding box in pixels.
+def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> float:
+    """Calculate the area of a bounding box in (fractional) pixels.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -242,13 +242,13 @@ def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> int:
         cols: Image width.
 
     Return:
-        Area of a bounding box in pixels.
+        Area in (fractional) pixels of the (denormalized) bounding box.
 
     """
     bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox[:4]
     area = (x_max - x_min) * (y_max - y_min)
-    return cast(int, area)
+    return area
 
 
 def filter_bboxes_by_visibility(
