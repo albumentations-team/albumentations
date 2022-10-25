@@ -9,6 +9,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from albumentations.augmentations.color.functional import equalize, invert
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -318,8 +319,8 @@ def test_image_invert():
         # test for np.uint8 dtype
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = A.to_float(image1)
-        r_int = F.invert(F.invert(image1))
-        r_float = F.invert(F.invert(image2))
+        r_int = invert(invert(image1))
+        r_float = invert(invert(image2))
         r_to_float = A.to_float(r_int)
         assert np.allclose(r_float, r_to_float, atol=0.01)
 
@@ -374,20 +375,20 @@ def test_equalize():
 
     img = np.random.randint(0, 256, 256 * 256 * 3, np.uint8).reshape((256, 256, 3))
     a = aug(image=img)["image"]
-    b = F.equalize(img)
+    b = equalize(img)
     assert np.all(a == b)
 
     mask = np.random.randint(0, 2, 256 * 256, np.uint8).reshape((256, 256))
     aug = A.Equalize(mask=mask, p=1)
     a = aug(image=img)["image"]
-    b = F.equalize(img, mask=mask)
+    b = equalize(img, mask=mask)
     assert np.all(a == b)
 
     def mask_func(image, test):  # skipcq: PYL-W0613
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
-    assert np.all(aug(image=img, test=mask)["image"] == F.equalize(img, mask=mask))
+    assert np.all(aug(image=img, test=mask)["image"] == equalize(img, mask=mask))
 
 
 def test_crop_non_empty_mask():

@@ -1,10 +1,12 @@
 # Common classes
 from .blur.functional import *
 from .blur.transforms import *
-from .crops.functional import *
-from .crops.transforms import *
+from .color.functional import *
+from .color.transforms import *
 
 # New transformations goes to individual files listed below
+from .crops.functional import *
+from .crops.transforms import *
 from .domain_adaptation import *
 from .dropout.channel_dropout import *
 from .dropout.coarse_dropout import *
