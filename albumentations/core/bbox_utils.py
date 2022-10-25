@@ -52,6 +52,10 @@ class BboxParams(Params):
             visible area in pixels is less than this value will be removed. Default: 0.0.
         min_visibility (float): minimum fraction of area for a bounding box
             to remain this box in list. Default: 0.0.
+        min_width (float): Minimum width of a bounding box. All bounding boxes whose width is
+            less than this value will be removed. Default: 0.0.
+        min_height (float): Minimum height of a bounding box. All bounding boxes whose height is
+            less than this value will be removed. Default: 0.0.
         check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
             Default: `True`
     """
@@ -463,7 +467,7 @@ def filter_bboxes(
         min_visibility: Minimum fraction of area for a bounding box to remain this box in list. Default: 0.0.
         min_width: Minimum width of a bounding box. All bounding boxes whose width is
             less than this value will be removed. Default: 0.0.
-        min_height: Minimum width of a bounding box. All bounding boxes whose height is
+        min_height: Minimum height of a bounding box. All bounding boxes whose height is
             less than this value will be removed. Default: 0.0.
 
     Returns:
