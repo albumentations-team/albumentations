@@ -79,6 +79,8 @@ class BboxParams(Params):
             {
                 "min_area": self.min_area,
                 "min_visibility": self.min_visibility,
+                "min_width": self.min_width,
+                "min_height": self.min_height,
                 "check_each_transform": self.check_each_transform,
             }
         )
