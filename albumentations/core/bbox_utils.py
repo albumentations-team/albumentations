@@ -459,9 +459,9 @@ def filter_bboxes(
         min_area: Minimum area of a bounding box. All bounding boxes whose visible area in pixels.
             is less than this value will be removed. Default: 0.0.
         min_visibility: Minimum fraction of area for a bounding box to remain this box in list. Default: 0.0.
-        min_width: Minimum width of a bounding bpx. All bounding boxes whose width is
+        min_width: Minimum width of a bounding box. All bounding boxes whose width is
             less than this value will be removed. Default: 0.0.
-        min_height: Minimum width of a bounding bpx. All bounding boxes whose height is
+        min_height: Minimum width of a bounding box. All bounding boxes whose height is
             less than this value will be removed. Default: 0.0.
 
     Returns:
