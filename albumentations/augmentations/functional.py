@@ -59,6 +59,7 @@ __all__ = [
     "swap_tiles_on_image",
     "to_float",
     "to_gray",
+    "gray_to_rgb",
     "unsharp_mask",
 ]
 
@@ -984,6 +985,10 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
 def to_gray(img):
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+
+def gray_to_rgb(img):
+    return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
 
 @preserve_shape

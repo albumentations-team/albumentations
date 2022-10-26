@@ -412,3 +412,26 @@ def test_contiguous_output(transforms):
     # confirm output contiguous
     assert data["image"].flags["C_CONTIGUOUS"]
     assert data["mask"].flags["C_CONTIGUOUS"]
+
+
+@pytest.mark.parametrize(
+    "targets",
+    [
+        {"image": np.ones((20, 20, 3), dtype=np.uint8), "mask": np.ones((30, 20))},
+        {"image": np.ones((20, 20, 3), dtype=np.uint8), "masks": [np.ones((30, 20))]},
+    ],
+)
+def test_compose_image_mask_equal_size(targets):
+    transforms = Compose([])
+
+    with pytest.raises(ValueError) as exc_info:
+        transforms(**targets)
+
+    assert str(exc_info.value).startswith(
+        "Height and Width of image, mask or masks should be equal. "
+        "You can disable shapes check by calling disable_shapes_check method "
+        "of Compose class (do it only if you are sure about your data consistency)."
+    )
+    # test after disabling shapes check
+    transforms = Compose([], is_check_shapes=False)
+    transforms(**targets)

@@ -676,6 +676,40 @@ def test_filter_bboxes(bboxes, min_area, min_visibility, target):
     assert filtered_bboxes == target
 
 
+@pytest.mark.parametrize(
+    ["bboxes", "img_width", "img_height", "min_width", "min_height", "target"],
+    [
+        [
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
+            100,
+            100,
+            20,
+            20,
+            [(0.1, 0.1, 0.9, 0.9)],
+        ],
+        [
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
+            100,
+            100,
+            20,
+            0,
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.9, 0.2)],
+        ],
+        [
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
+            100,
+            100,
+            0,
+            20,
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9)],
+        ],
+    ],
+)
+def test_filter_bboxes_by_min_width_height(bboxes, img_width, img_height, min_width, min_height, target):
+    filtered_bboxes = filter_bboxes(bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height)
+    assert filtered_bboxes == target
+
+
 def test_fun_max_size():
     target_width = 256
 

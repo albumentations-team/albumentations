@@ -52,6 +52,10 @@ class BboxParams(Params):
             visible area in pixels is less than this value will be removed. Default: 0.0.
         min_visibility (float): minimum fraction of area for a bounding box
             to remain this box in list. Default: 0.0.
+        min_width (float): Minimum width of a bounding box. All bounding boxes whose width is
+            less than this value will be removed. Default: 0.0.
+        min_height (float): Minimum height of a bounding box. All bounding boxes whose height is
+            less than this value will be removed. Default: 0.0.
         check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
             Default: `True`
     """
@@ -62,11 +66,15 @@ class BboxParams(Params):
         label_fields: Optional[Sequence[str]] = None,
         min_area: float = 0.0,
         min_visibility: float = 0.0,
+        min_width: float = 0.0,
+        min_height: float = 0.0,
         check_each_transform: bool = True,
     ):
         super(BboxParams, self).__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
+        self.min_width = min_width
+        self.min_height = min_height
         self.check_each_transform = check_each_transform
 
     def _to_dict(self) -> Dict[str, Any]:
@@ -75,6 +83,8 @@ class BboxParams(Params):
             {
                 "min_area": self.min_area,
                 "min_visibility": self.min_visibility,
+                "min_width": self.min_width,
+                "min_height": self.min_height,
                 "check_each_transform": self.check_each_transform,
             }
         )
@@ -112,7 +122,15 @@ class BboxProcessor(DataProcessor):
 
     def filter(self, data: Sequence, rows: int, cols: int) -> List:
         self.params: BboxParams
-        return filter_bboxes(data, rows, cols, min_area=self.params.min_area, min_visibility=self.params.min_visibility)
+        return filter_bboxes(
+            data,
+            rows,
+            cols,
+            min_area=self.params.min_area,
+            min_visibility=self.params.min_visibility,
+            min_width=self.params.min_width,
+            min_height=self.params.min_height,
+        )
 
     def check(self, data: Sequence, rows: int, cols: int) -> None:
         check_bboxes(data)
@@ -215,8 +233,8 @@ def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[
     return [denormalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
-def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> int:
-    """Calculate the area of a bounding box in pixels.
+def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> float:
+    """Calculate the area of a bounding box in (fractional) pixels.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -224,13 +242,13 @@ def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> int:
         cols: Image width.
 
     Return:
-        Area of a bounding box in pixels.
+        Area in (fractional) pixels of the (denormalized) bounding box.
 
     """
     bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = bbox[:4]
     area = (x_max - x_min) * (y_max - y_min)
-    return cast(int, area)
+    return area
 
 
 def filter_bboxes_by_visibility(
@@ -429,7 +447,13 @@ def check_bboxes(bboxes: Sequence[BoxType]) -> None:
 
 
 def filter_bboxes(
-    bboxes: Sequence[BoxType], rows: int, cols: int, min_area: float = 0.0, min_visibility: float = 0.0
+    bboxes: Sequence[BoxType],
+    rows: int,
+    cols: int,
+    min_area: float = 0.0,
+    min_visibility: float = 0.0,
+    min_width: float = 0.0,
+    min_height: float = 0.0,
 ) -> List[BoxType]:
     """Remove bounding boxes that either lie outside of the visible area by more then min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
@@ -441,6 +465,10 @@ def filter_bboxes(
         min_area: Minimum area of a bounding box. All bounding boxes whose visible area in pixels.
             is less than this value will be removed. Default: 0.0.
         min_visibility: Minimum fraction of area for a bounding box to remain this box in list. Default: 0.0.
+        min_width: Minimum width of a bounding box. All bounding boxes whose width is
+            less than this value will be removed. Default: 0.0.
+        min_height: Minimum height of a bounding box. All bounding boxes whose height is
+            less than this value will be removed. Default: 0.0.
 
     Returns:
         List of bounding boxes.
@@ -448,13 +476,21 @@ def filter_bboxes(
     """
     resulting_boxes: List[BoxType] = []
     for bbox in bboxes:
+        # Calculate areas of bounding box before and after clipping.
         transformed_box_area = calculate_bbox_area(bbox, rows, cols)
         bbox, tail = cast(BoxType, tuple(np.clip(bbox[:4], 0, 1.0))), tuple(bbox[4:])
         clipped_box_area = calculate_bbox_area(bbox, rows, cols)
+
+        # Calculate width and height of the clipped bounding box.
+        x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
+        clipped_width, clipped_height = x_max - x_min, y_max - y_min
+
         if (
             clipped_box_area != 0  # to ensure transformed_box_area!=0 and to handle min_area=0 or min_visibility=0
             and clipped_box_area >= min_area
             and clipped_box_area / transformed_box_area >= min_visibility
+            and clipped_width >= min_width
+            and clipped_height >= min_height
         ):
             resulting_boxes.append(cast(BoxType, bbox + tail))
     return resulting_boxes
