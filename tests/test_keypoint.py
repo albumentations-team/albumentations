@@ -304,3 +304,21 @@ def test_coarse_dropout():
 
     result = aug(image=np.zeros((128, 128)), keypoints=((10, 10), (20, 30)))
     assert len(result["keypoints"]) == 0
+
+
+@pytest.mark.parametrize(
+    ["keypoints", "expected_keypoints", "holes"],
+    [
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(40, 40, 60, 60), (70, 70, 80, 80), (10, 10, 20, 20)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(10, 10, 20, 20), (40, 40, 60, 60), (70, 70, 80, 80)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(40, 40, 60, 60), (10, 10, 20, 20), (70, 70, 80, 80)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(75, 75, 0, 0)], [(40, 40, 60, 60), (10, 10, 20, 20)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(50, 50, 0, 0)], [(70, 70, 80, 80), (10, 10, 20, 20)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(50, 50, 0, 0), (75, 75, 0, 0)], [(10, 10, 20, 20)]],
+    ],
+)
+def test_coarse_dropout_remove_keypoints(keypoints, expected_keypoints, holes):
+    t = A.CoarseDropout()
+    result_keypoints = t.apply_to_keypoints(keypoints, holes)
+
+    assert set(result_keypoints) == set(expected_keypoints)

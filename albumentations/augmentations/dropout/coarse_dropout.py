@@ -167,14 +167,12 @@ class CoarseDropout(DualTransform):
     def apply_to_keypoints(
         self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params
     ) -> List[KeypointType]:
-        result = []
+        result = set(keypoints)
         for hole in holes:
-            remaining_keypoints = []
             for kp in keypoints:
-                if not self._keypoint_in_hole(kp, hole):
-                    remaining_keypoints.append(kp)
-            result = remaining_keypoints
-        return result
+                if self._keypoint_in_hole(kp, hole):
+                    result.discard(kp)
+        return list(result)
 
     def get_transform_init_args_names(self):
         return (
