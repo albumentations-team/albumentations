@@ -686,7 +686,7 @@ class RandomSunFlare(ImageOnlyTransform):
         y = []
 
         for rand_x in range(0, width, 10):
-            rand_y = math.tan(angle) * (rand_x - flare_center_x) + flare_center_y
+            rand_y = max(min(math.tan(angle) * (rand_x - flare_center_x) + flare_center_y, height*10), -height*10)
             x.append(rand_x)
             y.append(2 * flare_center_y - rand_y)
 
