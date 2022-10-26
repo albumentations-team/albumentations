@@ -312,6 +312,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.FancyPCA, dict(alpha=0.3)],
     [A.RandomRotate90, {}],
     [A.ToGray, {}],
+    [A.ToRGB, {}],
     [A.ToSepia, {}],
     [A.Transpose, {}],
     [A.VerticalFlip, {}],
@@ -761,6 +762,7 @@ def test_serialization_v2_to_dict():
         "bbox_params": None,
         "keypoint_params": None,
         "additional_targets": {},
+        "is_check_shapes": True,
     }
 
 
