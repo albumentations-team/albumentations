@@ -686,10 +686,9 @@ class RandomSunFlare(ImageOnlyTransform):
         y = []
 
         def line(t):
-            return (flare_center_x + t * math.cos(angle),
-                    flare_center_y + t * math.sin(angle))
+            return (flare_center_x + t * math.cos(angle), flare_center_y + t * math.sin(angle))
 
-        for t_val in range(-flare_center_x, width-flare_center_x, 10):
+        for t_val in range(-flare_center_x, width - flare_center_x, 10):
             rand_x, rand_y = line(t_val)
             x.append(rand_x)
             y.append(rand_y)
