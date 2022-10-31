@@ -5,7 +5,7 @@ import re
 from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import find_packages, setup
 
-INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy", "scikit-image>=0.16.1", "PyYAML", "qudida>=0.0.4"]
+INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy>=1.1.0", "scikit-image>=0.16.1", "PyYAML", "qudida>=0.0.4"]
 
 # If none of packages in first installed, install second package
 CHOOSE_INSTALL_REQUIRES = [
