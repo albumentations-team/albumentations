@@ -128,6 +128,8 @@ class Compose(BaseCompose):
         keypoint_params (KeypointParams): Parameters for keypoints transforms
         additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
         p (float): probability of applying all list of transforms. Default: 1.0.
+        is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
+            would like to disable this check - pass False (do it only if you are sure in your data consistency).
     """
 
     def __init__(
@@ -137,6 +139,7 @@ class Compose(BaseCompose):
         keypoint_params: typing.Optional[typing.Union[dict, "KeypointParams"]] = None,
         additional_targets: typing.Optional[typing.Dict[str, str]] = None,
         p: float = 1.0,
+        is_check_shapes: bool = True,
     ):
         super(Compose, self).__init__(transforms, p)
 
@@ -171,6 +174,8 @@ class Compose(BaseCompose):
 
         self.is_check_args = True
         self._disable_check_args_for_transforms(self.transforms)
+
+        self.is_check_shapes = is_check_shapes
 
     @staticmethod
     def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:
@@ -235,6 +240,7 @@ class Compose(BaseCompose):
                 if keypoints_processor
                 else None,
                 "additional_targets": self.additional_targets,
+                "is_check_shapes": self.is_check_shapes,
             }
         )
         return dictionary
@@ -251,6 +257,7 @@ class Compose(BaseCompose):
                 else None,
                 "additional_targets": self.additional_targets,
                 "params": None,
+                "is_check_shapes": self.is_check_shapes,
             }
         )
         return dictionary
@@ -260,17 +267,27 @@ class Compose(BaseCompose):
         checked_multi = ["masks"]
         check_bbox_param = ["bboxes"]
         # ["bboxes", "keypoints"] could be almost any type, no need to check them
+        shapes = []
         for data_name, data in kwargs.items():
             internal_data_name = self.additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
                     raise TypeError("{} must be numpy array type".format(data_name))
+                shapes.append(data.shape[:2])
             if internal_data_name in checked_multi:
-                if data:
+                if data is not None:
                     if not isinstance(data[0], np.ndarray):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
+                    shapes.append(data[0].shape[:2])
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 raise ValueError("bbox_params must be specified for bbox transformations")
+
+        if self.is_check_shapes and shapes and shapes.count(shapes[0]) != len(shapes):
+            raise ValueError(
+                "Height and Width of image, mask or masks should be equal. You can disable shapes check "
+                "by calling disable_shapes_check method of Compose class (do it only if you are sure "
+                "about your data consistency)."
+            )
 
     @staticmethod
     def _make_targets_contiguous(data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
@@ -423,9 +440,12 @@ class ReplayCompose(Compose):
         keypoint_params: typing.Optional[typing.Union[dict, "KeypointParams"]] = None,
         additional_targets: typing.Optional[typing.Dict[str, str]] = None,
         p: float = 1.0,
+        is_check_shapes: bool = True,
         save_key: str = "replay",
     ):
-        super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
+        super(ReplayCompose, self).__init__(
+            transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes
+        )
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
 

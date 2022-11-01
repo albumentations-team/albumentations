@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 from scipy import special
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
@@ -47,6 +47,7 @@ __all__ = [
     "ChannelShuffle",
     "InvertImg",
     "ToGray",
+    "ToRGB",
     "ToSepia",
     "JpegCompression",
     "ImageCompression",
@@ -1421,6 +1422,35 @@ class ToGray(ImageOnlyTransform):
             raise TypeError("ToGray transformation expects 3-channel images.")
 
         return F.to_gray(img)
+
+    def get_transform_init_args_names(self):
+        return ()
+
+
+class ToRGB(ImageOnlyTransform):
+    """Convert the input grayscale image to RGB.
+
+    Args:
+        p (float): probability of applying the transform. Default: 1.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, always_apply=True, p=1.0):
+        super(ToRGB, self).__init__(always_apply=always_apply, p=p)
+
+    def apply(self, img, **params):
+        if is_rgb_image(img):
+            warnings.warn("The image is already an RGB.")
+            return img
+        if not is_grayscale_image(img):
+            raise TypeError("ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1.")
+
+        return F.gray_to_rgb(img)
 
     def get_transform_init_args_names(self):
         return ()
