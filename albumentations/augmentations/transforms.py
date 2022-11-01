@@ -12,7 +12,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 from scipy import special
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
