@@ -2530,7 +2530,12 @@ class Spatter(ImageOnlyTransform):
 
 
 class CutAndPaste(DualTransform):
-    """
+    """Apply Cut and Paste Augmentation.
+    Images to be pasted are randomly selected from a specified directory
+    and are pasted to the target image after some additional augmentations.
+
+    Note: The length of masks target should be less than 255 (len(masks) < 255).
+
     Args:
         paste_image_dir (str | pathlib.Path):
             directory path where objects to be pasted exist.
@@ -2547,7 +2552,10 @@ class CutAndPaste(DualTransform):
         sigma (float):
             standard deviation for Gaussian kernel used in the "GAUSSIAN" blending method.
         num_object_limit ((int, int) or int):
-            range of the number of objects to be pasted. The values should be between 0 and 254. Default is (1, 1).
+            range of the number of objects to be pasted. The values should be between 0 and 254.
+            Note that the number of object will be limitted so that
+            'the length of masks' + 'the number of object' < 255.
+            Default is (1, 1).
         scale_limit ((float, float) or float):
             scaling factor range of pasted object. If scale_limit is a single float value, the
             range will be (-scale_limit, scale_limit). Note that the scale_limit will be biased by 1.
@@ -2701,7 +2709,12 @@ class CutAndPaste(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
         h, w = img.shape[:2]
-        n_obj = random.randint(*self.num_object_limit)
+
+        masks = params["masks"]
+        n_masks = len(masks)
+        if n_masks >= 255:
+            raise ValueError(f"The length of masks should be less than 255, got {n_masks}")
+        n_obj = min(random.randint(*self.num_object_limit), 254 - n_masks)  # ensure: n_obj + n_mask <= 254
         paste_image_paths = random.choices(self.paste_image_paths, k=n_obj)
         scales = np.random.uniform(self.scale_limit[0] + 1, self.scale_limit[1] + 1, n_obj)
         angles = np.random.uniform(self.rotate_limit[0], self.rotate_limit[1], n_obj)
@@ -2720,7 +2733,7 @@ class CutAndPaste(DualTransform):
         # pre-compute mask augmentation because bbox depend on the augmented masks
         labels = [bbox[4:] for bbox in params["bboxes"]]
         new_masks, new_labels = self._apply_to_masks(
-            paste_image_paths, vflips, hflips, angles, scales, x_shifts, y_shifts, params["masks"], labels, h, w
+            paste_image_paths, vflips, hflips, angles, scales, x_shifts, y_shifts, masks, labels, h, w
         )
 
         return {
