@@ -1,5 +1,4 @@
 import math
-import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
