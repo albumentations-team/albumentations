@@ -1,5 +1,4 @@
-import random
-from typing import Any, Mapping, Tuple, Union
+from typing import Any, Mapping, Tuple, Union, Optional
 
 import numpy as np
 
@@ -16,7 +15,9 @@ class ChannelDropout(ImageOnlyTransform):
     Args:
         channel_drop_range (int, int): range from which we choose the number of channels to drop.
         fill_value (int, float): pixel value for the dropped channel.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -31,8 +32,9 @@ class ChannelDropout(ImageOnlyTransform):
         fill_value: Union[int, float] = 0,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(ChannelDropout, self).__init__(always_apply, p)
+        super(ChannelDropout, self).__init__(always_apply, p, rs)
 
         self.channel_drop_range = channel_drop_range
 
@@ -58,9 +60,9 @@ class ChannelDropout(ImageOnlyTransform):
         if self.max_channels >= num_channels:
             raise ValueError("Can not drop all channels in ChannelDropout.")
 
-        num_drop_channels = random.randint(self.min_channels, self.max_channels)
+        num_drop_channels = self.py_randint(self.min_channels, self.max_channels)
 
-        channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
+        channels_to_drop = self.random().choice(range(num_channels), num_drop_channels, replace=False).tolist()
 
         return {"channels_to_drop": channels_to_drop}
 

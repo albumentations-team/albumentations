@@ -1,6 +1,5 @@
 from __future__ import division
 
-import random
 import typing
 import warnings
 from collections import defaultdict
@@ -48,7 +47,7 @@ def get_always_apply(transforms: typing.Union["BaseCompose", TransformsSeqType])
 
 
 class BaseCompose(Serializable):
-    def __init__(self, transforms: TransformsSeqType, p: float):
+    def __init__(self, transforms: TransformsSeqType, p: float, rs: typing.Optional[np.random.RandomState]=None):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
                 "transforms is single transform, but a sequence is expected! Transform will be wrapped into list."
@@ -60,6 +59,8 @@ class BaseCompose(Serializable):
 
         self.replay_mode = False
         self.applied_in_replay = False
+
+        self.rs = rs
 
     def __len__(self) -> int:
         return len(self.transforms)
@@ -118,6 +119,17 @@ class BaseCompose(Serializable):
         for t in self.transforms:
             t.set_deterministic(flag, save_key)
 
+    # needed to make pickle happy
+    def random(self):
+        if self.rs is not None:
+            return self.rs
+        else:
+            return np.random
+
+    # random.randint is [low,high] while numpy.random.randint is [low,high)
+    def py_randint(self, low, high):
+        return self.random().randint(low,high+1)
+
 
 class Compose(BaseCompose):
     """Compose transforms and handle all transformations regarding bounding boxes
@@ -130,6 +142,7 @@ class Compose(BaseCompose):
         p (float): probability of applying all list of transforms. Default: 1.0.
         is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
             would like to disable this check - pass False (do it only if you are sure in your data consistency).
+        rs (np.random.RandomState)
     """
 
     def __init__(
@@ -140,8 +153,9 @@ class Compose(BaseCompose):
         additional_targets: typing.Optional[typing.Dict[str, str]] = None,
         p: float = 1.0,
         is_check_shapes: bool = True,
+        rs: typing.Optional[np.random.RandomState] = None
     ):
-        super(Compose, self).__init__(transforms, p)
+        super(Compose, self).__init__(transforms, p, rs)
 
         self.processors: typing.Dict[str, typing.Union[BboxProcessor, KeypointsProcessor]] = {}
         if bbox_params:
@@ -194,7 +208,7 @@ class Compose(BaseCompose):
         if self.is_check_args:
             self._check_args(**data)
         assert isinstance(force_apply, (bool, int)), "force_apply must have bool or int type"
-        need_to_run = force_apply or random.random() < self.p
+        need_to_run = force_apply or self.random().random() < self.p
         for p in self.processors.values():
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else get_always_apply(self.transforms)
@@ -306,10 +320,16 @@ class OneOf(BaseCompose):
     Args:
         transforms (list): list of transformations to compose.
         p (float): probability of applying selected transform. Default: 0.5.
+        rs (np.random.RandomState)
     """
 
-    def __init__(self, transforms: TransformsSeqType, p: float = 0.5):
-        super(OneOf, self).__init__(transforms, p)
+    def __init__(
+        self, 
+        transforms: TransformsSeqType, 
+        p: float = 0.5, 
+        rs: typing.Optional[np.random.RandomState] = None
+    ):
+        super(OneOf, self).__init__(transforms, p, rs)
         transforms_ps = [t.p for t in self.transforms]
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
@@ -320,7 +340,7 @@ class OneOf(BaseCompose):
                 data = t(**data)
             return data
 
-        if self.transforms_ps and (force_apply or random.random() < self.p):
+        if self.transforms_ps and (force_apply or self.random().random() < self.p):
             idx: int = random_utils.choice(len(self.transforms), p=self.transforms_ps)
             t = self.transforms[idx]
             data = t(force_apply=True, **data)
@@ -336,10 +356,18 @@ class SomeOf(BaseCompose):
         n (int): number of transforms to apply.
         replace (bool): Whether the sampled transforms are with or without replacement. Default: True.
         p (float): probability of applying selected transform. Default: 1.
+        rs (np.random.RandomState)
     """
 
-    def __init__(self, transforms: TransformsSeqType, n: int, replace: bool = True, p: float = 1):
-        super(SomeOf, self).__init__(transforms, p)
+    def __init__(
+        self, 
+        transforms: TransformsSeqType, 
+        n: int, 
+        replace: bool = True, 
+        p: float = 1, 
+        rs: typing.Optional[np.random.RandomState] = None
+    ):
+        super(SomeOf, self).__init__(transforms, p, rs)
         self.n = n
         self.replace = replace
         transforms_ps = [t.p for t in self.transforms]
@@ -352,7 +380,7 @@ class SomeOf(BaseCompose):
                 data = t(**data)
             return data
 
-        if self.transforms_ps and (force_apply or random.random() < self.p):
+        if self.transforms_ps and (force_apply or self.random().random() < self.p):
             idx = random_utils.choice(len(self.transforms), size=self.n, replace=self.replace, p=self.transforms_ps)
             for i in idx:  # type: ignore
                 t = self.transforms[i]
@@ -374,12 +402,13 @@ class OneOrOther(BaseCompose):
         second: typing.Optional[TransformType] = None,
         transforms: typing.Optional[TransformsSeqType] = None,
         p: float = 0.5,
+        rs:  typing.Optional[np.random.RandomState] = None
     ):
         if transforms is None:
             if first is None or second is None:
                 raise ValueError("You must set both first and second or set transforms argument.")
             transforms = [first, second]
-        super(OneOrOther, self).__init__(transforms, p)
+        super(OneOrOther, self).__init__(transforms, p, rs)
         if len(self.transforms) != 2:
             warnings.warn("Length of transforms is not equal to 2.")
 
@@ -389,7 +418,7 @@ class OneOrOther(BaseCompose):
                 data = t(**data)
             return data
 
-        if random.random() < self.p:
+        if self.random().random() < self.p:
             return self.transforms[0](force_apply=True, **data)
 
         return self.transforms[-1](force_apply=True, **data)
@@ -403,16 +432,21 @@ class PerChannel(BaseCompose):
         channels (sequence): channels to apply the transform to. Pass None to apply to all.
                          Default: None (apply to all)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
     """
 
     def __init__(
-        self, transforms: TransformsSeqType, channels: typing.Optional[typing.Sequence[int]] = None, p: float = 0.5
+        self, 
+        transforms: TransformsSeqType, 
+        channels: typing.Optional[typing.Sequence[int]] = None, 
+        p: float = 0.5,
+        rs: typing.Optional[np.random.RandomState] = None
     ):
-        super(PerChannel, self).__init__(transforms, p)
+        super(PerChannel, self).__init__(transforms, p, rs)
         self.channels = channels
 
     def __call__(self, *args, force_apply: bool = False, **data) -> typing.Dict[str, typing.Any]:
-        if force_apply or random.random() < self.p:
+        if force_apply or self.random().random() < self.p:
 
             image = data["image"]
 
@@ -442,9 +476,10 @@ class ReplayCompose(Compose):
         p: float = 1.0,
         is_check_shapes: bool = True,
         save_key: str = "replay",
+        rs: typing.Optional[np.random.RandomState] = None
     ):
         super(ReplayCompose, self).__init__(
-            transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes
+            transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes, rs
         )
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
@@ -544,8 +579,8 @@ class Sequential(BaseCompose):
         >>> ])
     """
 
-    def __init__(self, transforms: TransformsSeqType, p: float = 0.5):
-        super().__init__(transforms, p)
+    def __init__(self, transforms: TransformsSeqType, p: float = 0.5, rs: typing.Optional[np.random.RandomState] = None):
+        super().__init__(transforms, p, rs)
 
     def __call__(self, *args, **data) -> typing.Dict[str, typing.Any]:
         for t in self.transforms:

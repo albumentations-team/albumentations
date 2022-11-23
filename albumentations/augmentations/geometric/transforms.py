@@ -1,7 +1,6 @@
 import math
-import random
 from enum import Enum
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union, Optional
 
 import cv2
 import numpy as np
@@ -70,7 +69,9 @@ class ShiftScaleRotate(DualTransform):
             in the range [0, 1]. Default: None.
         rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
             Default: "largest_box"
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, keypoints
@@ -93,8 +94,9 @@ class ShiftScaleRotate(DualTransform):
         rotate_method="largest_box",
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(ShiftScaleRotate, self).__init__(always_apply, p)
+        super(ShiftScaleRotate, self).__init__(always_apply, p, rs)
         self.shift_limit_x = to_tuple(shift_limit_x if shift_limit_x is not None else shift_limit)
         self.shift_limit_y = to_tuple(shift_limit_y if shift_limit_y is not None else shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
@@ -119,10 +121,10 @@ class ShiftScaleRotate(DualTransform):
 
     def get_params(self):
         return {
-            "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
-            "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
-            "dx": random.uniform(self.shift_limit_x[0], self.shift_limit_x[1]),
-            "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
+            "angle": self.random().uniform(self.rotate_limit[0], self.rotate_limit[1]),
+            "scale": self.random().uniform(self.scale_limit[0], self.scale_limit[1]),
+            "dx": self.random().uniform(self.shift_limit_x[0], self.shift_limit_x[1]),
+            "dy": self.random().uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
@@ -169,6 +171,9 @@ class ElasticTransform(DualTransform):
                                Enabling this option gives ~2X speedup on large images.
         same_dxdy (boolean): Whether to use same random generated shift for x and y.
                              Enabling this option gives ~2X speedup.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bbox
@@ -190,8 +195,9 @@ class ElasticTransform(DualTransform):
         approximate=False,
         same_dxdy=False,
         p=0.5,
+        rs=None
     ):
-        super(ElasticTransform, self).__init__(always_apply, p)
+        super(ElasticTransform, self).__init__(always_apply, p, rs)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
@@ -203,6 +209,11 @@ class ElasticTransform(DualTransform):
         self.same_dxdy = same_dxdy
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
+        if random_state is None: # to keep compatibility with the use of random_state arg
+            random_state = self.random()
+        else:
+            random_state = np.random.RandomState(random_state)
+
         return F.elastic_transform(
             img,
             self.alpha,
@@ -211,12 +222,17 @@ class ElasticTransform(DualTransform):
             interpolation,
             self.border_mode,
             self.value,
-            np.random.RandomState(random_state),
+            random_state,
             self.approximate,
             self.same_dxdy,
         )
 
     def apply_to_mask(self, img, random_state=None, **params):
+        if random_state is None: # to keep compatibility with the use of random_state arg
+            random_state = self.random()
+        else:
+            random_state = np.random.RandomState(random_state)
+
         return F.elastic_transform(
             img,
             self.alpha,
@@ -225,12 +241,17 @@ class ElasticTransform(DualTransform):
             cv2.INTER_NEAREST,
             self.border_mode,
             self.mask_value,
-            np.random.RandomState(random_state),
+            random_state,
             self.approximate,
             self.same_dxdy,
         )
 
     def apply_to_bbox(self, bbox, random_state=None, **params):
+        if random_state is None: # to keep compatibility with the use of random_state arg
+            random_state = self.random()
+        else:
+            random_state = np.random.RandomState(random_state)
+
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
@@ -245,7 +266,7 @@ class ElasticTransform(DualTransform):
             cv2.INTER_NEAREST,
             self.border_mode,
             self.mask_value,
-            np.random.RandomState(random_state),
+            random_state,
             self.approximate,
         )
         bbox_returned = bbox_from_mask(mask)
@@ -253,7 +274,7 @@ class ElasticTransform(DualTransform):
         return bbox_returned
 
     def get_params(self):
-        return {"random_state": random.randint(0, 10000)}
+        return {"random_state": self.py_randint(0, 10000)}
 
     def get_transform_init_args_names(self):
         return (
@@ -289,7 +310,10 @@ class Perspective(DualTransform):
             Otherwise, parts of the transformed image may be outside of the image plane.
             This setting should not be set to True when using large scale values as it could lead to very large images.
             Default: False
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
+
 
     Targets:
         image, mask, keypoints, bboxes
@@ -309,8 +333,9 @@ class Perspective(DualTransform):
         interpolation=cv2.INTER_LINEAR,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super().__init__(always_apply, p)
+        super().__init__(always_apply, p, rs)
         self.scale = to_tuple(scale, 0)
         self.keep_size = keep_size
         self.pad_mode = pad_mode
@@ -339,8 +364,8 @@ class Perspective(DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
 
-        scale = random_utils.uniform(*self.scale)
-        points = random_utils.normal(0, scale, [4, 2])
+        scale = random_utils.uniform(*self.scale, random_state=self.random())
+        points = random_utils.normal(0, scale, [4, 2], random_state=self.random())
         points = np.mod(np.abs(points), 1)
 
         # top left -- no changes needed, just use jitter
@@ -531,7 +556,9 @@ class Affine(DualTransform):
             after applying rotations. Default: False
         keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
                            Default: False.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, keypoints, bboxes
@@ -557,8 +584,9 @@ class Affine(DualTransform):
         keep_ratio: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p, rs=rs)
 
         params = [scale, translate_percent, translate_px, rotate, shear]
         if all([p is None for p in params]):
@@ -701,22 +729,22 @@ class Affine(DualTransform):
 
         translate: Dict[str, Union[int, float]]
         if self.translate_px is not None:
-            translate = {key: random.randint(*value) for key, value in self.translate_px.items()}
+            translate = {key: self.py_randint(*value) for key, value in self.translate_px.items()}
         elif self.translate_percent is not None:
-            translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
+            translate = {key: self.random().uniform(*value) for key, value in self.translate_percent.items()}
             translate["x"] = translate["x"] * w
             translate["y"] = translate["y"] * h
         else:
             translate = {"x": 0, "y": 0}
 
         # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
-        shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
-        scale = {key: random.uniform(*value) for key, value in self.scale.items()}
+        shear = {key: -self.random().uniform(*value) for key, value in self.shear.items()}
+        scale = {key: self.random().uniform(*value) for key, value in self.scale.items()}
         if self.keep_ratio:
             scale["y"] = scale["x"]
 
         # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
-        rotate = -random.uniform(*self.rotate)
+        rotate = -self.random().uniform(*self.rotate)
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
         # we get an ugly black border for 90deg rotations
@@ -835,6 +863,9 @@ class PiecewiseAffine(DualTransform):
             argmin (non-inverted) or argmax (inverted) in each channel. This
             parameters contains the maximum (non-inverted) or minimum (inverted) value to accept in order to view a hit
             as a keypoint. Use ``None`` to use no min/max. Default: 0.01
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, keypoints, bboxes
@@ -858,8 +889,9 @@ class PiecewiseAffine(DualTransform):
         always_apply: bool = False,
         keypoints_threshold: float = 0.01,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(PiecewiseAffine, self).__init__(always_apply, p)
+        super(PiecewiseAffine, self).__init__(always_apply, p, rs)
 
         self.scale = to_tuple(scale, scale)
         self.nb_rows = to_tuple(nb_rows, nb_rows)
@@ -893,12 +925,12 @@ class PiecewiseAffine(DualTransform):
     def get_params_dependent_on_targets(self, params) -> dict:
         h, w = params["image"].shape[:2]
 
-        nb_rows = np.clip(random.randint(*self.nb_rows), 2, None)
-        nb_cols = np.clip(random.randint(*self.nb_cols), 2, None)
+        nb_rows = np.clip(self.py_randint(*self.nb_rows), 2, None)
+        nb_cols = np.clip(self.py_randint(*self.nb_cols), 2, None)
         nb_cells = nb_cols * nb_rows
-        scale = random.uniform(*self.scale)
+        scale = self.random().uniform(*self.scale)
 
-        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
+        jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2), random_state=self.random())
         if not np.any(jitter > 0):
             return {"matrix": None}
 
@@ -981,7 +1013,10 @@ class PadIfNeeded(DualTransform):
         mask_value (int, float,
                     list of int,
                     list of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
+
 
     Targets:
         image, mask, bbox, keypoints
@@ -1010,6 +1045,7 @@ class PadIfNeeded(DualTransform):
         mask_value: Optional[ImageColorType] = None,
         always_apply: bool = False,
         p: float = 1.0,
+        rs: Optional[np.random.RandomState] = None
     ):
         if (min_height is None) == (pad_height_divisor is None):
             raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
@@ -1017,7 +1053,7 @@ class PadIfNeeded(DualTransform):
         if (min_width is None) == (pad_width_divisor is None):
             raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
 
-        super(PadIfNeeded, self).__init__(always_apply, p)
+        super(PadIfNeeded, self).__init__(always_apply, p, rs)
         self.min_height = min_height
         self.min_width = min_width
         self.pad_width_divisor = pad_width_divisor
@@ -1168,9 +1204,9 @@ class PadIfNeeded(DualTransform):
         elif self.position == PadIfNeeded.PositionType.RANDOM:
             h_pad = h_top + h_bottom
             w_pad = w_left + w_right
-            h_top = random.randint(0, h_pad)
+            h_top = self.py_randint(0, h_pad)
             h_bottom = h_pad - h_top
-            w_left = random.randint(0, w_pad)
+            w_left = self.py_randint(0, w_pad)
             w_right = w_pad - w_left
 
         return h_top, h_bottom, w_left, w_right
@@ -1180,7 +1216,9 @@ class VerticalFlip(DualTransform):
     """Flip the input vertically around the x-axis.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -1206,7 +1244,9 @@ class HorizontalFlip(DualTransform):
     """Flip the input horizontally around the y-axis.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -1237,7 +1277,9 @@ class Flip(DualTransform):
     """Flip the input either horizontally, vertically or both horizontally and vertically.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -1256,7 +1298,7 @@ class Flip(DualTransform):
 
     def get_params(self):
         # Random int in the range [-1, 1]
-        return {"d": random.randint(-1, 1)}
+        return {"d": self.py_randint(-1, 1)}
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         return F.bbox_flip(bbox, **params)
@@ -1272,7 +1314,9 @@ class Transpose(DualTransform):
     """Transpose the input by swapping rows and columns.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -1311,6 +1355,9 @@ class OpticalDistortion(DualTransform):
         mask_value (int, float,
                     list of ints,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bbox
@@ -1329,8 +1376,9 @@ class OpticalDistortion(DualTransform):
         mask_value: Optional[ImageColorType] = None,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(OpticalDistortion, self).__init__(always_apply, p)
+        super(OpticalDistortion, self).__init__(always_apply, p, rs)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -1360,9 +1408,9 @@ class OpticalDistortion(DualTransform):
 
     def get_params(self):
         return {
-            "k": random.uniform(self.distort_limit[0], self.distort_limit[1]),
-            "dx": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-            "dy": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
+            "k": self.random().uniform(self.distort_limit[0], self.distort_limit[1]),
+            "dx": round(self.random().uniform(self.shift_limit[0], self.shift_limit[1])),
+            "dy": round(self.random().uniform(self.shift_limit[0], self.shift_limit[1])),
         }
 
     def get_transform_init_args_names(self):
@@ -1394,6 +1442,9 @@ class GridDistortion(DualTransform):
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
         normalized (bool): if true, distortion will be normalized to do not go outside the image. Default: False
             See for more information: https://github.com/albumentations-team/albumentations/pull/722
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask
@@ -1413,8 +1464,9 @@ class GridDistortion(DualTransform):
         normalized: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(GridDistortion, self).__init__(always_apply, p)
+        super(GridDistortion, self).__init__(always_apply, p, rs)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -1473,8 +1525,8 @@ class GridDistortion(DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params["image"].shape[:2]
 
-        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
-        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+        stepsx = [1 + self.random().uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+        stepsy = [1 + self.random().uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
 
         if self.normalized:
             return self._normalize(h, w, stepsx, stepsy)

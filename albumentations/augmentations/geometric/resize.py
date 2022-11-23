@@ -1,5 +1,4 @@
-import random
-from typing import Dict, Sequence, Tuple, Union
+from typing import Dict, Sequence, Tuple, Union, Optional
 
 import cv2
 import numpy as np
@@ -26,7 +25,9 @@ class RandomScale(DualTransform):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -35,13 +36,13 @@ class RandomScale(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
-        super(RandomScale, self).__init__(always_apply, p)
+    def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5, rs=None):
+        super(RandomScale, self).__init__(always_apply, p, rs)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.interpolation = interpolation
 
     def get_params(self):
-        return {"scale": random.uniform(self.scale_limit[0], self.scale_limit[1])}
+        return {"scale": self.random().uniform(self.scale_limit[0], self.scale_limit[1])}
 
     def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.scale(img, scale, interpolation)
@@ -64,7 +65,9 @@ class LongestMaxSize(DualTransform):
         max_size (int, list of int): maximum size of the image after the transformation. When using a list, max size
             will be randomly selected from the values in the list.
         interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -79,8 +82,9 @@ class LongestMaxSize(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
         p: float = 1,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(LongestMaxSize, self).__init__(always_apply, p)
+        super(LongestMaxSize, self).__init__(always_apply, p, rs)
         self.interpolation = interpolation
         self.max_size = max_size
 
@@ -101,7 +105,7 @@ class LongestMaxSize(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
-        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
+        return {"max_size": self.max_size if isinstance(self.max_size, int) else self.random().choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("max_size", "interpolation")
@@ -114,7 +118,9 @@ class SmallestMaxSize(DualTransform):
         max_size (int, list of int): maximum size of smallest side of the image after the transformation. When using a
             list, max size will be randomly selected from the values in the list.
         interpolation (OpenCV flag): interpolation method. Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -129,8 +135,9 @@ class SmallestMaxSize(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
         p: float = 1,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(SmallestMaxSize, self).__init__(always_apply, p)
+        super(SmallestMaxSize, self).__init__(always_apply, p, rs)
         self.interpolation = interpolation
         self.max_size = max_size
 
@@ -150,7 +157,7 @@ class SmallestMaxSize(DualTransform):
         return F.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
-        return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
+        return {"max_size": self.max_size if isinstance(self.max_size, int) else self.random().choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("max_size", "interpolation")
@@ -165,7 +172,9 @@ class Resize(DualTransform):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -174,8 +183,8 @@ class Resize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
-        super(Resize, self).__init__(always_apply, p)
+    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1, rs=None):
+        super(Resize, self).__init__(always_apply, p, rs)
         self.height = height
         self.width = width
         self.interpolation = interpolation

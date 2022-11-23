@@ -2,7 +2,6 @@ from __future__ import absolute_import, division
 
 import math
 import numbers
-import random
 import warnings
 from enum import IntEnum
 from types import LambdaType
@@ -83,6 +82,9 @@ class RandomGridShuffle(DualTransform):
 
     Args:
         grid ((int, int)): size of grid for splitting image.
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, keypoints
@@ -91,8 +93,14 @@ class RandomGridShuffle(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: bool = False, p: float = 0.5):
-        super(RandomGridShuffle, self).__init__(always_apply, p)
+    def __init__(
+        self, 
+        grid: Tuple[int, int] = (3, 3), 
+        always_apply: bool = False, 
+        p: float = 0.5, 
+        rs: Optional[np.random.RandomState] = None
+    ):
+        super(RandomGridShuffle, self).__init__(always_apply, p, rs)
         self.grid = grid
 
     def apply(self, img: np.ndarray, tiles: np.ndarray = None, **params):
@@ -162,7 +170,7 @@ class RandomGridShuffle(DualTransform):
 
         for bbox_size in np.unique(tiles_sizes.reshape(-1, 2), axis=0):
             eq_mat = np.all(tiles_sizes == bbox_size, axis=2)
-            new_index_matrix[eq_mat] = random_utils.permutation(new_index_matrix[eq_mat])
+            new_index_matrix[eq_mat] = random_utils.permutation(new_index_matrix[eq_mat], random_state=self.random())
 
         new_index_matrix = np.split(new_index_matrix, 2, axis=2)
 
@@ -194,6 +202,9 @@ class Normalize(ImageOnlyTransform):
         mean (float, list of float): mean values
         std  (float, list of float): std values
         max_pixel_value (float): maximum possible pixel value
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -209,8 +220,9 @@ class Normalize(ImageOnlyTransform):
         max_pixel_value=255.0,
         always_apply=False,
         p=1.0,
+        rs=None
     ):
-        super(Normalize, self).__init__(always_apply, p)
+        super(Normalize, self).__init__(always_apply, p, rs)
         self.mean = mean
         self.std = std
         self.max_pixel_value = max_pixel_value
@@ -232,6 +244,9 @@ class ImageCompression(ImageOnlyTransform):
                                Should be in [0, 100] range for jpeg and [1, 100] for webp.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
             Default: ImageCompressionType.JPEG
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -251,8 +266,9 @@ class ImageCompression(ImageOnlyTransform):
         compression_type=ImageCompressionType.JPEG,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(ImageCompression, self).__init__(always_apply, p)
+        super(ImageCompression, self).__init__(always_apply, p, rs)
 
         self.compression_type = ImageCompression.ImageCompressionType(compression_type)
         low_thresh_quality_assert = 0
@@ -280,7 +296,7 @@ class ImageCompression(ImageOnlyTransform):
             image_type = ".webp"
 
         return {
-            "quality": random.randint(self.quality_lower, self.quality_upper),
+            "quality": self.py_randint(self.quality_lower, self.quality_upper),
             "image_type": image_type,
         }
 
@@ -298,6 +314,9 @@ class JpegCompression(ImageCompression):
     Args:
         quality_lower (float): lower bound on the jpeg quality. Should be in [0, 100] range
         quality_upper (float): upper bound on the jpeg quality. Should be in [0, 100] range
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -306,13 +325,14 @@ class JpegCompression(ImageCompression):
         uint8, float32
     """
 
-    def __init__(self, quality_lower=99, quality_upper=100, always_apply=False, p=0.5):
+    def __init__(self, quality_lower=99, quality_upper=100, always_apply=False, p=0.5, rs=None):
         super(JpegCompression, self).__init__(
             quality_lower=quality_lower,
             quality_upper=quality_upper,
             compression_type=ImageCompression.ImageCompressionType.JPEG,
             always_apply=always_apply,
             p=p,
+            rs=None
         )
         warnings.warn(
             f"{self.__class__.__name__} has been deprecated. Please use ImageCompression",
@@ -335,6 +355,9 @@ class RandomSnow(ImageOnlyTransform):
         snow_point_lower (float): lower_bond of the amount of snow. Should be in [0, 1] range
         snow_point_upper (float): upper_bond of the amount of snow. Should be in [0, 1] range
         brightness_coeff (float): larger number will lead to a more snow on the image. Should be >= 0
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -350,8 +373,9 @@ class RandomSnow(ImageOnlyTransform):
         brightness_coeff=2.5,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RandomSnow, self).__init__(always_apply, p)
+        super(RandomSnow, self).__init__(always_apply, p, rs)
 
         if not 0 <= snow_point_lower <= snow_point_upper <= 1:
             raise ValueError(
@@ -370,7 +394,7 @@ class RandomSnow(ImageOnlyTransform):
         return F.add_snow(image, snow_point, self.brightness_coeff)
 
     def get_params(self):
-        return {"snow_point": random.uniform(self.snow_point_lower, self.snow_point_upper)}
+        return {"snow_point": self.random().uniform(self.snow_point_lower, self.snow_point_upper)}
 
     def get_transform_init_args_names(self):
         return ("snow_point_lower", "snow_point_upper", "brightness_coeff")
@@ -390,6 +414,9 @@ class RandomRain(ImageOnlyTransform):
         blur_value (int): rainy view are blurry
         brightness_coefficient (float): rainy days are usually shady. Should be in range [0, 1].
         rain_type: One of [None, "drizzle", "heavy", "torrential"]
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -410,8 +437,9 @@ class RandomRain(ImageOnlyTransform):
         rain_type=None,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RandomRain, self).__init__(always_apply, p)
+        super(RandomRain, self).__init__(always_apply, p, rs)
 
         if rain_type not in ["drizzle", "heavy", "torrential", None]:
             raise ValueError(
@@ -456,7 +484,7 @@ class RandomRain(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
-        slant = int(random.uniform(self.slant_lower, self.slant_upper))
+        slant = int(self.random().uniform(self.slant_lower, self.slant_upper))
 
         height, width = img.shape[:2]
         area = height * width
@@ -478,11 +506,11 @@ class RandomRain(ImageOnlyTransform):
 
         for _i in range(num_drops):  # If You want heavy rain, try increasing this
             if slant < 0:
-                x = random.randint(slant, width)
+                x = self.py_randint(slant, width)
             else:
-                x = random.randint(0, width - slant)
+                x = self.py_randint(0, width - slant)
 
-            y = random.randint(0, height - drop_length)
+            y = self.py_randint(0, height - drop_length)
 
             rain_drops.append((x, y))
 
@@ -510,6 +538,9 @@ class RandomFog(ImageOnlyTransform):
         fog_coef_lower (float): lower limit for fog intensity coefficient. Should be in [0, 1] range.
         fog_coef_upper (float): upper limit for fog intensity coefficient. Should be in [0, 1] range.
         alpha_coef (float): transparency of the fog circles. Should be in [0, 1] range.
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -525,8 +556,9 @@ class RandomFog(ImageOnlyTransform):
         alpha_coef=0.08,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RandomFog, self).__init__(always_apply, p)
+        super(RandomFog, self).__init__(always_apply, p, rs)
 
         if not 0 <= fog_coef_lower <= fog_coef_upper <= 1:
             raise ValueError(
@@ -550,7 +582,7 @@ class RandomFog(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
-        fog_coef = random.uniform(self.fog_coef_lower, self.fog_coef_upper)
+        fog_coef = self.random().uniform(self.fog_coef_lower, self.fog_coef_upper)
 
         height, width = imshape = img.shape[:2]
 
@@ -563,8 +595,8 @@ class RandomFog(ImageOnlyTransform):
 
         while midx > -hw or midy > -hw:
             for _i in range(hw // 10 * index):
-                x = random.randint(midx, width - midx - hw)
-                y = random.randint(midy, height - midy - hw)
+                x = self.py_randint(midx, width - midx - hw)
+                y = self.py_randint(midy, height - midy - hw)
                 haze_list.append((x, y))
 
             midx -= 3 * hw * width // sum(imshape)
@@ -593,6 +625,9 @@ class RandomSunFlare(ImageOnlyTransform):
             Should be in range [`num_flare_circles_lower`, inf].
         src_radius (int):
         src_color ((int, int, int)): color of the flare
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -612,8 +647,9 @@ class RandomSunFlare(ImageOnlyTransform):
         src_color=(255, 255, 255),
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RandomSunFlare, self).__init__(always_apply, p)
+        super(RandomSunFlare, self).__init__(always_apply, p, rs)
 
         (
             flare_center_lower_x,
@@ -670,15 +706,15 @@ class RandomSunFlare(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        angle = 2 * math.pi * random.uniform(self.angle_lower, self.angle_upper)
+        angle = 2 * math.pi * self.random().uniform(self.angle_lower, self.angle_upper)
 
-        flare_center_x = random.uniform(self.flare_center_lower_x, self.flare_center_upper_x)
-        flare_center_y = random.uniform(self.flare_center_lower_y, self.flare_center_upper_y)
+        flare_center_x = self.random().uniform(self.flare_center_lower_x, self.flare_center_upper_x)
+        flare_center_y = self.random().uniform(self.flare_center_lower_y, self.flare_center_upper_y)
 
         flare_center_x = int(width * flare_center_x)
         flare_center_y = int(height * flare_center_y)
 
-        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
+        num_circles = self.py_randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
 
         circles = []
 
@@ -691,13 +727,13 @@ class RandomSunFlare(ImageOnlyTransform):
             y.append(2 * flare_center_y - rand_y)
 
         for _i in range(num_circles):
-            alpha = random.uniform(0.05, 0.2)
-            r = random.randint(0, len(x) - 1)
-            rad = random.randint(1, max(height // 100 - 2, 2))
+            alpha = self.random().uniform(0.05, 0.2)
+            r = self.py_randint(0, len(x) - 1)
+            rad = self.py_randint(1, max(height // 100 - 2, 2))
 
-            r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
-            g_color = random.randint(max(self.src_color[1] - 50, 0), self.src_color[1])
-            b_color = random.randint(max(self.src_color[2] - 50, 0), self.src_color[2])
+            r_color = self.py_randint(max(self.src_color[0] - 50, 0), self.src_color[0])
+            g_color = self.py_randint(max(self.src_color[1] - 50, 0), self.src_color[1])
+            b_color = self.py_randint(max(self.src_color[2] - 50, 0), self.src_color[2])
 
             circles += [
                 (
@@ -744,6 +780,9 @@ class RandomShadow(ImageOnlyTransform):
         num_shadows_upper (int): Lower limit for the possible number of shadows.
             Should be in range [`num_shadows_lower`, inf].
         shadow_dimension (int): number of edges in the shadow polygons
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -760,8 +799,9 @@ class RandomShadow(ImageOnlyTransform):
         shadow_dimension=5,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RandomShadow, self).__init__(always_apply, p)
+        super(RandomShadow, self).__init__(always_apply, p, rs)
 
         (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
 
@@ -792,7 +832,7 @@ class RandomShadow(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
+        num_shadows = self.py_randint(self.num_shadows_lower, self.num_shadows_upper)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -806,7 +846,7 @@ class RandomShadow(ImageOnlyTransform):
         for _index in range(num_shadows):
             vertex = []
             for _dimension in range(self.shadow_dimension):
-                vertex.append((random.randint(x_min, x_max), random.randint(y_min, y_max)))
+                vertex.append((self.py_randint(x_min, x_max), self.py_randint(y_min, y_max)))
 
             vertices = np.array([vertex], dtype=np.int32)
             vertices_list.append(vertices)
@@ -829,6 +869,9 @@ class RandomToneCurve(ImageOnlyTransform):
         scale (float): standard deviation of the normal distribution.
             Used to sample random distances to move two control points that modify the image's curve.
             Values should be in range [0, 1]. Default: 0.1
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
 
     Targets:
@@ -843,8 +886,9 @@ class RandomToneCurve(ImageOnlyTransform):
         scale=0.1,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RandomToneCurve, self).__init__(always_apply, p)
+        super(RandomToneCurve, self).__init__(always_apply, p, rs)
         self.scale = scale
 
     def apply(self, image, low_y, high_y, **params):
@@ -852,8 +896,8 @@ class RandomToneCurve(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1),
-            "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1),
+            "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, random_state=self.random()), 0, 1),
+            "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, random_state=self.random()), 0, 1),
         }
 
     def get_transform_init_args_names(self):
@@ -871,6 +915,9 @@ class HueSaturationValue(ImageOnlyTransform):
         val_shift_limit ((int, int) or int): range for changing value. If val_shift_limit is a single int, the range
             will be (-val_shift_limit, val_shift_limit). Default: (-20, 20).
         p (float): probability of applying the transform. Default: 0.5.
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -886,8 +933,9 @@ class HueSaturationValue(ImageOnlyTransform):
         val_shift_limit=20,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(HueSaturationValue, self).__init__(always_apply, p)
+        super(HueSaturationValue, self).__init__(always_apply, p, rs)
         self.hue_shift_limit = to_tuple(hue_shift_limit)
         self.sat_shift_limit = to_tuple(sat_shift_limit)
         self.val_shift_limit = to_tuple(val_shift_limit)
@@ -899,9 +947,9 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "hue_shift": random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
-            "sat_shift": random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
-            "val_shift": random.uniform(self.val_shift_limit[0], self.val_shift_limit[1]),
+            "hue_shift": self.random().uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
+            "sat_shift": self.random().uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
+            "val_shift": self.random().uniform(self.val_shift_limit[0], self.val_shift_limit[1]),
         }
 
     def get_transform_init_args_names(self):
@@ -914,7 +962,9 @@ class Solarize(ImageOnlyTransform):
     Args:
         threshold ((int, int) or int, or (float, float) or float): range for solarizing threshold.
             If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -923,8 +973,8 @@ class Solarize(ImageOnlyTransform):
         any
     """
 
-    def __init__(self, threshold=128, always_apply=False, p=0.5):
-        super(Solarize, self).__init__(always_apply, p)
+    def __init__(self, threshold=128, always_apply=False, p=0.5, rs=None):
+        super(Solarize, self).__init__(always_apply, p, rs)
 
         if isinstance(threshold, (int, float)):
             self.threshold = to_tuple(threshold, low=threshold)
@@ -935,7 +985,7 @@ class Solarize(ImageOnlyTransform):
         return F.solarize(image, threshold)
 
     def get_params(self):
-        return {"threshold": random.uniform(self.threshold[0], self.threshold[1])}
+        return {"threshold": self.random().uniform(self.threshold[0], self.threshold[1])}
 
     def get_transform_init_args_names(self):
         return ("threshold",)
@@ -950,7 +1000,9 @@ class Posterize(ImageOnlyTransform):
                   or list of ints [[r1, r1], [g1, g2], [b1, b2]]): number of high bits.
             If num_bits is a single value, the range will be [num_bits, num_bits].
             Must be in range [0, 8]. Default: 4.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
     image
@@ -959,8 +1011,8 @@ class Posterize(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, num_bits=4, always_apply=False, p=0.5):
-        super(Posterize, self).__init__(always_apply, p)
+    def __init__(self, num_bits=4, always_apply=False, p=0.5, rs=None):
+        super(Posterize, self).__init__(always_apply, p, rs)
 
         if isinstance(num_bits, (list, tuple)):
             if len(num_bits) == 3:
@@ -975,8 +1027,8 @@ class Posterize(ImageOnlyTransform):
 
     def get_params(self):
         if len(self.num_bits) == 3:
-            return {"num_bits": [random.randint(i[0], i[1]) for i in self.num_bits]}
-        return {"num_bits": random.randint(self.num_bits[0], self.num_bits[1])}
+            return {"num_bits": [self.py_randint(i[0], i[1]) for i in self.num_bits]}
+        return {"num_bits": self.py_randint(self.num_bits[0], self.num_bits[1])}
 
     def get_transform_init_args_names(self):
         return ("num_bits",)
@@ -993,6 +1045,9 @@ class Equalize(ImageOnlyTransform):
             the mask are included in the analysis. Maybe 1 channel or 3 channel array or callable.
             Function signature must include `image` argument.
         mask_params (list of str): Params for mask function.
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1009,12 +1064,13 @@ class Equalize(ImageOnlyTransform):
         mask_params=(),
         always_apply=False,
         p=0.5,
+        rs=None
     ):
         modes = ["cv", "pil"]
         if mode not in modes:
             raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
 
-        super(Equalize, self).__init__(always_apply, p)
+        super(Equalize, self).__init__(always_apply, p, rs)
         self.mode = mode
         self.by_channels = by_channels
         self.mask = mask
@@ -1047,7 +1103,9 @@ class RGBShift(ImageOnlyTransform):
             single int, the range  will be (-g_shift_limit, g_shift_limit). Default: (-20, 20).
         b_shift_limit ((int, int) or int): range for changing values for the blue channel. If b_shift_limit is a single
             int, the range will be (-b_shift_limit, b_shift_limit). Default: (-20, 20).
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1063,8 +1121,9 @@ class RGBShift(ImageOnlyTransform):
         b_shift_limit=20,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RGBShift, self).__init__(always_apply, p)
+        super(RGBShift, self).__init__(always_apply, p, rs)
         self.r_shift_limit = to_tuple(r_shift_limit)
         self.g_shift_limit = to_tuple(g_shift_limit)
         self.b_shift_limit = to_tuple(b_shift_limit)
@@ -1076,9 +1135,9 @@ class RGBShift(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "r_shift": random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-            "g_shift": random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-            "b_shift": random.uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
+            "r_shift": self.random().uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
+            "g_shift": self.random().uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
+            "b_shift": self.random().uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
         }
 
     def get_transform_init_args_names(self):
@@ -1095,7 +1154,9 @@ class RandomBrightnessContrast(ImageOnlyTransform):
             If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
         brightness_by_max (Boolean): If True adjust contrast by image dtype maximum,
             else adjust contrast by image mean.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1111,8 +1172,9 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         brightness_by_max=True,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RandomBrightnessContrast, self).__init__(always_apply, p)
+        super(RandomBrightnessContrast, self).__init__(always_apply, p, rs)
         self.brightness_limit = to_tuple(brightness_limit)
         self.contrast_limit = to_tuple(contrast_limit)
         self.brightness_by_max = brightness_by_max
@@ -1122,8 +1184,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "alpha": 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
-            "beta": 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1]),
+            "alpha": 1.0 + self.random().uniform(self.contrast_limit[0], self.contrast_limit[1]),
+            "beta": 0.0 + self.random().uniform(self.brightness_limit[0], self.brightness_limit[1]),
         }
 
     def get_transform_init_args_names(self):
@@ -1136,7 +1198,9 @@ class RandomBrightness(RandomBrightnessContrast):
     Args:
         limit ((float, float) or float): factor range for changing brightness.
             If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1145,8 +1209,8 @@ class RandomBrightness(RandomBrightnessContrast):
         uint8, float32
     """
 
-    def __init__(self, limit=0.2, always_apply=False, p=0.5):
-        super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0, always_apply=always_apply, p=p)
+    def __init__(self, limit=0.2, always_apply=False, p=0.5, rs=None):
+        super(RandomBrightness, self).__init__(brightness_limit=limit, contrast_limit=0, always_apply=always_apply, p=p, rs=rs)
         warnings.warn(
             "This class has been deprecated. Please use RandomBrightnessContrast",
             FutureWarning,
@@ -1162,7 +1226,9 @@ class RandomContrast(RandomBrightnessContrast):
     Args:
         limit ((float, float) or float): factor range for changing contrast.
             If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1171,8 +1237,8 @@ class RandomContrast(RandomBrightnessContrast):
         uint8, float32
     """
 
-    def __init__(self, limit=0.2, always_apply=False, p=0.5):
-        super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
+    def __init__(self, limit=0.2, always_apply=False, p=0.5, rs=None):
+        super(RandomContrast, self).__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p, rs=rs)
         warnings.warn(
             f"{self.__class__.__name__} has been deprecated. Please use RandomBrightnessContrast",
             FutureWarning,
@@ -1191,7 +1257,9 @@ class GaussNoise(ImageOnlyTransform):
         mean (float): mean of the noise. Default: 0
         per_channel (bool): if set to True, noise will be sampled for each channel independently.
             Otherwise, the noise will be sampled once for all channels. Default: True
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1200,8 +1268,8 @@ class GaussNoise(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, var_limit=(10.0, 50.0), mean=0, per_channel=True, always_apply=False, p=0.5):
-        super(GaussNoise, self).__init__(always_apply, p)
+    def __init__(self, var_limit=(10.0, 50.0), mean=0, per_channel=True, always_apply=False, p=0.5, rs=None):
+        super(GaussNoise, self).__init__(always_apply, p, rs)
         if isinstance(var_limit, (tuple, list)):
             if var_limit[0] < 0:
                 raise ValueError("Lower var_limit should be non negative.")
@@ -1226,13 +1294,13 @@ class GaussNoise(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params):
         image = params["image"]
-        var = random.uniform(self.var_limit[0], self.var_limit[1])
+        var = self.random().uniform(self.var_limit[0], self.var_limit[1])
         sigma = var**0.5
 
         if self.per_channel:
-            gauss = random_utils.normal(self.mean, sigma, image.shape)
+            gauss = random_utils.normal(self.mean, sigma, image.shape, random_state=self.random())
         else:
-            gauss = random_utils.normal(self.mean, sigma, image.shape[:2])
+            gauss = random_utils.normal(self.mean, sigma, image.shape[:2], random_state=self.random())
             if len(image.shape) == 3:
                 gauss = np.expand_dims(gauss, -1)
 
@@ -1255,7 +1323,9 @@ class ISONoise(ImageOnlyTransform):
             Measured as a fraction of 360 degree Hue angle in HLS colorspace.
         intensity ((float, float): Multiplicative factor that control strength
             of color and luminace noise.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1264,19 +1334,23 @@ class ISONoise(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, color_shift=(0.01, 0.05), intensity=(0.1, 0.5), always_apply=False, p=0.5):
-        super(ISONoise, self).__init__(always_apply, p)
+    def __init__(self, color_shift=(0.01, 0.05), intensity=(0.1, 0.5), always_apply=False, p=0.5, rs=None):
+        super(ISONoise, self).__init__(always_apply, p, rs)
         self.intensity = intensity
         self.color_shift = color_shift
 
     def apply(self, img, color_shift=0.05, intensity=1.0, random_state=None, **params):
-        return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_state))
+        if random_state is None: # to keep compatibility with the use of random_state arg
+            random_state = self.random()
+        else:
+            random_state = np.random.RandomState(random_state)
+        return F.iso_noise(img, color_shift, intensity, random_state)
 
     def get_params(self):
         return {
-            "color_shift": random.uniform(self.color_shift[0], self.color_shift[1]),
-            "intensity": random.uniform(self.intensity[0], self.intensity[1]),
-            "random_state": random.randint(0, 65536),
+            "color_shift": self.random().uniform(self.color_shift[0], self.color_shift[1]),
+            "intensity": self.random().uniform(self.intensity[0], self.intensity[1]),
+            "random_state": self.py_randint(0, 65536),
         }
 
     def get_transform_init_args_names(self):
@@ -1291,6 +1365,9 @@ class CLAHE(ImageOnlyTransform):
             If clip_limit is a single float value, the range will be (1, clip_limit). Default: (1, 4).
         tile_grid_size ((int, int)): size of grid for histogram equalization. Default: (8, 8).
         p (float): probability of applying the transform. Default: 0.5.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1299,8 +1376,8 @@ class CLAHE(ImageOnlyTransform):
         uint8
     """
 
-    def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), always_apply=False, p=0.5):
-        super(CLAHE, self).__init__(always_apply, p)
+    def __init__(self, clip_limit=4.0, tile_grid_size=(8, 8), always_apply=False, p=0.5, rs=None):
+        super(CLAHE, self).__init__(always_apply, p, rs)
         self.clip_limit = to_tuple(clip_limit, 1)
         self.tile_grid_size = tuple(tile_grid_size)
 
@@ -1311,7 +1388,7 @@ class CLAHE(ImageOnlyTransform):
         return F.clahe(img, clip_limit, self.tile_grid_size)
 
     def get_params(self):
-        return {"clip_limit": random.uniform(self.clip_limit[0], self.clip_limit[1])}
+        return {"clip_limit": self.random().uniform(self.clip_limit[0], self.clip_limit[1])}
 
     def get_transform_init_args_names(self):
         return ("clip_limit", "tile_grid_size")
@@ -1321,7 +1398,9 @@ class ChannelShuffle(ImageOnlyTransform):
     """Randomly rearrange channels of the input RGB image.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1340,7 +1419,7 @@ class ChannelShuffle(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
         ch_arr = list(range(img.shape[2]))
-        random.shuffle(ch_arr)
+        self.random().shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
     def get_transform_init_args_names(self):
@@ -1351,7 +1430,9 @@ class InvertImg(ImageOnlyTransform):
     """Invert the input image by subtracting pixel values from 255.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1373,6 +1454,9 @@ class RandomGamma(ImageOnlyTransform):
         gamma_limit (float or (float, float)): If gamma_limit is a single float value,
             the range will be (-gamma_limit, gamma_limit). Default: (80, 120).
         eps: Deprecated.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1381,8 +1465,8 @@ class RandomGamma(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, gamma_limit=(80, 120), eps=None, always_apply=False, p=0.5):
-        super(RandomGamma, self).__init__(always_apply, p)
+    def __init__(self, gamma_limit=(80, 120), eps=None, always_apply=False, p=0.5, rs=None):
+        super(RandomGamma, self).__init__(always_apply, p, rs)
         self.gamma_limit = to_tuple(gamma_limit)
         self.eps = eps
 
@@ -1390,7 +1474,7 @@ class RandomGamma(ImageOnlyTransform):
         return F.gamma_transform(img, gamma=gamma)
 
     def get_params(self):
-        return {"gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
+        return {"gamma": self.random().uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
 
     def get_transform_init_args_names(self):
         return ("gamma_limit", "eps")
@@ -1401,7 +1485,9 @@ class ToGray(ImageOnlyTransform):
     than 127, invert the resulting grayscale image.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1427,7 +1513,9 @@ class ToRGB(ImageOnlyTransform):
     """Convert the input grayscale image to RGB.
 
     Args:
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1436,8 +1524,8 @@ class ToRGB(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, always_apply=True, p=1.0):
-        super(ToRGB, self).__init__(always_apply=always_apply, p=p)
+    def __init__(self, always_apply=True, p=1.0, rs=None):
+        super(ToRGB, self).__init__(always_apply=always_apply, p=p, rs=None)
 
     def apply(self, img, **params):
         if is_rgb_image(img):
@@ -1456,7 +1544,9 @@ class ToSepia(ImageOnlyTransform):
     """Applies sepia filter to the input RGB image
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1465,8 +1555,8 @@ class ToSepia(ImageOnlyTransform):
         uint8, float32
     """
 
-    def __init__(self, always_apply=False, p=0.5):
-        super(ToSepia, self).__init__(always_apply, p)
+    def __init__(self, always_apply=False, p=0.5, rs=None):
+        super(ToSepia, self).__init__(always_apply, p, rs)
         self.sepia_transformation_matrix = np.matrix(
             [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
         )
@@ -1490,7 +1580,9 @@ class ToFloat(ImageOnlyTransform):
 
     Args:
         max_value (float): maximum possible input value. Default: None.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1500,8 +1592,8 @@ class ToFloat(ImageOnlyTransform):
 
     """
 
-    def __init__(self, max_value=None, always_apply=False, p=1.0):
-        super(ToFloat, self).__init__(always_apply, p)
+    def __init__(self, max_value=None, always_apply=False, p=1.0, rs=None):
+        super(ToFloat, self).__init__(always_apply, p, rs)
         self.max_value = max_value
 
     def apply(self, img, **params):
@@ -1522,7 +1614,9 @@ class FromFloat(ImageOnlyTransform):
         max_value (float): maximum possible input value. Default: None.
         dtype (string or numpy data type): data type of the output. See the `'Data types' page from the NumPy docs`_.
             Default: 'uint16'.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1534,8 +1628,8 @@ class FromFloat(ImageOnlyTransform):
        https://docs.scipy.org/doc/numpy/user/basics.types.html
     """
 
-    def __init__(self, dtype="uint16", max_value=None, always_apply=False, p=1.0):
-        super(FromFloat, self).__init__(always_apply, p)
+    def __init__(self, dtype="uint16", max_value=None, always_apply=False, p=1.0, rs=None):
+        super(FromFloat, self).__init__(always_apply, p, rs)
         self.dtype = np.dtype(dtype)
         self.max_value = max_value
 
@@ -1557,6 +1651,9 @@ class Downscale(ImageOnlyTransform):
             - dict(downscale=flag, upscale=flag)
             - Downscale.Interpolation(downscale=flag, upscale=flag) -
             Default: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1577,8 +1674,9 @@ class Downscale(ImageOnlyTransform):
         interpolation: Optional[Union[int, Interpolation, Dict[str, int]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(Downscale, self).__init__(always_apply, p)
+        super(Downscale, self).__init__(always_apply, p, rs)
         if interpolation is None:
             self.interpolation = self.Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
             warnings.warn(
@@ -1614,7 +1712,7 @@ class Downscale(ImageOnlyTransform):
         )
 
     def get_params(self) -> Dict[str, Any]:
-        return {"scale": random.uniform(self.scale_min, self.scale_max)}
+        return {"scale": self.random().uniform(self.scale_min, self.scale_max)}
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
         return "scale_min", "scale_max"
@@ -1636,7 +1734,7 @@ class Lambda(NoOp):
         bbox (callable): BBox transformation function.
         always_apply (bool): Indicates whether this transformation should be always applied.
         p (float): probability of applying the transform. Default: 1.0.
-
+        rs (np.random.RandomState)
     Targets:
         image, mask, bboxes, keypoints
 
@@ -1653,8 +1751,9 @@ class Lambda(NoOp):
         name=None,
         always_apply=False,
         p=1.0,
+        rs=None
     ):
-        super(Lambda, self).__init__(always_apply, p)
+        super(Lambda, self).__init__(always_apply, p, rs)
 
         self.name = name
         self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
@@ -1718,6 +1817,9 @@ class MultiplicativeNoise(ImageOnlyTransform):
             If `True` use sample values for each channels. Default False.
         elementwise (bool): If `False` multiply multiply all pixels in an image with a random value sampled once.
             If `True` Multiply image pixels with values that are pixelwise randomly sampled. Defaule: False.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1733,8 +1835,9 @@ class MultiplicativeNoise(ImageOnlyTransform):
         elementwise=False,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(MultiplicativeNoise, self).__init__(always_apply, p)
+        super(MultiplicativeNoise, self).__init__(always_apply, p, rs)
         self.multiplier = to_tuple(multiplier, multiplier)
         self.per_channel = per_channel
         self.elementwise = elementwise
@@ -1760,7 +1863,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         else:
             shape = [c]
 
-        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape)
+        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape, random_state=self.random())
         if is_grayscale_image(img) and img.ndim == 2:
             multiplier = np.squeeze(multiplier)
 
@@ -1781,6 +1884,9 @@ class FancyPCA(ImageOnlyTransform):
     Args:
         alpha (float):  how much to perturb/scale the eigen vecs and vals.
             scale is samples from gaussian distribution (mu=0, sigma=alpha)
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -1794,8 +1900,8 @@ class FancyPCA(ImageOnlyTransform):
         https://pixelatedbrian.github.io/2018-04-29-fancy_pca/
     """
 
-    def __init__(self, alpha=0.1, always_apply=False, p=0.5):
-        super(FancyPCA, self).__init__(always_apply=always_apply, p=p)
+    def __init__(self, alpha=0.1, always_apply=False, p=0.5, rs=None):
+        super(FancyPCA, self).__init__(always_apply=always_apply, p=p, rs=rs)
         self.alpha = alpha
 
     def apply(self, img, alpha=0.1, **params):
@@ -1803,7 +1909,7 @@ class FancyPCA(ImageOnlyTransform):
         return img
 
     def get_params(self):
-        return {"alpha": random.gauss(0, self.alpha)}
+        return {"alpha": self.random().normal(0, self.alpha)}
 
     def get_transform_init_args_names(self):
         return ("alpha",)
@@ -1828,6 +1934,9 @@ class ColorJitter(ImageOnlyTransform):
         hue (float or tuple of float (min, max)): How much to jitter hue.
             hue_factor is chosen uniformly from [-hue, hue] or the given [min, max].
             Should have 0 <= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
     """
 
     def __init__(
@@ -1838,8 +1947,9 @@ class ColorJitter(ImageOnlyTransform):
         hue=0.2,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(ColorJitter, self).__init__(always_apply=always_apply, p=p)
+        super(ColorJitter, self).__init__(always_apply=always_apply, p=p, rs=rs)
 
         self.brightness = self.__check_values(brightness, "brightness")
         self.contrast = self.__check_values(contrast, "contrast")
@@ -1870,13 +1980,13 @@ class ColorJitter(ImageOnlyTransform):
         return value
 
     def get_params(self):
-        brightness = random.uniform(self.brightness[0], self.brightness[1])
-        contrast = random.uniform(self.contrast[0], self.contrast[1])
-        saturation = random.uniform(self.saturation[0], self.saturation[1])
-        hue = random.uniform(self.hue[0], self.hue[1])
+        brightness = self.random().uniform(self.brightness[0], self.brightness[1])
+        contrast = self.random().uniform(self.contrast[0], self.contrast[1])
+        saturation = self.random().uniform(self.saturation[0], self.saturation[1])
+        hue = self.random().uniform(self.hue[0], self.hue[1])
 
         order = [0, 1, 2, 3]
-        random.shuffle(order)
+        self.random().shuffle(order)
 
         return {
             "brightness": brightness,
@@ -1905,14 +2015,15 @@ class Sharpen(ImageOnlyTransform):
         alpha ((float, float)): range to choose the visibility of the sharpened image. At 0, only the original image is
             visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
         lightness ((float, float)): range to choose the lightness of the sharpened image. Default: (0.5, 1.0).
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
-
+        rs (np.random.RandomState)
     Targets:
         image
     """
 
-    def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5):
-        super(Sharpen, self).__init__(always_apply, p)
+    def __init__(self, alpha=(0.2, 0.5), lightness=(0.5, 1.0), always_apply=False, p=0.5, rs=None):
+        super(Sharpen, self).__init__(always_apply, p, rs)
         self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
         self.lightness = self.__check_values(to_tuple(lightness, 0.0), name="lightness")
 
@@ -1934,8 +2045,8 @@ class Sharpen(ImageOnlyTransform):
         return matrix
 
     def get_params(self):
-        alpha = random.uniform(*self.alpha)
-        lightness = random.uniform(*self.lightness)
+        alpha = self.random().uniform(*self.alpha)
+        lightness = self.random().uniform(*self.lightness)
         sharpening_matrix = self.__generate_sharpening_matrix(alpha_sample=alpha, lightness_sample=lightness)
         return {"sharpening_matrix": sharpening_matrix}
 
@@ -1953,14 +2064,16 @@ class Emboss(ImageOnlyTransform):
         alpha ((float, float)): range to choose the visibility of the embossed image. At 0, only the original image is
             visible,at 1.0 only its embossed version is visible. Default: (0.2, 0.5).
         strength ((float, float)): strength range of the embossing. Default: (0.2, 0.7).
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
     """
 
-    def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5):
-        super(Emboss, self).__init__(always_apply, p)
+    def __init__(self, alpha=(0.2, 0.5), strength=(0.2, 0.7), always_apply=False, p=0.5, rs=None):
+        super(Emboss, self).__init__(always_apply, p, rs)
         self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
         self.strength = self.__check_values(to_tuple(strength, 0.0), name="strength")
 
@@ -1985,8 +2098,8 @@ class Emboss(ImageOnlyTransform):
         return matrix
 
     def get_params(self):
-        alpha = random.uniform(*self.alpha)
-        strength = random.uniform(*self.strength)
+        alpha = self.random().uniform(*self.alpha)
+        strength = self.random().uniform(*self.strength)
         emboss_matrix = self.__generate_emboss_matrix(alpha_sample=alpha, strength_sample=strength)
         return {"emboss_matrix": emboss_matrix}
 
@@ -2034,7 +2147,9 @@ class Superpixels(ImageOnlyTransform):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -2048,8 +2163,9 @@ class Superpixels(ImageOnlyTransform):
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p, rs=rs)
         self.p_replace = to_tuple(p_replace, p_replace)
         self.n_segments = to_tuple(n_segments, n_segments)
         self.max_size = max_size
@@ -2062,9 +2178,9 @@ class Superpixels(ImageOnlyTransform):
         return ("p_replace", "n_segments", "max_size", "interpolation")
 
     def get_params(self) -> dict:
-        n_segments = random.randint(*self.n_segments)
-        p = random.uniform(*self.p_replace)
-        return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
+        n_segments = self.py_randint(*self.n_segments)
+        p = self.random().uniform(*self.p_replace)
+        return {"replace_samples": random_utils.random(n_segments, random_state=self.random()) < p, "n_segments": n_segments}
 
     def apply(self, img: np.ndarray, replace_samples: Sequence[bool] = (False,), n_segments: int = 1, **kwargs):
         return F.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)
@@ -2083,7 +2199,9 @@ class TemplateTransform(ImageOnlyTransform):
         template_transform: transformation object which could be applied to template,
             must produce template the same size as input image.
         name (string): (Optional) Name of transform, used only for deserialization.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
     Targets:
         image
     Image types:
@@ -2099,8 +2217,9 @@ class TemplateTransform(ImageOnlyTransform):
         name=None,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super().__init__(always_apply, p)
+        super().__init__(always_apply, p, rs)
 
         self.templates = templates if isinstance(templates, (list, tuple)) else [templates]
         self.img_weight = to_tuple(img_weight, img_weight)
@@ -2113,13 +2232,13 @@ class TemplateTransform(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "img_weight": random.uniform(self.img_weight[0], self.img_weight[1]),
-            "template_weight": random.uniform(self.template_weight[0], self.template_weight[1]),
+            "img_weight": self.random().uniform(self.img_weight[0], self.img_weight[1]),
+            "template_weight": self.random().uniform(self.template_weight[0], self.template_weight[1]),
         }
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
-        template = random.choice(self.templates)
+        template = self.templates[self.random().choice(range(len(self.templates)))]
 
         if self.template_transform is not None:
             template = self.template_transform(image=template)["image"]
@@ -2174,7 +2293,9 @@ class RingingOvershoot(ImageOnlyTransform):
         cutoff (float, (float, float)): range to choose the cutoff frequency in radians.
             Should be in range (0, np.pi)
             Default: (np.pi / 4, np.pi / 2).
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Reference:
         dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
@@ -2190,8 +2311,9 @@ class RingingOvershoot(ImageOnlyTransform):
         cutoff: Union[float, Sequence[float]] = (np.pi / 4, np.pi / 2),
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(RingingOvershoot, self).__init__(always_apply, p)
+        super(RingingOvershoot, self).__init__(always_apply, p, rs)
         self.blur_limit = to_tuple(blur_limit, 3)
         self.cutoff = self.__check_values(to_tuple(cutoff, np.pi / 2), name="cutoff", bounds=(0, np.pi))
 
@@ -2202,11 +2324,12 @@ class RingingOvershoot(ImageOnlyTransform):
         return value
 
     def get_params(self):
-        ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
+        # np.random doesn't have a direct equivalent to random.randrange
+        ksize = self.random().choice(range(self.blur_limit[0], self.blur_limit[1] + 1, 2))
         if ksize % 2 == 0:
             raise ValueError(f"Kernel size must be odd. Got: {ksize}")
 
-        cutoff = random.uniform(*self.cutoff)
+        cutoff = self.random().uniform(*self.cutoff)
 
         # From dsp.stackexchange.com/questions/58301/2-d-circularly-symmetric-low-pass-filter
         with np.errstate(divide="ignore", invalid="ignore"):
@@ -2249,7 +2372,9 @@ class UnsharpMask(ImageOnlyTransform):
         threshold (int): Value to limit sharpening only for areas with high pixel difference between original image
             and it's smoothed version. Higher threshold means less sharpening on flat areas.
             Must be in range [0, 255]. Default: 10.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Reference:
         arxiv.org/pdf/2107.10833.pdf
@@ -2266,8 +2391,9 @@ class UnsharpMask(ImageOnlyTransform):
         threshold: int = 10,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(UnsharpMask, self).__init__(always_apply, p)
+        super(UnsharpMask, self).__init__(always_apply, p, rs)
         self.blur_limit = to_tuple(blur_limit, 3)
         self.sigma_limit = self.__check_values(to_tuple(sigma_limit, 0.0), name="sigma_limit")
         self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
@@ -2290,9 +2416,10 @@ class UnsharpMask(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "ksize": random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2),
-            "sigma": random.uniform(*self.sigma_limit),
-            "alpha": random.uniform(*self.alpha),
+            # np.random doesn't have a direct equivalent to random.randrange
+            "ksize": self.random().choice(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)),
+            "sigma": self.random().uniform(*self.sigma_limit),
+            "alpha": self.random().uniform(*self.alpha),
         }
 
     def apply(self, img, ksize=3, sigma=0, alpha=0.2, **params):
@@ -2318,7 +2445,9 @@ class PixelDropout(DualTransform):
             Default: 0
         mask_drop_value (number or sequence of numbers or None): Value that will be set in dropped place in masks.
             If set to None masks will be unchanged. Default: 0
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask
@@ -2334,8 +2463,9 @@ class PixelDropout(DualTransform):
         mask_drop_value: Optional[Union[float, Sequence[float]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super().__init__(always_apply, p)
+        super().__init__(always_apply, p, rs)
         self.dropout_prob = dropout_prob
         self.per_channel = per_channel
         self.drop_value = drop_value
@@ -2369,9 +2499,8 @@ class PixelDropout(DualTransform):
         img = params["image"]
         shape = img.shape if self.per_channel else img.shape[:2]
 
-        rnd = np.random.RandomState(random.randint(0, 1 << 31))
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
-        drop_mask = rnd.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
+        drop_mask = self.random().choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
         drop_value: Union[float, Sequence[float], np.ndarray]
         if drop_mask.ndim != img.ndim:
@@ -2380,9 +2509,9 @@ class PixelDropout(DualTransform):
             drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
 
             if img.dtype in (np.uint8, np.uint16, np.uint32):
-                drop_value = rnd.randint(0, int(F.MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
+                drop_value = self.random().randint(0, int(F.MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
             elif img.dtype in [np.float32, np.double]:
-                drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
+                drop_value = self.random().uniform(0, 1, drop_shape).astype(img.dtpye)
             else:
                 raise ValueError(f"Unsupported dtype: {img.dtype}")
         else:
@@ -2425,7 +2554,9 @@ class Spatter(ImageOnlyTransform):
             If list uses provided list as color for specified mode.
             If dict uses provided color for specified mode. Color for each specified mode should be provided in dict.
             If None uses default colors (rain: (238, 238, 175), mud: (20, 42, 63)).
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -2449,8 +2580,9 @@ class Spatter(ImageOnlyTransform):
         color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p, rs=rs)
 
         self.mean = to_tuple(mean, mean)
         self.std = to_tuple(std, std)
@@ -2504,15 +2636,15 @@ class Spatter(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         h, w = params["image"].shape[:2]
 
-        mean = random.uniform(self.mean[0], self.mean[1])
-        std = random.uniform(self.std[0], self.std[1])
-        cutout_threshold = random.uniform(self.cutout_threshold[0], self.cutout_threshold[1])
-        sigma = random.uniform(self.gauss_sigma[0], self.gauss_sigma[1])
-        mode = random.choice(self.mode)
-        intensity = random.uniform(self.intensity[0], self.intensity[1])
+        mean = self.random().uniform(self.mean[0], self.mean[1])
+        std = self.random().uniform(self.std[0], self.std[1])
+        cutout_threshold = self.random().uniform(self.cutout_threshold[0], self.cutout_threshold[1])
+        sigma = self.random().uniform(self.gauss_sigma[0], self.gauss_sigma[1])
+        mode = self.mode[self.random().choice(range(len(self.mode)))]
+        intensity = self.random().uniform(self.intensity[0], self.intensity[1])
         color = np.array(self.color[mode]) / 255.0
 
-        liquid_layer = random_utils.normal(size=(h, w), loc=mean, scale=std)
+        liquid_layer = random_utils.normal(size=(h, w), loc=mean, scale=std, random_state=self.random())
         liquid_layer = gaussian_filter(liquid_layer, sigma=sigma, mode="nearest")
         liquid_layer[liquid_layer < cutout_threshold] = 0
 

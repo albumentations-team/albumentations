@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
-import random
+import pickle
+
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
@@ -77,7 +78,7 @@ class BasicTransform(Serializable):
     fill_value: Any
     mask_fill_value: Any
 
-    def __init__(self, always_apply: bool = False, p: float = 0.5):
+    def __init__(self, always_apply: bool = False, p: float = 0.5, rs: Optional[np.random.RandomState] = None):
         self.p = p
         self.always_apply = always_apply
         self._additional_targets: Dict[str, str] = {}
@@ -89,6 +90,8 @@ class BasicTransform(Serializable):
         self.replay_mode = False
         self.applied_in_replay = False
 
+        self.rs = rs
+
     def __call__(self, *args, force_apply: bool = False, **kwargs) -> Dict[str, Any]:
         if args:
             raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
@@ -98,7 +101,7 @@ class BasicTransform(Serializable):
 
             return kwargs
 
-        if (random.random() < self.p) or self.always_apply or force_apply:
+        if (self.random().random() < self.p) or self.always_apply or force_apply:
             params = self.get_params()
 
             if self.targets_as_params:
@@ -230,7 +233,16 @@ class BasicTransform(Serializable):
         d["id"] = id(self)
         return d
 
+    def random(self):
+        if self.rs is not None:
+            return self.rs
+        else:
+            return np.random
 
+    # random.randint is [low,high] while numpy.random.randint is [low,high)
+    def py_randint(self, low, high):
+        return self.random().randint(low,high+1)
+        
 class DualTransform(BasicTransform):
     """Transform for segmentation task."""
 

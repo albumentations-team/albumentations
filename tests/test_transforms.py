@@ -738,12 +738,12 @@ def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
     x_float32 = np.zeros((5, 5)).astype(np.float32)
     x_float32[2, 2] = val_uint8 / 255.0
 
-    unsharpmask = A.UnsharpMask(blur_limit=3, always_apply=True, p=1)
-
-    random.seed(0)
+    rs = np.random.RandomState(42)
+    unsharpmask = A.UnsharpMask(blur_limit=3, always_apply=True, p=1, rs=rs)
     usm_uint8 = unsharpmask(image=x_uint8)["image"]
 
-    random.seed(0)
+    rs = np.random.RandomState(42)
+    unsharpmask = A.UnsharpMask(blur_limit=3, always_apply=True, p=1, rs=rs)
     usm_float32 = unsharpmask(image=x_float32)["image"]
 
     # Before comparison, rescale the usm_float32 to [0, 255]
@@ -864,12 +864,12 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
     x_float32 = np.zeros((5, 5)).astype(np.float32)
     x_float32[2, 2] = val_uint8 / 255.0
 
-    glassblur = A.GlassBlur(always_apply=True, max_delta=1)
-
-    random.seed(0)
+    rs = np.random.RandomState(42)
+    glassblur = A.GlassBlur(always_apply=True, max_delta=1, rs=rs)
     blur_uint8 = glassblur(image=x_uint8)["image"]
-
-    random.seed(0)
+    
+    rs = np.random.RandomState(42)
+    glassblur = A.GlassBlur(always_apply=True, max_delta=1, rs=rs)
     blur_float32 = glassblur(image=x_float32)["image"]
 
     # Before comparison, rescale the blur_float32 to [0, 255]
@@ -892,20 +892,24 @@ def test_perspective_keep_size():
         bboxes.append([x1, y1, x2, y2])
     keypoints = [(np.random.randint(0, w), np.random.randint(0, h), np.random.random()) for _ in range(10)]
 
+    rs = np.random.RandomState(42)
     transform_1 = A.Compose(
-        [A.Perspective(keep_size=True, p=1)],
+        [A.Perspective(keep_size=True, p=1, rs=rs)],
         keypoint_params=A.KeypointParams("xys"),
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
-    )
-    transform_2 = A.Compose(
-        [A.Perspective(keep_size=False, p=1), A.Resize(h, w)],
-        keypoint_params=A.KeypointParams("xys"),
-        bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
+        rs=rs
     )
 
-    set_seed()
+    rs = np.random.RandomState(42)
+    transform_2 = A.Compose(
+        [A.Perspective(keep_size=False, p=1, rs=rs), A.Resize(h, w, p=1)],
+        keypoint_params=A.KeypointParams("xys"),
+        bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
+        rs=rs
+    )
+
     res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
-    set_seed()
+
     res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
 
     assert np.allclose(res_1["bboxes"], res_2["bboxes"])
@@ -1001,12 +1005,12 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
     x_float32 = np.zeros((5, 5)).astype(np.float32)
     x_float32[2, 2] = val_uint8 / 255.0
 
-    adv_blur = A.AdvancedBlur(blur_limit=(3, 5), always_apply=True)
-
-    set_seed(0)
+    rs = np.random.RandomState(42)
+    adv_blur = A.AdvancedBlur(blur_limit=(3, 5), always_apply=True, rs=rs)
     adv_blur_uint8 = adv_blur(image=x_uint8)["image"]
 
-    set_seed(0)
+    rs = np.random.RandomState(42)
+    adv_blur = A.AdvancedBlur(blur_limit=(3, 5), always_apply=True, rs=rs)
     adv_blur_float32 = adv_blur(image=x_float32)["image"]
 
     # Before comparison, rescale the adv_blur_float32 to [0, 255]
@@ -1040,7 +1044,6 @@ def test_advanced_blur_raises_on_incorrect_params(params):
     ],
 )
 def test_affine_scale_ratio(params):
-    set_seed(0)
     aug = A.Affine(**params, p=1.0)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     target = {"image": image}

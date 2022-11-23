@@ -1,6 +1,5 @@
-import random
 import warnings
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Tuple, Union, Optional
 
 import numpy as np
 
@@ -19,6 +18,9 @@ class Cutout(ImageOnlyTransform):
         max_h_size (int): maximum height of the hole
         max_w_size (int): maximum width of the hole
         fill_value (int, float, list of int, list of float): value for dropped pixels.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -40,8 +42,9 @@ class Cutout(ImageOnlyTransform):
         fill_value: Union[int, float] = 0,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(Cutout, self).__init__(always_apply, p)
+        super(Cutout, self).__init__(always_apply, p, rs)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
@@ -60,8 +63,8 @@ class Cutout(ImageOnlyTransform):
 
         holes = []
         for _n in range(self.num_holes):
-            y = random.randint(0, height)
-            x = random.randint(0, width)
+            y = self.py_randint(0, height)
+            x = self.py_randint(0, width)
 
             y1 = np.clip(y - self.max_h_size // 2, 0, height)
             y2 = np.clip(y1 + self.max_h_size, 0, height)

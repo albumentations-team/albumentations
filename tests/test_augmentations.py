@@ -373,8 +373,9 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
-    random.seed(42)
-    aug = augmentation_cls(p=1, **params)
+    #random.seed(42)
+    rs = np.random.RandomState(42)
+    aug = augmentation_cls(p=1, rs=rs, **params)
     input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
     output = aug(**input)
     assert (output["image"] == 100).all()
@@ -687,10 +688,11 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, imag
     ],
 )
 def test_pad_if_needed_position(params, image_shape):
-    random.seed(42)
+    #random.seed(42)
+    rs = np.random.RandomState(42)
 
     image = np.zeros(image_shape)
-    pad = A.PadIfNeeded(**params)
+    pad = A.PadIfNeeded(rs=rs,**params)
     image_padded = pad(image=image)["image"]
 
     true_result = np.ones((max(image_shape[0], params["min_height"]), max(image_shape[1], params["min_width"])))
@@ -718,7 +720,7 @@ def test_pad_if_needed_position(params, image_shape):
         assert (image_padded == true_result).all()
 
     elif params["position"] == "random":
-        true_result[0:5, -7:-1] = 0
+        true_result[4:9, 6:] = 0
         assert (image_padded == true_result).all()
 
 

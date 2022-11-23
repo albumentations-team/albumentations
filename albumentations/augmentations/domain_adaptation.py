@@ -1,5 +1,4 @@
-import random
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Tuple, Union, Optional
 
 import cv2
 import numpy as np
@@ -140,7 +139,9 @@ class HistogramMatching(ImageOnlyTransform):
             with random blend factor for increased diversity of generated images.
         read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
             array of image pixels.
-        p (float): probability of applying the transform. Default: 1.0.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -156,8 +157,9 @@ class HistogramMatching(ImageOnlyTransform):
         read_fn=read_rgb_image,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p, rs=rs)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -167,8 +169,8 @@ class HistogramMatching(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "reference_image": self.read_fn(random.choice(self.reference_images)),
-            "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
+            "reference_image": self.read_fn(self.reference_images[self.random().choice(range(len(self.reference_images)))]),
+            "blend_ratio": self.random().uniform(self.blend_ratio[0], self.blend_ratio[1]),
         }
 
     def get_transform_init_args_names(self):
@@ -189,6 +191,9 @@ class FDA(ImageOnlyTransform):
         beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
         read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
             array of image pixels.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -217,8 +222,9 @@ class FDA(ImageOnlyTransform):
         read_fn=read_rgb_image,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(FDA, self).__init__(always_apply=always_apply, p=p)
+        super(FDA, self).__init__(always_apply=always_apply, p=p, rs=rs)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.beta_limit = to_tuple(beta_limit, low=0)
@@ -228,13 +234,13 @@ class FDA(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
-        target_img = self.read_fn(random.choice(self.reference_images))
+        target_img = self.read_fn(self.reference_images[self.random().choice(range(len(self.reference_images)))])
         target_img = cv2.resize(target_img, dsize=(img.shape[1], img.shape[0]))
 
         return {"target_image": target_img}
 
     def get_params(self):
-        return {"beta": random.uniform(self.beta_limit[0], self.beta_limit[1])}
+        return {"beta": self.random().uniform(self.beta_limit[0], self.beta_limit[1])}
 
     @property
     def targets_as_params(self):
@@ -262,7 +268,9 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             array of image pixels. Usually it's default `read_rgb_image` when images paths are used as reference,
             otherwise it could be identity function `lambda x: x` if reference images have been read in advance.
         transform_type (str): type of transform; "pca", "standard", "minmax" are allowed.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -281,8 +289,9 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         transform_type: str = "pca",
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p, rs=rs)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -327,8 +336,8 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "reference_image": self.read_fn(random.choice(self.reference_images)),
-            "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
+            "reference_image": self.read_fn(self.reference_images[self.random().choice(range(len(self.reference_images)))]),
+            "blend_ratio": self.random().uniform(self.blend_ratio[0], self.blend_ratio[1]),
         }
 
     def get_transform_init_args_names(self):

@@ -1,5 +1,4 @@
-import random
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Tuple, Union, Optional
 
 import cv2
 import numpy as np
@@ -25,6 +24,9 @@ class MaskDropout(DualTransform):
         image_fill_value: Fill value to use when filling image.
             Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
         mask_fill_value: Fill value to use when filling mask.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask
@@ -40,8 +42,9 @@ class MaskDropout(DualTransform):
         mask_fill_value: Union[int, float] = 0,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(MaskDropout, self).__init__(always_apply, p)
+        super(MaskDropout, self).__init__(always_apply, p, rs)
         self.max_objects = to_tuple(max_objects, 1)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
@@ -58,13 +61,13 @@ class MaskDropout(DualTransform):
         if num_labels == 0:
             dropout_mask = None
         else:
-            objects_to_drop = random.randint(int(self.max_objects[0]), int(self.max_objects[1]))
+            objects_to_drop = self.py_randint(int(self.max_objects[0]), int(self.max_objects[1]))
             objects_to_drop = min(num_labels, objects_to_drop)
 
             if objects_to_drop == num_labels:
                 dropout_mask = mask > 0
             else:
-                labels_index = random.sample(range(1, num_labels + 1), objects_to_drop)
+                labels_index = self.random().choice(range(1, num_labels + 1), objects_to_drop, replace=False).tolist()
                 dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=bool)
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index

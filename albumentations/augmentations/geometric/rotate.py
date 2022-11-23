@@ -1,6 +1,5 @@
 import math
-import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, Optional
 
 import cv2
 import numpy as np
@@ -22,7 +21,10 @@ class RandomRotate90(DualTransform):
     """Randomly rotate the input by 90 degrees zero or more times.
 
     Args:
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
+
 
     Targets:
         image, mask, bboxes, keypoints
@@ -40,7 +42,7 @@ class RandomRotate90(DualTransform):
 
     def get_params(self):
         # Random int in the range [0, 3]
-        return {"factor": random.randint(0, 3)}
+        return {"factor": self.py_randint(0, 3)}
 
     def apply_to_bbox(self, bbox, factor=0, **params):
         return F.bbox_rot90(bbox, factor, **params)
@@ -71,7 +73,10 @@ class Rotate(DualTransform):
         rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
             Default: "largest_box"
         crop_border (bool): If True would make a largest possible crop within rotated image
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
+
 
     Targets:
         image, mask, bboxes, keypoints
@@ -91,8 +96,9 @@ class Rotate(DualTransform):
         crop_border=False,
         always_apply=False,
         p=0.5,
+        rs=None
     ):
-        super(Rotate, self).__init__(always_apply, p)
+        super(Rotate, self).__init__(always_apply, p, rs)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -171,7 +177,7 @@ class Rotate(DualTransform):
         return ["image"]
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        out_params = {"angle": random.uniform(self.limit[0], self.limit[1])}
+        out_params = {"angle": self.random().uniform(self.limit[0], self.limit[1])}
         if self.crop_border:
             h, w = params["image"].shape[:2]
             out_params.update(self._rotated_rect_with_max_area(h, w, out_params["angle"]))
@@ -201,7 +207,9 @@ class SafeRotate(DualTransform):
         mask_value (int, float,
                     list of ints,
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -219,8 +227,9 @@ class SafeRotate(DualTransform):
         mask_value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(SafeRotate, self).__init__(always_apply, p)
+        super(SafeRotate, self).__init__(always_apply, p, rs)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -255,7 +264,7 @@ class SafeRotate(DualTransform):
         return ["image"]
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        angle = random.uniform(self.limit[0], self.limit[1])
+        angle = self.random().uniform(self.limit[0], self.limit[1])
 
         image = params["image"]
         h, w = image.shape[:2]

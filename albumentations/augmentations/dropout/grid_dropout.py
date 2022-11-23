@@ -1,5 +1,4 @@
-import random
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Optional
 
 import numpy as np
 
@@ -32,6 +31,9 @@ class GridDropout(DualTransform):
         fill_value (int): value for the dropped pixels. Default = 0
         mask_fill_value (int): value for the dropped pixels in mask.
             If `None`, transformation is not applied to the mask. Default: `None`.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask
@@ -58,8 +60,9 @@ class GridDropout(DualTransform):
         mask_fill_value: int = None,
         always_apply: bool = False,
         p: float = 0.5,
+        rs: Optional[np.random.RandomState] = None
     ):
-        super(GridDropout, self).__init__(always_apply, p)
+        super(GridDropout, self).__init__(always_apply, p, rs)
         self.ratio = ratio
         self.unit_size_min = unit_size_min
         self.unit_size_max = unit_size_max
@@ -91,7 +94,7 @@ class GridDropout(DualTransform):
                 raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
             if self.unit_size_max > min(height, width):
                 raise ValueError("Grid size limits must be within the shortest image edge.")
-            unit_width = random.randint(self.unit_size_min, self.unit_size_max + 1)
+            unit_width = self.py_randint(self.unit_size_min, self.unit_size_max + 1)
             unit_height = unit_width
         else:
             # set grid using holes numbers
@@ -123,8 +126,8 @@ class GridDropout(DualTransform):
         else:
             shift_y = min(max(0, self.shift_y), unit_height - hole_height)
         if self.random_offset:
-            shift_x = random.randint(0, unit_width - hole_width)
-            shift_y = random.randint(0, unit_height - hole_height)
+            shift_x = self.py_randint(0, unit_width - hole_width)
+            shift_y = self.py_randint(0, unit_height - hole_height)
         holes = []
         for i in range(width // unit_width + 1):
             for j in range(height // unit_height + 1):
