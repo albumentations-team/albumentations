@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 from scipy import special
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
@@ -685,10 +685,13 @@ class RandomSunFlare(ImageOnlyTransform):
         x = []
         y = []
 
-        for rand_x in range(0, width, 10):
-            rand_y = math.tan(angle) * (rand_x - flare_center_x) + flare_center_y
+        def line(t):
+            return (flare_center_x + t * math.cos(angle), flare_center_y + t * math.sin(angle))
+
+        for t_val in range(-flare_center_x, width - flare_center_x, 10):
+            rand_x, rand_y = line(t_val)
             x.append(rand_x)
-            y.append(2 * flare_center_y - rand_y)
+            y.append(rand_y)
 
         for _i in range(num_circles):
             alpha = random.uniform(0.05, 0.2)

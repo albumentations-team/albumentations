@@ -4,7 +4,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 import skimage.transform
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
