@@ -84,7 +84,7 @@ class MotionBlur(Blur):
         return FMain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, Any]:
-        ksize = random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2))
+        ksize = random.choice(np.arange(self.blur_limit[0], self.blur_limit[1] + 1, 2).tolist())
         if ksize <= 2:
             raise ValueError("ksize must be > 2. Got: {}".format(ksize))
         kernel = np.zeros((ksize, ksize), dtype=np.uint8)
