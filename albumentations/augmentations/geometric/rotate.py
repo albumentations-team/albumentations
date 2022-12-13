@@ -110,7 +110,7 @@ class Rotate(DualTransform):
         img_out = F.rotate(img, angle, interpolation, self.border_mode, self.value)
         if self.crop_border:
             img_out = FCrops.crop(img_out, x_min, y_min, x_max, y_max)
-        return img_out
+        return {"image":img_out, "angle":angle}
 
     def apply_to_mask(self, img, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, **params):
         img_out = F.rotate(img, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
