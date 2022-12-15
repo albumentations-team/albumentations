@@ -115,6 +115,13 @@ AUGMENTATION_CLS_PARAMS = [
         },
     ],
     [
+        A.RandomGravel,
+        {
+            "gravel_roi": (0.1, 0.4, 0.9, 0.9),
+            "no_of_patches": 2,
+        }
+    ],
+    [
         A.RandomShadow,
         {
             "shadow_roi": (0.1, 0.4, 0.9, 0.9),

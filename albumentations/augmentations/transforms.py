@@ -378,7 +378,7 @@ class RandomSnow(ImageOnlyTransform):
 
 
 class RandomGravel(ImageOnlyTransform):
-    """Add some gravels.
+    """Add gravels.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
@@ -396,8 +396,8 @@ class RandomGravel(ImageOnlyTransform):
 
     def __init__(
         self,
-        gravel_roi=(0, 0, 1, 1),
-        no_of_patches=8,
+        gravel_roi=(0.1, 0.4, 0.9, 0.9),
+        no_of_patches=2,
         always_apply=False,
         p=0.5,
     ):
