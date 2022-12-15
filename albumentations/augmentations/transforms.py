@@ -52,6 +52,7 @@ __all__ = [
     "FromFloat",
     "RandomBrightnessContrast",
     "RandomSnow",
+    "RandomGravel",
     "RandomRain",
     "RandomFog",
     "RandomSunFlare",
@@ -375,6 +376,57 @@ class RandomSnow(ImageOnlyTransform):
     def get_transform_init_args_names(self):
         return ("snow_point_lower", "snow_point_upper", "brightness_coeff")
 
+
+class RandomGravel(ImageOnlyTransform):
+    """Add some gravels.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        gravel_roi (float, float, float, float): (top-left x, top-left y, 
+            bottom-right x, bottom right y). Should be in [0, 1] range
+        no_of_patches (int): no. of gravel patches required
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(
+        self,
+        gravel_roi=(0, 0, 1, 1),
+        no_of_patches=8,
+        always_apply=False,
+        p=0.5,
+    ):
+        super(RandomGravel, self).__init__(always_apply, p)
+
+        (gravel_lower_x, gravel_lower_y, gravel_upper_x, gravel_upper_y) = gravel_roi
+
+        if not 0 <= gravel_lower_x <= gravel_upper_x <= 1 or not 0 <= gravel_lower_y <= gravel_upper_y <= 1:
+            raise ValueError("Invalid gravel_roi. Got: {}".format(gravel_roi))
+        if not -1 <= no_of_patches:
+            raise ValueError("Invalid gravel no_of_patches. Got: {}".format(no_of_patches))
+
+        self.gravel_roi = gravel_roi
+        self.no_of_patches = no_of_patches
+
+    def apply(self, image, gravel_roi, no_of_patches, **params):
+        return F.add_gravel(image, gravel_roi, no_of_patches)
+
+    def get_params(self):
+        return {
+            "gravel_roi": self.gravel_roi,
+            "no_of_patches": self.no_of_patches,
+        }
+
+    def get_transform_init_args_names(self):
+        return (
+            "gravel_roi",
+            "no_of_patches",
+        )
 
 class RandomRain(ImageOnlyTransform):
     """Adds rain effects.
