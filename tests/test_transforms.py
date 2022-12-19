@@ -1273,7 +1273,7 @@ def test_motion_blur_allow_shifted(seed):
 
 
 @pytest.mark.parametrize(
-    "augmentation", [A.RandomSnow(), A.RandomRain(), A.RandomFog(), A.RandomSunFlare(), A.RandomShadow(), A.Spatter()]
+    "augmentation", [A.RandomGravel(), A.RandomSnow(), A.RandomRain(), A.RandomFog(), A.RandomSunFlare(), A.RandomShadow(), A.Spatter()]
 )
 @pytest.mark.parametrize("img_channels", [1, 6])
 def test_non_rgb_transform_warning(augmentation, img_channels):

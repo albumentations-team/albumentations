@@ -774,8 +774,8 @@ def _generate_gravel_patch(rectangular_roi):
     gravels=[]
     area= abs((x2-x1)*(y2-y1))
     for i in range((int)(area//10)):
-        x= np.random.randint(x1,x2)
-        y= np.random.randint(y1,y2)
+        x = np.random.randint(x1,x2)
+        y = np.random.randint(y1,y2)
         gravels.append((x,y))
     return gravels
 
@@ -813,10 +813,12 @@ def add_gravel(img, gravel_roi, no_of_patches):
 
     rectangular_roi_default = list()
     for i in range(no_of_patches):
-        xx1 = random_utils.randint(x_min, x_max)
+
+        xx1 = random_utils.randint(x_min+1, x_max)
         xx2 = random_utils.randint(x_min, xx1)
-        yy1 = random_utils.randint(y_min, y_max)
+        yy1 = random_utils.randint(y_min+1, y_max)
         yy2 = random_utils.randint(y_min, yy1)
+
         rectangular_roi_default.append((xx2,yy2,min(xx1,xx2+200),min(yy1,yy2+30)))
 
     for roi in rectangular_roi_default:

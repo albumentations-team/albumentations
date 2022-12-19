@@ -405,9 +405,9 @@ class RandomGravel(ImageOnlyTransform):
 
         (gravel_lower_x, gravel_lower_y, gravel_upper_x, gravel_upper_y) = gravel_roi
 
-        if not 0 <= gravel_lower_x <= gravel_upper_x <= 1 or not 0 <= gravel_lower_y <= gravel_upper_y <= 1:
+        if not 0 <= gravel_lower_x < gravel_upper_x <= 1 or not 0 <= gravel_lower_y < gravel_upper_y <= 1:
             raise ValueError("Invalid gravel_roi. Got: {}".format(gravel_roi))
-        if not -1 <= no_of_patches:
+        if not 1 <= no_of_patches:
             raise ValueError("Invalid gravel no_of_patches. Got: {}".format(no_of_patches))
 
         self.gravel_roi = gravel_roi
@@ -423,10 +423,10 @@ class RandomGravel(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self):
-        return (
-            "gravel_roi",
-            "no_of_patches",
-        )
+        return {
+            "gravel_roi": self.gravel_roi,
+            "no_of_patches": self.no_of_patches
+        }
 
 class RandomRain(ImageOnlyTransform):
     """Adds rain effects.
