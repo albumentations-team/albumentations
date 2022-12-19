@@ -765,22 +765,8 @@ def add_shadow(img, vertices_list):
 
     return image_rgb
 
-
-def _generate_gravel_patch(rectangular_roi):
-    x1=rectangular_roi[0]
-    y1=rectangular_roi[1]
-    x2=rectangular_roi[2]
-    y2=rectangular_roi[3] 
-    gravels=[]
-    area= abs((x2-x1)*(y2-y1))
-    for i in range((int)(area//10)):
-        x = np.random.randint(x1,x2)
-        y = np.random.randint(y1,y2)
-        gravels.append((x,y))
-    return gravels
-
 @preserve_shape
-def add_gravel(img, gravel_roi, no_of_patches):
+def add_gravel(img, gravels):
     """Add gravel to the image.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -800,36 +786,12 @@ def add_gravel(img, gravel_roi, no_of_patches):
     elif input_dtype not in (np.uint8, np.float32):
         raise ValueError("Unexpected dtype {} for AddGravel augmentation".format(input_dtype))
 
-    height, width = img.shape[:2]
-
-    x_min, y_min, x_max, y_max = gravel_roi
-
-    x_min = int(x_min * width)
-    x_max = int(x_max * width)
-    y_min = int(y_min * height)
-    y_max = int(y_max * height)
-
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
-    rectangular_roi_default = list()
-    for i in range(no_of_patches):
+    for gravel in gravels:
+        minx,maxx, miny,maxy, val = gravel
+        image_hls[minx:maxx, miny:maxy, 1]=val
 
-        xx1 = random_utils.randint(x_min+1, x_max)
-        xx2 = random_utils.randint(x_min, xx1)
-        yy1 = random_utils.randint(y_min+1, y_max)
-        yy2 = random_utils.randint(y_min, yy1)
-
-        rectangular_roi_default.append((xx2,yy2,min(xx1,xx2+200),min(yy1,yy2+30)))
-
-    for roi in rectangular_roi_default:
-        gravels = _generate_gravel_patch(roi)
-        for gravel in gravels:
-            x=gravel[0]
-            y=gravel[1]
-            r=random_utils.randint(1, 4)
-            r1=random_utils.randint(0, 255)
-            image_hls[max(y-r,0):min(y+r,y),max(x-r,0):min(x+r,x),1]=r1
-    
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
     if needs_float:
