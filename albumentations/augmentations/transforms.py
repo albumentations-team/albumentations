@@ -443,8 +443,8 @@ class RandomManhole(ImageOnlyTransform):
 
         x_min, y_min, x_max, y_max = self.manhole_roi
         x_min = int(x_min * width)
-        y_min = int(y_min * width)
-        x_max = int(x_max * height)
+        x_max = int(x_max * width)
+        y_min = int(y_min * height)
         y_max = int(y_max * height)
 
         self.center_x = random_utils.randint(x_min, x_max)
