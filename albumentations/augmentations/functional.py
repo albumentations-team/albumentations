@@ -23,9 +23,10 @@ from albumentations.augmentations.utils import (
 
 __all__ = [
     "add_fog",
+    "add_gravel",
+    "add_manhole",
     "add_rain",
     "add_shadow",
-    "add_gravel",
     "add_snow",
     "add_sun_flare",
     "add_weighted",
@@ -765,6 +766,43 @@ def add_shadow(img, vertices_list):
 
     return image_rgb
 
+
+@ensure_contiguous
+@preserve_shape
+def add_manhole(img, center, dims, color):
+    """Add manhole to the image.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (numpy.ndarray):
+
+    Returns:
+        numpy.ndarray:
+    """
+    non_rgb_warning(img)
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype("uint8"))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError("Unexpected dtype {} for AddGravel augmentation".format(input_dtype))
+
+    overlay = img.copy()
+    output = img.copy()
+    cv2.ellipse(overlay, center, dims, 0, 0, 360, color, -1)
+    alp = 1
+    cv2.addWeighted(overlay, alp, output, 1 - alp, 0, output)
+
+    if needs_float:
+        output = to_float(output, max_value=255)
+
+    return output
+
+
+@ensure_contiguous
 @preserve_shape
 def add_gravel(img, gravels):
     """Add gravel to the image.
@@ -777,6 +815,7 @@ def add_gravel(img, gravels):
     Returns:
         numpy.ndarray:
     """
+    non_rgb_warning(img)
     input_dtype = img.dtype
     needs_float = False
 
@@ -789,8 +828,8 @@ def add_gravel(img, gravels):
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     for gravel in gravels:
-        minx,maxx, miny,maxy, val = gravel
-        image_hls[minx:maxx, miny:maxy, 1]=val
+        minx, maxx, miny, maxy, val = gravel
+        image_hls[minx:maxx, miny:maxy, 1] = val
 
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
@@ -798,6 +837,7 @@ def add_gravel(img, gravels):
         image_rgb = to_float(image_rgb, max_value=255)
 
     return image_rgb
+
 
 def invert(img: np.ndarray) -> np.ndarray:
     # Supports all the valid dtypes
