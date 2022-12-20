@@ -16,6 +16,9 @@ jobs:
         include:
           - python-version: 3.6
             operating-system: ubuntu-20.04
+        exclude:
+          - python-version: 3.6
+            operating-system: ubuntu-latest
       fail-fast: false
     steps:
     - name: Checkout
