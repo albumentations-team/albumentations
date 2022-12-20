@@ -586,7 +586,7 @@ def test_multiplicative_noise_rgb(image):
 def test_mask_dropout():
     # In this case we have mask with all ones, so MaskDropout wipe entire mask and image
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    mask = np.ones([50, 10], dtype=np.long)
+    mask = np.ones([50, 10], dtype=np.int64)
 
     aug = A.MaskDropout(p=1)
     result = aug(image=img, mask=mask)
@@ -595,7 +595,7 @@ def test_mask_dropout():
 
     # In this case we have mask with zeros , so MaskDropout will make no changes
     img = np.random.randint(0, 256, [50, 10], np.uint8)
-    mask = np.zeros([50, 10], dtype=np.long)
+    mask = np.zeros([50, 10], dtype=np.int64)
 
     aug = A.MaskDropout(p=1)
     result = aug(image=img, mask=mask)
