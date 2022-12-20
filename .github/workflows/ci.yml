@@ -14,11 +14,11 @@ jobs:
         operating-system: [ubuntu-latest, windows-latest, macos-11]
         python-version: [3.6, 3.7, 3.8, 3.9, "3.10", 3.11]
         exclude:
-          - python-version: 3.6
-            operating-system: ubuntu-latest
+          - operating-system: ubuntu-latest
+            python-version: 3.6
         include:
-          - python-version: 3.6
-            operating-system: ubuntu-20.04
+          - operating-system: ubuntu-20.04
+            python-version: 3.6
       fail-fast: false
     steps:
     - name: Checkout
@@ -36,11 +36,11 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==1.8.1+cpu torchvision==0.9.1+cpu
-        -f https://download.pytorch.org/whl/torch_stable.html
+        pip install torch==1.13.1+cpu torchvision==0.14.1+cpu
+        --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==1.8.1 torchvision==0.9.1
+      run: pip install torch==1.13.1 torchvision==0.14.1
     - name: Install dependencies
       run: pip install .[tests]
     - name: Install linters
