@@ -19,6 +19,10 @@ jobs:
         include:
           - operating-system: ubuntu-20.04
             python-version: 3.6
+            torch_version: 1.10.2
+            torchvision_version: 0.11.3
+          - torch_version: 1.13.1
+            torchvision_version: 0.14.1
       fail-fast: false
     steps:
     - name: Checkout
@@ -36,11 +40,11 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==1.13.1+cpu torchvision==0.14.1+cpu
+        pip install torch==${{ matrix.torch_version }} torchvision==${{ matrix.torchvision_version }}
         --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==1.13.1 torchvision==0.14.1
+      run: pip install torch==${{ matrix.torch_version }} torchvision==${{ matrix.torchvision_version }}
     - name: Install dependencies
       run: pip install .[tests]
     - name: Install linters
