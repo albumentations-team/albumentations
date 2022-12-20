@@ -838,7 +838,7 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
             res1 = t1(image=img)["image"]
             res2 = (t2(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
 
-            _max = np.abs(res1.astype(np.int) - res2).max()
+            _max = np.abs(res1.astype(np.int32) - res2).max()
             assert _max <= 10, "Max value: {}".format(_max)
 
 

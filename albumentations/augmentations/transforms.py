@@ -141,8 +141,8 @@ class RandomGridShuffle(DualTransform):
         if n > height // 2 or m > width // 2:
             raise ValueError("Incorrect size cell of grid. Just shuffle pixels of image")
 
-        height_split = np.linspace(0, height, n + 1, dtype=np.int)
-        width_split = np.linspace(0, width, m + 1, dtype=np.int)
+        height_split = np.linspace(0, height, n + 1, dtype=np.int32)
+        width_split = np.linspace(0, width, m + 1, dtype=np.int32)
 
         height_matrix, width_matrix = np.meshgrid(height_split, width_split, indexing="ij")
 
