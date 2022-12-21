@@ -17,8 +17,10 @@ jobs:
           - operating-system: ubuntu-latest
             python-version: 3.6
         include:
+          - mypy_version: 0.991
           - operating-system: ubuntu-20.04
             python-version: 3.6
+            mypy_version: 0.971
           - torch_version: 1.13.1
             torchvision_version: 0.14.1
           - python-version: 3.6
@@ -53,8 +55,9 @@ jobs:
         pip install
         flake8==5.0.3
         flake8-docstrings==1.6.0
-        mypy==0.991 isort==5.10.1
-        types-PyYAML==6.0.11
+        isort==5.10.1
+        mypy==${{ matrix.mypy_version }}
+        types-PyYAML
         types-setuptools
         types-pkg-resources
     - name: Cleanup the build directory
