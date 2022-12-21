@@ -43,7 +43,7 @@ jobs:
         flake8==5.0.3
         flake8-docstrings==1.6.0
         isort==5.10.1
-        mypy==0.971
+        mypy==0.991
         types-PyYAML
         types-setuptools
         types-pkg-resources
