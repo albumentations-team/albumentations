@@ -12,21 +12,7 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-11]
-        python-version: [3.6, 3.7, 3.8, 3.9, "3.10"]
-        exclude:
-          - operating-system: ubuntu-latest
-            python-version: 3.6
-        include:
-          - operating-system: ubuntu-20.04
-            python-version: 3.6
-            mypy_version: 0.971
-          - torch_version: 1.13.1
-            torchvision_version: 0.14.1
-            mypy_version: 0.991
-          - python-version: 3.6
-            torch_version: 1.10.2
-            torchvision_version: 0.11.3
-            mypy_version: 0.971
+        python-version: [3.7, 3.8, 3.9, "3.10"]
       fail-fast: false
     steps:
     - name: Checkout
@@ -44,11 +30,11 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==${{ matrix.torch_version }} torchvision==${{ matrix.torchvision_version }}
+        pip install torch==1.13.1 torchvision==0.14.1
         --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==${{ matrix.torch_version }} torchvision==${{ matrix.torchvision_version }}
+      run: pip install torch==1.13.1 torchvision==0.14.1
     - name: Install dependencies
       run: pip install .[tests]
     - name: Install linters
@@ -57,7 +43,7 @@ jobs:
         flake8==5.0.3
         flake8-docstrings==1.6.0
         isort==5.10.1
-        mypy==${{ matrix.mypy_version }}
+        mypy==0.971
         types-PyYAML
         types-setuptools
         types-pkg-resources
