@@ -17,11 +17,11 @@ jobs:
           - operating-system: ubuntu-latest
             python-version: 3.6
         include:
-          - mypy_version: 0.991
           - operating-system: ubuntu-20.04
             python-version: 3.6
           - torch_version: 1.13.1
             torchvision_version: 0.14.1
+            mypy_version: 0.991
           - python-version: 3.6
             torch_version: 1.10.2
             torchvision_version: 0.11.3
