@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-11]
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
       fail-fast: false
     steps:
     - name: Checkout
@@ -30,15 +30,23 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==1.8.1+cpu torchvision==0.9.1+cpu
-        -f https://download.pytorch.org/whl/torch_stable.html
+        pip install torch==1.13.1 torchvision==0.14.1
+        --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==1.8.1 torchvision==0.9.1
+      run: pip install torch==1.13.1 torchvision==0.14.1
     - name: Install dependencies
       run: pip install .[tests]
     - name: Install linters
-      run: pip install flake8==5.0.3 flake8-docstrings==1.6.0 mypy==0.971 isort==5.10.1 types-PyYAML==6.0.11 types-setuptools
+      run: >
+        pip install
+        flake8==5.0.3
+        flake8-docstrings==1.6.0
+        isort==5.10.1
+        mypy==0.991
+        types-PyYAML
+        types-setuptools
+        types-pkg-resources
     - name: Cleanup the build directory
       uses: JesseTG/rm@v1.0.2
       with:

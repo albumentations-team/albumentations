@@ -96,22 +96,15 @@ class RandomGridShuffle(DualTransform):
         super(RandomGridShuffle, self).__init__(always_apply, p)
         self.grid = grid
 
-    def apply(self, img: np.ndarray, tiles: np.ndarray = None, **params):
-        if tiles is not None:
-            img = F.swap_tiles_on_image(img, tiles)
-        return img
+    def apply(self, img: np.ndarray, tiles: np.ndarray = np.array(None), **params):
+        return F.swap_tiles_on_image(img, tiles)
 
-    def apply_to_mask(self, img: np.ndarray, tiles: np.ndarray = None, **params):
-        if tiles is not None:
-            img = F.swap_tiles_on_image(img, tiles)
-        return img
+    def apply_to_mask(self, img: np.ndarray, tiles: np.ndarray = np.array(None), **params):
+        return F.swap_tiles_on_image(img, tiles)
 
     def apply_to_keypoint(
-        self, keypoint: Tuple[float, ...], tiles: np.ndarray = None, rows: int = 0, cols: int = 0, **params
+        self, keypoint: Tuple[float, ...], tiles: np.ndarray = np.array(None), rows: int = 0, cols: int = 0, **params
     ):
-        if tiles is None:
-            return keypoint
-
         for (
             current_left_up_corner_row,
             current_left_up_corner_col,
@@ -142,8 +135,8 @@ class RandomGridShuffle(DualTransform):
         if n > height // 2 or m > width // 2:
             raise ValueError("Incorrect size cell of grid. Just shuffle pixels of image")
 
-        height_split = np.linspace(0, height, n + 1, dtype=np.int)
-        width_split = np.linspace(0, width, m + 1, dtype=np.int)
+        height_split = np.linspace(0, height, n + 1, dtype=np.int32)
+        width_split = np.linspace(0, width, m + 1, dtype=np.int32)
 
         height_matrix, width_matrix = np.meshgrid(height_split, width_split, indexing="ij")
 
@@ -2444,12 +2437,15 @@ class PixelDropout(DualTransform):
             raise ValueError("PixelDropout supports mask only with per_channel=False")
 
     def apply(
-        self, img: np.ndarray, drop_mask: np.ndarray = None, drop_value: Union[float, Sequence[float]] = (), **params
+        self,
+        img: np.ndarray,
+        drop_mask: np.ndarray = np.array(None),
+        drop_value: Union[float, Sequence[float]] = (),
+        **params
     ) -> np.ndarray:
-        assert drop_mask is not None
         return F.pixel_dropout(img, drop_mask, drop_value)
 
-    def apply_to_mask(self, img: np.ndarray, drop_mask: np.ndarray = np.array([]), **params) -> np.ndarray:
+    def apply_to_mask(self, img: np.ndarray, drop_mask: np.ndarray = np.array(None), **params) -> np.ndarray:
         if self.mask_drop_value is None:
             return img
 
