@@ -77,7 +77,6 @@ def randint(
         random_state = get_random_state()
     return random_state.randint(low, high, size, dtype)
 
-
 def random(size: Optional[NumType] = None, random_state: Optional[np.random.RandomState] = None) -> Any:
     if random_state is None:
         random_state = get_random_state()
