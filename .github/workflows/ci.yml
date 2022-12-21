@@ -17,7 +17,6 @@ jobs:
           - operating-system: ubuntu-latest
             python-version: 3.6
         include:
-          - mypy_version: 0.991
           - operating-system: ubuntu-20.04
             python-version: 3.6
             mypy_version: 0.971
@@ -26,6 +25,7 @@ jobs:
           - python-version: 3.6
             torch_version: 1.10.2
             torchvision_version: 0.11.3
+            mypy_version: 0.991
       fail-fast: false
     steps:
     - name: Checkout
