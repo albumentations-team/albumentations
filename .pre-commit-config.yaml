@@ -30,7 +30,7 @@ repos:
             --warn-no-return,
             --warn-redundant-casts,
           ]
-  - repo: https://gitlab.com/pycqa/flake8
+  - repo: https://github.com/PyCQA/flake8
     rev: 21d3c70d676007470908d39b73f0521d39b3b997
     hooks:
       - id: flake8

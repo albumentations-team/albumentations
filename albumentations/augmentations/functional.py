@@ -765,6 +765,8 @@ def add_shadow(img, vertices_list):
 
     return image_rgb
 
+
+@ensure_contiguous
 @preserve_shape
 def add_gravel(img, gravels):
     """Add gravel to the image.
@@ -777,6 +779,7 @@ def add_gravel(img, gravels):
     Returns:
         numpy.ndarray:
     """
+    non_rgb_warning(img)
     input_dtype = img.dtype
     needs_float = False
 
@@ -789,8 +792,8 @@ def add_gravel(img, gravels):
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     for gravel in gravels:
-        minx,maxx, miny,maxy, val = gravel
-        image_hls[minx:maxx, miny:maxy, 1]=val
+        minx, maxx, miny, maxy, val = gravel
+        image_hls[minx:maxx, miny:maxy, 1] = val
 
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
@@ -798,6 +801,7 @@ def add_gravel(img, gravels):
         image_rgb = to_float(image_rgb, max_value=255)
 
     return image_rgb
+
 
 def invert(img: np.ndarray) -> np.ndarray:
     # Supports all the valid dtypes
