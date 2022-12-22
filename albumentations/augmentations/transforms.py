@@ -376,7 +376,7 @@ class RandomGravel(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        gravel_roi (float, float, float, float): (top-left x, top-left y, 
+        gravel_roi (float, float, float, float): (top-left x, top-left y,
             bottom-right x, bottom right y). Should be in [0, 1] range
         no_of_patches (int): no. of gravel patches required
 
@@ -403,21 +403,20 @@ class RandomGravel(ImageOnlyTransform):
         if not 1 <= no_of_patches:
             raise ValueError("Invalid gravel no_of_patches. Got: {}".format(no_of_patches))
 
-
         self.gravel_roi = gravel_roi
         self.no_of_patches = no_of_patches
 
     def generate_gravel_patch(self, rectangular_roi):
-        x1=rectangular_roi[0]
-        y1=rectangular_roi[1]
-        x2=rectangular_roi[2]
-        y2=rectangular_roi[3]
-        gravels=[]
-        area= abs((x2-x1)*(y2-y1))
-        for i in range((int)(area//10)):
-            x = np.random.randint(x1,x2)
-            y = np.random.randint(y1,y2)
-            gravels.append((x,y))
+        x1 = rectangular_roi[0]
+        y1 = rectangular_roi[1]
+        x2 = rectangular_roi[2]
+        y2 = rectangular_roi[3]
+        gravels = []
+        area = abs((x2 - x1) * (y2 - y1))
+        for i in range((int)(area // 10)):
+            x = np.random.randint(x1, x2)
+            y = np.random.randint(y1, y2)
+            gravels.append((x, y))
         return gravels
 
     def apply(self, image, gravels_infos=(), **params):
@@ -440,30 +439,28 @@ class RandomGravel(ImageOnlyTransform):
         rectangular_rois = []
         for i in range(self.no_of_patches):
 
-            xx1 = random_utils.randint(x_min+1, x_max)
+            xx1 = random_utils.randint(x_min + 1, x_max)
             xx2 = random_utils.randint(x_min, xx1)
-            yy1 = random_utils.randint(y_min+1, y_max)
+            yy1 = random_utils.randint(y_min + 1, y_max)
             yy2 = random_utils.randint(y_min, yy1)
-            rectangular_rois.append((xx2,yy2,min(xx1,xx2+200),min(yy1,yy2+30)))
+            rectangular_rois.append((xx2, yy2, min(xx1, xx2 + 200), min(yy1, yy2 + 30)))
 
         self.gravels_infos = []
         for roi in rectangular_rois:
             gravels = self.generate_gravel_patch(roi)
             for gravel in gravels:
-                x=gravel[0]
-                y=gravel[1]
+                x = gravel[0]
+                y = gravel[1]
                 r = random_utils.randint(1, 4)
                 r1 = random_utils.randint(0, 255)
-                gravel_info = [max(y-r,0), min(y+r,y), max(x-r,0), min(x+r,x), r1]
+                gravel_info = [max(y - r, 0), min(y + r, y), max(x - r, 0), min(x + r, x), r1]
                 self.gravels_infos.append(gravel_info)
 
         return {"gravels_infos": self.gravels_infos}
 
     def get_transform_init_args_names(self):
-        return {
-            "gravel_roi": self.gravel_roi,
-            "no_of_patches": self.no_of_patches
-        }
+        return {"gravel_roi": self.gravel_roi, "no_of_patches": self.no_of_patches}
+
 
 class RandomRain(ImageOnlyTransform):
     """Adds rain effects.
