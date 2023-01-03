@@ -359,7 +359,7 @@ class AdvancedBlur(ImageOnlyTransform):
             raise ValueError(f"{name} values should be between {bounds}")
         return value
 
-    def apply(self, img: np.ndarray, kernel: np.ndarray = None, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, kernel: np.ndarray = np.array(None), **params) -> np.ndarray:
         return FMain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, np.ndarray]:
@@ -498,7 +498,7 @@ class ZoomBlur(ImageOnlyTransform):
         if self.step_factor[0] <= 0:
             raise ValueError("Step factor must be positive")
 
-    def apply(self, img: np.ndarray, zoom_factors: np.ndarray = None, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, zoom_factors: np.ndarray = np.array(None), **params) -> np.ndarray:
         assert zoom_factors is not None
         return F.zoom_blur(img, zoom_factors)
 

@@ -713,8 +713,8 @@ class Affine(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        matrix: skimage.transform.ProjectiveTransform = None,
-        scale: dict = None,
+        matrix: Optional[skimage.transform.ProjectiveTransform] = None,
+        scale: Optional[dict] = None,
         **params
     ) -> KeypointInternalType:
         assert scale is not None and matrix is not None

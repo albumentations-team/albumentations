@@ -236,12 +236,10 @@ class SafeRotate(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
-        assert matrix is not None
+    def apply(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
 
-    def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = None, **params) -> np.ndarray:
-        assert matrix is not None
+    def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
     def apply_to_bbox(self, bbox: BoxInternalType, cols: int = 0, rows: int = 0, **params) -> BoxInternalType:

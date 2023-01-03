@@ -868,7 +868,7 @@ def test_equalize_checks():
         F.equalize(img, mode="other")
     assert str(exc_info.value) == "Unsupported equalization mode. Supports: ['cv', 'pil']. Got: other"
 
-    mask = np.random.randint(0, 1, [256, 256, 3], dtype=np.bool)
+    mask = np.random.randint(0, 1, [256, 256, 3], dtype=bool)
     with pytest.raises(ValueError) as exc_info:
         F.equalize(img, mask=mask)
     assert str(exc_info.value) == "Wrong mask shape. Image shape: {}. Mask shape: {}".format(img.shape, mask.shape)
@@ -909,7 +909,7 @@ def test_equalize_rgb():
 def test_equalize_grayscale_mask():
     img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
 
-    mask = np.zeros([256, 256], dtype=np.bool)
+    mask = np.zeros([256, 256], dtype=bool)
     mask[:10, :10] = True
 
     assert np.all(cv2.equalizeHist(img[:10, :10]) == F.equalize(img, mask=mask, mode="cv")[:10, :10])
@@ -918,7 +918,7 @@ def test_equalize_grayscale_mask():
 def test_equalize_rgb_mask():
     img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
 
-    mask = np.zeros([256, 256], dtype=np.bool)
+    mask = np.zeros([256, 256], dtype=bool)
     mask[:10, :10] = True
 
     _img = img.copy()[:10, :10]
@@ -932,7 +932,7 @@ def test_equalize_rgb_mask():
     img_cv = cv2.cvtColor(img_cv, cv2.COLOR_YCrCb2RGB)
     assert np.all(img_cv == F.equalize(img, mask=mask, mode="cv", by_channels=False)[:10, :10])
 
-    mask = np.zeros([256, 256, 3], dtype=np.bool)
+    mask = np.zeros([256, 256, 3], dtype=bool)
     mask[:10, :10, 0] = True
     mask[10:20, 10:20, 1] = True
     mask[20:30, 20:30, 2] = True
