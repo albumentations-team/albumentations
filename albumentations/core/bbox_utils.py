@@ -233,9 +233,9 @@ def normalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
         raise ValueError("Argument cols must be positive integer")
 
     assert_np_bboxes_format(bboxes)
-    bboxes_ = bboxes.copy()
-    bboxes_[:, 0::2] /= cols
-    bboxes_[:, 1::2] /= rows
+    bboxes_ = bboxes.copy().astype(float)
+    bboxes_[:, 0::2] /= float(cols)
+    bboxes_[:, 1::2] /= float(rows)
     return bboxes_
 
 
@@ -447,7 +447,30 @@ def convert_bboxes_to_albumentations(
     bboxes: Sequence[BoxType], source_format, rows, cols, check_validity=False
 ) -> List[BoxType]:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
-    return [convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity) for bbox in bboxes]
+    if source_format not in {"coco", "pascal_voc", "yolo"}:
+        raise ValueError(
+            f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
+        )
+    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+
+    if source_format == "coco":
+
+        np_bboxes[:, 2:] += np_bboxes[:, :2]
+    elif source_format == "yolo":
+        # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
+
+        if check_validity and np.any((np_bboxes <= 0) | (np_bboxes > 1)):
+            raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
+
+        np_bboxes[:, :2] -= np_bboxes[:, 2:] / 2
+        np_bboxes[:, 2:] += np_bboxes[:, :2]
+
+    if source_format != "yolo":
+        np_bboxes = normalize_bboxes_np(np_bboxes, rows, cols)
+    if check_validity:
+        check_bboxes(np_bboxes)
+
+    return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for np_bbox, bbox in zip(np_bboxes, bboxes)]
 
 
 def convert_bboxes_from_albumentations(
@@ -467,13 +490,14 @@ def convert_bboxes_from_albumentations(
         List of bounding boxes.
 
     """
-
-    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+    if not len(bboxes):
+        return []
     if target_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
             f"Unknown target_format {target_format}. Supported formats are `coco`, `pascal_voc`, and `yolo`."
         )
 
+    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
     if check_validity:
         check_bboxes(np_bboxes)
 
