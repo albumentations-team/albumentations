@@ -474,6 +474,7 @@ def filter_bboxes(
         List of bounding boxes.
 
     """
+
     resulting_boxes: List[BoxType] = []
     for bbox in bboxes:
         # Calculate areas of bounding box before and after clipping.
@@ -493,6 +494,35 @@ def filter_bboxes(
             and clipped_height >= min_height
         ):
             resulting_boxes.append(cast(BoxType, bbox + tail))
+    return resulting_boxes
+
+    if not len(bboxes):
+        return bboxes
+    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+    clipped_norm_bboxes = np.clip(np_bboxes, 0.0, 1.0)
+
+    clipped_width = (clipped_norm_bboxes[:, 2] - clipped_norm_bboxes[:, 0]) * cols
+    clipped_height = (clipped_norm_bboxes[:, 3] - clipped_norm_bboxes[:, 1]) * rows
+
+    # denormalize bbox
+    bboxes_area = (
+        (clipped_norm_bboxes[:, 2] - clipped_norm_bboxes[:, 0])
+        * (clipped_norm_bboxes[:, 3] - clipped_norm_bboxes[:, 1])
+        * cols
+        * rows
+    )
+
+    transform_bboxes_area = (np_bboxes[:, 2] - np_bboxes[:, 0]) * (np_bboxes[:, 3] - np_bboxes[:, 1]) * cols * rows
+
+    idx, *_ = np.where(
+        (bboxes_area >= min_area)
+        & (bboxes_area / transform_bboxes_area >= min_visibility)
+        & (clipped_width >= min_width)
+        & (clipped_height >= min_height)
+    )
+
+    resulting_boxes = [cast(BoxType, tuple(clipped_norm_bboxes[i]) + bboxes[i][4:]) for i in idx]
+
     return resulting_boxes
 
 
