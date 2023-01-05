@@ -29,6 +29,12 @@ __all__ = [
 TBox = TypeVar("TBox", BoxType, BoxInternalType)
 
 
+def assert_np_bboxes_format(bboxes: np.ndarray):
+    assert (
+        isinstance(bboxes, np.ndarray) and len(bboxes.shape) == 2 and bboxes.shape[-1] == 4
+    ), "An array of bboxes should be 2 dimension, and the last dimension must has 4 elements."
+
+
 class BboxParams(Params):
     """
     Parameters of bounding boxes
@@ -218,6 +224,21 @@ def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[Bo
     return [normalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
+def normalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
+    if rows <= 0:
+        raise ValueError("Argument rows must be positive integer")
+    if cols <= 0:
+        raise ValueError("Argument cols must be positive integer")
+
+    assert_np_bboxes_format(bboxes)
+    bboxes_ = bboxes.copy()
+    bboxes_[:, 0::2] /= cols
+    bboxes_[:, 1::2] /= rows
+    return bboxes_
+
+
 def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
     """Denormalize a list of bounding boxes.
 
@@ -231,6 +252,21 @@ def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[
 
     """
     return [denormalize_bbox(bbox, rows, cols) for bbox in bboxes]
+
+
+def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
+    if rows <= 0:
+        raise ValueError("Argument rows must be positive integer")
+    if cols <= 0:
+        raise ValueError("Argument cols must be positive integer")
+    assert_np_bboxes_format(bboxes)
+    bboxes_ = bboxes.copy()
+
+    bboxes_[:, 0::2] *= cols
+    bboxes_[:, 1::2] *= rows
+    return bboxes_
 
 
 def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> float:
@@ -249,6 +285,12 @@ def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> float:
     x_min, y_min, x_max, y_max = bbox[:4]
     area = (x_max - x_min) * (y_max - y_min)
     return area
+
+
+def calculate_bboxes_area(bbox: np.ndarray, rows: int, cols: int) -> float:
+    bbox = bbox if isinstance(bbox, np.ndarray) else np.array(bbox)
+    bboxes_area = (bbox[:, 2] - bbox[:, 0]) * (bbox[:, 3] - bbox[:, 1]) * cols * rows
+    return bboxes_area
 
 
 def filter_bboxes_by_visibility(
@@ -281,8 +323,8 @@ def filter_bboxes_by_visibility(
     for bbox, transformed_bbox in zip(bboxes, transformed_bboxes):
         if not all(0.0 <= value <= 1.0 for value in transformed_bbox[:4]):
             continue
-        bbox_area = calculate_bbox_area(bbox, img_height, img_width)
-        transformed_bbox_area = calculate_bbox_area(transformed_bbox, transformed_img_height, transformed_img_width)
+        bbox_area = calculate_bbox_area(bbox[:4], img_height, img_width)
+        transformed_bbox_area = calculate_bbox_area(transformed_bbox[:4], transformed_img_height, transformed_img_width)
         if transformed_bbox_area < min_area:
             continue
         visibility = transformed_bbox_area / bbox_area
@@ -425,7 +467,26 @@ def convert_bboxes_from_albumentations(
         List of bounding boxes.
 
     """
-    return [convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_validity) for bbox in bboxes]
+
+    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+    if target_format not in {"coco", "pascal_voc", "yolo"}:
+        raise ValueError(
+            f"Unknown target_format {target_format}. Supported formats are `coco`, `pascal_voc`, and `yolo`."
+        )
+
+    if check_validity:
+        check_bboxes(np_bboxes)
+
+    if target_format != "yolo":
+        np_bboxes = denormalize_bboxes_np(np_bboxes, rows=rows, cols=cols)
+    if target_format == "coco":
+        np_bboxes[:, 2] -= np_bboxes[:, 0]
+        np_bboxes[:, 3] -= np_bboxes[:, 1]
+    elif target_format == "yolo":
+        np_bboxes[:, 2:] -= np_bboxes[:, :2]
+        np_bboxes[:, :2] += np_bboxes[:, 2:] / 2.0
+
+    return [cast(BoxType, tuple(np_bbox) + bbox[4:]) for np_bbox, bbox in zip(np_bboxes, bboxes)]
 
 
 def check_bbox(bbox: BoxType) -> None:
@@ -442,8 +503,32 @@ def check_bbox(bbox: BoxType) -> None:
 
 def check_bboxes(bboxes: Sequence[BoxType]) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
-    for bbox in bboxes:
-        check_bbox(bbox)
+    if not len(bboxes):
+        return
+
+    np_bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array([bbox[:4] for bbox in bboxes])
+    row_idx, col_idx = np.where(
+        (~np.logical_and(0 <= np_bboxes, np_bboxes <= 1)) & (~np.isclose(np_bboxes, 0)) & (~np.isclose(np_bboxes, 1))
+    )
+    if len(row_idx) and len(col_idx):
+        name = {
+            0: "x_min",
+            1: "y_min",
+            2: "x_max",
+            3: "y_max",
+        }[col_idx[0]]
+        raise ValueError(
+            f"Expected {name} for bbox {bboxes[row_idx[0]]} to be "
+            f"in the range [0.0, 1.0], got {bboxes[row_idx[0]][col_idx[0]]}."
+        )
+
+    x_idx = np.where(np_bboxes[:, 0] >= np_bboxes[:, 2])[0]
+    y_idx = np.where(np_bboxes[:, 1] >= np_bboxes[:, 3])[0]
+
+    if len(x_idx):
+        raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes[x_idx[0]]}.")
+    if len(y_idx):
+        raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes[y_idx[0]]}.")
 
 
 def filter_bboxes(
@@ -475,29 +560,8 @@ def filter_bboxes(
 
     """
 
-    resulting_boxes: List[BoxType] = []
-    for bbox in bboxes:
-        # Calculate areas of bounding box before and after clipping.
-        transformed_box_area = calculate_bbox_area(bbox, rows, cols)
-        bbox, tail = cast(BoxType, tuple(np.clip(bbox[:4], 0, 1.0))), tuple(bbox[4:])
-        clipped_box_area = calculate_bbox_area(bbox, rows, cols)
-
-        # Calculate width and height of the clipped bounding box.
-        x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
-        clipped_width, clipped_height = x_max - x_min, y_max - y_min
-
-        if (
-            clipped_box_area != 0  # to ensure transformed_box_area!=0 and to handle min_area=0 or min_visibility=0
-            and clipped_box_area >= min_area
-            and clipped_box_area / transformed_box_area >= min_visibility
-            and clipped_width >= min_width
-            and clipped_height >= min_height
-        ):
-            resulting_boxes.append(cast(BoxType, bbox + tail))
-    return resulting_boxes
-
     if not len(bboxes):
-        return bboxes
+        return []
     np_bboxes = np.array([bbox[:4] for bbox in bboxes])
     clipped_norm_bboxes = np.clip(np_bboxes, 0.0, 1.0)
 
@@ -505,14 +569,9 @@ def filter_bboxes(
     clipped_height = (clipped_norm_bboxes[:, 3] - clipped_norm_bboxes[:, 1]) * rows
 
     # denormalize bbox
-    bboxes_area = (
-        (clipped_norm_bboxes[:, 2] - clipped_norm_bboxes[:, 0])
-        * (clipped_norm_bboxes[:, 3] - clipped_norm_bboxes[:, 1])
-        * cols
-        * rows
-    )
+    bboxes_area = calculate_bboxes_area(clipped_norm_bboxes, rows=rows, cols=cols)
 
-    transform_bboxes_area = (np_bboxes[:, 2] - np_bboxes[:, 0]) * (np_bboxes[:, 3] - np_bboxes[:, 1]) * cols * rows
+    transform_bboxes_area = calculate_bboxes_area(np_bboxes, rows=rows, cols=cols)
 
     idx, *_ = np.where(
         (bboxes_area >= min_area)
