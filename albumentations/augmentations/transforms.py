@@ -73,6 +73,8 @@ __all__ = [
     "UnsharpMask",
     "PixelDropout",
     "Spatter",
+    "ColourKMeansQuantization",
+    "Cartoonize"
 ]
 
 
@@ -2684,3 +2686,106 @@ class Spatter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
+
+
+class ColourKMeansQuantization(ImageOnlyTransform):
+    """Reduce the number of colors using kmeans
+
+    Based on https://docs.opencv.org/4.7.0/d1/d5c/tutorial_py_kmeans_opencv.html
+
+    Args:
+        img (numpy.ndarray): The image to reduce the number of colors.
+        new_num_colors (int): New number of colors.
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
+
+    Targets:
+        image
+
+    Image types:
+        3-channel uint8 images only
+    """
+
+    def __init__(
+        self,
+        new_num_colors=16,
+        always_apply=False,
+        p=0.5,
+        rs=None
+    ):
+        super(ColourKMeansQuantization, self).__init__(always_apply, p, rs)
+
+        if new_num_colors <= 0:
+            raise ValueError("new_num_colors must be greater than 0. Got: {}".format(new_num_colors))
+
+        if not isinstance(new_num_colors, int):
+            raise ValueError("new_num_colors must be integer. Got: {}".format(type(new_num_colors)))
+
+        self.new_num_colors = new_num_colors
+        self.rs = rs
+
+    def apply(self, image, **params):
+        return F.colourkmeansquantization(image, new_num_colors=self.new_num_colors, rs=self.rs)
+
+    def get_params(self):
+        return {"new_num_colors": self.new_num_colors}
+
+    def get_transform_init_args_names(self):
+        return ("new_num_colors", "rs")
+
+
+class Cartoonize(ImageOnlyTransform):
+    """Blur, reduce colors, enhance edges to make it look cartoonish
+
+    Args:
+        img (numpy.ndarray): The image to reduce the number of colors.
+        blur_kernelSize (int): Blur (medianBlur) kernel size (odd).
+        edge_blockSize (int): Edge (adaptiveThreshold) kernel size (odd).
+        edge_cte (int): Edge (adaptiveThreshold) kernel constant.
+        color_mix_diam (int): bilateralFilter color mix diam.
+        always_apply (bool)
+        p (float): probability of applying it
+        rs (np.random.RandomState)
+
+    Targets:
+        image
+
+    Image types:
+        3-channel uint8 images only
+    """
+
+    def __init__(
+        self,
+        blur_kernelSize=5, 
+        edge_blockSize=11, 
+        edge_cte=10, 
+        color_mix_diam=10,
+        always_apply=False,
+        p=0.5,
+        rs=None
+    ):
+        super(Cartoonize, self).__init__(always_apply, p, rs)
+
+        if (blur_kernelSize % 2) == 0:
+            raise ValueError("blur_kernelSize must be odd. Got: {}".format(blur_kernelSize))
+
+        if (edge_blockSize % 2) == 0:
+            raise ValueError("edge_blockSize must be odd. Got: {}".format(edge_blockSize))
+
+        self.blur_kernelSize = blur_kernelSize
+        self.edge_blockSize = edge_blockSize
+        self.edge_cte = edge_cte
+        self.color_mix_diam = color_mix_diam
+
+    def apply(self, image, **params):
+        return F.cartoonize(image, self.blur_kernelSize, self.edge_blockSize, self.edge_cte, self.color_mix_diam)
+
+    def get_params(self):
+        return {"blur_kernelSize": self.blur_kernelSize, 
+                "edge_blockSize": self.edge_blockSize,
+                "edge_cte": self.edge_cte,
+                "color_mix_diam": self.color_mix_diam}
+
+    def get_transform_init_args_names(self):
+        return ("blur_kernelSize", "edge_blockSize", "edge_cte", "color_mix_diam")

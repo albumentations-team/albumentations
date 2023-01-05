@@ -6,6 +6,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
+from sklearn.cluster import KMeans
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import (
@@ -38,6 +39,8 @@ __all__ = [
     "convolve",
     "downscale",
     "equalize",
+    "cartoonize", 
+    "colourkmeansquantization",
     "fancy_pca",
     "from_float",
     "gamma_transform",
@@ -1046,6 +1049,58 @@ def mask_from_bbox(img, bbox):
     x_min, y_min, x_max, y_max = bbox
     mask[y_min:y_max, x_min:x_max] = 1
     return mask
+
+def cartoonize(img, blur_kernelSize=5, edge_blockSize=11, edge_cte=10, color_mix_diam=10):
+    """Blur, reduce colors, enhance edges to make it look cartoonish
+
+    Args:
+        img (numpy.ndarray): The image to reduce the number of colors.
+        blur_kernelSize (int): Blur (medianBlur) kernel size (odd).
+        edge_blockSize (int): Edge (adaptiveThreshold) kernel size (odd).
+        edge_cte (int): Edge (adaptiveThreshold) kernel constant.
+        color_mix_diam (int): bilateralFilter color mix diam.
+
+    Returns:
+        numpy.ndarray: numpy image-like array as uint8 range(0, 255)
+
+    """
+    non_rgb_warning(img)
+
+    if not is_rgb_image(img) or img.dtype != np.uint8:
+        raise TypeError("Image must be RGB image in uint8 format.")
+
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    blurred = cv2.medianBlur(img, blur_kernelSize)
+    edges = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, edge_blockSize, edge_cte)
+    color = cv2.bilateralFilter(blurred, color_mix_diam, color_mix_diam*2, color_mix_diam/2)
+    cartoon = cv2.bitwise_and(color, color, mask = edges)
+
+    return cartoon
+
+def colourkmeansquantization(img, new_num_colors=16, rs=None):
+    """Reduce the number of colors using kmeans
+
+    Based on https://docs.opencv.org/4.7.0/d1/d5c/tutorial_py_kmeans_opencv.html
+
+    Args:
+        img (numpy.ndarray): The image to reduce the number of colors.
+        new_num_colors (int): New number of colors.
+        rs (np.random.RandomState)
+
+    Returns:
+        numpy.ndarray: numpy image-like array as uint8 range(0, 255)
+
+    """
+    non_rgb_warning(img)
+
+    X = img.reshape((-1, 3)) 
+    X = X.astype(np.float32)
+    kmeans = KMeans(n_clusters=new_num_colors, init='random', max_iter=10, tol=1.0, random_state=rs).fit(X)
+    center = kmeans.cluster_centers_.astype(np.uint8)
+    res = center[kmeans.labels_.flatten()]
+    result_img = res.reshape((img.shape))
+
+    return result_img
 
 
 def fancy_pca(img, alpha=0.1):

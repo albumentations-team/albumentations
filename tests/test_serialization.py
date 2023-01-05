@@ -47,6 +47,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
+            A.ColourKMeansQuantization
         },
     ),
 )
@@ -325,6 +326,10 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Spatter, dict(mean=0.2, std=0.1, gauss_sigma=3, cutout_threshold=0.4, intensity=0.7, mode="mud")],
     [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
     [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
+    [A.Cartoonize, {"blur_kernelSize": 5, 
+                    "edge_blockSize": 11,
+                    "edge_cte": 10,
+                    "color_mix_diam": 10}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -338,6 +343,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
+    A.ColourKMeansQuantization, #kmeans openmp problem
 }
 
 
@@ -643,7 +649,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_image_only_transforms(
-        except_augmentations={A.HistogramMatching, A.FDA, A.PixelDistributionAdaptation, A.TemplateTransform},
+        except_augmentations={A.HistogramMatching, A.FDA, A.PixelDistributionAdaptation, A.TemplateTransform, A.ColourKMeansQuantization},
     ),
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)

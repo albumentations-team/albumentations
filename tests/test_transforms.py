@@ -233,6 +233,7 @@ def __test_multiprocessing_support_proc(args):
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
+            A.ColourKMeansQuantization
         },
     ),
 )
@@ -299,6 +300,9 @@ def test_force_apply():
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
+        },
+        except_augmentations={
+            A.ColourKMeansQuantization
         },
     ),
 )
