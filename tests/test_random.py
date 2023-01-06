@@ -33,9 +33,9 @@ def test_multiprocessing_no_randomstate(func, args, mp_pool):
     assert status
 
 
-
 def _calc_rs(args):
     return args[0](*args[1], **args[2])
+
 
 @pytest.mark.parametrize(
     ["func", "args"],
@@ -55,7 +55,13 @@ def test_multiprocessing_with_randomstate(func, args, mp_pool):
     n = 10
     status = False
     for si in range(n):
-        res = mp_pool.map(_calc_rs, [(func, args, {'random_state':np.random.RandomState(si)}), (func, args, {'random_state':np.random.RandomState(si+n)})])
+        res = mp_pool.map(
+            _calc_rs,
+            [
+                (func, args, {"random_state": np.random.RandomState(si)}),
+                (func, args, {"random_state": np.random.RandomState(si + n)}),
+            ],
+        )
         status = not np.allclose(res[0], res[1])
         if status:
             break

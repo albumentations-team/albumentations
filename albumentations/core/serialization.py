@@ -44,7 +44,9 @@ class SerializableMeta(ABCMeta):
     so they can be found later while deserializing transformation pipeline using classes full names.
     """
 
-    def __new__(mcs, name: str, bases: Tuple[type, ...], *args, **kwargs) -> "SerializableMeta":
+    def __new__(
+        mcs, name: str, bases: Tuple[type, ...], *args, **kwargs
+    ) -> "SerializableMeta":
         cls_obj = super().__new__(mcs, name, bases, *args, **kwargs)
         if name != "Serializable" and ABC not in bases:
             if cls_obj.is_serializable():
@@ -109,12 +111,16 @@ class Serializable(metaclass=SerializableMeta):
             warnings.warn(
                 "Got NotImplementedError while trying to serialize {obj}. Object arguments are not preserved. "
                 "Implement either '{cls_name}.get_transform_init_args_names' or '{cls_name}.get_transform_init_args' "
-                "method to make the transform serializable".format(obj=self, cls_name=self.__class__.__name__)
+                "method to make the transform serializable".format(
+                    obj=self, cls_name=self.__class__.__name__
+                )
             )
         return {"__version__": __version__, "transform": transform_dict}
 
 
-def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") -> Dict[str, Any]:
+def to_dict(
+    transform: Serializable, on_not_implemented_error: str = "raise"
+) -> Dict[str, Any]:
     """
     Take a transform pipeline and convert it to a serializable representation that uses only standard
     python data types: dictionaries, lists, strings, integers, and floats.
@@ -142,7 +148,9 @@ def instantiate_nonserializable(
         result_transform = nonserializable.get(name)
         if transform is None:
             raise ValueError(
-                "Non-serializable transform with {name} was not found in `nonserializable`".format(name=name)
+                "Non-serializable transform with {name} was not found in `nonserializable`".format(
+                    name=name
+                )
             )
         return result_transform
     return None
@@ -163,7 +171,10 @@ def from_dict(
         lambda_transforms (dict): Deprecated. Use 'nonserizalizable' instead.
     """
     if lambda_transforms != "deprecated":
-        warnings.warn("lambda_transforms argument is deprecated, please use 'nonserializable'", DeprecationWarning)
+        warnings.warn(
+            "lambda_transforms argument is deprecated, please use 'nonserializable'",
+            DeprecationWarning,
+        )
         nonserializable = typing.cast(Optional[Dict[str, Any]], lambda_transforms)
 
     register_additional_transforms()
@@ -175,17 +186,27 @@ def from_dict(
     args = {k: v for k, v in transform.items() if k != "__class_fullname__"}
     cls = SERIALIZABLE_REGISTRY[shorten_class_name(name)]
     if "transforms" in args:
-        args["transforms"] = [from_dict({"transform": t}, nonserializable=nonserializable) for t in args["transforms"]]
+        args["transforms"] = [
+            from_dict({"transform": t}, nonserializable=nonserializable)
+            for t in args["transforms"]
+        ]
     return cls(**args)
 
 
 def check_data_format(data_format: str) -> None:
     if data_format not in {"json", "yaml"}:
-        raise ValueError("Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(data_format))
+        raise ValueError(
+            "Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(
+                data_format
+            )
+        )
 
 
 def save(
-    transform: Serializable, filepath: str, data_format: str = "json", on_not_implemented_error: str = "raise"
+    transform: Serializable,
+    filepath: str,
+    data_format: str = "json",
+    on_not_implemented_error: str = "raise",
 ) -> None:
     """
     Take a transform pipeline, serialize it and save a serialized version to a file
@@ -200,7 +221,9 @@ def save(
             ignored and no transform arguments will be saved.
     """
     check_data_format(data_format)
-    transform_dict = transform.to_dict(on_not_implemented_error=on_not_implemented_error)
+    transform_dict = transform.to_dict(
+        on_not_implemented_error=on_not_implemented_error
+    )
     dump_fn = json.dump if data_format == "json" else yaml.safe_dump
     with open(filepath, "w") as f:
         dump_fn(transform_dict, f)  # type: ignore
@@ -225,7 +248,10 @@ def load(
         lambda_transforms (dict): Deprecated. Use 'nonserizalizable' instead.
     """
     if lambda_transforms != "deprecated":
-        warnings.warn("lambda_transforms argument is deprecated, please use 'nonserializable'", DeprecationWarning)
+        warnings.warn(
+            "lambda_transforms argument is deprecated, please use 'nonserializable'",
+            DeprecationWarning,
+        )
         nonserializable = typing.cast(Optional[Dict[str, Any]], lambda_transforms)
 
     check_data_format(data_format)

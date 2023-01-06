@@ -32,7 +32,7 @@ class ChannelDropout(ImageOnlyTransform):
         fill_value: Union[int, float] = 0,
         always_apply: bool = False,
         p: float = 0.5,
-        rs: Optional[np.random.RandomState] = None
+        rs: Optional[np.random.RandomState] = None,
     ):
         super(ChannelDropout, self).__init__(always_apply, p, rs)
 
@@ -42,11 +42,15 @@ class ChannelDropout(ImageOnlyTransform):
         self.max_channels = channel_drop_range[1]
 
         if not 1 <= self.min_channels <= self.max_channels:
-            raise ValueError("Invalid channel_drop_range. Got: {}".format(channel_drop_range))
+            raise ValueError(
+                "Invalid channel_drop_range. Got: {}".format(channel_drop_range)
+            )
 
         self.fill_value = fill_value
 
-    def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params) -> np.ndarray:
+    def apply(
+        self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params
+    ) -> np.ndarray:
         return channel_dropout(img, channels_to_drop, self.fill_value)
 
     def get_params_dependent_on_targets(self, params: Mapping[str, Any]):
@@ -55,14 +59,20 @@ class ChannelDropout(ImageOnlyTransform):
         num_channels = img.shape[-1]
 
         if len(img.shape) == 2 or num_channels == 1:
-            raise NotImplementedError("Images has one channel. ChannelDropout is not defined.")
+            raise NotImplementedError(
+                "Images has one channel. ChannelDropout is not defined."
+            )
 
         if self.max_channels >= num_channels:
             raise ValueError("Can not drop all channels in ChannelDropout.")
 
         num_drop_channels = self.py_randint(self.min_channels, self.max_channels)
 
-        channels_to_drop = self.random().choice(range(num_channels), num_drop_channels, replace=False).tolist()
+        channels_to_drop = (
+            self.random()
+            .choice(range(num_channels), num_drop_channels, replace=False)
+            .tolist()
+        )
 
         return {"channels_to_drop": channels_to_drop}
 

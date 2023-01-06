@@ -69,7 +69,9 @@ def normalize_cv2(img, mean, denominator):
     if not denominator.shape:
         denominator = np.array([denominator.tolist()] * 4, dtype=np.float64)
     elif len(denominator) != 4 and denominator.shape != img.shape:
-        denominator = np.array(denominator.tolist() + [1] * (4 - len(denominator)), dtype=np.float64)
+        denominator = np.array(
+            denominator.tolist() + [1] * (4 - len(denominator)), dtype=np.float64
+        )
 
     img = np.ascontiguousarray(img.astype("float32"))
     cv2.subtract(img, mean.astype(np.float64), img)
@@ -320,13 +322,20 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
     modes = ["cv", "pil"]
 
     if mode not in modes:
-        raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
+        raise ValueError(
+            "Unsupported equalization mode. Supports: {}. "
+            "Got: {}".format(modes, mode)
+        )
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
-            raise ValueError("Wrong mask shape. Image shape: {}. " "Mask shape: {}".format(img.shape, mask.shape))
+            raise ValueError(
+                "Wrong mask shape. Image shape: {}. "
+                "Mask shape: {}".format(img.shape, mask.shape)
+            )
         if not by_channels and not is_grayscale_image(mask):
             raise ValueError(
-                "When by_channels=False only 1-channel mask supports. " "Mask shape: {}".format(mask.shape)
+                "When by_channels=False only 1-channel mask supports. "
+                "Mask shape: {}".format(mask.shape)
             )
 
     if mode == "pil":
@@ -477,7 +486,9 @@ def image_compression(img, quality, image_type):
     elif image_type == ".webp":
         quality_flag = cv2.IMWRITE_WEBP_QUALITY
     else:
-        NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
+        NotImplementedError(
+            "Only '.jpg' and '.webp' compression transforms are implemented. "
+        )
 
     input_dtype = img.dtype
     needs_float = False
@@ -492,7 +503,9 @@ def image_compression(img, quality, image_type):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for image augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for image augmentation".format(input_dtype)
+        )
 
     _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
@@ -529,7 +542,9 @@ def add_snow(img, snow_point, brightness_coeff):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSnow augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomSnow augmentation".format(input_dtype)
+        )
 
     image_HLS = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     image_HLS = np.array(image_HLS, dtype=np.float32)
@@ -586,7 +601,9 @@ def add_rain(
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomRain augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomRain augmentation".format(input_dtype)
+        )
 
     image = img.copy()
 
@@ -639,7 +656,9 @@ def add_fog(img, fog_coef, alpha_coef, haze_list):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomFog augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomFog augmentation".format(input_dtype)
+        )
 
     width = img.shape[1]
 
@@ -692,7 +711,9 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomSunFlareaugmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomSunFlareaugmentation".format(input_dtype)
+        )
 
     overlay = img.copy()
     output = img.copy()
@@ -710,7 +731,11 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     rad = np.linspace(1, src_radius, num=num_times)
     for i in range(num_times):
         cv2.circle(overlay, point, int(rad[i]), src_color, -1)
-        alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
+        alp = (
+            alpha[num_times - i - 1]
+            * alpha[num_times - i - 1]
+            * alpha[num_times - i - 1]
+        )
         cv2.addWeighted(overlay, alp, output, 1 - alp, 0, output)
 
     image_rgb = output
@@ -744,7 +769,9 @@ def add_shadow(img, vertices_list):
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for RandomShadow augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for RandomShadow augmentation".format(input_dtype)
+        )
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     mask = np.zeros_like(img)
@@ -864,8 +891,12 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
-    luminance_noise = random_utils.poisson(stddev[1] * intensity * 255, size=hls.shape[:2], random_state=random_state)
-    color_noise = random_utils.normal(0, color_shift * 360 * intensity, size=hls.shape[:2], random_state=random_state)
+    luminance_noise = random_utils.poisson(
+        stddev[1] * intensity * 255, size=hls.shape[:2], random_state=random_state
+    )
+    color_noise = random_utils.normal(
+        0, color_shift * 360 * intensity, size=hls.shape[:2], random_state=random_state
+    )
 
     hue = hls[..., 0]
     hue += color_noise
@@ -889,7 +920,9 @@ def gray_to_rgb(img):
 
 
 @preserve_shape
-def downscale(img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR):
+def downscale(
+    img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR
+):
     h, w = img.shape[:2]
 
     need_cast = (
@@ -897,7 +930,9 @@ def downscale(img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv
     ) and img.dtype == np.uint8
     if need_cast:
         img = to_float(img)
-    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
+    downscaled = cv2.resize(
+        img, None, fx=scale, fy=scale, interpolation=down_interpolation
+    )
     upscaled = cv2.resize(downscaled, (w, h), interpolation=up_interpolation)
     if need_cast:
         upscaled = from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
@@ -1217,7 +1252,11 @@ def adjust_hue_torchvision(img, factor):
 
 @preserve_shape
 def superpixels(
-    image: np.ndarray, n_segments: int, replace_samples: Sequence[bool], max_size: Optional[int], interpolation: int
+    image: np.ndarray,
+    n_segments: int,
+    replace_samples: Sequence[bool],
+    max_size: Optional[int],
+    interpolation: int,
 ) -> np.ndarray:
     if not np.any(replace_samples):
         return image
@@ -1229,7 +1268,9 @@ def superpixels(
             scale = max_size / size
             height, width = image.shape[:2]
             new_height, new_width = int(height * scale), int(width * scale)
-            resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(new_width, new_height), interpolation=interpolation)
+            resize_fn = _maybe_process_in_chunks(
+                cv2.resize, dsize=(new_width, new_height), interpolation=interpolation
+            )
             image = resize_fn(image)
 
     from skimage.segmentation import slic
@@ -1244,7 +1285,9 @@ def superpixels(
     nb_channels = image.shape[2]
     for c in range(nb_channels):
         # segments+1 here because otherwise regionprops always misses the last label
-        regions = skimage.measure.regionprops(segments + 1, intensity_image=image[..., c])
+        regions = skimage.measure.regionprops(
+            segments + 1, intensity_image=image[..., c]
+        )
         for ridx, region in enumerate(regions):
             # with mod here, because slic can sometimes create more superpixel than requested.
             # replace_samples then does not have enough values, so we just start over with the first one again.
@@ -1266,7 +1309,9 @@ def superpixels(
 
     if orig_shape != image.shape:
         resize_fn = _maybe_process_in_chunks(
-            cv2.resize, dsize=(orig_shape[1], orig_shape[0]), interpolation=interpolation
+            cv2.resize,
+            dsize=(orig_shape[1], orig_shape[0]),
+            interpolation=interpolation,
         )
         image = resize_fn(image)
 
@@ -1280,14 +1325,24 @@ def add_weighted(img1, alpha, img2, beta):
 
 @clipped
 @preserve_shape
-def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float = 0.2, threshold: int = 10):
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+def unsharp_mask(
+    image: np.ndarray,
+    ksize: int,
+    sigma: float = 0.0,
+    alpha: float = 0.2,
+    threshold: int = 10,
+):
+    blur_fn = _maybe_process_in_chunks(
+        cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma
+    )
 
     input_dtype = image.dtype
     if input_dtype == np.uint8:
         image = to_float(image)
     elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError("Unexpected dtype {} for UnsharpMask augmentation".format(input_dtype))
+        raise ValueError(
+            "Unexpected dtype {} for UnsharpMask augmentation".format(input_dtype)
+        )
 
     blur = blur_fn(image)
     residual = image - blur
@@ -1306,7 +1361,9 @@ def unsharp_mask(image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float
 
 
 @preserve_shape
-def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[float, Sequence[float]]) -> np.ndarray:
+def pixel_dropout(
+    image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[float, Sequence[float]]
+) -> np.ndarray:
     if isinstance(drop_value, (int, float)) and drop_value == 0:
         drop_values = np.zeros_like(image)
     else:

@@ -25,7 +25,9 @@ from tests.utils import set_seed
 TEST_SEEDS = (0, 1, 42, 111, 9999)
 
 
-@pytest.mark.parametrize("augmentation_cls", [IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
+@pytest.mark.parametrize(
+    "augmentation_cls", [IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise]
+)
 def test_imgaug_image_only_augmentations(augmentation_cls, image, mask):
     aug = augmentation_cls(p=1)
     data = aug(image=image, mask=mask)
@@ -56,9 +58,13 @@ def test_imagaug_fliplr_transform_bboxes(image):
     mask = np.copy(image)
     bboxes = [(10, 10, 20, 20), (20, 10, 30, 40)]
     expect = [(80, 10, 90, 20), (70, 10, 80, 40)]
-    bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1])
+    bboxes = convert_bboxes_to_albumentations(
+        bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1]
+    )
     data = aug(image=image, mask=mask, bboxes=bboxes)
-    actual = convert_bboxes_from_albumentations(data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1])
+    actual = convert_bboxes_from_albumentations(
+        data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1]
+    )
     assert np.array_equal(data["image"], data["mask"])
     assert np.allclose(actual, expect)
 
@@ -69,9 +75,13 @@ def test_imagaug_flipud_transform_bboxes(image):
     dummy_class = 1234
     bboxes = [(10, 10, 20, 20, dummy_class), (20, 10, 30, 40, dummy_class)]
     expect = [(10, 80, 20, 90, dummy_class), (20, 60, 30, 90, dummy_class)]
-    bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1])
+    bboxes = convert_bboxes_to_albumentations(
+        bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1]
+    )
     data = aug(image=image, mask=mask, bboxes=bboxes)
-    actual = convert_bboxes_from_albumentations(data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1])
+    actual = convert_bboxes_from_albumentations(
+        data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1]
+    )
     assert np.array_equal(data["image"], data["mask"])
     assert np.allclose(actual, expect)
 
@@ -89,17 +99,28 @@ def test_imagaug_flipud_transform_bboxes(image):
     ],
 )
 def test_keypoint_transform_format_xy(aug, keypoints, expected):
-    transform = Compose([aug(p=1)], keypoint_params={"format": "xy", "label_fields": ["labels"]})
+    transform = Compose(
+        [aug(p=1)], keypoint_params={"format": "xy", "label_fields": ["labels"]}
+    )
 
     image = np.ones((100, 100, 3))
-    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    transformed = transform(
+        image=image, keypoints=keypoints, labels=np.ones(len(keypoints))
+    )
     assert np.allclose(expected, transformed["keypoints"])
 
 
-@pytest.mark.parametrize(["aug", "keypoints", "expected"], [[IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]]])
+@pytest.mark.parametrize(
+    ["aug", "keypoints", "expected"], [[IAAFliplr, [[20, 30, 0, 0]], [[79, 30, 0, 0]]]]
+)
 def test_iaa_transforms_emit_warning(aug, keypoints, expected):
-    with pytest.warns(UserWarning, match="IAAFliplr transformation supports only 'xy' keypoints augmentation"):
-        Compose([aug(p=1)], keypoint_params={"format": "xyas", "label_fields": ["labels"]})
+    with pytest.warns(
+        UserWarning,
+        match="IAAFliplr transformation supports only 'xy' keypoints augmentation",
+    ):
+        Compose(
+            [aug(p=1)], keypoint_params={"format": "xyas", "label_fields": ["labels"]}
+        )
 
 
 @pytest.mark.parametrize(
@@ -118,7 +139,9 @@ def test_iaa_transforms_emit_warning(aug, keypoints, expected):
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-def test_imgaug_augmentations_serialization(augmentation_cls, params, p, seed, image, mask, always_apply):
+def test_imgaug_augmentations_serialization(
+    augmentation_cls, params, p, seed, image, mask, always_apply
+):
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -231,7 +254,9 @@ def test_imgaug_transforms_multiprocessing_support(augmentation_cls, params, mp_
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
-    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100))
+    mp_pool.map(
+        __test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 100)
+    )
 
 
 @pytest.mark.parametrize(
@@ -283,7 +308,16 @@ def test_compare_crop_and_pad(img_dtype, px, percent, pad_mode, pad_cval):
         keypoint_params=keypoint_params,
     )
     transform_iaa = A.Compose(
-        [IAACropAndPad(px=px, percent=percent, pad_mode=pad_mode_iaa, pad_cval=pad_cval, keep_size=True, p=1)],
+        [
+            IAACropAndPad(
+                px=px,
+                percent=percent,
+                pad_mode=pad_mode_iaa,
+                pad_cval=pad_cval,
+                keep_size=True,
+                p=1,
+            )
+        ],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )

@@ -42,7 +42,7 @@ class Cutout(ImageOnlyTransform):
         fill_value: Union[int, float] = 0,
         always_apply: bool = False,
         p: float = 0.5,
-        rs: Optional[np.random.RandomState] = None
+        rs: Optional[np.random.RandomState] = None,
     ):
         super(Cutout, self).__init__(always_apply, p, rs)
         self.num_holes = num_holes
@@ -54,7 +54,9 @@ class Cutout(ImageOnlyTransform):
             FutureWarning,
         )
 
-    def apply(self, img: np.ndarray, fill_value: Union[int, float] = 0, holes=(), **params):
+    def apply(
+        self, img: np.ndarray, fill_value: Union[int, float] = 0, holes=(), **params
+    ):
         return cutout(img, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:

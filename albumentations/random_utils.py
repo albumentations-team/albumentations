@@ -27,13 +27,25 @@ def uniform(
     return random_state.uniform(low, high, size)
 
 
-def rand(d0: NumType, d1: NumType, *more, random_state: Optional[np.random.RandomState] = None, **kwargs) -> Any:
+def rand(
+    d0: NumType,
+    d1: NumType,
+    *more,
+    random_state: Optional[np.random.RandomState] = None,
+    **kwargs
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.rand(d0, d1, *more, **kwargs)  # type: ignore
 
 
-def randn(d0: NumType, d1: NumType, *more, random_state: Optional[np.random.RandomState] = None, **kwargs) -> Any:
+def randn(
+    d0: NumType,
+    d1: NumType,
+    *more,
+    random_state: Optional[np.random.RandomState] = None,
+    **kwargs
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.randn(d0, d1, *more, **kwargs)  # type: ignore
@@ -51,7 +63,9 @@ def normal(
 
 
 def poisson(
-    lam: NumType = 1.0, size: Optional[Size] = None, random_state: Optional[np.random.RandomState] = None
+    lam: NumType = 1.0,
+    size: Optional[Size] = None,
+    random_state: Optional[np.random.RandomState] = None,
 ) -> Any:
     if random_state is None:
         random_state = get_random_state()
@@ -59,7 +73,8 @@ def poisson(
 
 
 def permutation(
-    x: Union[int, Sequence[float], np.ndarray], random_state: Optional[np.random.RandomState] = None
+    x: Union[int, Sequence[float], np.ndarray],
+    random_state: Optional[np.random.RandomState] = None,
 ) -> Any:
     if random_state is None:
         random_state = get_random_state()
@@ -78,7 +93,9 @@ def randint(
     return random_state.randint(low, high, size, dtype)
 
 
-def random(size: Optional[NumType] = None, random_state: Optional[np.random.RandomState] = None) -> Any:
+def random(
+    size: Optional[NumType] = None, random_state: Optional[np.random.RandomState] = None
+) -> Any:
     if random_state is None:
         random_state = get_random_state()
     return random_state.random(size)  # type: ignore

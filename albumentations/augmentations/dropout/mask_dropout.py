@@ -42,7 +42,7 @@ class MaskDropout(DualTransform):
         mask_fill_value: Union[int, float] = 0,
         always_apply: bool = False,
         p: float = 0.5,
-        rs: Optional[np.random.RandomState] = None
+        rs: Optional[np.random.RandomState] = None,
     ):
         super(MaskDropout, self).__init__(always_apply, p, rs)
         self.max_objects = to_tuple(max_objects, 1)
@@ -61,13 +61,19 @@ class MaskDropout(DualTransform):
         if num_labels == 0:
             dropout_mask = None
         else:
-            objects_to_drop = self.py_randint(int(self.max_objects[0]), int(self.max_objects[1]))
+            objects_to_drop = self.py_randint(
+                int(self.max_objects[0]), int(self.max_objects[1])
+            )
             objects_to_drop = min(num_labels, objects_to_drop)
 
             if objects_to_drop == num_labels:
                 dropout_mask = mask > 0
             else:
-                labels_index = self.random().choice(range(1, num_labels + 1), objects_to_drop, replace=False).tolist()
+                labels_index = (
+                    self.random()
+                    .choice(range(1, num_labels + 1), objects_to_drop, replace=False)
+                    .tolist()
+                )
                 dropout_mask = np.zeros((mask.shape[0], mask.shape[1]), dtype=bool)
                 for label_index in labels_index:
                     dropout_mask |= label_image == label_index
@@ -75,7 +81,9 @@ class MaskDropout(DualTransform):
         params.update({"dropout_mask": dropout_mask})
         return params
 
-    def apply(self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params) -> np.ndarray:
+    def apply(
+        self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params
+    ) -> np.ndarray:
         if dropout_mask is None:
             return img
 
@@ -90,7 +98,9 @@ class MaskDropout(DualTransform):
 
         return img
 
-    def apply_to_mask(self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params) -> np.ndarray:
+    def apply_to_mask(
+        self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params
+    ) -> np.ndarray:
         if dropout_mask is None:
             return img
 

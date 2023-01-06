@@ -5,12 +5,22 @@ import re
 from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import find_packages, setup
 
-INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy>=1.1.0", "scikit-image>=0.16.1", "PyYAML", "qudida>=0.0.4"]
+INSTALL_REQUIRES = [
+    "numpy>=1.11.1",
+    "scipy>=1.1.0",
+    "scikit-image>=0.16.1",
+    "PyYAML",
+    "qudida>=0.0.4",
+]
 
 # If none of packages in first installed, install second package
 CHOOSE_INSTALL_REQUIRES = [
     (
-        ("opencv-python>=4.1.1", "opencv-contrib-python>=4.1.1", "opencv-contrib-python-headless>=4.1.1"),
+        (
+            "opencv-python>=4.1.1",
+            "opencv-contrib-python>=4.1.1",
+            "opencv-contrib-python-headless>=4.1.1",
+        ),
         "opencv-python-headless>=4.1.1",
     )
 ]
@@ -65,8 +75,14 @@ setup(
     url="https://github.com/albumentations-team/albumentations",
     packages=find_packages(exclude=["tests"]),
     python_requires=">=3.7",
-    install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
-    extras_require={"tests": ["pytest"], "imgaug": ["imgaug>=0.4.0"], "develop": ["pytest", "imgaug>=0.4.0"]},
+    install_requires=get_install_requirements(
+        INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES
+    ),
+    extras_require={
+        "tests": ["pytest"],
+        "imgaug": ["imgaug>=0.4.0"],
+        "develop": ["pytest", "imgaug>=0.4.0"],
+    },
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",
