@@ -701,7 +701,7 @@ class CropAndPad(DualTransform):
         img: np.ndarray,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
-        pad_value_mask: float = None,
+        pad_value_mask: Optional[float] = None,
         rows: int = 0,
         cols: int = 0,
         **params
