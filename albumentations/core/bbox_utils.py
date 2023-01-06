@@ -287,9 +287,24 @@ def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> float:
     return area
 
 
-def calculate_bboxes_area(bbox: np.ndarray, rows: int, cols: int) -> float:
-    bbox = bbox if isinstance(bbox, np.ndarray) else np.array(bbox)
-    bboxes_area = (bbox[:, 2] - bbox[:, 0]) * (bbox[:, 3] - bbox[:, 1]) * cols * rows
+def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+    """Calculate the area of bounding boxes in (fractional) pixels.
+
+    Args:
+        bboxes: numpy.ndarray
+            A 2D ndarray
+        rows: int
+            Image height
+        cols: int
+            Image width
+
+    Returns:
+        numpy.ndarray, area in (fractional) pixels of the denormalized bounding boxes.
+
+    """
+    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
+    assert_np_bboxes_format(bboxes)
+    bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]) * cols * rows
     return bboxes_area
 
 
