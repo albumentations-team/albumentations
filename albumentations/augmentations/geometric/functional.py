@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -15,7 +15,7 @@ from albumentations.augmentations.utils import (
 )
 
 from ... import random_utils
-from ...core.bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.bbox_utils import assert_np_bboxes_format, denormalize_bbox, normalize_bbox
 from ...core.transforms_interface import (
     BoxInternalType,
     FillValueType,
@@ -893,6 +893,15 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
+def bboxes_vflip(bboxes: Union[np.ndarray, List[BoxInternalType]], **kwargs) -> List[BoxInternalType]:
+    if not len(bboxes):
+        return bboxes
+    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
+    assert_np_bboxes_format(bboxes)
+    bboxes[:, 1::2] = 1 - bboxes[:, 1::2]
+    return bboxes.tolist()
+
+
 def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
     """Flip a bounding box horizontally around the y-axis.
 
@@ -907,6 +916,15 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
     """
     x_min, y_min, x_max, y_max = bbox[:4]
     return 1 - x_max, y_min, 1 - x_min, y_max
+
+
+def bboxes_hflip(bboxes: Union[np.ndarray, List[BoxInternalType]], **kwargs) -> List[BoxInternalType]:
+    if not len(bboxes):
+        return bboxes
+    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
+    assert_np_bboxes_format(bboxes)
+    bboxes[:, 0::2] = 1 - bboxes[:, 0::2]
+    return bboxes.tolist()
 
 
 def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInternalType:
@@ -935,6 +953,35 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
     else:
         raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
     return bbox
+
+
+def bboxes_flip(bboxes: Union[np.ndarray, List[BoxInternalType]], d: int, **kwargs) -> List[BoxInternalType]:
+    if d == 0:
+        return bboxes_vflip(bboxes, **kwargs)
+    elif d == 1:
+        return bboxes_hflip(bboxes, **kwargs)
+    elif d == -1:
+        bboxes = bboxes_hflip(bboxes, **kwargs)
+        return bboxes_vflip(bboxes, **kwargs)
+    else:
+        raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1.")
+
+
+def bboxes_transpose(bboxes: Union[np.ndarray, List[BoxInternalType]], axis: int, **kwargs) -> List[BoxInternalType]:
+    if not len(bboxes):
+        return bboxes
+    if axis not in {0, 1}:
+        raise ValueError(f"Invalid axis value {axis}. Axis must be either 0 or 1")
+
+    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
+    assert_np_bboxes_format(bboxes)
+
+    if axis == 0:
+        bboxes[:, [0, 1]] = bboxes[:, [1, 0]]
+        bboxes[:, [2, 3]] = bboxes[:, [3, 2]]
+    else:
+        bboxes = 1 - bboxes[:, ::-1]
+    return bboxes
 
 
 def bbox_transpose(
