@@ -29,6 +29,7 @@ __all__ = [
     "BboxParams",
     "bboxes_to_array",
     "array_to_bboxes",
+    "assert_np_bboxes_format",
 ]
 
 TBox = TypeVar("TBox", BoxType, BoxInternalType)
