@@ -65,7 +65,9 @@ __all__ = [
     "bbox_hflip",
     "bbox_transpose",
     "bbox_vflip",
+    "vflip",
     "hflip",
+    "vflip_cv2",
     "hflip_cv2",
     "transpose",
     "keypoint_flip",
@@ -857,6 +859,10 @@ def vflip(img: np.ndarray) -> np.ndarray:
 
 def hflip(img: np.ndarray) -> np.ndarray:
     return np.ascontiguousarray(img[:, ::-1, ...])
+
+
+def vflip_cv2(img: np.ndarray) -> np.ndarray:
+    return cv2.flip(img, 0)
 
 
 def hflip_cv2(img: np.ndarray) -> np.ndarray:
