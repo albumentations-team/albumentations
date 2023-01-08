@@ -102,6 +102,26 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxI
     return bbox
 
 
+def bboxes_rot90(bboxes: np.ndarray, factor: int, rows: int, cols: int) -> np.ndarray:
+    assert_np_bboxes_format(bboxes)
+    if factor not in {0, 1, 2, 3}:
+        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
+
+    if not factor:
+        return bboxes
+
+    if factor == 1:
+        bboxes[:, [0, 2]] = 1 - bboxes[:, [0, 2]]
+        bboxes = bboxes[:, [1, 2, 3, 0]]
+    elif factor == 2:
+        bboxes = 1 - bboxes
+        bboxes = bboxes[:, [2, 3, 0, 1]]
+    elif factor == 3:
+        bboxes[:, [1, 3]] = 1 - bboxes[:, [1, 3]]
+        bboxes = bboxes[:, [3, 0, 1, 2]]
+    return bboxes
+
+
 @angle_2pi_range
 def keypoint_rot90(keypoint: KeypointInternalType, factor: int, rows: int, cols: int, **params) -> KeypointInternalType:
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
@@ -193,6 +213,46 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
     y_min, y_max = min(y_t), max(y_t)
 
     return x_min, y_min, x_max, y_max
+
+
+def bboxes_rotate(bboxes: np.ndarray, angle: float, method: str, rows: int, cols: int) -> np.ndarray:
+    scale_ = cols / float(rows)
+    if method == "largest_box":
+        x = np.tile(bboxes[:, [0, 2]], 2) - 0.5
+        y = np.tile(bboxes[:, [1, 3]], 2) - 0.5
+    elif method == "ellipse":
+        w = np.expand_dims((bboxes[:, 2] - bboxes[:, 0]) / 2.0, axis=0).transpose()
+        h = np.expand_dims((bboxes[:, 3] - bboxes[:, 1]) / 2.0, axis=0).transpose()
+        data = np.arange(0, 360, dtype=np.float32)
+        x = w * np.sin(np.radians(data)) + (w + np.expand_dims(bboxes[:, 0], 0).transpose() - 0.5)
+        y = h * np.cos(np.radians(data)) + (h + np.expand_dims(bboxes[:, 1], 0).transpose() - 0.5)
+    else:
+        raise ValueError(
+            f"Method {method} is not a valid rotation method. Should only support `largest_box` or `ellipse`."
+        )
+    angle = np.deg2rad(angle)
+    x_t = (x * np.cos(angle) * scale_ + y * np.sin(angle)) / scale_ + 0.5
+    y_t = (x * -np.sin(angle) * scale_ + y * np.cos(angle)) + 0.5
+
+    bboxes = np.concatenate(
+        [
+            [
+                np.min(x_t, axis=1),
+            ],
+            [
+                np.max(x_t, axis=1),
+            ],
+            [
+                np.min(y_t, axis=1),
+            ],
+            [
+                np.max(y_t, axis=1),
+            ],
+        ],
+        axis=0,
+    ).transpose()
+
+    return bboxes
 
 
 @angle_2pi_range

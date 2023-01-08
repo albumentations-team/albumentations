@@ -27,6 +27,8 @@ __all__ = [
     "union_of_bboxes",
     "BboxProcessor",
     "BboxParams",
+    "bboxes_to_array",
+    "array_to_bboxes",
 ]
 
 TBox = TypeVar("TBox", BoxType, BoxInternalType)
@@ -36,6 +38,14 @@ def assert_np_bboxes_format(bboxes: np.ndarray):
     assert (
         isinstance(bboxes, np.ndarray) and len(bboxes.shape) == 2 and bboxes.shape[-1] == 4
     ), "An array of bboxes should be 2 dimension, and the last dimension must has 4 elements."
+
+
+def bboxes_to_array(bboxes: Sequence[BoxType]) -> np.ndarray:
+    return np.array([bbox[:4] for bbox in bboxes])
+
+
+def array_to_bboxes(np_bboxes: np.ndarray, ori_bboxes: Sequence[BoxType]) -> List[BoxType]:
+    return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for bbox, np_bbox in zip(ori_bboxes, np_bboxes)]
 
 
 class BboxParams(Params):
