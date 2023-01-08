@@ -5,8 +5,11 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
+from albumentations.core.bbox_utils import array_to_bboxes, bboxes_to_array
+
 from ...core.transforms_interface import (
     BoxInternalType,
+    BoxType,
     DualTransform,
     FillValueType,
     KeypointInternalType,
@@ -44,6 +47,11 @@ class RandomRotate90(DualTransform):
 
     def apply_to_bbox(self, bbox, factor=0, **params):
         return F.bbox_rot90(bbox, factor, **params)
+
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], factor: int = 0, **params) -> List[BoxType]:
+        np_bboxes = bboxes_to_array(bboxes)
+        np_bboxes = F.bboxes_rot90(np_bboxes, factor=factor, **params)
+        return array_to_bboxes(np_bboxes, bboxes)
 
     def apply_to_keypoint(self, keypoint, factor=0, **params):
         return F.keypoint_rot90(keypoint, factor, **params)
@@ -123,6 +131,33 @@ class Rotate(DualTransform):
         if self.crop_border:
             bbox_out = FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
         return bbox_out
+
+    def apply_to_bboxes(
+        self,
+        bboxes: Sequence[BoxType],
+        angle: int = 0,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        cols: int = 0,
+        rows: int = 0,
+        **params
+    ) -> List[BoxType]:
+        np_bboxes = bboxes_to_array(bboxes)
+        np_bboxes = F.bboxes_rotate(np_bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
+        if self.crop_border:
+            np_bboxes = FCrops.bboxes_crop(
+                np_bboxes,
+                x_min=[x_min] * len(np_bboxes),
+                y_min=[y_min] * len(np_bboxes),
+                x_max=[x_max] * len(np_bboxes),
+                y_max=[y_max] * len(np_bboxes),
+                rows=rows,
+                cols=cols,
+            )
+
+        return array_to_bboxes(np_bboxes, bboxes)
 
     def apply_to_keypoint(
         self, keypoint, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params
