@@ -1,34 +1,37 @@
 from __future__ import division, print_function
+
 import argparse
 import math
 import os
 import sys
 from abc import ABC
-from timeit import Timer
 from collections import defaultdict
-import pkg_resources
+from timeit import Timer
 
+import cv2
+import keras_preprocessing.image as keras
+import numpy as np
+import pandas as pd
+import pkg_resources
+import solt.core as slc
+import solt.transforms as slt
+import solt.utils as slu
+import torchvision.transforms.functional as torchvision
 from Augmentor import Operations, Pipeline
+from imgaug import augmenters as iaa
 from PIL import Image, ImageOps
 from pytablewriter import MarkdownTableWriter
 from pytablewriter.style import Style
-
-import cv2
-
 from tqdm import tqdm
-import numpy as np
-import pandas as pd
-import torchvision.transforms.functional as torchvision
-import keras_preprocessing.image as keras
-from imgaug import augmenters as iaa
-import solt.transforms as slt
-import solt.core as slc
-import solt.utils as slu
 
-import albumentations.augmentations.functional as albumentations
 import albumentations as A
-from albumentations.augmentations.geometric.functional import rotate, resize, shift_scale_rotate
+import albumentations.augmentations.functional as albumentations
 from albumentations.augmentations.crops.functional import random_crop
+from albumentations.augmentations.geometric.functional import (
+    resize,
+    rotate,
+    shift_scale_rotate,
+)
 
 cv2.setNumThreads(0)  # noqa E402
 cv2.ocl.setUseOpenCL(False)  # noqa E402
@@ -209,9 +212,8 @@ class HorizontalFlip(BenchmarkTest):
 
     def albumentations(self, img):
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
-            return albumentations.hflip_cv2(img)
-
-        return albumentations.hflip(img)
+            return A.hflip_cv2(img)
+        return A.hflip(img)
 
     def torchvision_transform(self, img):
         return torchvision.hflip(img)
@@ -230,7 +232,9 @@ class VerticalFlip(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Flip(p=1, axis=0)])
 
     def albumentations(self, img):
-        return albumentations.vflip(img)
+        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
+            return A.vflip_cv2(img)
+        return A.vflip(img)
 
     def torchvision_transform(self, img):
         return torchvision.vflip(img)
@@ -252,7 +256,7 @@ class Rotate(BenchmarkTest):
         return rotate(img, angle=-45)
 
     def torchvision_transform(self, img):
-        return torchvision.rotate(img, angle=-45, resample=Image.BILINEAR)
+        return torchvision.rotate(img, angle=-45, interpolation=torchvision.InterpolationMode.BILINEAR)
 
     def keras(self, img):
         img = keras.apply_affine_transform(img, theta=45, channel_axis=2, fill_mode="reflect")
@@ -326,7 +330,9 @@ class ShiftScaleRotate(BenchmarkTest):
         return shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
 
     def torchvision_transform(self, img):
-        return torchvision.affine(img, angle=45, translate=(50, 50), scale=2, shear=0, resample=Image.BILINEAR)
+        return torchvision.affine(
+            img, angle=45, translate=(50, 50), scale=2, shear=0, interpolation=torchvision.InterpolationMode.BILINEAR
+        )
 
     def keras(self, img):
         img = keras.apply_affine_transform(img, theta=45, tx=50, ty=50, zx=0.5, zy=0.5, fill_mode="reflect")
@@ -436,7 +442,7 @@ class PadToSize512(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Pad(pad_to=(512, 512), padding="r")])
 
     def albumentations(self, img):
-        return albumentations.pad(img, min_height=512, min_width=512)
+        return A.pad(img, min_height=512, min_width=512)
 
     def torchvision_transform(self, img):
         if img.size[0] < 512:
@@ -464,7 +470,7 @@ class Gamma(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.GammaCorrection(p=1, gamma_range=(0.5, 0.5))])
 
     def albumentations(self, img):
-        return albumentations.gamma_transform(img, gamma=0.5)
+        return A.gamma_transform(img, gamma=0.5)
 
     def torchvision_transform(self, img):
         return torchvision.adjust_gamma(img, gamma=0.5)
@@ -477,7 +483,7 @@ class Grayscale(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.CvtColor(mode="rgb2gs")])
 
     def albumentations(self, img):
-        return albumentations.to_gray(img)
+        return A.to_gray(img)
 
     def torchvision_transform(self, img):
         return torchvision.to_grayscale(img, num_output_channels=3)
@@ -490,7 +496,7 @@ class Grayscale(BenchmarkTest):
 
 class Posterize(BenchmarkTest):
     def albumentations(self, img):
-        return albumentations.posterize(img, 4)
+        return A.posterize(img, 4)
 
     def pillow(self, img):
         return ImageOps.posterize(img, 4)
@@ -501,7 +507,7 @@ class Multiply(BenchmarkTest):
         self.imgaug_transform = iaa.Multiply(mul=1.5)
 
     def albumentations(self, img):
-        return albumentations.multiply(img, np.array([1.5]))
+        return A.multiply(img, np.array([1.5]))
 
 
 class MultiplyElementwise(BenchmarkTest):
@@ -526,10 +532,10 @@ class ColorJitter(BenchmarkTest):
         return img
 
     def albumentations(self, img):
-        img = albumentations.adjust_brightness_torchvision(img, 1.5)
-        img = albumentations.adjust_contrast_torchvision(img, 1.5)
-        img = albumentations.adjust_saturation_torchvision(img, 1.5)
-        img = albumentations.adjust_hue_torchvision(img, 0.5)
+        img = A.adjust_brightness_torchvision(img, 1.5)
+        img = A.adjust_contrast_torchvision(img, 1.5)
+        img = A.adjust_saturation_torchvision(img, 1.5)
+        img = A.adjust_hue_torchvision(img, 0.5)
         return img
 
     def torchvision_transform(self, img):

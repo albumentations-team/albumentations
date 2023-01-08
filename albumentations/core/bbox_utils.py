@@ -1,6 +1,6 @@
 from __future__ import division
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, cast
 
 import numpy as np
 
@@ -11,8 +11,11 @@ __all__ = [
     "normalize_bbox",
     "denormalize_bbox",
     "normalize_bboxes",
+    "normalize_bboxes_np",
     "denormalize_bboxes",
+    "denormalize_bboxes_np",
     "calculate_bbox_area",
+    "calculate_bboxes_area",
     "filter_bboxes_by_visibility",
     "convert_bbox_to_albumentations",
     "convert_bbox_from_albumentations",
@@ -224,18 +227,48 @@ def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[Bo
     return [normalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
-def normalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+def _convert_to_array(dim: Union[Sequence[int], np.ndarray], length: int, dim_name: str):
+    if not isinstance(dim, np.ndarray):
+        dim = np.array(
+            [
+                dim,
+            ]
+        ).transpose()
+    elif isinstance(dim, np.ndarray) and len(dim.shape) == 1:
+        dim = np.expand_dims(dim, axis=0).transpose()
+    assert isinstance(dim, np.ndarray) and dim.shape[0] == length
+
+    if np.any(dim <= 0):
+        raise ValueError(f"Argument {dim_name} must be all positive integer")
+    return dim.astype(float)
+
+
+def normalize_bboxes_np(
+    bboxes: np.ndarray, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
+) -> np.ndarray:
+    """Normalize a list of bounding boxes.
+
+    Args:
+        bboxes: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        rows: Image height.
+        cols: Image width.
+
+    Returns:
+        Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+    """
     if not len(bboxes):
         return bboxes
-    if rows <= 0:
-        raise ValueError("Argument rows must be positive integer")
-    if cols <= 0:
-        raise ValueError("Argument cols must be positive integer")
 
     assert_np_bboxes_format(bboxes)
+
+    if not isinstance(rows, int):
+        rows = _convert_to_array(rows, len(bboxes), "rows")
+    if not isinstance(cols, int):
+        cols = _convert_to_array(cols, len(bboxes), "cols")
+
     bboxes_ = bboxes.copy().astype(float)
-    bboxes_[:, 0::2] /= float(cols)
-    bboxes_[:, 1::2] /= float(rows)
+    bboxes_[:, 0::2] /= cols
+    bboxes_[:, 1::2] /= rows
     return bboxes_
 
 
@@ -255,13 +288,25 @@ def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[
 
 
 def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+    """Denormalize a list of bounding boxes.
+
+    Args:
+        bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        rows: Image height.
+        cols: Image width.
+
+    Returns:
+        List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+
+    """
     if not len(bboxes):
         return bboxes
-    if rows <= 0:
-        raise ValueError("Argument rows must be positive integer")
-    if cols <= 0:
-        raise ValueError("Argument cols must be positive integer")
     assert_np_bboxes_format(bboxes)
+
+    if not isinstance(rows, int):
+        rows = _convert_to_array(rows, len(bboxes), "rows")
+    if not isinstance(cols, int):
+        cols = _convert_to_array(cols, len(bboxes), "cols")
     bboxes_ = bboxes.copy()
 
     bboxes_[:, 0::2] *= cols

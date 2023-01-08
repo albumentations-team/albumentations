@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
@@ -8,7 +8,12 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
 )
 
-from ...core.bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.bbox_utils import (
+    denormalize_bbox,
+    denormalize_bboxes_np,
+    normalize_bbox,
+    normalize_bboxes_np,
+)
 from ...core.transforms_interface import BoxInternalType, KeypointInternalType
 from ..geometric import functional as FGeometric
 
@@ -16,18 +21,23 @@ __all__ = [
     "get_random_crop_coords",
     "random_crop",
     "crop_bbox_by_coords",
+    "crop_bboxes_by_coords",
     "bbox_random_crop",
+    "bboxes_random_crop",
     "crop_keypoint_by_coords",
     "keypoint_random_crop",
     "get_center_crop_coords",
     "center_crop",
     "bbox_center_crop",
+    "bboxes_center_crop",
     "keypoint_center_crop",
     "crop",
     "bbox_crop",
+    "bboxes_crop",
     "clamping_crop",
     "crop_and_pad",
     "crop_and_pad_bbox",
+    "crop_and_pad_bboxes",
     "crop_and_pad_keypoint",
 ]
 
@@ -87,11 +97,46 @@ def crop_bbox_by_coords(
     return normalize_bbox(cropped_bbox, crop_height, crop_width)
 
 
+def crop_bboxes_by_coords(
+    bboxes: np.ndarray,
+    crop_coords: Sequence[Tuple[int, int, int, int]],
+    crop_height: Sequence[int],
+    crop_width: Sequence[int],
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+
+    np_bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array([bbox[:4] for bbox in bboxes])
+    np_bboxes = denormalize_bboxes_np(np_bboxes, rows, cols)
+
+    crop_coords = np.tile(np.array(crop_coords)[:, :2], 2)
+
+    cropped_bboxes = np_bboxes - crop_coords
+
+    return normalize_bboxes_np(cropped_bboxes, crop_width, crop_height)
+
+
 def bbox_random_crop(
     bbox: BoxInternalType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
 ):
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
+
+
+def bboxes_random_crop(
+    bboxes: np.ndarray,
+    crop_height: int,
+    crop_width: int,
+    h_start: int,
+    w_start: int,
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+    num_bboxes = len(bboxes)
+    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
+    return crop_bboxes_by_coords(
+        bboxes, [crop_coords] * num_bboxes, [crop_height] * num_bboxes, [crop_width] * num_bboxes, rows, cols
+    )
 
 
 def crop_keypoint_by_coords(
@@ -168,6 +213,14 @@ def bbox_center_crop(bbox: BoxInternalType, crop_height: int, crop_width: int, r
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
+def bboxes_center_crop(bboxes: np.ndarray, crop_height: int, crop_width: int, rows: int, cols: int):
+    num_bboxes = len(bboxes)
+    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
+    return crop_bboxes_by_coords(
+        bboxes, [crop_coords] * num_bboxes, [crop_height] * num_bboxes, [crop_width] * num_bboxes, rows, cols
+    )
+
+
 def keypoint_center_crop(keypoint: KeypointInternalType, crop_height: int, crop_width: int, rows: int, cols: int):
     """Keypoint center crop.
 
@@ -230,6 +283,37 @@ def bbox_crop(bbox: BoxInternalType, x_min: int, y_min: int, x_max: int, y_max: 
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
+def bboxes_crop(
+    bboxes: np.ndarray,
+    x_min: Sequence[int],
+    y_min: Sequence[int],
+    x_max: Sequence[int],
+    y_max: Sequence[int],
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+
+    np_x_min = np.array(x_min)
+    np_y_min = np.array(y_min)
+    np_x_max = np.array(x_max)
+    np_y_max = np.array(y_max)
+
+    crop_coords = np.concatenate(
+        [
+            np.expand_dims(np_x_min, axis=0).transpose(),
+            np.expand_dims(np_y_min, axis=0).transpose(),
+            np.expand_dims(np_x_max, axis=0).transpose(),
+            np.expand_dims(np_y_max, axis=0).transpose(),
+        ],
+        axis=1,
+    )
+
+    crop_heights = np_y_max - np_y_min
+    crop_widths = np_x_max - np_x_min
+
+    return crop_bboxes_by_coords(bboxes, crop_coords, crop_heights, crop_widths, rows=rows, cols=cols)
+
+
 def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
     h, w = img.shape[:2]
     if x_min < 0:
@@ -288,6 +372,28 @@ def crop_and_pad_bbox(
         x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
 
     return normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
+
+
+def crop_and_pad_bboxes(
+    bboxes: np.ndarray,
+    crop_params: Optional[Sequence[int]],
+    pad_params: Optional[Sequence[int]],
+    rows: int,
+    cols: int,
+    result_rows: int,
+    result_cols: int,
+) -> np.ndarray:
+
+    bboxes = denormalize_bboxes_np(bboxes, rows, cols)
+
+    if crop_params is not None:
+        crop_x, crop_y = crop_params[:2]
+        bboxes -= np.array([crop_x, crop_y, crop_x, crop_y])
+    if pad_params is not None:
+        top, bottom, left, right = pad_params
+        bboxes += np.array([left, top, left, top])
+
+    return normalize_bboxes_np(bboxes, result_rows, result_cols)
 
 
 def crop_and_pad_keypoint(
