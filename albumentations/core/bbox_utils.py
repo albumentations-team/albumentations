@@ -525,7 +525,7 @@ def convert_bboxes_from_albumentations(
         np_bboxes[:, 2:] -= np_bboxes[:, :2]
         np_bboxes[:, :2] += np_bboxes[:, 2:] / 2.0
 
-    return [cast(BoxType, tuple(np_bbox) + bbox[4:]) for np_bbox, bbox in zip(np_bboxes, bboxes)]
+    return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for np_bbox, bbox in zip(np_bboxes, bboxes)]
 
 
 def check_bbox(bbox: BoxType) -> None:
@@ -638,13 +638,20 @@ def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
-    x1, y1 = width, height
-    x2, y2 = 0, 0
-    for bbox in bboxes:
-        x_min, y_min, x_max, y_max = bbox[:4]
-        w, h = x_max - x_min, y_max - y_min
-        lim_x1, lim_y1 = x_min + erosion_rate * w, y_min + erosion_rate * h
-        lim_x2, lim_y2 = x_max - erosion_rate * w, y_max - erosion_rate * h
-        x1, y1 = np.min([x1, lim_x1]), np.min([y1, lim_y1])
-        x2, y2 = np.max([x2, lim_x2]), np.max([y2, lim_y2])
+
+    np_bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array([bbox[:4] for bbox in bboxes])
+    w, h = np_bboxes[:, 2] - np_bboxes[:, 0], np_bboxes[:, 3] - np_bboxes[:, 1]
+
+    limits = np.tile(
+        np.concatenate((np.expand_dims(w, 0).transpose(), np.expand_dims(h, 0).transpose()), 1) * erosion_rate, 2
+    )
+    limits[2:] *= -1
+
+    limits += np_bboxes
+
+    limits = np.concatenate((limits, [[width, height, 0, 0]]))
+
+    x1, y1 = np.min(limits[:, 0:2], axis=0)
+    x2, y2 = np.max(limits[:, 2:4], axis=0)
+
     return x1, y1, x2, y2
