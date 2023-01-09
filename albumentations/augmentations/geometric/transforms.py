@@ -1283,6 +1283,12 @@ class HorizontalFlip(DualTransform):
         np_bboxes = F.bboxes_hflip(np_bboxes)
         return array_to_bboxes(np_bboxes, bboxes)
 
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
+        np_bboxes = F.bboxes_hflip(np_bboxes)
+        return array_to_bboxes(np_bboxes, bboxes)
+
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_hflip(keypoint, **params)
 

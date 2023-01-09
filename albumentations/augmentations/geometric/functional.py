@@ -515,6 +515,54 @@ def perspective_bboxes(
     return normalize_bboxes_np(bboxes, height if keep_size else max_height, width if keep_size else max_width)
 
 
+def perspective_bboxes(
+    bboxes: np.ndarray,
+    height: int,
+    width: int,
+    matrix: np.ndarray,
+    max_width: int,
+    max_height: int,
+    keep_size: bool,
+) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
+    bboxes = denormalize_bboxes_np(bboxes, height, width)
+
+    zero_points = np.zeros_like(bboxes[:, 0])
+
+    points = np.stack(
+        [
+            np.stack([bboxes[:, 0], bboxes[:, 1], zero_points, zero_points], axis=1),
+            np.stack([bboxes[:, 2], bboxes[:, 1], zero_points, zero_points], axis=1),
+            np.stack([bboxes[:, 2], bboxes[:, 3], zero_points, zero_points], axis=1),
+            np.stack([bboxes[:, 0], bboxes[:, 3], zero_points, zero_points], axis=1),
+        ],
+        axis=1,
+    )
+
+    points = perspective_keypoints(
+        points,
+        height=height,
+        width=width,
+        matrix=matrix,
+        max_width=max_width,
+        max_height=max_height,
+        keep_size=keep_size,
+    )
+
+    bboxes = np.stack(
+        [
+            np.min(np.insert(points[..., 0], 0, np.inf, axis=1), axis=1),
+            np.min(np.insert(points[..., 1], 0, np.inf, axis=1), axis=1),
+            np.max(np.insert(points[..., 0], 0, 0, axis=1), axis=1),
+            np.max(np.insert(points[..., 1], 0, 0, axis=1), axis=1),
+        ],
+        axis=-1,
+    )
+
+    return normalize_bboxes_np(bboxes, height if keep_size else max_height, width if keep_size else max_width)
+
+
 def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
     """
     Args:
@@ -676,6 +724,46 @@ def bboxes_affine(
         [
             np.min(points[..., [0, 1]], axis=-2),
             np.max(points[..., [0, 1]], axis=-2),
+        ],
+        axis=-1,
+    )
+
+    return normalize_bboxes_np(bboxes, output_shape[0], output_shape[1])
+
+
+def bboxes_affine(
+    bboxes: np.ndarray,
+    matrix: skimage.transform.ProjectiveTransform,
+    rows: int,
+    cols: int,
+    output_shape: Sequence[int],
+) -> np.ndarray:
+    if _is_identity_matrix(matrix):
+        return bboxes
+
+    if not len(bboxes):
+        return bboxes
+
+    assert_np_bboxes_format(bboxes)
+    bboxes = denormalize_bboxes_np(bboxes, rows, cols)
+    points = np.stack(
+        [
+            bboxes[..., [0, 1]],
+            bboxes[..., [2, 1]],
+            bboxes[..., [2, 3]],
+            bboxes[..., [0, 3]],
+        ],
+        axis=1,
+    )  # points.shape == N * 4 * 2
+
+    points = skimage.transform.matrix_transform(points.reshape(-1, 2), matrix.params).reshape(points.shape)
+
+    bboxes = np.stack(
+        [
+            np.min(points[..., 0], axis=-1),
+            np.min(points[..., 1], axis=-1),
+            np.max(points[..., 0], axis=-1),
+            np.max(points[..., 1], axis=-1),
         ],
         axis=-1,
     )
