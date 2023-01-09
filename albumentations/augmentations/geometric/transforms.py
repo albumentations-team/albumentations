@@ -132,8 +132,15 @@ class ShiftScaleRotate(DualTransform):
             "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, self.rotate_method, **params)
+    def apply_to_bboxes(
+        self, bboxes: Sequence[BoxType], angle: int = 0, scale: int = 0, dx: int = 0, dy: int = 0, **params
+    ) -> List[BoxType]:
+        if not len(bboxes):
+            return []
+        np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
+        np_bboxes = F.bboxes_shift_scale_rotate(np_bboxes, angle, scale, dx, dy, self.rotate_method, **params)
+        return array_to_bboxes(np_bboxes, bboxes)
 
     def get_transform_init_args(self):
         return {
@@ -334,7 +341,8 @@ class Perspective(DualTransform):
     def apply_to_bboxes(
         self, bboxes: Sequence[BoxType], matrix=None, max_height=None, max_width=None, **params
     ) -> List[BoxType]:
-
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.perspective_bboxes(
@@ -701,7 +709,8 @@ class Affine(DualTransform):
         output_shape: Sequence[int] = (),
         **params
     ) -> List[BoxType]:
-
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_affine(np_bboxes, matrix, rows, cols, output_shape)
@@ -1136,6 +1145,8 @@ class PadIfNeeded(DualTransform):
         cols: int = 0,
         **params
     ) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = denormalize_bboxes_np(np_bboxes, rows=rows, cols=cols)
@@ -1221,6 +1232,8 @@ class VerticalFlip(DualTransform):
         return F.vflip(img)
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes: np.ndarray = bboxes_to_array(bboxes)
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_vflip(np_bboxes)
@@ -1254,10 +1267,9 @@ class HorizontalFlip(DualTransform):
 
         return F.hflip(img)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        return F.bbox_hflip(bbox, **params)
-
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_hflip(np_bboxes)
@@ -1296,6 +1308,8 @@ class Flip(DualTransform):
         return {"d": random.randint(-1, 1)}
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_flip(np_bboxes, **params)

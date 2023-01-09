@@ -7,6 +7,7 @@ import numpy as np
 
 from albumentations.core.bbox_utils import (
     array_to_bboxes,
+    assert_np_bboxes_format,
     bboxes_to_array,
     union_of_bboxes,
 )
@@ -62,7 +63,10 @@ class RandomCrop(DualTransform):
         return {"h_start": random.random(), "w_start": random.random()}
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_random_crop(np_bboxes, self.height, self.width, **params)
         return array_to_bboxes(np_bboxes, bboxes)
 
@@ -102,7 +106,10 @@ class CenterCrop(DualTransform):
         return F.center_crop(img, self.height, self.width)
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_center_crop(bboxes=np_bboxes, crop_height=self.height, crop_width=self.width, **params)
         return array_to_bboxes(np_bboxes, bboxes)
 
@@ -140,7 +147,10 @@ class Crop(DualTransform):
         return F.crop(img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max)
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params):
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_crop(
             np_bboxes,
             x_min=[self.x_min] * len(bboxes),
@@ -194,7 +204,10 @@ class CropNonEmptyMaskIfExists(DualTransform):
         return F.crop(img, x_min, y_min, x_max, y_max)
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], x_min=0, x_max=0, y_min=0, y_max=0, **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_crop(
             np_bboxes,
             x_min=[x_min] * len(np_bboxes),
@@ -290,7 +303,10 @@ class _BaseRandomSizedCrop(DualTransform):
         cols: int = 0,
         **params
     ) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_random_crop(
             np_bboxes,
             crop_height,
@@ -504,7 +520,10 @@ class RandomCropNearBBox(DualTransform):
     def apply_to_bboxes(
         self, bboxes: Sequence[BoxType], x_min: int = 0, y_min: int = 0, x_max: int = 0, y_max: int = 0, **params
     ) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_crop(
             np_bboxes,
             x_min=[x_min] * len(np_bboxes),
@@ -580,7 +599,10 @@ class BBoxSafeRandomCrop(DualTransform):
     def apply_to_bboxes(
         self, bboxes: Sequence[BoxType], crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params
     ) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_random_crop(np_bboxes, crop_height, crop_width, h_start, w_start, rows, cols)
         return array_to_bboxes(np_bboxes, bboxes)
 
@@ -782,7 +804,10 @@ class CropAndPad(DualTransform):
         result_cols: int = 0,
         **params
     ) -> List[BoxType]:
-        np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+        if not len(bboxes):
+            return []
+        np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.crop_and_pad_bboxes(
             np_bboxes,
             crop_params=crop_params,
@@ -1003,8 +1028,11 @@ class RandomCropFromBorders(DualTransform):
     def apply_to_bboxes(
         self, bboxes: Sequence[BoxType], x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params
     ) -> List[BoxType]:
-        rows, cols = params["rows"], params["cols"]
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
+        rows, cols = params["rows"], params["cols"]
         np_bboxes = F.bboxes_crop(
             np_bboxes,
             x_min=[x_min] * len(bboxes),
