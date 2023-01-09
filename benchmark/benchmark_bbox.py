@@ -9,29 +9,16 @@ from collections import defaultdict
 from timeit import Timer
 
 import cv2
-import keras_preprocessing.image as keras
 import numpy as np
 import pandas as pd
 import pkg_resources
-import solt.core as slc
-import solt.transforms as slt
-import solt.utils as slu
-import torchvision.transforms.functional as torchvision
-from Augmentor import Operations, Pipeline
 from imgaug import augmenters as iaa
-from PIL import Image, ImageOps
+from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from pytablewriter import MarkdownTableWriter
 from pytablewriter.style import Style
 from tqdm import tqdm
 
 import albumentations as A
-import albumentations.augmentations.functional as albumentations
-from albumentations.augmentations.crops.functional import random_crop
-from albumentations.augmentations.geometric.functional import (
-    resize,
-    rotate,
-    shift_scale_rotate,
-)
 
 cv2.setNumThreads(0)  # noqa E402
 cv2.ocl.setUseOpenCL(False)  # noqa E402
@@ -51,12 +38,6 @@ DEFAULT_BENCHMARKING_LIBRARIES = [
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Augmentation libraries performance benchmark")
-    parser.add_argument(
-        "-d", "--data-dir", metavar="DIR", default=os.environ.get("DATA_DIR"), help="path to a directory with images"
-    )
-    parser.add_argument(
-        "-i", "--images", default=2000, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
-    )
     parser.add_argument(
         "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
     )
@@ -140,16 +121,13 @@ class MarkdownGenerator:
         print("\n" + self._make_versions_text())
 
 
-def read_img_pillow(path):
-    with open(path, "rb") as f:
-        img = Image.open(f)
-        return img.convert("RGB")
-
-
-def read_img_cv2(filepath):
-    img = cv2.imread(filepath)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+def read_img_cv2(img_size=(512, 512, 3)):
+    img = np.zeros(shape=img_size, dtype=np.uint8)
     return img
+
+
+def generate_random_bboxes(bbox_nums: int = 1):
+    return np.random.random(size=(bbox_nums, 4))
 
 
 def format_results(images_per_second_for_aug, show_std=False):
@@ -173,7 +151,7 @@ class BenchmarkTest(ABC):
             return hasattr(self, "imgaug_transform")
         return hasattr(self, library)
 
-    def run(self, library, imgs):
+    def run(self, library, imgs: np.ndarray, bboxes: np.ndarray):
         transform = getattr(self, library)
         for img in imgs:
             transform(img)
@@ -182,19 +160,73 @@ class BenchmarkTest(ABC):
 class HorizontalFlip(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Fliplr(p=1)
-        self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="LEFT_RIGHT")
-        self.solt_stream = slc.Stream([slt.Flip(p=1, axis=1)])
 
     def albumentations(self, img):
+
         if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
             return A.hflip_cv2(img)
         return A.hflip(img)
 
-    def torchvision_transform(self, img):
-        return torchvision.hflip(img)
-
-    def keras(self, img):
-        return np.ascontiguousarray(keras.flip_axis(img, axis=1))
-
     def imgaug(self, img):
         return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
+
+
+def main():
+    args = parse_args()
+    package_versions = get_package_versions()
+    if args.print_package_versions:
+        print(package_versions)
+    images_per_second = defaultdict(dict)
+    libraries = args.libraries
+
+    benchmarks = [
+        HorizontalFlip(),
+        # VerticalFlip(),
+        # Rotate(),
+        # ShiftScaleRotate(),
+        # Brightness(),
+        # Contrast(),
+        # BrightnessContrast(),
+        # ShiftRGB(),
+        # ShiftHSV(),
+        # Gamma(),
+        # Grayscale(),
+        # RandomCrop64(),
+        # PadToSize512(),
+        # Resize512(),
+        # RandomSizedCrop_64_512(),
+        # Posterize(),
+        # Solarize(),
+        # Equalize(),
+        # Multiply(),
+        # MultiplyElementwise(),
+        # ColorJitter(),
+    ]
+    for library in libraries:
+        imgs = read_img_cv2(img_size=(512, 512, 3))
+        pbar = tqdm(total=len(benchmarks))
+        for benchmark in benchmarks:
+            pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
+            benchmark_images_per_second = None
+            if benchmark.is_supported_by(library):
+                timer = Timer(lambda: benchmark.run(library, imgs))
+                run_times = timer.repeat(number=1, repeat=args.runs)
+                benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
+            images_per_second[library][str(benchmark)] = benchmark_images_per_second
+            pbar.update(1)
+        pbar.close()
+    pd.set_option("display.width", 1000)
+    df = pd.DataFrame.from_dict(images_per_second)
+    df = df.applymap(lambda r: format_results(r, args.show_std))
+    df = df[libraries]
+    augmentations = [str(i) for i in benchmarks]
+    df = df.reindex(augmentations)
+    if args.markdown:
+        makedown_generator = MarkdownGenerator(df, package_versions)
+        makedown_generator.print()
+    else:
+        print(df.head(len(augmentations)))
+
+
+if __name__ == "__main__":
+    main()
