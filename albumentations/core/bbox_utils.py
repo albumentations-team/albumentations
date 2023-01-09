@@ -267,11 +267,6 @@ def normalize_bboxes_np(
     Returns:
         Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
     """
-    if not len(bboxes):
-        return bboxes
-
-    assert_np_bboxes_format(bboxes)
-
     if not isinstance(rows, int):
         rows = _convert_to_array(rows, len(bboxes), "rows")
     if not isinstance(cols, int):
@@ -310,10 +305,6 @@ def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
         List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
-    if not len(bboxes):
-        return bboxes
-    assert_np_bboxes_format(bboxes)
-
     if not isinstance(rows, int):
         rows = _convert_to_array(rows, len(bboxes), "rows")
     if not isinstance(cols, int):
@@ -358,8 +349,6 @@ def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
         numpy.ndarray, area in (fractional) pixels of the denormalized bounding boxes.
 
     """
-    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
-    assert_np_bboxes_format(bboxes)
     bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]) * cols * rows
     return bboxes_area
 
@@ -518,11 +507,15 @@ def convert_bboxes_to_albumentations(
     bboxes: Sequence[BoxType], source_format, rows, cols, check_validity=False
 ) -> List[BoxType]:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
+    if not len(bboxes):
+        return []
+
     if source_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
             f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
         )
-    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+
+    np_bboxes = bboxes_to_array(bboxes)
 
     if source_format == "coco":
 
@@ -541,7 +534,7 @@ def convert_bboxes_to_albumentations(
     if check_validity:
         check_bboxes(np_bboxes)
 
-    return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for np_bbox, bbox in zip(np_bboxes, bboxes)]
+    return array_to_bboxes(np_bboxes, bboxes)
 
 
 def convert_bboxes_from_albumentations(
@@ -568,7 +561,7 @@ def convert_bboxes_from_albumentations(
             f"Unknown target_format {target_format}. Supported formats are `coco`, `pascal_voc`, and `yolo`."
         )
 
-    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+    np_bboxes = bboxes_to_array(bboxes)
     if check_validity:
         check_bboxes(np_bboxes)
 
@@ -581,7 +574,7 @@ def convert_bboxes_from_albumentations(
         np_bboxes[:, 2:] -= np_bboxes[:, :2]
         np_bboxes[:, :2] += np_bboxes[:, 2:] / 2.0
 
-    return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for np_bbox, bbox in zip(np_bboxes, bboxes)]
+    return array_to_bboxes(np_bboxes, bboxes)
 
 
 def check_bbox(bbox: BoxType) -> None:
@@ -657,7 +650,8 @@ def filter_bboxes(
 
     if not len(bboxes):
         return []
-    np_bboxes = np.array([bbox[:4] for bbox in bboxes])
+
+    np_bboxes = bboxes_to_array(bboxes)
     clipped_norm_bboxes = np.clip(np_bboxes, 0.0, 1.0)
 
     clipped_width = (clipped_norm_bboxes[:, 2] - clipped_norm_bboxes[:, 0]) * cols
