@@ -45,9 +45,6 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bbox(self, bbox, factor=0, **params):
-        return F.bbox_rot90(bbox, factor, **params)
-
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], factor: int = 0, **params) -> List[BoxType]:
         np_bboxes = bboxes_to_array(bboxes)
         np_bboxes = F.bboxes_rot90(np_bboxes, factor=factor, **params)
@@ -125,12 +122,6 @@ class Rotate(DualTransform):
         if self.crop_border:
             img_out = FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
-
-    def apply_to_bbox(self, bbox, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params):
-        bbox_out = F.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
-        if self.crop_border:
-            bbox_out = FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
-        return bbox_out
 
     def apply_to_bboxes(
         self,
