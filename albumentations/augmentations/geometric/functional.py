@@ -44,6 +44,7 @@ __all__ = [
     "shift_scale_rotate",
     "keypoint_shift_scale_rotate",
     "bbox_shift_scale_rotate",
+    "bboxes_shift_scale_rotate",
     "elastic_transform",
     "resize",
     "scale",
@@ -369,6 +370,46 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, col
     y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
 
     return x_min, y_min, x_max, y_max
+
+
+def bboxes_shift_scale_rotate(
+    bboxes: np.ndarray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
+) -> np.ndarray:
+    center = (cols / 2, rows / 2)
+    if rotate_method == "ellipse":
+        bboxes = bboxes_rotate(bboxes, angle, rotate_method, rows, cols)
+        matrix = cv2.getRotationMatrix2D(center, 0, scale_)
+    elif rotate_method == "largest_box":
+        matrix = cv2.getRotationMatrix2D(center, angle, scale_)
+    else:
+        raise ValueError(
+            f"Method {rotate_method} is not a valid rotation method. Should only support `largest_box` or `ellipse`."
+        )
+    matrix[0, 2] += dx * cols
+    matrix[1, 2] += dy * rows
+
+    xs = np.stack([bboxes[..., 0], bboxes[..., 2], bboxes[..., 2], bboxes[..., 0]])
+    ys = np.stack([bboxes[..., 1], bboxes[..., 1], bboxes[..., 3], bboxes[..., 3]])
+    ones = np.ones_like(xs)
+
+    points_ones = np.stack([xs, ys, ones], axis=0).transpose()
+    points_ones[..., 0] *= cols
+    points_ones[..., 1] *= rows
+    tr_points = matrix.dot(points_ones.transpose((0, 2, 1))).transpose((1, 2, 0))
+    tr_points[..., 0] /= cols
+    tr_points[..., 1] /= rows
+
+    bboxes = np.stack(
+        [
+            np.min(tr_points[..., 0], axis=1),
+            np.min(tr_points[..., 1], axis=1),
+            np.max(tr_points[..., 0], axis=1),
+            np.max(tr_points[..., 1], axis=1),
+        ],
+        axis=1,
+    )
+
+    return bboxes
 
 
 @preserve_shape
