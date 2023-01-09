@@ -16,6 +16,7 @@ __all__ = [
     "clipped",
     "get_opencv_dtype_from_numpy",
     "angle_2pi_range",
+    "angles_2pi_range",
     "clip",
     "preserve_shape",
     "preserve_channel_dim",
@@ -92,6 +93,19 @@ def angle_2pi_range(
     def wrapped_function(keypoint: KeypointInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointInternalType:
         (x, y, a, s) = func(keypoint, *args, **kwargs)[:4]
         return (x, y, angle_to_2pi_range(a), s)
+
+    return wrapped_function
+
+
+def angles_2pi_range(
+    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
+) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
+    @wraps(func)
+    def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
+
+        keypoints = func(keypoints, *args, **kwargs)
+        keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
+        return keypoints
 
     return wrapped_function
 

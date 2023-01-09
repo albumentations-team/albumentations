@@ -5,7 +5,11 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from albumentations.core.bbox_utils import array_to_bboxes, bboxes_to_array
+from albumentations.core.bbox_utils import (
+    array_to_bboxes,
+    assert_np_bboxes_format,
+    bboxes_to_array,
+)
 
 from ...core.transforms_interface import (
     BoxInternalType,
@@ -45,11 +49,11 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bbox(self, bbox, factor=0, **params):
-        return F.bbox_rot90(bbox, factor, **params)
-
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], factor: int = 0, **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_rot90(np_bboxes, factor=factor, **params)
         return array_to_bboxes(np_bboxes, bboxes)
 
@@ -126,12 +130,6 @@ class Rotate(DualTransform):
             img_out = FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
-    def apply_to_bbox(self, bbox, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params):
-        bbox_out = F.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
-        if self.crop_border:
-            bbox_out = FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
-        return bbox_out
-
     def apply_to_bboxes(
         self,
         bboxes: Sequence[BoxType],
@@ -144,7 +142,10 @@ class Rotate(DualTransform):
         rows: int = 0,
         **params
     ) -> List[BoxType]:
+        if not len(bboxes):
+            return []
         np_bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_rotate(np_bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
         if self.crop_border:
             np_bboxes = FCrops.bboxes_crop(

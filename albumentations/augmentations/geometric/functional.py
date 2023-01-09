@@ -9,13 +9,20 @@ from scipy.ndimage import gaussian_filter
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     angle_2pi_range,
+    angles_2pi_range,
     clipped,
     preserve_channel_dim,
     preserve_shape,
 )
 
 from ... import random_utils
-from ...core.bbox_utils import assert_np_bboxes_format, denormalize_bbox, normalize_bbox
+from ...core.bbox_utils import (
+    assert_np_bboxes_format,
+    denormalize_bbox,
+    denormalize_bboxes_np,
+    normalize_bbox,
+    normalize_bboxes_np,
+)
 from ...core.transforms_interface import (
     BoxInternalType,
     FillValueType,
@@ -37,6 +44,7 @@ __all__ = [
     "shift_scale_rotate",
     "keypoint_shift_scale_rotate",
     "bbox_shift_scale_rotate",
+    "bboxes_shift_scale_rotate",
     "elastic_transform",
     "resize",
     "scale",
@@ -47,12 +55,15 @@ __all__ = [
     "smallest_max_size",
     "perspective",
     "perspective_bbox",
+    "perspective_bboxes",
     "rotation2DMatrixToEulerAngles",
     "perspective_keypoint",
+    "perspective_keypoints",
     "_is_identity_matrix",
     "warp_affine",
     "keypoint_affine",
     "bbox_affine",
+    "bboxes_affine",
     "safe_rotate",
     "bbox_safe_rotate",
     "keypoint_safe_rotate",
@@ -361,6 +372,46 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, col
     return x_min, y_min, x_max, y_max
 
 
+def bboxes_shift_scale_rotate(
+    bboxes: np.ndarray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
+) -> np.ndarray:
+    center = (cols / 2, rows / 2)
+    if rotate_method == "ellipse":
+        bboxes = bboxes_rotate(bboxes, angle, rotate_method, rows, cols)
+        matrix = cv2.getRotationMatrix2D(center, 0, scale_)
+    elif rotate_method == "largest_box":
+        matrix = cv2.getRotationMatrix2D(center, angle, scale_)
+    else:
+        raise ValueError(
+            f"Method {rotate_method} is not a valid rotation method. Should only support `largest_box` or `ellipse`."
+        )
+    matrix[0, 2] += dx * cols
+    matrix[1, 2] += dy * rows
+
+    xs = np.stack([bboxes[..., 0], bboxes[..., 2], bboxes[..., 2], bboxes[..., 0]])
+    ys = np.stack([bboxes[..., 1], bboxes[..., 1], bboxes[..., 3], bboxes[..., 3]])
+    ones = np.ones_like(xs)
+
+    points_ones = np.stack([xs, ys, ones], axis=0).transpose()
+    points_ones[..., 0] *= cols
+    points_ones[..., 1] *= rows
+    tr_points = matrix.dot(points_ones.transpose((0, 2, 1))).transpose((1, 2, 0))
+    tr_points[..., 0] /= cols
+    tr_points[..., 1] /= rows
+
+    bboxes = np.stack(
+        [
+            np.min(tr_points[..., 0], axis=1),
+            np.min(tr_points[..., 1], axis=1),
+            np.max(tr_points[..., 0], axis=1),
+            np.max(tr_points[..., 1], axis=1),
+        ],
+        axis=1,
+    )
+
+    return bboxes
+
+
 @preserve_shape
 def elastic_transform(
     img: np.ndarray,
@@ -477,6 +528,11 @@ def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: floa
     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
+def keypoints_scale(keypoints: np.ndarray, scale_x: float, scale_y: float) -> np.ndarray:
+    scales = np.array([scale_x, scale_y, 1.0, max(scale_x, scale_y)])
+    return keypoints * scales
+
+
 def py3round(number):
     """Unified rounding in all python versions."""
     if abs(round(number) - number) == 0.5:
@@ -559,6 +615,54 @@ def perspective_bbox(
     return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
 
 
+def perspective_bboxes(
+    bboxes: np.ndarray,
+    height: int,
+    width: int,
+    matrix: np.ndarray,
+    max_width: int,
+    max_height: int,
+    keep_size: bool,
+) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
+    bboxes = denormalize_bboxes_np(bboxes, height, width)
+
+    zero_points = np.zeros_like(bboxes[:, 0])
+
+    points = np.stack(
+        [
+            np.stack([bboxes[:, 0], bboxes[:, 1], zero_points, zero_points], axis=1),
+            np.stack([bboxes[:, 2], bboxes[:, 1], zero_points, zero_points], axis=1),
+            np.stack([bboxes[:, 2], bboxes[:, 3], zero_points, zero_points], axis=1),
+            np.stack([bboxes[:, 0], bboxes[:, 3], zero_points, zero_points], axis=1),
+        ],
+        axis=1,
+    )
+
+    points = perspective_keypoints(
+        points,
+        height=height,
+        width=width,
+        matrix=matrix,
+        max_width=max_width,
+        max_height=max_height,
+        keep_size=keep_size,
+    )
+
+    bboxes = np.stack(
+        [
+            np.min(np.insert(points[..., 0], 0, np.inf, axis=1), axis=1),
+            np.min(np.insert(points[..., 1], 0, np.inf, axis=1), axis=1),
+            np.max(np.insert(points[..., 0], 0, 0, axis=1), axis=1),
+            np.max(np.insert(points[..., 1], 0, 0, axis=1), axis=1),
+        ],
+        axis=-1,
+    )
+
+    return normalize_bboxes_np(bboxes, height if keep_size else max_height, width if keep_size else max_width)
+
+
 def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
     """
     Args:
@@ -597,6 +701,45 @@ def perspective_keypoint(
         return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
     return x, y, angle, scale
+
+
+@angles_2pi_range
+def perspective_keypoints(
+    keypoints: np.ndarray,
+    height: int,
+    width: int,
+    matrix: np.ndarray,
+    max_width: int,
+    max_height: int,
+    keep_size: bool,
+) -> np.ndarray:
+    angles, scales = np.array_split(keypoints[..., [2, 3]], 2, axis=-1)
+
+    keypoints = cv2.perspectiveTransform(keypoints[..., [0, 1]].reshape(-1, 2)[np.newaxis, ...], matrix).reshape(
+        keypoints[..., [0, 1]].shape
+    )
+    angles += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
+
+    scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
+    scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
+    scales *= max(scale_x, scale_y)
+
+    keypoints = np.concatenate(
+        [
+            keypoints,
+            angles,
+            scales,
+        ],
+        axis=2,
+    )
+
+    if keep_size:
+        scale_x = width / max_width
+        scale_y = height / max_height
+
+        return keypoints_scale(keypoints, scale_x, scale_y)
+
+    return keypoints
 
 
 def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
@@ -665,6 +808,46 @@ def bbox_affine(
     y_max = np.max(points[:, 1])
 
     return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
+
+
+def bboxes_affine(
+    bboxes: np.ndarray,
+    matrix: skimage.transform.ProjectiveTransform,
+    rows: int,
+    cols: int,
+    output_shape: Sequence[int],
+) -> np.ndarray:
+    if _is_identity_matrix(matrix):
+        return bboxes
+
+    if not len(bboxes):
+        return bboxes
+
+    assert_np_bboxes_format(bboxes)
+    bboxes = denormalize_bboxes_np(bboxes, rows, cols)
+    points = np.stack(
+        [
+            bboxes[..., [0, 1]],
+            bboxes[..., [2, 1]],
+            bboxes[..., [2, 3]],
+            bboxes[..., [0, 3]],
+        ],
+        axis=1,
+    )  # points.shape == N * 4 * 2
+
+    points = skimage.transform.matrix_transform(points.reshape(-1, 2), matrix.params).reshape(points.shape)
+
+    bboxes = np.stack(
+        [
+            np.min(points[..., 0], axis=-1),
+            np.min(points[..., 1], axis=-1),
+            np.max(points[..., 0], axis=-1),
+            np.max(points[..., 1], axis=-1),
+        ],
+        axis=-1,
+    )
+
+    return normalize_bboxes_np(bboxes, output_shape[0], output_shape[1])
 
 
 @preserve_channel_dim
@@ -959,13 +1142,11 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bboxes_vflip(bboxes: Union[np.ndarray, List[BoxInternalType]], **kwargs) -> List[BoxInternalType]:
+def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     if not len(bboxes):
         return bboxes
-    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
-    assert_np_bboxes_format(bboxes)
     bboxes[:, 1::2] = 1 - bboxes[:, 1::2]
-    return bboxes.tolist()
+    return bboxes
 
 
 def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
@@ -984,13 +1165,11 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
     return 1 - x_max, y_min, 1 - x_min, y_max
 
 
-def bboxes_hflip(bboxes: Union[np.ndarray, List[BoxInternalType]], **kwargs) -> List[BoxInternalType]:
+def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     if not len(bboxes):
         return bboxes
-    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
-    assert_np_bboxes_format(bboxes)
     bboxes[:, 0::2] = 1 - bboxes[:, 0::2]
-    return bboxes.tolist()
+    return bboxes
 
 
 def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInternalType:
@@ -1021,7 +1200,7 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
     return bbox
 
 
-def bboxes_flip(bboxes: Union[np.ndarray, List[BoxInternalType]], d: int, **kwargs) -> List[BoxInternalType]:
+def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
     if d == 0:
         return bboxes_vflip(bboxes, **kwargs)
     elif d == 1:
@@ -1033,14 +1212,11 @@ def bboxes_flip(bboxes: Union[np.ndarray, List[BoxInternalType]], d: int, **kwar
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1.")
 
 
-def bboxes_transpose(bboxes: Union[np.ndarray, List[BoxInternalType]], axis: int, **kwargs) -> List[BoxInternalType]:
+def bboxes_transpose(bboxes: np.ndarray, axis: int, **kwargs) -> np.ndarray:
     if not len(bboxes):
         return bboxes
     if axis not in {0, 1}:
         raise ValueError(f"Invalid axis value {axis}. Axis must be either 0 or 1")
-
-    bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array(bboxes)
-    assert_np_bboxes_format(bboxes)
 
     if axis == 0:
         bboxes[:, [0, 1]] = bboxes[:, [1, 0]]
