@@ -611,6 +611,36 @@ def test_bbox_hflip():
     assert FGeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.4, 0.2, 0.9, 0.5)
 
 
+def test_bboxes_vflip():
+    assert np.all(
+        np.equal(
+            FGeometric.bboxes_vflip(
+                np.array(
+                    [
+                        (0.1, 0.2, 0.6, 0.5),
+                    ]
+                )
+            )[0],
+            (0.1, 0.5, 0.6, 0.8),
+        )
+    )
+
+
+def test_bboxes_hflip():
+    assert np.all(
+        np.equal(
+            FGeometric.bboxes_hflip(
+                np.array(
+                    [
+                        (0.1, 0.2, 0.6, 0.5),
+                    ]
+                )
+            )[0]
+        ),
+        (0.4, 0.2, 0.9, 0.5),
+    )
+
+
 @pytest.mark.parametrize(
     ["code", "func"],
     [
