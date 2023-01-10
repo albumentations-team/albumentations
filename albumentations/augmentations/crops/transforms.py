@@ -153,10 +153,10 @@ class Crop(DualTransform):
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_crop(
             np_bboxes,
-            x_min=[self.x_min] * len(bboxes),
-            y_min=[self.y_min] * len(bboxes),
-            x_max=[self.x_max] * len(bboxes),
-            y_max=[self.y_max] * len(bboxes),
+            x_min=self.x_min,
+            y_min=self.y_min,
+            x_max=self.x_max,
+            y_max=self.y_max,
             **params,
         )
         return array_to_bboxes(np_bboxes, bboxes)
@@ -210,10 +210,10 @@ class CropNonEmptyMaskIfExists(DualTransform):
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_crop(
             np_bboxes,
-            x_min=[x_min] * len(np_bboxes),
-            y_min=[y_min] * len(np_bboxes),
-            x_max=[x_max] * len(np_bboxes),
-            y_max=[y_max] * len(np_bboxes),
+            x_min=x_min,
+            y_min=y_min,
+            x_max=x_max,
+            y_max=y_max,
             rows=params["rows"],
             cols=params["cols"],
         )
@@ -517,6 +517,9 @@ class RandomCropNearBBox(DualTransform):
 
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
+    # def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
+    #     return F.bbox_crop(bbox, **params)
+    #
     def apply_to_bboxes(
         self, bboxes: Sequence[BoxType], x_min: int = 0, y_min: int = 0, x_max: int = 0, y_max: int = 0, **params
     ) -> List[BoxType]:
@@ -526,10 +529,10 @@ class RandomCropNearBBox(DualTransform):
         assert_np_bboxes_format(np_bboxes)
         np_bboxes = F.bboxes_crop(
             np_bboxes,
-            x_min=[x_min] * len(np_bboxes),
-            y_min=[y_min] * len(np_bboxes),
-            x_max=[x_max] * len(np_bboxes),
-            y_max=[y_max] * len(np_bboxes),
+            x_min=x_min,
+            y_min=y_min,
+            x_max=x_max,
+            y_max=y_max,
             **params,
         )
         return array_to_bboxes(np_bboxes, bboxes)
@@ -1035,10 +1038,10 @@ class RandomCropFromBorders(DualTransform):
         rows, cols = params["rows"], params["cols"]
         np_bboxes = F.bboxes_crop(
             np_bboxes,
-            x_min=[x_min] * len(bboxes),
-            y_min=[y_min] * len(bboxes),
-            x_max=[x_max] * len(bboxes),
-            y_max=[y_max] * len(bboxes),
+            x_min=x_min,
+            y_min=y_min,
+            x_max=x_max,
+            y_max=y_max,
             rows=rows,
             cols=cols,
         )

@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Tuple, cast
+from typing import Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -100,19 +100,15 @@ def crop_bbox_by_coords(
 def crop_bboxes_by_coords(
     bboxes: np.ndarray,
     crop_coords: Sequence[Tuple[int, int, int, int]],
-    crop_height: Sequence[int],
-    crop_width: Sequence[int],
+    crop_height: Union[Sequence[int], int],
+    crop_width: Union[Sequence[int], int],
     rows: int,
     cols: int,
 ) -> np.ndarray:
 
-    np_bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array([bbox[:4] for bbox in bboxes])
-    np_bboxes = denormalize_bboxes_np(np_bboxes, rows, cols)
-
+    np_bboxes = denormalize_bboxes_np(bboxes, rows, cols)
     crop_coords = np.tile(np.array(crop_coords)[:, :2], 2)
-
     cropped_bboxes = np_bboxes - crop_coords
-
     return normalize_bboxes_np(cropped_bboxes, crop_width, crop_height)
 
 
@@ -134,9 +130,7 @@ def bboxes_random_crop(
 ) -> np.ndarray:
     num_bboxes = len(bboxes)
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_bboxes_by_coords(
-        bboxes, [crop_coords] * num_bboxes, [crop_height] * num_bboxes, [crop_width] * num_bboxes, rows, cols
-    )
+    return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
 
 def crop_keypoint_by_coords(
@@ -216,9 +210,7 @@ def bbox_center_crop(bbox: BoxInternalType, crop_height: int, crop_width: int, r
 def bboxes_center_crop(bboxes: np.ndarray, crop_height: int, crop_width: int, rows: int, cols: int):
     num_bboxes = len(bboxes)
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_bboxes_by_coords(
-        bboxes, [crop_coords] * num_bboxes, [crop_height] * num_bboxes, [crop_width] * num_bboxes, rows, cols
-    )
+    return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
 
 def keypoint_center_crop(keypoint: KeypointInternalType, crop_height: int, crop_width: int, rows: int, cols: int):
@@ -285,31 +277,35 @@ def bbox_crop(bbox: BoxInternalType, x_min: int, y_min: int, x_max: int, y_max: 
 
 def bboxes_crop(
     bboxes: np.ndarray,
-    x_min: Sequence[int],
-    y_min: Sequence[int],
-    x_max: Sequence[int],
-    y_max: Sequence[int],
+    x_min: Union[np.ndarray, int],
+    y_min: Union[np.ndarray, int],
+    x_max: Union[np.ndarray, int],
+    y_max: Union[np.ndarray, int],
     rows: int,
     cols: int,
 ) -> np.ndarray:
 
-    np_x_min = np.array(x_min)
-    np_y_min = np.array(y_min)
-    np_x_max = np.array(x_max)
-    np_y_max = np.array(y_max)
-
-    crop_coords = np.concatenate(
-        [
-            np.expand_dims(np_x_min, axis=0).transpose(),
-            np.expand_dims(np_y_min, axis=0).transpose(),
-            np.expand_dims(np_x_max, axis=0).transpose(),
-            np.expand_dims(np_y_max, axis=0).transpose(),
-        ],
-        axis=1,
-    )
-
-    crop_heights = np_y_max - np_y_min
-    crop_widths = np_x_max - np_x_min
+    assert (
+        isinstance(x_min, np.ndarray)
+        and isinstance(y_min, np.ndarray)
+        and isinstance(x_max, np.ndarray)
+        and isinstance(y_max, np.ndarray)
+    ) or (isinstance(x_min, int) and isinstance(y_min, int) and isinstance(x_max, int) and isinstance(y_max, int))
+    if isinstance(x_min, np.ndarray):
+        crop_coords = np.stack([x_min, y_min, x_max, y_max], axis=1)
+    else:
+        len_bboxes = len(bboxes)
+        crop_coords = np.stack(
+            [
+                [x_min] * len_bboxes,
+                [y_min] * len_bboxes,
+                [x_max] * len_bboxes,
+                [y_max] * len_bboxes,
+            ],
+            axis=1,
+        )
+    crop_heights = y_max - y_min
+    crop_widths = x_max - x_min
 
     return crop_bboxes_by_coords(bboxes, crop_coords, crop_heights, crop_widths, rows=rows, cols=cols)
 
