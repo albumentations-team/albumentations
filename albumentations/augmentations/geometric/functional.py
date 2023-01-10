@@ -1155,7 +1155,7 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
 def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     if not len(bboxes):
         return bboxes
-    bboxes[:, 1::2] = 1 - bboxes[:, 1::2]
+    bboxes[:, 1::2] = 1 - bboxes[:, -1::-2]
     return bboxes
 
 
@@ -1178,7 +1178,7 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
 def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     if not len(bboxes):
         return bboxes
-    bboxes[:, 0::2] = 1 - bboxes[:, 0::2]
+    bboxes[:, 0::2] = 1 - bboxes[:, -2::-2]
     return bboxes
 
 
@@ -1229,8 +1229,7 @@ def bboxes_transpose(bboxes: np.ndarray, axis: int, **kwargs) -> np.ndarray:
         raise ValueError(f"Invalid axis value {axis}. Axis must be either 0 or 1")
 
     if axis == 0:
-        bboxes[:, [0, 1]] = bboxes[:, [1, 0]]
-        bboxes[:, [2, 3]] = bboxes[:, [3, 2]]
+        bboxes = bboxes[:, [1, 0, 3, 2]]
     else:
         bboxes = 1 - bboxes[:, ::-1]
     return bboxes
