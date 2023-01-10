@@ -388,8 +388,8 @@ def bboxes_shift_scale_rotate(
     matrix[0, 2] += dx * cols
     matrix[1, 2] += dy * rows
 
-    xs = np.stack([bboxes[..., 0], bboxes[..., 2], bboxes[..., 2], bboxes[..., 0]])
-    ys = np.stack([bboxes[..., 1], bboxes[..., 1], bboxes[..., 3], bboxes[..., 3]])
+    xs = bboxes[..., [0, 2, 2, 0]].T
+    ys = bboxes[..., [1, 1, 3, 3]].T
     ones = np.ones_like(xs)
 
     points_ones = np.stack([xs, ys, ones], axis=0).transpose()
@@ -399,14 +399,12 @@ def bboxes_shift_scale_rotate(
     tr_points[..., 0] /= cols
     tr_points[..., 1] /= rows
 
-    bboxes = np.stack(
+    bboxes = np.concatenate(
         [
-            np.min(tr_points[..., 0], axis=1),
-            np.min(tr_points[..., 1], axis=1),
-            np.max(tr_points[..., 0], axis=1),
-            np.max(tr_points[..., 1], axis=1),
+            np.min(tr_points[..., [0, 1]], axis=1),
+            np.max(tr_points[..., [0, 1]], axis=1),
         ],
-        axis=1,
+        axis=-1,
     )
 
     return bboxes
@@ -650,12 +648,10 @@ def perspective_bboxes(
         keep_size=keep_size,
     )
 
-    bboxes = np.stack(
+    bboxes = np.concatenate(
         [
-            np.min(np.insert(points[..., 0], 0, np.inf, axis=1), axis=1),
-            np.min(np.insert(points[..., 1], 0, np.inf, axis=1), axis=1),
-            np.max(np.insert(points[..., 0], 0, 0, axis=1), axis=1),
-            np.max(np.insert(points[..., 1], 0, 0, axis=1), axis=1),
+            np.min(points[..., [0, 1]], axis=1),
+            np.max(points[..., [0, 1]], axis=1),
         ],
         axis=-1,
     )
@@ -847,12 +843,10 @@ def bboxes_affine(
 
     points = skimage.transform.matrix_transform(points.reshape(-1, 2), matrix.params).reshape(points.shape)
 
-    bboxes = np.stack(
+    bboxes = np.concatenate(
         [
-            np.min(points[..., 0], axis=-1),
-            np.min(points[..., 1], axis=-1),
-            np.max(points[..., 0], axis=-1),
-            np.max(points[..., 1], axis=-1),
+            np.min(points[..., [0, 1]], axis=-2),
+            np.max(points[..., [0, 1]], axis=-2),
         ],
         axis=-1,
     )
@@ -908,6 +902,39 @@ def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows:
     y1, y2 = fix_point(y1, y2, rows)
 
     return normalize_bbox((x1, y1, x2, y2), rows, cols)
+
+
+def bboxes_safe_rotate(
+    bboxes: np.ndarray,
+    matrix: np.ndarray,
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+    bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
+    points = (
+        np.stack(
+            [
+                np.stack([bboxes[..., 0], bboxes[..., 1], np.ones_like(bboxes[..., 1])], axis=1),
+                np.stack([bboxes[..., 2], bboxes[..., 1], np.ones_like(bboxes[..., 1])], axis=1),
+                np.stack([bboxes[..., 2], bboxes[..., 3], np.ones_like(bboxes[..., 1])], axis=1),
+                np.stack([bboxes[..., 0], bboxes[..., 3], np.ones_like(bboxes[..., 1])], axis=1),
+            ],
+            axis=1,
+        )
+        @ matrix.T
+    )
+
+    bboxes = np.concatenate(
+        [
+            np.min(points[..., [0, 1]], axis=-2),
+            np.max(points[..., [0, 1]], axis=-2),
+        ],
+        axis=-1,
+    )
+
+    # bboxes[..., [0, 2]] =
+
+    return normalize_bboxes_np(bboxes, rows=rows, cols=cols)
 
 
 def keypoint_safe_rotate(
@@ -1153,6 +1180,14 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
 
 
 def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+    """Flip a batch of bounding boxes vertically around the x-axis.
+    Args:
+        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        **kwargs:
+
+    Returns:
+        numpy.ndarray: A batch of flipped bounding boxes in `albumentations` format.
+    """
     if not len(bboxes):
         return bboxes
     bboxes[:, 1::2] = 1 - bboxes[:, -1::-2]
@@ -1176,6 +1211,14 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
 
 
 def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+    """Flip a batch of bounding boxes horizontally around the y-axis.
+    Args:
+        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        **kwargs:
+
+    Returns:
+        numpy.ndarray: A batch of flipped bounding boxes in `albumentations` format.
+    """
     if not len(bboxes):
         return bboxes
     bboxes[:, 0::2] = 1 - bboxes[:, -2::-2]
@@ -1211,6 +1254,20 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
 
 
 def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
+    """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
+
+    Args:
+        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        d (int): dimension 0 for vertical flip, 1 for horizontal, -1 for transpose.
+        **kwargs:
+
+    Returns:
+        numpy.ndarray: A batch of flipped bounding boxes in `albumentations` format.
+
+    Raises:
+        ValueError: if value of `d` is not -1, 0 or 1.
+
+    """
     if d == 0:
         return bboxes_vflip(bboxes, **kwargs)
     elif d == 1:
@@ -1225,14 +1282,12 @@ def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
 def bboxes_transpose(bboxes: np.ndarray, axis: int, **kwargs) -> np.ndarray:
     """Transpose bounding bboxes along a given axis in batch.
     Args:
-        bboxes: numpy.ndarray
-            A batch of bounding boxes with `albumentations` format.
-        axis: int
-            0 as the main axis, 1 as the secondary axis.
+        bboxes (numpy.ndarray): A batch of bounding boxes with `albumentations` format.
+        axis (int): 0 as the main axis, 1 as the secondary axis.
         **kwargs:
 
     Returns:
-        numpy.ndarray, A batch of transposed bounding boxes.
+        numpy.ndarray: A batch of transposed bounding boxes.
 
     """
     if not len(bboxes):
