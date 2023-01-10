@@ -123,8 +123,8 @@ def bboxes_random_crop(
     bboxes: np.ndarray,
     crop_height: int,
     crop_width: int,
-    h_start: int,
-    w_start: int,
+    h_start: float,
+    w_start: float,
     rows: int,
     cols: int,
 ) -> np.ndarray:
