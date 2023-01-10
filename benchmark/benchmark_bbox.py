@@ -7,6 +7,7 @@ import sys
 from abc import ABC
 from collections import defaultdict
 from timeit import Timer
+from typing import List
 
 import cv2
 import numpy as np
@@ -32,14 +33,19 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
 
 DEFAULT_BENCHMARKING_LIBRARIES = [
     "albumentations",
-    "imgaug",
+    # "imgaug",
 ]
+
+bbox_params = A.BboxParams(format="albumentations")
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Augmentation libraries performance benchmark")
     parser.add_argument(
         "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
+    )
+    parser.add_argument(
+        "-i", "--images", default=2000, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
     )
     parser.add_argument(
         "-r", "--runs", default=5, type=int, metavar="N", help="number of runs for each benchmark (default: 5)"
@@ -127,7 +133,7 @@ def read_img_cv2(img_size=(512, 512, 3)):
 
 
 def generate_random_bboxes(bbox_nums: int = 1):
-    return np.random.random(size=(bbox_nums, 4))
+    return np.sort(np.random.random(size=(bbox_nums, 5)))
 
 
 def format_results(images_per_second_for_aug, show_std=False):
@@ -143,7 +149,7 @@ class BenchmarkTest(ABC):
     def __str__(self):
         return self.__class__.__name__
 
-    def imgaug(self, img):
+    def imgaug(self, img, bboxes):
         return self.imgaug_transform.augment_image(img)
 
     def is_supported_by(self, library):
@@ -151,24 +157,81 @@ class BenchmarkTest(ABC):
             return hasattr(self, "imgaug_transform")
         return hasattr(self, library)
 
-    def run(self, library, imgs: np.ndarray, bboxes: np.ndarray):
+    def run(self, library, imgs: List[np.ndarray], bboxes: List[np.ndarray]):
         transform = getattr(self, library)
-        for img in imgs:
-            transform(img)
+        for img, bboxes_ in zip(imgs, bboxes):
+            transform(img, bboxes_)
 
 
 class HorizontalFlip(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Fliplr(p=1)
+        self.alb_compose = A.Compose(
+            [
+                A.HorizontalFlip(p=1.0),
+            ],
+            bbox_params=bbox_params,
+        )
 
-    def albumentations(self, img):
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
 
-        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
-            return A.hflip_cv2(img)
-        return A.hflip(img)
-
-    def imgaug(self, img):
+    def imgaug(self, img, bboxes):
         return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
+
+
+class VerticalFlip(BenchmarkTest):
+    def __init__(self):
+        self.imgaug_transform = iaa.Flipud(p=1)
+        self.alb_compose = A.Compose([A.VerticalFlip(p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+    def imgaug(self, img, bboxes):
+        return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
+
+
+class Rotate(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.Rotate(p=1)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class ShiftScaleRotate(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose(
+            [
+                A.ShiftScaleRotate(p=1.0),
+            ],
+            bbox_params=bbox_params,
+        )
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class Transpose(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose(
+            [
+                A.Transpose(p=1),
+            ],
+            bbox_params=bbox_params,
+        )
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class Pad(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.PadIfNeeded(min_height=1024, min_width=1024, p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
 
 
 def main():
@@ -181,35 +244,21 @@ def main():
 
     benchmarks = [
         HorizontalFlip(),
-        # VerticalFlip(),
-        # Rotate(),
-        # ShiftScaleRotate(),
-        # Brightness(),
-        # Contrast(),
-        # BrightnessContrast(),
-        # ShiftRGB(),
-        # ShiftHSV(),
-        # Gamma(),
-        # Grayscale(),
-        # RandomCrop64(),
-        # PadToSize512(),
-        # Resize512(),
-        # RandomSizedCrop_64_512(),
-        # Posterize(),
-        # Solarize(),
-        # Equalize(),
-        # Multiply(),
-        # MultiplyElementwise(),
-        # ColorJitter(),
+        VerticalFlip(),
+        Rotate(),
+        ShiftScaleRotate(),
+        Transpose(),
+        Pad(),
     ]
     for library in libraries:
-        imgs = read_img_cv2(img_size=(512, 512, 3))
+        imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
+        bboxes = [generate_random_bboxes(10) for _ in range(args.images)]
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
             benchmark_images_per_second = None
             if benchmark.is_supported_by(library):
-                timer = Timer(lambda: benchmark.run(library, imgs))
+                timer = Timer(lambda: benchmark.run(library, imgs, bboxes=bboxes))
                 run_times = timer.repeat(number=1, repeat=args.runs)
                 benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
             images_per_second[library][str(benchmark)] = benchmark_images_per_second
