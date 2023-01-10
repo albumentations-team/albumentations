@@ -689,7 +689,7 @@ def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_
 
     """
 
-    np_bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array([bbox[:4] for bbox in bboxes])
+    np_bboxes = bboxes[..., :4] if isinstance(bboxes, np.ndarray) else bboxes_to_array(bboxes)
     w, h = np_bboxes[:, 2] - np_bboxes[:, 0], np_bboxes[:, 3] - np_bboxes[:, 1]
 
     limits = np.tile(

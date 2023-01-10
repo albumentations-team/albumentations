@@ -234,6 +234,35 @@ class Pad(BenchmarkTest):
         return self.alb_compose(image=img, bboxes=bboxes)
 
 
+class Perspective(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.Perspective(p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class RandomCropNearBBox(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose(
+            [
+                A.RandomCropNearBBox(p=1.0),
+            ],
+            bbox_params=bbox_params,
+        )
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes, cropping_bbox=[0, 5, 10, 20])
+
+
+class BBoxSafeRandomCrop(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.BBoxSafeRandomCrop(p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
 def main():
     args = parse_args()
     package_versions = get_package_versions()
@@ -249,6 +278,9 @@ def main():
         ShiftScaleRotate(),
         Transpose(),
         Pad(),
+        Perspective(),
+        RandomCropNearBBox(),
+        BBoxSafeRandomCrop(),
     ]
     for library in libraries:
         imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
