@@ -105,6 +105,21 @@ def crop_bboxes_by_coords(
     rows: int,
     cols: int,
 ) -> np.ndarray:
+    """Crop a batch of bounding boxes using the provided coordinates in pixels and the
+    required height and width of the crop.
+
+    Args:
+        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        crop_coords (list[tuple[int, int, int, int]]): A sequence of coordinates.
+        crop_height (Sequence[int] | int):
+        crop_width (Sequence[int] | int):
+        rows (int): Image rows.
+        cols (int): Image columns.
+
+    Returns:
+        numpy.ndarray: A batch of cropped bounding boxes with `albumentations` format.
+
+    """
 
     np_bboxes = denormalize_bboxes_np(bboxes, rows, cols)
     crop_coords = np.tile(np.array(crop_coords)[:, :2], 2)
@@ -284,6 +299,21 @@ def bboxes_crop(
     rows: int,
     cols: int,
 ) -> np.ndarray:
+    """Crop a batch of bounding boxes in `albumentations` format.
+
+    Args:
+        bboxes (numpy.ndarray): A batch of bounding boxes with `albumentations` format.
+        x_min (numpy.ndarray | int):
+        y_min (numpy.ndarray | int):
+        x_max (numpy.ndarray | int):
+        y_max (numpy.ndarray | int):
+        rows (int):
+        cols (int):
+
+    Returns:
+        numpy.ndarray:
+
+    """
 
     assert (
         isinstance(x_min, np.ndarray)
