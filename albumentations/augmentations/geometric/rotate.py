@@ -150,10 +150,10 @@ class Rotate(DualTransform):
         if self.crop_border:
             np_bboxes = FCrops.bboxes_crop(
                 np_bboxes,
-                x_min=[x_min] * len(np_bboxes),
-                y_min=[y_min] * len(np_bboxes),
-                x_max=[x_max] * len(np_bboxes),
-                y_max=[y_max] * len(np_bboxes),
+                x_min=x_min,
+                y_min=y_min,
+                x_max=x_max,
+                y_max=y_max,
                 rows=rows,
                 cols=cols,
             )
