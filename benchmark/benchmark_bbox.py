@@ -192,6 +192,14 @@ class VerticalFlip(BenchmarkTest):
         return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
 
 
+class Flip(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.Flip(p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
 class Rotate(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Rotate(p=1)], bbox_params=bbox_params)
@@ -229,6 +237,14 @@ class Transpose(BenchmarkTest):
 class Pad(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.PadIfNeeded(min_height=1024, min_width=1024, p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class RandomRotate90(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.RandomRotate90(p=1.0)], bbox_params=bbox_params)
 
     def albumentations(self, img, bboxes):
         return self.alb_compose(image=img, bboxes=bboxes)
@@ -316,7 +332,9 @@ def main():
     benchmarks = [
         HorizontalFlip(),
         VerticalFlip(),
+        Flip(),
         Rotate(),
+        RandomRotate90(),
         ShiftScaleRotate(),
         Transpose(),
         Pad(),

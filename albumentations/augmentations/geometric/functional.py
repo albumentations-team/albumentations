@@ -1223,6 +1223,18 @@ def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
 
 
 def bboxes_transpose(bboxes: np.ndarray, axis: int, **kwargs) -> np.ndarray:
+    """Transpose bounding bboxes along a given axis in batch.
+    Args:
+        bboxes: numpy.ndarray
+            A batch of bounding boxes with `albumentations` format.
+        axis: int
+            0 as the main axis, 1 as the secondary axis.
+        **kwargs:
+
+    Returns:
+        numpy.ndarray, A batch of transposed bounding boxes.
+
+    """
     if not len(bboxes):
         return bboxes
     if axis not in {0, 1}:
