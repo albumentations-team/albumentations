@@ -263,6 +263,48 @@ class BBoxSafeRandomCrop(BenchmarkTest):
         return self.alb_compose(image=img, bboxes=bboxes)
 
 
+class CenterCrop(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.CenterCrop(10, 10, p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class Crop(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.Crop(x_max=100, y_max=100, p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class CropAndPad(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.CropAndPad(percent=0.1, p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class RandomCropFromBorders(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.RandomCropFromBorders(p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
+class Affine(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose(
+            [A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1.0)], bbox_params=bbox_params
+        )
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
 def main():
     args = parse_args()
     package_versions = get_package_versions()
@@ -281,6 +323,11 @@ def main():
         Perspective(),
         RandomCropNearBBox(),
         BBoxSafeRandomCrop(),
+        CenterCrop(),
+        Crop(),
+        CropAndPad(),
+        RandomCropFromBorders(),
+        Affine(),
     ]
     for library in libraries:
         imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
