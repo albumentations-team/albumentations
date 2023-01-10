@@ -1346,8 +1346,13 @@ class Transpose(DualTransform):
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.transpose(img)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        return F.bbox_transpose(bbox, 0, **params)
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
+        np_bboxes = bboxes_to_array(bboxes)
+        np_bboxes = F.bboxes_transpose(np_bboxes, 0, **params)
+        assert_np_bboxes_format(np_bboxes)
+        return array_to_bboxes(np_bboxes, bboxes)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_transpose(keypoint)
