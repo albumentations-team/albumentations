@@ -517,9 +517,6 @@ class RandomCropNearBBox(DualTransform):
 
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
-    # def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-    #     return F.bbox_crop(bbox, **params)
-    #
     def apply_to_bboxes(
         self, bboxes: Sequence[BoxType], x_min: int = 0, y_min: int = 0, x_max: int = 0, y_max: int = 0, **params
     ) -> List[BoxType]:
