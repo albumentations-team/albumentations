@@ -66,6 +66,7 @@ __all__ = [
     "bboxes_affine",
     "safe_rotate",
     "bbox_safe_rotate",
+    "bboxes_safe_rotate",
     "keypoint_safe_rotate",
     "piecewise_affine",
     "to_distance_maps",
@@ -921,8 +922,6 @@ def bboxes_safe_rotate(
         ],
         axis=-1,
     )
-
-    # bboxes[..., [0, 2]] =
 
     return normalize_bboxes_np(bboxes, rows=rows, cols=cols)
 
