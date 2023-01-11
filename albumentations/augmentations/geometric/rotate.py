@@ -269,8 +269,15 @@ class SafeRotate(DualTransform):
     def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, cols: int = 0, rows: int = 0, **params) -> BoxInternalType:
-        return F.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], rows: int = 0, cols: int = 0, **params) -> List[BoxType]:
+        if not len(bboxes):
+            return []
+
+        np_bboxes = bboxes_to_array(bboxes)
+        np_bboxes = F.bboxes_safe_rotate(np_bboxes, params["matrix"], rows=rows, cols=cols)
+        assert_np_bboxes_format(np_bboxes)
+
+        return array_to_bboxes(np_bboxes, bboxes)
 
     def apply_to_keypoint(
         self,

@@ -208,6 +208,14 @@ class Rotate(BenchmarkTest):
         return self.alb_compose(image=img, bboxes=bboxes)
 
 
+class SafeRotate(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose([A.SafeRotate(p=1.0)], bbox_params=bbox_params)
+
+    def albumentations(self, img, bboxes):
+        return self.alb_compose(image=img, bboxes=bboxes)
+
+
 class ShiftScaleRotate(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose(
@@ -334,6 +342,7 @@ def main():
         VerticalFlip(),
         Flip(),
         Rotate(),
+        SafeRotate(),
         RandomRotate90(),
         ShiftScaleRotate(),
         Transpose(),
@@ -349,7 +358,7 @@ def main():
     ]
     for library in libraries:
         imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
-        bboxes = [generate_random_bboxes(10) for _ in range(args.images)]
+        bboxes = [generate_random_bboxes(100) for _ in range(args.images)]
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
