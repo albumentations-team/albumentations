@@ -3,6 +3,7 @@ from __future__ import division, print_function
 import argparse
 import math
 import os
+import random
 import sys
 from abc import ABC
 from collections import defaultdict
@@ -20,6 +21,8 @@ from pytablewriter.style import Style
 from tqdm import tqdm
 
 import albumentations as A
+from albumentations.augmentations.crops import functional as CFunc
+from albumentations.augmentations.geometric import functional as GFunc
 
 cv2.setNumThreads(0)  # noqa E402
 cv2.ocl.setUseOpenCL(False)  # noqa E402
@@ -33,10 +36,11 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
 
 DEFAULT_BENCHMARKING_LIBRARIES = [
     "albumentations",
+    "albumentations_function",
     # "imgaug",
 ]
 
-bbox_params = A.BboxParams(format="albumentations")
+bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"])
 
 
 def parse_args():
@@ -133,7 +137,7 @@ def read_img_cv2(img_size=(512, 512, 3)):
 
 
 def generate_random_bboxes(bbox_nums: int = 1):
-    return np.sort(np.random.random(size=(bbox_nums, 5)))
+    return np.sort(np.random.random(size=(bbox_nums, 4)))
 
 
 def format_results(images_per_second_for_aug, show_std=False):
@@ -157,10 +161,10 @@ class BenchmarkTest(ABC):
             return hasattr(self, "imgaug_transform")
         return hasattr(self, library)
 
-    def run(self, library, imgs: List[np.ndarray], bboxes: List[np.ndarray]):
+    def run(self, library, imgs: List[np.ndarray], bboxes: List[np.ndarray], class_ids):
         transform = getattr(self, library)
-        for img, bboxes_ in zip(imgs, bboxes):
-            transform(img, bboxes_)
+        for img, bboxes_, class_id in zip(imgs, bboxes, class_ids):
+            transform(img, bboxes_, class_id)
 
 
 class HorizontalFlip(BenchmarkTest):
@@ -173,8 +177,11 @@ class HorizontalFlip(BenchmarkTest):
             bbox_params=bbox_params,
         )
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def albumentations_function(self, img, bboxes, *args):
+        return GFunc.bboxes_hflip(bboxes)
 
     def imgaug(self, img, bboxes):
         return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
@@ -185,8 +192,11 @@ class VerticalFlip(BenchmarkTest):
         self.imgaug_transform = iaa.Flipud(p=1)
         self.alb_compose = A.Compose([A.VerticalFlip(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def albumentations_function(self, img, bboxes, *args):
+        return GFunc.bboxes_vflip(bboxes)
 
     def imgaug(self, img, bboxes):
         return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
@@ -196,24 +206,30 @@ class Flip(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Flip(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def albumentations_function(self, img, bboxes, *args):
+        return GFunc.bboxes_flip(bboxes, d=-1)
 
 
 class Rotate(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Rotate(p=1)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def albumentations_function(self, img, bboxes, *args):
+        return GFunc.bboxes_rotate(bboxes, 45, method="largest_box", rows=512, cols=512)
 
 
 class SafeRotate(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.SafeRotate(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class ShiftScaleRotate(BenchmarkTest):
@@ -225,8 +241,8 @@ class ShiftScaleRotate(BenchmarkTest):
             bbox_params=bbox_params,
         )
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class Transpose(BenchmarkTest):
@@ -238,32 +254,38 @@ class Transpose(BenchmarkTest):
             bbox_params=bbox_params,
         )
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def albumentations_function(self, img, bboxes, *args):
+        return GFunc.bboxes_transpose(bboxes, 0)
 
 
 class Pad(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.PadIfNeeded(min_height=1024, min_width=1024, p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class RandomRotate90(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.RandomRotate90(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def albumentations_function(self, img, bboxes, *args):
+        return GFunc.bboxes_rot90(bboxes, factor=random.randint(0, 3), rows=512, cols=512)
 
 
 class Perspective(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Perspective(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class RandomCropNearBBox(BenchmarkTest):
@@ -275,48 +297,51 @@ class RandomCropNearBBox(BenchmarkTest):
             bbox_params=bbox_params,
         )
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes, cropping_bbox=[0, 5, 10, 20])
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id, cropping_bbox=[0, 5, 10, 20])
 
 
 class BBoxSafeRandomCrop(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.BBoxSafeRandomCrop(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class CenterCrop(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.CenterCrop(10, 10, p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def albumentations_function(self, img, bboxes, *args):
+        return CFunc.bboxes_center_crop(bboxes, crop_height=10, crop_width=10, rows=512, cols=512)
 
 
 class Crop(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Crop(x_max=100, y_max=100, p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class CropAndPad(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.CropAndPad(percent=0.1, p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class RandomCropFromBorders(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.RandomCropFromBorders(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 class Affine(BenchmarkTest):
@@ -325,8 +350,8 @@ class Affine(BenchmarkTest):
             [A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1.0)], bbox_params=bbox_params
         )
 
-    def albumentations(self, img, bboxes):
-        return self.alb_compose(image=img, bboxes=bboxes)
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
 def main():
@@ -356,15 +381,17 @@ def main():
         RandomCropFromBorders(),
         Affine(),
     ]
+    num_bboxes = 100
     for library in libraries:
         imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
-        bboxes = [generate_random_bboxes(100) for _ in range(args.images)]
+        bboxes = [generate_random_bboxes(num_bboxes) for _ in range(args.images)]
+        class_ids = [np.random.randint(low=0, high=1, size=num_bboxes) for _ in range(args.images)]
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
             benchmark_images_per_second = None
             if benchmark.is_supported_by(library):
-                timer = Timer(lambda: benchmark.run(library, imgs, bboxes=bboxes))
+                timer = Timer(lambda: benchmark.run(library, imgs, bboxes=bboxes, class_ids=class_ids))
                 run_times = timer.repeat(number=1, repeat=args.runs)
                 benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
             images_per_second[library][str(benchmark)] = benchmark_images_per_second
