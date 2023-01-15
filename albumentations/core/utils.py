@@ -54,6 +54,12 @@ class DataProcessor(ABC):
                 if v == self.default_data_name:
                     self.data_fields.append(k)
 
+        self.label_buffer = (
+            {label_field: None for label_field in self.params.label_fields}
+            if self.params.label_fields is not None
+            else {}
+        )
+
     @property
     @abstractmethod
     def default_data_name(self) -> str:
