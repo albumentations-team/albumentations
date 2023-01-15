@@ -589,7 +589,7 @@ def check_bbox(bbox: BoxType) -> None:
         raise ValueError(f"y_max is less than or equal to y_min for bbox {bbox}.")
 
 
-def check_bboxes(bboxes: Sequence[BoxType]) -> None:
+def check_bboxes(bboxes: Union[Sequence[BoxType], np.ndarray]) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     if not len(bboxes):
         return

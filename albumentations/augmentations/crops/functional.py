@@ -99,9 +99,9 @@ def crop_bbox_by_coords(
 
 def crop_bboxes_by_coords(
     bboxes: np.ndarray,
-    crop_coords: Sequence[Tuple[int, int, int, int]],
-    crop_height: Union[Sequence[int], int],
-    crop_width: Union[Sequence[int], int],
+    crop_coords: Union[Sequence[Tuple[int, int, int, int]], np.ndarray],
+    crop_height: Union[Sequence[int], int, np.ndarray],
+    crop_width: Union[Sequence[int], int, np.ndarray],
     rows: int,
     cols: int,
 ) -> np.ndarray:
@@ -325,13 +325,12 @@ def bboxes_crop(
         crop_coords = np.stack([x_min, y_min, x_max, y_max], axis=1)
     else:
         len_bboxes = len(bboxes)
+        x_mins: Sequence[int] = [x_min] * len_bboxes
+        y_mins: Sequence[int] = [x_min] * len_bboxes
+        x_maxs: Sequence[int] = [x_min] * len_bboxes
+        y_maxs: Sequence[int] = [x_min] * len_bboxes
         crop_coords = np.stack(
-            [
-                [x_min] * len_bboxes,
-                [y_min] * len_bboxes,
-                [x_max] * len_bboxes,
-                [y_max] * len_bboxes,
-            ],
+            [x_mins, y_mins, x_maxs, y_maxs],
             axis=1,
         )
     crop_heights = y_max - y_min
