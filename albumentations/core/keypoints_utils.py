@@ -82,6 +82,7 @@ class KeypointParams(Params):
 
 class KeypointsProcessor(DataProcessor):
     def __init__(self, params: KeypointParams, additional_targets: Optional[Dict[str, str]] = None):
+        assert isinstance(params, KeypointParams)
         super().__init__(params, additional_targets)
 
     @property
@@ -125,25 +126,23 @@ class KeypointsProcessor(DataProcessor):
         check_keypoints(data, rows, cols)
 
     def convert_from_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
-        params = self.params
         return convert_keypoints_from_albumentations(
             data,
-            params.format,
+            self.params.format,
             rows,
             cols,
-            check_validity=params.remove_invisible,
-            angle_in_degrees=params.angle_in_degrees,
+            check_validity=self.params.remove_invisible,
+            angle_in_degrees=self.params.angle_in_degrees,
         )
 
     def convert_to_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
-        params = self.params
         return convert_keypoints_to_albumentations(
             data,
-            params.format,
+            self.params.format,
             rows,
             cols,
-            check_validity=params.remove_invisible,
-            angle_in_degrees=params.angle_in_degrees,
+            check_validity=self.params.remove_invisible,
+            angle_in_degrees=self.params.angle_in_degrees,
         )
 
 
