@@ -135,9 +135,9 @@ class BboxProcessor(DataProcessor):
             if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
-    def filter(self, data: Sequence, rows: int, cols: int) -> List:
+    def filter(self, data: Sequence, rows: int, cols: int, target_name: str) -> Sequence:
         self.params: BboxParams
-        return filter_bboxes(
+        data, idx = filter_bboxes(
             data,
             rows,
             cols,
@@ -146,6 +146,9 @@ class BboxProcessor(DataProcessor):
             min_width=self.params.min_width,
             min_height=self.params.min_height,
         )
+
+        self.filter_labels(target_name=target_name, indices=idx)
+        return data
 
     def check(self, data: Sequence, rows: int, cols: int) -> None:
         check_bboxes(data)
@@ -408,7 +411,7 @@ def filter_bboxes(
     min_visibility: float = 0.0,
     min_width: float = 0.0,
     min_height: float = 0.0,
-) -> List[BoxType]:
+) -> Tuple[Sequence[BoxType], Sequence[int]]:
     """Remove bounding boxes that either lie outside of the visible area by more then min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
@@ -430,7 +433,7 @@ def filter_bboxes(
     """
 
     if not len(bboxes):
-        return []
+        return [], []
 
     np_bboxes = bboxes_to_array(bboxes)
     clipped_norm_bboxes = np.clip(np_bboxes, 0.0, 1.0)
@@ -452,7 +455,7 @@ def filter_bboxes(
 
     resulting_boxes = [cast(BoxType, tuple(clipped_norm_bboxes[i]) + bboxes[i][4:]) for i in idx]
 
-    return resulting_boxes
+    return resulting_boxes, idx
 
 
 def union_of_bboxes(

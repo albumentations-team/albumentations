@@ -120,9 +120,11 @@ class KeypointsProcessor(DataProcessor):
                     )
                     break
 
-    def filter(self, data: Sequence[Sequence], rows: int, cols: int) -> Sequence[Sequence]:
+    def filter(self, data: Sequence[Sequence], rows: int, cols: int, target_name: str) -> Sequence[Sequence]:
         self.params: KeypointParams
-        return filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
+        data, idx = filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
+        self.filter_labels(target_name=target_name, indices=idx)
+        return data
 
     def check(self, data: Sequence[Sequence], rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
@@ -168,19 +170,24 @@ def check_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int) -> None
         check_keypoint(kp, rows, cols)
 
 
-def filter_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool) -> Sequence[Sequence]:
+def filter_keypoints(
+    keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool
+) -> Tuple[Sequence[Sequence], Sequence[int]]:
     if not remove_invisible:
-        return keypoints
+        return keypoints, []
 
     resulting_keypoints = []
-    for kp in keypoints:
+    remove_indices = []
+    for i, kp in enumerate(keypoints):
         x, y = kp[:2]
         if x < 0 or x >= cols:
+            remove_indices.append(i)
             continue
         if y < 0 or y >= rows:
+            remove_indices.append(i)
             continue
         resulting_keypoints.append(kp)
-    return resulting_keypoints
+    return resulting_keypoints, remove_indices
 
 
 def convert_keypoint_to_albumentations(
