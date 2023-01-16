@@ -893,7 +893,7 @@ def test_bboxes_transpose(bboxes, axis, expect):
     ],
 )
 def test_filter_bboxes(bboxes, min_area, min_visibility, target):
-    filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
+    filtered_bboxes, _ = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
     assert filtered_bboxes == target
 
 
@@ -927,7 +927,9 @@ def test_filter_bboxes(bboxes, min_area, min_visibility, target):
     ],
 )
 def test_filter_bboxes_by_min_width_height(bboxes, img_width, img_height, min_width, min_height, target):
-    filtered_bboxes = filter_bboxes(bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height)
+    filtered_bboxes, _ = filter_bboxes(
+        bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height
+    )
     assert filtered_bboxes == target
 
 

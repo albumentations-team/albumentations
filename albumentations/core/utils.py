@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, Tuple
+from operator import itemgetter
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -54,11 +55,13 @@ class DataProcessor(ABC):
                 if v == self.default_data_name:
                     self.data_fields.append(k)
 
-        self.label_buffer = (
-            {label_field: None for label_field in self.params.label_fields}
-            if self.params.label_fields is not None
-            else {}
-        )
+        self.label_buffer: Dict[str, Dict[str, Any]] = {field: {} for field in self.data_fields}
+
+    def filter_labels(self, target_name: str, indices: Sequence[int]):
+        if not len(indices):
+            return
+        for label_name, label_data in self.label_buffer[target_name].items():
+            self.label_buffer[target_name][label_name] = list(itemgetter(*indices)(label_data))
 
     @property
     @abstractmethod
@@ -75,7 +78,7 @@ class DataProcessor(ABC):
         rows, cols = get_shape(data["image"])
 
         for data_name in self.data_fields:
-            data[data_name] = self.filter(data[data_name], rows, cols)
+            data[data_name] = self.filter(data[data_name], rows, cols, data_name)
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
 
         data = self.remove_label_fields_from_data(data)
@@ -101,7 +104,7 @@ class DataProcessor(ABC):
             raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def filter(self, data: Sequence, rows: int, cols: int, target_name: str) -> Sequence:
         pass
 
     @abstractmethod
@@ -122,10 +125,7 @@ class DataProcessor(ABC):
         for data_name in self.data_fields:
             for field in self.params.label_fields:
                 assert len(data[data_name]) == len(data[field])
-                data_with_added_field = []
-                for d, field_value in zip(data[data_name], data[field]):
-                    data_with_added_field.append(list(d) + [field_value])
-                data[data_name] = data_with_added_field
+                self.label_buffer[data_name][field] = list(data[field])
         return data
 
     def remove_label_fields_from_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
