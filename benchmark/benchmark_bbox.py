@@ -35,9 +35,9 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
 
 
 DEFAULT_BENCHMARKING_LIBRARIES = [
+    "imgaug",
     "albumentations",
     "albumentations_function",
-    # "imgaug",
 ]
 
 bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"])
@@ -153,8 +153,11 @@ class BenchmarkTest(ABC):
     def __str__(self):
         return self.__class__.__name__
 
-    def imgaug(self, img, bboxes):
-        return self.imgaug_transform.augment_image(img)
+    def imgaug(self, img, bboxes, class_id):
+        bbs = BoundingBoxesOnImage([BoundingBox(*bbox) for bbox in bboxes], shape=img.shape)
+        img_aug, bbox_aug = self.imgaug_transform(image=img, bounding_boxes=bbs)
+        np_bboxes = np.array([(bbox.x1, bbox.y1, bbox.x2, bbox.y2) for bbox in bbox_aug.bounding_boxes])
+        return np.ascontiguousarray(img_aug), np_bboxes
 
     def is_supported_by(self, library):
         if library == "imgaug":
@@ -183,9 +186,6 @@ class HorizontalFlip(BenchmarkTest):
     def albumentations_function(self, img, bboxes, *args):
         return GFunc.bboxes_hflip(bboxes)
 
-    def imgaug(self, img, bboxes):
-        return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
-
 
 class VerticalFlip(BenchmarkTest):
     def __init__(self):
@@ -198,13 +198,16 @@ class VerticalFlip(BenchmarkTest):
     def albumentations_function(self, img, bboxes, *args):
         return GFunc.bboxes_vflip(bboxes)
 
-    def imgaug(self, img, bboxes):
-        return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
-
 
 class Flip(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Flip(p=1.0)], bbox_params=bbox_params)
+        self.imgaug_transform = iaa.Sequential(
+            [
+                iaa.Fliplr(p=1),
+                iaa.Flipud(p=1),
+            ]
+        )
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
@@ -215,6 +218,8 @@ class Flip(BenchmarkTest):
 
 class Rotate(BenchmarkTest):
     def __init__(self):
+
+        self.imgaug_transform = iaa.Rotate()
         self.alb_compose = A.Compose([A.Rotate(p=1)], bbox_params=bbox_params)
 
     def albumentations(self, img, bboxes, class_id):
@@ -272,6 +277,7 @@ class Pad(BenchmarkTest):
 class RandomRotate90(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.RandomRotate90(p=1.0)], bbox_params=bbox_params)
+        self.imgaug_transform = iaa.Rot90()
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
@@ -324,6 +330,8 @@ class Crop(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Crop(x_max=100, y_max=100, p=1.0)], bbox_params=bbox_params)
 
+        self.imgaug_transform = iaa.Crop()
+
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
@@ -349,6 +357,8 @@ class Affine(BenchmarkTest):
         self.alb_compose = A.Compose(
             [A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1.0)], bbox_params=bbox_params
         )
+
+        self.imgaug_transform = iaa.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2)
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
