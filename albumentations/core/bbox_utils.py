@@ -16,7 +16,7 @@ from typing import (
 
 import numpy as np
 
-from .transforms_interface import BoxInternalType, BoxType
+from .transforms_interface import BBoxesInternalType, BoxInternalType, BoxType
 from .utils import DataProcessor, Params
 
 __all__ = [
@@ -41,11 +41,11 @@ __all__ = [
 TBox = TypeVar("TBox", BoxType, BoxInternalType)
 
 
-def assert_np_bboxes_format(bboxes: np.ndarray):
+def assert_np_bboxes_format(bboxes: BBoxesInternalType):
     if not isinstance(bboxes, np.ndarray):
         raise TypeError("Bboxes should be a numpy ndarray.")
     if len(bboxes):
-        if not (len(bboxes.shape) and bboxes.shape[-1] == 4):
+        if not (len(bboxes.shape) == 2 and bboxes.shape[-1] == 4):
             raise ValueError("An array of bboxes should be 2 dimension, and the last dimension must has 4 elements.")
 
 
@@ -168,7 +168,7 @@ class BboxProcessor(DataProcessor):
             if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
-    def filter(self, data: np.ndarray, rows: int, cols: int, target_name: str) -> np.ndarray:
+    def filter(self, data: BBoxesInternalType, rows: int, cols: int, target_name: str) -> BBoxesInternalType:
         self.params: BboxParams
         data, idx = filter_bboxes(
             data,
@@ -186,10 +186,10 @@ class BboxProcessor(DataProcessor):
     def check(self, data: Sequence, rows: int, cols: int) -> None:
         check_bboxes(data)
 
-    def convert_from_albumentations(self, data: np.ndarray, rows: int, cols: int) -> np.ndarray:
+    def convert_from_albumentations(self, data: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
-    def convert_to_albumentations(self, data: np.ndarray, rows: int, cols: int) -> np.ndarray:
+    def convert_to_albumentations(self, data: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
@@ -271,8 +271,8 @@ def _convert_to_array(dim: Union[Sequence[Union[int, float]], np.ndarray], lengt
 
 @ensure_and_convert_bbox
 def normalize_bboxes_np(
-    bboxes: np.ndarray, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
-) -> np.ndarray:
+    bboxes: BBoxesInternalType, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
+) -> BBoxesInternalType:
     """Normalize a list of bounding boxes.
 
     Args:
@@ -297,7 +297,7 @@ def normalize_bboxes_np(
 
 
 @ensure_and_convert_bbox
-def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+def denormalize_bboxes_np(bboxes: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
     """Denormalize a list of bounding boxes.
 
     Args:
@@ -323,7 +323,7 @@ def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
 
 
 @ensure_and_convert_bbox
-def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+def calculate_bboxes_area(bboxes: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
     Args:
@@ -344,8 +344,8 @@ def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
 
 @ensure_and_convert_bbox
 def convert_bboxes_to_albumentations(
-    bboxes: Sequence[BoxType], source_format, rows, cols, check_validity=False
-) -> List[BoxType]:
+    bboxes: BBoxesInternalType, source_format, rows, cols, check_validity=False
+) -> BBoxesInternalType:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     if not len(bboxes):
         return bboxes
@@ -377,8 +377,8 @@ def convert_bboxes_to_albumentations(
 
 @ensure_and_convert_bbox
 def convert_bboxes_from_albumentations(
-    bboxes: np.ndarray, target_format: str, rows: int, cols: int, check_validity: bool = False
-) -> np.ndarray:
+    bboxes: BBoxesInternalType, target_format: str, rows: int, cols: int, check_validity: bool = False
+) -> BBoxesInternalType:
     """Convert a list of bounding boxes from the format used by albumentations to a format, specified
     in `target_format`.
 
@@ -416,7 +416,7 @@ def convert_bboxes_from_albumentations(
 
 
 @ensure_and_convert_bbox
-def check_bboxes(bboxes: Union[Sequence[BoxType], np.ndarray]) -> None:
+def check_bboxes(bboxes: Union[Sequence[BoxType], BBoxesInternalType]) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     if not len(bboxes):
         return
@@ -448,7 +448,7 @@ def check_bboxes(bboxes: Union[Sequence[BoxType], np.ndarray]) -> None:
 
 @ensure_and_convert_bbox
 def filter_bboxes(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     rows: int,
     cols: int,
     min_area: float = 0.0,
@@ -501,9 +501,7 @@ def filter_bboxes(
 
 
 @ensure_and_convert_bbox
-def union_of_bboxes(
-    bboxes: np.ndarray, height: int, width: int, erosion_rate: float = 0.0
-) -> BoxType:
+def union_of_bboxes(bboxes: BBoxesInternalType, height: int, width: int, erosion_rate: float = 0.0) -> BoxType:
     """Calculate union of bounding boxes.
 
     Args:
@@ -526,7 +524,7 @@ def union_of_bboxes(
 
     limits += bboxes
 
-    limits = np.concatenate((limits, np.array([[width, height, 0, 0]])))
+    limits = np.concatenate((limits, [[width, height, 0, 0]]))
 
     x1, y1 = np.min(limits[:, 0:2], axis=0)
     x2, y2 = np.max(limits[:, 2:4], axis=0)
