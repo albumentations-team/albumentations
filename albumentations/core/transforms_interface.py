@@ -31,6 +31,7 @@ __all__ = [
     "ImageOnlyTransform",
     "NoOp",
     "BoxType",
+    "BBoxesInternalType",
     "KeypointType",
     "ImageColorType",
     "ScaleFloatType",
