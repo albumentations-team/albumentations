@@ -3,11 +3,12 @@ from __future__ import absolute_import
 import random
 from copy import deepcopy
 from typing import (
+    Annotated,
     Any,
     Callable,
     Dict,
-    Iterable,
     List,
+    Literal,
     Optional,
     Sequence,
     Tuple,
@@ -18,6 +19,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
+from numpy import typing as npt
 
 from .serialization import Serializable, get_shortest_class_fullname
 from .utils import format_args
@@ -38,6 +40,7 @@ __all__ = [
 
 NumType = Union[int, float, np.ndarray]
 BoxInternalType = Tuple[float, float, float, float]
+BBoxesInternalType = Annotated[npt.NDArray, Literal["N", 4]]
 BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
 KeypointInternalType = Tuple[float, float, float, float]
 KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]

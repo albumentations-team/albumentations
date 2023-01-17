@@ -15,7 +15,11 @@ from ...core.bbox_utils import (
     normalize_bbox,
     normalize_bboxes_np,
 )
-from ...core.transforms_interface import BoxInternalType, KeypointInternalType
+from ...core.transforms_interface import (
+    BBoxesInternalType,
+    BoxInternalType,
+    KeypointInternalType,
+)
 from ..geometric import functional as FGeometric
 
 __all__ = [
@@ -65,13 +69,13 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
 
 @ensure_and_convert_bbox
 def crop_bboxes_by_coords(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     crop_coords: Union[Sequence[Tuple[int, int, int, int]], np.ndarray],
     crop_height: Union[Sequence[int], int, np.ndarray],
     crop_width: Union[Sequence[int], int, np.ndarray],
     rows: int,
     cols: int,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     """Crop a batch of bounding boxes using the provided coordinates in pixels and the
     required height and width of the crop.
 
@@ -97,14 +101,14 @@ def crop_bboxes_by_coords(
 
 @ensure_and_convert_bbox
 def bboxes_random_crop(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     crop_height: int,
     crop_width: int,
     h_start: float,
     w_start: float,
     rows: int,
     cols: int,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     num_bboxes = len(bboxes)
     if not num_bboxes:
         return bboxes
@@ -182,7 +186,9 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
 
 
 @ensure_and_convert_bbox
-def bboxes_center_crop(bboxes: np.ndarray, crop_height: int, crop_width: int, rows: int, cols: int):
+def bboxes_center_crop(
+    bboxes: BBoxesInternalType, crop_height: int, crop_width: int, rows: int, cols: int
+) -> BBoxesInternalType:
     num_bboxes = len(bboxes)
     if not num_bboxes:
         return bboxes
@@ -232,14 +238,14 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
 
 @ensure_and_convert_bbox
 def bboxes_crop(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     x_min: Union[np.ndarray, int],
     y_min: Union[np.ndarray, int],
     x_max: Union[np.ndarray, int],
     y_max: Union[np.ndarray, int],
     rows: int,
     cols: int,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     """Crop a batch of bounding boxes in `albumentations` format.
 
     Args:
@@ -323,14 +329,14 @@ def crop_and_pad(
 
 @ensure_and_convert_bbox
 def crop_and_pad_bboxes(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     crop_params: Optional[Sequence[int]],
     pad_params: Optional[Sequence[int]],
     rows: int,
     cols: int,
     result_rows: int,
     result_cols: int,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
 

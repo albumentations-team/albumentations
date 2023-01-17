@@ -25,6 +25,7 @@ from ...core.bbox_utils import (
     normalize_bboxes_np,
 )
 from ...core.transforms_interface import (
+    BBoxesInternalType,
     BoxInternalType,
     FillValueType,
     ImageColorType,
@@ -85,7 +86,7 @@ __all__ = [
 
 
 @ensure_and_convert_bbox
-def bboxes_rot90(bboxes: np.ndarray, factor: int, rows: int, cols: int) -> np.ndarray:
+def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) -> BBoxesInternalType:
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
 
@@ -156,7 +157,7 @@ def rotate(
 
 
 @ensure_and_convert_bbox
-def bboxes_rotate(bboxes: np.ndarray, angle: float, method: str, rows: int, cols: int) -> np.ndarray:
+def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: int, cols: int) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
 
@@ -261,8 +262,16 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
 
 @ensure_and_convert_bbox
 def bboxes_shift_scale_rotate(
-    bboxes: np.ndarray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
-) -> np.ndarray:
+    bboxes: BBoxesInternalType,
+    angle: int,
+    scale_: int,
+    dx: int,
+    dy: int,
+    rotate_method: str,
+    rows: int,
+    cols: int,
+    **kwargs
+) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
     center = (cols / 2, rows / 2)
@@ -478,62 +487,41 @@ def perspective(
     return warped
 
 
-def perspective_bboxes(
-    bboxes: np.ndarray,
+def perspective_bbox(
+    bbox: BoxInternalType,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> np.ndarray:
-    if not len(bboxes):
-        return bboxes
-    bboxes = denormalize_bboxes_np(bboxes, height, width)
+) -> BoxInternalType:
+    x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)[:4]
 
-    zero_points = np.zeros_like(bboxes[:, 0])
+    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
 
-    points = np.stack(
-        [
-            np.stack([bboxes[:, 0], bboxes[:, 1], zero_points, zero_points], axis=1),
-            np.stack([bboxes[:, 2], bboxes[:, 1], zero_points, zero_points], axis=1),
-            np.stack([bboxes[:, 2], bboxes[:, 3], zero_points, zero_points], axis=1),
-            np.stack([bboxes[:, 0], bboxes[:, 3], zero_points, zero_points], axis=1),
-        ],
-        axis=1,
-    )
+    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
+    for pt in points:
+        pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
+        x, y = pt[:2]
+        x1 = min(x1, x)
+        x2 = max(x2, x)
+        y1 = min(y1, y)
+        y2 = max(y2, y)
 
-    points = perspective_keypoints(
-        points,
-        height=height,
-        width=width,
-        matrix=matrix,
-        max_width=max_width,
-        max_height=max_height,
-        keep_size=keep_size,
-    )
-
-    bboxes = np.concatenate(
-        [
-            np.min(points[..., [0, 1]], axis=1),
-            np.max(points[..., [0, 1]], axis=1),
-        ],
-        axis=-1,
-    )
-
-    return normalize_bboxes_np(bboxes, height if keep_size else max_height, width if keep_size else max_width)
+    return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
 
 
 @ensure_and_convert_bbox
 def perspective_bboxes(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, height, width)
@@ -690,14 +678,43 @@ def keypoint_affine(
     return x, y, a, s
 
 
+def bbox_affine(
+    bbox: BoxInternalType,
+    matrix: skimage.transform.ProjectiveTransform,
+    rows: int,
+    cols: int,
+    output_shape: Sequence[int],
+) -> BoxInternalType:
+    if _is_identity_matrix(matrix):
+        return bbox
+
+    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
+    points = np.array(
+        [
+            [x_min, y_min],
+            [x_max, y_min],
+            [x_max, y_max],
+            [x_min, y_max],
+        ]
+    )
+    points = skimage.transform.matrix_transform(points, matrix.params)
+    x_min = np.min(points[:, 0])
+    x_max = np.max(points[:, 0])
+    y_min = np.min(points[:, 1])
+    y_max = np.max(points[:, 1])
+
+    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
+
+
+@ensure_and_convert_bbox
 def bboxes_affine(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     matrix: skimage.transform.ProjectiveTransform,
     rotate_method: str,
     rows: int,
     cols: int,
     output_shape: Sequence[int],
-) -> np.ndarray:
+) -> BBoxesInternalType:
     if _is_identity_matrix(matrix):
         return bboxes
 
@@ -739,45 +756,6 @@ def bboxes_affine(
     return normalize_bboxes_np(bboxes, output_shape[0], output_shape[1])
 
 
-@ensure_and_convert_bbox
-def bboxes_affine(
-    bboxes: np.ndarray,
-    matrix: skimage.transform.ProjectiveTransform,
-    rows: int,
-    cols: int,
-    output_shape: Sequence[int],
-) -> np.ndarray:
-    if _is_identity_matrix(matrix):
-        return bboxes
-
-    if not len(bboxes):
-        return bboxes
-
-    assert_np_bboxes_format(bboxes)
-    bboxes = denormalize_bboxes_np(bboxes, rows, cols)
-    points = np.stack(
-        [
-            bboxes[..., [0, 1]],
-            bboxes[..., [2, 1]],
-            bboxes[..., [2, 3]],
-            bboxes[..., [0, 3]],
-        ],
-        axis=1,
-    )  # points.shape == N * 4 * 2
-
-    points = skimage.transform.matrix_transform(points.reshape(-1, 2), matrix.params).reshape(points.shape)
-
-    bboxes = np.concatenate(
-        [
-            np.min(points[..., [0, 1]], axis=-2),
-            np.max(points[..., [0, 1]], axis=-2),
-        ],
-        axis=-1,
-    )
-
-    return normalize_bboxes_np(bboxes, output_shape[0], output_shape[1])
-
-
 @preserve_channel_dim
 def safe_rotate(
     img: np.ndarray,
@@ -800,11 +778,11 @@ def safe_rotate(
 
 @ensure_and_convert_bbox
 def bboxes_safe_rotate(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     matrix: np.ndarray,
     rows: int,
     cols: int,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
@@ -1059,7 +1037,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
 
 
 @ensure_and_convert_bbox
-def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+def bboxes_vflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
     """Flip a batch of bounding boxes vertically around the x-axis.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
@@ -1075,7 +1053,7 @@ def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
 
 
 @ensure_and_convert_bbox
-def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+def bboxes_hflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
     """Flip a batch of bounding boxes horizontally around the y-axis.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
@@ -1090,7 +1068,8 @@ def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     return bboxes
 
 
-def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
+@ensure_and_convert_bbox
+def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs) -> BBoxesInternalType:
     """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1117,7 +1096,7 @@ def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
 
 
 @ensure_and_convert_bbox
-def bboxes_transpose(bboxes: np.ndarray, axis: int, **kwargs) -> np.ndarray:
+def bboxes_transpose(bboxes: BBoxesInternalType, axis: int, **kwargs) -> BBoxesInternalType:
     """Transpose bounding bboxes along a given axis in batch.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes with `albumentations` format.
