@@ -20,6 +20,7 @@ from ...core.bbox_utils import (
     assert_np_bboxes_format,
     denormalize_bbox,
     denormalize_bboxes_np,
+    ensure_and_convert_bbox,
     normalize_bbox,
     normalize_bboxes_np,
 )
@@ -83,11 +84,12 @@ __all__ = [
 ]
 
 
+@ensure_and_convert_bbox
 def bboxes_rot90(bboxes: np.ndarray, factor: int, rows: int, cols: int) -> np.ndarray:
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
 
-    if not factor:
+    if not factor or not len(bboxes):
         return bboxes
 
     if factor == 1:
@@ -153,7 +155,11 @@ def rotate(
     return warp_fn(img)
 
 
+@ensure_and_convert_bbox
 def bboxes_rotate(bboxes: np.ndarray, angle: float, method: str, rows: int, cols: int) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
+
     scale_ = cols / float(rows)
     if method == "largest_box":
         x = np.tile(bboxes[:, [0, 2]], 2) - 0.5
@@ -253,9 +259,12 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
     return x, y, angle, scale
 
 
+@ensure_and_convert_bbox
 def bboxes_shift_scale_rotate(
     bboxes: np.ndarray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
 ) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
     center = (cols / 2, rows / 2)
     if rotate_method == "ellipse":
         bboxes = bboxes_rotate(bboxes, angle, rotate_method, rows, cols)
@@ -515,6 +524,7 @@ def perspective_bboxes(
     return normalize_bboxes_np(bboxes, height if keep_size else max_height, width if keep_size else max_width)
 
 
+@ensure_and_convert_bbox
 def perspective_bboxes(
     bboxes: np.ndarray,
     height: int,
@@ -550,12 +560,10 @@ def perspective_bboxes(
         keep_size=keep_size,
     )
 
-    bboxes = np.stack(
+    bboxes = np.concatenate(
         [
-            np.min(np.insert(points[..., 0], 0, np.inf, axis=1), axis=1),
-            np.min(np.insert(points[..., 1], 0, np.inf, axis=1), axis=1),
-            np.max(np.insert(points[..., 0], 0, 0, axis=1), axis=1),
-            np.max(np.insert(points[..., 1], 0, 0, axis=1), axis=1),
+            np.min(points[..., [0, 1]], axis=1),
+            np.max(points[..., [0, 1]], axis=1),
         ],
         axis=-1,
     )
@@ -731,6 +739,7 @@ def bboxes_affine(
     return normalize_bboxes_np(bboxes, output_shape[0], output_shape[1])
 
 
+@ensure_and_convert_bbox
 def bboxes_affine(
     bboxes: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
@@ -758,12 +767,10 @@ def bboxes_affine(
 
     points = skimage.transform.matrix_transform(points.reshape(-1, 2), matrix.params).reshape(points.shape)
 
-    bboxes = np.stack(
+    bboxes = np.concatenate(
         [
-            np.min(points[..., 0], axis=-1),
-            np.min(points[..., 1], axis=-1),
-            np.max(points[..., 0], axis=-1),
-            np.max(points[..., 1], axis=-1),
+            np.min(points[..., [0, 1]], axis=-2),
+            np.max(points[..., [0, 1]], axis=-2),
         ],
         axis=-1,
     )
@@ -791,12 +798,15 @@ def safe_rotate(
     return warp_fn(img)
 
 
+@ensure_and_convert_bbox
 def bboxes_safe_rotate(
     bboxes: np.ndarray,
     matrix: np.ndarray,
     rows: int,
     cols: int,
 ) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
     bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
     points = (
         np.stack(
@@ -1048,6 +1058,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
+@ensure_and_convert_bbox
 def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     """Flip a batch of bounding boxes vertically around the x-axis.
     Args:
@@ -1063,6 +1074,7 @@ def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     return bboxes
 
 
+@ensure_and_convert_bbox
 def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     """Flip a batch of bounding boxes horizontally around the y-axis.
     Args:
@@ -1104,6 +1116,7 @@ def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1.")
 
 
+@ensure_and_convert_bbox
 def bboxes_transpose(bboxes: np.ndarray, axis: int, **kwargs) -> np.ndarray:
     """Transpose bounding bboxes along a given axis in batch.
     Args:

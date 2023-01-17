@@ -1,6 +1,18 @@
 from __future__ import division
 
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, Union, cast
+from functools import wraps
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import numpy as np
 
@@ -23,6 +35,7 @@ __all__ = [
     "bboxes_to_array",
     "array_to_bboxes",
     "assert_np_bboxes_format",
+    "ensure_and_convert_bbox",
 ]
 
 TBox = TypeVar("TBox", BoxType, BoxInternalType)
@@ -42,6 +55,26 @@ def bboxes_to_array(bboxes: Sequence[BoxType]) -> np.ndarray:
 
 def array_to_bboxes(np_bboxes: np.ndarray, ori_bboxes: Sequence[BoxType]) -> List[BoxType]:
     return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for bbox, np_bbox in zip(ori_bboxes, np_bboxes)]
+
+
+def ensure_and_convert_bbox(func: Callable) -> Callable:
+    """Ensure bboxes in input of the provided function can be properly converted to numpy array.
+
+    Args:
+        func (Callable): a callable with the first argument being bboxes.
+
+    Returns:
+        Callable
+    """
+
+    @wraps(func)
+    def wrapper(bboxes, *args, **kwargs):
+        if not isinstance(bboxes, np.ndarray):
+            bboxes = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(bboxes)
+        return func(bboxes, *args, **kwargs)
+
+    return wrapper
 
 
 class BboxParams(Params):
@@ -135,7 +168,7 @@ class BboxProcessor(DataProcessor):
             if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
-    def filter(self, data: Sequence, rows: int, cols: int, target_name: str) -> Sequence:
+    def filter(self, data: np.ndarray, rows: int, cols: int, target_name: str) -> np.ndarray:
         self.params: BboxParams
         data, idx = filter_bboxes(
             data,
@@ -153,10 +186,10 @@ class BboxProcessor(DataProcessor):
     def check(self, data: Sequence, rows: int, cols: int) -> None:
         check_bboxes(data)
 
-    def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> List[BoxType]:
+    def convert_from_albumentations(self, data: np.ndarray, rows: int, cols: int) -> np.ndarray:
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
-    def convert_to_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
+    def convert_to_albumentations(self, data: np.ndarray, rows: int, cols: int) -> np.ndarray:
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
@@ -236,6 +269,7 @@ def _convert_to_array(dim: Union[Sequence[Union[int, float]], np.ndarray], lengt
     return dim.astype(float)
 
 
+@ensure_and_convert_bbox
 def normalize_bboxes_np(
     bboxes: np.ndarray, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
 ) -> np.ndarray:
@@ -249,8 +283,12 @@ def normalize_bboxes_np(
     Returns:
         Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
     """
-    rows = _convert_to_array(rows, len(bboxes), "rows")
-    cols = _convert_to_array(cols, len(bboxes), "cols")
+    if not len(bboxes):
+        return bboxes
+    if not isinstance(rows, int):
+        rows = _convert_to_array(rows, len(bboxes), "rows")
+    if not isinstance(cols, int):
+        cols = _convert_to_array(cols, len(bboxes), "cols")
 
     bboxes_ = bboxes.copy().astype(float)
     bboxes_[:, 0::2] /= cols
@@ -258,6 +296,7 @@ def normalize_bboxes_np(
     return bboxes_
 
 
+@ensure_and_convert_bbox
 def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
     """Denormalize a list of bounding boxes.
 
@@ -270,9 +309,12 @@ def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
         List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
-    rows = _convert_to_array(rows, len(bboxes), "rows")
-    cols = _convert_to_array(cols, len(bboxes), "cols")
-
+    if not len(bboxes):
+        return bboxes
+    if not isinstance(rows, int):
+        rows = _convert_to_array(rows, len(bboxes), "rows")
+    if not isinstance(cols, int):
+        cols = _convert_to_array(cols, len(bboxes), "cols")
     bboxes_ = bboxes.copy()
 
     bboxes_[:, 0::2] *= cols
@@ -280,6 +322,7 @@ def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
     return bboxes_
 
 
+@ensure_and_convert_bbox
 def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
@@ -299,43 +342,43 @@ def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
     return bboxes_area
 
 
+@ensure_and_convert_bbox
 def convert_bboxes_to_albumentations(
     bboxes: Sequence[BoxType], source_format, rows, cols, check_validity=False
 ) -> List[BoxType]:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     if not len(bboxes):
-        return []
+        return bboxes
 
     if source_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
             f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
         )
 
-    np_bboxes = bboxes_to_array(bboxes)
-
     if source_format == "coco":
 
-        np_bboxes[:, 2:] += np_bboxes[:, :2]
+        bboxes[:, 2:] += bboxes[:, :2]
     elif source_format == "yolo":
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
 
-        if check_validity and np.any((np_bboxes <= 0) | (np_bboxes > 1)):
+        if check_validity and np.any((bboxes <= 0) | (bboxes > 1)):
             raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
 
-        np_bboxes[:, :2] -= np_bboxes[:, 2:] / 2
-        np_bboxes[:, 2:] += np_bboxes[:, :2]
+        bboxes[:, :2] -= bboxes[:, 2:] / 2
+        bboxes[:, 2:] += bboxes[:, :2]
 
     if source_format != "yolo":
-        np_bboxes = normalize_bboxes_np(np_bboxes, rows, cols)
+        bboxes = normalize_bboxes_np(bboxes, rows, cols)
     if check_validity:
-        check_bboxes(np_bboxes)
+        check_bboxes(bboxes)
 
-    return array_to_bboxes(np_bboxes, bboxes)
+    return bboxes
 
 
+@ensure_and_convert_bbox
 def convert_bboxes_from_albumentations(
-    bboxes: Sequence[BoxType], target_format: str, rows: int, cols: int, check_validity: bool = False
-) -> List[BoxType]:
+    bboxes: np.ndarray, target_format: str, rows: int, cols: int, check_validity: bool = False
+) -> np.ndarray:
     """Convert a list of bounding boxes from the format used by albumentations to a format, specified
     in `target_format`.
 
@@ -351,28 +394,28 @@ def convert_bboxes_from_albumentations(
 
     """
     if not len(bboxes):
-        return []
+        return bboxes
     if target_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
             f"Unknown target_format {target_format}. Supported formats are `coco`, `pascal_voc`, and `yolo`."
         )
 
-    np_bboxes = bboxes_to_array(bboxes)
     if check_validity:
-        check_bboxes(np_bboxes)
+        check_bboxes(bboxes)
 
     if target_format != "yolo":
-        np_bboxes = denormalize_bboxes_np(np_bboxes, rows=rows, cols=cols)
+        bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
     if target_format == "coco":
-        np_bboxes[:, 2] -= np_bboxes[:, 0]
-        np_bboxes[:, 3] -= np_bboxes[:, 1]
+        bboxes[:, 2] -= bboxes[:, 0]
+        bboxes[:, 3] -= bboxes[:, 1]
     elif target_format == "yolo":
-        np_bboxes[:, 2:] -= np_bboxes[:, :2]
-        np_bboxes[:, :2] += np_bboxes[:, 2:] / 2.0
+        bboxes[:, 2:] -= bboxes[:, :2]
+        bboxes[:, :2] += bboxes[:, 2:] / 2.0
 
-    return array_to_bboxes(np_bboxes, bboxes)
+    return bboxes
 
 
+@ensure_and_convert_bbox
 def check_bboxes(bboxes: Union[Sequence[BoxType], np.ndarray]) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     if not len(bboxes):
@@ -403,16 +446,17 @@ def check_bboxes(bboxes: Union[Sequence[BoxType], np.ndarray]) -> None:
         raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes[y_idx[0]]}.")
 
 
+@ensure_and_convert_bbox
 def filter_bboxes(
-    bboxes: Sequence[BoxType],
+    bboxes: np.ndarray,
     rows: int,
     cols: int,
     min_area: float = 0.0,
     min_visibility: float = 0.0,
     min_width: float = 0.0,
     min_height: float = 0.0,
-) -> Tuple[Sequence[BoxType], Sequence[int]]:
-    """Remove bounding boxes that either lie outside of the visible area by more then min_visibility
+) -> Tuple[np.ndarray, Sequence[int]]:
+    """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
     Args:
@@ -433,10 +477,9 @@ def filter_bboxes(
     """
 
     if not len(bboxes):
-        return [], []
+        return np.empty(shape=0), []
 
-    np_bboxes = bboxes_to_array(bboxes)
-    clipped_norm_bboxes = np.clip(np_bboxes, 0.0, 1.0)
+    clipped_norm_bboxes = np.clip(bboxes, 0.0, 1.0)
 
     clipped_width = (clipped_norm_bboxes[:, 2] - clipped_norm_bboxes[:, 0]) * cols
     clipped_height = (clipped_norm_bboxes[:, 3] - clipped_norm_bboxes[:, 1]) * rows
@@ -444,7 +487,7 @@ def filter_bboxes(
     # denormalize bbox
     bboxes_area = calculate_bboxes_area(clipped_norm_bboxes, rows=rows, cols=cols)
 
-    transform_bboxes_area = calculate_bboxes_area(np_bboxes, rows=rows, cols=cols)
+    transform_bboxes_area = calculate_bboxes_area(bboxes, rows=rows, cols=cols)
 
     idx, *_ = np.where(
         (bboxes_area >= min_area)
@@ -453,20 +496,20 @@ def filter_bboxes(
         & (clipped_height >= min_height)
     )
 
-    resulting_boxes = [cast(BoxType, tuple(clipped_norm_bboxes[i]) + bboxes[i][4:]) for i in idx]
-
-    return resulting_boxes, idx
+    return clipped_norm_bboxes[idx], idx
 
 
+
+@ensure_and_convert_bbox
 def union_of_bboxes(
-    height: int, width: int, bboxes: Union[Sequence[BoxType], np.ndarray], erosion_rate: float = 0.0
+    bboxes: np.ndarray, height: int, width: int, erosion_rate: float = 0.0
 ) -> BoxType:
     """Calculate union of bounding boxes.
 
     Args:
+        bboxes (List[tuple]): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
         height (float): Height of image or space.
         width (float): Width of image or space.
-        bboxes (List[tuple]): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
         erosion_rate (float): How much each bounding box can be shrinked, useful for erosive cropping.
             Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox to lose its volume.
 
@@ -474,16 +517,14 @@ def union_of_bboxes(
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
-
-    np_bboxes: np.ndarray = bboxes[..., :4] if isinstance(bboxes, np.ndarray) else bboxes_to_array(bboxes)
-    w, h = np_bboxes[:, 2] - np_bboxes[:, 0], np_bboxes[:, 3] - np_bboxes[:, 1]
+    w, h = bboxes[:, 2] - bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1]
 
     limits = np.tile(
         np.concatenate((np.expand_dims(w, 0).transpose(), np.expand_dims(h, 0).transpose()), 1) * erosion_rate, 2
     )
     limits[2:] *= -1
 
-    limits += np_bboxes
+    limits += bboxes
 
     limits = np.concatenate((limits, np.array([[width, height, 0, 0]])))
 

@@ -8,8 +8,14 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
 )
 
-from ...core.bbox_utils import denormalize_bboxes_np, normalize_bboxes_np
-from ...core.transforms_interface import KeypointInternalType
+from ...core.bbox_utils import (
+    denormalize_bbox,
+    denormalize_bboxes_np,
+    ensure_and_convert_bbox,
+    normalize_bbox,
+    normalize_bboxes_np,
+)
+from ...core.transforms_interface import BoxInternalType, KeypointInternalType
 from ..geometric import functional as FGeometric
 
 __all__ = [
@@ -57,6 +63,7 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
     return img
 
 
+@ensure_and_convert_bbox
 def crop_bboxes_by_coords(
     bboxes: np.ndarray,
     crop_coords: Union[Sequence[Tuple[int, int, int, int]], np.ndarray],
@@ -80,13 +87,15 @@ def crop_bboxes_by_coords(
         numpy.ndarray: A batch of cropped bounding boxes with `albumentations` format.
 
     """
-
+    if not len(bboxes):
+        return bboxes
     np_bboxes = denormalize_bboxes_np(bboxes, rows, cols)
     crop_coords = np.tile(np.array(crop_coords)[:, :2], 2)
     cropped_bboxes = np_bboxes - crop_coords
     return normalize_bboxes_np(cropped_bboxes, crop_width, crop_height)
 
 
+@ensure_and_convert_bbox
 def bboxes_random_crop(
     bboxes: np.ndarray,
     crop_height: int,
@@ -97,6 +106,8 @@ def bboxes_random_crop(
     cols: int,
 ) -> np.ndarray:
     num_bboxes = len(bboxes)
+    if not num_bboxes:
+        return bboxes
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
@@ -170,8 +181,11 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
     return img
 
 
+@ensure_and_convert_bbox
 def bboxes_center_crop(bboxes: np.ndarray, crop_height: int, crop_width: int, rows: int, cols: int):
     num_bboxes = len(bboxes)
+    if not num_bboxes:
+        return bboxes
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
@@ -216,6 +230,7 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
     return img[y_min:y_max, x_min:x_max]
 
 
+@ensure_and_convert_bbox
 def bboxes_crop(
     bboxes: np.ndarray,
     x_min: Union[np.ndarray, int],
@@ -240,6 +255,8 @@ def bboxes_crop(
         numpy.ndarray: A batch of cropped bounding boxes in `albumentations` format.
 
     """
+    if not len(bboxes):
+        return bboxes
 
     assert (
         isinstance(x_min, np.ndarray)
@@ -304,6 +321,7 @@ def crop_and_pad(
     return img
 
 
+@ensure_and_convert_bbox
 def crop_and_pad_bboxes(
     bboxes: np.ndarray,
     crop_params: Optional[Sequence[int]],
@@ -313,6 +331,8 @@ def crop_and_pad_bboxes(
     result_rows: int,
     result_cols: int,
 ) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
 
     bboxes = denormalize_bboxes_np(bboxes, rows, cols)
 
