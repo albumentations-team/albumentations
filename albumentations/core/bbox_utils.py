@@ -455,7 +455,7 @@ def filter_bboxes(
     min_visibility: float = 0.0,
     min_width: float = 0.0,
     min_height: float = 0.0,
-) -> Tuple[np.ndarray, Sequence[int]]:
+) -> Tuple[BBoxesInternalType, Sequence[int]]:
     """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
