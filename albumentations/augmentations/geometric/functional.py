@@ -25,6 +25,7 @@ from ...core.bbox_utils import (
     normalize_bboxes_np,
 )
 from ...core.transforms_interface import (
+    BBoxesInternalType,
     BoxInternalType,
     FillValueType,
     ImageColorType,
@@ -116,7 +117,7 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxI
 
 
 @ensure_and_convert_bbox
-def bboxes_rot90(bboxes: np.ndarray, factor: int, rows: int, cols: int) -> np.ndarray:
+def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) -> BBoxesInternalType:
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
 
@@ -229,7 +230,7 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
 
 
 @ensure_and_convert_bbox
-def bboxes_rotate(bboxes: np.ndarray, angle: float, method: str, rows: int, cols: int) -> np.ndarray:
+def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: int, cols: int) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
 
@@ -380,8 +381,16 @@ def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, col
 
 @ensure_and_convert_bbox
 def bboxes_shift_scale_rotate(
-    bboxes: np.ndarray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
-) -> np.ndarray:
+    bboxes: BBoxesInternalType,
+    angle: int,
+    scale_: int,
+    dx: int,
+    dy: int,
+    rotate_method: str,
+    rows: int,
+    cols: int,
+    **kwargs
+) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
     center = (cols / 2, rows / 2)
@@ -624,14 +633,14 @@ def perspective_bbox(
 
 @ensure_and_convert_bbox
 def perspective_bboxes(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, height, width)
@@ -818,12 +827,12 @@ def bbox_affine(
 
 @ensure_and_convert_bbox
 def bboxes_affine(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     matrix: skimage.transform.ProjectiveTransform,
     rows: int,
     cols: int,
     output_shape: Sequence[int],
-) -> np.ndarray:
+) -> BBoxesInternalType:
     if _is_identity_matrix(matrix):
         return bboxes
 
@@ -907,11 +916,11 @@ def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows:
 
 @ensure_and_convert_bbox
 def bboxes_safe_rotate(
-    bboxes: np.ndarray,
+    bboxes: BBoxesInternalType,
     matrix: np.ndarray,
     rows: int,
     cols: int,
-) -> np.ndarray:
+) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
@@ -1182,7 +1191,7 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
 
 
 @ensure_and_convert_bbox
-def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+def bboxes_vflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
     """Flip a batch of bounding boxes vertically around the x-axis.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
@@ -1214,7 +1223,7 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
 
 
 @ensure_and_convert_bbox
-def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+def bboxes_hflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
     """Flip a batch of bounding boxes horizontally around the y-axis.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
@@ -1258,7 +1267,7 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
 
 
 @ensure_and_convert_bbox
-def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
+def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs) -> BBoxesInternalType:
     """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1285,7 +1294,7 @@ def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
 
 
 @ensure_and_convert_bbox
-def bboxes_transpose(bboxes: np.ndarray, axis: int, **kwargs) -> np.ndarray:
+def bboxes_transpose(bboxes: BBoxesInternalType, axis: int, **kwargs) -> BBoxesInternalType:
     """Transpose bounding bboxes along a given axis in batch.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes with `albumentations` format.

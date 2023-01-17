@@ -893,8 +893,10 @@ def test_bboxes_transpose(bboxes, axis, expect):
     ],
 )
 def test_filter_bboxes(bboxes, min_area, min_visibility, target):
-    filtered_bboxes, _ = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
-    assert filtered_bboxes == target
+    filtered_bboxes, _ = filter_bboxes(
+        np.array(bboxes), min_area=min_area, min_visibility=min_visibility, rows=100, cols=100
+    )
+    assert np.array_equal(filtered_bboxes, np.array(target))
 
 
 @pytest.mark.parametrize(
@@ -930,7 +932,7 @@ def test_filter_bboxes_by_min_width_height(bboxes, img_width, img_height, min_wi
     filtered_bboxes, _ = filter_bboxes(
         bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height
     )
-    assert filtered_bboxes == target
+    assert np.array_equal(filtered_bboxes, np.array(target))
 
 
 def test_fun_max_size():
