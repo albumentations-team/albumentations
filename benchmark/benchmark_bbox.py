@@ -40,7 +40,7 @@ DEFAULT_BENCHMARKING_LIBRARIES = [
     "albumentations_function",
 ]
 
-bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"])
+bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"], check_each_transform=True)
 
 
 def parse_args():
@@ -364,6 +364,32 @@ class Affine(BenchmarkTest):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
+class Sequence(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose(
+            [
+                A.HorizontalFlip(p=1),
+                A.VerticalFlip(p=1),
+                A.Rotate(p=1, border_mode=cv2.BORDER_CONSTANT),
+                A.RandomRotate90(p=1),
+                A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1.0),
+            ],
+            bbox_params=bbox_params,
+        )
+        self.imgaug_transform = iaa.Sequential(
+            [
+                iaa.HorizontalFlip(),
+                iaa.VerticalFlip(),
+                iaa.Rotate(),
+                iaa.Rot90(),
+                iaa.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2),
+            ]
+        )
+
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+
 def main():
     args = parse_args()
     package_versions = get_package_versions()
@@ -390,6 +416,7 @@ def main():
         CropAndPad(),
         RandomCropFromBorders(),
         Affine(),
+        Sequence(),
     ]
     num_bboxes = 100
     for library in libraries:
