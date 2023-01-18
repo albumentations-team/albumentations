@@ -56,12 +56,22 @@ class DataProcessor(ABC):
                     self.data_fields.append(k)
 
         self.label_buffer: Dict[str, Dict[str, Any]] = {field: {} for field in self.data_fields}
+        self.addition_data: Dict[str, Any] = {field: {} for field in self.data_fields}
 
     def filter_labels(self, target_name: str, indices: Sequence[int]):
         if not len(indices):
             return
         for label_name, label_data in self.label_buffer[target_name].items():
-            self.label_buffer[target_name][label_name] = list(itemgetter(*indices)(label_data))
+            ret = list(itemgetter(*indices)(label_data)) if len(indices) > 1 else [itemgetter(*indices)(label_data)]
+            self.label_buffer[target_name][label_name] = ret
+
+        if self.addition_data[target_name]:
+            ret = (
+                list(itemgetter(*indices)(self.addition_data[target_name]))
+                if len(indices) > 1
+                else [itemgetter(*indices)(self.addition_data[target_name])]
+            )
+            self.addition_data[target_name] = ret
 
     @property
     @abstractmethod
@@ -81,11 +91,11 @@ class DataProcessor(ABC):
             data[data_name] = self.filter(data[data_name], rows, cols, data_name)
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
 
-        data = self.remove_label_fields_from_data(data)
+        data = self.remove_label_fields_from_buffer(data)
         return data
 
     def preprocess(self, data: Dict[str, Any]) -> None:
-        data = self.add_label_fields_to_data(data)
+        data = self.add_label_fields_to_buffer(data)
 
         rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
@@ -119,25 +129,33 @@ class DataProcessor(ABC):
     def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
         pass
 
-    def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if self.params.label_fields is None:
-            return data
+    @abstractmethod
+    def separate_label_from_data(self, data: Sequence) -> Tuple[Sequence, Sequence]:
+        pass
+
+    def add_label_fields_to_buffer(self, data: Dict[str, Any]) -> Dict[str, Any]:
         for data_name in self.data_fields:
-            for field in self.params.label_fields:
-                assert len(data[data_name]) == len(data[field])
-                self.label_buffer[data_name][field] = list(data[field])
+            sep_data = self.separate_label_from_data(data[data_name])
+            if sep_data is not None:
+                data[data_name] = sep_data[0]
+                self.addition_data[data_name] = sep_data[1]
+
+            if self.params.label_fields is not None:
+                for field in self.params.label_fields:
+                    assert len(data[data_name]) == len(data[field])
+                    self.label_buffer[data_name][field] = list(data[field])
         return data
 
-    def remove_label_fields_from_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if self.params.label_fields is None:
-            return data
+    def remove_label_fields_from_buffer(self, data: Dict[str, Any]) -> Dict[str, Any]:
         for data_name in self.data_fields:
-            label_fields_len = len(self.params.label_fields)
-            for idx, field in enumerate(self.params.label_fields):
-                field_values = []
-                for bbox in data[data_name]:
-                    field_values.append(bbox[-label_fields_len + idx])
-                data[field] = field_values
-            if label_fields_len:
-                data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
+            ori_data = []
+            for _data, add_data in zip(data[data_name], self.addition_data[data_name]):
+                ori_data.append(tuple(_data) + tuple(add_data))
+            data[data_name] = ori_data
+
+            if self.params.label_fields is None:
+                continue
+
+            for field in self.params.label_fields:
+                data[field] = self.label_buffer[data_name][field]
         return data

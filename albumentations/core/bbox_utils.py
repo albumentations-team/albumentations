@@ -190,6 +190,15 @@ class BboxProcessor(DataProcessor):
         self.filter_labels(target_name=target_name, indices=idx)
         return data
 
+    def separate_label_from_data(self, data: Sequence) -> Tuple[Sequence, Sequence]:
+        bboxes = []
+        additional_data = []
+        for _data in data:
+            bboxes.append(_data[:4])
+            additional_data.append(_data[4:])
+
+        return bboxes, additional_data
+
     def check(self, data: Sequence, rows: int, cols: int) -> None:
         check_bboxes(data)
 
@@ -651,7 +660,7 @@ def check_bboxes(bboxes: Union[Sequence[BoxType], BBoxesInternalType]) -> None:
             3: "y_max",
         }[col_idx[0]]
         raise ValueError(
-            f"Expected {name} for bbox {bboxes[row_idx[0]]} to be "
+            f"Expected {name} for bbox {bboxes[row_idx[0]].tolist()} to be "
             f"in the range [0.0, 1.0], got {bboxes[row_idx[0]][col_idx[0]]}."
         )
 
