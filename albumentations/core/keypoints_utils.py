@@ -126,6 +126,14 @@ class KeypointsProcessor(DataProcessor):
         self.filter_labels(target_name=target_name, indices=idx)
         return data
 
+    def separate_label_from_data(self, data: Sequence) -> Tuple[Sequence, Sequence]:
+        keypoints = []
+        additional_data = []
+        for _data in data:
+            keypoints.append(_data[:4])
+            additional_data.append(_data[4:])
+        return keypoints, additional_data
+
     def check(self, data: Sequence[Sequence], rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
 
