@@ -39,7 +39,7 @@ DEFAULT_BENCHMARKING_LIBRARIES = [
     "albumentations",
 ]
 
-bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"])
+bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"], check_each_transform=True)
 
 
 def parse_args():
@@ -360,7 +360,7 @@ class Sequence(BenchmarkTest):
                 A.VerticalFlip(p=1),
                 A.Rotate(p=1, border_mode=cv2.BORDER_CONSTANT),
                 A.RandomRotate90(p=1),
-                A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1),
+                A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1.0),
             ],
             bbox_params=bbox_params,
         )
