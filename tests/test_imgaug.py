@@ -51,26 +51,28 @@ def test_imagaug_dual_augmentations_are_deterministic(augmentation_cls, image):
         assert np.array_equal(data["image"], data["mask"])
 
 
-def test_imagaug_fliplr_transform_bboxes(image):
-    aug = IAAFliplr(p=1)
-    mask = np.copy(image)
-    bboxes = [(10, 10, 20, 20), (20, 10, 30, 40)]
-    expect = [(80, 10, 90, 20), (70, 10, 80, 40)]
-    bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1])
-    data = aug(image=image, mask=mask, bboxes=bboxes)
-    actual = convert_bboxes_from_albumentations(data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1])
-    assert np.array_equal(data["image"], data["mask"])
-    assert np.allclose(actual, expect)
-
-
 @pytest.mark.parametrize(
     "aug, bboxes, expected",
     [
-        (IAAFlipud, [(10, 10, 20, 20, 123), (10, 10, 20, 20, 1234)], [(10, 80, 20, 90, 123), (20, 60, 30, 90, 1234)]),
+        (
+            IAAFlipud,
+            [(10, 10, 20, 20, 123), (20, 10, 30, 40, 1234)],
+            [(10, 80, 20, 90, 123), (20, 60, 30, 90, 1234)],
+        ),
+        (
+            IAAFlipud,
+            [(10, 10, 20, 20, 123, 99), (20, 10, 30, 40, 1234, 999)],
+            [(10, 80, 20, 90, 123, 99), (20, 60, 30, 90, 1234, 999)],
+        ),
         (
             IAAFliplr,
             [(10, 10, 20, 20, 123), (20, 10, 30, 40, 1234)],
             [(80, 10, 90, 20, 123), (70, 10, 80, 40, 1234)],
+        ),
+        (
+            IAAFliplr,
+            [(10, 10, 20, 20, 123, 99), (20, 10, 30, 40, 1234, 999)],
+            [(80, 10, 90, 20, 123, 99), (70, 10, 80, 40, 1234, 999)],
         ),
     ],
 )
