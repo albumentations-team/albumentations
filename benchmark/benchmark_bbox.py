@@ -262,6 +262,7 @@ class Transpose(BenchmarkTest):
 class Pad(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.PadIfNeeded(min_height=1024, min_width=1024, p=1.0)], bbox_params=bbox_params)
+        self.imgaug_transform = iaa.CenterPadToFixedSize(width=1024, height=1024)
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
@@ -280,6 +281,9 @@ class Perspective(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.PerspectiveTransform(scale=(0.05, 1))
         self.alb_compose = A.Compose([A.Perspective(p=1.0)], bbox_params=bbox_params)
+        self.imgaug_transform = iaa.PerspectiveTransform(
+            scale=(0.05, 0.1),
+        )
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
@@ -360,7 +364,9 @@ class Sequence(BenchmarkTest):
                 A.VerticalFlip(p=1),
                 A.Rotate(p=1, border_mode=cv2.BORDER_CONSTANT),
                 A.RandomRotate90(p=1),
+                A.Perspective(p=1),
                 A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1.0),
+                A.PadIfNeeded(min_height=1024, min_width=1024, p=1.0),
             ],
             bbox_params=bbox_params,
         )
@@ -370,7 +376,11 @@ class Sequence(BenchmarkTest):
                 iaa.VerticalFlip(),
                 iaa.Rotate(),
                 iaa.Rot90(),
+                iaa.PerspectiveTransform(
+                    scale=(0.05, 0.1),
+                ),
                 iaa.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2),
+                iaa.CenterPadToFixedSize(width=1024, height=1024),
             ]
         )
 
