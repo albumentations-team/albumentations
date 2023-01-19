@@ -63,17 +63,23 @@ def test_imagaug_fliplr_transform_bboxes(image):
     assert np.allclose(actual, expect)
 
 
-def test_imagaug_flipud_transform_bboxes(image):
-    aug = IAAFlipud(p=1)
+@pytest.mark.parametrize(
+    "aug, bboxes, expected",
+    [
+        (IAAFlipud, [(10, 10, 20, 20, 123), (10, 10, 20, 20, 1234)], [(10, 80, 20, 90, 123), (20, 60, 30, 90, 1234)]),
+        (
+            IAAFliplr,
+            [(10, 10, 20, 20, 123), (20, 10, 30, 40, 1234)],
+            [(80, 10, 90, 20, 123), (70, 10, 80, 40, 1234)],
+        ),
+    ],
+)
+def test_imagaug_flipud_transform_bboxes(aug, bboxes, expected, image):
+    aug = Compose([aug(p=1)], bbox_params={"format": "pascal_voc"})
     mask = np.copy(image)
-    dummy_class = 1234
-    bboxes = [(10, 10, 20, 20, dummy_class), (20, 10, 30, 40, dummy_class)]
-    expect = [(10, 80, 20, 90, dummy_class), (20, 60, 30, 90, dummy_class)]
-    bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1])
     data = aug(image=image, mask=mask, bboxes=bboxes)
-    actual = convert_bboxes_from_albumentations(data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1])
     assert np.array_equal(data["image"], data["mask"])
-    assert np.allclose(actual, expect)
+    assert np.allclose(data["bboxes"], expected)
 
 
 @pytest.mark.parametrize(
