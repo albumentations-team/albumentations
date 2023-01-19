@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 
 import random
+import sys
 from copy import deepcopy
 from typing import (
     Annotated,
@@ -12,6 +13,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypeAlias,
     Union,
     cast,
 )
@@ -41,7 +43,7 @@ __all__ = [
 
 NumType = Union[int, float, np.ndarray]
 BoxInternalType = Tuple[float, float, float, float]
-BBoxesInternalType = Annotated[npt.NDArray, Literal["N", 4]]
+BBoxesInternalType: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
 BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
 KeypointInternalType = Tuple[float, float, float, float]
 KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]

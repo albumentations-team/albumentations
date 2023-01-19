@@ -668,9 +668,9 @@ def check_bboxes(bboxes: Union[Sequence[BoxType], BBoxesInternalType]) -> None:
     y_idx = np.where(np_bboxes[:, 1] >= np_bboxes[:, 3])[0]
 
     if len(x_idx):
-        raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes[x_idx[0]]}.")
+        raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes[x_idx[0]].tolist()}.")
     if len(y_idx):
-        raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes[y_idx[0]]}.")
+        raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes[y_idx[0]].tolist()}.")
 
 
 @ensure_and_convert_bbox
