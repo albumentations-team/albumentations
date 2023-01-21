@@ -603,14 +603,6 @@ def test_resize_nearest_interpolation_float(target):
     assert np.array_equal(resized_img, expected)
 
 
-def test_bbox_vflip():
-    assert FGeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.1, 0.5, 0.6, 0.8)
-
-
-def test_bbox_hflip():
-    assert FGeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.4, 0.2, 0.9, 0.5)
-
-
 @pytest.mark.parametrize(
     "bboxes, target",
     [
@@ -632,20 +624,6 @@ def test_bboxes_hflip(bboxes, target):
 
 
 @pytest.mark.parametrize(
-    ["code", "func"],
-    [
-        [0, FGeometric.bbox_vflip],
-        [1, FGeometric.bbox_hflip],
-        [-1, lambda bbox, rows, cols: FGeometric.bbox_vflip(FGeometric.bbox_hflip(bbox, rows, cols), rows, cols)],
-    ],
-)
-def test_bbox_flip(code, func):
-    rows, cols = 100, 200
-    bbox = [0.1, 0.2, 0.6, 0.5]
-    assert FGeometric.bbox_flip(bbox, code, rows, cols) == func(bbox, rows, cols)
-
-
-@pytest.mark.parametrize(
     "axis, func, bboxes",
     [
         (0, FGeometric.bboxes_vflip, np.array([[0.1, 0.2, 0.6, 0.5]])),
@@ -655,11 +633,6 @@ def test_bbox_flip(code, func):
 )
 def test_bboxes_flip(axis, func, bboxes):
     assert np.array_equal(FGeometric.bboxes_flip(bboxes, axis), func(bboxes))
-
-
-def test_crop_bbox_by_coords():
-    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
 
 
 def test_crop_bboxes_by_coords():
@@ -685,11 +658,6 @@ def test_crop_bboxes_by_coords():
     )
 
 
-def test_bbox_center_crop():
-    cropped_bbox = A.bbox_center_crop((0.5, 0.2, 0.9, 0.7), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
-
-
 def test_bboxes_center_crop():
     cropped_bboxes = A.bboxes_center_crop(
         np.array(
@@ -710,11 +678,6 @@ def test_bboxes_center_crop():
             ]
         ),
     )
-
-
-def test_bbox_crop():
-    cropped_bbox = A.bbox_crop((0.5, 0.2, 0.9, 0.7), 24, 24, 64, 64, 100, 100)
-    assert cropped_bbox == (0.65, -0.1, 1.65, 1.15)
 
 
 def test_bboxes_crop():
@@ -741,11 +704,6 @@ def test_bboxes_crop():
     )
 
 
-def test_bbox_random_crop():
-    cropped_bbox = A.bbox_random_crop((0.5, 0.2, 0.9, 0.7), 80, 80, 0.2, 0.1, 100, 100)
-    assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
-
-
 def test_bboxes_random_crop():
     cropped_bboxes = A.bboxes_random_crop(
         np.array(
@@ -768,13 +726,6 @@ def test_bboxes_random_crop():
             ]
         ),
     )
-
-
-def test_bbox_rot90():
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0, 100, 200) == (0.1, 0.2, 0.3, 0.4)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1, 100, 200) == (0.2, 0.7, 0.4, 0.9)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2, 100, 200) == (0.7, 0.6, 0.9, 0.8)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3, 100, 200) == (0.6, 0.1, 0.8, 0.3)
 
 
 @pytest.mark.parametrize(
@@ -844,11 +795,6 @@ def test_bbox_rot90():
 )
 def test_bboxes_rot90(bboxes, factors, rows, cols, expect):
     assert np.array_equal(FGeometric.bboxes_rot90(bboxes, factors, rows, cols), expect)
-
-
-def test_bbox_transpose():
-    assert np.allclose(FGeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4), 0, 100, 200), (0.1, 0.7, 0.4, 0.8))
-    assert np.allclose(FGeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4), 1, 100, 200), (0.6, 0.2, 0.9, 0.3))
 
 
 @pytest.mark.parametrize(
