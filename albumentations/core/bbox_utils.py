@@ -457,7 +457,9 @@ def filter_bboxes(
     return resulting_boxes
 
 
-def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_rate: float = 0.0) -> BoxType:
+def union_of_bboxes(
+    height: int, width: int, bboxes: Union[Sequence[BoxType], np.ndarray], erosion_rate: float = 0.0
+) -> BoxType:
     """Calculate union of bounding boxes.
 
     Args:
@@ -472,7 +474,7 @@ def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_
 
     """
 
-    np_bboxes = bboxes[..., :4] if isinstance(bboxes, np.ndarray) else bboxes_to_array(bboxes)
+    np_bboxes: np.ndarray = bboxes[..., :4] if isinstance(bboxes, np.ndarray) else bboxes_to_array(bboxes)
     w, h = np_bboxes[:, 2] - np_bboxes[:, 0], np_bboxes[:, 3] - np_bboxes[:, 1]
 
     limits = np.tile(
