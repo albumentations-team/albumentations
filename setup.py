@@ -1,11 +1,17 @@
 import io
 import os
 import re
+import sys
 
 from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import find_packages, setup
 
-INSTALL_REQUIRES = ["numpy>=1.23.0", "scipy>=1.1.0", "scikit-image>=0.16.1", "PyYAML", "qudida>=0.0.4"]
+if sys.version_info >= (3, 8, 0):
+    numpy_version = "numpy>=1.23.0"
+else:
+    numpy_version = "numpy>=1.11.1"
+
+INSTALL_REQUIRES = [numpy_version, "scipy>=1.1.0", "scikit-image>=0.16.1", "PyYAML", "qudida>=0.0.4"]
 
 # If none of packages in first installed, install second package
 CHOOSE_INSTALL_REQUIRES = [
