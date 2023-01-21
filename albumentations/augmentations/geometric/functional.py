@@ -38,14 +38,11 @@ __all__ = [
     "grid_distortion",
     "pad",
     "pad_with_params",
-    "bbox_rot90",
     "keypoint_rot90",
     "rotate",
-    "bbox_rotate",
     "keypoint_rotate",
     "shift_scale_rotate",
     "keypoint_shift_scale_rotate",
-    "bbox_shift_scale_rotate",
     "bboxes_shift_scale_rotate",
     "elastic_transform",
     "resize",
@@ -56,7 +53,6 @@ __all__ = [
     "longest_max_size",
     "smallest_max_size",
     "perspective",
-    "perspective_bbox",
     "perspective_bboxes",
     "rotation2DMatrixToEulerAngles",
     "perspective_keypoint",
@@ -64,10 +60,8 @@ __all__ = [
     "_is_identity_matrix",
     "warp_affine",
     "keypoint_affine",
-    "bbox_affine",
     "bboxes_affine",
     "safe_rotate",
-    "bbox_safe_rotate",
     "bboxes_safe_rotate",
     "keypoint_safe_rotate",
     "piecewise_affine",
@@ -75,10 +69,10 @@ __all__ = [
     "from_distance_maps",
     "keypoint_piecewise_affine",
     "bbox_piecewise_affine",
-    "bbox_flip",
-    "bbox_hflip",
-    "bbox_transpose",
-    "bbox_vflip",
+    "bboxes_flip",
+    "bboxes_hflip",
+    "bboxes_vflip",
+    "bboxes_transpose",
     "vflip",
     "hflip",
     "vflip_cv2",
@@ -91,33 +85,8 @@ __all__ = [
 ]
 
 
-def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
-    """Rotates a bounding box by 90 degrees CCW (see np.rot90)
-
-    Args:
-        bbox: A bounding box tuple (x_min, y_min, x_max, y_max).
-        factor: Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
-        rows: Image rows.
-        cols: Image cols.
-
-    Returns:
-        tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
-
-    """
-    if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
-    x_min, y_min, x_max, y_max = bbox[:4]
-    if factor == 1:
-        bbox = y_min, 1 - x_max, y_max, 1 - x_min
-    elif factor == 2:
-        bbox = 1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min
-    elif factor == 3:
-        bbox = 1 - y_max, x_min, 1 - y_min, x_max
-    return bbox
-
-
 @ensure_and_convert_bbox
-def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) -> BBoxesInternalType:
+def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) -> np.ndarray:
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
 
@@ -187,50 +156,24 @@ def rotate(
     return warp_fn(img)
 
 
-def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, cols: int) -> BoxInternalType:
-    """Rotates a bounding box by angle degrees.
+@ensure_and_convert_bbox
+def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: int, cols: int) -> np.ndarray:
+    """Rotates a batch of bounding boxes by angle degrees.
 
     Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: A batch of bounding boxes in `albumentations` format.
         angle: Angle of rotation in degrees.
         method: Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
         rows: Image rows.
         cols: Image cols.
 
     Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
+        A batch of bounding boxes in `albumentations` format.
 
     References:
         https://arxiv.org/abs/2109.13488
 
     """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    scale = cols / float(rows)
-    if method == "largest_box":
-        x = np.array([x_min, x_max, x_max, x_min]) - 0.5
-        y = np.array([y_min, y_min, y_max, y_max]) - 0.5
-    elif method == "ellipse":
-        w = (x_max - x_min) / 2
-        h = (y_max - y_min) / 2
-        data = np.arange(0, 360, dtype=np.float32)
-        x = w * np.sin(np.radians(data)) + (w + x_min - 0.5)
-        y = h * np.cos(np.radians(data)) + (h + y_min - 0.5)
-    else:
-        raise ValueError(f"Method {method} is not a valid rotation method.")
-    angle = np.deg2rad(angle)
-    x_t = (np.cos(angle) * x * scale + np.sin(angle) * y) / scale
-    y_t = -np.sin(angle) * x * scale + np.cos(angle) * y
-    x_t = x_t + 0.5
-    y_t = y_t + 0.5
-
-    x_min, x_max = min(x_t), max(x_t)
-    y_min, y_max = min(y_t), max(y_t)
-
-    return x_min, y_min, x_max, y_max
-
-
-@ensure_and_convert_bbox
-def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: int, cols: int) -> BBoxesInternalType:
     if not len(bboxes):
         return bboxes
 
@@ -331,52 +274,6 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
     scale = s * scale
 
     return x, y, angle, scale
-
-
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, cols, **kwargs):  # skipcq: PYL-W0613
-    """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
-    scaling is made by scale factor and shifting is made by dx and dy.
-
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        angle (int): Angle of rotation in degrees.
-        scale (int): Scale factor.
-        dx (int): Shift along x-axis in pixel units.
-        dy (int): Shift along y-axis in pixel units.
-        rotate_method(str): Rotation method used. Should be one of: "largest_box", "ellipse".
-            Default: "largest_box".
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    height, width = rows, cols
-    center = (width / 2, height / 2)
-    if rotate_method == "ellipse":
-        x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rotate_method, rows, cols)
-        matrix = cv2.getRotationMatrix2D(center, 0, scale)
-    else:
-        x_min, y_min, x_max, y_max = bbox[:4]
-        matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-    x = np.array([x_min, x_max, x_max, x_min])
-    y = np.array([y_min, y_min, y_max, y_max])
-    ones = np.ones(shape=(len(x)))
-    points_ones = np.vstack([x, y, ones]).transpose()
-    points_ones[:, 0] *= width
-    points_ones[:, 1] *= height
-    tr_points = matrix.dot(points_ones.T).T
-    tr_points[:, 0] /= width
-    tr_points[:, 1] /= height
-
-    x_min, x_max = min(tr_points[:, 0]), max(tr_points[:, 0])
-    y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
-
-    return x_min, y_min, x_max, y_max
 
 
 @ensure_and_convert_bbox
@@ -606,31 +503,6 @@ def perspective(
     return warped
 
 
-def perspective_bbox(
-    bbox: BoxInternalType,
-    height: int,
-    width: int,
-    matrix: np.ndarray,
-    max_width: int,
-    max_height: int,
-    keep_size: bool,
-) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)[:4]
-
-    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
-
-    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
-    for pt in points:
-        pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
-        x, y = pt[:2]
-        x1 = min(x1, x)
-        x2 = max(x2, x)
-        y1 = min(y1, y)
-        y2 = max(y2, y)
-
-    return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
-
-
 @ensure_and_convert_bbox
 def perspective_bboxes(
     bboxes: BBoxesInternalType,
@@ -797,34 +669,6 @@ def keypoint_affine(
     return x, y, a, s
 
 
-def bbox_affine(
-    bbox: BoxInternalType,
-    matrix: skimage.transform.ProjectiveTransform,
-    rows: int,
-    cols: int,
-    output_shape: Sequence[int],
-) -> BoxInternalType:
-    if _is_identity_matrix(matrix):
-        return bbox
-
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
-    points = np.array(
-        [
-            [x_min, y_min],
-            [x_max, y_min],
-            [x_max, y_max],
-            [x_min, y_max],
-        ]
-    )
-    points = skimage.transform.matrix_transform(points, matrix.params)
-    x_min = np.min(points[:, 0])
-    x_max = np.max(points[:, 0])
-    y_min = np.min(points[:, 1])
-    y_max = np.max(points[:, 1])
-
-    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
-
-
 @ensure_and_convert_bbox
 def bboxes_affine(
     bboxes: BBoxesInternalType,
@@ -882,36 +726,6 @@ def safe_rotate(
         borderValue=value,
     )
     return warp_fn(img)
-
-
-def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows: int) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)[:4]
-    points = np.array(
-        [
-            [x1, y1, 1],
-            [x2, y1, 1],
-            [x2, y2, 1],
-            [x1, y2, 1],
-        ]
-    )
-    points = points @ matrix.T
-    x1 = points[:, 0].min()
-    x2 = points[:, 0].max()
-    y1 = points[:, 1].min()
-    y2 = points[:, 1].max()
-
-    def fix_point(pt1: float, pt2: float, max_val: float) -> Tuple[float, float]:
-        # In my opinion, these errors should be very low, around 1-2 pixels.
-        if pt1 < 0:
-            return 0, pt2 + pt1
-        if pt2 > max_val:
-            return pt1 - (pt2 - max_val), max_val
-        return pt1, pt2
-
-    x1, x2 = fix_point(x1, x2, cols)
-    y1, y2 = fix_point(y1, y2, rows)
-
-    return normalize_bbox((x1, y1, x2, y2), rows, cols)
 
 
 @ensure_and_convert_bbox
@@ -1174,24 +988,8 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
-def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
-    """Flip a bounding box vertically around the x-axis.
-
-    Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image rows.
-        cols: Image cols.
-
-    Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return x_min, 1 - y_max, x_max, 1 - y_min
-
-
 @ensure_and_convert_bbox
-def bboxes_vflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
+def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     """Flip a batch of bounding boxes vertically around the x-axis.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
@@ -1206,24 +1004,8 @@ def bboxes_vflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
     return bboxes
 
 
-def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
-    """Flip a bounding box horizontally around the y-axis.
-
-    Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image rows.
-        cols: Image cols.
-
-    Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return 1 - x_max, y_min, 1 - x_min, y_max
-
-
 @ensure_and_convert_bbox
-def bboxes_hflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
+def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     """Flip a batch of bounding boxes horizontally around the y-axis.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
@@ -1238,36 +1020,8 @@ def bboxes_hflip(bboxes: BBoxesInternalType, **kwargs) -> BBoxesInternalType:
     return bboxes
 
 
-def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInternalType:
-    """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
-
-    Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        d: dimension. 0 for vertical flip, 1 for horizontal, -1 for transpose
-        rows: Image rows.
-        cols: Image cols.
-
-    Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: if value of `d` is not -1, 0 or 1.
-
-    """
-    if d == 0:
-        bbox = bbox_vflip(bbox, rows, cols)
-    elif d == 1:
-        bbox = bbox_hflip(bbox, rows, cols)
-    elif d == -1:
-        bbox = bbox_hflip(bbox, rows, cols)
-        bbox = bbox_vflip(bbox, rows, cols)
-    else:
-        raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
-    return bbox
-
-
 @ensure_and_convert_bbox
-def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs) -> BBoxesInternalType:
+def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
     """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1315,34 +1069,6 @@ def bboxes_transpose(bboxes: BBoxesInternalType, axis: int, **kwargs) -> BBoxesI
     else:
         bboxes = 1 - bboxes[:, ::-1]
     return bboxes
-
-
-def bbox_transpose(
-    bbox: KeypointInternalType, axis: int, rows: int, cols: int
-) -> KeypointInternalType:  # skipcq: PYL-W0613
-    """Transposes a bounding box along given axis.
-
-    Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        axis: 0 - main axis, 1 - secondary axis.
-        rows: Image rows.
-        cols: Image cols.
-
-    Returns:
-        A bounding box tuple `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: If axis not equal to 0 or 1.
-
-    """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    if axis not in {0, 1}:
-        raise ValueError("Axis must be either 0 or 1.")
-    if axis == 0:
-        bbox = (y_min, x_min, y_max, x_max)
-    if axis == 1:
-        bbox = (1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min)
-    return bbox
 
 
 @angle_2pi_range
