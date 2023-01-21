@@ -487,31 +487,6 @@ def perspective(
     return warped
 
 
-def perspective_bbox(
-    bbox: BoxInternalType,
-    height: int,
-    width: int,
-    matrix: np.ndarray,
-    max_width: int,
-    max_height: int,
-    keep_size: bool,
-) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)[:4]
-
-    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
-
-    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
-    for pt in points:
-        pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
-        x, y = pt[:2]
-        x1 = min(x1, x)
-        x2 = max(x2, x)
-        y1 = min(y1, y)
-        y2 = max(y2, y)
-
-    return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
-
-
 @ensure_and_convert_bbox
 def perspective_bboxes(
     bboxes: BBoxesInternalType,
@@ -676,34 +651,6 @@ def keypoint_affine(
     a += rotation2DMatrixToEulerAngles(matrix.params[:2])
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
-
-
-def bbox_affine(
-    bbox: BoxInternalType,
-    matrix: skimage.transform.ProjectiveTransform,
-    rows: int,
-    cols: int,
-    output_shape: Sequence[int],
-) -> BoxInternalType:
-    if _is_identity_matrix(matrix):
-        return bbox
-
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
-    points = np.array(
-        [
-            [x_min, y_min],
-            [x_max, y_min],
-            [x_max, y_max],
-            [x_min, y_max],
-        ]
-    )
-    points = skimage.transform.matrix_transform(points, matrix.params)
-    x_min = np.min(points[:, 0])
-    x_max = np.max(points[:, 0])
-    y_min = np.min(points[:, 1])
-    y_max = np.max(points[:, 1])
-
-    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
 
 
 @ensure_and_convert_bbox

@@ -170,7 +170,7 @@ class BboxProcessor(DataProcessor):
 
     def filter(self, data: BBoxesInternalType, rows: int, cols: int, target_name: str) -> BBoxesInternalType:
         self.params: BboxParams
-        data, idx = filter_bboxes(
+        return filter_bboxes(
             data,
             rows,
             cols,
@@ -179,18 +179,6 @@ class BboxProcessor(DataProcessor):
             min_width=self.params.min_width,
             min_height=self.params.min_height,
         )
-
-        self.filter_labels(target_name=target_name, indices=idx)
-        return data
-
-    def separate_label_from_data(self, data: Sequence) -> Tuple[Sequence, Sequence]:
-        bboxes = []
-        additional_data = []
-        for _data in data:
-            bboxes.append(_data[:4])
-            additional_data.append(_data[4:])
-
-        return bboxes, additional_data
 
     def check(self, data: Sequence, rows: int, cols: int) -> None:
         check_bboxes(data)
@@ -306,7 +294,7 @@ def normalize_bboxes_np(
 
 
 @ensure_and_convert_bbox
-def denormalize_bboxes_np(bboxes: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
+def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
     """Denormalize a list of bounding boxes.
 
     Args:
@@ -332,7 +320,7 @@ def denormalize_bboxes_np(bboxes: BBoxesInternalType, rows: int, cols: int) -> B
 
 
 @ensure_and_convert_bbox
-def calculate_bboxes_area(bboxes: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
+def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
     Args:
