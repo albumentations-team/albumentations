@@ -7,7 +7,7 @@ from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import find_packages, setup
 
 if sys.version_info >= (3, 8, 0):
-    numpy_version = "numpy>=1.23.0"
+    numpy_version = "numpy>=1.24.0"
 else:
     numpy_version = "numpy>=1.11.1"
 
