@@ -484,7 +484,7 @@ def union_of_bboxes(
 
     limits += np_bboxes
 
-    limits = np.concatenate((limits, [[width, height, 0, 0]]))
+    limits = np.concatenate((limits, np.array([[width, height, 0, 0]])))
 
     x1, y1 = np.min(limits[:, 0:2], axis=0)
     x2, y2 = np.max(limits[:, 2:4], axis=0)
