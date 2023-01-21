@@ -20,23 +20,18 @@ from ..geometric import functional as FGeometric
 __all__ = [
     "get_random_crop_coords",
     "random_crop",
-    "crop_bbox_by_coords",
     "crop_bboxes_by_coords",
-    "bbox_random_crop",
     "bboxes_random_crop",
     "crop_keypoint_by_coords",
     "keypoint_random_crop",
     "get_center_crop_coords",
     "center_crop",
-    "bbox_center_crop",
     "bboxes_center_crop",
     "keypoint_center_crop",
     "crop",
-    "bbox_crop",
     "bboxes_crop",
     "clamping_crop",
     "crop_and_pad",
-    "crop_and_pad_bbox",
     "crop_and_pad_bboxes",
     "crop_and_pad_keypoint",
 ]
@@ -67,36 +62,6 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
     return img
 
 
-def crop_bbox_by_coords(
-    bbox: BoxInternalType,
-    crop_coords: Tuple[int, int, int, int],
-    crop_height: int,
-    crop_width: int,
-    rows: int,
-    cols: int,
-):
-    """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
-
-    Args:
-        bbox (tuple): A cropped box `(x_min, y_min, x_max, y_max)`.
-        crop_coords (tuple): Crop coordinates `(x1, y1, x2, y2)`.
-        crop_height (int):
-        crop_width (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = bbox[:4]
-    x1, y1, _, _ = crop_coords
-    cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
-    return normalize_bbox(cropped_bbox, crop_height, crop_width)
-
-
 def crop_bboxes_by_coords(
     bboxes: np.ndarray,
     crop_coords: Union[Sequence[Tuple[int, int, int, int]], np.ndarray],
@@ -125,13 +90,6 @@ def crop_bboxes_by_coords(
     crop_coords = np.tile(np.array(crop_coords)[:, :2], 2)
     cropped_bboxes = np_bboxes - crop_coords
     return normalize_bboxes_np(cropped_bboxes, crop_width, crop_height)
-
-
-def bbox_random_crop(
-    bbox: BoxInternalType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
-):
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
 def bboxes_random_crop(
@@ -217,11 +175,6 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
     return img
 
 
-def bbox_center_crop(bbox: BoxInternalType, crop_height: int, crop_width: int, rows: int, cols: int):
-    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
 def bboxes_center_crop(bboxes: np.ndarray, crop_height: int, crop_width: int, rows: int, cols: int):
     num_bboxes = len(bboxes)
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
@@ -268,28 +221,6 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
     return img[y_min:y_max, x_min:x_max]
 
 
-def bbox_crop(bbox: BoxInternalType, x_min: int, y_min: int, x_max: int, y_max: int, rows: int, cols: int):
-    """Crop a bounding box.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        x_min (int):
-        y_min (int):
-        x_max (int):
-        y_max (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    crop_coords = x_min, y_min, x_max, y_max
-    crop_height = y_max - y_min
-    crop_width = x_max - x_min
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
 def bboxes_crop(
     bboxes: np.ndarray,
     x_min: Union[np.ndarray, int],
@@ -307,11 +238,11 @@ def bboxes_crop(
         y_min (numpy.ndarray | int):
         x_max (numpy.ndarray | int):
         y_max (numpy.ndarray | int):
-        rows (int):
-        cols (int):
+        rows (int): Image rows.
+        cols (int): Image cols.
 
     Returns:
-        numpy.ndarray:
+        numpy.ndarray: A batch of cropped bounding boxes in `albumentations` format.
 
     """
 
@@ -376,27 +307,6 @@ def crop_and_pad(
         img = resize_fn(img)
 
     return img
-
-
-def crop_and_pad_bbox(
-    bbox: BoxInternalType,
-    crop_params: Optional[Sequence[int]],
-    pad_params: Optional[Sequence[int]],
-    rows,
-    cols,
-    result_rows,
-    result_cols,
-) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)[:4]
-
-    if crop_params is not None:
-        crop_x, crop_y = crop_params[:2]
-        x1, y1, x2, y2 = x1 - crop_x, y1 - crop_y, x2 - crop_x, y2 - crop_y
-    if pad_params is not None:
-        top, bottom, left, right = pad_params
-        x1, y1, x2, y2 = x1 + left, y1 + top, x2 + left, y2 + top
-
-    return normalize_bbox((x1, y1, x2, y2), result_rows, result_cols)
 
 
 def crop_and_pad_bboxes(

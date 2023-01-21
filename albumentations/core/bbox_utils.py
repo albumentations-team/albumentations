@@ -10,18 +10,11 @@ from .utils import DataProcessor, Params
 __all__ = [
     "normalize_bbox",
     "denormalize_bbox",
-    "normalize_bboxes",
     "normalize_bboxes_np",
-    "denormalize_bboxes",
     "denormalize_bboxes_np",
-    "calculate_bbox_area",
     "calculate_bboxes_area",
-    "filter_bboxes_by_visibility",
-    "convert_bbox_to_albumentations",
-    "convert_bbox_from_albumentations",
     "convert_bboxes_to_albumentations",
     "convert_bboxes_from_albumentations",
-    "check_bbox",
     "check_bboxes",
     "filter_bboxes",
     "union_of_bboxes",
@@ -223,21 +216,6 @@ def denormalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
     return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
 
 
-def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
-    """Normalize a list of bounding boxes.
-
-    Args:
-        bboxes: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        rows: Image height.
-        cols: Image width.
-
-    Returns:
-        Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-
-    """
-    return [normalize_bbox(bbox, rows, cols) for bbox in bboxes]
-
-
 def _convert_to_array(dim: Union[Sequence[int], np.ndarray], length: int, dim_name: str):
     if not isinstance(dim, np.ndarray):
         dim = np.array(
@@ -278,21 +256,6 @@ def normalize_bboxes_np(
     return bboxes_
 
 
-def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
-    """Denormalize a list of bounding boxes.
-
-    Args:
-        bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        rows: Image height.
-        cols: Image width.
-
-    Returns:
-        List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-
-    """
-    return [denormalize_bbox(bbox, rows, cols) for bbox in bboxes]
-
-
 def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
     """Denormalize a list of bounding boxes.
 
@@ -316,24 +279,6 @@ def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
     return bboxes_
 
 
-def calculate_bbox_area(bbox: BoxType, rows: int, cols: int) -> float:
-    """Calculate the area of a bounding box in (fractional) pixels.
-
-    Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image height.
-        cols: Image width.
-
-    Return:
-        Area in (fractional) pixels of the (denormalized) bounding box.
-
-    """
-    bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = bbox[:4]
-    area = (x_max - x_min) * (y_max - y_min)
-    return area
-
-
 def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
@@ -351,156 +296,6 @@ def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
     """
     bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]) * cols * rows
     return bboxes_area
-
-
-def filter_bboxes_by_visibility(
-    original_shape: Sequence[int],
-    bboxes: Sequence[BoxType],
-    transformed_shape: Sequence[int],
-    transformed_bboxes: Sequence[BoxType],
-    threshold: float = 0.0,
-    min_area: float = 0.0,
-) -> List[BoxType]:
-    """Filter bounding boxes and return only those boxes whose visibility after transformation is above
-    the threshold and minimal area of bounding box in pixels is more then min_area.
-
-    Args:
-        original_shape: Original image shape `(height, width, ...)`.
-        bboxes: Original bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        transformed_shape: Transformed image shape `(height, width)`.
-        transformed_bboxes: Transformed bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-        threshold: visibility threshold. Should be a value in the range [0.0, 1.0].
-        min_area: Minimal area threshold.
-
-    Returns:
-        Filtered bounding boxes `[(x_min, y_min, x_max, y_max)]`.
-
-    """
-    img_height, img_width = original_shape[:2]
-    transformed_img_height, transformed_img_width = transformed_shape[:2]
-
-    visible_bboxes = []
-    for bbox, transformed_bbox in zip(bboxes, transformed_bboxes):
-        if not all(0.0 <= value <= 1.0 for value in transformed_bbox[:4]):
-            continue
-        bbox_area = calculate_bbox_area(bbox[:4], img_height, img_width)
-        transformed_bbox_area = calculate_bbox_area(transformed_bbox[:4], transformed_img_height, transformed_img_width)
-        if transformed_bbox_area < min_area:
-            continue
-        visibility = transformed_bbox_area / bbox_area
-        if visibility >= threshold:
-            visible_bboxes.append(transformed_bbox)
-    return visible_bboxes
-
-
-def convert_bbox_to_albumentations(
-    bbox: BoxType, source_format: str, rows: int, cols: int, check_validity: bool = False
-) -> BoxType:
-    """Convert a bounding box from a format specified in `source_format` to the format used by albumentations:
-    normalized coordinates of top-left and bottom-right corners of the bounding box in a form of
-    `(x_min, y_min, x_max, y_max)` e.g. `(0.15, 0.27, 0.67, 0.5)`.
-
-    Args:
-        bbox: A bounding box tuple.
-        source_format: format of the bounding box. Should be 'coco', 'pascal_voc', or 'yolo'.
-        check_validity: Check if all boxes are valid boxes.
-        rows: Image height.
-        cols: Image width.
-
-    Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    Note:
-        The `coco` format of a bounding box looks like `(x_min, y_min, width, height)`, e.g. (97, 12, 150, 200).
-        The `pascal_voc` format of a bounding box looks like `(x_min, y_min, x_max, y_max)`, e.g. (97, 12, 247, 212).
-        The `yolo` format of a bounding box looks like `(x, y, width, height)`, e.g. (0.3, 0.1, 0.05, 0.07);
-        where `x`, `y` coordinates of the center of the box, all values normalized to 1 by image height and width.
-
-    Raises:
-        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`, ot `yolo`.
-        ValueError: If in YOLO format all labels not in range (0, 1).
-
-    """
-    if source_format not in {"coco", "pascal_voc", "yolo"}:
-        raise ValueError(
-            f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
-        )
-
-    if source_format == "coco":
-        (x_min, y_min, width, height), tail = bbox[:4], bbox[4:]
-        x_max = x_min + width
-        y_max = y_min + height
-    elif source_format == "yolo":
-        # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
-        _bbox = np.array(bbox[:4])
-        if check_validity and np.any((_bbox <= 0) | (_bbox > 1)):
-            raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
-
-        (x, y, w, h), tail = bbox[:4], bbox[4:]
-
-        w_half, h_half = w / 2, h / 2
-        x_min = x - w_half
-        y_min = y - h_half
-        x_max = x_min + w
-        y_max = y_min + h
-    else:
-        (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
-
-    bbox = (x_min, y_min, x_max, y_max) + tuple(tail)  # type: ignore
-
-    if source_format != "yolo":
-        bbox = normalize_bbox(bbox, rows, cols)
-    if check_validity:
-        check_bbox(bbox)
-    return bbox
-
-
-def convert_bbox_from_albumentations(
-    bbox: BoxType, target_format: str, rows: int, cols: int, check_validity: bool = False
-) -> BoxType:
-    """Convert a bounding box from the format used by albumentations to a format, specified in `target_format`.
-
-    Args:
-        bbox: An albumentations bounding box `(x_min, y_min, x_max, y_max)`.
-        target_format: required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
-        rows: Image height.
-        cols: Image width.
-        check_validity: Check if all boxes are valid boxes.
-
-    Returns:
-        tuple: A bounding box.
-
-    Note:
-        The `coco` format of a bounding box looks like `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
-        The `pascal_voc` format of a bounding box looks like `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
-        The `yolo` format of a bounding box looks like `[x, y, width, height]`, e.g. [0.3, 0.1, 0.05, 0.07].
-
-    Raises:
-        ValueError: if `target_format` is not equal to `coco`, `pascal_voc` or `yolo`.
-
-    """
-    if target_format not in {"coco", "pascal_voc", "yolo"}:
-        raise ValueError(
-            f"Unknown target_format {target_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
-        )
-    if check_validity:
-        check_bbox(bbox)
-
-    if target_format != "yolo":
-        bbox = denormalize_bbox(bbox, rows, cols)
-    if target_format == "coco":
-        (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
-        width = x_max - x_min
-        height = y_max - y_min
-        bbox = cast(BoxType, (x_min, y_min, width, height) + tail)
-    elif target_format == "yolo":
-        (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
-        x = (x_min + x_max) / 2.0
-        y = (y_min + y_max) / 2.0
-        w = x_max - x_min
-        h = y_max - y_min
-        bbox = cast(BoxType, (x, y, w, h) + tail)
-    return bbox
 
 
 def convert_bboxes_to_albumentations(
@@ -575,18 +370,6 @@ def convert_bboxes_from_albumentations(
         np_bboxes[:, :2] += np_bboxes[:, 2:] / 2.0
 
     return array_to_bboxes(np_bboxes, bboxes)
-
-
-def check_bbox(bbox: BoxType) -> None:
-    """Check if bbox boundaries are in range 0, 1 and minimums are lesser then maximums"""
-    for name, value in zip(["x_min", "y_min", "x_max", "y_max"], bbox[:4]):
-        if not 0 <= value <= 1 and not np.isclose(value, 0) and not np.isclose(value, 1):
-            raise ValueError(f"Expected {name} for bbox {bbox} to be in the range [0.0, 1.0], got {value}.")
-    x_min, y_min, x_max, y_max = bbox[:4]
-    if x_max <= x_min:
-        raise ValueError(f"x_max is less than or equal to x_min for bbox {bbox}.")
-    if y_max <= y_min:
-        raise ValueError(f"y_max is less than or equal to y_min for bbox {bbox}.")
 
 
 def check_bboxes(bboxes: Union[Sequence[BoxType], np.ndarray]) -> None:
