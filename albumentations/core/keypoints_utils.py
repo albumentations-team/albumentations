@@ -22,7 +22,7 @@ __all__ = [
 keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
 
 
-def angle_to_2pi_range(angle: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
+def angle_to_2pi_range(angle: Union[np.ndarray, float]):
     two_pi = 2 * math.pi
     return angle % two_pi
 
