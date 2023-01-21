@@ -10,6 +10,11 @@ import pytest
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
+from albumentations.core.bbox_utils import (
+    array_to_bboxes,
+    assert_np_bboxes_format,
+    bboxes_to_array,
+)
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
@@ -781,20 +786,18 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     def vflip_mask(mask, **kwargs):
         return FGeometric.vflip(mask)
 
-    def vflip_bbox(bbox, **kwargs):
-        return FGeometric.bbox_vflip(bbox, **kwargs)
+    def vflip_bboxes(bboxes, **kwargs):
+        if not len(bboxes):
+            return []
+        np_bboxes: np.ndarray = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
+        np_bboxes = FGeometric.bboxes_vflip(np_bboxes, **kwargs)
+        return array_to_bboxes(np_bboxes, bboxes)
 
     def vflip_keypoint(keypoint, **kwargs):
         return FGeometric.keypoint_vflip(keypoint, **kwargs)
 
-    aug = A.Lambda(
-        name="vflip",
-        image=vflip_image,
-        mask=vflip_mask,
-        bbox=vflip_bbox,
-        keypoint=vflip_keypoint,
-        p=p,
-    )
+    aug = A.Lambda(name="vflip", image=vflip_image, mask=vflip_mask, bboxes=vflip_bboxes, keypoint=vflip_keypoint, p=p)
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"vflip": aug})

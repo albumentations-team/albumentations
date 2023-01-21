@@ -9,6 +9,11 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from albumentations.core.bbox_utils import (
+    array_to_bboxes,
+    assert_np_bboxes_format,
+    bboxes_to_array,
+)
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -332,14 +337,23 @@ def test_lambda_transform():
         new_mask = np.eye(num_channels, dtype=np.uint8)[mask]
         return new_mask
 
-    def vflip_bbox(bbox, **kwargs):
-        return FGeometric.bbox_vflip(bbox, **kwargs)
+    def vflip_bboxes(bboxes, **kwargs):
+        if not len(bboxes):
+            return []
+        np_bboxes: np.ndarray = bboxes_to_array(bboxes)
+        assert_np_bboxes_format(np_bboxes)
+        np_bboxes = FGeometric.bboxes_vflip(np_bboxes, **kwargs)
+        return array_to_bboxes(np_bboxes, bboxes)
 
     def vflip_keypoint(keypoint, **kwargs):
         return FGeometric.keypoint_vflip(keypoint, **kwargs)
 
     aug = A.Lambda(
-        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
+        image=negate_image,
+        mask=partial(one_hot_mask, num_channels=16),
+        bboxes=vflip_bboxes,
+        keypoint=vflip_keypoint,
+        p=1,
     )
 
     output = aug(
@@ -348,9 +362,10 @@ def test_lambda_transform():
         bboxes=[(10, 15, 25, 35)],
         keypoints=[(20, 30, 40, 50)],
     )
+
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [FGeometric.bbox_vflip((10, 15, 25, 35), 10, 10)]
+    assert output["bboxes"] == vflip_bboxes([(10, 15, 25, 35)], w=10, h=10)
     assert output["keypoints"] == [FGeometric.keypoint_vflip((20, 30, 40, 50), 10, 10)]
 
 
