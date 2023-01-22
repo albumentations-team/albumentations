@@ -2,7 +2,7 @@ from __future__ import absolute_import
 
 from abc import ABC, abstractmethod
 from operator import itemgetter
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -101,7 +101,7 @@ class DataProcessor(ABC):
         for data_name in self.data_fields:
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(self, data: Sequence, rows: int, cols: int, direction: str = "to") -> Sequence:
+    def check_and_convert(self, data: np.ndarray, rows: int, cols: int, direction: str = "to") -> np.ndarray:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -114,19 +114,19 @@ class DataProcessor(ABC):
             raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence, rows: int, cols: int, target_name: str) -> Sequence:
+    def filter(self, data: np.ndarray, rows: int, cols: int, target_name: str) -> np.ndarray:
         pass
 
     @abstractmethod
-    def check(self, data: Sequence, rows: int, cols: int) -> None:
+    def check(self, data: np.ndarray, rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_to_albumentations(self, data: Union[Sequence, np.ndarray], rows: int, cols: int) -> np.ndarray:
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_from_albumentations(self, data: np.ndarray, rows: int, cols: int) -> np.ndarray:
         pass
 
     @abstractmethod
