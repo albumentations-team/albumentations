@@ -43,7 +43,7 @@ __all__ = [
 
 NumType = Union[int, float, np.ndarray]
 BoxInternalType = Union[Tuple[float, float, float, float], np.ndarray]
-BBoxesInternalType: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
+BBoxesInternalType: TypeAlias = np.ndarray
 BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
 KeypointInternalType = Tuple[float, float, float, float]
 KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]
