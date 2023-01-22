@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from ...core.transforms_interface import (
-    BoxInternalType,
+    BBoxesInternalType,
     DualTransform,
     KeypointInternalType,
     to_tuple,
@@ -46,9 +46,9 @@ class RandomScale(DualTransform):
     def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
         return F.scale(img, scale, interpolation)
 
-    def apply_to_bbox(self, bbox, **params):
-        # Bounding box coordinates are scale invariant
-        return bbox
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        # Bounding boxes coordinates are scale invariant.
+        return bboxes
 
     def apply_to_keypoint(self, keypoint, scale=0, **params):
         return F.keypoint_scale(keypoint, scale, scale)
@@ -89,9 +89,9 @@ class LongestMaxSize(DualTransform):
     ) -> np.ndarray:
         return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         # Bounding box coordinates are scale invariant
-        return bbox
+        return bboxes
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
         height = params["rows"]
@@ -139,8 +139,9 @@ class SmallestMaxSize(DualTransform):
     ) -> np.ndarray:
         return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        return bbox
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        # Bounding boxes coordinates are scale invariant
+        return bboxes
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
         height = params["rows"]
@@ -183,9 +184,9 @@ class Resize(DualTransform):
     def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox, **params):
-        # Bounding box coordinates are scale invariant
-        return bbox
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        # Bounding boxes coordinates are scale invariant
+        return bboxes
 
     def apply_to_keypoint(self, keypoint, **params):
         height = params["rows"]

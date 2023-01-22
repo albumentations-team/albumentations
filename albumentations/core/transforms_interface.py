@@ -42,7 +42,7 @@ __all__ = [
 ]
 
 NumType = Union[int, float, np.ndarray]
-BoxInternalType = Tuple[float, float, float, float]
+BoxInternalType = Union[Tuple[float, float, float, float], np.ndarray]
 BBoxesInternalType: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
 BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
 KeypointInternalType = Tuple[float, float, float, float]
@@ -267,7 +267,7 @@ class DualTransform(BasicTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]  # type: ignore
 
     def apply_to_keypoints(self, keypoints: Sequence[KeypointType], **params) -> List[KeypointType]:

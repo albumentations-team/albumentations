@@ -5,15 +5,8 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from albumentations.core.bbox_utils import (
-    array_to_bboxes,
-    assert_np_bboxes_format,
-    bboxes_to_array,
-)
-
 from ...core.transforms_interface import (
-    BoxInternalType,
-    BoxType,
+    BBoxesInternalType,
     DualTransform,
     FillValueType,
     KeypointInternalType,
@@ -49,13 +42,8 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], factor: int = 0, **params) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.bboxes_rot90(np_bboxes, factor=factor, **params)
-        return array_to_bboxes(np_bboxes, bboxes)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, factor: int = 0, **params) -> BBoxesInternalType:
+        return F.bboxes_rot90(bboxes, factor=factor, **params)
 
     def apply_to_keypoint(self, keypoint, factor=0, **params):
         return F.keypoint_rot90(keypoint, factor, **params)
@@ -132,7 +120,7 @@ class Rotate(DualTransform):
 
     def apply_to_bboxes(
         self,
-        bboxes: Sequence[BoxType],
+        bboxes: BBoxesInternalType,
         angle: int = 0,
         x_min: int = 0,
         x_max: int = 0,
@@ -141,15 +129,11 @@ class Rotate(DualTransform):
         cols: int = 0,
         rows: int = 0,
         **params
-    ) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.bboxes_rotate(np_bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
+    ) -> BBoxesInternalType:
+        bboxes = F.bboxes_rotate(bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
         if self.crop_border:
-            np_bboxes = FCrops.bboxes_crop(
-                np_bboxes,
+            bboxes = FCrops.bboxes_crop(
+                bboxes,
                 x_min=x_min,
                 y_min=y_min,
                 x_max=x_max,
@@ -157,8 +141,7 @@ class Rotate(DualTransform):
                 rows=rows,
                 cols=cols,
             )
-
-        return array_to_bboxes(np_bboxes, bboxes)
+        return bboxes
 
     def apply_to_keypoint(
         self, keypoint, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params
@@ -269,15 +252,8 @@ class SafeRotate(DualTransform):
     def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], rows: int = 0, cols: int = 0, **params) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-
-        np_bboxes = bboxes_to_array(bboxes)
-        np_bboxes = F.bboxes_safe_rotate(np_bboxes, params["matrix"], rows=rows, cols=cols)
-        assert_np_bboxes_format(np_bboxes)
-
-        return array_to_bboxes(np_bboxes, bboxes)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, rows: int = 0, cols: int = 0, **params) -> BBoxesInternalType:
+        return F.bboxes_safe_rotate(bboxes, params["matrix"], rows=rows, cols=cols)
 
     def apply_to_keypoint(
         self,

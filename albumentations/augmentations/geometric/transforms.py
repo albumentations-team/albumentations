@@ -17,8 +17,8 @@ from albumentations.core.bbox_utils import (
 
 from ... import random_utils
 from ...core.transforms_interface import (
+    BBoxesInternalType,
     BoxInternalType,
-    BoxType,
     DualTransform,
     ImageColorType,
     KeypointInternalType,
@@ -133,14 +133,9 @@ class ShiftScaleRotate(DualTransform):
         }
 
     def apply_to_bboxes(
-        self, bboxes: Sequence[BoxType], angle: int = 0, scale: int = 0, dx: int = 0, dy: int = 0, **params
-    ) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.bboxes_shift_scale_rotate(np_bboxes, angle, scale, dx, dy, self.rotate_method, **params)
-        return array_to_bboxes(np_bboxes, bboxes)
+        self, bboxes: BBoxesInternalType, angle: int = 0, scale: int = 0, dx: int = 0, dy: int = 0, **params
+    ) -> BBoxesInternalType:
+        return F.bboxes_shift_scale_rotate(bboxes, angle, scale, dx, dy, self.rotate_method, **params)
 
     def get_transform_init_args(self):
         return {
@@ -339,14 +334,10 @@ class Perspective(DualTransform):
         )
 
     def apply_to_bboxes(
-        self, bboxes: Sequence[BoxType], matrix=None, max_height=None, max_width=None, **params
-    ) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.perspective_bboxes(
-            np_bboxes,
+        self, bboxes: BBoxesInternalType, matrix=None, max_height=None, max_width=None, **params
+    ) -> BBoxesInternalType:
+        return F.perspective_bboxes(
+            bboxes,
             height=params["rows"],
             width=params["cols"],
             matrix=matrix,
@@ -354,7 +345,6 @@ class Perspective(DualTransform):
             max_height=max_height,
             keep_size=self.keep_size,
         )
-        return array_to_bboxes(np_bboxes, bboxes)
 
     def apply_to_keypoint(self, keypoint, matrix=None, max_height=None, max_width=None, **params):
         return F.perspective_keypoint(
@@ -702,19 +692,14 @@ class Affine(DualTransform):
 
     def apply_to_bboxes(
         self,
-        bboxes: Sequence[BoxType],
+        bboxes: BBoxesInternalType,
         matrix: skimage.transform.ProjectiveTransform = None,
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
         **params
-    ) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.bboxes_affine(np_bboxes, matrix, rows, cols, output_shape)
-        return array_to_bboxes(np_bboxes, bboxes)
+    ) -> BBoxesInternalType:
+        return F.bboxes_affine(bboxes, matrix, rows, cols, output_shape)
 
     def apply_to_keypoint(
         self,
@@ -1136,7 +1121,7 @@ class PadIfNeeded(DualTransform):
 
     def apply_to_bboxes(
         self,
-        bboxes: Sequence[BoxType],
+        bboxes: BBoxesInternalType,
         pad_top: int = 0,
         pad_bottom: int = 0,
         pad_left: int = 0,
@@ -1144,15 +1129,10 @@ class PadIfNeeded(DualTransform):
         rows: int = 0,
         cols: int = 0,
         **params
-    ) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = denormalize_bboxes_np(np_bboxes, rows=rows, cols=cols)
-        np_bboxes += np.array([pad_left, pad_top, pad_left, pad_top])
-        np_bboxes = normalize_bboxes_np(np_bboxes, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
-        return array_to_bboxes(np_bboxes, bboxes)
+    ) -> BBoxesInternalType:
+        bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
+        bboxes += np.array([pad_left, pad_top, pad_left, pad_top])
+        return normalize_bboxes_np(bboxes, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
     def apply_to_keypoint(
         self,
@@ -1231,13 +1211,8 @@ class VerticalFlip(DualTransform):
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.vflip(img)
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes: np.ndarray = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.bboxes_vflip(np_bboxes)
-        return array_to_bboxes(np_bboxes, bboxes)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_vflip(bboxes)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_vflip(keypoint, **params)
@@ -1267,13 +1242,8 @@ class HorizontalFlip(DualTransform):
 
         return F.hflip(img)
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.bboxes_hflip(np_bboxes)
-        return array_to_bboxes(np_bboxes, bboxes)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_hflip(bboxes)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_hflip(keypoint, **params)
@@ -1307,13 +1277,8 @@ class Flip(DualTransform):
         # Random int in the range [-1, 1]
         return {"d": random.randint(-1, 1)}
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = F.bboxes_flip(np_bboxes, **params)
-        return array_to_bboxes(np_bboxes, bboxes)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_flip(bboxes, **params)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_flip(keypoint, **params)
@@ -1338,13 +1303,8 @@ class Transpose(DualTransform):
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.transpose(img)
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], **params) -> List[BoxType]:
-        if not len(bboxes):
-            return []
-        np_bboxes = bboxes_to_array(bboxes)
-        np_bboxes = F.bboxes_transpose(np_bboxes, 0, **params)
-        assert_np_bboxes_format(np_bboxes)
-        return array_to_bboxes(np_bboxes, bboxes)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_transpose(bboxes, 0, **params)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         return F.keypoint_transpose(keypoint)
