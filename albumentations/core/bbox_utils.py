@@ -192,7 +192,7 @@ class BboxProcessor(DataProcessor):
 
         return bboxes, additional_data
 
-    def check(self, data: Sequence, rows: int, cols: int) -> None:
+    def check(self, data: np.ndarray, rows: int, cols: int) -> None:
         check_bboxes(data)
 
     def convert_from_albumentations(self, data: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
@@ -426,14 +426,13 @@ def convert_bboxes_from_albumentations(
 
 
 @ensure_and_convert_bbox
-def check_bboxes(bboxes: Union[Sequence[BoxType], BBoxesInternalType]) -> None:
+def check_bboxes(bboxes: BBoxesInternalType) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     if not len(bboxes):
         return
 
-    np_bboxes = bboxes if isinstance(bboxes, np.ndarray) else np.array([bbox[:4] for bbox in bboxes])
     row_idx, col_idx = np.where(
-        (~np.logical_and(0 <= np_bboxes, np_bboxes <= 1)) & (~np.isclose(np_bboxes, 0)) & (~np.isclose(np_bboxes, 1))
+        (~np.logical_and(0 <= bboxes, bboxes <= 1)) & (~np.isclose(bboxes, 0)) & (~np.isclose(bboxes, 1))
     )
     if len(row_idx) and len(col_idx):
         name = {
@@ -447,8 +446,8 @@ def check_bboxes(bboxes: Union[Sequence[BoxType], BBoxesInternalType]) -> None:
             f"in the range [0.0, 1.0], got {bboxes[row_idx[0]][col_idx[0]]}."
         )
 
-    x_idx = np.where(np_bboxes[:, 0] >= np_bboxes[:, 2])[0]
-    y_idx = np.where(np_bboxes[:, 1] >= np_bboxes[:, 3])[0]
+    x_idx = np.where(bboxes[:, 0] >= bboxes[:, 2])[0]
+    y_idx = np.where(bboxes[:, 1] >= bboxes[:, 3])[0]
 
     if len(x_idx):
         raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes[x_idx[0]].tolist()}.")
