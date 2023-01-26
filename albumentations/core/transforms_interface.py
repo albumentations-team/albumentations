@@ -3,6 +3,7 @@ from __future__ import absolute_import
 import random
 from copy import deepcopy
 from typing import (
+    Annotated,
     Any,
     Callable,
     Dict,
@@ -11,7 +12,6 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
-    TypeAlias,
     Union,
     cast,
 )
@@ -33,6 +33,7 @@ __all__ = [
     "BoxType",
     "BBoxesInternalType",
     "KeypointType",
+    "KeypointsInternalType",
     "ImageColorType",
     "ScaleFloatType",
     "ScaleIntType",
@@ -41,9 +42,10 @@ __all__ = [
 
 NumType = Union[int, float, np.ndarray]
 BoxInternalType = Union[Tuple[float, float, float, float], np.ndarray]
-BBoxesInternalType: TypeAlias = np.ndarray
+BBoxesInternalType = Annotated[npt.NDArray, Literal["N", 4]]
 BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
 KeypointInternalType = Tuple[float, float, float, float]
+KeypointsInternalType = Annotated[npt.NDArray, Literal["N", 4]]
 KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]
 ImageColorType = Union[float, Sequence[float]]
 
@@ -268,7 +270,7 @@ class DualTransform(BasicTransform):
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]  # type: ignore
 
-    def apply_to_keypoints(self, keypoints: Sequence[KeypointType], **params) -> List[KeypointType]:
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> List[KeypointType]:
         return [  # type: ignore
             self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:])  # type: ignore
             for keypoint in keypoints
