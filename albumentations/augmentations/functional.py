@@ -879,9 +879,44 @@ def iso_noise(image, color_shift=0.05, intensity=0.5, random_state=None, **kwarg
     return image.astype(np.uint8)
 
 
-def to_gray(img):
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+def to_gray(img, method="weighted"):
+    r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+
+    if method == "average":
+        gray = (r + g + b) / 3
+    elif method == "luminosity":
+        gray = 0.21 * r + 0.72 * g + 0.07 * b
+    elif method == "lightness":
+        gray = (np.maximum(r, np.maximum(g, b)) + np.minimum(r, np.minimum(g, b))) / 2.0
+    elif method == "weighted_average":
+        gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    elif method == "extract_luminance_hsv":
+        gray = _rgb_to_gray_via_hsv(img)
+    elif method == "extract_luminance_lab":
+        gray = _rgb_to_gray_via_lab(img)
+    elif method == "single_channel":
+        gray = np.random.choice([r, g, b])
+
+    # if the mean pixel value is over 127, the image is inverted.
+    if np.mean(gray) > 127:
+        gray = 255 - gray
+
+    # note that the returned image is 3-channel and not single-channel
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+
+
+def _rgb_to_gray_via_hsv(img):
+    """Convert the RGB image to HSV color space, then return the Value channel"""
+    hsv_img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    gray_img = hsv_img[:, :, 2]
+    return gray_img
+
+
+def _rgb_to_gray_via_lab(img):
+    """Convert the RGB image to CIELAB colorspace, then return the Luminance channel"""
+    lab_img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
+    gray_img = lab_img[:, :, 0]
+    return gray_img
 
 
 def gray_to_rgb(img):
