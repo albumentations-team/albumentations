@@ -883,7 +883,7 @@ def to_gray(img, method="weighted"):
     r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
 
     if method == "average":
-        gray = (r + g + b) / 3
+        gray = (r + g + b) // 3
     elif method == "luminosity":
         gray = 0.21 * r + 0.72 * g + 0.07 * b
     elif method == "lightness":
