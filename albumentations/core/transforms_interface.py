@@ -270,7 +270,7 @@ class DualTransform(BasicTransform):
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         return [self.apply_to_bbox(tuple(bbox[:4]), **params) + tuple(bbox[4:]) for bbox in bboxes]  # type: ignore
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> List[KeypointType]:
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
         return [  # type: ignore
             self.apply_to_keypoint(tuple(keypoint[:4]), **params) + tuple(keypoint[4:])  # type: ignore
             for keypoint in keypoints
