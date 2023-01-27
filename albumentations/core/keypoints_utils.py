@@ -172,9 +172,12 @@ class KeypointsProcessor(DataProcessor):
     def separate_label_from_data(self, data: Sequence) -> Tuple[Sequence, Sequence]:
         keypoints = []
         additional_data = []
+
+        data_length = len(self.params.format)
+
         for _data in data:
-            keypoints.append(_data[:4])
-            additional_data.append(_data[4:])
+            keypoints.append(_data[:data_length])
+            additional_data.append(_data[data_length:])
         return keypoints, additional_data
 
     def check(self, data: Sequence[Sequence], rows: int, cols: int) -> None:

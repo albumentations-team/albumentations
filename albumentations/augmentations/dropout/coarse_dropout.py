@@ -3,7 +3,11 @@ from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from ...core.transforms_interface import DualTransform, KeypointType
+from ...core.transforms_interface import (
+    DualTransform,
+    KeypointsInternalType,
+    KeypointType,
+)
 from .functional import cutout
 
 __all__ = ["CoarseDropout"]
@@ -165,8 +169,9 @@ class CoarseDropout(DualTransform):
         return x1 <= x < x2 and y1 <= y < y2
 
     def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params
-    ) -> List[KeypointType]:
+        self, keypoints: KeypointsInternalType, holes: Iterable[Tuple[int, int, int, int]] = (), **params
+    ) -> KeypointsInternalType:
+
         result = set(keypoints)
         for hole in holes:
             for kp in keypoints:

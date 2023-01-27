@@ -7,99 +7,93 @@ import albumentations as A
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.keypoints_utils import (
     angle_to_2pi_range,
-    convert_keypoint_from_albumentations,
-    convert_keypoint_to_albumentations,
     convert_keypoints_from_albumentations,
     convert_keypoints_to_albumentations,
 )
 
 
 @pytest.mark.parametrize(
-    ["kp", "source_format", "expected"],
+    ["kp", "target_format", "expected"],
     [
-        ((20, 30), "xy", (20, 30, 0, 0)),
-        (np.array([20, 30]), "xy", (20, 30, 0, 0)),
-        ((20, 30), "yx", (30, 20, 0, 0)),
-        ((20, 30, 60), "xys", (20, 30, 0, 60)),
-        ((20, 30, 60), "xya", (20, 30, math.radians(60), 0)),
-        ((20, 30, 60, 80), "xyas", (20, 30, math.radians(60), 80)),
+        ([(20.0, 30.0, 0.0, 0.0), (30.0, 40.0, 0.0, 0.0)], "xy", [(20.0, 30.0), (30.0, 40.0)]),
+        ([(20.0, 30.0, 0.0, 0.0), (30.0, 40.0, 0.0, 0.0)], "yx", [(30.0, 20.0), (40.0, 30.0)]),
+        (
+            [(20.0, 30.0, 0.6, 0.0), (30.0, 40.0, 0.5, 0.0)],
+            "xya",
+            [(20, 30, math.degrees(0.6)), (30.0, 40.0, math.degrees(0.5))],
+        ),
+        ([(20.0, 30.0, 0.0, 0.6), (30.0, 40.0, 0.0, 0.7)], "xys", [(20, 30, 0.6), (30.0, 40.0, 0.7)]),
+        (
+            [(20, 30, 0.6, 80), (30, 40, 0.7, 90)],
+            "xyas",
+            [(20, 30, math.degrees(0.6), 80), (30.0, 40.0, math.degrees(0.7), 90)],
+        ),
+        (
+            [(20, 30, 0.6, 80), (30, 40, 0.7, 90)],
+            "xysa",
+            [(20, 30, 80, math.degrees(0.6)), (30, 40, 90, math.degrees(0.7))],
+        ),
     ],
 )
-def test_convert_keypoint_to_albumentations(kp, source_format, expected):
+def test_convert_keypoints_from_albumentations(kp, target_format, expected):
     image = np.ones((100, 100, 3))
-
-    converted_keypoint = convert_keypoint_to_albumentations(
-        kp, rows=image.shape[0], cols=image.shape[1], source_format=source_format
+    converted_keypoint = convert_keypoints_from_albumentations(
+        kp, rows=image.shape[0], cols=image.shape[1], target_format=target_format
     )
-    assert converted_keypoint == expected
+    assert np.allclose(converted_keypoint, expected)
 
 
 @pytest.mark.parametrize(
-    ["kp", "target_format", "expected"],
+    "kps, source_format, expected",
     [
-        ((20, 30, 0, 0), "xy", (20, 30)),
-        ((20, 30, 0, 0), "yx", (30, 20)),
-        ((20, 30, 0.6, 0), "xya", (20, 30, math.degrees(0.6))),
-        ((20, 30, 0, 0.6), "xys", (20, 30, 0.6)),
-        ((20, 30, 0.6, 80), "xyas", (20, 30, math.degrees(0.6), 80)),
+        ([(20, 30), (30, 40)], "xy", [(20.0, 30.0, 0.0, 0.0), (30.0, 40.0, 0.0, 0.0)]),
+        ([(30, 20), (40, 30)], "yx", [(20.0, 30.0, 0.0, 0.0), (30.0, 40.0, 0.0, 0.0)]),
+        (
+            [(20, 30, 40), (30, 40, 50)],
+            "xya",
+            [(20.0, 30.0, 0.6981317007977318, 0.0), (30.0, 40.0, 0.8726646259971648, 0.0)],
+        ),
+        ([(20, 30, 50), (30, 40, 60)], "xys", [(20.0, 30.0, 0.0, 50.0), (30.0, 40.0, 0.0, 60.0)]),
+        (
+            [(20, 30, 50, 40), (30, 40, 60, 50)],
+            "xysa",
+            [(20.0, 30.0, 0.6981317007977318, 50.0), (30.0, 40.0, 0.8726646259971648, 60.0)],
+        ),
+        (
+            [(20, 30, 40, 50), (30, 40, 50, 60)],
+            "xyas",
+            [(20.0, 30.0, 0.6981317007977318, 50.0), (30.0, 40.0, 0.8726646259971648, 60.0)],
+        ),
     ],
 )
-def test_convert_keypoint_from_albumentations(kp, target_format, expected):
+def test_convert_keypoints_to_albumentations(kps, source_format, expected):
     image = np.ones((100, 100, 3))
-    converted_keypoint = convert_keypoint_from_albumentations(
-        kp, rows=image.shape[0], cols=image.shape[1], target_format=target_format
+    converted_keypoints = convert_keypoints_to_albumentations(
+        kps, rows=image.shape[0], cols=image.shape[1], source_format=source_format
     )
-    assert converted_keypoint == expected
+    assert np.allclose(converted_keypoints, expected)
 
 
 @pytest.mark.parametrize(
     ["kp", "keypoint_format"],
     [
-        ((20, 30, 40, 50), "xy"),
-        ((20, 30, 40, 50, 99), "xyas"),
-        ((20, 30, 60, 80), "xysa"),
-        ((20, 30, 60, 80, 99), "yx"),
+        ([(20, 30)], "xy"),
+        ([(20, 30)], "yx"),
+        ([(20, 30, 40)], "xys"),
+        ([(20, 30, 40)], "xya"),
+        ([(20, 30, 40, 50)], "xyas"),
+        ([(20, 30, 40, 50)], "xysa"),
     ],
 )
 def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format):
     image = np.ones((100, 100, 3))
-    converted_kp = convert_keypoint_to_albumentations(
+    converted_kp = convert_keypoints_to_albumentations(
         kp, rows=image.shape[0], cols=image.shape[1], source_format=keypoint_format
     )
-    converted_back_kp = convert_keypoint_from_albumentations(
+    converted_back_kp = convert_keypoints_from_albumentations(
         converted_kp, rows=image.shape[0], cols=image.shape[1], target_format=keypoint_format
     )
-    assert converted_back_kp == kp
-
-
-def test_convert_keypoints_to_albumentations():
-    keypoints = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
-    image = np.ones((100, 100, 3))
-    converted_keypoints = convert_keypoints_to_albumentations(
-        keypoints, rows=image.shape[0], cols=image.shape[1], source_format="xyas"
-    )
-    converted_keypoint_1 = convert_keypoint_to_albumentations(
-        keypoints[0], rows=image.shape[0], cols=image.shape[1], source_format="xyas"
-    )
-    converted_keypoint_2 = convert_keypoint_to_albumentations(
-        keypoints[1], rows=image.shape[0], cols=image.shape[1], source_format="xyas"
-    )
-    assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
-
-
-def test_convert_keypoints_from_albumentations():
-    keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
-    image = np.ones((100, 100, 3))
-    converted_keypointes = convert_keypoints_from_albumentations(
-        keypoints, rows=image.shape[0], cols=image.shape[1], target_format="xyas"
-    )
-    converted_keypoint_1 = convert_keypoint_from_albumentations(
-        keypoints[0], rows=image.shape[0], cols=image.shape[1], target_format="xyas"
-    )
-    converted_keypoint_2 = convert_keypoint_from_albumentations(
-        keypoints[1], rows=image.shape[0], cols=image.shape[1], target_format="xyas"
-    )
-    assert converted_keypointes == [converted_keypoint_1, converted_keypoint_2]
+    assert np.allclose(kp, converted_back_kp)
 
 
 @pytest.mark.parametrize(
