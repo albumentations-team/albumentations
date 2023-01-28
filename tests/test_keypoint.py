@@ -213,15 +213,15 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected):
 @pytest.mark.parametrize(
     ["keypoint", "expected", "factor"],
     [
-        ((20, 30, math.pi / 2, 0), (20, 30, math.pi / 2, 0), 0),
-        ((20, 30, math.pi / 2, 0), (30, 179, 0, 0), 1),
-        ((20, 30, math.pi / 2, 0), (179, 69, 3 * math.pi / 2, 0), 2),
-        ((20, 30, math.pi / 2, 0), (69, 20, math.pi, 0), 3),
+        ([(20, 30, math.pi / 2, 0)], [(20, 30, math.pi / 2, 0)], 0),
+        ([(20, 30, math.pi / 2, 0)], [(30, 179, 0, 0)], 1),
+        ([(20, 30, math.pi / 2, 0)], [(179, 69, 3 * math.pi / 2, 0)], 2),
+        ([(20, 30, math.pi / 2, 0)], [(69, 20, math.pi, 0)], 3),
     ],
 )
 def test_keypoint_rotate90(keypoint, expected, factor):
-    actual = FGeometric.keypoint_rot90(keypoint, factor, rows=100, cols=200)
-    assert actual == expected
+    actual = FGeometric.keypoints_rot90(keypoint, factor, rows=100, cols=200)
+    assert np.allclose(actual, expected)
 
 
 @pytest.mark.parametrize(
