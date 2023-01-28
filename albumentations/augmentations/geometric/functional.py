@@ -24,6 +24,10 @@ from ...core.bbox_utils import (
     normalize_bbox,
     normalize_bboxes_np,
 )
+from ...core.keypoints_utils import (
+    assert_np_keypoints_format,
+    ensure_and_convert_keypoints,
+)
 from ...core.transforms_interface import (
     BBoxesInternalType,
     BoxInternalType,
@@ -41,9 +45,9 @@ __all__ = [
     "pad_with_params",
     "keypoints_rot90",
     "rotate",
-    "keypoint_rotate",
+    "keypoints_rotate",
     "shift_scale_rotate",
-    "keypoint_shift_scale_rotate",
+    "keypoints_shift_scale_rotate",
     "bboxes_shift_scale_rotate",
     "elastic_transform",
     "resize",
@@ -106,7 +110,7 @@ def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) 
     return bboxes
 
 
-@ensure_and_convert_bbox
+@ensure_and_convert_keypoints
 @angles_2pi_range
 def keypoints_rot90(
     keypoints: KeypointsInternalType, factor: int, rows: int, cols: int, **params
@@ -114,10 +118,10 @@ def keypoints_rot90(
     """Rotates a batch of keypoints by 90 degrees CCW (see np.rot90)
 
     Args:
-        keypoints, KeypointsInternalType: A batch of keypoints in `(x, y, angle, scale)` format.
-        factor, int: Number of CCW rotations. Must be in range [0;3] See np.rot90.
-        rows, int: Image height.
-        cols, int: Image width.
+        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
+        rows (int): Image height.
+        cols (int): Image width.
 
     Returns:
         KeypointsInternalType: A batch of keypoints in `(x, y, angle, scale)` format.
@@ -200,25 +204,28 @@ def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: i
     return bboxes
 
 
-@angle_2pi_range
-def keypoint_rotate(keypoint, angle, rows, cols, **params):
+@angles_2pi_range
+@ensure_and_convert_keypoints
+def keypoints_rotate(
+    keypoints: KeypointsInternalType, angle: float, rows: int, cols: int, **params
+) -> KeypointsInternalType:
     """Rotate a keypoint by angle.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
         angle (float): Rotation angle.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        KeypointsInternalType: A batch of keypoints in `(x, y, angle, scale)` format.
 
     """
     center = (cols - 1) * 0.5, (rows - 1) * 0.5
     matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
-    x, y, a, s = keypoint[:4]
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    return x, y, a + math.radians(angle), s
+    keypoints[..., [0, 1]] = cv2.transform(np.expand_dims(keypoints[..., [0, 1]], axis=0), matrix).squeeze()
+    keypoints[..., 2] += math.radians(angle)
+    return keypoints
 
 
 @preserve_channel_dim
@@ -239,25 +246,24 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
-@angle_2pi_range
-def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
-    (
-        x,
-        y,
-        a,
-        s,
-    ) = keypoint[:4]
-    height, width = rows, cols
+@angles_2pi_range
+@ensure_and_convert_keypoints
+def keypoints_shift_scale_rotate(
+    keypoints: KeypointsInternalType, angle: int, scale: float, dx: int, dy: int, rows: int, cols: int, **params
+) -> KeypointsInternalType:
+    if not len(keypoints):
+        return keypoints
+
     center = (cols - 1) * 0.5, (rows - 1) * 0.5
     matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
+    matrix[0, 2] += dx * cols
+    matrix[1, 2] += dy * rows
 
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    angle = a + math.radians(angle)
-    scale = s * scale
+    keypoints[..., [0, 1]] = cv2.transform(np.expand_dims(keypoints[..., [0, 1]], axis=0), matrix).squeeze()
+    keypoints[..., 2] += math.radians(angle)
+    keypoints[..., 3] *= scale
 
-    return x, y, angle, scale
+    return keypoints
 
 
 @ensure_and_convert_bbox
