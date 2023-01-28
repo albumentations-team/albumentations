@@ -13,7 +13,12 @@ from ...core.bbox_utils import (
     ensure_and_convert_bbox,
     normalize_bboxes_np,
 )
-from ...core.transforms_interface import BBoxesInternalType, KeypointInternalType
+from ...core.keypoints_utils import ensure_and_convert_keypoints
+from ...core.transforms_interface import (
+    BBoxesInternalType,
+    KeypointInternalType,
+    KeypointsInternalType,
+)
 from ..geometric import functional as FGeometric
 
 __all__ = [
@@ -108,6 +113,15 @@ def bboxes_random_crop(
         return bboxes
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
+
+
+@ensure_and_convert_keypoints
+def crop_keypoints_by_coords(
+    keypoints: KeypointsInternalType,
+    crop_coords: np.ndarray,
+) -> KeypointsInternalType:
+    keypoints[..., [0, 1]] -= crop_coords[:2]
+    return keypoints
 
 
 def crop_keypoint_by_coords(

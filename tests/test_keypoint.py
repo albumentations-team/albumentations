@@ -236,8 +236,8 @@ def test_keypoint_rotate90(keypoint, expected, factor):
     ],
 )
 def test_keypoint_rotate(keypoint, expected, angle):
-    actual = FGeometric.keypoint_rotate(keypoint, angle, rows=100, cols=100)
-    np.testing.assert_allclose(actual, expected, atol=1e-7)
+    actual = FGeometric.keypoints_rotate([keypoint], angle, rows=100, cols=100)
+    assert np.allclose(actual, [expected])
 
 
 @pytest.mark.parametrize(
@@ -255,11 +255,11 @@ def test_keypoint_scale(keypoint, expected, scale):
 
 @pytest.mark.parametrize(
     ["keypoint", "expected", "angle", "scale", "dx", "dy"],
-    [[[50, 50, 0, 5], [120, 158, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
+    [[[50, 50, 0, 5], [120.5, 158.5, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
-    actual = FGeometric.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
-    np.testing.assert_allclose(actual, expected, rtol=1e-4)
+    actual = FGeometric.keypoints_shift_scale_rotate([keypoint], angle, scale, dx, dy, rows=100, cols=200)
+    assert np.allclose(actual, [expected])
 
 
 def test_compose_with_additional_targets():

@@ -121,8 +121,8 @@ class ShiftScaleRotate(DualTransform):
     def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, **params):
-        return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
+    def apply_to_keypoints(self, keypoints, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, **params):
+        return F.keypoints_shift_scale_rotate(keypoints, angle, scale, dx, dy, rows, cols)
 
     def get_params(self):
         return {
