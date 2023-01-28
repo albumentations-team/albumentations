@@ -6,7 +6,10 @@ import numpy as np
 from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
-from albumentations.core.transforms_interface import KeypointInternalType
+from albumentations.core.transforms_interface import (
+    KeypointInternalType,
+    KeypointsInternalType,
+)
 
 __all__ = [
     "read_bgr_image",
@@ -99,10 +102,10 @@ def angle_2pi_range(
 
 
 def angles_2pi_range(
-    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
-) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
+    func: Callable[Concatenate[np.ndarray, P], KeypointsInternalType],
+) -> Callable[Concatenate[np.ndarray, P], KeypointsInternalType]:
     @wraps(func)
-    def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
+    def wrapped_function(keypoints: KeypointsInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointsInternalType:
 
         keypoints = func(keypoints, *args, **kwargs)
         keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])

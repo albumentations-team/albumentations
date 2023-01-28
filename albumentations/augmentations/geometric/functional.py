@@ -30,6 +30,7 @@ from ...core.transforms_interface import (
     FillValueType,
     ImageColorType,
     KeypointInternalType,
+    KeypointsInternalType,
 )
 
 __all__ = [
@@ -38,7 +39,7 @@ __all__ = [
     "grid_distortion",
     "pad",
     "pad_with_params",
-    "keypoint_rot90",
+    "keypoints_rot90",
     "rotate",
     "keypoint_rotate",
     "shift_scale_rotate",
@@ -105,36 +106,43 @@ def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) 
     return bboxes
 
 
-@angle_2pi_range
-def keypoint_rot90(keypoint: KeypointInternalType, factor: int, rows: int, cols: int, **params) -> KeypointInternalType:
-    """Rotates a keypoint by 90 degrees CCW (see np.rot90)
+@ensure_and_convert_bbox
+@angles_2pi_range
+def keypoints_rot90(
+    keypoints: KeypointsInternalType, factor: int, rows: int, cols: int, **params
+) -> KeypointsInternalType:
+    """Rotates a batch of keypoints by 90 degrees CCW (see np.rot90)
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
-        factor: Number of CCW rotations. Must be in range [0;3] See np.rot90.
-        rows: Image height.
-        cols: Image width.
+        keypoints, KeypointsInternalType: A batch of keypoints in `(x, y, angle, scale)` format.
+        factor, int: Number of CCW rotations. Must be in range [0;3] See np.rot90.
+        rows, int: Image height.
+        cols, int: Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        KeypointsInternalType: A batch of keypoints in `(x, y, angle, scale)` format.
 
     Raises:
         ValueError: if factor not in set {0, 1, 2, 3}
 
     """
-    x, y, angle, scale = keypoint[:4]
-
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
 
     if factor == 1:
-        x, y, angle = y, (cols - 1) - x, angle - math.pi / 2
+        keypoints[..., 2] -= math.pi / 2
+        keypoints[..., 0] = cols - 1 - keypoints[..., 0]
+        keypoints[..., [0, 1]] = keypoints[..., [1, 0]]
     elif factor == 2:
-        x, y, angle = (cols - 1) - x, (rows - 1) - y, angle - math.pi
+        keypoints[..., 2] -= math.pi
+        keypoints[..., 0] = cols - 1 - keypoints[..., 0]
+        keypoints[..., 1] = rows - 1 - keypoints[..., 1]
     elif factor == 3:
-        x, y, angle = (rows - 1) - y, x, angle + math.pi / 2
+        keypoints[..., 2] += math.pi / 2
+        keypoints[..., 1] = rows - 1 - keypoints[..., 1]
+        keypoints[..., [0, 1]] = keypoints[..., [1, 0]]
 
-    return x, y, angle, scale
+    return keypoints
 
 
 @preserve_channel_dim
@@ -181,18 +189,10 @@ def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: i
 
     bboxes = np.concatenate(
         [
-            [
-                np.min(x_t, axis=1),
-            ],
-            [
-                np.max(x_t, axis=1),
-            ],
-            [
-                np.min(y_t, axis=1),
-            ],
-            [
-                np.max(y_t, axis=1),
-            ],
+            [np.min(x_t, axis=1)],
+            [np.max(x_t, axis=1)],
+            [np.min(y_t, axis=1)],
+            [np.max(y_t, axis=1)],
         ],
         axis=0,
     ).transpose()
