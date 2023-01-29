@@ -768,13 +768,15 @@ def add_shadow(img, vertices_list):
 
 @ensure_contiguous
 @preserve_shape
-def add_gravel(img, gravels):
+def add_gravel(img: np.ndarray, gravels: list):
     """Add gravel to the image.
 
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        img (numpy.ndarray):
+        img (numpy.ndarray): image to add gravel to
+        gravels (list): list of gravel parameters. (float, float, float, float):
+            (top-left x, top-left y, bottom-right x, bottom right y)
 
     Returns:
         numpy.ndarray:
@@ -792,8 +794,8 @@ def add_gravel(img, gravels):
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
     for gravel in gravels:
-        minx, maxx, miny, maxy, val = gravel
-        image_hls[minx:maxx, miny:maxy, 1] = val
+        y1, y2, x1, x2, sat = gravel
+        image_hls[x1:x2, y1:y2, 1] = sat
 
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 

@@ -378,7 +378,7 @@ class RandomGravel(ImageOnlyTransform):
     Args:
         gravel_roi (float, float, float, float): (top-left x, top-left y,
             bottom-right x, bottom right y). Should be in [0, 1] range
-        no_of_patches (int): no. of gravel patches required
+        number_of_patches (int): no. of gravel patches required
 
     Targets:
         image
@@ -389,34 +389,31 @@ class RandomGravel(ImageOnlyTransform):
 
     def __init__(
         self,
-        gravel_roi=(0.1, 0.4, 0.9, 0.9),
-        no_of_patches=2,
-        always_apply=False,
-        p=0.5,
+        gravel_roi: tuple = (0.1, 0.4, 0.9, 0.9),
+        number_of_patches: int = 2,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(RandomGravel, self).__init__(always_apply, p)
 
         (gravel_lower_x, gravel_lower_y, gravel_upper_x, gravel_upper_y) = gravel_roi
 
         if not 0 <= gravel_lower_x < gravel_upper_x <= 1 or not 0 <= gravel_lower_y < gravel_upper_y <= 1:
-            raise ValueError("Invalid gravel_roi. Got: {}".format(gravel_roi))
-        if not 1 <= no_of_patches:
-            raise ValueError("Invalid gravel no_of_patches. Got: {}".format(no_of_patches))
+            raise ValueError("Invalid gravel_roi. Got: %s." % gravel_roi)
+        if number_of_patches < 1:
+            raise ValueError("Invalid gravel number_of_patches. Got: %s." % number_of_patches)
 
         self.gravel_roi = gravel_roi
-        self.no_of_patches = no_of_patches
+        self.number_of_patches = number_of_patches
 
     def generate_gravel_patch(self, rectangular_roi):
-        x1 = rectangular_roi[0]
-        y1 = rectangular_roi[1]
-        x2 = rectangular_roi[2]
-        y2 = rectangular_roi[3]
+        x1, y1, x2, y2 = rectangular_roi
         gravels = []
         area = abs((x2 - x1) * (y2 - y1))
-        for i in range((int)(area // 10)):
-            x = np.random.randint(x1, x2)
-            y = np.random.randint(y1, y2)
-            gravels.append((x, y))
+        count = area // 10
+        gravels = np.empty([count, 2], dtype=np.int64)
+        gravels[:, 0] = random_utils.randint(x1, x2, count)
+        gravels[:, 1] = random_utils.randint(y1, y2, count)
         return gravels
 
     def apply(self, image, gravels_infos=(), **params):
@@ -436,30 +433,52 @@ class RandomGravel(ImageOnlyTransform):
         y_min = int(y_min * height)
         y_max = int(y_max * height)
 
-        rectangular_rois = []
-        for i in range(self.no_of_patches):
+        max_height = 200
+        max_width = 30
 
-            xx1 = random_utils.randint(x_min + 1, x_max)
-            xx2 = random_utils.randint(x_min, xx1)
-            yy1 = random_utils.randint(y_min + 1, y_max)
-            yy2 = random_utils.randint(y_min, yy1)
-            rectangular_rois.append((xx2, yy2, min(xx1, xx2 + 200), min(yy1, yy2 + 30)))
+        rectangular_rois = np.zeros([self.number_of_patches, 4], dtype=np.int64)
+        xx1 = random_utils.randint(x_min + 1, x_max, self.number_of_patches)  # xmax
+        xx2 = random_utils.randint(x_min, xx1)  # xmin
+        yy1 = random_utils.randint(y_min + 1, y_max, self.number_of_patches)  # ymax
+        yy2 = random_utils.randint(y_min, yy1)  # ymin
 
-        self.gravels_infos = []
+        rectangular_rois[:, 0] = xx2
+        rectangular_rois[:, 1] = yy2
+        rectangular_rois[:, 2] = [min(tup) for tup in zip(xx1, xx2 + max_height)]
+        rectangular_rois[:, 3] = [min(tup) for tup in zip(yy1, yy2 + max_width)]
+
+        minx = []
+        maxx = []
+        miny = []
+        maxy = []
+        val = []
         for roi in rectangular_rois:
             gravels = self.generate_gravel_patch(roi)
-            for gravel in gravels:
-                x = gravel[0]
-                y = gravel[1]
-                r = random_utils.randint(1, 4)
-                r1 = random_utils.randint(0, 255)
-                gravel_info = [max(y - r, 0), min(y + r, y), max(x - r, 0), min(x + r, x), r1]
-                self.gravels_infos.append(gravel_info)
+            x = gravels[:, 0]
+            y = gravels[:, 1]
+            r = random_utils.randint(1, 4, len(gravels))
+            sat = random_utils.randint(0, 255, len(gravels))
+            miny.append(np.maximum(y - r, 0))
+            maxy.append(np.minimum(y + r, y))
+            minx.append(np.maximum(x - r, 0))
+            maxx.append(np.minimum(x + r, x))
+            val.append(sat)
 
-        return {"gravels_infos": self.gravels_infos}
+        return {
+            "gravels_infos": np.stack(
+                [
+                    np.concatenate(miny),
+                    np.concatenate(maxy),
+                    np.concatenate(minx),
+                    np.concatenate(maxx),
+                    np.concatenate(val),
+                ],
+                1,
+            )
+        }
 
     def get_transform_init_args_names(self):
-        return {"gravel_roi": self.gravel_roi, "no_of_patches": self.no_of_patches}
+        return {"gravel_roi": self.gravel_roi, "number_of_patches": self.number_of_patches}
 
 
 class RandomRain(ImageOnlyTransform):
