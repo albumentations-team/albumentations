@@ -1757,6 +1757,7 @@ class Lambda(NoOp):
         image=None,
         mask: Optional[Callable] = None,
         keypoint: Optional[Callable] = None,
+        keypoints: Optional[Callable] = None,
         bbox: Optional[Callable] = None,
         bboxes: Optional[Callable] = None,
         name=None,
@@ -1766,15 +1767,18 @@ class Lambda(NoOp):
         super(Lambda, self).__init__(always_apply, p)
         if bbox is not None and bboxes is not None:
             raise ValueError("bbox and bboxes should not be assigned at the same time.")
+        if keypoint is not None and keypoints is not None:
+            raise ValueError("keypoint and keypoints should not be assigned at the same time.")
 
         bbox_keyname = "bbox" if bbox else "bboxes"
+        kp_keyname = "keypoint" if keypoint else "keypoints"
 
         self.name = name
-        self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", bbox_keyname)}
+        self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", kp_keyname, bbox_keyname)}
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
-            "keypoint": keypoint,
+            kp_keyname: keypoint or keypoints,
             bbox_keyname: bbox or bboxes,
         }.items():
             if custom_apply_fn is not None:
@@ -1801,6 +1805,10 @@ class Lambda(NoOp):
     def apply_to_bboxes(self, bboxes, **params):
         fn = self.custom_apply_fns["bboxes"]
         return fn(bboxes, **params)
+
+    def apply_to_keypoints(self, keypoints, **params):
+        fn = self.custom_apply_fns["keypoints"]
+        return fn(keypoints, **params)
 
     def apply_to_keypoint(self, keypoint, **params):
         fn = self.custom_apply_fns["keypoint"]
