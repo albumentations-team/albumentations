@@ -683,10 +683,12 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
         np_bboxes = FGeometric.bboxes_vflip(np_bboxes, **kwargs)
         return array_to_bboxes(np_bboxes, bboxes)
 
-    def vflip_keypoint(keypoint, **kwargs):
-        return FGeometric.keypoint_vflip(keypoint, **kwargs)
+    def vflip_keypoints(keypoints, **kwargs):
+        return FGeometric.keypoints_vflip(keypoints, **kwargs)
 
-    aug = A.Lambda(name="vflip", image=vflip_image, mask=vflip_mask, bboxes=vflip_bboxes, keypoint=vflip_keypoint, p=p)
+    aug = A.Lambda(
+        name="vflip", image=vflip_image, mask=vflip_mask, bboxes=vflip_bboxes, keypoints=vflip_keypoints, p=p
+    )
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"vflip": aug})

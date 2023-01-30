@@ -14,6 +14,11 @@ from albumentations.core.bbox_utils import (
     assert_np_bboxes_format,
     bboxes_to_array,
 )
+from albumentations.core.keypoints_utils import (
+    array_to_keypoints,
+    assert_np_keypoints_format,
+    keypoints_to_array,
+)
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -345,14 +350,20 @@ def test_lambda_transform():
         np_bboxes = FGeometric.bboxes_vflip(np_bboxes, **kwargs)
         return array_to_bboxes(np_bboxes, bboxes)
 
-    def vflip_keypoint(keypoint, **kwargs):
-        return FGeometric.keypoint_vflip(keypoint, **kwargs)
+    def vflip_keypoints(keypoints, **kwargs):
+        if not len(keypoints):
+            return keypoints
+        kps = keypoints_to_array(keypoints)
+        assert_np_keypoints_format(kps)
+        kps = FGeometric.keypoints_vflip(keypoints, **kwargs)
+        ret = array_to_keypoints(kps, keypoints)
+        return ret
 
     aug = A.Lambda(
         image=negate_image,
         mask=partial(one_hot_mask, num_channels=16),
         bboxes=vflip_bboxes,
-        keypoint=vflip_keypoint,
+        keypoints=vflip_keypoints,
         p=1,
     )
 
@@ -366,7 +377,7 @@ def test_lambda_transform():
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
     assert output["bboxes"] == vflip_bboxes([(10, 15, 25, 35)], w=10, h=10)
-    assert output["keypoints"] == [FGeometric.keypoint_vflip((20, 30, 40, 50), 10, 10)]
+    assert output["keypoints"] == vflip_keypoints([(20, 30, 40, 50)], rows=10, cols=10)
 
 
 def test_channel_droput():
@@ -474,17 +485,18 @@ def test_downscale(interpolation):
         np.testing.assert_almost_equal(transformed, func_applied)
 
 
-def test_crop_keypoints():
+@pytest.mark.parametrize(
+    "keypoints, crop_coords, expected",
+    (
+        ([(50, 50, 0, 0)], (0, 0, 80, 80), [(50, 50, 0, 0)]),
+        ([(50, 50, 0, 0)], (50, 50, 100, 100), [(0, 0, 0, 0)]),
+    ),
+)
+def test_crop_keypoints(keypoints, crop_coords, expected):
     image = np.random.randint(0, 256, (100, 100), np.uint8)
-    keypoints = [(50, 50, 0, 0)]
-
-    aug = A.Crop(0, 0, 80, 80, p=1)
+    aug = A.Compose([A.Crop(*crop_coords, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == keypoints
-
-    aug = A.Crop(50, 50, 100, 100, p=1)
-    result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == [(0, 0, 0, 0)]
+    assert result["keypoints"] == expected
 
 
 def test_longest_max_size_keypoints():
