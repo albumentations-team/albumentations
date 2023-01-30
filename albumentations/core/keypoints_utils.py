@@ -45,7 +45,7 @@ def array_to_keypoints(
     ori_keypoints: Sequence[KeypointType],
 ) -> Sequence[KeypointType]:
     return [
-        cast(KeypointType, tuple(np_keypoint) + tuple(keypoint))
+        cast(KeypointType, tuple(np_keypoint) + tuple(keypoint[4:]))
         for np_keypoint, keypoint in zip(np_keypoints, ori_keypoints)
     ]
 

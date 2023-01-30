@@ -27,11 +27,11 @@ __all__ = [
     "crop_bboxes_by_coords",
     "bboxes_random_crop",
     "crop_keypoint_by_coords",
-    "keypoint_random_crop",
+    "keypoints_random_crop",
     "get_center_crop_coords",
     "center_crop",
     "bboxes_center_crop",
-    "keypoint_center_crop",
+    "keypoints_center_crop",
     "crop",
     "bboxes_crop",
     "clamping_crop",
@@ -120,6 +120,20 @@ def crop_keypoints_by_coords(
     keypoints: KeypointsInternalType,
     crop_coords: np.ndarray,
 ) -> KeypointsInternalType:
+    """Crop a batch of keypoints using the provided coordinates of bottom-left and top-right corners in pixels and the
+    required height and width of the crop.
+
+    Args:
+        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        crop_coords (np.ndarray): Crop box coords `(x1, x2, y1, y2)`.
+
+    Returns:
+        KeypointsInternalType, A batch of keypoints in `(x, y, angle, scale)` format.
+
+    """
+
+    if not len(keypoints):
+        return keypoints
     keypoints[..., [0, 1]] -= crop_coords[:2]
     return keypoints
 
@@ -143,32 +157,36 @@ def crop_keypoint_by_coords(
     return x - x1, y - y1, angle, scale
 
 
-def keypoint_random_crop(
-    keypoint: KeypointInternalType,
+@ensure_and_convert_keypoints
+def keypoints_random_crop(
+    keypoints: KeypointsInternalType,
     crop_height: int,
     crop_width: int,
     h_start: float,
     w_start: float,
     rows: int,
     cols: int,
-):
-    """Keypoint random crop.
-
+) -> KeypointsInternalType:
+    """
+    Keypoints random crop.
     Args:
-        keypoint: (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoints (KeypointsInternalType): A batch of keypoints in `x, y, angle, scale` format.
         crop_height (int): Crop height.
         crop_width (int): Crop width.
-        h_start (int): Crop height start.
-        w_start (int): Crop width start.
+        h_start (float): Crop height start.
+        w_start (float): Crop width start.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
+        KeypointsInternalType, A batch of keypoints in `x, y, angle, scale` format.
 
     """
+    if not len(keypoints):
+        return keypoints
+
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_keypoint_by_coords(keypoint, crop_coords)
+    return crop_keypoints_by_coords(keypoints, np.array(crop_coords))
 
 
 def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width: int):
@@ -204,22 +222,30 @@ def bboxes_center_crop(
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
 
-def keypoint_center_crop(keypoint: KeypointInternalType, crop_height: int, crop_width: int, rows: int, cols: int):
-    """Keypoint center crop.
+@ensure_and_convert_keypoints
+def keypoints_center_crop(
+    keypoints: KeypointsInternalType,
+    crop_height: int,
+    crop_width: int,
+    rows: int,
+    cols: int,
+) -> KeypointsInternalType:
+    """Keypoints center crop.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
+        keypoints (KeypointsInternalType): A batch of keypoints in `x, y, angle, scale` format.
         crop_height (int): Crop height.
         crop_width (int): Crop width.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
+        KeypointsInternalType, A batch of keypoints in `x, y, angle, scale` format.
     """
+    if not len(keypoints):
+        return keypoints
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_keypoint_by_coords(keypoint, crop_coords)
+    return crop_keypoints_by_coords(keypoints, np.array(crop_coords))
 
 
 def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):

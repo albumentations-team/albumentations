@@ -7,13 +7,7 @@ import cv2
 import numpy as np
 import skimage.transform
 
-from albumentations.core.bbox_utils import (
-    array_to_bboxes,
-    assert_np_bboxes_format,
-    bboxes_to_array,
-    denormalize_bboxes_np,
-    normalize_bboxes_np,
-)
+from albumentations.core.bbox_utils import denormalize_bboxes_np, normalize_bboxes_np
 
 from ... import random_utils
 from ...core.transforms_interface import (
@@ -22,6 +16,7 @@ from ...core.transforms_interface import (
     DualTransform,
     ImageColorType,
     KeypointInternalType,
+    KeypointsInternalType,
     ScaleFloatType,
     to_tuple,
 )
@@ -350,6 +345,18 @@ class Perspective(DualTransform):
         return F.perspective_keypoint(
             keypoint, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
         )
+
+    # def apply_to_keypoints(
+    #     self,
+    #     keypoints: KeypointsInternalType,
+    #     matrix=None,
+    #     max_height=None,
+    #     max_width=None,
+    #     **params
+    # ) -> KeypointsInternalType:
+    #     return F.perspective_keypoints(
+    #         keypoints, params['rows'], params['cols'], matrix, max_width, max_height, self.keep_size
+    #     )
 
     @property
     def targets_as_params(self):
@@ -973,15 +980,15 @@ class PiecewiseAffine(DualTransform):
     ) -> BoxInternalType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: KeypointsInternalType,
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
-    ):
-        return F.keypoint_piecewise_affine(keypoint, matrix, rows, cols, self.keypoints_threshold)
+    ) -> KeypointsInternalType:
+        return F.keypoints_piecewise_affine(keypoints, matrix, rows, cols, self.keypoints_threshold)
 
 
 class PadIfNeeded(DualTransform):
@@ -1214,8 +1221,8 @@ class VerticalFlip(DualTransform):
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         return F.bboxes_vflip(bboxes)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_vflip(keypoint, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_vflip(keypoints, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -1245,8 +1252,8 @@ class HorizontalFlip(DualTransform):
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         return F.bboxes_hflip(bboxes)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_hflip(keypoint, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_hflip(keypoints, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -1280,8 +1287,8 @@ class Flip(DualTransform):
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         return F.bboxes_flip(bboxes, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_flip(keypoint, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_flip(keypoints, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -1306,8 +1313,8 @@ class Transpose(DualTransform):
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         return F.bboxes_transpose(bboxes, 0, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_transpose(keypoint)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_transpose(keypoints)
 
     def get_transform_init_args_names(self):
         return ()
