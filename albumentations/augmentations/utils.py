@@ -60,9 +60,13 @@ def read_rgb_image(path):
     return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
-def clipped(func: Callable[Concatenate[np.ndarray, P], np.ndarray]) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
+def clipped(
+    func: Callable[Concatenate[np.ndarray, P], np.ndarray]
+) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
     @wraps(func)
-    def wrapped_function(img: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
+    def wrapped_function(
+        img: np.ndarray, *args: P.args, **kwargs: P.kwargs
+    ) -> np.ndarray:
         dtype = img.dtype
         maxval = MAX_VALUES_BY_DTYPE.get(dtype, 1.0)
         return clip(func(img, *args, **kwargs), dtype, maxval)
@@ -89,7 +93,9 @@ def angle_2pi_range(
     func: Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]
 ) -> Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]:
     @wraps(func)
-    def wrapped_function(keypoint: KeypointInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointInternalType:
+    def wrapped_function(
+        keypoint: KeypointInternalType, *args: P.args, **kwargs: P.kwargs
+    ) -> KeypointInternalType:
         (x, y, a, s) = func(keypoint, *args, **kwargs)[:4]
         return (x, y, angle_to_2pi_range(a), s)
 
@@ -102,7 +108,9 @@ def preserve_shape(
     """Preserve shape of the image"""
 
     @wraps(func)
-    def wrapped_function(img: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
+    def wrapped_function(
+        img: np.ndarray, *args: P.args, **kwargs: P.kwargs
+    ) -> np.ndarray:
         shape = img.shape
         result = func(img, *args, **kwargs)
         result = result.reshape(shape)
@@ -117,7 +125,9 @@ def preserve_channel_dim(
     """Preserve dummy channel dim."""
 
     @wraps(func)
-    def wrapped_function(img: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
+    def wrapped_function(
+        img: np.ndarray, *args: P.args, **kwargs: P.kwargs
+    ) -> np.ndarray:
         shape = img.shape
         result = func(img, *args, **kwargs)
         if len(shape) == 3 and shape[-1] == 1 and len(result.shape) == 2:
@@ -133,7 +143,9 @@ def ensure_contiguous(
     """Ensure that input img is contiguous."""
 
     @wraps(func)
-    def wrapped_function(img: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
+    def wrapped_function(
+        img: np.ndarray, *args: P.args, **kwargs: P.kwargs
+    ) -> np.ndarray:
         img = np.require(img, requirements=["C_CONTIGUOUS"])
         result = func(img, *args, **kwargs)
         return result
@@ -162,8 +174,12 @@ def non_rgb_warning(image: np.ndarray) -> None:
         message = "This transformation expects 3-channel images"
         if is_grayscale_image(image):
             message += "\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))"
-        if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
-            message += "\nThis transformation cannot be applied to multi-spectral images"
+        if is_multispectral_image(
+            image
+        ):  # Any image with a number of channels other than 1 and 3
+            message += (
+                "\nThis transformation cannot be applied to multi-spectral images"
+            )
 
         raise ValueError(message)
 

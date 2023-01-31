@@ -1,5 +1,4 @@
-import random
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Tuple, Union, Optional
 
 import cv2
 import numpy as np
@@ -31,7 +30,9 @@ __all__ = [
 
 @clipped
 @preserve_shape
-def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
+def fourier_domain_adaptation(
+    img: np.ndarray, target_img: np.ndarray, beta: float
+) -> np.ndarray:
     """
     Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
 
@@ -76,27 +77,37 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     amplitude_src = np.fft.ifftshift(amplitude_src, axes=(0, 1))
 
     # get mutated image
-    src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
+    src_image_transformed = np.fft.ifft2(
+        amplitude_src * np.exp(1j * phase_src), axes=(0, 1)
+    )
     src_image_transformed = np.real(src_image_transformed)
 
     return src_image_transformed
 
 
 @preserve_shape
-def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
+def apply_histogram(
+    img: np.ndarray, reference_image: np.ndarray, blend_ratio: float
+) -> np.ndarray:
     if img.dtype != reference_image.dtype:
         raise RuntimeError(
             f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}"
         )
     if img.shape[:2] != reference_image.shape[:2]:
-        reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
+        reference_image = cv2.resize(
+            reference_image, dsize=(img.shape[1], img.shape[0])
+        )
 
     img, reference_image = np.squeeze(img), np.squeeze(reference_image)
 
     try:
-        matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
+        matched = match_histograms(
+            img, reference_image, channel_axis=2 if len(img.shape) == 3 else None
+        )
     except TypeError:
-        matched = match_histograms(img, reference_image, multichannel=True)  # case for scikit-image<0.19.1
+        matched = match_histograms(
+            img, reference_image, multichannel=True
+        )  # case for scikit-image<0.19.1
     img = cv2.addWeighted(
         matched,
         blend_ratio,
@@ -113,10 +124,14 @@ def adapt_pixel_distribution(
     img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5
 ) -> np.ndarray:
     initial_type = img.dtype
-    transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
+    transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[
+        transform_type
+    ]()
     adapter = DomainAdapter(transformer=transformer, ref_img=ref)
     result = adapter(img).astype("float32")
-    blended = (img.astype("float32") * (1 - weight) + result * weight).astype(initial_type)
+    blended = (img.astype("float32") * (1 - weight) + result * weight).astype(
+        initial_type
+    )
     return blended
 
 
@@ -140,7 +155,9 @@ class HistogramMatching(ImageOnlyTransform):
             with random blend factor for increased diversity of generated images.
         read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
             array of image pixels.
-        p (float): probability of applying the transform. Default: 1.0.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -156,8 +173,9 @@ class HistogramMatching(ImageOnlyTransform):
         read_fn=read_rgb_image,
         always_apply=False,
         p=0.5,
+        rs=None,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p, rs=rs)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -167,8 +185,14 @@ class HistogramMatching(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "reference_image": self.read_fn(random.choice(self.reference_images)),
-            "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
+            "reference_image": self.read_fn(
+                self.reference_images[
+                    self.random().choice(range(len(self.reference_images)))
+                ]
+            ),
+            "blend_ratio": self.random().uniform(
+                self.blend_ratio[0], self.blend_ratio[1]
+            ),
         }
 
     def get_transform_init_args_names(self):
@@ -189,6 +213,9 @@ class FDA(ImageOnlyTransform):
         beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
         read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
             array of image pixels.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 0.5.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -217,8 +244,9 @@ class FDA(ImageOnlyTransform):
         read_fn=read_rgb_image,
         always_apply=False,
         p=0.5,
+        rs=None,
     ):
-        super(FDA, self).__init__(always_apply=always_apply, p=p)
+        super(FDA, self).__init__(always_apply=always_apply, p=p, rs=rs)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.beta_limit = to_tuple(beta_limit, low=0)
@@ -228,13 +256,17 @@ class FDA(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
-        target_img = self.read_fn(random.choice(self.reference_images))
+        target_img = self.read_fn(
+            self.reference_images[
+                self.random().choice(range(len(self.reference_images)))
+            ]
+        )
         target_img = cv2.resize(target_img, dsize=(img.shape[1], img.shape[0]))
 
         return {"target_image": target_img}
 
     def get_params(self):
-        return {"beta": random.uniform(self.beta_limit[0], self.beta_limit[1])}
+        return {"beta": self.random().uniform(self.beta_limit[0], self.beta_limit[1])}
 
     @property
     def targets_as_params(self):
@@ -262,7 +294,9 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             array of image pixels. Usually it's default `read_rgb_image` when images paths are used as reference,
             otherwise it could be identity function `lambda x: x` if reference images have been read in advance.
         transform_type (str): type of transform; "pca", "standard", "minmax" are allowed.
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image
@@ -281,14 +315,17 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         transform_type: str = "pca",
         always_apply=False,
         p=0.5,
+        rs=None,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p, rs=rs)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
         expected_transformers = ("pca", "standard", "minmax")
         if transform_type not in expected_transformers:
-            raise ValueError(f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}")
+            raise ValueError(
+                f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}"
+            )
         self.transform_type = transform_type
 
     @staticmethod
@@ -327,8 +364,14 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     def get_params(self):
         return {
-            "reference_image": self.read_fn(random.choice(self.reference_images)),
-            "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
+            "reference_image": self.read_fn(
+                self.reference_images[
+                    self.random().choice(range(len(self.reference_images)))
+                ]
+            ),
+            "blend_ratio": self.random().uniform(
+                self.blend_ratio[0], self.blend_ratio[1]
+            ),
         }
 
     def get_transform_init_args_names(self):

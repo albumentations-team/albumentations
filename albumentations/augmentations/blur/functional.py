@@ -25,7 +25,9 @@ def blur(img: np.ndarray, ksize: int) -> np.ndarray:
 @preserve_shape
 def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
     if img.dtype == np.float32 and ksize not in {3, 5}:
-        raise ValueError(f"Invalid ksize value {ksize}. For a float32 image the only valid ksize values are 3 and 5")
+        raise ValueError(
+            f"Invalid ksize value {ksize}. For a float32 image the only valid ksize values are 3 and 5"
+        )
 
     blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
     return blur_fn(img)
@@ -34,13 +36,20 @@ def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
 @preserve_shape
 def gaussian_blur(img: np.ndarray, ksize: int, sigma: float = 0) -> np.ndarray:
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
+    blur_fn = _maybe_process_in_chunks(
+        cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma
+    )
     return blur_fn(img)
 
 
 @preserve_shape
 def glass_blur(
-    img: np.ndarray, sigma: float, max_delta: int, iterations: int, dxy: np.ndarray, mode: str
+    img: np.ndarray,
+    sigma: float,
+    max_delta: int,
+    iterations: int,
+    dxy: np.ndarray,
+    mode: str,
 ) -> np.ndarray:
     x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
@@ -90,13 +99,17 @@ def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
     h_ch, w_ch = ceil(h / zoom_factor), ceil(w / zoom_factor)
     h_top, w_top = (h - h_ch) // 2, (w - w_ch) // 2
 
-    img = scale(img[h_top : h_top + h_ch, w_top : w_top + w_ch], zoom_factor, cv2.INTER_LINEAR)
+    img = scale(
+        img[h_top : h_top + h_ch, w_top : w_top + w_ch], zoom_factor, cv2.INTER_LINEAR
+    )
     h_trim_top, w_trim_top = (img.shape[0] - h) // 2, (img.shape[1] - w) // 2
     return img[h_trim_top : h_trim_top + h, w_trim_top : w_trim_top + w]
 
 
 @clipped
-def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -> np.ndarray:
+def zoom_blur(
+    img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]
+) -> np.ndarray:
     out = np.zeros_like(img, dtype=np.float32)
     for zoom_factor in zoom_factors:
         out += central_zoom(img, zoom_factor)

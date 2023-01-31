@@ -46,7 +46,9 @@ class Params(Serializable, ABC):
 
 
 class DataProcessor(ABC):
-    def __init__(self, params: Params, additional_targets: Optional[Dict[str, str]] = None):
+    def __init__(
+        self, params: Params, additional_targets: Optional[Dict[str, str]] = None
+    ):
         self.params = params
         self.data_fields = [self.default_data_name]
         if additional_targets is not None:
@@ -70,7 +72,9 @@ class DataProcessor(ABC):
 
         for data_name in self.data_fields:
             data[data_name] = self.filter(data[data_name], rows, cols)
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
+            data[data_name] = self.check_and_convert(
+                data[data_name], rows, cols, direction="from"
+            )
 
         data = self.remove_label_fields_from_data(data)
         return data
@@ -80,9 +84,13 @@ class DataProcessor(ABC):
 
         rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
+            data[data_name] = self.check_and_convert(
+                data[data_name], rows, cols, direction="to"
+            )
 
-    def check_and_convert(self, data: Sequence, rows: int, cols: int, direction: str = "to") -> Sequence:
+    def check_and_convert(
+        self, data: Sequence, rows: int, cols: int, direction: str = "to"
+    ) -> Sequence:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -92,7 +100,9 @@ class DataProcessor(ABC):
         elif direction == "from":
             return self.convert_from_albumentations(data, rows, cols)
         else:
-            raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
+            raise ValueError(
+                f"Invalid direction. Must be `to` or `from`. Got `{direction}`"
+            )
 
     @abstractmethod
     def filter(self, data: Sequence, rows: int, cols: int) -> Sequence:
@@ -103,11 +113,15 @@ class DataProcessor(ABC):
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_to_albumentations(
+        self, data: Sequence, rows: int, cols: int
+    ) -> Sequence:
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_from_albumentations(
+        self, data: Sequence, rows: int, cols: int
+    ) -> Sequence:
         pass
 
     def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:

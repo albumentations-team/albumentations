@@ -1,5 +1,4 @@
 import math
-import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
@@ -37,7 +36,9 @@ class RandomCrop(DualTransform):
     Args:
         height (int): height of the crop.
         width (int): width of the crop.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -46,8 +47,8 @@ class RandomCrop(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, always_apply=False, p=1.0):
-        super().__init__(always_apply, p)
+    def __init__(self, height, width, always_apply=False, p=1.0, rs=None):
+        super().__init__(always_apply, p, rs)
         self.height = height
         self.width = width
 
@@ -55,7 +56,7 @@ class RandomCrop(DualTransform):
         return F.random_crop(img, self.height, self.width, h_start, w_start)
 
     def get_params(self):
-        return {"h_start": random.random(), "w_start": random.random()}
+        return {"h_start": self.random().random(), "w_start": self.random().random()}
 
     def apply_to_bbox(self, bbox, **params):
         return F.bbox_random_crop(bbox, self.height, self.width, **params)
@@ -73,7 +74,9 @@ class CenterCrop(DualTransform):
     Args:
         height (int): height of the crop.
         width (int): width of the crop.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -87,8 +90,8 @@ class CenterCrop(DualTransform):
         float32 -> uint8 -> float32 that causes worse performance.
     """
 
-    def __init__(self, height, width, always_apply=False, p=1.0):
-        super(CenterCrop, self).__init__(always_apply, p)
+    def __init__(self, height, width, always_apply=False, p=1.0, rs=None):
+        super(CenterCrop, self).__init__(always_apply, p, rs)
         self.height = height
         self.width = width
 
@@ -113,6 +116,9 @@ class Crop(DualTransform):
         y_min (int): Minimum upper left y coordinate.
         x_max (int): Maximum lower right x coordinate.
         y_max (int): Maximum lower right y coordinate.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -121,21 +127,41 @@ class Crop(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, x_min=0, y_min=0, x_max=1024, y_max=1024, always_apply=False, p=1.0):
-        super(Crop, self).__init__(always_apply, p)
+    def __init__(
+        self,
+        x_min=0,
+        y_min=0,
+        x_max=1024,
+        y_max=1024,
+        always_apply=False,
+        p=1.0,
+        rs=None,
+    ):
+        super(Crop, self).__init__(always_apply, p, rs)
         self.x_min = x_min
         self.y_min = y_min
         self.x_max = x_max
         self.y_max = y_max
 
     def apply(self, img, **params):
-        return F.crop(img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max)
+        return F.crop(
+            img, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max
+        )
 
     def apply_to_bbox(self, bbox, **params):
-        return F.bbox_crop(bbox, x_min=self.x_min, y_min=self.y_min, x_max=self.x_max, y_max=self.y_max, **params)
+        return F.bbox_crop(
+            bbox,
+            x_min=self.x_min,
+            y_min=self.y_min,
+            x_max=self.x_max,
+            y_max=self.y_max,
+            **params
+        )
 
     def apply_to_keypoint(self, keypoint, **params):
-        return F.crop_keypoint_by_coords(keypoint, crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max))
+        return F.crop_keypoint_by_coords(
+            keypoint, crop_coords=(self.x_min, self.y_min, self.x_max, self.y_max)
+        )
 
     def get_transform_init_args_names(self):
         return ("x_min", "y_min", "x_max", "y_max")
@@ -151,7 +177,9 @@ class CropNonEmptyMaskIfExists(DualTransform):
             (e.g. if background value is 5 set `ignore_values=[5]` to ignore)
         ignore_channels (list of int): channels to ignore in mask
             (e.g. if background is a first channel set `ignore_channels=[0]` to ignore)
+        always_apply (bool)
         p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -160,13 +188,30 @@ class CropNonEmptyMaskIfExists(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, ignore_values=None, ignore_channels=None, always_apply=False, p=1.0):
-        super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p)
+    def __init__(
+        self,
+        height,
+        width,
+        ignore_values=None,
+        ignore_channels=None,
+        always_apply=False,
+        p=1.0,
+        rs=None,
+    ):
+        super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p, rs)
 
         if ignore_values is not None and not isinstance(ignore_values, list):
-            raise ValueError("Expected `ignore_values` of type `list`, got `{}`".format(type(ignore_values)))
+            raise ValueError(
+                "Expected `ignore_values` of type `list`, got `{}`".format(
+                    type(ignore_values)
+                )
+            )
         if ignore_channels is not None and not isinstance(ignore_channels, list):
-            raise ValueError("Expected `ignore_channels` of type `list`, got `{}`".format(type(ignore_channels)))
+            raise ValueError(
+                "Expected `ignore_channels` of type `list`, got `{}`".format(
+                    type(ignore_channels)
+                )
+            )
 
         self.height = height
         self.width = width
@@ -178,11 +223,19 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     def apply_to_bbox(self, bbox, x_min=0, x_max=0, y_min=0, y_max=0, **params):
         return F.bbox_crop(
-            bbox, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, rows=params["rows"], cols=params["cols"]
+            bbox,
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            rows=params["rows"],
+            cols=params["cols"],
         )
 
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        return F.crop_keypoint_by_coords(keypoint, crop_coords=(x_min, y_min, x_max, y_max))
+        return F.crop_keypoint_by_coords(
+            keypoint, crop_coords=(x_min, y_min, x_max, y_max)
+        )
 
     def _preprocess_mask(self, mask):
         mask_height, mask_width = mask.shape[:2]
@@ -192,7 +245,9 @@ class CropNonEmptyMaskIfExists(DualTransform):
             mask = np.where(np.isin(mask, ignore_values_np), 0, mask)
 
         if mask.ndim == 3 and self.ignore_channels is not None:
-            target_channels = np.array([ch for ch in range(mask.shape[-1]) if ch not in self.ignore_channels])
+            target_channels = np.array(
+                [ch for ch in range(mask.shape[-1]) if ch not in self.ignore_channels]
+            )
             mask = np.take(mask, target_channels, axis=-1)
 
         if self.height > mask_height or self.width > mask_width:
@@ -210,7 +265,9 @@ class CropNonEmptyMaskIfExists(DualTransform):
             mask = self._preprocess_mask(kwargs["mask"])
         elif "masks" in kwargs and len(kwargs["masks"]):
             masks = kwargs["masks"]
-            mask = self._preprocess_mask(np.copy(masks[0]))  # need copy as we perform in-place mod afterwards
+            mask = self._preprocess_mask(
+                np.copy(masks[0])
+            )  # need copy as we perform in-place mod afterwards
             for m in masks[1:]:
                 mask |= self._preprocess_mask(m)
         else:
@@ -221,14 +278,14 @@ class CropNonEmptyMaskIfExists(DualTransform):
         if mask.any():
             mask = mask.sum(axis=-1) if mask.ndim == 3 else mask
             non_zero_yx = np.argwhere(mask)
-            y, x = random.choice(non_zero_yx)
-            x_min = x - random.randint(0, self.width - 1)
-            y_min = y - random.randint(0, self.height - 1)
+            y, x = non_zero_yx[self.random().choice(range(len(non_zero_yx)))]
+            x_min = x - self.py_randint(0, self.width - 1)
+            y_min = y - self.py_randint(0, self.height - 1)
             x_min = np.clip(x_min, 0, mask_width - self.width)
             y_min = np.clip(y_min, 0, mask_height - self.height)
         else:
-            x_min = random.randint(0, mask_width - self.width)
-            y_min = random.randint(0, mask_height - self.height)
+            x_min = self.py_randint(0, mask_width - self.width)
+            y_min = self.py_randint(0, mask_height - self.height)
 
         x_max = x_min + self.width
         y_max = y_min + self.height
@@ -241,23 +298,68 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
 
 class _BaseRandomSizedCrop(DualTransform):
-    # Base class for RandomSizedCrop and RandomResizedCrop
+    """Base class for RandomSizedCrop and RandomResizedCrop
+    always_apply (bool)
+    p (float): probability of applying the transform. Default: 1.0.
+    rs (np.random.RandomState)
+    """
 
-    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0):
-        super(_BaseRandomSizedCrop, self).__init__(always_apply, p)
+    def __init__(
+        self,
+        height,
+        width,
+        interpolation=cv2.INTER_LINEAR,
+        always_apply=False,
+        p=1.0,
+        rs=None,
+    ):
+        super(_BaseRandomSizedCrop, self).__init__(always_apply, p, rs)
         self.height = height
         self.width = width
         self.interpolation = interpolation
 
-    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self,
+        img,
+        crop_height=0,
+        crop_width=0,
+        h_start=0,
+        w_start=0,
+        interpolation=cv2.INTER_LINEAR,
+        **params
+    ):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
         return FGeometric.resize(crop, self.height, self.width, interpolation)
 
-    def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
-        return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
+    def apply_to_bbox(
+        self,
+        bbox,
+        crop_height=0,
+        crop_width=0,
+        h_start=0,
+        w_start=0,
+        rows=0,
+        cols=0,
+        **params
+    ):
+        return F.bbox_random_crop(
+            bbox, crop_height, crop_width, h_start, w_start, rows, cols
+        )
 
-    def apply_to_keypoint(self, keypoint, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
-        keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
+    def apply_to_keypoint(
+        self,
+        keypoint,
+        crop_height=0,
+        crop_width=0,
+        h_start=0,
+        w_start=0,
+        rows=0,
+        cols=0,
+        **params
+    ):
+        keypoint = F.keypoint_random_crop(
+            keypoint, crop_height, crop_width, h_start, w_start, rows, cols
+        )
         scale_x = self.width / crop_width
         scale_y = self.height / crop_height
         keypoint = FGeometric.keypoint_scale(keypoint, scale_x, scale_y)
@@ -275,7 +377,9 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -285,19 +389,32 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     """
 
     def __init__(
-        self, min_max_height, height, width, w2h_ratio=1.0, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0
+        self,
+        min_max_height,
+        height,
+        width,
+        w2h_ratio=1.0,
+        interpolation=cv2.INTER_LINEAR,
+        always_apply=False,
+        p=1.0,
+        rs=None,
     ):
         super(RandomSizedCrop, self).__init__(
-            height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p
+            height=height,
+            width=width,
+            interpolation=interpolation,
+            always_apply=always_apply,
+            p=p,
+            rs=rs,
         )
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
     def get_params(self):
-        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
+        crop_height = self.py_randint(self.min_max_height[0], self.min_max_height[1])
         return {
-            "h_start": random.random(),
-            "w_start": random.random(),
+            "h_start": self.random().random(),
+            "w_start": self.random().random(),
             "crop_height": crop_height,
             "crop_width": int(crop_height * self.w2h_ratio),
         }
@@ -317,7 +434,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -335,10 +454,16 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         interpolation=cv2.INTER_LINEAR,
         always_apply=False,
         p=1.0,
+        rs=None,
     ):
 
         super(RandomResizedCrop, self).__init__(
-            height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p
+            height=height,
+            width=width,
+            interpolation=interpolation,
+            always_apply=always_apply,
+            p=p,
+            rs=rs,
         )
         self.scale = scale
         self.ratio = ratio
@@ -348,16 +473,16 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         area = img.shape[0] * img.shape[1]
 
         for _attempt in range(10):
-            target_area = random.uniform(*self.scale) * area
+            target_area = self.random().uniform(*self.scale) * area
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
-            aspect_ratio = math.exp(random.uniform(*log_ratio))
+            aspect_ratio = math.exp(self.random().uniform(*log_ratio))
 
             w = int(round(math.sqrt(target_area * aspect_ratio)))  # skipcq: PTC-W0028
             h = int(round(math.sqrt(target_area / aspect_ratio)))  # skipcq: PTC-W0028
 
             if 0 < w <= img.shape[1] and 0 < h <= img.shape[0]:
-                i = random.randint(0, img.shape[0] - h)
-                j = random.randint(0, img.shape[1] - w)
+                i = self.py_randint(0, img.shape[0] - h)
+                j = self.py_randint(0, img.shape[1] - w)
                 return {
                     "crop_height": h,
                     "crop_width": w,
@@ -405,7 +530,9 @@ class RandomCropNearBBox(DualTransform):
             If max_part_shift is a single float, the range will be (max_part_shift, max_part_shift).
             Default (0.3, 0.3).
         cropping_box_key (str): Additional target key for cropping box. Default `cropping_bbox`
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -426,8 +553,9 @@ class RandomCropNearBBox(DualTransform):
         cropping_box_key: str = "cropping_bbox",
         always_apply: bool = False,
         p: float = 1.0,
+        rs: Optional[np.random.RandomState] = None,
     ):
-        super(RandomCropNearBBox, self).__init__(always_apply, p)
+        super(RandomCropNearBBox, self).__init__(always_apply, p, rs)
         self.max_part_shift = to_tuple(max_part_shift, low=max_part_shift)
         self.cropping_bbox_key = cropping_box_key
 
@@ -435,7 +563,13 @@ class RandomCropNearBBox(DualTransform):
             raise ValueError("Invalid max_part_shift. Got: {}".format(max_part_shift))
 
     def apply(
-        self, img: np.ndarray, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params
+        self,
+        img: np.ndarray,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        **params
     ) -> np.ndarray:
         return F.clamping_crop(img, x_min, y_min, x_max, y_max)
 
@@ -444,11 +578,11 @@ class RandomCropNearBBox(DualTransform):
         h_max_shift = round((bbox[3] - bbox[1]) * self.max_part_shift[0])
         w_max_shift = round((bbox[2] - bbox[0]) * self.max_part_shift[1])
 
-        x_min = bbox[0] - random.randint(-w_max_shift, w_max_shift)
-        x_max = bbox[2] + random.randint(-w_max_shift, w_max_shift)
+        x_min = bbox[0] - self.py_randint(-w_max_shift, w_max_shift)
+        x_max = bbox[2] + self.py_randint(-w_max_shift, w_max_shift)
 
-        y_min = bbox[1] - random.randint(-h_max_shift, h_max_shift)
-        y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
+        y_min = bbox[1] - self.py_randint(-h_max_shift, h_max_shift)
+        y_max = bbox[3] + self.py_randint(-h_max_shift, h_max_shift)
 
         x_min = max(0, x_min)
         y_min = max(0, y_min)
@@ -467,7 +601,9 @@ class RandomCropNearBBox(DualTransform):
         y_max: int = 0,
         **params
     ) -> Tuple[float, float, float, float]:
-        return F.crop_keypoint_by_coords(keypoint, crop_coords=(x_min, y_min, x_max, y_max))
+        return F.crop_keypoint_by_coords(
+            keypoint, crop_coords=(x_min, y_min, x_max, y_max)
+        )
 
     @property
     def targets_as_params(self) -> List[str]:
@@ -481,15 +617,17 @@ class BBoxSafeRandomCrop(DualTransform):
     """Crop a random part of the input without loss of bboxes.
     Args:
         erosion_rate (float): erosion rate applied on input image height before crop.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
     Targets:
         image, mask, bboxes
     Image types:
         uint8, float32
     """
 
-    def __init__(self, erosion_rate=0.0, always_apply=False, p=1.0):
-        super(BBoxSafeRandomCrop, self).__init__(always_apply, p)
+    def __init__(self, erosion_rate=0.0, always_apply=False, p=1.0, rs=None):
+        super(BBoxSafeRandomCrop, self).__init__(always_apply, p, rs)
         self.erosion_rate = erosion_rate
 
     def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, **params):
@@ -497,31 +635,58 @@ class BBoxSafeRandomCrop(DualTransform):
 
     def get_params_dependent_on_targets(self, params):
         img_h, img_w = params["image"].shape[:2]
-        if len(params["bboxes"]) == 0:  # less likely, this class is for use with bboxes.
+        if (
+            len(params["bboxes"]) == 0
+        ):  # less likely, this class is for use with bboxes.
             erosive_h = int(img_h * (1.0 - self.erosion_rate))
-            crop_height = img_h if erosive_h >= img_h else random.randint(erosive_h, img_h)
+            crop_height = (
+                img_h if erosive_h >= img_h else self.py_randint(erosive_h, img_h)
+            )
             return {
-                "h_start": random.random(),
-                "w_start": random.random(),
+                "h_start": self.random().random(),
+                "w_start": self.random().random(),
                 "crop_height": crop_height,
                 "crop_width": int(crop_height * img_w / img_h),
             }
         # get union of all bboxes
         x, y, x2, y2 = union_of_bboxes(
-            width=img_w, height=img_h, bboxes=params["bboxes"], erosion_rate=self.erosion_rate
+            width=img_w,
+            height=img_h,
+            bboxes=params["bboxes"],
+            erosion_rate=self.erosion_rate,
         )
         # find bigger region
-        bx, by = x * random.random(), y * random.random()
-        bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
+        bx, by = x * self.random().random(), y * self.random().random()
+        bx2, by2 = (
+            x2 + (1 - x2) * self.random().random(),
+            y2 + (1 - y2) * self.random().random(),
+        )
         bw, bh = bx2 - bx, by2 - by
         crop_height = img_h if bh >= 1.0 else int(img_h * bh)
         crop_width = img_w if bw >= 1.0 else int(img_w * bw)
         h_start = np.clip(0.0 if bh >= 1.0 else by / (1.0 - bh), 0.0, 1.0)
         w_start = np.clip(0.0 if bw >= 1.0 else bx / (1.0 - bw), 0.0, 1.0)
-        return {"h_start": h_start, "w_start": w_start, "crop_height": crop_height, "crop_width": crop_width}
+        return {
+            "h_start": h_start,
+            "w_start": w_start,
+            "crop_height": crop_height,
+            "crop_width": crop_width,
+        }
 
-    def apply_to_bbox(self, bbox, crop_height=0, crop_width=0, h_start=0, w_start=0, rows=0, cols=0, **params):
-        return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
+    def apply_to_bbox(
+        self,
+        bbox,
+        crop_height=0,
+        crop_width=0,
+        h_start=0,
+        w_start=0,
+        rows=0,
+        cols=0,
+        **params
+    ):
+        return F.bbox_random_crop(
+            bbox, crop_height, crop_width, h_start, w_start, rows, cols
+        )
 
     @property
     def targets_as_params(self):
@@ -540,25 +705,49 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
     Targets:
         image, mask, bboxes
     Image types:
         uint8, float32
     """
 
-    def __init__(self, height, width, erosion_rate=0.0, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1.0):
-        super(RandomSizedBBoxSafeCrop, self).__init__(erosion_rate, always_apply, p)
+    def __init__(
+        self,
+        height,
+        width,
+        erosion_rate=0.0,
+        interpolation=cv2.INTER_LINEAR,
+        always_apply=False,
+        p=1.0,
+        rs=None,
+    ):
+        super(RandomSizedBBoxSafeCrop, self).__init__(erosion_rate, always_apply, p, rs)
         self.height = height
         self.width = width
         self.interpolation = interpolation
 
-    def apply(self, img, crop_height=0, crop_width=0, h_start=0, w_start=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self,
+        img,
+        crop_height=0,
+        crop_width=0,
+        h_start=0,
+        w_start=0,
+        interpolation=cv2.INTER_LINEAR,
+        **params
+    ):
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
         return FGeometric.resize(crop, self.height, self.width, interpolation)
 
     def get_transform_init_args_names(self):
-        return super().get_transform_init_args_names() + ("height", "width", "interpolation")
+        return super().get_transform_init_args_names() + (
+            "height",
+            "width",
+            "interpolation",
+        )
 
 
 class CropAndPad(DualTransform):
@@ -640,6 +829,9 @@ class CropAndPad(DualTransform):
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -660,8 +852,9 @@ class CropAndPad(DualTransform):
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
         p: float = 1.0,
+        rs: Optional[np.random.RandomState] = None,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(always_apply, p, rs)
 
         if px is None and percent is None:
             raise ValueError("px and percent are empty!")
@@ -692,7 +885,15 @@ class CropAndPad(DualTransform):
         **params
     ) -> np.ndarray:
         return F.crop_and_pad(
-            img, crop_params, pad_params, pad_value, rows, cols, interpolation, self.pad_mode, self.keep_size
+            img,
+            crop_params,
+            pad_params,
+            pad_value,
+            rows,
+            cols,
+            interpolation,
+            self.pad_mode,
+            self.keep_size,
         )
 
     def apply_to_mask(
@@ -707,7 +908,15 @@ class CropAndPad(DualTransform):
         **params
     ) -> np.ndarray:
         return F.crop_and_pad(
-            img, crop_params, pad_params, pad_value_mask, rows, cols, interpolation, self.pad_mode, self.keep_size
+            img,
+            crop_params,
+            pad_params,
+            pad_value_mask,
+            rows,
+            cols,
+            interpolation,
+            self.pad_mode,
+            self.keep_size,
         )
 
     def apply_to_bbox(
@@ -721,7 +930,9 @@ class CropAndPad(DualTransform):
         result_cols: int = 0,
         **params
     ) -> BoxInternalType:
-        return F.crop_and_pad_bbox(bbox, crop_params, pad_params, rows, cols, result_rows, result_cols)
+        return F.crop_and_pad_bbox(
+            bbox, crop_params, pad_params, rows, cols, result_rows, result_cols
+        )
 
     def apply_to_keypoint(
         self,
@@ -735,7 +946,14 @@ class CropAndPad(DualTransform):
         **params
     ) -> KeypointInternalType:
         return F.crop_and_pad_keypoint(
-            keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
+            keypoint,
+            crop_params,
+            pad_params,
+            rows,
+            cols,
+            result_rows,
+            result_cols,
+            self.keep_size,
         )
 
     @property
@@ -812,8 +1030,12 @@ class CropAndPad(DualTransform):
         return {
             "crop_params": crop_params or None,
             "pad_params": pad_params or None,
-            "pad_value": None if pad_params is None else self._get_pad_value(self.pad_cval),
-            "pad_value_mask": None if pad_params is None else self._get_pad_value(self.pad_cval_mask),
+            "pad_value": None
+            if pad_params is None
+            else self._get_pad_value(self.pad_cval),
+            "pad_value_mask": None
+            if pad_params is None
+            else self._get_pad_value(self.pad_cval_mask),
             "result_rows": result_rows,
             "result_cols": result_cols,
         }
@@ -826,12 +1048,12 @@ class CropAndPad(DualTransform):
             params = [self.px] * 4
         elif len(self.px) == 2:
             if self.sample_independently:
-                params = [random.randrange(*self.px) for _ in range(4)]
+                params = [self.random().randint(*self.px) for _ in range(4)]
             else:
-                px = random.randrange(*self.px)
+                px = self.random().randint(*self.px)
                 params = [px] * 4
         else:
-            params = [i if isinstance(i, int) else random.randrange(*i) for i in self.px]  # type: ignore
+            params = [i if isinstance(i, int) else self.random().randint(*i) for i in self.px]  # type: ignore
 
         return params  # [top, right, bottom, left]
 
@@ -843,28 +1065,32 @@ class CropAndPad(DualTransform):
             params = [self.percent] * 4
         elif len(self.percent) == 2:
             if self.sample_independently:
-                params = [random.uniform(*self.percent) for _ in range(4)]
+                params = [self.random().uniform(*self.percent) for _ in range(4)]
             else:
-                px = random.uniform(*self.percent)
+                px = self.random().uniform(*self.percent)
                 params = [px] * 4
         else:
-            params = [i if isinstance(i, (int, float)) else random.uniform(*i) for i in self.percent]
+            params = [
+                i if isinstance(i, (int, float)) else self.random().uniform(*i)
+                for i in self.percent
+            ]
 
         return params  # params = [top, right, bottom, left]
 
-    @staticmethod
-    def _get_pad_value(pad_value: Union[float, Sequence[float]]) -> Union[int, float]:
+    def _get_pad_value(
+        self, pad_value: Union[float, Sequence[float]]
+    ) -> Union[int, float]:
         if isinstance(pad_value, (int, float)):
             return pad_value
 
         if len(pad_value) == 2:
             a, b = pad_value
             if isinstance(a, int) and isinstance(b, int):
-                return random.randint(a, b)
+                return self.py_randint(a, b)
 
-            return random.uniform(a, b)
+            return self.random().uniform(a, b)
 
-        return random.choice(pad_value)
+        return pad_value[self.random().choice(range(len(pad_value)))]
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
@@ -891,7 +1117,9 @@ class RandomCropFromBorders(DualTransform):
         from top side in range [0, crop_top * height)
         crop_bottom (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
         from bottom side in range [(1 - crop_bottom) * height, height)
-        p (float): probability of applying the transform. Default: 1.
+        always_apply (bool)
+        p (float): probability of applying the transform. Default: 1.0.
+        rs (np.random.RandomState)
 
     Targets:
         image, mask, bboxes, keypoints
@@ -908,8 +1136,9 @@ class RandomCropFromBorders(DualTransform):
         crop_bottom=0.1,
         always_apply=False,
         p=1.0,
+        rs=None,
     ):
-        super(RandomCropFromBorders, self).__init__(always_apply, p)
+        super(RandomCropFromBorders, self).__init__(always_apply, p, rs)
         self.crop_left = crop_left
         self.crop_right = crop_right
         self.crop_top = crop_top
@@ -917,10 +1146,14 @@ class RandomCropFromBorders(DualTransform):
 
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
-        x_min = random.randint(0, int(self.crop_left * img.shape[1]))
-        x_max = random.randint(max(x_min + 1, int((1 - self.crop_right) * img.shape[1])), img.shape[1])
-        y_min = random.randint(0, int(self.crop_top * img.shape[0]))
-        y_max = random.randint(max(y_min + 1, int((1 - self.crop_bottom) * img.shape[0])), img.shape[0])
+        x_min = self.py_randint(0, int(self.crop_left * img.shape[1]))
+        x_max = self.py_randint(
+            max(x_min + 1, int((1 - self.crop_right) * img.shape[1])), img.shape[1]
+        )
+        y_min = self.py_randint(0, int(self.crop_top * img.shape[0]))
+        y_max = self.py_randint(
+            max(y_min + 1, int((1 - self.crop_bottom) * img.shape[0])), img.shape[0]
+        )
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
     def apply(self, img, x_min=0, x_max=0, y_min=0, y_max=0, **params):
@@ -934,7 +1167,9 @@ class RandomCropFromBorders(DualTransform):
         return F.bbox_crop(bbox, x_min, y_min, x_max, y_max, rows, cols)
 
     def apply_to_keypoint(self, keypoint, x_min=0, x_max=0, y_min=0, y_max=0, **params):
-        return F.crop_keypoint_by_coords(keypoint, crop_coords=(x_min, y_min, x_max, y_max))
+        return F.crop_keypoint_by_coords(
+            keypoint, crop_coords=(x_min, y_min, x_max, y_max)
+        )
 
     @property
     def targets_as_params(self):

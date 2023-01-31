@@ -32,7 +32,14 @@ __all__ = [
 ]
 
 
-def get_random_crop_coords(height: int, width: int, crop_height: int, crop_width: int, h_start: float, w_start: float):
+def get_random_crop_coords(
+    height: int,
+    width: int,
+    crop_height: int,
+    crop_width: int,
+    h_start: float,
+    w_start: float,
+):
     # h_start is [0, 1) and should map to [0, (height - crop_height)]  (note inclusive)
     # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
     # See: https://github.com/albumentations-team/albumentations/pull/1080
@@ -43,16 +50,23 @@ def get_random_crop_coords(height: int, width: int, crop_height: int, crop_width
     return x1, y1, x2, y2
 
 
-def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: float, w_start: float):
+def random_crop(
+    img: np.ndarray, crop_height: int, crop_width: int, h_start: float, w_start: float
+):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
             "Requested crop size ({crop_height}, {crop_width}) is "
             "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
+                crop_height=crop_height,
+                crop_width=crop_width,
+                height=height,
+                width=width,
             )
         )
-    x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
+    x1, y1, x2, y2 = get_random_crop_coords(
+        height, width, crop_height, crop_width, h_start, w_start
+    )
     img = img[y1:y2, x1:x2]
     return img
 
@@ -88,9 +102,17 @@ def crop_bbox_by_coords(
 
 
 def bbox_random_crop(
-    bbox: BoxInternalType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
+    bbox: BoxInternalType,
+    crop_height: int,
+    crop_width: int,
+    h_start: float,
+    w_start: float,
+    rows: int,
+    cols: int,
 ):
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
+    crop_coords = get_random_crop_coords(
+        rows, cols, crop_height, crop_width, h_start, w_start
+    )
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
@@ -137,7 +159,9 @@ def keypoint_random_crop(
         A keypoint `(x, y, angle, scale)`.
 
     """
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
+    crop_coords = get_random_crop_coords(
+        rows, cols, crop_height, crop_width, h_start, w_start
+    )
     return crop_keypoint_by_coords(keypoint, crop_coords)
 
 
@@ -155,7 +179,10 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
         raise ValueError(
             "Requested crop size ({crop_height}, {crop_width}) is "
             "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
+                crop_height=crop_height,
+                crop_width=crop_width,
+                height=height,
+                width=width,
             )
         )
     x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
@@ -163,12 +190,20 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
     return img
 
 
-def bbox_center_crop(bbox: BoxInternalType, crop_height: int, crop_width: int, rows: int, cols: int):
+def bbox_center_crop(
+    bbox: BoxInternalType, crop_height: int, crop_width: int, rows: int, cols: int
+):
     crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
-def keypoint_center_crop(keypoint: KeypointInternalType, crop_height: int, crop_width: int, rows: int, cols: int):
+def keypoint_center_crop(
+    keypoint: KeypointInternalType,
+    crop_height: int,
+    crop_width: int,
+    rows: int,
+    cols: int,
+):
     """Keypoint center crop.
 
     Args:
@@ -201,14 +236,27 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
             "Values for crop should be non negative and equal or smaller than image sizes"
             "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
             "height = {height}, width = {width})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
+                x_min=x_min,
+                x_max=x_max,
+                y_min=y_min,
+                y_max=y_max,
+                height=height,
+                width=width,
             )
         )
 
     return img[y_min:y_max, x_min:x_max]
 
 
-def bbox_crop(bbox: BoxInternalType, x_min: int, y_min: int, x_max: int, y_max: int, rows: int, cols: int):
+def bbox_crop(
+    bbox: BoxInternalType,
+    x_min: int,
+    y_min: int,
+    x_max: int,
+    y_max: int,
+    rows: int,
+    cols: int,
+):
     """Crop a bounding box.
 
     Args:
@@ -259,11 +307,19 @@ def crop_and_pad(
         img = crop(img, *crop_params)
     if pad_params is not None and any(i != 0 for i in pad_params):
         img = FGeometric.pad_with_params(
-            img, pad_params[0], pad_params[1], pad_params[2], pad_params[3], border_mode=pad_mode, value=pad_value
+            img,
+            pad_params[0],
+            pad_params[1],
+            pad_params[2],
+            pad_params[3],
+            border_mode=pad_mode,
+            value=pad_value,
         )
 
     if keep_size:
-        resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
+        resize_fn = _maybe_process_in_chunks(
+            cv2.resize, dsize=(cols, rows), interpolation=interpolation
+        )
         img = resize_fn(img)
 
     return img
