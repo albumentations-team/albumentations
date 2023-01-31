@@ -25,6 +25,7 @@ __all__ = [
     "add_fog",
     "add_rain",
     "add_shadow",
+    "add_gravel",
     "add_snow",
     "add_sun_flare",
     "add_weighted",
@@ -756,6 +757,45 @@ def add_shadow(img, vertices_list):
     # if red channel is hot, image's "Lightness" channel's brightness is lowered
     red_max_value_ind = mask[:, :, 0] == 255
     image_hls[:, :, 1][red_max_value_ind] = image_hls[:, :, 1][red_max_value_ind] * 0.5
+
+    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
+
+    if needs_float:
+        image_rgb = to_float(image_rgb, max_value=255)
+
+    return image_rgb
+
+
+@ensure_contiguous
+@preserve_shape
+def add_gravel(img: np.ndarray, gravels: list):
+    """Add gravel to the image.
+
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (numpy.ndarray): image to add gravel to
+        gravels (list): list of gravel parameters. (float, float, float, float):
+            (top-left x, top-left y, bottom-right x, bottom right y)
+
+    Returns:
+        numpy.ndarray:
+    """
+    non_rgb_warning(img)
+    input_dtype = img.dtype
+    needs_float = False
+
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype("uint8"))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError("Unexpected dtype {} for AddGravel augmentation".format(input_dtype))
+
+    image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+
+    for gravel in gravels:
+        y1, y2, x1, x2, sat = gravel
+        image_hls[x1:x2, y1:y2, 1] = sat
 
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
