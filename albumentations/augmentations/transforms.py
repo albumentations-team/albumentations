@@ -4,6 +4,8 @@ import math
 import numbers
 import random
 import warnings
+import copy
+from dataclasses import dataclass
 from enum import IntEnum
 from types import LambdaType
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
@@ -74,6 +76,7 @@ __all__ = [
     "UnsharpMask",
     "PixelDropout",
     "Spatter",
+    "UnpropShuffle"
 ]
 
 
@@ -2552,3 +2555,151 @@ class Spatter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
+
+
+class UnpropShuffle(DualTransform):
+    """
+    Unproportional shuffle grid's cells on image.
+    Args:
+        grid ((int, int)): size of grid for splitting image.
+    Targets:
+        image, mask
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(self, grid=(3, 3), always_apply=False, p=0.5):
+        super(UnpropShuffle, self).__init__(always_apply, p)
+        self.grid = grid
+        self.shuffled_ids = []
+
+    def apply(self, img, tiles=None, **params):
+        if tiles is None:
+            tiles = []
+        self.ids = self.shuffled_ids.copy()
+        return F.unprop_swap_tiles_on_image(img, tiles, self.shuffled_ids)
+
+    def apply_to_mask(self, img, tiles=None, **params):
+        if tiles is None:
+            tiles = []
+        return F.unprop_swap_tiles_on_image(img, tiles, self.shuffled_ids)
+
+    def apply_to_bboxes(self, bboxes, **params):
+        tiles = params["tiles"]
+        rows = params["rows"]
+        cols = params["cols"]
+        return F.unprop_bbox_transpose(bboxes, tiles, self.ids, rows, cols)
+
+    def get_transform_init_args_names(self):
+        return ()
+
+    def apply_to_keypoint(self, keypoint, **params):
+        return ()
+
+    def get_params_dependent_on_targets(self, params):
+        num_segments = params["num_segments"] if "num_segments" in params else 7
+        ratio = params["ratio"] if "ratio" in params else 4.0 / 3.0
+        # refinement_steps = params["refinement_steps"] if "refinement_steps" in params else 10
+
+        tolerance = ratio * 0.20  # tolerance for the ratio above 20
+
+        @dataclass
+        class Segm:
+            x: float
+            y: float
+            width: float
+            height: float
+
+            def __str__(self):
+                return f"[{self.x}, {self.y}, {self.width}, {self.height}]"
+
+        segms = []
+        img_height, img_width = params["image"].shape[:2]
+        segms.append(Segm(0, 0, img_width, img_height))
+
+        min_side = min(img_width, img_height) // 6  # minimal side of the rectangle
+
+        def refinement():
+            """
+            Refinement the rectangles to look more like the demanded ratio considering tolerance and prevent stretches.
+            """
+            at_least_one_invalid = False
+            index = 0
+
+            # We must work with the copy because "Split" alters the original list
+            segms_copy = segms.copy()
+
+            for segm in segms_copy:
+                # Check validity
+                current_ratio = max(segm.width, segm.height) / min(segm.width, segm.height)
+
+                if current_ratio > ratio + tolerance or current_ratio < ratio - tolerance:
+                    at_least_one_invalid = True
+
+                    # tall
+                    if segm.height > segm.width:
+                        split(True, index)
+                    # wide
+                    else:
+                        split(False, index)
+
+                index = index + 1
+
+            return at_least_one_invalid
+
+        def split(horizontal, index):
+            """Splits the respective segment defined by index in horizontal/vertical manner."""
+            if segms[index].height < 2 * min_side + 1 and segms[index].width < 2 * min_side + 1:
+                return False
+
+            if (segms[index].height < 2 * min_side + 1 and horizontal) or (
+                    segms[index].width < 2 * min_side + 1 and not horizontal):
+                horizontal = not horizontal
+
+            new_segm = copy.copy(segms[index])
+
+            if horizontal:
+                new_height = random.randint(min_side, segms[index].height - min_side)
+
+                new_segm.y = segms[index].y + new_height
+                new_segm.height = segms[index].height - new_height
+
+                if (new_segm.height < min_side):
+                    return False
+
+                segms[index].height = new_height
+            else:
+                new_width = random.randint(min_side, segms[index].width - min_side)
+
+                new_segm.x = segms[index].x + new_width
+                new_segm.width = segms[index].width - new_width
+
+                if (new_segm.width < min_side):
+                    return False
+
+                segms[index].width = new_width
+
+            # Add new rect to the list
+            segms.append(new_segm)
+
+            return True
+
+        # Split
+        current_num_semgs = 1
+
+        while current_num_semgs < num_segments:
+            if split(bool(random.getrandbits(1)), random.randint(0, len(segms) - 1)):
+                current_num_semgs = current_num_semgs + 1
+
+        tiles = []
+        for i in segms:
+            tiles.append([i.x, i.y, i.width, i.height])
+
+        tiles = np.asarray(tiles)
+
+        shape_y, shape_x = tiles.shape
+        shuffled_ids = np.linspace(0, shape_y - 1, shape_y, dtype=np.int32).tolist()
+        random.shuffle(shuffled_ids)
+        self.shuffled_ids = shuffled_ids
+
+        return {"tiles": tiles}

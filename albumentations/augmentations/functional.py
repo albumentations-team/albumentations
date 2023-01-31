@@ -1338,3 +1338,37 @@ def spatter(
         raise ValueError("Unsupported spatter mode: " + str(mode))
 
     return img * 255
+
+
+def unprop_swap_tiles_on_image(image, tiles, shuffled_ids):
+    """Partition image into uneven blocks, shuffle them and re-assemble the image again.
+    Args:
+        img ([np.ndarray, list, tuple]): Input image, or list/tuple of images (expecting image and semantic label).
+        refIter (int): Number of refinement repetetions.
+        ratio (float): Block ratio during division.
+        numberOfRectangles (int): Number of starting rectangles.
+        refinementSteps (int): Number of refinement steps in one iteration.
+    Returns:
+        np.ndarray: Unproportionally shuffled image.
+    """
+
+    while len(shuffled_ids) > 1:
+        segm_1_id = shuffled_ids.pop(0)
+        segm_2_id = shuffled_ids.pop(0)
+
+        segm_1 = tiles[segm_1_id]
+        segm_2 = tiles[segm_2_id]
+
+        # 0 => x, 1 => y, 2 => width, 3 => height
+        segm_1_patch = image[segm_1[1]:segm_1[1] + segm_1[3], segm_1[0]:segm_1[0] + segm_1[2], :]
+        segm_1_patch = cv2.resize(segm_1_patch, (segm_2[2], segm_2[3]), interpolation=cv2.INTER_CUBIC)
+
+        segm_2_patch = image[segm_2[1]:segm_2[1] + segm_2[3], segm_2[0]:segm_2[0] + segm_2[2], :]
+        segm_2_patch = cv2.resize(segm_2_patch, (segm_1[2], segm_1[3]), interpolation=cv2.INTER_CUBIC)
+
+        # Insert segm 1 patch into segm 2
+        image[segm_2[1]:segm_2[1] + segm_2[3], segm_2[0]:segm_2[0] + segm_2[2], :] = segm_1_patch
+        # Insert segm 2 patch into segm 1
+        image[segm_1[1]:segm_1[1] + segm_1[3], segm_1[0]:segm_1[0] + segm_1[2], :] = segm_2_patch
+
+    return image
