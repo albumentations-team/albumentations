@@ -327,6 +327,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.PadIfNeeded,
             A.RGBShift,
             A.RandomFog,
+            A.RandomGravel,
             A.RandomRain,
             A.RandomScale,
             A.RandomShadow,
@@ -524,6 +525,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RGBShift,
             A.RandomCropNearBBox,
             A.RandomFog,
+            A.RandomGravel,
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
@@ -591,6 +593,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RGBShift,
             A.RandomCropNearBBox,
             A.RandomFog,
+            A.RandomGravel,
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
@@ -645,6 +648,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RGBShift,
             A.RandomCropNearBBox,
             A.RandomFog,
+            A.RandomGravel,
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
@@ -703,6 +707,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.RGBShift,
             A.RandomCropNearBBox,
             A.RandomFog,
+            A.RandomGravel,
             A.RandomRain,
             A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
@@ -980,8 +985,9 @@ def test_perspective_order_points(points):
 def test_perspective_valid_keypoints_after_transform(
     seed: int, scale: float, h: int, w: int
 ):
-    random.seed(seed)
-    np.random.seed(seed)
+    # random.seed(seed)
+    # np.random.seed(seed)
+    rs = np.random.RandomState(seed)
 
     image = np.zeros([h, w, 3], dtype=np.uint8)
     keypoints = [
@@ -992,7 +998,7 @@ def test_perspective_valid_keypoints_after_transform(
     ]
 
     transform = A.Compose(
-        [A.Perspective(scale=(scale, scale), p=1)],
+        [A.Perspective(scale=(scale, scale), p=1, rs=rs)],
         keypoint_params={"format": "xy", "remove_invisible": False},
     )
 

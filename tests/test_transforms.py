@@ -1456,13 +1456,18 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
 @pytest.mark.parametrize(
     "aug_cls",
     [
-        (lambda rotate: A.Affine(rotate=rotate, p=1, mode=cv2.BORDER_CONSTANT, cval=0)),
         (
-            lambda rotate: A.ShiftScaleRotate(
+            lambda rotate, rs: A.Affine(
+                rotate=rotate, p=1, rs=rs, mode=cv2.BORDER_CONSTANT, cval=0
+            )
+        ),
+        (
+            lambda rotate, rs: A.ShiftScaleRotate(
                 shift_limit=(0, 0),
                 scale_limit=(0, 0),
                 rotate_limit=rotate,
                 p=1,
+                rs=rs,
                 border_mode=cv2.BORDER_CONSTANT,
                 value=0,
             )
@@ -1479,11 +1484,16 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
 )
 @pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
 def test_rotate_equal(img, aug_cls, angle):
-    random.seed(0)
+    # random.seed(0)
+    rs = np.random.RandomState(0)
 
     h, w = img.shape[:2]
     kp = [
-        [random.randint(0, w - 1), random.randint(0, h - 1), random.randint(0, 360)]
+        [
+            rs.randint(low=0, high=w),
+            rs.randint(low=0, high=h),
+            rs.randint(low=0, high=361),
+        ]
         for _ in range(50)
     ]
     kp += [
@@ -1496,9 +1506,15 @@ def test_rotate_equal(img, aug_cls, angle):
     ]
     keypoint_params = A.KeypointParams("xya", remove_invisible=False)
 
-    a = A.Compose([aug_cls(rotate=(angle, angle))], keypoint_params=keypoint_params)
+    a = A.Compose(
+        [aug_cls(rotate=(angle, angle), rs=rs)], keypoint_params=keypoint_params
+    )
     b = A.Compose(
-        [A.Rotate((angle, angle), border_mode=cv2.BORDER_CONSTANT, value=0, p=1)],
+        [
+            A.Rotate(
+                (angle, angle), border_mode=cv2.BORDER_CONSTANT, value=0, p=1, rs=rs
+            )
+        ],
         keypoint_params=keypoint_params,
     )
 
@@ -1545,9 +1561,10 @@ def test_bbox_clipping(
 
 
 def test_bbox_clipping_perspective():
-    random.seed(0)
+    # random.seed(0)
+    rs = np.random.RandomState(0)
     transform = A.Compose(
-        [A.Perspective(scale=(0.05, 0.05), p=1)],
+        [A.Perspective(scale=(0.05, 0.05), p=1, rs=rs)],
         bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6),
     )
 
@@ -1559,9 +1576,10 @@ def test_bbox_clipping_perspective():
 
 @pytest.mark.parametrize("seed", [i for i in range(10)])
 def test_motion_blur_allow_shifted(seed):
-    random.seed(seed)
+    # random.seed(seed)
+    rs = np.random.RandomState(seed)
 
-    transform = A.MotionBlur(allow_shifted=False)
+    transform = A.MotionBlur(allow_shifted=False, rs=rs)
     kernel = transform.get_params()["kernel"]
 
     center = kernel.shape[0] / 2 - 0.5
@@ -1588,6 +1606,7 @@ def test_motion_blur_allow_shifted(seed):
 @pytest.mark.parametrize(
     "augmentation",
     [
+        A.RandomGravel(),
         A.RandomSnow(),
         A.RandomRain(),
         A.RandomFog(),

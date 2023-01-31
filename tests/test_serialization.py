@@ -123,6 +123,13 @@ AUGMENTATION_CLS_PARAMS = [
         },
     ],
     [
+        A.RandomGravel,
+        {
+            "gravel_roi": (0.1, 0.4, 0.9, 0.9),
+            "number_of_patches": 2,
+        },
+    ],
+    [
         A.RandomShadow,
         {
             "shadow_roi": (0.1, 0.4, 0.9, 0.9),
@@ -832,9 +839,11 @@ def test_serialization_v2_conversion_without_totensor():
         os.path.join(files_directory, "output_v1.1.0_without_totensor.json")
     ) as f:
         output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
+    # np.random.seed(42)
+    rs = np.random.RandomState(42)
+    # the same seed should be used when creating the transformations loaded above...
+    image = rs.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    # random.seed(42)
     transformed_image = transform_1_1_0(image=image)["image"]
     assert transformed_image.tolist() == output_1_1_0
 
@@ -849,9 +858,11 @@ def test_serialization_v2_conversion_with_totensor():
     )
     with open(os.path.join(files_directory, "output_v1.1.0_with_totensor.json")) as f:
         output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
+    # np.random.seed(42)
+    rs = np.random.RandomState(42)
+    # the same seed should be used when creating the transformations loaded above...
+    image = rs.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    # random.seed(42)
     transformed_image = transform_1_1_0(image=image)["image"]
     assert transformed_image.numpy().tolist() == output_1_1_0
 
@@ -869,10 +880,12 @@ def test_serialization_v2_without_totensor():
         os.path.join(files_directory, "output_v1.1.0_without_totensor.json")
     ) as f:
         output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
-    transformed_image = transform(image=image)["image"]
+    # np.random.seed(42)
+    rs = np.random.RandomState(42)
+    # the same seed should be used when creating the transformations loaded above...
+    image = rs.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    # random.seed(42)
+    transformed_image = transform(image=image, rs=rs)["image"]
     assert transformed_image.tolist() == output_1_1_0
 
 
@@ -886,10 +899,12 @@ def test_serialization_v2_with_totensor():
     )
     with open(os.path.join(files_directory, "output_v1.1.0_with_totensor.json")) as f:
         output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
-    transformed_image = transform(image=image)["image"]
+    # np.random.seed(42)
+    rs = np.random.RandomState(42)
+    # the same seed should be used when creating the transformations loaded above...
+    image = rs.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
+    # random.seed(42)
+    transformed_image = transform(image=image, rs=rs)["image"]
     assert transformed_image.numpy().tolist() == output_1_1_0
 
 
