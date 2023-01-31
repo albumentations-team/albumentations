@@ -341,22 +341,12 @@ class Perspective(DualTransform):
             keep_size=self.keep_size,
         )
 
-    def apply_to_keypoint(self, keypoint, matrix=None, max_height=None, max_width=None, **params):
-        return F.perspective_keypoint(
-            keypoint, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
+    def apply_to_keypoints(
+        self, keypoints: KeypointsInternalType, matrix=None, max_height=None, max_width=None, **params
+    ) -> KeypointsInternalType:
+        return F.perspective_keypoints(
+            keypoints, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
         )
-
-    # def apply_to_keypoints(
-    #     self,
-    #     keypoints: KeypointsInternalType,
-    #     matrix=None,
-    #     max_height=None,
-    #     max_width=None,
-    #     **params
-    # ) -> KeypointsInternalType:
-    #     return F.perspective_keypoints(
-    #         keypoints, params['rows'], params['cols'], matrix, max_width, max_height, self.keep_size
-    #     )
 
     @property
     def targets_as_params(self):

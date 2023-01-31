@@ -26,7 +26,7 @@ __all__ = [
     "random_crop",
     "crop_bboxes_by_coords",
     "bboxes_random_crop",
-    "crop_keypoint_by_coords",
+    "crop_keypoints_by_coords",
     "keypoints_random_crop",
     "get_center_crop_coords",
     "center_crop",
@@ -136,25 +136,6 @@ def crop_keypoints_by_coords(
         return keypoints
     keypoints[..., [0, 1]] -= crop_coords[:2]
     return keypoints
-
-
-def crop_keypoint_by_coords(
-    keypoint: KeypointInternalType, crop_coords: Tuple[int, int, int, int]
-):  # skipcq: PYL-W0613
-    """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint[:4]
-    x1, y1, _, _ = crop_coords
-    return x - x1, y - y1, angle, scale
 
 
 @ensure_and_convert_keypoints

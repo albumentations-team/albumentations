@@ -57,7 +57,6 @@ __all__ = [
     "perspective",
     "perspective_bboxes",
     "rotation2DMatrixToEulerAngles",
-    "perspective_keypoint",
     "perspective_keypoints",
     "_is_identity_matrix",
     "warp_affine",
@@ -428,7 +427,19 @@ def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: floa
     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
+@ensure_and_convert_keypoints
 def keypoints_scale(keypoints: KeypointsInternalType, scale_x: float, scale_y: float) -> KeypointsInternalType:
+    """Scales a batch of keypoints by scale_x and scale_y.
+
+    Args:
+        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        scale_x: Scale coefficient x-axis.
+        scale_y: Scale coefficient y-axis.
+
+    Returns:
+        KeypointsInternalType, A batch of keypoints in `(x, y, angle, scale)` format.
+
+    """
     if not len(keypoints):
         return keypoints
     scales = np.array([scale_x, scale_y, 1.0, max(scale_x, scale_y)])
@@ -506,27 +517,25 @@ def perspective_bboxes(
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, height, width)
 
-    zero_points = np.zeros_like(bboxes[:, 0])
-
     points = np.stack(
         [
-            np.stack([bboxes[:, 0], bboxes[:, 1], zero_points, zero_points], axis=1),
-            np.stack([bboxes[:, 2], bboxes[:, 1], zero_points, zero_points], axis=1),
-            np.stack([bboxes[:, 2], bboxes[:, 3], zero_points, zero_points], axis=1),
-            np.stack([bboxes[:, 0], bboxes[:, 3], zero_points, zero_points], axis=1),
+            np.pad(bboxes[..., [0, 1]], ((0, 0), (0, 2))),
+            np.pad(bboxes[..., [2, 1]], ((0, 0), (0, 2))),
+            np.pad(bboxes[..., [2, 3]], ((0, 0), (0, 2))),
+            np.pad(bboxes[..., [0, 3]], ((0, 0), (0, 2))),
         ],
         axis=1,
     )
 
     points = perspective_keypoints(
-        points,
+        points.reshape((-1, 4)),
         height=height,
         width=width,
         matrix=matrix,
         max_width=max_width,
         max_height=max_height,
         keep_size=keep_size,
-    )
+    ).reshape(points.shape)
 
     bboxes = np.concatenate(
         [
@@ -550,36 +559,8 @@ def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> flo
     return np.arctan2(-matrix[1, 0], matrix[0, 0])
 
 
-@angle_2pi_range
-def perspective_keypoint(
-    keypoint: KeypointInternalType,
-    height: int,
-    width: int,
-    matrix: np.ndarray,
-    max_width: int,
-    max_height: int,
-    keep_size: bool,
-) -> KeypointInternalType:
-    x, y, angle, scale = keypoint
-
-    keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
-
-    x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
-    angle += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
-
-    scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
-    scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
-    scale *= max(scale_x, scale_y)
-
-    if keep_size:
-        scale_x = width / max_width
-        scale_y = height / max_height
-        return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
-
-    return x, y, angle, scale
-
-
 @angles_2pi_range
+@ensure_and_convert_keypoints
 def perspective_keypoints(
     keypoints: KeypointsInternalType,
     height: int,
@@ -592,25 +573,14 @@ def perspective_keypoints(
     if not len(keypoints):
         return keypoints
 
-    angles, scales = np.array_split(keypoints[..., [2, 3]], 2, axis=-1)
-
-    keypoints = cv2.perspectiveTransform(keypoints[..., [0, 1]].reshape(-1, 2)[np.newaxis, ...], matrix).reshape(
-        keypoints[..., [0, 1]].shape
-    )
-    angles += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
+    keypoints[..., [0, 1]] = cv2.perspectiveTransform(
+        keypoints[..., [0, 1]].reshape(-1, 2)[np.newaxis, ...], matrix
+    ).reshape(keypoints[..., [0, 1]].shape)
+    keypoints[..., 2] += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
 
     scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
     scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
-    scales *= max(scale_x, scale_y)
-
-    keypoints = np.concatenate(
-        [
-            keypoints,
-            angles,
-            scales,
-        ],
-        axis=2,
-    )
+    keypoints[..., 3] *= max(scale_x, scale_y)
 
     if keep_size:
         scale_x = width / max_width

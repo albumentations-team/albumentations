@@ -7,7 +7,7 @@ import numpy as np
 from ...core.transforms_interface import (
     BBoxesInternalType,
     DualTransform,
-    KeypointInternalType,
+    KeypointsInternalType,
     to_tuple,
 )
 from . import functional as F
@@ -50,8 +50,8 @@ class RandomScale(DualTransform):
         # Bounding boxes coordinates are scale invariant.
         return bboxes
 
-    def apply_to_keypoint(self, keypoint, scale=0, **params):
-        return F.keypoint_scale(keypoint, scale, scale)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, scale=0, **params) -> KeypointsInternalType:
+        return F.keypoints_scale(keypoints, scale, scale)
 
     def get_transform_init_args(self):
         return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
@@ -93,12 +93,11 @@ class LongestMaxSize(DualTransform):
         # Bounding box coordinates are scale invariant
         return bboxes
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
-        height = params["rows"]
-        width = params["cols"]
-
-        scale = max_size / max([height, width])
-        return F.keypoint_scale(keypoint, scale, scale)
+    def apply_to_keypoints(
+        self, keypoints: KeypointsInternalType, max_size: int = 1024, **params
+    ) -> KeypointsInternalType:
+        scale = max_size / max([params["rows"], params["cols"]])
+        return F.keypoints_scale(keypoints, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
@@ -143,12 +142,13 @@ class SmallestMaxSize(DualTransform):
         # Bounding boxes coordinates are scale invariant
         return bboxes
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
+    def apply_to_keypoints(
+        self, keypoints: KeypointsInternalType, max_size: int = 1024, **params
+    ) -> KeypointsInternalType:
         height = params["rows"]
         width = params["cols"]
-
         scale = max_size / min([height, width])
-        return F.keypoint_scale(keypoint, scale, scale)
+        return F.keypoints_scale(keypoints, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
@@ -188,12 +188,10 @@ class Resize(DualTransform):
         # Bounding boxes coordinates are scale invariant
         return bboxes
 
-    def apply_to_keypoint(self, keypoint, **params):
-        height = params["rows"]
-        width = params["cols"]
-        scale_x = self.width / width
-        scale_y = self.height / height
-        return F.keypoint_scale(keypoint, scale_x, scale_y)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        scale_x = self.width / params["cols"]
+        scale_y = self.height / params["rows"]
+        return F.keypoints_scale(keypoints, scale_x, scale_y)
 
     def get_transform_init_args_names(self):
         return ("height", "width", "interpolation")
