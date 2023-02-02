@@ -37,7 +37,6 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
 DEFAULT_BENCHMARKING_LIBRARIES = [
     "imgaug",
     "albumentations",
-    "albumentations_function",
 ]
 
 bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"])
@@ -50,6 +49,13 @@ def parse_args():
     )
     parser.add_argument(
         "-i", "--images", default=2000, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
+    )
+    parser.add_argument(
+        "-b",
+        "--bboxes",
+        default=100,
+        type=int,
+        help="number of bounding boxes in an image for benchmarking (default: 100)",
     )
     parser.add_argument(
         "-r", "--runs", default=5, type=int, metavar="N", help="number of runs for each benchmark (default: 5)"
@@ -66,6 +72,8 @@ def get_package_versions():
     packages = [
         "albumentations",
         "imgaug",
+        "numpy",
+        "opencv-python",
     ]
     package_versions = {"Python": sys.version}
     for package in packages:
@@ -115,7 +123,7 @@ class MarkdownGenerator:
         return value_matrix
 
     def _make_versions_text(self):
-        libraries = ["Python", "numpy", "pillow-simd", "opencv-python", "scikit-image", "scipy"]
+        libraries = ["Python", "numpy", "opencv-python"]
         libraries_with_versions = [
             "{library} {version}".format(library=library, version=self._package_versions[library].replace("\n", ""))
             for library in libraries
@@ -183,9 +191,6 @@ class HorizontalFlip(BenchmarkTest):
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def albumentations_function(self, img, bboxes, *args):
-        return GFunc.bboxes_hflip(bboxes)
-
 
 class VerticalFlip(BenchmarkTest):
     def __init__(self):
@@ -194,9 +199,6 @@ class VerticalFlip(BenchmarkTest):
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-    def albumentations_function(self, img, bboxes, *args):
-        return GFunc.bboxes_vflip(bboxes)
 
 
 class Flip(BenchmarkTest):
@@ -212,9 +214,6 @@ class Flip(BenchmarkTest):
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def albumentations_function(self, img, bboxes, *args):
-        return GFunc.bboxes_flip(bboxes, d=-1)
-
 
 class Rotate(BenchmarkTest):
     def __init__(self):
@@ -224,9 +223,6 @@ class Rotate(BenchmarkTest):
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-    def albumentations_function(self, img, bboxes, *args):
-        return GFunc.bboxes_rotate(bboxes, 45, method="largest_box", rows=512, cols=512)
 
 
 class SafeRotate(BenchmarkTest):
@@ -262,9 +258,6 @@ class Transpose(BenchmarkTest):
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def albumentations_function(self, img, bboxes, *args):
-        return GFunc.bboxes_transpose(bboxes, 0)
-
 
 class Pad(BenchmarkTest):
     def __init__(self):
@@ -282,12 +275,10 @@ class RandomRotate90(BenchmarkTest):
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def albumentations_function(self, img, bboxes, *args):
-        return GFunc.bboxes_rot90(bboxes, factor=random.randint(0, 3), rows=512, cols=512)
-
 
 class Perspective(BenchmarkTest):
     def __init__(self):
+        self.imgaug_transform = iaa.PerspectiveTransform(scale=(0.05, 1))
         self.alb_compose = A.Compose([A.Perspective(p=1.0)], bbox_params=bbox_params)
 
     def albumentations(self, img, bboxes, class_id):
@@ -321,9 +312,6 @@ class CenterCrop(BenchmarkTest):
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-    def albumentations_function(self, img, bboxes, *args):
-        return CFunc.bboxes_center_crop(bboxes, crop_height=10, crop_width=10, rows=512, cols=512)
 
 
 class Crop(BenchmarkTest):
@@ -418,11 +406,12 @@ def main():
         Affine(),
         Sequence(),
     ]
-    num_bboxes = 100
+    imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
+    bboxes = [generate_random_bboxes(args.bboxes) for _ in range(args.images)]
+
     for library in libraries:
-        imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
-        bboxes = [generate_random_bboxes(num_bboxes) for _ in range(args.images)]
-        class_ids = [np.random.randint(low=0, high=1, size=num_bboxes) for _ in range(args.images)]
+
+        class_ids = [np.random.randint(low=0, high=1, size=args.bboxes) for _ in range(args.images)]
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
