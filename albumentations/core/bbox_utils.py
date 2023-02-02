@@ -29,9 +29,11 @@ TBox = TypeVar("TBox", BoxType, BoxInternalType)
 
 
 def assert_np_bboxes_format(bboxes: np.ndarray):
-    assert (
-        isinstance(bboxes, np.ndarray) and len(bboxes.shape) == 2 and bboxes.shape[-1] == 4
-    ), "An array of bboxes should be 2 dimension, and the last dimension must has 4 elements."
+    if not isinstance(bboxes, np.ndarray):
+        raise TypeError("Bboxes should be a numpy ndarray.")
+    if len(bboxes):
+        if not (len(bboxes.shape) and bboxes.shape[-1] == 4):
+            raise ValueError("An array of bboxes should be 2 dimension, and the last dimension must has 4 elements.")
 
 
 def bboxes_to_array(bboxes: Sequence[BoxType]) -> np.ndarray:
@@ -216,15 +218,14 @@ def denormalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
     return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
 
 
-def _convert_to_array(dim: Union[Sequence[int], np.ndarray], length: int, dim_name: str):
+def _convert_to_array(dim: Union[Sequence[Union[int, float]], np.ndarray], length: int, dim_name: str) -> np.ndarray:
     if not isinstance(dim, np.ndarray):
-        dim = np.array(
-            [
-                dim,
-            ]
-        ).transpose()
+        dim = np.array(dim) if isinstance(dim, Sequence) and isinstance(dim[0], (float, int)) else np.array([dim])
     elif isinstance(dim, np.ndarray) and len(dim.shape) == 1:
-        dim = np.expand_dims(dim, axis=0).transpose()
+        dim = np.expand_dims(dim, axis=1)
+    else:
+        raise ValueError("dim should be a numpy ndarray")
+    dim = dim.transpose()
     assert isinstance(dim, np.ndarray) and dim.shape[0] == length
 
     if np.any(dim <= 0):
