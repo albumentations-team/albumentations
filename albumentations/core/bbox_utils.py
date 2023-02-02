@@ -246,10 +246,8 @@ def normalize_bboxes_np(
     Returns:
         Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
     """
-    if not isinstance(rows, (int, float)):
-        rows = _convert_to_array(rows, len(bboxes), "rows")
-    if not isinstance(cols, (int, float)):
-        cols = _convert_to_array(cols, len(bboxes), "cols")
+    rows = _convert_to_array(rows, len(bboxes), "rows")
+    cols = _convert_to_array(cols, len(bboxes), "cols")
 
     bboxes_ = bboxes.copy().astype(float)
     bboxes_[:, 0::2] /= cols
@@ -269,10 +267,9 @@ def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
         List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
-    if not isinstance(rows, int):
-        rows = _convert_to_array(rows, len(bboxes), "rows")
-    if not isinstance(cols, int):
-        cols = _convert_to_array(cols, len(bboxes), "cols")
+    rows = _convert_to_array(rows, len(bboxes), "rows")
+    cols = _convert_to_array(cols, len(bboxes), "cols")
+
     bboxes_ = bboxes.copy()
 
     bboxes_[:, 0::2] *= cols
