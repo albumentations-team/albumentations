@@ -246,9 +246,9 @@ def normalize_bboxes_np(
     Returns:
         Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
     """
-    if not isinstance(rows, int):
+    if not isinstance(rows, (int, float)):
         rows = _convert_to_array(rows, len(bboxes), "rows")
-    if not isinstance(cols, int):
+    if not isinstance(cols, (int, float)):
         cols = _convert_to_array(cols, len(bboxes), "cols")
 
     bboxes_ = bboxes.copy().astype(float)
