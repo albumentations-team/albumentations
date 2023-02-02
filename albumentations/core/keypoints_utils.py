@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 
 import numpy as np
 
-from .transforms_interface import KeypointsInternalType, KeypointType
+from .transforms_interface import KeypointsArray, KeypointsInternalType
 from .utils import DataProcessor, Params
 
 __all__ = [
@@ -18,6 +18,8 @@ __all__ = [
     "filter_keypoints",
     "KeypointsProcessor",
     "KeypointParams",
+    "ensure_keypoints_format",
+    "use_keypoints_ndarray",
 ]
 
 keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
@@ -28,44 +30,43 @@ def angle_to_2pi_range(angle: Union[np.ndarray, float]):
     return angle % two_pi
 
 
-def assert_np_keypoints_format(keypoints: KeypointsInternalType):  # noqa
-    assert isinstance(keypoints, np.ndarray), "Keypoints should be represented by a 2D numpy array."
-    if len(keypoints):
-        assert (
-            len(keypoints.shape) == 2 and 2 <= keypoints.shape[-1] <= 4
-        ), "An array of keypoints should be 2 dimension, and the last dimension must has at least 2 elements."
-
-
-def keypoints_to_array(keypoints: Sequence[KeypointType]) -> KeypointsInternalType:
-    return np.array([keypoint[:4] for keypoint in keypoints])
-
-
-def array_to_keypoints(
-    np_keypoints: KeypointsInternalType,
-    ori_keypoints: Sequence[KeypointType],
-) -> Sequence[KeypointType]:
-    return [
-        cast(KeypointType, tuple(np_keypoint) + tuple(keypoint[4:]))
-        for np_keypoint, keypoint in zip(np_keypoints, ori_keypoints)
-    ]
-
-
-def ensure_and_convert_keypoints(func: Callable) -> Callable:
-    """Ensure keypoints in inputs of the provided function can be properly converted to numpy array.
+def ensure_keypoints_format(func: Callable) -> Callable:
+    """Ensure keypoints in inputs of the provided function is KeypointsInternalType,
+    and ensure its data consistency.
 
     Args:
         func (Callable): a callable with the first argument being keypoints.
 
     Returns:
-        Callable, a callable with the first argument being keypoints in numpy ndarray.
+        Callable, a callable with the first argument being keypoints as KeypointsInternalType.
     """
 
     @wraps(func)
     def wrapper(keypoints, *args, **kwargs):  # noqa
-        if not isinstance(keypoints, np.ndarray):
-            keypoints = keypoints_to_array(keypoints).astype(float)
-        assert_np_keypoints_format(keypoints)
+        if not isinstance(keypoints, KeypointsInternalType):
+            raise TypeError(
+                "keypoints should already converted to `KeypointsInternalType`. " f"Get {type(keypoints)} instead."
+            )
+        keypoints.check_consistency()
         return func(keypoints, *args, **kwargs)
+
+    return wrapper
+
+
+def use_keypoints_ndarray(func: Callable) -> Callable:
+    @wraps(func)
+    def wrapper(
+        keypoints: Union[KeypointsInternalType, np.ndarray], **kwargs
+    ) -> Union[KeypointsInternalType, np.ndarray]:
+        if isinstance(keypoints, KeypointsInternalType):
+            ret = func(keypoints.array, **kwargs)
+            if not isinstance(ret, np.ndarray):
+                raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
+            keypoints.array = ret
+            keypoints.check_consistency()
+        elif isinstance(keypoints, np.ndarray):
+            keypoints = func(keypoints, **kwargs)
+        return keypoints
 
     return wrapper
 
@@ -130,6 +131,12 @@ class KeypointsProcessor(DataProcessor):
         assert isinstance(params, KeypointParams)
         super().__init__(params, additional_targets)
 
+    def convert_to_internal_type(self, data):
+        ...
+
+    def convert_to_original_type(self, data):
+        return [tuple(kp.array[0].tolist()) + tuple(kp.targets[0]) for kp in data]  # type: ignore[attr-defined]
+
     @property
     def default_data_name(self) -> str:
         return "keypoints"
@@ -163,27 +170,15 @@ class KeypointsProcessor(DataProcessor):
                     )
                     break
 
-    def filter(self, data: KeypointsInternalType, rows: int, cols: int, target_name: str) -> KeypointsInternalType:
+    def filter(self, data, rows: int, cols: int, target_name: str):
         self.params: KeypointParams
-        data, idx = filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
-        self.filter_labels(target_name=target_name, indices=idx)
+        data = filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
         return data
 
-    def separate_label_from_data(self, data: Sequence) -> Tuple[Sequence, Sequence]:
-        keypoints = []
-        additional_data = []
-
-        data_length = len(self.params.format)
-
-        for _data in data:
-            keypoints.append(_data[:data_length])
-            additional_data.append(_data[data_length:])
-        return keypoints, additional_data
-
-    def check(self, data: Sequence[Sequence], rows: int, cols: int) -> None:
+    def check(self, data, rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
 
-    def convert_from_albumentations(self, data: KeypointsInternalType, rows: int, cols: int) -> KeypointsInternalType:
+    def convert_from_albumentations(self, data, rows: int, cols: int):
         return convert_keypoints_from_albumentations(
             data,
             self.params.format,
@@ -193,7 +188,7 @@ class KeypointsProcessor(DataProcessor):
             angle_in_degrees=self.params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data: KeypointsInternalType, rows: int, cols: int) -> KeypointsInternalType:
+    def convert_to_albumentations(self, data, rows: int, cols: int):
         return convert_keypoints_to_albumentations(
             data,
             self.params.format,
@@ -204,31 +199,30 @@ class KeypointsProcessor(DataProcessor):
         )
 
 
-@ensure_and_convert_keypoints
-def check_keypoints(keypoints: KeypointsInternalType, rows: int, cols: int) -> None:
+@use_keypoints_ndarray
+def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
     """Check if keypoints boundaries are less than image shapes"""
 
     if not len(keypoints):
         return
 
     row_idx, *_ = np.where(
-        ~np.logical_and(0 <= keypoints[..., 0], keypoints[..., 0] < cols)
-        | ~np.logical_and(0 <= keypoints[..., 1], keypoints[..., 1] < rows)
+        ~np.logical_and(0 <= keypoints.array[..., 0], keypoints.array[..., 0] < cols)
+        | ~np.logical_and(0 <= keypoints.array[..., 1], keypoints.array[..., 1] < rows)
     )
     if row_idx:
         raise ValueError(
             f"Expected keypoints `x` in the range [0.0, {cols}] and `y` in the range [0.0, {rows}]. "
-            f"Got {keypoints[row_idx]}."
+            f"Got {keypoints.array[row_idx]}."
         )
-    row_idx, *_ = np.where(~np.logical_and(0 <= keypoints[..., 2], keypoints[..., 2] < 2 * math.pi))
+    row_idx, *_ = np.where(~np.logical_and(0 <= keypoints.array[..., 2], keypoints.array[..., 2] < 2 * math.pi))
     if len(row_idx):
-        raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {keypoints[row_idx, 2]}.")
+        raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {keypoints.array[row_idx, 2]}.")
 
 
-@ensure_and_convert_keypoints
-def filter_keypoints(
-    keypoints: KeypointsInternalType, rows: int, cols: int, remove_invisible: bool
-) -> Tuple[KeypointsInternalType, Sequence[int]]:
+@ensure_keypoints_format
+@use_keypoints_ndarray
+def filter_keypoints(keypoints: KeypointsArray, rows: int, cols: int, remove_invisible: bool) -> KeypointsArray:
     """Remove keypoints that are not visible.
     Args:
         keypoints: A batch of keypoints in `x, y, a, s` format.
@@ -241,18 +235,18 @@ def filter_keypoints(
 
     """
     if not remove_invisible:
-        return keypoints, list(range(len(keypoints)))
+        return keypoints
     if not len(keypoints):
-        return keypoints, []
+        return keypoints
 
-    x = keypoints[..., 0]
-    y = keypoints[..., 1]
+    x = keypoints.array[..., 0]
+    y = keypoints.array[..., 1]
     idx, *_ = np.where(np.logical_and(0 <= x, x < cols) & np.logical_and(0 <= y, y < rows))
 
-    return keypoints[idx], idx
+    return keypoints[idx]
 
 
-@ensure_and_convert_keypoints
+@ensure_keypoints_format
 def convert_keypoints_to_albumentations(
     keypoints: KeypointsInternalType,
     source_format: str,
@@ -289,7 +283,7 @@ def convert_keypoints_to_albumentations(
     return keypoints
 
 
-@ensure_and_convert_keypoints
+@ensure_keypoints_format
 def convert_keypoints_from_albumentations(
     keypoints: KeypointsInternalType,
     target_format: str,

@@ -8,7 +8,6 @@ from scipy.ndimage import gaussian_filter
 
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
-    angle_2pi_range,
     angles_2pi_range,
     clipped,
     preserve_channel_dim,
@@ -17,20 +16,17 @@ from albumentations.augmentations.utils import (
 
 from ... import random_utils
 from ...core.bbox_utils import (
-    assert_np_bboxes_format,
-    denormalize_bbox,
     denormalize_bboxes_np,
-    ensure_and_convert_bbox,
-    normalize_bbox,
+    ensure_bboxes_format,
     normalize_bboxes_np,
+    use_bboxes_ndarray,
 )
-from ...core.keypoints_utils import ensure_and_convert_keypoints
+from ...core.keypoints_utils import ensure_keypoints_format, use_keypoints_ndarray
 from ...core.transforms_interface import (
-    BBoxesInternalType,
-    BoxInternalType,
+    BoxesArray,
     FillValueType,
     ImageColorType,
-    KeypointInternalType,
+    KeypointsArray,
     KeypointsInternalType,
 )
 
@@ -49,7 +45,6 @@ __all__ = [
     "elastic_transform",
     "resize",
     "scale",
-    "keypoint_scale",
     "py3round",
     "_func_max_size",
     "longest_max_size",
@@ -60,7 +55,7 @@ __all__ = [
     "perspective_keypoints",
     "_is_identity_matrix",
     "warp_affine",
-    "keypoint_affine",
+    "keypoints_affine",
     "bboxes_affine",
     "safe_rotate",
     "bboxes_safe_rotate",
@@ -86,8 +81,9 @@ __all__ = [
 ]
 
 
-@ensure_and_convert_bbox
-def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) -> np.ndarray:
+@ensure_bboxes_format
+@use_bboxes_ndarray
+def bboxes_rot90(bboxes: BoxesArray, factor: int, rows: int, cols: int) -> BoxesArray:
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
 
@@ -106,11 +102,10 @@ def bboxes_rot90(bboxes: BBoxesInternalType, factor: int, rows: int, cols: int) 
     return bboxes
 
 
-@ensure_and_convert_keypoints
+@ensure_keypoints_format
 @angles_2pi_range
-def keypoints_rot90(
-    keypoints: KeypointsInternalType, factor: int, rows: int, cols: int, **params
-) -> KeypointsInternalType:
+@use_keypoints_ndarray
+def keypoints_rot90(keypoints: KeypointsArray, factor: int, rows: int, cols: int, **params) -> KeypointsArray:
     """Rotates a batch of keypoints by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -164,8 +159,9 @@ def rotate(
     return warp_fn(img)
 
 
-@ensure_and_convert_bbox
-def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: int, cols: int) -> np.ndarray:
+@ensure_bboxes_format
+@use_bboxes_ndarray
+def bboxes_rotate(bboxes: BoxesArray, angle: float, method: str, rows: int, cols: int) -> BoxesArray:
     """Rotates a batch of bounding boxes by angle degrees.
 
     Args:
@@ -216,21 +212,20 @@ def bboxes_rotate(bboxes: BBoxesInternalType, angle: float, method: str, rows: i
     return bboxes
 
 
+@ensure_keypoints_format
 @angles_2pi_range
-@ensure_and_convert_keypoints
-def keypoints_rotate(
-    keypoints: KeypointsInternalType, angle: float, rows: int, cols: int, **params
-) -> KeypointsInternalType:
+@use_keypoints_ndarray
+def keypoints_rotate(keypoints: KeypointsArray, angle: float, rows: int, cols: int, **params) -> KeypointsArray:
     """Rotate a keypoint by angle.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
         angle (float): Rotation angle.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        KeypointsInternalType: A batch of keypoints in `(x, y, angle, scale)` format.
+        KeypointsArray: A batch of keypoints in `(x, y, angle, scale)` format.
 
     """
     center = (cols - 1) * 0.5, (rows - 1) * 0.5
@@ -258,11 +253,12 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
+@ensure_keypoints_format
 @angles_2pi_range
-@ensure_and_convert_keypoints
+@use_keypoints_ndarray
 def keypoints_shift_scale_rotate(
-    keypoints: KeypointsInternalType, angle: int, scale: float, dx: int, dy: int, rows: int, cols: int, **params
-) -> KeypointsInternalType:
+    keypoints: KeypointsArray, angle: int, scale: float, dx: int, dy: int, rows: int, cols: int, **params
+) -> KeypointsArray:
     if not len(keypoints):
         return keypoints
 
@@ -278,18 +274,11 @@ def keypoints_shift_scale_rotate(
     return keypoints
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def bboxes_shift_scale_rotate(
-    bboxes: BBoxesInternalType,
-    angle: int,
-    scale_: int,
-    dx: int,
-    dy: int,
-    rotate_method: str,
-    rows: int,
-    cols: int,
-    **kwargs
-) -> BBoxesInternalType:
+    bboxes: BoxesArray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
+) -> BoxesArray:
     if not len(bboxes):
         return bboxes
     center = (cols / 2, rows / 2)
@@ -427,33 +416,33 @@ def scale(img: np.ndarray, scale: float, interpolation: int = cv2.INTER_LINEAR) 
     return resize(img, new_height, new_width, interpolation)
 
 
-def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: float) -> KeypointInternalType:
-    """Scales a keypoint by scale_x and scale_y.
+# def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: float) -> KeypointInternalType:
+#     """Scales a keypoint by scale_x and scale_y.
+#
+#     Args:
+#         keypoint: A keypoint `(x, y, angle, scale)`.
+#         scale_x: Scale coefficient x-axis.
+#         scale_y: Scale coefficient y-axis.
+#
+#     Returns:
+#         A keypoint `(x, y, angle, scale)`.
+#
+#     """
+#     x, y, angle, scale = keypoint[:4]
+#     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
-    Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
-        scale_x: Scale coefficient x-axis.
-        scale_y: Scale coefficient y-axis.
 
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint[:4]
-    return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
-
-
-@ensure_and_convert_keypoints
-def keypoints_scale(keypoints: KeypointsInternalType, scale_x: float, scale_y: float) -> KeypointsInternalType:
+@use_keypoints_ndarray
+def keypoints_scale(keypoints: KeypointsArray, scale_x: float, scale_y: float) -> KeypointsArray:
     """Scales a batch of keypoints by scale_x and scale_y.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
         scale_x: Scale coefficient x-axis.
         scale_y: Scale coefficient y-axis.
 
     Returns:
-        KeypointsInternalType, A batch of keypoints in `(x, y, angle, scale)` format.
+        KeypointsArray, A batch of keypoints in `(x, y, angle, scale)` format.
 
     """
     if not len(keypoints):
@@ -519,16 +508,17 @@ def perspective(
     return warped
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def perspective_bboxes(
-    bboxes: BBoxesInternalType,
+    bboxes: BoxesArray,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> BBoxesInternalType:
+) -> BoxesArray:
     if not len(bboxes):
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, height, width)
@@ -544,7 +534,7 @@ def perspective_bboxes(
     )
 
     points = perspective_keypoints(
-        points.reshape((-1, 4)),
+        points.reshape((-1, 4)),  # type: ignore[attr-defined]
         height=height,
         width=width,
         matrix=matrix,
@@ -576,16 +566,16 @@ def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> flo
 
 
 @angles_2pi_range
-@ensure_and_convert_keypoints
+@use_keypoints_ndarray
 def perspective_keypoints(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     if not len(keypoints):
         return keypoints
 
@@ -631,37 +621,54 @@ def warp_affine(
     return tmp
 
 
-@angle_2pi_range
-def keypoint_affine(
-    keypoint: KeypointInternalType,
+# @angle_2pi_range
+# def keypoint_affine(
+#     keypoint: KeypointInternalType,
+#     matrix: skimage.transform.ProjectiveTransform,
+#     scale: dict,
+# ) -> KeypointInternalType:
+#     if _is_identity_matrix(matrix):
+#         return keypoint
+#
+#     x, y, a, s = keypoint[:4]
+#     x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
+#     a += rotation2DMatrixToEulerAngles(matrix.params[:2])
+#     s *= np.max([scale["x"], scale["y"]])
+#     return x, y, a, s
+
+
+@ensure_keypoints_format
+@use_keypoints_ndarray
+@angles_2pi_range
+def keypoints_affine(
+    keypoints: KeypointsArray,
     matrix: skimage.transform.ProjectiveTransform,
     scale: dict,
-) -> KeypointInternalType:
+) -> KeypointsArray:
     if _is_identity_matrix(matrix):
-        return keypoint
+        return keypoints
 
-    x, y, a, s = keypoint[:4]
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
-    a += rotation2DMatrixToEulerAngles(matrix.params[:2])
-    s *= np.max([scale["x"], scale["y"]])
-    return x, y, a, s
+    keypoints[..., [0, 1]] = cv2.transform(np.expand_dims(keypoints[..., [0, 1]], axis=0), matrix).squeeze()
+    keypoints[..., 2] = rotation2DMatrixToEulerAngles(matrix.params[:2])
+    keypoints[..., 3] *= np.max([scale["x"], scale["y"]])
+    return keypoints
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def bboxes_affine(
-    bboxes: BBoxesInternalType,
+    bboxes: BoxesArray,
     matrix: skimage.transform.ProjectiveTransform,
     rows: int,
     cols: int,
     output_shape: Sequence[int],
-) -> BBoxesInternalType:
+) -> BoxesArray:
     if _is_identity_matrix(matrix):
         return bboxes
 
     if not len(bboxes):
         return bboxes
 
-    assert_np_bboxes_format(bboxes)
     bboxes = denormalize_bboxes_np(bboxes, rows, cols)
     points = np.stack(
         [
@@ -706,13 +713,14 @@ def safe_rotate(
     return warp_fn(img)
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def bboxes_safe_rotate(
-    bboxes: BBoxesInternalType,
+    bboxes: BoxesArray,
     matrix: np.ndarray,
     rows: int,
     cols: int,
-) -> BBoxesInternalType:
+) -> BoxesArray:
     if not len(bboxes):
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
@@ -740,16 +748,17 @@ def bboxes_safe_rotate(
     return normalize_bboxes_np(bboxes, rows=rows, cols=cols)
 
 
-@ensure_and_convert_keypoints
+@ensure_keypoints_format
+@use_keypoints_ndarray
 def keypoints_safe_rotate(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     matrix: np.ndarray,
     angle: float,
     scale_x: float,
     scale_y: float,
     cols: int,
     rows: int,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     if not len(keypoints):
         return keypoints
     keypoints[..., [0, 1]] = cv2.transform(np.expand_dims(keypoints[..., [0, 1]], axis=0), matrix).squeeze()
@@ -893,28 +902,15 @@ def from_distance_maps(
     return keypoints
 
 
-def keypoint_piecewise_affine(
-    keypoint: KeypointInternalType,
-    matrix: skimage.transform.PiecewiseAffineTransform,
-    h: int,
-    w: int,
-    keypoints_threshold: float,
-) -> KeypointInternalType:
-    x, y, a, s = keypoint[:4]
-    dist_maps = to_distance_maps([(x, y)], h, w, True)
-    dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    x, y = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)[0]
-    return x, y, a, s
-
-
-@ensure_and_convert_keypoints
+@ensure_keypoints_format
+@use_keypoints_ndarray
 def keypoints_piecewise_affine(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     matrix: skimage.transform.PiecewiseAffineTransform,
     h: int,
     w: int,
     keypoints_threshold: float,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     if not len(keypoints):
         return keypoints
     dist_maps = to_distance_maps(keypoints[..., [0, 1]], h, w, True)
@@ -923,14 +919,16 @@ def keypoints_piecewise_affine(
     return keypoints
 
 
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def bbox_piecewise_affine(
-    bbox: BoxInternalType,
+    bbox: BoxesArray,
     matrix: skimage.transform.PiecewiseAffineTransform,
     h: int,
     w: int,
     keypoints_threshold: float,
-) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, h, w)[:4]
+) -> BoxesArray:
+    x1, y1, x2, y2 = denormalize_bboxes_np(bbox, h, w)[0][:4]
     keypoints = [
         (x1, y1),
         (x2, y1),
@@ -946,7 +944,22 @@ def bbox_piecewise_affine(
     y1 = keypoints_arr[:, 1].min()
     x2 = keypoints_arr[:, 0].max()
     y2 = keypoints_arr[:, 1].max()
-    return normalize_bbox((x1, y1, x2, y2), h, w)
+    return normalize_bboxes_np(np.array([[x1, y1, x2, y2]]), h, w)
+
+
+@ensure_bboxes_format
+@use_bboxes_ndarray
+def bboxes_piecewise_affine(
+    bboxes: BoxesArray,
+    matrix: skimage.transform.PiecewiseAffineTransform,
+    h: int,
+    w: int,
+    keypoints_threshold: float,
+) -> BoxesArray:
+    if not len(bboxes):
+        return bboxes
+
+    bboxes = denormalize_bboxes_np(bboxes, h, w)
 
 
 def vflip(img: np.ndarray) -> np.ndarray:
@@ -979,8 +992,8 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
-@ensure_and_convert_bbox
-def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+@use_bboxes_ndarray
+def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes vertically around the x-axis.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
@@ -995,15 +1008,15 @@ def bboxes_vflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     return bboxes
 
 
-@ensure_and_convert_bbox
-def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
+@use_bboxes_ndarray
+def bboxes_hflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes horizontally around the y-axis.
     Args:
-        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
         **kwargs:
 
     Returns:
-        numpy.ndarray: A batch of flipped bounding boxes in `albumentations` format.
+        BoxesArray: A batch of flipped bounding boxes in `albumentations` format.
     """
     if not len(bboxes):
         return bboxes
@@ -1011,8 +1024,9 @@ def bboxes_hflip(bboxes: np.ndarray, **kwargs) -> np.ndarray:
     return bboxes
 
 
-@ensure_and_convert_bbox
-def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
+@ensure_bboxes_format
+@use_bboxes_ndarray
+def bboxes_flip(bboxes: BoxesArray, d: int, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1038,8 +1052,9 @@ def bboxes_flip(bboxes: np.ndarray, d: int, **kwargs) -> np.ndarray:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1.")
 
 
-@ensure_and_convert_bbox
-def bboxes_transpose(bboxes: BBoxesInternalType, axis: int, **kwargs) -> BBoxesInternalType:
+@ensure_bboxes_format
+@use_bboxes_ndarray
+def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs) -> BoxesArray:
     """Transpose bounding bboxes along a given axis in batch.
     Args:
         bboxes (numpy.ndarray): A batch of bounding boxes with `albumentations` format.
@@ -1063,17 +1078,17 @@ def bboxes_transpose(bboxes: BBoxesInternalType, axis: int, **kwargs) -> BBoxesI
 
 
 @angles_2pi_range
-@ensure_and_convert_keypoints
-def keypoints_vflip(keypoints: KeypointsInternalType, rows: int, cols: int) -> KeypointsInternalType:
+@use_keypoints_ndarray
+def keypoints_vflip(keypoints: KeypointsArray, rows: int, cols: int) -> KeypointsArray:
     """Flip a batch of keypoints vertically around the x-axis.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
         rows: Image height.
         cols: Image width.
 
     Returns:
-        KeypointsInternalType: A batch of keypoints `(x, y, angle, scale)`.
+        KeypointsArray: A batch of keypoints `(x, y, angle, scale)`.
 
     """
     if not len(keypoints):
@@ -1084,17 +1099,17 @@ def keypoints_vflip(keypoints: KeypointsInternalType, rows: int, cols: int) -> K
 
 
 @angles_2pi_range
-@ensure_and_convert_keypoints
-def keypoints_hflip(keypoints: KeypointsInternalType, rows: int, cols: int) -> KeypointsInternalType:
+@use_keypoints_ndarray
+def keypoints_hflip(keypoints: KeypointsArray, rows: int, cols: int) -> KeypointsArray:
     """Flip a batch of keypoints horizontally around the y-axis.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
         rows: Image height.
         cols: Image width.
 
     Returns:
-        KeypointsInternalType: A batch of keypoints `(x, y, angle, scale)`.
+        KeypointsArray: A batch of keypoints `(x, y, angle, scale)`.
 
     """
     if not len(keypoints):
@@ -1104,8 +1119,9 @@ def keypoints_hflip(keypoints: KeypointsInternalType, rows: int, cols: int) -> K
     return keypoints
 
 
-@ensure_and_convert_keypoints
-def keypoints_flip(keypoints: KeypointsInternalType, d: int, rows: int, cols: int) -> KeypointsInternalType:
+@ensure_keypoints_format
+@use_keypoints_ndarray
+def keypoints_flip(keypoints: KeypointsArray, d: int, rows: int, cols: int) -> KeypointsArray:
     """Flip a batch of keypoints either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1136,15 +1152,16 @@ def keypoints_flip(keypoints: KeypointsInternalType, d: int, rows: int, cols: in
     return keypoints
 
 
-@ensure_and_convert_keypoints
-def keypoints_transpose(keypoints: KeypointsInternalType) -> KeypointsInternalType:
+@ensure_keypoints_format
+@use_keypoints_ndarray
+def keypoints_transpose(keypoints: KeypointsArray) -> KeypointsArray:
     """Rotate a batch of keypoints by angle.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
 
     Returns:
-        KeypointsInternalType: A batch of keypoints `(x, y, angle, scale)`.
+        KeypointsArray: A batch of keypoints `(x, y, angle, scale)`.
 
     """
     # x, y, angle, scale = keypoint[:4]

@@ -10,7 +10,6 @@ from albumentations.core.bbox_utils import union_of_bboxes
 from ...core.transforms_interface import (
     BBoxesInternalType,
     DualTransform,
-    KeypointInternalType,
     KeypointsInternalType,
     to_tuple,
 )
@@ -784,9 +783,23 @@ class CropAndPad(DualTransform):
             result_cols=result_cols,
         )
 
-    def apply_to_keypoint(
+    # def apply_to_keypoint(
+    #     self,
+    #     keypoint: KeypointInternalType,
+    #     crop_params: Optional[Sequence[int]] = None,
+    #     pad_params: Optional[Sequence[int]] = None,
+    #     rows: int = 0,
+    #     cols: int = 0,
+    #     result_rows: int = 0,
+    #     result_cols: int = 0,
+    #     **params
+    # ) -> KeypointInternalType:
+    #     return F.crop_and_pad_keypoint(
+    #         keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
+    #     )
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: KeypointsInternalType,
         crop_params: Optional[Sequence[int]] = None,
         pad_params: Optional[Sequence[int]] = None,
         rows: int = 0,
@@ -794,9 +807,9 @@ class CropAndPad(DualTransform):
         result_rows: int = 0,
         result_cols: int = 0,
         **params
-    ) -> KeypointInternalType:
-        return F.crop_and_pad_keypoint(
-            keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
+    ) -> KeypointsInternalType:
+        return F.crop_and_pad_keypoints(
+            keypoints, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
         )
 
     @property
@@ -1006,7 +1019,7 @@ class RandomCropFromBorders(DualTransform):
     def apply_to_keypoints(
         self, keypoints: KeypointsInternalType, x_min=0, x_max=0, y_min=0, y_max=0, **params
     ) -> KeypointsInternalType:
-        F.crop_keypoints_by_coords(keypoints, crop_coords=np.array([x_min, y_min, x_max, y_max]))
+        return F.crop_keypoints_by_coords(keypoints, crop_coords=np.array([x_min, y_min, x_max, y_max]))
 
     @property
     def targets_as_params(self):
