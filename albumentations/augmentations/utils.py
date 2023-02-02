@@ -7,7 +7,7 @@ from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
 from albumentations.core.transforms_interface import (
-    KeypointInternalType,
+    KeypointsArray,
     KeypointsInternalType,
 )
 
@@ -18,7 +18,6 @@ __all__ = [
     "NPDTYPE_TO_OPENCV_DTYPE",
     "clipped",
     "get_opencv_dtype_from_numpy",
-    "angle_2pi_range",
     "angles_2pi_range",
     "clip",
     "preserve_shape",
@@ -89,26 +88,26 @@ def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object])
     return NPDTYPE_TO_OPENCV_DTYPE[value]
 
 
-def angle_2pi_range(
-    func: Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]
-) -> Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]:
-    @wraps(func)
-    def wrapped_function(keypoint: KeypointInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointInternalType:
-        (x, y, a, s) = func(keypoint, *args, **kwargs)[:4]
-        angle: float = angle_to_2pi_range(a)
-        return x, y, angle, s
-
-    return wrapped_function
+# def angle_2pi_range(
+#     func: Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]
+# ) -> Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]:
+#     @wraps(func)
+#     def wrapped_function(keypoint: KeypointInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointInternalType:
+#         (x, y, a, s) = func(keypoint, *args, **kwargs)[:4]
+#         angle: float = angle_to_2pi_range(a)
+#         return x, y, angle, s
+#
+#     return wrapped_function
 
 
 def angles_2pi_range(
-    func: Callable[Concatenate[np.ndarray, P], KeypointsInternalType],
-) -> Callable[Concatenate[np.ndarray, P], KeypointsInternalType]:
+    func: Callable[Concatenate[KeypointsInternalType, P], KeypointsInternalType],
+) -> Callable[Concatenate[KeypointsInternalType, P], KeypointsInternalType]:
     @wraps(func)
     def wrapped_function(keypoints: KeypointsInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointsInternalType:
 
         keypoints = func(keypoints, *args, **kwargs)
-        keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
+        keypoints.array[..., 2] = angle_to_2pi_range(keypoints.array[..., 2])
         return keypoints
 
     return wrapped_function

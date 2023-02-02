@@ -45,8 +45,8 @@ class RandomRotate90(DualTransform):
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, factor: int = 0, **params) -> BBoxesInternalType:
         return F.bboxes_rot90(bboxes, factor=factor, **params)
 
-    def apply_to_keypoints(self, keypoint, factor=0, **params):
-        return F.keypoints_rot90(keypoint, factor, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, factor=0, **params) -> KeypointsInternalType:
+        return F.keypoints_rot90(keypoints, factor, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -144,7 +144,16 @@ class Rotate(DualTransform):
         return bboxes
 
     def apply_to_keypoints(
-        self, keypoints, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params
+        self,
+        keypoints: KeypointsInternalType,
+        angle=0,
+        x_min=None,
+        x_max=None,
+        y_min=None,
+        y_max=None,
+        cols=0,
+        rows=0,
+        **params
     ):
         keypoints_out = F.keypoints_rotate(keypoints, angle, rows, cols, **params)
         if self.crop_border:

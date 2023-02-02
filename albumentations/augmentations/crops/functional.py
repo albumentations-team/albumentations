@@ -10,13 +10,15 @@ from albumentations.augmentations.utils import (
 
 from ...core.bbox_utils import (
     denormalize_bboxes_np,
-    ensure_and_convert_bbox,
+    ensure_bboxes_format,
     normalize_bboxes_np,
+    use_bboxes_ndarray,
 )
-from ...core.keypoints_utils import ensure_and_convert_keypoints
+from ...core.keypoints_utils import ensure_keypoints_format, use_keypoints_ndarray
 from ...core.transforms_interface import (
     BBoxesInternalType,
-    KeypointInternalType,
+    BoxesArray,
+    KeypointsArray,
     KeypointsInternalType,
 )
 from ..geometric import functional as FGeometric
@@ -37,7 +39,7 @@ __all__ = [
     "clamping_crop",
     "crop_and_pad",
     "crop_and_pad_bboxes",
-    "crop_and_pad_keypoint",
+    "crop_and_pad_keypoints",
 ]
 
 
@@ -66,15 +68,15 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
     return img
 
 
-@ensure_and_convert_bbox
+@use_bboxes_ndarray
 def crop_bboxes_by_coords(
-    bboxes: BBoxesInternalType,
+    bboxes: BoxesArray,
     crop_coords: Union[Sequence[Tuple[int, int, int, int]], np.ndarray],
     crop_height: Union[Sequence[int], int, np.ndarray],
     crop_width: Union[Sequence[int], int, np.ndarray],
     rows: int,
     cols: int,
-) -> BBoxesInternalType:
+) -> BoxesArray:
     """Crop a batch of bounding boxes using the provided coordinates in pixels and the
     required height and width of the crop.
 
@@ -98,7 +100,8 @@ def crop_bboxes_by_coords(
     return normalize_bboxes_np(cropped_bboxes, crop_width, crop_height)
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def bboxes_random_crop(
     bboxes: BBoxesInternalType,
     crop_height: int,
@@ -115,11 +118,11 @@ def bboxes_random_crop(
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
 
-@ensure_and_convert_keypoints
+@use_keypoints_ndarray
 def crop_keypoints_by_coords(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     crop_coords: np.ndarray,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     """Crop a batch of keypoints using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
 
@@ -138,20 +141,21 @@ def crop_keypoints_by_coords(
     return keypoints
 
 
-@ensure_and_convert_keypoints
+@ensure_keypoints_format
+@use_keypoints_ndarray
 def keypoints_random_crop(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     crop_height: int,
     crop_width: int,
     h_start: float,
     w_start: float,
     rows: int,
     cols: int,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     """
     Keypoints random crop.
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `x, y, angle, scale` format.
+        keypoints (KeypointsArray): A batch of keypoints in `x, y, angle, scale` format.
         crop_height (int): Crop height.
         crop_width (int): Crop width.
         h_start (float): Crop height start.
@@ -160,7 +164,7 @@ def keypoints_random_crop(
         cols (int): Image width.
 
     Returns:
-        KeypointsInternalType, A batch of keypoints in `x, y, angle, scale` format.
+        KeypointsArray, A batch of keypoints in `x, y, angle, scale` format.
 
     """
     if not len(keypoints):
@@ -192,10 +196,8 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
     return img
 
 
-@ensure_and_convert_bbox
-def bboxes_center_crop(
-    bboxes: BBoxesInternalType, crop_height: int, crop_width: int, rows: int, cols: int
-) -> BBoxesInternalType:
+@use_bboxes_ndarray
+def bboxes_center_crop(bboxes: BoxesArray, crop_height: int, crop_width: int, rows: int, cols: int) -> BoxesArray:
     num_bboxes = len(bboxes)
     if not num_bboxes:
         return bboxes
@@ -203,14 +205,15 @@ def bboxes_center_crop(
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
 
-@ensure_and_convert_keypoints
+@ensure_keypoints_format
+@use_keypoints_ndarray
 def keypoints_center_crop(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     crop_height: int,
     crop_width: int,
     rows: int,
     cols: int,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     """Keypoints center crop.
 
     Args:
@@ -251,7 +254,7 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
     return img[y_min:y_max, x_min:x_max]
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
 def bboxes_crop(
     bboxes: BBoxesInternalType,
     x_min: Union[np.ndarray, int],
@@ -342,7 +345,7 @@ def crop_and_pad(
     return img
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
 def crop_and_pad_bboxes(
     bboxes: BBoxesInternalType,
     crop_params: Optional[Sequence[int]],
@@ -367,8 +370,10 @@ def crop_and_pad_bboxes(
     return normalize_bboxes_np(bboxes, result_rows, result_cols)
 
 
-def crop_and_pad_keypoint(
-    keypoint: KeypointInternalType,
+@ensure_keypoints_format
+@use_keypoints_ndarray
+def crop_and_pad_keypoints(
+    keypoints: KeypointsArray,
     crop_params: Optional[Sequence[int]],
     pad_params: Optional[Sequence[int]],
     rows: int,
@@ -376,19 +381,18 @@ def crop_and_pad_keypoint(
     result_rows: int,
     result_cols: int,
     keep_size: bool,
-) -> KeypointInternalType:
-    x, y, angle, scale = keypoint[:4]
+) -> KeypointsArray:
 
     if crop_params is not None:
         crop_x1, crop_y1, crop_x2, crop_y2 = crop_params
-        x, y = x - crop_x1, y - crop_y1
+        keypoints[..., :2] -= np.array([crop_x1, crop_y1])
     if pad_params is not None:
         top, bottom, left, right = pad_params
-        x, y = x + left, y + top
+        keypoints[..., :2] += np.array([left, top])
 
     if keep_size and (result_cols != cols or result_rows != rows):
         scale_x = cols / result_cols
         scale_y = rows / result_rows
-        return FGeometric.keypoint_scale((x, y, angle, scale), scale_x, scale_y)
+        return FGeometric.keypoints_scale(keypoints, scale_x, scale_y)
 
-    return x, y, angle, scale
+    return keypoints

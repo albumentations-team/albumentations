@@ -16,12 +16,10 @@ from typing import (
 
 import numpy as np
 
-from .transforms_interface import BBoxesInternalType, BoxInternalType, BoxType
+from .transforms_interface import BBoxesInternalType, BoxesArray, BoxType
 from .utils import DataProcessor, Params
 
 __all__ = [
-    "normalize_bbox",
-    "denormalize_bbox",
     "normalize_bboxes_np",
     "denormalize_bboxes_np",
     "calculate_bboxes_area",
@@ -34,19 +32,11 @@ __all__ = [
     "BboxParams",
     "bboxes_to_array",
     "array_to_bboxes",
-    "assert_np_bboxes_format",
-    "ensure_and_convert_bbox",
+    "ensure_bboxes_format",
+    "use_bboxes_ndarray",
 ]
 
-TBox = TypeVar("TBox", BoxType, BoxInternalType)
-
-
-def assert_np_bboxes_format(bboxes: BBoxesInternalType):
-    if not isinstance(bboxes, np.ndarray):
-        raise TypeError("Bboxes should be a numpy ndarray.")
-    if len(bboxes):
-        if not (len(bboxes.shape) == 2 and bboxes.shape[-1] == 4):
-            raise ValueError("An array of bboxes should be 2 dimension, and the last dimension must has 4 elements.")
+TBox = TypeVar("TBox", BoxType, BBoxesInternalType)
 
 
 def bboxes_to_array(bboxes: Sequence[BoxType]) -> np.ndarray:
@@ -57,7 +47,7 @@ def array_to_bboxes(np_bboxes: np.ndarray, ori_bboxes: Sequence[BoxType]) -> Lis
     return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for bbox, np_bbox in zip(ori_bboxes, np_bboxes)]
 
 
-def ensure_and_convert_bbox(func: Callable) -> Callable:
+def ensure_bboxes_format(func: Callable) -> Callable:
     """Ensure bboxes in input of the provided function can be properly converted to numpy array.
 
     Args:
@@ -69,10 +59,26 @@ def ensure_and_convert_bbox(func: Callable) -> Callable:
 
     @wraps(func)
     def wrapper(bboxes, *args, **kwargs):
-        if not isinstance(bboxes, np.ndarray):
-            bboxes = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(bboxes)
+        if not isinstance(bboxes, BBoxesInternalType):
+            raise TypeError("bboxes should already converted to `BBoxesInternalType`. " f"Get {type(bboxes)} instead.")
+        bboxes.check_consistency()
         return func(bboxes, *args, **kwargs)
+
+    return wrapper
+
+
+def use_bboxes_ndarray(func: Callable) -> Callable:
+    @wraps(func)
+    def wrapper(bboxes: Union[BBoxesInternalType, np.ndarray], **kwargs) -> Union[BBoxesInternalType, np.ndarray]:
+        if isinstance(bboxes, BBoxesInternalType):
+            ret = func(bboxes.array, **kwargs)
+            if not isinstance(ret, np.ndarray):
+                raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
+            bboxes.array = ret
+            bboxes.check_consistency()
+        elif isinstance(bboxes, np.ndarray):
+            bboxes = func(bboxes, **kwargs)
+        return bboxes
 
     return wrapper
 
@@ -151,6 +157,12 @@ class BboxProcessor(DataProcessor):
     def __init__(self, params: BboxParams, additional_targets: Optional[Dict[str, str]] = None):
         super().__init__(params, additional_targets)
 
+    def convert_to_internal_type(self, data):
+        return BBoxesInternalType(array=np.array(data).astype(float))
+
+    def convert_to_original_type(self, data):
+        return [tuple(bbox.array[0].tolist()) + tuple(bbox.targets[0]) for bbox in data]  # type: ignore[attr-defined]
+
     @property
     def default_data_name(self) -> str:
         return "bboxes"
@@ -168,9 +180,9 @@ class BboxProcessor(DataProcessor):
             if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
-    def filter(self, data: BBoxesInternalType, rows: int, cols: int, target_name: str) -> BBoxesInternalType:
+    def filter(self, data, rows: int, cols: int, target_name: str):
         self.params: BboxParams
-        return filter_bboxes(
+        data = filter_bboxes(
             data,
             rows,
             cols,
@@ -180,75 +192,16 @@ class BboxProcessor(DataProcessor):
             min_height=self.params.min_height,
         )
 
-    def check(self, data: Sequence, rows: int, cols: int) -> None:
+        return data
+
+    def check(self, data, rows: int, cols: int) -> None:
         check_bboxes(data)
 
-    def convert_from_albumentations(self, data: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
+    def convert_from_albumentations(self, data, rows: int, cols: int):
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
-    def convert_to_albumentations(self, data: BBoxesInternalType, rows: int, cols: int) -> BBoxesInternalType:
+    def convert_to_albumentations(self, data, rows: int, cols: int):
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
-
-
-def normalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
-    """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
-    by image height.
-
-    Args:
-        bbox: Denormalized bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image height.
-        cols: Image width.
-
-    Returns:
-        Normalized bounding box `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: If rows or cols is less or equal zero
-
-    """
-
-    if rows <= 0:
-        raise ValueError("Argument rows must be positive integer")
-    if cols <= 0:
-        raise ValueError("Argument cols must be positive integer")
-
-    tail: Tuple[Any, ...]
-    (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
-
-    x_min, x_max = x_min / cols, x_max / cols
-    y_min, y_max = y_min / rows, y_max / rows
-
-    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
-
-
-def denormalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
-    """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
-    by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
-
-    Args:
-        bbox: Normalized bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image height.
-        cols: Image width.
-
-    Returns:
-        Denormalized bounding box `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: If rows or cols is less or equal zero
-
-    """
-    tail: Tuple[Any, ...]
-    (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
-
-    if rows <= 0:
-        raise ValueError("Argument rows must be positive integer")
-    if cols <= 0:
-        raise ValueError("Argument cols must be positive integer")
-
-    x_min, x_max = x_min * cols, x_max * cols
-    y_min, y_max = y_min * rows, y_max * rows
-
-    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
 
 
 def _convert_to_array(dim: Union[Sequence[Union[int, float]], np.ndarray], length: int, dim_name: str) -> np.ndarray:
@@ -266,10 +219,10 @@ def _convert_to_array(dim: Union[Sequence[Union[int, float]], np.ndarray], lengt
     return dim.astype(float)
 
 
-@ensure_and_convert_bbox
+@use_bboxes_ndarray
 def normalize_bboxes_np(
-    bboxes: BBoxesInternalType, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
-) -> BBoxesInternalType:
+    bboxes: BoxesArray, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
+) -> BoxesArray:
     """Normalize a list of bounding boxes.
 
     Args:
@@ -282,9 +235,9 @@ def normalize_bboxes_np(
     """
     if not len(bboxes):
         return bboxes
-    if not isinstance(rows, int):
+    if not isinstance(rows, (float, int)):
         rows = _convert_to_array(rows, len(bboxes), "rows")
-    if not isinstance(cols, int):
+    if not isinstance(cols, (float, int)):
         cols = _convert_to_array(cols, len(bboxes), "cols")
 
     bboxes_ = bboxes.copy().astype(float)
@@ -293,8 +246,8 @@ def normalize_bboxes_np(
     return bboxes_
 
 
-@ensure_and_convert_bbox
-def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+@use_bboxes_ndarray
+def denormalize_bboxes_np(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArray:
     """Denormalize a list of bounding boxes.
 
     Args:
@@ -319,8 +272,8 @@ def denormalize_bboxes_np(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
     return bboxes_
 
 
-@ensure_and_convert_bbox
-def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarray:
+@use_bboxes_ndarray
+def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArray:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
     Args:
@@ -335,14 +288,13 @@ def calculate_bboxes_area(bboxes: np.ndarray, rows: int, cols: int) -> np.ndarra
         numpy.ndarray, area in (fractional) pixels of the denormalized bounding boxes.
 
     """
-    bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]) * cols * rows
+    bboxes_area = (bboxes.array[:, 2] - bboxes.array[:, 0]) * (bboxes.array[:, 3] - bboxes.array[:, 1]) * cols * rows
     return bboxes_area
 
 
-@ensure_and_convert_bbox
-def convert_bboxes_to_albumentations(
-    bboxes: BBoxesInternalType, source_format, rows, cols, check_validity=False
-) -> BBoxesInternalType:
+@ensure_bboxes_format
+@use_bboxes_ndarray
+def convert_bboxes_to_albumentations(bboxes: BoxesArray, source_format, rows, cols, check_validity=False) -> BoxesArray:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     if not len(bboxes):
         return bboxes
@@ -372,10 +324,11 @@ def convert_bboxes_to_albumentations(
     return bboxes
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def convert_bboxes_from_albumentations(
-    bboxes: BBoxesInternalType, target_format: str, rows: int, cols: int, check_validity: bool = False
-) -> BBoxesInternalType:
+    bboxes: BoxesArray, target_format: str, rows: int, cols: int, check_validity: bool = False
+) -> BoxesArray:
     """Convert a list of bounding boxes from the format used by albumentations to a format, specified
     in `target_format`.
 
@@ -412,14 +365,18 @@ def convert_bboxes_from_albumentations(
     return bboxes
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
 def check_bboxes(bboxes: BBoxesInternalType) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     if not len(bboxes):
         return
 
+    bboxes_array = bboxes.array
+
     row_idx, col_idx = np.where(
-        (~np.logical_and(0 <= bboxes, bboxes <= 1)) & (~np.isclose(bboxes, 0)) & (~np.isclose(bboxes, 1))
+        (~np.logical_and(0 <= bboxes_array, bboxes_array <= 1))
+        & (~np.isclose(bboxes_array, 0))
+        & (~np.isclose(bboxes_array, 1))
     )
     if len(row_idx) and len(col_idx):
         name = {
@@ -429,29 +386,30 @@ def check_bboxes(bboxes: BBoxesInternalType) -> None:
             3: "y_max",
         }[col_idx[0]]
         raise ValueError(
-            f"Expected {name} for bbox {bboxes[row_idx[0]].tolist()} to be "
-            f"in the range [0.0, 1.0], got {bboxes[row_idx[0]][col_idx[0]]}."
+            f"Expected {name} for bbox {bboxes_array[row_idx[0]].tolist()} to be "
+            f"in the range [0.0, 1.0], got {bboxes_array[row_idx[0]][col_idx[0]]}."
         )
 
-    x_idx = np.where(bboxes[:, 0] >= bboxes[:, 2])[0]
-    y_idx = np.where(bboxes[:, 1] >= bboxes[:, 3])[0]
+    x_idx = np.where(bboxes_array[:, 0] >= bboxes_array[:, 2])[0]
+    y_idx = np.where(bboxes_array[:, 1] >= bboxes_array[:, 3])[0]
 
     if len(x_idx):
-        raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes[x_idx[0]].tolist()}.")
+        raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes_array[x_idx[0]].tolist()}.")
     if len(y_idx):
-        raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes[y_idx[0]].tolist()}.")
+        raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes_array[y_idx[0]].tolist()}.")
 
 
-@ensure_and_convert_bbox
+@ensure_bboxes_format
+@use_bboxes_ndarray
 def filter_bboxes(
-    bboxes: BBoxesInternalType,
+    bboxes: BoxesArray,
     rows: int,
     cols: int,
     min_area: float = 0.0,
     min_visibility: float = 0.0,
     min_width: float = 0.0,
     min_height: float = 0.0,
-) -> Tuple[BBoxesInternalType, Sequence[int]]:
+) -> BoxesArray:
     """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
@@ -473,7 +431,7 @@ def filter_bboxes(
     """
 
     if not len(bboxes):
-        return np.empty(shape=0), []
+        return bboxes
 
     clipped_norm_bboxes = np.clip(bboxes, 0.0, 1.0)
 
@@ -492,11 +450,10 @@ def filter_bboxes(
         & (clipped_height >= min_height)
     )
 
-    return clipped_norm_bboxes[idx], idx
+    return clipped_norm_bboxes[idx]
 
 
-
-@ensure_and_convert_bbox
+@ensure_bboxes_format
 def union_of_bboxes(bboxes: BBoxesInternalType, height: int, width: int, erosion_rate: float = 0.0) -> BoxType:
     """Calculate union of bounding boxes.
 
@@ -511,16 +468,16 @@ def union_of_bboxes(bboxes: BBoxesInternalType, height: int, width: int, erosion
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
-    w, h = bboxes[:, 2] - bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1]
+    w, h = bboxes.array[:, 2] - bboxes.array[:, 0], bboxes.array[:, 3] - bboxes.array[:, 1]
 
     limits = np.tile(
         np.concatenate((np.expand_dims(w, 0).transpose(), np.expand_dims(h, 0).transpose()), 1) * erosion_rate, 2
     )
     limits[2:] *= -1
 
-    limits += bboxes
+    limits += bboxes.array
 
-    limits = np.concatenate((limits, [[width, height, 0, 0]]))
+    limits = np.concatenate((limits, np.array([[width, height, 0, 0]])))
 
     x1, y1 = np.min(limits[:, 0:2], axis=0)
     x2, y2 = np.max(limits[:, 2:4], axis=0)

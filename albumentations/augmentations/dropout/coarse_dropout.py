@@ -3,11 +3,7 @@ from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from ...core.transforms_interface import (
-    DualTransform,
-    KeypointsInternalType,
-    KeypointType,
-)
+from ...core.transforms_interface import DualTransform, KeypointsInternalType
 from .functional import cutout
 
 __all__ = ["CoarseDropout"]
@@ -163,21 +159,29 @@ class CoarseDropout(DualTransform):
     def targets_as_params(self):
         return ["image"]
 
-    def _keypoint_in_hole(self, keypoint: KeypointType, hole: Tuple[int, int, int, int]) -> bool:
+    def _keypoint_in_hole(self, keypoints: KeypointsInternalType, hole: Tuple[int, int, int, int]) -> np.ndarray:
         x1, y1, x2, y2 = hole
-        x, y = keypoint[:2]
-        return x1 <= x < x2 and y1 <= y < y2
+
+        row_idx, *_ = np.where(
+            np.logical_and(x1 <= keypoints.array[..., 0], keypoints.array[..., 0] < x2)
+            & np.logical_and(y1 <= keypoints.array[..., 1], keypoints.array[..., 1] < y2)
+        )
+
+        return row_idx
 
     def apply_to_keypoints(
         self, keypoints: KeypointsInternalType, holes: Iterable[Tuple[int, int, int, int]] = (), **params
     ) -> KeypointsInternalType:
+        if not len(keypoints):
+            return keypoints
 
-        result = set(keypoints)
         for hole in holes:
-            for kp in keypoints:
-                if self._keypoint_in_hole(kp, hole):
-                    result.discard(kp)
-        return list(result)
+            row_idx = self._keypoint_in_hole(keypoints, hole)
+            if row_idx:
+                keypoints = keypoints[row_idx]
+
+        keypoints.check_consistency()
+        return keypoints
 
     def get_transform_init_args_names(self):
         return (
