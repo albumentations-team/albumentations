@@ -531,7 +531,8 @@ class Affine(DualTransform):
             after applying rotations. Default: False
         keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
                            Default: False.
-        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
+        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or
+            "ellipse"[1].
             Default: "largest_box"
         p (float): probability of applying the transform. Default: 0.5.
 
@@ -541,6 +542,8 @@ class Affine(DualTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        [1] https://arxiv.org/abs/2109.13488
     """
 
     def __init__(
