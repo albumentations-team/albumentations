@@ -43,12 +43,10 @@ def ensure_keypoints_format(func: Callable) -> Callable:
 
     @wraps(func)
     def wrapper(keypoints, *args, **kwargs):  # noqa
-        if not isinstance(keypoints, KeypointsInternalType):
-            raise TypeError(
-                "keypoints should already converted to `KeypointsInternalType`. " f"Get {type(keypoints)} instead."
-            )
-        keypoints.check_consistency()
-        return func(keypoints, *args, **kwargs)
+        keypoints = func(keypoints, *args, **kwargs)
+        if isinstance(keypoints, KeypointsInternalType):
+            keypoints.check_consistency()
+        return keypoints
 
     return wrapper
 
@@ -56,16 +54,15 @@ def ensure_keypoints_format(func: Callable) -> Callable:
 def use_keypoints_ndarray(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(
-        keypoints: Union[KeypointsInternalType, np.ndarray], **kwargs
+        keypoints: Union[KeypointsInternalType, np.ndarray], *args, **kwargs
     ) -> Union[KeypointsInternalType, np.ndarray]:
         if isinstance(keypoints, KeypointsInternalType):
-            ret = func(keypoints.array, **kwargs)
+            ret = func(keypoints.array, *args, **kwargs)
             if not isinstance(ret, np.ndarray):
                 raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
             keypoints.array = ret
-            keypoints.check_consistency()
         elif isinstance(keypoints, np.ndarray):
-            keypoints = func(keypoints, **kwargs)
+            keypoints = func(keypoints.astype(float), *args, **kwargs)
         return keypoints
 
     return wrapper
@@ -132,10 +129,23 @@ class KeypointsProcessor(DataProcessor):
         super().__init__(params, additional_targets)
 
     def convert_to_internal_type(self, data):
-        ...
+        if not len(data):
+            return KeypointsInternalType(array=np.empty(0))
+        kps_array = []
+        targets = []
+        ori_kp_len = len(self.params.format)
+        for _data in data:
+            kps_array.append(_data[:ori_kp_len])
+            targets.append(_data[ori_kp_len:])
+        if ori_kp_len != 4:
+            kps_array = np.pad(kps_array, [(0, 0), (0, 4 - ori_kp_len)], mode="constant").astype(float)
+        else:
+            kps_array = np.array(kps_array, dtype=float)
+        return KeypointsInternalType(array=kps_array, targets=targets)
 
     def convert_to_original_type(self, data):
-        return [tuple(kp.array[0].tolist()) + tuple(kp.targets[0]) for kp in data]  # type: ignore[attr-defined]
+        dl = len(self.params.format)
+        return [tuple(kp.array[0].tolist()[:dl]) + tuple(kp.targets[0]) for kp in data]  # type: ignore[attr-defined]
 
     @property
     def default_data_name(self) -> str:
@@ -199,6 +209,7 @@ class KeypointsProcessor(DataProcessor):
         )
 
 
+@ensure_keypoints_format
 @use_keypoints_ndarray
 def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
     """Check if keypoints boundaries are less than image shapes"""
@@ -207,22 +218,23 @@ def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
         return
 
     row_idx, *_ = np.where(
-        ~np.logical_and(0 <= keypoints.array[..., 0], keypoints.array[..., 0] < cols)
-        | ~np.logical_and(0 <= keypoints.array[..., 1], keypoints.array[..., 1] < rows)
+        ~np.logical_and(0 <= keypoints[..., 0], keypoints[..., 0] < cols)
+        | ~np.logical_and(0 <= keypoints[..., 1], keypoints[..., 1] < rows)
     )
     if row_idx:
         raise ValueError(
             f"Expected keypoints `x` in the range [0.0, {cols}] and `y` in the range [0.0, {rows}]. "
-            f"Got {keypoints.array[row_idx]}."
+            f"Got {keypoints[row_idx]}."
         )
-    row_idx, *_ = np.where(~np.logical_and(0 <= keypoints.array[..., 2], keypoints.array[..., 2] < 2 * math.pi))
+    row_idx, *_ = np.where(~np.logical_and(0 <= keypoints[..., 2], keypoints[..., 2] < 2 * math.pi))
     if len(row_idx):
-        raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {keypoints.array[row_idx, 2]}.")
+        raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {keypoints[row_idx, 2]}.")
 
 
 @ensure_keypoints_format
-@use_keypoints_ndarray
-def filter_keypoints(keypoints: KeypointsArray, rows: int, cols: int, remove_invisible: bool) -> KeypointsArray:
+def filter_keypoints(
+    keypoints: KeypointsInternalType, rows: int, cols: int, remove_invisible: bool
+) -> KeypointsInternalType:
     """Remove keypoints that are not visible.
     Args:
         keypoints: A batch of keypoints in `x, y, a, s` format.
@@ -243,18 +255,19 @@ def filter_keypoints(keypoints: KeypointsArray, rows: int, cols: int, remove_inv
     y = keypoints.array[..., 1]
     idx, *_ = np.where(np.logical_and(0 <= x, x < cols) & np.logical_and(0 <= y, y < rows))
 
-    return keypoints[idx]
+    return keypoints[idx] if len(idx) != len(keypoints) else keypoints
 
 
 @ensure_keypoints_format
+@use_keypoints_ndarray
 def convert_keypoints_to_albumentations(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     source_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     if source_format not in keypoint_formats:
         raise ValueError(f"Unknown source_format {source_format}. " f"Supported formats are {keypoint_formats}.")
     if not len(keypoints):
@@ -284,14 +297,15 @@ def convert_keypoints_to_albumentations(
 
 
 @ensure_keypoints_format
+@use_keypoints_ndarray
 def convert_keypoints_from_albumentations(
-    keypoints: KeypointsInternalType,
+    keypoints: KeypointsArray,
     target_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> KeypointsInternalType:
+) -> KeypointsArray:
     if target_format not in keypoint_formats:
         raise ValueError(f"Unknown target_format {target_format}. " f"Supported formats are: {keypoint_formats}.")
 

@@ -117,7 +117,7 @@ class BBoxesInternalType(BatchInternalType):
                 )
 
     def check_consistency(self):
-        if self.targets is not None and len(self.array) != len(self.targets):
+        if len(self.array) != len(self.targets):
             raise ValueError(
                 "The amount of bboxes and additional targets should be the same. "
                 f"Get {len(self.array)} bboxes and {len(self.targets)} additional targets."
