@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from .serialization import Serializable
-from .transforms_interface import BatchInternalType
 
 
 def get_shape(img: Any) -> Tuple[int, int]:
@@ -67,11 +66,11 @@ class DataProcessor(ABC):
         pass
 
     @abstractmethod
-    def convert_to_internal_type(self, data) -> BatchInternalType:
+    def convert_to_internal_type(self, data):
         raise NotImplementedError
 
     @abstractmethod
-    def convert_to_original_type(self, data: BatchInternalType):
+    def convert_to_original_type(self, data):
         raise NotImplementedError
 
     def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -93,9 +92,7 @@ class DataProcessor(ABC):
             data[data_name] = self.convert_to_internal_type(data[data_name])
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(
-        self, data: BatchInternalType, rows: int, cols: int, direction: str = "to"
-    ) -> BatchInternalType:
+    def check_and_convert(self, data, rows: int, cols: int, direction: str = "to"):
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -108,19 +105,19 @@ class DataProcessor(ABC):
             raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: BatchInternalType, rows: int, cols: int, target_name: str) -> BatchInternalType:
+    def filter(self, data, rows: int, cols: int, target_name: str):
         pass
 
     @abstractmethod
-    def check(self, data: BatchInternalType, rows: int, cols: int) -> None:
+    def check(self, data, rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: BatchInternalType, rows: int, cols: int) -> BatchInternalType:
+    def convert_to_albumentations(self, data, rows: int, cols: int):
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data: BatchInternalType, rows: int, cols: int) -> BatchInternalType:
+    def convert_from_albumentations(self, data, rows: int, cols: int):
         pass
 
     def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:

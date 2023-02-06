@@ -59,25 +59,26 @@ def ensure_bboxes_format(func: Callable) -> Callable:
 
     @wraps(func)
     def wrapper(bboxes, *args, **kwargs):
-        if not isinstance(bboxes, BBoxesInternalType):
-            raise TypeError("bboxes should already converted to `BBoxesInternalType`. " f"Get {type(bboxes)} instead.")
-        bboxes.check_consistency()
-        return func(bboxes, *args, **kwargs)
+        bboxes = func(bboxes, *args, **kwargs)
+        if isinstance(bboxes, BBoxesInternalType):
+            bboxes.check_consistency()
+        return bboxes
 
     return wrapper
 
 
 def use_bboxes_ndarray(func: Callable) -> Callable:
     @wraps(func)
-    def wrapper(bboxes: Union[BBoxesInternalType, np.ndarray], **kwargs) -> Union[BBoxesInternalType, np.ndarray]:
+    def wrapper(
+        bboxes: Union[BBoxesInternalType, np.ndarray], *args, **kwargs
+    ) -> Union[BBoxesInternalType, np.ndarray]:
         if isinstance(bboxes, BBoxesInternalType):
-            ret = func(bboxes.array, **kwargs)
+            ret = func(bboxes.array, *args, **kwargs)
             if not isinstance(ret, np.ndarray):
                 raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
             bboxes.array = ret
-            bboxes.check_consistency()
         elif isinstance(bboxes, np.ndarray):
-            bboxes = func(bboxes, **kwargs)
+            bboxes = func(bboxes.astype(float), *args, **kwargs)
         return bboxes
 
     return wrapper
@@ -158,7 +159,12 @@ class BboxProcessor(DataProcessor):
         super().__init__(params, additional_targets)
 
     def convert_to_internal_type(self, data):
-        return BBoxesInternalType(array=np.array(data).astype(float))
+        box_array = []
+        targets = []
+        for _data in data:
+            box_array.append(_data[:4])
+            targets.append(_data[4:])
+        return BBoxesInternalType(array=np.array(box_array).astype(float), targets=targets)
 
     def convert_to_original_type(self, data):
         return [tuple(bbox.array[0].tolist()) + tuple(bbox.targets[0]) for bbox in data]  # type: ignore[attr-defined]
@@ -273,7 +279,7 @@ def denormalize_bboxes_np(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArra
 
 
 @use_bboxes_ndarray
-def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArray:
+def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarray:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
     Args:
@@ -288,7 +294,7 @@ def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArra
         numpy.ndarray, area in (fractional) pixels of the denormalized bounding boxes.
 
     """
-    bboxes_area = (bboxes.array[:, 2] - bboxes.array[:, 0]) * (bboxes.array[:, 3] - bboxes.array[:, 1]) * cols * rows
+    bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]) * cols * rows
     return bboxes_area
 
 
@@ -366,17 +372,14 @@ def convert_bboxes_from_albumentations(
 
 
 @ensure_bboxes_format
-def check_bboxes(bboxes: BBoxesInternalType) -> None:
+@use_bboxes_ndarray
+def check_bboxes(bboxes: BoxesArray) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     if not len(bboxes):
         return
 
-    bboxes_array = bboxes.array
-
     row_idx, col_idx = np.where(
-        (~np.logical_and(0 <= bboxes_array, bboxes_array <= 1))
-        & (~np.isclose(bboxes_array, 0))
-        & (~np.isclose(bboxes_array, 1))
+        (~np.logical_and(0 <= bboxes, bboxes <= 1)) & (~np.isclose(bboxes, 0)) & (~np.isclose(bboxes, 1))
     )
     if len(row_idx) and len(col_idx):
         name = {
@@ -386,30 +389,29 @@ def check_bboxes(bboxes: BBoxesInternalType) -> None:
             3: "y_max",
         }[col_idx[0]]
         raise ValueError(
-            f"Expected {name} for bbox {bboxes_array[row_idx[0]].tolist()} to be "
-            f"in the range [0.0, 1.0], got {bboxes_array[row_idx[0]][col_idx[0]]}."
+            f"Expected {name} for bbox {bboxes[row_idx[0]].tolist()} to be "
+            f"in the range [0.0, 1.0], got {bboxes[row_idx[0]][col_idx[0]]}."
         )
 
-    x_idx = np.where(bboxes_array[:, 0] >= bboxes_array[:, 2])[0]
-    y_idx = np.where(bboxes_array[:, 1] >= bboxes_array[:, 3])[0]
+    x_idx = np.where(bboxes[:, 0] >= bboxes[:, 2])[0]
+    y_idx = np.where(bboxes[:, 1] >= bboxes[:, 3])[0]
 
     if len(x_idx):
-        raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes_array[x_idx[0]].tolist()}.")
+        raise ValueError(f"x_max is less than or equal to x_min for bbox {bboxes[x_idx[0]].tolist()}.")
     if len(y_idx):
-        raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes_array[y_idx[0]].tolist()}.")
+        raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes[y_idx[0]].tolist()}.")
 
 
 @ensure_bboxes_format
-@use_bboxes_ndarray
 def filter_bboxes(
-    bboxes: BoxesArray,
+    bboxes: BBoxesInternalType,
     rows: int,
     cols: int,
     min_area: float = 0.0,
     min_visibility: float = 0.0,
     min_width: float = 0.0,
     min_height: float = 0.0,
-) -> BoxesArray:
+) -> BBoxesInternalType:
     """Remove bounding boxes that either lie outside of the visible area by more than min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
@@ -433,15 +435,17 @@ def filter_bboxes(
     if not len(bboxes):
         return bboxes
 
-    clipped_norm_bboxes = np.clip(bboxes, 0.0, 1.0)
+    boxes_array = bboxes.array.copy()
 
-    clipped_width = (clipped_norm_bboxes[:, 2] - clipped_norm_bboxes[:, 0]) * cols
-    clipped_height = (clipped_norm_bboxes[:, 3] - clipped_norm_bboxes[:, 1]) * rows
+    bboxes.array = np.clip(bboxes.array, 0.0, 1.0)
+
+    clipped_width = (bboxes.array[:, 2] - bboxes.array[:, 0]) * cols
+    clipped_height = (bboxes.array[:, 3] - bboxes.array[:, 1]) * rows
 
     # denormalize bbox
-    bboxes_area = calculate_bboxes_area(clipped_norm_bboxes, rows=rows, cols=cols)
+    bboxes_area = calculate_bboxes_area(bboxes.array, rows=rows, cols=cols)
 
-    transform_bboxes_area = calculate_bboxes_area(bboxes, rows=rows, cols=cols)
+    transform_bboxes_area = calculate_bboxes_area(boxes_array, rows=rows, cols=cols)
 
     idx, *_ = np.where(
         (bboxes_area >= min_area)
@@ -450,7 +454,7 @@ def filter_bboxes(
         & (clipped_height >= min_height)
     )
 
-    return clipped_norm_bboxes[idx]
+    return bboxes[idx] if len(idx) != len(bboxes) else bboxes
 
 
 @ensure_bboxes_format
