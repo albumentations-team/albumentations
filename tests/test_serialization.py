@@ -8,13 +8,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.core.bbox_utils import (
-    array_to_bboxes,
-    assert_np_bboxes_format,
-    bboxes_to_array,
-)
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
@@ -787,12 +781,7 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
         return FGeometric.vflip(mask)
 
     def vflip_bboxes(bboxes, **kwargs):
-        if not len(bboxes):
-            return []
-        np_bboxes: np.ndarray = bboxes_to_array(bboxes)
-        assert_np_bboxes_format(np_bboxes)
-        np_bboxes = FGeometric.bboxes_vflip(np_bboxes, **kwargs)
-        return array_to_bboxes(np_bboxes, bboxes)
+        return FGeometric.bboxes_vflip(bboxes, **kwargs)
 
     def vflip_keypoints(keypoints, **kwargs):
         return FGeometric.keypoints_vflip(keypoints, **kwargs)
