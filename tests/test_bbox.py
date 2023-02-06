@@ -94,6 +94,7 @@ def test_calculate_bboxes_area(bboxes, rows, cols, expected):
     ],
 )
 def test_convert_bboxes_to_albumentations_in_np(bboxes, source_format, expected):
+    bboxes = np.array(bboxes)
     image = np.ones((100, 100, 3), dtype=np.uint8)
     converted_bboxes = convert_bboxes_to_albumentations(
         bboxes, rows=image.shape[0], cols=image.shape[1], source_format=source_format
@@ -116,6 +117,7 @@ def test_convert_bboxes_to_albumentations_in_np(bboxes, source_format, expected)
     ],
 )
 def test_convert_bboxes_from_albumentations_in_np(bboxes, target_format, expected):
+    bboxes = np.array(bboxes)
     image = np.ones((100, 100, 3), dtype=np.uint8)
     converted_bboxes = convert_bboxes_from_albumentations(
         bboxes, rows=image.shape[0], cols=image.shape[1], target_format=target_format
