@@ -2705,9 +2705,6 @@ class UnpropShuffle(DualTransform):
     def get_transform_init_args_names(self):
         raise NotImplementedError()
 
-    def apply_to_keypoint(self, keypoint, **params):
-        raise NotImplementedError()
-
     def get_params_dependent_on_targets(self, params):
         num_segments = params["num_segments"] if "num_segments" in params else 7
         ratio = params["ratio"] if "ratio" in params else 4.0 / 3.0
