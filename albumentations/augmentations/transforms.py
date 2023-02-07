@@ -2703,10 +2703,10 @@ class UnpropShuffle(DualTransform):
         return F.unprop_bbox_transpose(bboxes, tiles, self.ids, rows, cols)
 
     def get_transform_init_args_names(self):
-        return ()
+        raise NotImplementedError()
 
     def apply_to_keypoint(self, keypoint, **params):
-        return ()
+        raise NotImplementedError()
 
     def get_params_dependent_on_targets(self, params):
         num_segments = params["num_segments"] if "num_segments" in params else 7
