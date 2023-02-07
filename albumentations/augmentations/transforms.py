@@ -2691,11 +2691,6 @@ class UnpropShuffle(DualTransform):
         self.ids = self.shuffled_ids.copy()
         return F.unprop_swap_tiles_on_image(img, tiles, self.shuffled_ids)
 
-    def apply_to_mask(self, img, tiles=None, **params):
-        if tiles is None:
-            tiles = []
-        return F.unprop_swap_tiles_on_image(img, tiles, self.shuffled_ids)
-
     def apply_to_bboxes(self, bboxes, **params):
         tiles = params["tiles"]
         rows = params["rows"]
