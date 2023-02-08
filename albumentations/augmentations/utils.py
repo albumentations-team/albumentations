@@ -101,19 +101,6 @@ def angles_2pi_range(
     return wrapped_function
 
 
-def angles_2pi_range(
-    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
-) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
-    @wraps(func)
-    def wrapped_function(keypoints: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
-
-        keypoints = func(keypoints, *args, **kwargs)
-        keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
-        return keypoints
-
-    return wrapped_function
-
-
 def preserve_shape(
     func: Callable[Concatenate[np.ndarray, P], np.ndarray]
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:

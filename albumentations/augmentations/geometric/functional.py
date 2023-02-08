@@ -667,8 +667,8 @@ def bboxes_affine(
             axis=1,
         )  # points.shape == N * 4 * 2
     elif rotate_method == "ellipse":
-        w = (bboxes[..., 2] - bboxes[..., 0]) / 2.
-        h = (bboxes[..., 3] - bboxes[..., 1]) / 2.
+        w = (bboxes[..., 2] - bboxes[..., 0]) / 2.0
+        h = (bboxes[..., 3] - bboxes[..., 1]) / 2.0
         data = np.arange(0, 360, dtype=np.float32)
         x = w[np.newaxis, ...].T * np.sin(np.radians(data)) + (w + bboxes[..., 0] - 0.5).reshape((-1, 1))
         y = h[np.newaxis, ...].T * np.cos(np.radians(data)) + (h + bboxes[..., 1] - 0.5).reshape((-1, 1))
