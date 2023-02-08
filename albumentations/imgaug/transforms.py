@@ -13,6 +13,8 @@ except ImportError:
 
 import warnings
 
+import numpy as np
+
 from albumentations.core.bbox_utils import (
     convert_bboxes_from_albumentations,
     convert_bboxes_to_albumentations,
@@ -69,14 +71,13 @@ class DualIAATransform(DualTransform, BasicIAATransform):
         if len(bboxes) > 0:
             bboxes = convert_bboxes_from_albumentations(bboxes, "pascal_voc", rows=rows, cols=cols)
 
-            bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes], (rows, cols))
+            bboxes_t = ia.BoundingBoxesOnImage([ia.BoundingBox(*bbox[:4]) for bbox in bboxes.array], (rows, cols))
             bboxes_t = deterministic_processor.augment_bounding_boxes([bboxes_t])[0].bounding_boxes
-            bboxes_t = [
-                [bbox.x1, bbox.y1, bbox.x2, bbox.y2] + list(bbox_orig[4:])
-                for (bbox, bbox_orig) in zip(bboxes_t, bboxes)
-            ]
 
-            bboxes = convert_bboxes_to_albumentations(bboxes_t, "pascal_voc", rows=rows, cols=cols)
+            for i, arr in enumerate(bboxes.array):
+                bboxes.array[i] = np.reshape(bboxes_t[i].coords, (4,)).astype(float)
+
+            bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows=rows, cols=cols)
         return bboxes
 
     """Applies transformation to keypoints.
@@ -90,12 +91,11 @@ class DualIAATransform(DualTransform, BasicIAATransform):
     def apply_to_keypoints(self, keypoints, deterministic_processor=None, rows=0, cols=0, **params):
         if len(keypoints) > 0:
             keypoints = convert_keypoints_from_albumentations(keypoints, "xy", rows=rows, cols=cols)
-            keypoints_t = ia.KeypointsOnImage([ia.Keypoint(*kp[:2]) for kp in keypoints], (rows, cols))
+            keypoints_t = ia.KeypointsOnImage([ia.Keypoint(*kp[:2]) for kp in keypoints.array], (rows, cols))
             keypoints_t = deterministic_processor.augment_keypoints([keypoints_t])[0].keypoints
-
-            bboxes_t = [[kp.x, kp.y] + list(kp_orig[2:]) for (kp, kp_orig) in zip(keypoints_t, keypoints)]
-
-            keypoints = convert_keypoints_to_albumentations(bboxes_t, "xy", rows=rows, cols=cols)
+            for i, arr in enumerate(keypoints.array):
+                keypoints.array[i] = [keypoints_t[i].x, keypoints_t[i].y]
+            keypoints = convert_keypoints_to_albumentations(keypoints, "xy", rows=rows, cols=cols)
         return keypoints
 
 

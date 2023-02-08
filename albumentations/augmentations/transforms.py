@@ -24,7 +24,7 @@ from albumentations.augmentations.utils import (
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
-    KeypointsInternalType,
+    KeypointType,
     NoOp,
     ScaleFloatType,
     to_tuple,
@@ -102,36 +102,9 @@ class RandomGridShuffle(DualTransform):
     def apply_to_mask(self, img: np.ndarray, tiles: np.ndarray = np.array(None), **params):
         return F.swap_tiles_on_image(img, tiles)
 
-    # def apply_to_keypoint(
-    #     self, keypoint: Tuple[float, ...], tiles: np.ndarray = np.array(None), rows: int = 0, cols: int = 0, **params
-    # ):
-    #     for (
-    #         current_left_up_corner_row,
-    #         current_left_up_corner_col,
-    #         old_left_up_corner_row,
-    #         old_left_up_corner_col,
-    #         height_tile,
-    #         width_tile,
-    #     ) in tiles:
-    #         x, y = keypoint[:2]
-    #
-    #         if (old_left_up_corner_row <= y < (old_left_up_corner_row + height_tile)) and (
-    #             old_left_up_corner_col <= x < (old_left_up_corner_col + width_tile)
-    #         ):
-    #             x = x - old_left_up_corner_col + current_left_up_corner_col
-    #             y = y - old_left_up_corner_row + current_left_up_corner_row
-    #             keypoint = (x, y) + tuple(keypoint[2:])
-    #             break
-    #
-    #     return keypoint
     def apply_to_keypoint(
-        self,
-        keypoint: KeypointsInternalType,
-        tiles: np.ndarray = np.array(None),
-        rows: int = 0,
-        cols: int = 0,
-        **params
-    ) -> KeypointsInternalType:
+        self, keypoint: KeypointType, tiles: np.ndarray = np.array(None), rows: int = 0, cols: int = 0, **params
+    ) -> KeypointType:
         for (
             current_left_up_corner_row,
             current_left_up_corner_col,
@@ -140,14 +113,14 @@ class RandomGridShuffle(DualTransform):
             height_tile,
             width_tile,
         ) in tiles:
-            x, y = keypoint.array[:2]
+            x, y, a, s = keypoint
 
             if (old_left_up_corner_row <= y < (old_left_up_corner_row + height_tile)) and (
                 old_left_up_corner_col <= x < (old_left_up_corner_col + width_tile)
             ):
-                col_diff = old_left_up_corner_col - current_left_up_corner_col
-                row_diff = old_left_up_corner_row - current_left_up_corner_row
-                keypoint.array[:2] -= np.array([col_diff, row_diff])
+                x = x - old_left_up_corner_col + current_left_up_corner_col
+                y = y - old_left_up_corner_row + current_left_up_corner_row
+                keypoint = (x, y, a, s)
                 break
 
         return keypoint
