@@ -68,7 +68,7 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
     return img
 
 
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def crop_bboxes_by_coords(
     bboxes: BoxesArray,
     crop_coords: Union[Sequence[Tuple[int, int, int, int]], np.ndarray],
@@ -101,16 +101,16 @@ def crop_bboxes_by_coords(
 
 
 @ensure_bboxes_format
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def bboxes_random_crop(
-    bboxes: BBoxesInternalType,
+    bboxes: BoxesArray,
     crop_height: int,
     crop_width: int,
     h_start: float,
     w_start: float,
     rows: int,
     cols: int,
-) -> BBoxesInternalType:
+) -> BoxesArray:
     num_bboxes = len(bboxes)
     if not num_bboxes:
         return bboxes
@@ -118,7 +118,7 @@ def bboxes_random_crop(
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
 
-@use_keypoints_ndarray
+@use_keypoints_ndarray(return_array=True)
 def crop_keypoints_by_coords(
     keypoints: KeypointsArray,
     crop_coords: np.ndarray,
@@ -142,7 +142,7 @@ def crop_keypoints_by_coords(
 
 
 @ensure_keypoints_format
-@use_keypoints_ndarray
+@use_keypoints_ndarray(return_array=True)
 def keypoints_random_crop(
     keypoints: KeypointsArray,
     crop_height: int,
@@ -196,7 +196,7 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
     return img
 
 
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def bboxes_center_crop(bboxes: BoxesArray, crop_height: int, crop_width: int, rows: int, cols: int) -> BoxesArray:
     num_bboxes = len(bboxes)
     if not num_bboxes:
@@ -206,7 +206,7 @@ def bboxes_center_crop(bboxes: BoxesArray, crop_height: int, crop_width: int, ro
 
 
 @ensure_keypoints_format
-@use_keypoints_ndarray
+@use_keypoints_ndarray(return_array=True)
 def keypoints_center_crop(
     keypoints: KeypointsArray,
     crop_height: int,
@@ -346,15 +346,16 @@ def crop_and_pad(
 
 
 @ensure_bboxes_format
+@use_bboxes_ndarray(return_array=True)
 def crop_and_pad_bboxes(
-    bboxes: BBoxesInternalType,
+    bboxes: BoxesArray,
     crop_params: Optional[Sequence[int]],
     pad_params: Optional[Sequence[int]],
     rows: int,
     cols: int,
     result_rows: int,
     result_cols: int,
-) -> BBoxesInternalType:
+) -> BoxesArray:
     if not len(bboxes):
         return bboxes
 
@@ -371,7 +372,7 @@ def crop_and_pad_bboxes(
 
 
 @ensure_keypoints_format
-@use_keypoints_ndarray
+@use_keypoints_ndarray(return_array=True)
 def crop_and_pad_keypoints(
     keypoints: KeypointsArray,
     crop_params: Optional[Sequence[int]],

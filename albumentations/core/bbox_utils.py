@@ -67,21 +67,26 @@ def ensure_bboxes_format(func: Callable) -> Callable:
     return wrapper
 
 
-def use_bboxes_ndarray(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(
-        bboxes: Union[BBoxesInternalType, np.ndarray], *args, **kwargs
-    ) -> Union[BBoxesInternalType, np.ndarray]:
-        if isinstance(bboxes, BBoxesInternalType):
-            ret = func(bboxes.array, *args, **kwargs)
-            if not isinstance(ret, np.ndarray):
-                raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
-            bboxes.array = ret
-        elif isinstance(bboxes, np.ndarray):
-            bboxes = func(bboxes.astype(float), *args, **kwargs)
-        return bboxes
+def use_bboxes_ndarray(return_array: bool = True) -> Callable:
+    def dec(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(
+            bboxes: Union[BBoxesInternalType, np.ndarray], *args, **kwargs
+        ) -> Union[BBoxesInternalType, np.ndarray]:
+            if isinstance(bboxes, BBoxesInternalType):
+                ret = func(bboxes.array, *args, **kwargs)
+                if not return_array:
+                    return ret
+                if not isinstance(ret, np.ndarray):
+                    raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
+                bboxes.array = ret
+            elif isinstance(bboxes, np.ndarray):
+                bboxes = func(bboxes.astype(float), *args, **kwargs)
+            return bboxes
 
-    return wrapper
+        return wrapper
+
+    return dec
 
 
 class BboxParams(Params):
@@ -225,7 +230,7 @@ def _convert_to_array(dim: Union[Sequence[Union[int, float]], np.ndarray], lengt
     return dim.astype(float)
 
 
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def normalize_bboxes_np(
     bboxes: BoxesArray, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
 ) -> BoxesArray:
@@ -252,7 +257,7 @@ def normalize_bboxes_np(
     return bboxes_
 
 
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def denormalize_bboxes_np(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArray:
     """Denormalize a list of bounding boxes.
 
@@ -278,7 +283,7 @@ def denormalize_bboxes_np(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArra
     return bboxes_
 
 
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarray:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
@@ -299,7 +304,7 @@ def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarra
 
 
 @ensure_bboxes_format
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def convert_bboxes_to_albumentations(bboxes: BoxesArray, source_format, rows, cols, check_validity=False) -> BoxesArray:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     if not len(bboxes):
@@ -331,7 +336,7 @@ def convert_bboxes_to_albumentations(bboxes: BoxesArray, source_format, rows, co
 
 
 @ensure_bboxes_format
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=True)
 def convert_bboxes_from_albumentations(
     bboxes: BoxesArray, target_format: str, rows: int, cols: int, check_validity: bool = False
 ) -> BoxesArray:
@@ -372,7 +377,7 @@ def convert_bboxes_from_albumentations(
 
 
 @ensure_bboxes_format
-@use_bboxes_ndarray
+@use_bboxes_ndarray(return_array=False)
 def check_bboxes(bboxes: BoxesArray) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
     if not len(bboxes):
@@ -457,7 +462,8 @@ def filter_bboxes(
     return bboxes[idx] if len(idx) != len(bboxes) else bboxes
 
 
-def union_of_bboxes(bboxes: BBoxesInternalType, height: int, width: int, erosion_rate: float = 0.0) -> BoxType:
+@use_bboxes_ndarray(return_array=False)
+def union_of_bboxes(bboxes: BoxesArray, height: int, width: int, erosion_rate: float = 0.0) -> BoxType:
     """Calculate union of bounding boxes.
 
     Args:
@@ -471,15 +477,14 @@ def union_of_bboxes(bboxes: BBoxesInternalType, height: int, width: int, erosion
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
-    box_array = bboxes.array
-    w, h = box_array[:, 2] - box_array[:, 0], box_array[:, 3] - box_array[:, 1]
+    w, h = bboxes[:, 2] - bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1]
 
     limits = np.tile(
         np.concatenate((np.expand_dims(w, 0).transpose(), np.expand_dims(h, 0).transpose()), 1) * erosion_rate, 2
     )
     limits[2:] *= -1
 
-    limits += box_array
+    limits += bboxes
 
     limits = np.concatenate((limits, np.array([[width, height, 0, 0]])))
 
