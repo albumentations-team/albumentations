@@ -34,8 +34,10 @@ from albumentations.core.composition import (
     SomeOf,
 )
 from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
     DualTransform,
     ImageOnlyTransform,
+    KeypointsInternalType,
     to_tuple,
 )
 
@@ -156,29 +158,33 @@ def test_additional_targets(image, mask):
 
 
 def test_check_bboxes_with_correct_values():
+    bboxes = BBoxesInternalType(array=np.array([[0.1, 0.5, 0.8, 1.0], [0.2, 0.5, 0.5, 0.6]]))
     try:
-        check_bboxes([[0.1, 0.5, 0.8, 1.0], [0.2, 0.5, 0.5, 0.6]])
+        check_bboxes(bboxes)
     except Exception as e:  # skipcq: PYL-W0703
         pytest.fail("Unexpected Exception {!r}".format(e))
 
 
 def test_check_bboxes_with_values_less_than_zero():
+    bboxes = BBoxesInternalType(array=np.array([[0.2, 0.5, 0.5, 0.6], [-0.1, 0.5, 0.8, 1.0]]))
     with pytest.raises(ValueError) as exc_info:
-        check_bboxes([[0.2, 0.5, 0.5, 0.6], [-0.1, 0.5, 0.8, 1.0]])
+        check_bboxes(bboxes)
     message = "Expected x_min for bbox [-0.1, 0.5, 0.8, 1.0] to be in the range [0.0, 1.0], got -0.1."
     assert str(exc_info.value) == message
 
 
 def test_check_bboxes_with_values_greater_than_one():
+    bboxes = BBoxesInternalType(array=np.array([[0.2, 0.5, 1.5, 0.6], [0.1, 0.5, 0.8, 1.0]]))
     with pytest.raises(ValueError) as exc_info:
-        check_bboxes([[0.2, 0.5, 1.5, 0.6], [0.1, 0.5, 0.8, 1.0]])
+        check_bboxes(bboxes)
     message = "Expected x_max for bbox [0.2, 0.5, 1.5, 0.6] to be in the range [0.0, 1.0], got 1.5."
     assert str(exc_info.value) == message
 
 
 def test_check_bboxes_with_end_greater_that_start():
+    bboxes = BBoxesInternalType(array=np.array([[0.8, 0.5, 0.7, 0.6], [0.1, 0.5, 0.8, 1.0]]))
     with pytest.raises(ValueError) as exc_info:
-        check_bboxes([[0.8, 0.5, 0.7, 0.6], [0.1, 0.5, 0.8, 1.0]])
+        check_bboxes(bboxes)
     message = "x_max is less than or equal to x_min for bbox [0.8, 0.5, 0.7, 0.6]."
     assert str(exc_info.value) == message
 

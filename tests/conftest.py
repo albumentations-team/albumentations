@@ -5,6 +5,11 @@ import warnings
 import numpy as np
 import pytest
 
+from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
+    KeypointsInternalType,
+)
+
 try:
     import torch  # skipcq: PYL-W0611
     import torchvision  # skipcq: PYL-W0611
@@ -59,17 +64,25 @@ def mask():
 
 @pytest.fixture
 def bboxes():
-    return [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
+    bboxes = BBoxesInternalType(
+        array=np.array([[15, 12, 75, 30], [55, 25, 90, 90]]),
+        targets=[(1,), (2,)],
+    )
+    return bboxes
 
 
 @pytest.fixture
 def albumentations_bboxes():
-    return [[0.15, 0.12, 0.75, 0.30, 1], [0.55, 0.25, 0.90, 0.90, 2]]
+    bboxes = BBoxesInternalType(
+        array=np.array([[0.15, 0.12, 0.75, 0.30], [0.55, 0.25, 0.90, 0.90]]), targets=[(1,), (2,)]
+    )
+    return bboxes
 
 
 @pytest.fixture
 def keypoints():
-    return [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]]
+    kps = KeypointsInternalType(array=np.array([[20, 30, 40, 50], [20, 30, 60, 80]]), targets=[(1,), (2,)])
+    return kps
 
 
 @pytest.fixture

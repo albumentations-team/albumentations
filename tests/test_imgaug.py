@@ -169,7 +169,7 @@ def test_imgaug_augmentations_for_bboxes_serialization(
     ia.seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
+    assert aug_data["bboxes"] == deserialized_aug_data["bboxes"]
 
 
 @pytest.mark.parametrize(
@@ -201,7 +201,7 @@ def test_imgaug_augmentations_for_keypoints_serialization(
     ia.seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+    assert aug_data["keypoints"] == deserialized_aug_data["keypoints"]
 
 
 @pytest.mark.parametrize(

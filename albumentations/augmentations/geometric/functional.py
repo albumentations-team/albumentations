@@ -1143,14 +1143,6 @@ def keypoints_transpose(keypoints: KeypointsArray) -> KeypointsArray:
         KeypointsArray: A batch of keypoints `(x, y, angle, scale)`.
 
     """
-    # x, y, angle, scale = keypoint[:4]
-    #
-    # if angle <= np.pi:
-    #     angle = np.pi - angle
-    # else:
-    #     angle = 3 * np.pi - angle
-    #
-    # return y, x, angle, scale
     if not len(keypoints):
         return keypoints
 
