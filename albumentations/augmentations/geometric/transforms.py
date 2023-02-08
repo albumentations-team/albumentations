@@ -12,6 +12,7 @@ from albumentations.core.bbox_utils import denormalize_bboxes_np, normalize_bbox
 from ... import random_utils
 from ...core.transforms_interface import (
     BBoxesInternalType,
+    BoxType,
     DualTransform,
     ImageColorType,
     KeypointsInternalType,
@@ -234,11 +235,12 @@ class ElasticTransform(DualTransform):
             self.same_dxdy,
         )
 
-    def apply_to_bbox(self, bbox: BBoxesInternalType, random_state=None, **params) -> BBoxesInternalType:
+    def apply_to_bbox(self, bbox: BoxType, random_state=None, **params) -> BoxType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox = F.denormalize_bboxes_np(bbox, rows, cols)
-        x_min, y_min, x_max, y_max = bbox.array.astype(int)[0]
+        bbox_array = np.array([bbox], dtype=float)
+        bbox_array = F.denormalize_bboxes_np(bbox_array, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_array.astype(int)[0]
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.elastic_transform(
             mask,
@@ -252,8 +254,7 @@ class ElasticTransform(DualTransform):
             self.approximate,
         )
         bbox_returned = bbox_from_mask(mask)
-        bbox.array = F.normalize_bboxes_np(np.array([[bbox_returned]]), rows, cols)
-        return bbox
+        return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
     def get_params(self):
         return {"random_state": random.randint(0, 10000)}
@@ -705,15 +706,6 @@ class Affine(DualTransform):
     ) -> BBoxesInternalType:
         return F.bboxes_affine(bboxes, matrix, self.rotate_method, rows, cols, output_shape)
 
-    # def apply_to_keypoint(
-    #     self,
-    #     keypoint: KeypointInternalType,
-    #     matrix: Optional[skimage.transform.ProjectiveTransform] = None,
-    #     scale: Optional[dict] = None,
-    #     **params
-    # ) -> KeypointInternalType:
-    #     assert scale is not None and matrix is not None
-    #     return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
     def apply_to_keypoints(
         self,
         keypoints: KeypointsInternalType,
@@ -978,12 +970,12 @@ class PiecewiseAffine(DualTransform):
 
     def apply_to_bbox(
         self,
-        bbox: BBoxesInternalType,
+        bbox: Tuple[float, float, float, float],
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
-    ) -> BBoxesInternalType:
+    ) -> BoxType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
 
     def apply_to_keypoints(
@@ -1144,20 +1136,8 @@ class PadIfNeeded(DualTransform):
         **params
     ) -> BBoxesInternalType:
         bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
-        bboxes += np.array([pad_left, pad_top, pad_left, pad_top])
+        bboxes.array += np.array([pad_left, pad_top, pad_left, pad_top])
         return normalize_bboxes_np(bboxes, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
-
-    # def apply_to_keypoint(
-    #     self,
-    #     keypoint: KeypointInternalType,
-    #     pad_top: int = 0,
-    #     pad_bottom: int = 0,
-    #     pad_left: int = 0,
-    #     pad_right: int = 0,
-    #     **params
-    # ) -> KeypointInternalType:
-    #     x, y, angle, scale = keypoint[:4]
-    #     return x + pad_left, y + pad_top, angle, scale
 
     def apply_to_keypoints(
         self,
@@ -1390,18 +1370,16 @@ class OpticalDistortion(DualTransform):
     def apply_to_mask(self, img: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, **params) -> np.ndarray:
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_bbox(
-        self, bbox: BBoxesInternalType, k: int = 0, dx: int = 0, dy: int = 0, **params
-    ) -> BBoxesInternalType:
+    def apply_to_bbox(self, bbox: BoxType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox = F.denormalize_bboxes_np(bbox, rows, cols)
-        x_min, y_min, x_max, y_max = bbox.array.astype(int)[0]
+        bbox_array = np.array([bbox], dtype=float)
+        bbox_array = F.denormalize_bboxes_np(bbox_array, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_array.astype(int)[0]
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
         bbox_returned = bbox_from_mask(mask)
-        bbox.array = F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)
-        return bbox
+        return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
     def get_params(self):
         return {
@@ -1478,20 +1456,18 @@ class GridDistortion(DualTransform):
             img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
 
-    def apply_to_bbox(
-        self, bbox: BBoxesInternalType, stepsx: Tuple = (), stepsy: Tuple = (), **params
-    ) -> BBoxesInternalType:
+    def apply_to_bbox(self, bbox: BoxType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox = F.denormalize_bboxes_np(bbox, rows, cols)
-        x_min, y_min, x_max, y_max = bbox.array.astype(int)[0]
+        bbox_array = np.array([bbox], dtype=float)
+        bbox_array = F.denormalize_bboxes_np(bbox_array, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_array.astype(int)[0]
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.grid_distortion(
             mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
         bbox_returned = bbox_from_mask(mask)
-        bbox.array = F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)
-        return bbox
+        return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
     def _normalize(self, h, w, xsteps, ysteps):
 

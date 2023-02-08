@@ -88,26 +88,14 @@ def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object])
     return NPDTYPE_TO_OPENCV_DTYPE[value]
 
 
-# def angle_2pi_range(
-#     func: Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]
-# ) -> Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]:
-#     @wraps(func)
-#     def wrapped_function(keypoint: KeypointInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointInternalType:
-#         (x, y, a, s) = func(keypoint, *args, **kwargs)[:4]
-#         angle: float = angle_to_2pi_range(a)
-#         return x, y, angle, s
-#
-#     return wrapped_function
-
-
 def angles_2pi_range(
-    func: Callable[Concatenate[KeypointsInternalType, P], KeypointsInternalType],
-) -> Callable[Concatenate[KeypointsInternalType, P], KeypointsInternalType]:
+    func: Callable[Concatenate[KeypointsArray, P], KeypointsArray],
+) -> Callable[Concatenate[KeypointsArray, P], KeypointsArray]:
     @wraps(func)
-    def wrapped_function(keypoints: KeypointsInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointsInternalType:
+    def wrapped_function(keypoints: KeypointsArray, *args: P.args, **kwargs: P.kwargs) -> KeypointsArray:
 
         keypoints = func(keypoints, *args, **kwargs)
-        keypoints.array[..., 2] = angle_to_2pi_range(keypoints.array[..., 2])
+        keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
         return keypoints
 
     return wrapped_function

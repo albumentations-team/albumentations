@@ -14,6 +14,7 @@ from typing import (
     Optional,
     Sequence,
     Tuple,
+    TypeAlias,
     Union,
 )
 from warnings import warn
@@ -32,6 +33,7 @@ __all__ = [
     "ImageOnlyTransform",
     "NoOp",
     "BoxType",
+    "KeypointType",
     "BatchInternalType",
     "BBoxesInternalType",
     "BoxesArray",
@@ -44,9 +46,12 @@ __all__ = [
 ]
 
 NumType = Union[int, float, np.ndarray]
-BoxType = Union[Tuple[float, float, float, float], Tuple[float, float, float, float, Any]]
-BoxesArray = Annotated[npt.NDArray, Literal["N", 4]]
-KeypointsArray = Annotated[npt.NDArray, Literal["N", 4]]
+BoxType = Tuple[float, float, float, float]
+KeypointType = Tuple[float, float, float, float]
+BoxesArray: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
+KeypointsArray: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
+# BoxesArray = np.ndarray
+# KeypointsArray = np.ndarray
 ImageColorType = Union[float, Sequence[float]]
 
 ScaleFloatType = Union[float, Tuple[float, float]]
@@ -74,11 +79,25 @@ class BatchInternalType:
 
 @dataclass
 class BBoxesInternalType(BatchInternalType):
-    array: BoxesArray
+    array: BoxesArray = field(default=np.empty((0, 4)))
     targets: List[Any] = field(default_factory=list)
 
     def __post_init__(self):
+        if not isinstance(self.array, np.ndarray):
+            self.array = np.array(self.array, dtype=float)
+        elif isinstance(self.array, np.ndarray):
+            self.array = self.array.astype(float)
+        if len(self.array) and not self.targets:
+            self.targets = [()] * len(self.array)
         self.check_consistency()
+
+    def __eq__(self, other):
+        if not isinstance(other, BBoxesInternalType):
+            return False
+        if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
+            # This's because numpy treat array([], dtype=float64) and array=array([], shape=(0, 4), dtype=float64)
+            return True
+        return np.array_equal(self.array, other.array) and self.targets == other.targets
 
     def __len__(self):
         assert len(self.array) == len(self.targets)
@@ -94,8 +113,10 @@ class BBoxesInternalType(BatchInternalType):
         if isinstance(item, int):
             _bboxes = _bboxes[np.newaxis, ...]
             _target = [self.targets[item]] if self.targets else []
+        elif isinstance(item, slice):
+            _target = self.targets[item]
         else:
-            _target = [self.targets[i] for i in item] if self.targets is not None else None
+            _target = [self.targets[i] for i in item] if self.targets else []
         return BBoxesInternalType(array=_bboxes, targets=_target)
 
     def __setitem__(self, idx, value: "BBoxesInternalType"):
@@ -113,7 +134,8 @@ class BBoxesInternalType(BatchInternalType):
         if len(bboxes):
             if not (len(bboxes.shape) == 2 and bboxes.shape[-1] == 4):
                 raise ValueError(
-                    "An array of bboxes should be 2 dimension, and the last dimension must has 4 elements."
+                    "An array of bboxes should be 2 dimension, and the last dimension must has 4 elements. "
+                    f"Received {bboxes.shape}."
                 )
 
     def check_consistency(self):
@@ -127,11 +149,25 @@ class BBoxesInternalType(BatchInternalType):
 
 @dataclass
 class KeypointsInternalType(BatchInternalType):
-    array: KeypointsArray
+    array: KeypointsArray = field(default=np.empty((0, 4)))
     targets: List[Any] = field(default_factory=list)
 
     def __post_init__(self):
+        if not isinstance(self.array, np.ndarray):
+            self.array = np.array(self.array, dtype=float)
+        elif isinstance(self.array, np.ndarray):
+            self.array = self.array.astype(float)
+        if len(self.array) and not self.targets:
+            self.targets = [()] * len(self.array)
         self.check_consistency()
+
+    def __eq__(self, other):
+        if not isinstance(other, KeypointsInternalType):
+            return False
+        if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
+            # This's because numpy treat array([], dtype=float64) and array=array([], shape=(0, 4), dtype=float64)
+            return True
+        return np.array_equal(self.array, other.array) and self.targets == other.targets
 
     def __len__(self):
         assert len(self.array) == len(self.targets)
@@ -142,13 +178,15 @@ class KeypointsInternalType(BatchInternalType):
             self.assert_np_keypoints_format(value)
         super().__setattr__(key, value)
 
-    def __getitem__(self, idx) -> "KeypointsInternalType":
-        _kps = self.array[idx].astype(float)
-        if isinstance(idx, int):
+    def __getitem__(self, item) -> "KeypointsInternalType":
+        _kps = self.array[item].astype(float)
+        if isinstance(item, int):
             _kps = _kps[np.newaxis, ...]
-            _target = [self.targets[idx]] if self.targets else []
+            _target = [self.targets[item]] if self.targets else []
+        elif isinstance(item, slice):
+            _target = self.targets[item]
         else:
-            _target = [self.targets[i] for i in idx] if self.targets is not None else None
+            _target = [self.targets[i] for i in item] if self.targets else []
         return KeypointsInternalType(array=_kps, targets=_target)
 
     def __setitem__(self, idx, value: "KeypointsInternalType"):
@@ -168,6 +206,7 @@ class KeypointsInternalType(BatchInternalType):
                 raise ValueError(
                     "An array of keypoints should be 2 dimension, "
                     "and the last dimension must has at least 2 elements at most 4 elements. "
+                    f"Received {keypoints.shape}."
                 )
 
     def check_consistency(self):
@@ -385,22 +424,20 @@ class DualTransform(BasicTransform):
             "keypoints": self.apply_to_keypoints,
         }
 
-    def apply_to_bbox(self, bbox: BBoxesInternalType, **params) -> BBoxesInternalType:
+    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
         raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
 
-    def apply_to_keypoint(self, keypoint: KeypointsInternalType, **params) -> KeypointsInternalType:
+    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
         raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
 
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
-        bbox: BBoxesInternalType
-        for i, bbox in enumerate(bboxes):  # type: ignore[arg-type]
-            bboxes[i] = self.apply_to_bbox(bbox, **params)
+        for i, bbox in enumerate(bboxes.array):  # type: ignore[arg-type]
+            bboxes.array[i] = self.apply_to_bbox(bbox, **params)
         return bboxes
 
     def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
-        kpt: KeypointsInternalType
-        for i, kpt in enumerate(keypoints):  # type: ignore[arg-type]
-            keypoints[i] = self.apply_to_keypoint(kpt, **params)
+        for i, kpt in enumerate(keypoints.array):  # type: ignore[arg-type]
+            keypoints.array[i] = self.apply_to_keypoint(kpt, **params)
         return keypoints
 
     def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
@@ -421,11 +458,11 @@ class ImageOnlyTransform(BasicTransform):
 class NoOp(DualTransform):
     """Does nothing"""
 
-    def apply_to_keypoint(self, keypoint: KeypointsInternalType, **params) -> KeypointsInternalType:
-        return keypoint
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return keypoints
 
-    def apply_to_bbox(self, bbox: BBoxesInternalType, **params) -> BBoxesInternalType:
-        return bbox
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return bboxes
 
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return img

@@ -783,20 +783,6 @@ class CropAndPad(DualTransform):
             result_cols=result_cols,
         )
 
-    # def apply_to_keypoint(
-    #     self,
-    #     keypoint: KeypointInternalType,
-    #     crop_params: Optional[Sequence[int]] = None,
-    #     pad_params: Optional[Sequence[int]] = None,
-    #     rows: int = 0,
-    #     cols: int = 0,
-    #     result_rows: int = 0,
-    #     result_cols: int = 0,
-    #     **params
-    # ) -> KeypointInternalType:
-    #     return F.crop_and_pad_keypoint(
-    #         keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
-    #     )
     def apply_to_keypoints(
         self,
         keypoints: KeypointsInternalType,

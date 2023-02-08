@@ -48,7 +48,7 @@ def array_to_bboxes(np_bboxes: np.ndarray, ori_bboxes: Sequence[BoxType]) -> Lis
 
 
 def ensure_bboxes_format(func: Callable) -> Callable:
-    """Ensure bboxes in input of the provided function can be properly converted to numpy array.
+    """Ensure the return bboxes from the provided function check its consistency.
 
     Args:
         func (Callable): a callable with the first argument being bboxes.
@@ -457,12 +457,11 @@ def filter_bboxes(
     return bboxes[idx] if len(idx) != len(bboxes) else bboxes
 
 
-@ensure_bboxes_format
 def union_of_bboxes(bboxes: BBoxesInternalType, height: int, width: int, erosion_rate: float = 0.0) -> BoxType:
     """Calculate union of bounding boxes.
 
     Args:
-        bboxes (List[tuple]): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
+        bboxes (BBoxesInternalType): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
         height (float): Height of image or space.
         width (float): Width of image or space.
         erosion_rate (float): How much each bounding box can be shrinked, useful for erosive cropping.
@@ -472,14 +471,15 @@ def union_of_bboxes(bboxes: BBoxesInternalType, height: int, width: int, erosion
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
-    w, h = bboxes.array[:, 2] - bboxes.array[:, 0], bboxes.array[:, 3] - bboxes.array[:, 1]
+    box_array = bboxes.array
+    w, h = box_array[:, 2] - box_array[:, 0], box_array[:, 3] - box_array[:, 1]
 
     limits = np.tile(
         np.concatenate((np.expand_dims(w, 0).transpose(), np.expand_dims(h, 0).transpose()), 1) * erosion_rate, 2
     )
     limits[2:] *= -1
 
-    limits += bboxes.array
+    limits += box_array
 
     limits = np.concatenate((limits, np.array([[width, height, 0, 0]])))
 
