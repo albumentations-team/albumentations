@@ -9,6 +9,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from albumentations.core.transforms_interface import KeypointsInternalType
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -478,51 +479,48 @@ def test_crop_keypoints(keypoints, crop_coords, expected):
     assert result["keypoints"] == expected
 
 
-def test_longest_max_size_keypoints():
+@pytest.mark.parametrize(
+    "max_size, expected",
+    [
+        (100, [(18, 10, 0, 0)]),
+        (5, [(0.9, 0.5, 0, 0)]),
+        (50, [(9, 5, 0, 0)]),
+    ],
+)
+def test_longest_max_size_keypoints(max_size, expected):
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.LongestMaxSize(max_size=100, p=1)
+    aug = A.Compose([A.LongestMaxSize(max_size=max_size, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(18, 10, 0, 0)]
-
-    aug = A.LongestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(0.9, 0.5, 0, 0)]
-
-    aug = A.LongestMaxSize(max_size=50, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    assert np.array_equal(result["keypoints"], expected)
 
 
-def test_smallest_max_size_keypoints():
+@pytest.mark.parametrize(
+    "max_size, expected",
+    [
+        (100, [(90, 50, 0, 0)]),
+        (5, [(4.5, 2.5, 0, 0)]),
+        (10, [(9, 5, 0, 0)]),
+    ],
+)
+def test_smallest_max_size_keypoints(max_size, expected):
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.SmallestMaxSize(max_size=100, p=1)
+    aug = A.Compose([A.SmallestMaxSize(max_size=max_size, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(90, 50, 0, 0)]
-
-    aug = A.SmallestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 2.5, 0, 0)]
-
-    aug = A.SmallestMaxSize(max_size=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    assert np.array_equal(result["keypoints"], expected)
 
 
-def test_resize_keypoints():
+@pytest.mark.parametrize("height, width, expected", [(100, 5, [(4.5, 10, 0, 0)]), (50, 10, [(9, 5, 0, 0)])])
+def test_resize_keypoints(height, width, expected):
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.Resize(height=100, width=5, p=1)
+    aug = A.Compose([A.Resize(height=height, width=width, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 10, 0, 0)]
-
-    aug = A.Resize(height=50, width=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    assert np.array_equal(result["keypoints"], expected)
 
 
 @pytest.mark.parametrize(
@@ -922,7 +920,7 @@ def test_longest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+    aug = A.Compose([A.LongestMaxSize(max_size=[5, 10], p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(10, 2), (5, 1)]
     assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
@@ -932,7 +930,7 @@ def test_smallest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+    aug = A.Compose([A.SmallestMaxSize(max_size=[50, 100], p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(250, 50), (500, 100)]
     assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]

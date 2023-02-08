@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
+import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
@@ -430,7 +431,7 @@ def test_augmentations_for_bboxes_serialization(
     set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
+    assert aug_data["bboxes"] == deserialized_aug_data["bboxes"]
 
 
 @pytest.mark.parametrize(
@@ -478,7 +479,7 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
     set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+    assert aug_data["keypoints"] == deserialized_aug_data["keypoints"]
 
 
 @pytest.mark.parametrize(
@@ -687,8 +688,8 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     deserialized_aug_data = deserialized_aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
-    assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
-    assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+    assert aug_data["bboxes"] == deserialized_aug_data["bboxes"]
+    assert aug_data["keypoints"] == deserialized_aug_data["keypoints"]
 
 
 def test_serialization_v2_conversion_without_totensor():
