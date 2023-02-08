@@ -51,21 +51,26 @@ def ensure_keypoints_format(func: Callable) -> Callable:
     return wrapper
 
 
-def use_keypoints_ndarray(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(
-        keypoints: Union[KeypointsInternalType, np.ndarray], *args, **kwargs
-    ) -> Union[KeypointsInternalType, np.ndarray]:
-        if isinstance(keypoints, KeypointsInternalType):
-            ret = func(keypoints.array, *args, **kwargs)
-            if not isinstance(ret, np.ndarray):
-                raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
-            keypoints.array = ret
-        elif isinstance(keypoints, np.ndarray):
-            keypoints = func(keypoints.astype(float), *args, **kwargs)
-        return keypoints
+def use_keypoints_ndarray(return_array: bool = True) -> Callable:
+    def dec(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(
+            keypoints: Union[KeypointsInternalType, np.ndarray], *args, **kwargs
+        ) -> Union[KeypointsInternalType, np.ndarray]:
+            if isinstance(keypoints, KeypointsInternalType):
+                ret = func(keypoints.array, *args, **kwargs)
+                if not return_array:
+                    return ret
+                if not isinstance(ret, np.ndarray):
+                    raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
+                keypoints.array = ret
+            elif isinstance(keypoints, np.ndarray):
+                keypoints = func(keypoints.astype(float), *args, **kwargs)
+            return keypoints
 
-    return wrapper
+        return wrapper
+
+    return dec
 
 
 class KeypointParams(Params):
@@ -210,7 +215,7 @@ class KeypointsProcessor(DataProcessor):
 
 
 @ensure_keypoints_format
-@use_keypoints_ndarray
+@use_keypoints_ndarray(return_array=False)
 def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
     """Check if keypoints boundaries are less than image shapes"""
 
@@ -259,7 +264,7 @@ def filter_keypoints(
 
 
 @ensure_keypoints_format
-@use_keypoints_ndarray
+@use_keypoints_ndarray(return_array=True)
 def convert_keypoints_to_albumentations(
     keypoints: KeypointsArray,
     source_format: str,
@@ -297,7 +302,7 @@ def convert_keypoints_to_albumentations(
 
 
 @ensure_keypoints_format
-@use_keypoints_ndarray
+@use_keypoints_ndarray(return_array=True)
 def convert_keypoints_from_albumentations(
     keypoints: KeypointsArray,
     target_format: str,
