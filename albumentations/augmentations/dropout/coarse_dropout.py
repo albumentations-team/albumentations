@@ -159,12 +159,14 @@ class CoarseDropout(DualTransform):
     def targets_as_params(self):
         return ["image"]
 
-    def _keypoint_in_hole(self, keypoints: KeypointsInternalType, hole: Tuple[int, int, int, int]) -> np.ndarray:
+    def _keypoints_not_in_hole(self, keypoints: KeypointsInternalType, hole: Tuple[int, int, int, int]) -> np.ndarray:
         x1, y1, x2, y2 = hole
 
         row_idx, *_ = np.where(
-            np.logical_and(x1 <= keypoints.array[..., 0], keypoints.array[..., 0] < x2)
-            & np.logical_and(y1 <= keypoints.array[..., 1], keypoints.array[..., 1] < y2)
+            ~(
+                np.logical_and(x1 <= keypoints.array[..., 0], keypoints.array[..., 0] < x2)
+                & np.logical_and(y1 <= keypoints.array[..., 1], keypoints.array[..., 1] < y2)
+            )
         )
 
         return row_idx
@@ -176,9 +178,11 @@ class CoarseDropout(DualTransform):
             return keypoints
 
         for hole in holes:
-            row_idx = self._keypoint_in_hole(keypoints, hole)
-            if row_idx:
+            row_idx = self._keypoints_not_in_hole(keypoints, hole)
+            if len(row_idx) != len(keypoints):
                 keypoints = keypoints[row_idx]
+            elif not len(row_idx):
+                return KeypointsInternalType()
 
         keypoints.check_consistency()
         return keypoints
