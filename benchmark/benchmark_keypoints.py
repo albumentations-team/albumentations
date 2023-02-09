@@ -151,7 +151,7 @@ def generate_random_keypoints(points_num: int = 1, w: int = 512, h: int = 512):
 def format_results(seconds_per_image_for_aug, show_std=False):
     if seconds_per_image_for_aug is None:
         return "-"
-    result = str(math.floor(np.mean(seconds_per_image_for_aug)))
+    result = str(np.round(np.mean(seconds_per_image_for_aug), 3))
     if show_std:
         result += " ± {}".format(math.ceil(np.std(seconds_per_image_for_aug)))
     return result
@@ -438,7 +438,7 @@ def main():
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs, keypoints=batch_keypoints, class_ids=class_ids))
                 run_times = timer.repeat(number=1, repeat=args.runs)
-                benchmark_second_per_image = [run_time / args.images for run_time in run_times]
+                benchmark_second_per_image = [run_time * 1000 / args.images for run_time in run_times]
             seconds_per_image[library][str(benchmark)] = benchmark_second_per_image
             pbar.update(1)
         pbar.close()
