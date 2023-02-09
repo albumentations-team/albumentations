@@ -9,7 +9,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
-from albumentations.core.transforms_interface import KeypointsInternalType
+from albumentations.core.transforms_interface import BBoxesInternalType
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -1071,6 +1071,33 @@ def test_affine_scale_ratio(params):
 def test_affine_incorrect_scale_range(params):
     with pytest.raises(ValueError):
         A.Affine(**params)
+
+
+@pytest.mark.parametrize(
+    "params, expected",
+    [
+        (
+            {"scale": (0.03, 0.05), "nb_rows": 4, "nb_cols": 4},
+            [(0.03, 0.09, 0.25, 0.99), (0.2, 0.29, 0.62, 0.79), (0.14, 0.2, 0.43, 0.35)],
+        ),
+        (
+            {"scale": (0.01, 0.08), "nb_rows": 4, "nb_cols": 4},
+            [[0.03, 0.09, 0.25, 0.99], [0.2, 0.29, 0.62, 0.79], [0.14, 0.21, 0.42, 0.34]],
+        ),
+        (
+            {"scale": (0.03, 0.05), "nb_rows": (2, 4), "nb_cols": (2, 4)},
+            [[0.03, 0.09, 0.25, 0.99], [0.2, 0.27, 0.61, 0.79], [0.15, 0.2, 0.4, 0.3]],
+        ),
+    ],
+)
+def test_piecewise_affine(params, expected):
+    bboxes = [(0.0375, 0.125, 0.25, 1.0), (0.2, 0.3, 0.6, 0.8), (0.15, 0.234, 0.4, 0.33)]
+    bboxes = BBoxesInternalType(array=np.array(bboxes))
+    image = np.zeros(shape=(100, 100, 3), dtype=np.uint8)
+    set_seed(0)
+    aug = A.PiecewiseAffine(**params)
+    aug_ret = aug(image=image, bboxes=bboxes, force_apply=True)
+    assert np.allclose(aug_ret["bboxes"].array, expected)
 
 
 @pytest.mark.parametrize(
