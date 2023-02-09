@@ -148,12 +148,12 @@ def generate_random_keypoints(points_num: int = 1, w: int = 512, h: int = 512):
     return np.pad(np.stack([xs, ys], axis=1), [(0, 0), (0, 2)])
 
 
-def format_results(images_per_second_for_aug, show_std=False):
-    if images_per_second_for_aug is None:
+def format_results(seconds_per_image_for_aug, show_std=False):
+    if seconds_per_image_for_aug is None:
         return "-"
-    result = str(math.floor(np.mean(images_per_second_for_aug)))
+    result = str(math.floor(np.mean(seconds_per_image_for_aug)))
     if show_std:
-        result += " ± {}".format(math.ceil(np.std(images_per_second_for_aug)))
+        result += " ± {}".format(math.ceil(np.std(seconds_per_image_for_aug)))
     return result
 
 
@@ -399,7 +399,7 @@ def main():
     package_versions = get_package_versions()
     if args.print_package_versions:
         print(package_versions)
-    images_per_second = defaultdict(dict)
+    seconds_per_image = defaultdict(dict)
     libraries = args.libraries
 
     benchmarks = [
@@ -434,16 +434,16 @@ def main():
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
-            benchmark_images_per_second = None
+            benchmark_second_per_image = None
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs, keypoints=batch_keypoints, class_ids=class_ids))
                 run_times = timer.repeat(number=1, repeat=args.runs)
-                benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
-            images_per_second[library][str(benchmark)] = benchmark_images_per_second
+                benchmark_second_per_image = [run_time / args.images for run_time in run_times]
+            seconds_per_image[library][str(benchmark)] = benchmark_second_per_image
             pbar.update(1)
         pbar.close()
     pd.set_option("display.width", 1000)
-    df = pd.DataFrame.from_dict(images_per_second)
+    df = pd.DataFrame.from_dict(seconds_per_image)
     df = df.applymap(lambda r: format_results(r, args.show_std))
     df = df[libraries]
     augmentations = [str(i) for i in benchmarks]
