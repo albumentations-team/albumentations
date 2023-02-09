@@ -215,25 +215,8 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
-def _convert_to_array(dim: Sequence[Union[int, float]], length: int, dim_name: str) -> np.ndarray:
-    if not isinstance(dim, np.ndarray):
-        arr = np.array(dim) if isinstance(dim, Sequence) and isinstance(dim[0], (float, int)) else np.array([dim])
-    elif isinstance(dim, np.ndarray) and len(dim.shape) == 1:
-        arr = np.expand_dims(dim, axis=1)
-    else:
-        raise ValueError("dim should be a numpy ndarray")
-    arr = arr.transpose()
-    assert isinstance(arr, np.ndarray) and arr.shape[0] == length
-
-    if np.any(arr <= 0):
-        raise ValueError(f"Argument {dim_name} must be all positive integer")
-    return dim
-
-
 @use_bboxes_ndarray(return_array=True)
-def normalize_bboxes_np(
-    bboxes: BoxesArray, rows: Union[int, Sequence[int], np.ndarray], cols: Union[int, Sequence[int], np.ndarray]
-) -> BoxesArray:
+def normalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Union[int, float]) -> BoxesArray:
     """Normalize a list of bounding boxes.
 
     Args:
@@ -246,10 +229,6 @@ def normalize_bboxes_np(
     """
     if not len(bboxes):
         return bboxes
-    if not isinstance(rows, (float, int)):
-        rows = _convert_to_array(rows, len(bboxes), "rows").astype(float)
-    if not isinstance(cols, (float, int)):
-        cols = _convert_to_array(cols, len(bboxes), "cols").astype(float)
 
     bboxes_ = bboxes.copy().astype(float)
     bboxes_[:, 0::2] /= cols
@@ -258,7 +237,7 @@ def normalize_bboxes_np(
 
 
 @use_bboxes_ndarray(return_array=True)
-def denormalize_bboxes_np(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArray:
+def denormalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Union[int, float]) -> BoxesArray:
     """Denormalize a list of bounding boxes.
 
     Args:
@@ -272,10 +251,6 @@ def denormalize_bboxes_np(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArra
     """
     if not len(bboxes):
         return bboxes
-    if not isinstance(rows, int):
-        rows = _convert_to_array(rows, len(bboxes), "rows").astype(float)
-    if not isinstance(cols, int):
-        cols = _convert_to_array(cols, len(bboxes), "cols").astype(float)
     bboxes_ = bboxes.copy().astype(float)
 
     bboxes_[:, 0::2] *= cols
