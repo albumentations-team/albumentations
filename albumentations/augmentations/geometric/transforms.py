@@ -968,15 +968,15 @@ class PiecewiseAffine(DualTransform):
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: Tuple[float, float, float, float],
+        bboxes: BBoxesInternalType,
         rows: int = 0,
         cols: int = 0,
         matrix: skimage.transform.PiecewiseAffineTransform = None,
         **params
-    ) -> BoxType:
-        return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
+    ) -> BBoxesInternalType:
+        return F.bboxes_piecewise_affine(bboxes, matrix, rows, cols, self.keypoints_threshold)
 
     def apply_to_keypoints(
         self,

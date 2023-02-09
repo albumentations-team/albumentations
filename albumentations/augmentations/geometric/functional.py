@@ -66,6 +66,7 @@ __all__ = [
     "from_distance_maps",
     "keypoints_piecewise_affine",
     "bbox_piecewise_affine",
+    "bboxes_piecewise_affine",
     "bboxes_flip",
     "bboxes_hflip",
     "bboxes_vflip",
@@ -778,7 +779,7 @@ def piecewise_affine(
 
 
 def to_distance_maps(
-    keypoints: Sequence[Tuple[float, float]], height: int, width: int, inverted: bool = False
+    keypoints: Union[Sequence[Tuple[float, float]], np.ndarray], height: int, width: int, inverted: bool = False
 ) -> np.ndarray:
     """Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
 
@@ -789,7 +790,7 @@ def to_distance_maps(
     method that only supports the augmentation of images.
 
     Args:
-        keypoint: keypoint coordinates
+        keypoints: keypoint coordinates
         height: image height
         width: image width
         inverted (bool): If ``True``, inverted distance maps are returned where each
@@ -939,6 +940,45 @@ def bbox_piecewise_affine(
     x2 = keypoints_arr[:, 0].max()
     y2 = keypoints_arr[:, 1].max()
     return normalize_bboxes_np(np.array([[x1, y1, x2, y2]]), h, w)[0]
+
+
+@ensure_bboxes_format
+@use_bboxes_ndarray(return_array=True)
+def bboxes_piecewise_affine(
+    bboxes: BoxesArray,
+    matrix: skimage.transform.PiecewiseAffineTransform,
+    h: int,
+    w: int,
+    keypoints_threshold: float,
+) -> BoxesArray:
+    if not len(bboxes):
+        return bboxes
+    bboxes = denormalize_bboxes_np(bboxes, h, w)
+    points = np.stack(
+        [
+            bboxes[..., [0, 1]],
+            bboxes[..., [2, 1]],
+            bboxes[..., [2, 3]],
+            bboxes[..., [0, 3]],
+        ],
+        axis=1,
+    ).reshape(
+        (-1, 2)
+    )  # points.shape == (N * 4) * 2
+    dist_maps = to_distance_maps(points, h, w, True)
+    dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
+    points = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
+
+    points = np.reshape(points, (-1, 4, 2))  # N * 4 * 2
+
+    bboxes = np.concatenate(
+        [
+            np.min(points, axis=1),
+            np.max(points, axis=1),
+        ],
+        axis=-1,
+    )
+    return normalize_bboxes_np(bboxes, h, w)
 
 
 def vflip(img: np.ndarray) -> np.ndarray:

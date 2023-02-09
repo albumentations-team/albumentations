@@ -356,6 +356,19 @@ class Affine(BenchmarkTest):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
+class PiecewiseAffine(BenchmarkTest):
+    def __init__(self):
+        self.alb_compose = A.Compose(
+            [
+                A.PiecewiseAffine(),
+            ],
+            bbox_params=bbox_params,
+        )
+
+    def albumentations(self, img, bboxes, class_id):
+        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+
 class Sequence(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose(
