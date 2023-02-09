@@ -215,19 +215,19 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
-def _convert_to_array(dim: Union[Sequence[Union[int, float]], np.ndarray], length: int, dim_name: str) -> np.ndarray:
+def _convert_to_array(dim: Sequence[Union[int, float]], length: int, dim_name: str) -> np.ndarray:
     if not isinstance(dim, np.ndarray):
-        dim = np.array(dim) if isinstance(dim, Sequence) and isinstance(dim[0], (float, int)) else np.array([dim])
+        arr = np.array(dim) if isinstance(dim, Sequence) and isinstance(dim[0], (float, int)) else np.array([dim])
     elif isinstance(dim, np.ndarray) and len(dim.shape) == 1:
-        dim = np.expand_dims(dim, axis=1)
+        arr = np.expand_dims(dim, axis=1)
     else:
         raise ValueError("dim should be a numpy ndarray")
-    dim = dim.transpose()
-    assert isinstance(dim, np.ndarray) and dim.shape[0] == length
+    arr = arr.transpose()
+    assert isinstance(arr, np.ndarray) and arr.shape[0] == length
 
-    if np.any(dim <= 0):
+    if np.any(arr <= 0):
         raise ValueError(f"Argument {dim_name} must be all positive integer")
-    return dim.astype(float)
+    return dim
 
 
 @use_bboxes_ndarray(return_array=True)
@@ -247,9 +247,9 @@ def normalize_bboxes_np(
     if not len(bboxes):
         return bboxes
     if not isinstance(rows, (float, int)):
-        rows = _convert_to_array(rows, len(bboxes), "rows")
+        rows = _convert_to_array(rows, len(bboxes), "rows").astype(float)
     if not isinstance(cols, (float, int)):
-        cols = _convert_to_array(cols, len(bboxes), "cols")
+        cols = _convert_to_array(cols, len(bboxes), "cols").astype(float)
 
     bboxes_ = bboxes.copy().astype(float)
     bboxes_[:, 0::2] /= cols
@@ -273,10 +273,10 @@ def denormalize_bboxes_np(bboxes: BoxesArray, rows: int, cols: int) -> BoxesArra
     if not len(bboxes):
         return bboxes
     if not isinstance(rows, int):
-        rows = _convert_to_array(rows, len(bboxes), "rows")
+        rows = _convert_to_array(rows, len(bboxes), "rows").astype(float)
     if not isinstance(cols, int):
-        cols = _convert_to_array(cols, len(bboxes), "cols")
-    bboxes_ = bboxes.copy()
+        cols = _convert_to_array(cols, len(bboxes), "cols").astype(float)
+    bboxes_ = bboxes.copy().astype(float)
 
     bboxes_[:, 0::2] *= cols
     bboxes_[:, 1::2] *= rows
