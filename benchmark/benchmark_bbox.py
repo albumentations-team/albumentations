@@ -358,12 +358,19 @@ class Affine(BenchmarkTest):
 
 class PiecewiseAffine(BenchmarkTest):
     def __init__(self):
+
+        scale = (0.03, 0.05)
+        nb_rows = 4
+        nb_cols = 4
+
         self.alb_compose = A.Compose(
             [
-                A.PiecewiseAffine(),
+                A.PiecewiseAffine(scale=scale, nb_rows=nb_rows, nb_cols=nb_cols),
             ],
             bbox_params=bbox_params,
         )
+
+        self.imgaug_transform = iaa.PiecewiseAffine(scale=scale, nb_rows=nb_rows, nb_cols=nb_cols)
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
