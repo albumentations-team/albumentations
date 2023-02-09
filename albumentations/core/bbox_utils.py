@@ -68,6 +68,18 @@ def ensure_bboxes_format(func: Callable) -> Callable:
 
 
 def use_bboxes_ndarray(return_array: bool = True) -> Callable:
+    """Decorate a function and return a decorator.
+    Since most transformation functions does not alter the amount of bounding boxes, only update the internal
+    bboxes' coordinates, thus this function provides a way to interact directly with
+    the BBoxesInternalType's internal array member.
+
+    Args:
+        return_array (bool): whether the return of the decorated function is a BoxArray.
+
+    Returns:
+        Callable: A decorator function.
+    """
+
     def dec(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(
@@ -220,12 +232,12 @@ def normalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Union
     """Normalize a list of bounding boxes.
 
     Args:
-        bboxes: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        bboxes (BoxesArray): Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
         rows: Image height.
         cols: Image width.
 
     Returns:
-        Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        BoxesArray: Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
     """
     if not len(bboxes):
         return bboxes
@@ -241,12 +253,12 @@ def denormalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Uni
     """Denormalize a list of bounding boxes.
 
     Args:
-        bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        bboxes (BoxesArray): Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
         rows: Image height.
         cols: Image width.
 
     Returns:
-        List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        BoxesArray: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
     if not len(bboxes):
@@ -258,20 +270,17 @@ def denormalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Uni
     return bboxes_
 
 
-@use_bboxes_ndarray(return_array=True)
+@use_bboxes_ndarray(return_array=False)
 def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarray:
     """Calculate the area of bounding boxes in (fractional) pixels.
 
     Args:
-        bboxes: numpy.ndarray
-            A 2D ndarray
-        rows: int
-            Image height
-        cols: int
-            Image width
+        bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
+        rows (int): Image height
+        cols (int): Image width
 
     Returns:
-        numpy.ndarray, area in (fractional) pixels of the denormalized bounding boxes.
+        numpy.ndarray: area in (fractional) pixels of the denormalized bounding boxes.
 
     """
     bboxes_area = (bboxes[:, 2] - bboxes[:, 0]) * (bboxes[:, 3] - bboxes[:, 1]) * cols * rows
@@ -280,8 +289,25 @@ def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarra
 
 @ensure_bboxes_format
 @use_bboxes_ndarray(return_array=True)
-def convert_bboxes_to_albumentations(bboxes: BoxesArray, source_format, rows, cols, check_validity=False) -> BoxesArray:
-    """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
+def convert_bboxes_to_albumentations(
+    bboxes: BoxesArray, source_format: str, rows: int, cols: int, check_validity: bool = False
+) -> BoxesArray:
+    """Convert a batch of bounding boxes from a format specified in `source_format` to the format used by albumentations
+
+    Args:
+        bboxes (BoxesArray): A batch of bounding boxes.
+        source_format (str):
+        rows (int):
+        cols (int):
+        check_validity (bool):
+
+    Returns:
+        BoxesArray: A batch of bounding boxes in `albumentations` format.
+
+    Raises:
+        ValueError: raise when unknown source format is given.
+
+    """
     if not len(bboxes):
         return bboxes
 
@@ -396,7 +422,7 @@ def filter_bboxes(
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
     Args:
-        bboxes: List of albumentation bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes (BBoxesInternalType): List of albumentation bounding box `(x_min, y_min, x_max, y_max)`.
         rows: Image height.
         cols: Image width.
         min_area: Minimum area of a bounding box. All bounding boxes whose visible area in pixels.
@@ -442,14 +468,14 @@ def union_of_bboxes(bboxes: BoxesArray, height: int, width: int, erosion_rate: f
     """Calculate union of bounding boxes.
 
     Args:
-        bboxes (BBoxesInternalType): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
-        height (float): Height of image or space.
-        width (float): Width of image or space.
+        bboxes (BoxesArray): a batch of bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
+        height (int): Height of image or space.
+        width (int): Width of image or space.
         erosion_rate (float): How much each bounding box can be shrinked, useful for erosive cropping.
             Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox to lose its volume.
 
     Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
+        BoxType: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
     w, h = bboxes[:, 2] - bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1]

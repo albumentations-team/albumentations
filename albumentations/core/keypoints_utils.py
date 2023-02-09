@@ -52,6 +52,18 @@ def ensure_keypoints_format(func: Callable) -> Callable:
 
 
 def use_keypoints_ndarray(return_array: bool = True) -> Callable:
+    """Decorate a function and return a decorator.
+    Since most transformation functions does not alter the amount of bounding boxes, only update the internal
+    keypoints' coordinates, thus this function provides a way to interact directly with
+    the KeypointsInternalType's internal array member.
+
+    Args:
+        return_array (bool): whether the return of the decorated function is a KeypointsArray.
+
+    Returns:
+        Callable: A decorator function.
+    """
+
     def dec(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(
@@ -242,13 +254,13 @@ def filter_keypoints(
 ) -> KeypointsInternalType:
     """Remove keypoints that are not visible.
     Args:
-        keypoints: A batch of keypoints in `x, y, a, s` format.
-        rows: Image height.
-        cols: Image width.
-        remove_invisible: whether to remove invisible keypoints or not.
+        keypoints (KeypointsInternalType): A batch of keypoints in `x, y, a, s` format.
+        rows (int): Image height.
+        cols (int): Image width.
+        remove_invisible (bool): whether to remove invisible keypoints or not.
 
     Returns:
-        A batch of keypoints in `x, y, a, s` format.
+        KeypointsInternalType: A batch of keypoints in `x, y, a, s` format.
 
     """
     if not remove_invisible:
@@ -273,6 +285,23 @@ def convert_keypoints_to_albumentations(
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> KeypointsArray:
+    """Convert a batch of keypoints from source format to the format used by albumentations.
+
+    Args:
+        keypoints (KeypointsArray): a batch of keypoints in source format.
+        source_format (str):
+        rows (int):
+        cols (int):
+        check_validity (bool):
+        angle_in_degrees (bool):
+
+    Returns:
+        KeypointsArray: A batch of keypoints in `albumentations` format, which is [x, y, a, s].
+
+    Raises:
+        ValueError: Unknown keypoint format is given.
+
+    """
     if source_format not in keypoint_formats:
         raise ValueError(f"Unknown source_format {source_format}. " f"Supported formats are {keypoint_formats}.")
     if not len(keypoints):
@@ -311,6 +340,23 @@ def convert_keypoints_from_albumentations(
     check_validity: bool = False,
     angle_in_degrees: bool = True,
 ) -> KeypointsArray:
+    """Convert a batch of keypoints from `albumentations` format to target format.
+
+    Args:
+        keypoints (KeypointsArray): A batch of keypoints in `albumentations` format, which is [x, y, a, s].
+        target_format (str):
+        rows (int):
+        cols (int):
+        check_validity (bool):
+        angle_in_degrees (bool):
+
+    Returns:
+        KeypointsArray: A batch of keypoints in target format.
+
+    Raises:
+        ValueError: Unknown target format is given.
+
+    """
     if target_format not in keypoint_formats:
         raise ValueError(f"Unknown target_format {target_format}. " f"Supported formats are: {keypoint_formats}.")
 
