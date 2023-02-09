@@ -81,7 +81,7 @@ def crop_bboxes_by_coords(
     required height and width of the crop.
 
     Args:
-        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
         crop_coords (list[tuple[int, int, int, int]]): A sequence of coordinates.
         crop_height (Sequence[int] | int):
         crop_width (Sequence[int] | int):
@@ -89,7 +89,7 @@ def crop_bboxes_by_coords(
         cols (int): Image columns.
 
     Returns:
-        numpy.ndarray: A batch of cropped bounding boxes with `albumentations` format.
+        BoxesArray: A batch of cropped bounding boxes with `albumentations` format.
 
     """
     if not len(bboxes):
@@ -127,11 +127,11 @@ def crop_keypoints_by_coords(
     required height and width of the crop.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
         crop_coords (np.ndarray): Crop box coords `(x1, x2, y1, y2)`.
 
     Returns:
-        KeypointsInternalType, A batch of keypoints in `(x, y, angle, scale)` format.
+        KeypointsArray, A batch of keypoints in `(x, y, angle, scale)` format.
 
     """
 
@@ -217,14 +217,14 @@ def keypoints_center_crop(
     """Keypoints center crop.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `x, y, angle, scale` format.
+        keypoints (KeypointsArray): A batch of keypoints in `x, y, angle, scale` format.
         crop_height (int): Crop height.
         crop_width (int): Crop width.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        KeypointsInternalType, A batch of keypoints in `x, y, angle, scale` format.
+        KeypointsArray, A batch of keypoints in `x, y, angle, scale` format.
     """
     if not len(keypoints):
         return keypoints
@@ -267,7 +267,7 @@ def bboxes_crop(
     """Crop a batch of bounding boxes in `albumentations` format.
 
     Args:
-        bboxes (numpy.ndarray): A batch of bounding boxes with `albumentations` format.
+        bboxes (BBoxesInternalType): A batch of bounding boxes with `albumentations` format.
         x_min (numpy.ndarray | int):
         y_min (numpy.ndarray | int):
         x_max (numpy.ndarray | int):
@@ -276,7 +276,7 @@ def bboxes_crop(
         cols (int): Image cols.
 
     Returns:
-        numpy.ndarray: A batch of cropped bounding boxes in `albumentations` format.
+        BBoxesInternalType: A batch of cropped bounding boxes in `albumentations` format.
 
     """
     if not len(bboxes):

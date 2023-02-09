@@ -85,6 +85,18 @@ __all__ = [
 @ensure_bboxes_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_rot90(bboxes: BoxesArray, factor: int, rows: int, cols: int) -> BoxesArray:
+    """Rotate a batch of bboxes by 90 degrees CCW (see np.rot90)
+
+    Args:
+        bboxes (BoxesArray): A batch of bboxes in `albumentations` format.
+        factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
+        rows (int): Image height.
+        cols (int): Image width.
+
+    Returns:
+        BoxesArray: A batch of bboxes in `albumentations` format.
+
+    """
     if factor not in {0, 1, 2, 3}:
         raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
 
@@ -110,13 +122,13 @@ def keypoints_rot90(keypoints: KeypointsArray, factor: int, rows: int, cols: int
     """Rotates a batch of keypoints by 90 degrees CCW (see np.rot90)
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
         factor (int): Number of CCW rotations. Must be in range [0;3] See np.rot90.
         rows (int): Image height.
         cols (int): Image width.
 
     Returns:
-        KeypointsInternalType: A batch of keypoints in `(x, y, angle, scale)` format.
+        KeypointsArray: A batch of keypoints in `(x, y, angle, scale)` format.
 
     Raises:
         ValueError: if factor not in set {0, 1, 2, 3}
@@ -166,14 +178,14 @@ def bboxes_rotate(bboxes: BoxesArray, angle: float, method: str, rows: int, cols
     """Rotates a batch of bounding boxes by angle degrees.
 
     Args:
-        bboxes: A batch of bounding boxes in `albumentations` format.
-        angle: Angle of rotation in degrees.
-        method: Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
-        rows: Image rows.
-        cols: Image cols.
+        bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
+        angle (float): Angle of rotation in degrees.
+        method (str): Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
+        rows (int): Image rows.
+        cols (int): Image cols.
 
     Returns:
-        A batch of bounding boxes in `albumentations` format.
+        BoxesArray: A batch of bounding boxes in `albumentations` format.
 
     References:
         https://arxiv.org/abs/2109.13488
@@ -217,7 +229,7 @@ def bboxes_rotate(bboxes: BoxesArray, angle: float, method: str, rows: int, cols
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
 def keypoints_rotate(keypoints: KeypointsArray, angle: float, rows: int, cols: int, **params) -> KeypointsArray:
-    """Rotate a keypoint by angle.
+    """Rotate a batch of keypoints by angle.
 
     Args:
         keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
@@ -606,22 +618,6 @@ def warp_affine(
     return tmp
 
 
-# @angle_2pi_range
-# def keypoint_affine(
-#     keypoint: KeypointInternalType,
-#     matrix: skimage.transform.ProjectiveTransform,
-#     scale: dict,
-# ) -> KeypointInternalType:
-#     if _is_identity_matrix(matrix):
-#         return keypoint
-#
-#     x, y, a, s = keypoint[:4]
-#     x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
-#     a += rotation2DMatrixToEulerAngles(matrix.params[:2])
-#     s *= np.max([scale["x"], scale["y"]])
-#     return x, y, a, s
-
-
 @ensure_keypoints_format
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
@@ -988,11 +984,11 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
 def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes vertically around the x-axis.
     Args:
-        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
         **kwargs:
 
     Returns:
-        numpy.ndarray: A batch of flipped bounding boxes in `albumentations` format.
+        BoxesArray: A batch of flipped bounding boxes in `albumentations` format.
     """
     if not len(bboxes):
         return bboxes
@@ -1022,12 +1018,12 @@ def bboxes_flip(bboxes: BoxesArray, d: int, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-        bboxes (numpy.ndarray): A batch of bounding boxes in `albumentations` format.
+        bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
         d (int): dimension 0 for vertical flip, 1 for horizontal, -1 for transpose.
         **kwargs:
 
     Returns:
-        numpy.ndarray: A batch of flipped bounding boxes in `albumentations` format.
+        BoxesArray: A batch of flipped bounding boxes in `albumentations` format.
 
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
@@ -1049,12 +1045,12 @@ def bboxes_flip(bboxes: BoxesArray, d: int, **kwargs) -> BoxesArray:
 def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs) -> BoxesArray:
     """Transpose bounding bboxes along a given axis in batch.
     Args:
-        bboxes (numpy.ndarray): A batch of bounding boxes with `albumentations` format.
+        bboxes (BoxesArray): A batch of bounding boxes with `albumentations` format.
         axis (int): 0 as the main axis, 1 as the secondary axis.
         **kwargs:
 
     Returns:
-        numpy.ndarray: A batch of transposed bounding boxes.
+        BoxesArray: A batch of transposed bounding boxes.
 
     """
     if not len(bboxes):
@@ -1117,7 +1113,7 @@ def keypoints_flip(keypoints: KeypointsArray, d: int, rows: int, cols: int) -> K
     """Flip a batch of keypoints either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-        keypoints (KeypointsInternalType): A batch of keypoints in `(x, y, angle, scale)` format.
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
         d: Number of flip. Must be -1, 0 or 1:
             * 0 - vertical flip,
             * 1 - horizontal flip,
@@ -1126,7 +1122,7 @@ def keypoints_flip(keypoints: KeypointsArray, d: int, rows: int, cols: int) -> K
         cols (int): Image width.
 
     Returns:
-        KeypointsInternalType: A batch of keypoints `(x, y, angle, scale)`.
+        KeypointsArray: A batch of keypoints `(x, y, angle, scale)`.
 
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
