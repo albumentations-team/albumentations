@@ -7,7 +7,7 @@ from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
-if sys.version_info > (3, 9):
+if sys.version_info >= (3, 10):
     from typing import Annotated, Literal, TypeAlias
 else:
     from typing_extensions import Annotated, Literal, TypeAlias
@@ -88,7 +88,8 @@ class BBoxesInternalType(BatchInternalType):
         if not isinstance(other, BBoxesInternalType):
             return False
         if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
-            # This's because numpy treat array([], dtype=float64) and array=array([], shape=(0, 4), dtype=float64)
+            # This's because numpy does not treat array([], dtype=float64)
+            # and array=array([], shape=(0, 4), dtype=float64) equally.
             return True
         return np.array_equal(self.array, other.array) and self.targets == other.targets
 
@@ -158,7 +159,8 @@ class KeypointsInternalType(BatchInternalType):
         if not isinstance(other, KeypointsInternalType):
             return False
         if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
-            # This's because numpy treat array([], dtype=float64) and array=array([], shape=(0, 4), dtype=float64)
+            # This's because numpy does not treat array([], dtype=float64)
+            # and array=array([], shape=(0, 4), dtype=float64) equally.
             return True
         return np.array_equal(self.array, other.array) and self.targets == other.targets
 
