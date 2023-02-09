@@ -1,22 +1,17 @@
 from __future__ import absolute_import
 
 import random
+import sys
 from abc import abstractmethod
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import (
-    Annotated,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeAlias,
-    Union,
-)
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
+if sys.version_info > (3, 9):
+    from typing import Annotated, Literal, TypeAlias
+else:
+    from typing_extensions import Annotated, Literal, TypeAlias
+
 from warnings import warn
 
 import cv2
@@ -50,8 +45,6 @@ BoxType = Tuple[float, float, float, float]
 KeypointType = Tuple[float, float, float, float]
 BoxesArray: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
 KeypointsArray: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
-# BoxesArray = np.ndarray
-# KeypointsArray = np.ndarray
 ImageColorType = Union[float, Sequence[float]]
 
 ScaleFloatType = Union[float, Tuple[float, float]]

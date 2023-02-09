@@ -427,6 +427,7 @@ def main():
         CropAndPad(),
         RandomCropFromBorders(),
         Affine(),
+        PiecewiseAffine(),
         Sequence(),
     ]
     imgs = [read_img_cv2(img_size=(512, 512, 3)) for _ in range(args.images)]
