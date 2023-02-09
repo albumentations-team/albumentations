@@ -48,12 +48,12 @@ def parse_args():
         "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
     )
     parser.add_argument(
-        "-i", "--images", default=2000, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
+        "-i", "--images", default=100, type=int, metavar="N", help="number of images for benchmarking (default: 200)"
     )
     parser.add_argument(
         "-b",
         "--bboxes",
-        default=100,
+        default=20,
         type=int,
         help="number of bounding boxes in an image for benchmarking (default: 100)",
     )

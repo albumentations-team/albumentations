@@ -46,12 +46,12 @@ def parse_args():
         "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
     )
     parser.add_argument(
-        "-i", "--images", default=2000, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
+        "-i", "--images", default=100, type=int, metavar="N", help="number of images for benchmarking (default: 2000)"
     )
     parser.add_argument(
         "-k",
         "--keypoints",
-        default=100,
+        default=80,
         type=int,
         help="number of bounding boxes in an image for benchmarking (default: 100)",
     )
@@ -342,6 +342,26 @@ class Affine(BenchmarkTest):
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
+class PiecewiseAffine(BenchmarkTest):
+    def __init__(self):
+
+        scale = (0.03, 0.05)
+        nb_rows = 4
+        nb_cols = 4
+
+        self.alb_compose = A.Compose(
+            [
+                A.PiecewiseAffine(scale=scale, nb_rows=nb_rows, nb_cols=nb_cols),
+            ],
+            keypoint_params=kps_params,
+        )
+
+        self.imgaug_transform = iaa.PiecewiseAffine(scale=scale, nb_rows=nb_rows, nb_cols=nb_cols)
+
+    def albumentations(self, img, kps, class_id):
+        return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
+
+
 class Sequence(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose(
@@ -399,6 +419,7 @@ def main():
         CropAndPad(),
         RandomCropFromBorders(),
         Affine(),
+        PiecewiseAffine(),
         Sequence(),
     ]
 
