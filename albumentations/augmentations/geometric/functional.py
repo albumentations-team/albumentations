@@ -65,7 +65,6 @@ __all__ = [
     "to_distance_maps",
     "from_distance_maps",
     "keypoints_piecewise_affine",
-    "bbox_piecewise_affine",
     "bboxes_piecewise_affine",
     "bboxes_flip",
     "bboxes_hflip",
@@ -827,7 +826,7 @@ def from_distance_maps(
     inverted: bool,
     if_not_found_coords: Optional[Union[Sequence[int], dict]],
     threshold: Optional[float] = None,
-) -> List[Tuple[float, float]]:
+) -> np.ndarray:
     """Convert outputs of ``to_distance_maps()`` to ``KeypointsOnImage``.
     This is the inverse of `to_distance_maps`.
 
@@ -896,7 +895,7 @@ def from_distance_maps(
             if not drop_if_not_found:
                 keypoints.append((if_not_found_x, if_not_found_y))
 
-    return keypoints
+    return np.array(keypoints)
 
 
 @ensure_keypoints_format
@@ -914,32 +913,6 @@ def keypoints_piecewise_affine(
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
     keypoints[..., [0, 1]] = np.array(from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold))
     return keypoints
-
-
-def bbox_piecewise_affine(
-    bbox: BoxType,
-    matrix: skimage.transform.PiecewiseAffineTransform,
-    h: int,
-    w: int,
-    keypoints_threshold: float,
-) -> BoxType:
-    x1, y1, x2, y2 = denormalize_bboxes_np(np.array([bbox]), h, w)[0][:4]
-    keypoints = [
-        (x1, y1),
-        (x2, y1),
-        (x2, y2),
-        (x1, y2),
-    ]
-    dist_maps = to_distance_maps(keypoints, h, w, True)
-    dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
-    keypoints = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
-    keypoints = [i for i in keypoints if 0 <= i[0] < w and 0 <= i[1] < h]
-    keypoints_arr = np.array(keypoints)
-    x1 = keypoints_arr[:, 0].min()
-    y1 = keypoints_arr[:, 1].min()
-    x2 = keypoints_arr[:, 0].max()
-    y2 = keypoints_arr[:, 1].max()
-    return normalize_bboxes_np(np.array([[x1, y1, x2, y2]]), h, w)[0]
 
 
 @ensure_bboxes_format
