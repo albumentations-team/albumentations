@@ -11,7 +11,11 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
-from albumentations.core.transforms_interface import ImageOnlyTransform
+from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
+    ImageOnlyTransform,
+    KeypointsInternalType,
+)
 
 from .conftest import skipif_no_torch
 from .utils import (
@@ -23,6 +27,24 @@ from .utils import (
 )
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
+
+
+def to_internal_bboxes(bboxes) -> BBoxesInternalType:
+    box_array = []
+    targets = []
+    for bbox in bboxes:
+        box_array.append(bbox[:4])
+        targets.append(bbox[4:])
+    return BBoxesInternalType(array=np.array(box_array), targets=targets)
+
+
+def to_internal_keypoints(kps) -> KeypointsInternalType:
+    kp_array = []
+    targets = []
+    for kp in kps:
+        kp_array.append(kp[:4])
+        targets.append(kp[4:])
+    return KeypointsInternalType(array=np.array(kp_array), targets=targets)
 
 
 @pytest.mark.parametrize(
@@ -494,9 +516,9 @@ def test_augmentations_for_bboxes_serialization(
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
-    aug_data = aug(image=image, bboxes=albumentations_bboxes)
+    aug_data = aug(image=image, bboxes=to_internal_bboxes(albumentations_bboxes))
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
+    deserialized_aug_data = deserialized_aug(image=image, bboxes=to_internal_bboxes(albumentations_bboxes))
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert aug_data["bboxes"] == deserialized_aug_data["bboxes"]
 
@@ -542,9 +564,9 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
-    aug_data = aug(image=image, keypoints=keypoints)
+    aug_data = aug(image=image, keypoints=to_internal_keypoints(keypoints))
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
+    deserialized_aug_data = deserialized_aug(image=image, keypoints=to_internal_keypoints(keypoints))
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert aug_data["keypoints"] == deserialized_aug_data["keypoints"]
 
@@ -794,9 +816,19 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"vflip": aug})
     set_seed(seed)
-    aug_data = aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
+    aug_data = aug(
+        image=image,
+        mask=mask,
+        bboxes=to_internal_bboxes(albumentations_bboxes),
+        keypoints=to_internal_keypoints(keypoints),
+    )
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
+    deserialized_aug_data = deserialized_aug(
+        image=image,
+        mask=mask,
+        bboxes=to_internal_bboxes(albumentations_bboxes),
+        keypoints=to_internal_keypoints(keypoints),
+    )
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
     assert aug_data["bboxes"] == deserialized_aug_data["bboxes"]

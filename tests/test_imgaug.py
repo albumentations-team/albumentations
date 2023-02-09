@@ -5,9 +5,9 @@ import pytest
 
 import albumentations as A
 from albumentations import Compose
-from albumentations.core.bbox_utils import (
-    convert_bboxes_from_albumentations,
-    convert_bboxes_to_albumentations,
+from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
+    KeypointsInternalType,
 )
 from albumentations.imgaug.transforms import (
     IAAAdditiveGaussianNoise,
@@ -23,6 +23,24 @@ from albumentations.imgaug.transforms import (
 from tests.utils import set_seed
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
+
+
+def to_internal_bboxes(bboxes) -> BBoxesInternalType:
+    box_array = []
+    targets = []
+    for bbox in bboxes:
+        box_array.append(bbox[:4])
+        targets.append(bbox[4:])
+    return BBoxesInternalType(array=np.array(box_array), targets=targets)
+
+
+def to_internal_keypoints(kps) -> KeypointsInternalType:
+    kp_array = []
+    targets = []
+    for kp in kps:
+        kp_array.append(kp[:4])
+        targets.append(kp[4:])
+    return KeypointsInternalType(array=np.array(kp_array), targets=targets)
 
 
 @pytest.mark.parametrize("augmentation_cls", [IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
@@ -164,10 +182,10 @@ def test_imgaug_augmentations_for_bboxes_serialization(
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
     ia.seed(seed)
-    aug_data = aug(image=image, bboxes=albumentations_bboxes)
+    aug_data = aug(image=image, bboxes=to_internal_bboxes(albumentations_bboxes))
     set_seed(seed)
     ia.seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
+    deserialized_aug_data = deserialized_aug(image=image, bboxes=to_internal_bboxes(albumentations_bboxes))
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert aug_data["bboxes"] == deserialized_aug_data["bboxes"]
 
@@ -196,10 +214,10 @@ def test_imgaug_augmentations_for_keypoints_serialization(
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
     ia.seed(seed)
-    aug_data = aug(image=image, keypoints=keypoints)
+    aug_data = aug(image=image, keypoints=to_internal_keypoints(keypoints))
     set_seed(seed)
     ia.seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
+    deserialized_aug_data = deserialized_aug(image=image, keypoints=to_internal_keypoints(keypoints))
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert aug_data["keypoints"] == deserialized_aug_data["keypoints"]
 
