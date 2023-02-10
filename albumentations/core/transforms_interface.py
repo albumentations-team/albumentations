@@ -57,6 +57,11 @@ FillValueType = Optional[Union[int, float, Sequence[int], Sequence[float]]]
 class BatchInternalType:
     array: np.ndarray
 
+    def __setattr__(self, key, value):
+        if key == "array":
+            self.assert_array_format(value)
+        super().__setattr__(key, value)
+
     @abstractmethod
     def __getitem__(self, item):
         raise NotImplementedError
@@ -67,6 +72,11 @@ class BatchInternalType:
 
     @abstractmethod
     def check_consistency(self):
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def assert_array_format(array):
         raise NotImplementedError
 
 
@@ -117,7 +127,7 @@ class BBoxesInternalType(BatchInternalType):
                 self.targets[i] = target
 
     @staticmethod
-    def assert_np_bboxes_format(bboxes: np.ndarray):  # noqa
+    def assert_array_format(bboxes: np.ndarray):  # noqa
         if not isinstance(bboxes, np.ndarray):
             raise TypeError("Bboxes should be a numpy ndarray.")
         if len(bboxes):
@@ -133,7 +143,7 @@ class BBoxesInternalType(BatchInternalType):
                 "The amount of bboxes and additional targets should be the same. "
                 f"Get {len(self.array)} bboxes and {len(self.targets)} additional targets."
             )
-        self.assert_np_bboxes_format(self.array)
+        self.assert_array_format(self.array)
 
 
 @dataclass
@@ -183,7 +193,7 @@ class KeypointsInternalType(BatchInternalType):
                 self.targets[i] = target
 
     @staticmethod
-    def assert_np_keypoints_format(keypoints: np.ndarray):  # noqa
+    def assert_array_format(keypoints: np.ndarray):  # noqa
         if not isinstance(keypoints, np.ndarray):
             raise TypeError("Bboxes should be a numpy ndarray.")
         if len(keypoints):
@@ -200,7 +210,7 @@ class KeypointsInternalType(BatchInternalType):
                 "The amount of keypoints and additional targets should be the same. "
                 f"Get {len(self.array)} keypoints and {len(self.targets)} additional targets."
             )
-        self.assert_np_keypoints_format(self.array)
+        self.assert_array_format(self.array)
 
 
 def to_tuple(param, low=None, bias=None):
