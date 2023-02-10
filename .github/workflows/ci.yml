@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - master
-      - bbox_numpy
   pull_request:
 
 jobs:
