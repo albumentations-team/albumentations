@@ -292,14 +292,8 @@ def bboxes_crop(
         crop_coords = np.stack([x_min, y_min, x_max, y_max], axis=1)
     else:
         len_bboxes = len(bboxes)
-        x_mins: Sequence[int] = [x_min] * len_bboxes
-        y_mins: Sequence[int] = [x_min] * len_bboxes
-        x_maxs: Sequence[int] = [x_min] * len_bboxes
-        y_maxs: Sequence[int] = [x_min] * len_bboxes
-        crop_coords = np.stack(
-            [x_mins, y_mins, x_maxs, y_maxs],
-            axis=1,
-        )
+        crop_coords = np.tile(np.array([x_min, y_min, x_max, y_max], dtype=float)[np.newaxis, ...], (len_bboxes, 1))
+
     crop_heights = y_max - y_min
     crop_widths = x_max - x_min
 
