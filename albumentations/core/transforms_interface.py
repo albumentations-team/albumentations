@@ -97,11 +97,6 @@ class BBoxesInternalType(BatchInternalType):
         assert len(self.array) == len(self.targets)
         return len(self.array)
 
-    def __setattr__(self, key, value):
-        if key == "bboxes":
-            self.assert_np_bboxes_format(value)
-        super().__setattr__(key, value)
-
     def __getitem__(self, item) -> "BBoxesInternalType":
         _bboxes = self.array[item].astype(float)
         if isinstance(item, int):
@@ -167,11 +162,6 @@ class KeypointsInternalType(BatchInternalType):
     def __len__(self):
         assert len(self.array) == len(self.targets)
         return len(self.array)
-
-    def __setattr__(self, key, value):
-        if key == "keypoints":
-            self.assert_np_keypoints_format(value)
-        super().__setattr__(key, value)
 
     def __getitem__(self, item) -> "KeypointsInternalType":
         _kps = self.array[item].astype(float)
