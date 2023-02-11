@@ -531,6 +531,9 @@ class Affine(DualTransform):
             after applying rotations. Default: False
         keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
                            Default: False.
+        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or
+            "ellipse"[1].
+            Default: "largest_box"
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -539,6 +542,8 @@ class Affine(DualTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        [1] https://arxiv.org/abs/2109.13488
     """
 
     def __init__(
@@ -555,6 +560,7 @@ class Affine(DualTransform):
         mode: int = cv2.BORDER_CONSTANT,
         fit_output: bool = False,
         keep_ratio: bool = False,
+        rotate_method: str = "largest_box",
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -582,6 +588,7 @@ class Affine(DualTransform):
         self.fit_output = fit_output
         self.shear = self._handle_dict_arg(shear, "shear")
         self.keep_ratio = keep_ratio
+        self.rotate_method = rotate_method
 
         if self.keep_ratio and self.scale["x"] != self.scale["y"]:
             raise ValueError(
@@ -602,6 +609,7 @@ class Affine(DualTransform):
             "shear",
             "cval_mask",
             "keep_ratio",
+            "rotate_method",
         )
 
     @staticmethod
@@ -680,7 +688,7 @@ class Affine(DualTransform):
         output_shape: Sequence[int] = (),
         **params
     ) -> BoxInternalType:
-        return F.bbox_affine(bbox, matrix, rows, cols, output_shape)
+        return F.bbox_affine(bbox, matrix, self.rotate_method, rows, cols, output_shape)
 
     def apply_to_keypoint(
         self,
