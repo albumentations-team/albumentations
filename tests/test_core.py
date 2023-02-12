@@ -429,7 +429,7 @@ def test_compose_image_mask_equal_size(targets):
 
     assert str(exc_info.value).startswith(
         "Height and Width of image, mask or masks should be equal. "
-        "You can disable shapes check by calling disable_shapes_check method "
+        "You can disable shapes check by setting a parameter is_check_shapes=False "
         "of Compose class (do it only if you are sure about your data consistency)."
     )
     # test after disabling shapes check
