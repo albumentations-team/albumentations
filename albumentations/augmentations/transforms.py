@@ -2789,11 +2789,11 @@ class UnpropShuffle(DualTransform):
             return True
 
         # Split
-        current_num_semgs = 1
+        current_num_segms = 1
 
-        while current_num_semgs < num_segments:
+        while current_num_segms < num_segments:
             if split(bool(random.getrandbits(1)), random.randint(0, len(segms) - 1)):
-                current_num_semgs = current_num_semgs + 1
+                current_num_segms = current_num_segms + 1
 
         tiles = []
         for i in segms:
