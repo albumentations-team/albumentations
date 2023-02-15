@@ -64,6 +64,11 @@ def use_keypoints_ndarray(return_array: bool = True) -> Callable:
                 keypoints.array = ret
             elif isinstance(keypoints, np.ndarray):
                 keypoints = func(keypoints.astype(float), *args, **kwargs)
+            else:
+                raise TypeError(
+                    f"The first input of {func.__name__} must be either a `KeypointsInternalType` or a `np.ndarray`. "
+                    f"Given {type(keypoints)} instead."
+                )
             return keypoints
 
         return wrapper

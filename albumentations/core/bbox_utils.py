@@ -63,6 +63,11 @@ def use_bboxes_ndarray(return_array: bool = True) -> Callable:
                 bboxes.array = ret
             elif isinstance(bboxes, np.ndarray):
                 bboxes = func(bboxes.astype(float), *args, **kwargs)
+            else:
+                raise TypeError(
+                    f"The first input of {func.__name__} must be either a `BBoxesInternalType` or a `np.ndarray`. "
+                    f"Given {type(bboxes)} instead."
+                )
             return bboxes
 
         return wrapper
