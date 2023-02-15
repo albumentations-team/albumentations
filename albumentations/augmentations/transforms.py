@@ -24,7 +24,7 @@ from albumentations.augmentations.utils import (
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
-    KeypointType,
+    KeypointInternalType,
     NoOp,
     ScaleFloatType,
     to_tuple,
@@ -104,8 +104,8 @@ class RandomGridShuffle(DualTransform):
         return F.swap_tiles_on_image(img, tiles)
 
     def apply_to_keypoint(
-        self, keypoint: KeypointType, tiles: np.ndarray = np.array(None), rows: int = 0, cols: int = 0, **params
-    ) -> KeypointType:
+        self, keypoint: KeypointInternalType, tiles: np.ndarray = np.array(None), rows: int = 0, cols: int = 0, **params
+    ) -> KeypointInternalType:
         for (
             current_left_up_corner_row,
             current_left_up_corner_col,

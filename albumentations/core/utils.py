@@ -1,11 +1,41 @@
 from __future__ import absolute_import
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 
 from .serialization import Serializable
+
+InternalDtype = TypeVar("InternalDtype")
+
+
+def ensure_internal_format(func: Callable) -> Callable:
+    """Ensure data in inputs of the provided function is BatchInternalType,
+    and ensure its data consistency.
+
+    Args:
+        func (Callable): a callable with the first argument being BatchInternalType.
+
+    Returns:
+        Callable, a callable with the first argument with type BatchInternalType.
+    """
+    from .transforms_interface import BatchInternalType
+
+    @wraps(func)
+    def wrapper(data, *args, **kwargs):  # noqa
+        data = func(data, *args, **kwargs)
+        if isinstance(data, BatchInternalType):
+            data.check_consistency()
+        else:
+            raise TypeError(
+                f"The return from {func.__name__} should be a `BatchInternalType`, "
+                f"instead it returns a {type(data)}."
+            )
+        return data
+
+    return wrapper
 
 
 def get_shape(img: Any) -> Tuple[int, int]:
@@ -92,7 +122,7 @@ class DataProcessor(ABC):
             data[data_name] = self.convert_to_internal_type(data[data_name])
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(self, data, rows: int, cols: int, direction: str = "to"):
+    def check_and_convert(self, data: Union[Sequence, InternalDtype], rows: int, cols: int, direction: str = "to"):
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -105,19 +135,21 @@ class DataProcessor(ABC):
             raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data, rows: int, cols: int, target_name: str):
+    def filter(
+        self, data: Union[Sequence, InternalDtype], rows: int, cols: int, target_name: str
+    ) -> Union[Sequence, InternalDtype]:
         pass
 
     @abstractmethod
-    def check(self, data, rows: int, cols: int) -> None:
+    def check(self, data: Union[Sequence, InternalDtype], rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data, rows: int, cols: int):
+    def convert_to_albumentations(self, data: Any, rows: int, cols: int) -> InternalDtype:  # type: ignore[type-var]
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data, rows: int, cols: int):
+    def convert_from_albumentations(self, data: InternalDtype, rows: int, cols: int) -> Any:
         pass
 
     def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:

@@ -28,7 +28,9 @@ __all__ = [
     "ImageOnlyTransform",
     "NoOp",
     "BoxType",
+    "BoxInternalType",
     "KeypointType",
+    "KeypointInternalType",
     "BatchInternalType",
     "BBoxesInternalType",
     "BoxesArray",
@@ -41,8 +43,10 @@ __all__ = [
 ]
 
 NumType = Union[int, float, np.ndarray]
-BoxType = Tuple[float, float, float, float]
-KeypointType = Tuple[float, float, float, float]
+BoxInternalType = Tuple[float, float, float, float]
+BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
+KeypointInternalType = Tuple[float, float, float, float]
+KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]
 BoxesArray: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
 KeypointsArray: TypeAlias = Annotated[npt.NDArray, Literal["N", 4]]
 ImageColorType = Union[float, Sequence[float]]
@@ -56,11 +60,25 @@ FillValueType = Optional[Union[int, float, Sequence[int], Sequence[float]]]
 @dataclass
 class BatchInternalType:
     array: np.ndarray
+    targets: List[Any] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not isinstance(self.array, np.ndarray):
+            self.array = np.array(self.array, dtype=float)
+        elif isinstance(self.array, np.ndarray):
+            self.array = self.array.astype(float)
+        if len(self.array) and not self.targets:
+            self.targets = [()] * len(self.array)
+        self.check_consistency()
 
     def __setattr__(self, key, value):
         if key == "array":
             self.assert_array_format(value)
         super().__setattr__(key, value)
+
+    def __len__(self):
+        assert len(self.array) == len(self.targets)
+        return len(self.array)
 
     @abstractmethod
     def __getitem__(self, item):
@@ -83,29 +101,18 @@ class BatchInternalType:
 @dataclass
 class BBoxesInternalType(BatchInternalType):
     array: BoxesArray = field(default=np.empty((0, 4)))
-    targets: List[Any] = field(default_factory=list)
-
-    def __post_init__(self):
-        if not isinstance(self.array, np.ndarray):
-            self.array = np.array(self.array, dtype=float)
-        elif isinstance(self.array, np.ndarray):
-            self.array = self.array.astype(float)
-        if len(self.array) and not self.targets:
-            self.targets = [()] * len(self.array)
-        self.check_consistency()
 
     def __eq__(self, other):
         if not isinstance(other, BBoxesInternalType):
-            return False
+            raise TypeError(
+                "`BBoxesInternalType` is only comparable with another `BBoxesInternalType`, "
+                f"given {type(other)} instead."
+            )
         if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
             # This's because numpy does not treat array([], dtype=float64)
             # and array=array([], shape=(0, 4), dtype=float64) equally.
             return True
         return np.array_equal(self.array, other.array) and self.targets == other.targets
-
-    def __len__(self):
-        assert len(self.array) == len(self.targets)
-        return len(self.array)
 
     def __getitem__(self, item) -> "BBoxesInternalType":
         _bboxes = self.array[item].astype(float)
@@ -149,29 +156,18 @@ class BBoxesInternalType(BatchInternalType):
 @dataclass
 class KeypointsInternalType(BatchInternalType):
     array: KeypointsArray = field(default=np.empty((0, 4)))
-    targets: List[Any] = field(default_factory=list)
-
-    def __post_init__(self):
-        if not isinstance(self.array, np.ndarray):
-            self.array = np.array(self.array, dtype=float)
-        elif isinstance(self.array, np.ndarray):
-            self.array = self.array.astype(float)
-        if len(self.array) and not self.targets:
-            self.targets = [()] * len(self.array)
-        self.check_consistency()
 
     def __eq__(self, other):
         if not isinstance(other, KeypointsInternalType):
-            return False
+            raise TypeError(
+                "`KeypointsInternalType` is only comparable with another `KeypointsInternalType`, "
+                f"given {type(other)} instead."
+            )
         if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
             # This's because numpy does not treat array([], dtype=float64)
             # and array=array([], shape=(0, 4), dtype=float64) equally.
             return True
         return np.array_equal(self.array, other.array) and self.targets == other.targets
-
-    def __len__(self):
-        assert len(self.array) == len(self.targets)
-        return len(self.array)
 
     def __getitem__(self, item) -> "KeypointsInternalType":
         _kps = self.array[item].astype(float)
@@ -419,10 +415,10 @@ class DualTransform(BasicTransform):
             "keypoints": self.apply_to_keypoints,
         }
 
-    def apply_to_bbox(self, bbox: BoxType, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
         raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
 
-    def apply_to_keypoint(self, keypoint: KeypointType, **params) -> KeypointType:
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
         raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
 
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:

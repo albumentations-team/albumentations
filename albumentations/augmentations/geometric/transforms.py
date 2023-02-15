@@ -12,7 +12,7 @@ from albumentations.core.bbox_utils import denormalize_bboxes_np, normalize_bbox
 from ... import random_utils
 from ...core.transforms_interface import (
     BBoxesInternalType,
-    BoxType,
+    BoxInternalType,
     DualTransform,
     ImageColorType,
     KeypointsInternalType,
@@ -235,7 +235,7 @@ class ElasticTransform(DualTransform):
             self.same_dxdy,
         )
 
-    def apply_to_bbox(self, bbox: BoxType, random_state=None, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, random_state=None, **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_array = np.array([bbox], dtype=float)
@@ -1370,7 +1370,7 @@ class OpticalDistortion(DualTransform):
     def apply_to_mask(self, img: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, **params) -> np.ndarray:
         return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_bbox(self, bbox: BoxType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_array = np.array([bbox], dtype=float)
@@ -1456,7 +1456,7 @@ class GridDistortion(DualTransform):
             img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
 
-    def apply_to_bbox(self, bbox: BoxType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxType:
+    def apply_to_bbox(self, bbox: BoxInternalType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_array = np.array([bbox], dtype=float)

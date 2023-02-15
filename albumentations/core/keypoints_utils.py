@@ -7,8 +7,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 
 import numpy as np
 
-from .transforms_interface import KeypointsArray, KeypointsInternalType
-from .utils import DataProcessor, Params
+from .transforms_interface import KeypointsArray, KeypointsInternalType, KeypointType
+from .utils import DataProcessor, Params, ensure_internal_format
 
 __all__ = [
     "angle_to_2pi_range",
@@ -18,7 +18,6 @@ __all__ = [
     "filter_keypoints",
     "KeypointsProcessor",
     "KeypointParams",
-    "ensure_keypoints_format",
     "use_keypoints_ndarray",
 ]
 
@@ -30,25 +29,12 @@ def angle_to_2pi_range(angle: Union[np.ndarray, float]):
     return angle % two_pi
 
 
-def ensure_keypoints_format(func: Callable) -> Callable:
-    """Ensure keypoints in inputs of the provided function is KeypointsInternalType,
-    and ensure its data consistency.
-
-    Args:
-        func (Callable): a callable with the first argument being keypoints.
-
-    Returns:
-        Callable, a callable with the first argument being keypoints as KeypointsInternalType.
-    """
-
-    @wraps(func)
-    def wrapper(keypoints, *args, **kwargs):  # noqa
-        keypoints = func(keypoints, *args, **kwargs)
-        if isinstance(keypoints, KeypointsInternalType):
-            keypoints.check_consistency()
-        return keypoints
-
-    return wrapper
+def split_keypoints_targets(keypoints: Sequence[KeypointType], coord_length: int) -> Tuple[np.ndarray, List[Any]]:
+    kps_array, targets = [], []
+    for kp in keypoints:
+        kps_array.append(kp[:coord_length])
+        targets.append(kp[coord_length:])
+    return np.array(kps_array, dtype=float), targets
 
 
 def use_keypoints_ndarray(return_array: bool = True) -> Callable:
@@ -226,7 +212,6 @@ class KeypointsProcessor(DataProcessor):
         )
 
 
-@ensure_keypoints_format
 @use_keypoints_ndarray(return_array=False)
 def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
     """Check if keypoints boundaries are less than image shapes"""
@@ -248,7 +233,7 @@ def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
         raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {keypoints[row_idx, 2]}.")
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 def filter_keypoints(
     keypoints: KeypointsInternalType, rows: int, cols: int, remove_invisible: bool
 ) -> KeypointsInternalType:
@@ -275,7 +260,7 @@ def filter_keypoints(
     return keypoints[idx] if len(idx) != len(keypoints) else keypoints
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def convert_keypoints_to_albumentations(
     keypoints: KeypointsArray,
@@ -330,7 +315,7 @@ def convert_keypoints_to_albumentations(
     return keypoints
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def convert_keypoints_from_albumentations(
     keypoints: KeypointsArray,

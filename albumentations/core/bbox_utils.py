@@ -1,23 +1,17 @@
 from __future__ import division
 
 from functools import wraps
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 
-from .transforms_interface import BBoxesInternalType, BoxesArray, BoxType
-from .utils import DataProcessor, Params
+from .transforms_interface import (
+    BBoxesInternalType,
+    BoxesArray,
+    BoxInternalType,
+    BoxType,
+)
+from .utils import DataProcessor, Params, ensure_internal_format
 
 __all__ = [
     "normalize_bboxes_np",
@@ -30,41 +24,16 @@ __all__ = [
     "union_of_bboxes",
     "BboxProcessor",
     "BboxParams",
-    "bboxes_to_array",
-    "array_to_bboxes",
-    "ensure_bboxes_format",
     "use_bboxes_ndarray",
 ]
 
-TBox = TypeVar("TBox", BoxType, BBoxesInternalType)
 
-
-def bboxes_to_array(bboxes: Sequence[BoxType]) -> np.ndarray:
-    return np.array([bbox[:4] for bbox in bboxes])
-
-
-def array_to_bboxes(np_bboxes: np.ndarray, ori_bboxes: Sequence[BoxType]) -> List[BoxType]:
-    return [cast(BoxType, tuple(np_bbox) + tuple(bbox[4:])) for bbox, np_bbox in zip(ori_bboxes, np_bboxes)]
-
-
-def ensure_bboxes_format(func: Callable) -> Callable:
-    """Ensure the return bboxes from the provided function check its consistency.
-
-    Args:
-        func (Callable): a callable with the first argument being bboxes.
-
-    Returns:
-        Callable
-    """
-
-    @wraps(func)
-    def wrapper(bboxes, *args, **kwargs):
-        bboxes = func(bboxes, *args, **kwargs)
-        if isinstance(bboxes, BBoxesInternalType):
-            bboxes.check_consistency()
-        return bboxes
-
-    return wrapper
+def split_bboxes_targets(bboxes: Sequence[BoxType]) -> Tuple[np.ndarray, List[Any]]:
+    bbox_array, targets = [], []
+    for bbox in bboxes:
+        bbox_array.append(bbox[:4])
+        targets.append(bbox[4:])
+    return np.array(bbox_array, dtype=float), targets
 
 
 def use_bboxes_ndarray(return_array: bool = True) -> Callable:
@@ -287,7 +256,7 @@ def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarra
     return bboxes_area
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def convert_bboxes_to_albumentations(
     bboxes: BoxesArray, source_format: str, rows: int, cols: int, check_validity: bool = False
@@ -336,7 +305,7 @@ def convert_bboxes_to_albumentations(
     return bboxes
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def convert_bboxes_from_albumentations(
     bboxes: BoxesArray, target_format: str, rows: int, cols: int, check_validity: bool = False
@@ -377,7 +346,6 @@ def convert_bboxes_from_albumentations(
     return bboxes
 
 
-@ensure_bboxes_format
 @use_bboxes_ndarray(return_array=False)
 def check_bboxes(bboxes: BoxesArray) -> None:
     """Check if bboxes boundaries are in range 0, 1 and minimums are lesser then maximums"""
@@ -408,7 +376,7 @@ def check_bboxes(bboxes: BoxesArray) -> None:
         raise ValueError(f"y_max is less than or equal to y_min for bbox {bboxes[y_idx[0]].tolist()}.")
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 def filter_bboxes(
     bboxes: BBoxesInternalType,
     rows: int,
@@ -464,7 +432,7 @@ def filter_bboxes(
 
 
 @use_bboxes_ndarray(return_array=False)
-def union_of_bboxes(bboxes: BoxesArray, height: int, width: int, erosion_rate: float = 0.0) -> BoxType:
+def union_of_bboxes(bboxes: BoxesArray, height: int, width: int, erosion_rate: float = 0.0) -> BoxInternalType:
     """Calculate union of bounding boxes.
 
     Args:

@@ -17,19 +17,18 @@ from albumentations.augmentations.utils import (
 from ... import random_utils
 from ...core.bbox_utils import (
     denormalize_bboxes_np,
-    ensure_bboxes_format,
     normalize_bboxes_np,
     use_bboxes_ndarray,
 )
-from ...core.keypoints_utils import ensure_keypoints_format, use_keypoints_ndarray
+from ...core.keypoints_utils import use_keypoints_ndarray
 from ...core.transforms_interface import (
+    BBoxesInternalType,
     BoxesArray,
-    BoxType,
     FillValueType,
     ImageColorType,
     KeypointsArray,
-    KeypointsInternalType,
 )
+from ...core.utils import ensure_internal_format
 
 __all__ = [
     "optical_distortion",
@@ -82,7 +81,7 @@ __all__ = [
 ]
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_rot90(bboxes: BoxesArray, factor: int, rows: int, cols: int) -> BoxesArray:
     """Rotate a batch of bboxes by 90 degrees CCW (see np.rot90)
@@ -115,7 +114,7 @@ def bboxes_rot90(bboxes: BoxesArray, factor: int, rows: int, cols: int) -> Boxes
     return bboxes
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
 def keypoints_rot90(keypoints: KeypointsArray, factor: int, rows: int, cols: int, **params) -> KeypointsArray:
@@ -172,7 +171,7 @@ def rotate(
     return warp_fn(img)
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_rotate(bboxes: BoxesArray, angle: float, method: str, rows: int, cols: int) -> BoxesArray:
     """Rotates a batch of bounding boxes by angle degrees.
@@ -225,7 +224,7 @@ def bboxes_rotate(bboxes: BoxesArray, angle: float, method: str, rows: int, cols
     return bboxes
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
 def keypoints_rotate(keypoints: KeypointsArray, angle: float, rows: int, cols: int, **params) -> KeypointsArray:
@@ -266,7 +265,7 @@ def shift_scale_rotate(
     return warp_affine_fn(img)
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
 def keypoints_shift_scale_rotate(
@@ -287,7 +286,7 @@ def keypoints_shift_scale_rotate(
     return keypoints
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_shift_scale_rotate(
     bboxes: BoxesArray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
@@ -505,7 +504,7 @@ def perspective(
     return warped
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def perspective_bboxes(
     bboxes: BoxesArray,
@@ -618,7 +617,7 @@ def warp_affine(
     return tmp
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
 def keypoints_affine(
@@ -635,7 +634,7 @@ def keypoints_affine(
     return keypoints
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_affine(
     bboxes: BoxesArray,
@@ -705,7 +704,7 @@ def safe_rotate(
     return warp_fn(img)
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_safe_rotate(
     bboxes: BoxesArray,
@@ -740,7 +739,7 @@ def bboxes_safe_rotate(
     return normalize_bboxes_np(bboxes, rows=rows, cols=cols)
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def keypoints_safe_rotate(
     keypoints: KeypointsArray,
@@ -894,7 +893,7 @@ def from_distance_maps(
     return np.array(keypoints)
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def keypoints_piecewise_affine(
     keypoints: KeypointsArray,
@@ -911,7 +910,7 @@ def keypoints_piecewise_affine(
     return keypoints
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_piecewise_affine(
     bboxes: BoxesArray,
@@ -980,6 +979,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes vertically around the x-axis.
@@ -996,6 +996,7 @@ def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     return bboxes
 
 
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_hflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes horizontally around the y-axis.
@@ -1012,18 +1013,17 @@ def bboxes_hflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     return bboxes
 
 
-@ensure_bboxes_format
-@use_bboxes_ndarray(return_array=True)
-def bboxes_flip(bboxes: BoxesArray, d: int, **kwargs) -> BoxesArray:
+@ensure_internal_format
+def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-        bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
+        bboxes (BBoxesInternalType): A batch of bounding boxes in `albumentations` format.
         d (int): dimension 0 for vertical flip, 1 for horizontal, -1 for transpose.
         **kwargs:
 
     Returns:
-        BoxesArray: A batch of flipped bounding boxes in `albumentations` format.
+        BBoxesInternalType: A batch of flipped bounding boxes in `albumentations` format.
 
     Raises:
         ValueError: if value of `d` is not -1, 0 or 1.
@@ -1040,7 +1040,7 @@ def bboxes_flip(bboxes: BoxesArray, d: int, **kwargs) -> BoxesArray:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1.")
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs) -> BoxesArray:
     """Transpose bounding bboxes along a given axis in batch.
@@ -1107,7 +1107,7 @@ def keypoints_hflip(keypoints: KeypointsArray, rows: int, cols: int) -> Keypoint
     return keypoints
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def keypoints_flip(keypoints: KeypointsArray, d: int, rows: int, cols: int) -> KeypointsArray:
     """Flip a batch of keypoints either vertically, horizontally or both depending on the value of `d`.
@@ -1140,7 +1140,7 @@ def keypoints_flip(keypoints: KeypointsArray, d: int, rows: int, cols: int) -> K
     return keypoints
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def keypoints_transpose(keypoints: KeypointsArray) -> KeypointsArray:
     """Rotate a batch of keypoints by angle.

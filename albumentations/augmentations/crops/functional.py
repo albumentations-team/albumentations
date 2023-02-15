@@ -10,17 +10,12 @@ from albumentations.augmentations.utils import (
 
 from ...core.bbox_utils import (
     denormalize_bboxes_np,
-    ensure_bboxes_format,
     normalize_bboxes_np,
     use_bboxes_ndarray,
 )
-from ...core.keypoints_utils import ensure_keypoints_format, use_keypoints_ndarray
-from ...core.transforms_interface import (
-    BBoxesInternalType,
-    BoxesArray,
-    KeypointsArray,
-    KeypointsInternalType,
-)
+from ...core.keypoints_utils import use_keypoints_ndarray
+from ...core.transforms_interface import BBoxesInternalType, BoxesArray, KeypointsArray
+from ...core.utils import ensure_internal_format
 from ..geometric import functional as FGeometric
 
 __all__ = [
@@ -100,7 +95,7 @@ def crop_bboxes_by_coords(
     return normalize_bboxes_np(cropped_bboxes, crop_width, crop_height)
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_random_crop(
     bboxes: BoxesArray,
@@ -141,7 +136,7 @@ def crop_keypoints_by_coords(
     return keypoints
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def keypoints_random_crop(
     keypoints: KeypointsArray,
@@ -205,7 +200,7 @@ def bboxes_center_crop(bboxes: BoxesArray, crop_height: int, crop_width: int, ro
     return crop_bboxes_by_coords(bboxes, [crop_coords] * num_bboxes, crop_height, crop_width, rows, cols)
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def keypoints_center_crop(
     keypoints: KeypointsArray,
@@ -254,7 +249,7 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
     return img[y_min:y_max, x_min:x_max]
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 def bboxes_crop(
     bboxes: BBoxesInternalType,
     x_min: Union[np.ndarray, int],
@@ -339,7 +334,7 @@ def crop_and_pad(
     return img
 
 
-@ensure_bboxes_format
+@ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def crop_and_pad_bboxes(
     bboxes: BoxesArray,
@@ -365,7 +360,7 @@ def crop_and_pad_bboxes(
     return normalize_bboxes_np(bboxes, result_rows, result_cols)
 
 
-@ensure_keypoints_format
+@ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 def crop_and_pad_keypoints(
     keypoints: KeypointsArray,
