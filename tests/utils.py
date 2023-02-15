@@ -2,11 +2,19 @@ import inspect
 import random
 import typing
 from io import StringIO
-from typing import Optional, Set, Type
+from typing import Optional, Sequence, Set, Type, cast
 
 import numpy as np
 
 import albumentations
+from albumentations.core.bbox_utils import split_bboxes_targets
+from albumentations.core.keypoints_utils import split_keypoints_targets
+from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
+    BoxInternalType,
+    KeypointInternalType,
+    KeypointsInternalType,
+)
 
 
 def convert_2d_to_3d(arrays, num_channels=3):
@@ -134,3 +142,31 @@ def check_all_augs_exists(
         raise ValueError(f"These augmentations do not exist in augmentations and except_augmentations: {not_existed}")
 
     return augmentations
+
+
+def bboxes_list_to_internal_type(bboxes: Sequence[BoxInternalType]) -> BBoxesInternalType:
+    bbox_array, targets = split_bboxes_targets(bboxes)
+    return BBoxesInternalType(array=bbox_array, targets=targets)
+
+
+def bboxes_internal_type_to_list(bboxes: BBoxesInternalType) -> Sequence[BoxInternalType]:
+    ret = []
+    for arr, target in zip(bboxes.array, bboxes.targets):
+        ret.append(cast(BoxInternalType, tuple(arr) + tuple(target)))
+    return ret
+
+
+def keypoints_list_to_internal_type(
+    keypoints: Sequence[KeypointInternalType], coord_length: int
+) -> KeypointsInternalType:
+    kp_array, targets = split_keypoints_targets(keypoints, coord_length=coord_length)
+    return KeypointsInternalType(array=kp_array, targets=targets)
+
+
+def keypoints_internal_type_to_list(
+    keypoints: KeypointsInternalType, coord_length: int
+) -> Sequence[KeypointInternalType]:
+    ret = []
+    for arr, target in zip(keypoints.array, keypoints.targets):
+        ret.append(cast(KeypointInternalType, tuple(arr[:coord_length]) + tuple(target)))
+    return ret

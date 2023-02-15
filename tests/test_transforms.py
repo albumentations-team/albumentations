@@ -1,3 +1,4 @@
+import copy
 import random
 from functools import partial
 
@@ -9,7 +10,10 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
-from albumentations.core.transforms_interface import BBoxesInternalType
+from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
+    KeypointsInternalType,
+)
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -347,17 +351,20 @@ def test_lambda_transform():
         p=1,
     )
 
+    bboxes = BBoxesInternalType(array=np.array([(10, 15, 25, 35)], dtype=float))
+    keypoints = KeypointsInternalType(array=np.array([(20, 30, 40, 50)], dtype=float))
+
     output = aug(
         image=np.ones((10, 10, 3), dtype=np.float32),
         mask=np.tile(np.arange(0, 10), (10, 1)),
-        bboxes=[(10, 15, 25, 35)],
-        keypoints=[(20, 30, 40, 50)],
+        bboxes=copy.deepcopy(bboxes),
+        keypoints=copy.deepcopy(keypoints),
     )
 
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == vflip_bboxes([(10, 15, 25, 35)], w=10, h=10)
-    assert output["keypoints"] == vflip_keypoints([(20, 30, 40, 50)], rows=10, cols=10)
+    assert output["bboxes"] == vflip_bboxes(bboxes, w=10, h=10)
+    assert output["keypoints"] == vflip_keypoints(keypoints, rows=10, cols=10)
 
 
 def test_channel_droput():
