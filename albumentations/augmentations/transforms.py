@@ -1576,7 +1576,7 @@ class ToSepia(ImageOnlyTransform):
 
     def __init__(self, always_apply=False, p=0.5):
         super(ToSepia, self).__init__(always_apply, p)
-        self.sepia_transformation_matrix = np.matrix(
+        self.sepia_transformation_matrix = np.array(
             [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
         )
 

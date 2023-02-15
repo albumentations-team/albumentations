@@ -285,7 +285,7 @@ class Compose(BaseCompose):
         if self.is_check_shapes and shapes and shapes.count(shapes[0]) != len(shapes):
             raise ValueError(
                 "Height and Width of image, mask or masks should be equal. You can disable shapes check "
-                "by calling disable_shapes_check method of Compose class (do it only if you are sure "
+                "by setting a parameter is_check_shapes=False of Compose class (do it only if you are sure "
                 "about your data consistency)."
             )
 
