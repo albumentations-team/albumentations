@@ -69,7 +69,7 @@ def test_denormalize_normalize():
 @pytest.mark.parametrize(
     "bboxes, rows, cols, expected",
     [
-        (np.array([(0, 0, 1, 1), (0.2, 0.2, 1, 1, 99)]), 50, 100, np.array([5000, 3200])),
+        ([(0, 0, 1, 1), (0.2, 0.2, 1, 1, 99)], 50, 100, np.array([5000, 3200])),
     ],
 )
 def test_calculate_bboxes_area(bboxes, rows, cols, expected):
