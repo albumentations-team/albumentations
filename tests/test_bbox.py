@@ -69,11 +69,11 @@ def test_denormalize_normalize():
 @pytest.mark.parametrize(
     "bboxes, rows, cols, expected",
     [
-        (np.array([(0, 0, 1, 1), (0.2, 0.2, 1, 1)]), 50, 100, np.array([5000, 3200])),
+        (np.array([(0, 0, 1, 1), (0.2, 0.2, 1, 1, 99)]), 50, 100, np.array([5000, 3200])),
     ],
 )
 def test_calculate_bboxes_area(bboxes, rows, cols, expected):
-    bboxes = BBoxesInternalType(bboxes)
+    bboxes = bboxes_list_to_internal_type(bboxes)
     areas = calculate_bboxes_area(bboxes, rows, cols).astype(int)
     assert np.array_equal(areas, expected)
 
@@ -141,16 +141,29 @@ def test_convert_bboxes_from_albumentations(bboxes, target_format, expected):
     ["bboxes", "bbox_format"],
     [
         (
-            [(20, 30, 40, 50), (20, 30, 40, 50, 99), (20, 30, 41, 51, 99), (21, 31, 40, 50, 99), (21, 31, 41, 51, 99)],
+            [
+                (20, 30, 40, 50),
+                (20, 30, 40, 50, 99),
+                (20, 30, 41, 51, 99),
+                (21, 31, 40, 50, 99),
+                (21, 31, 41, 51, 99),
+            ],
             "coco",
         ),
         (
-            [(20, 30, 60, 80), (20, 30, 60, 80, 99), (20, 30, 61, 81, 99), (21, 31, 60, 80, 99), (21, 31, 61, 81, 99)],
+            [
+                (20, 30, 60, 80),
+                (20, 30, 60, 80, 99),
+                (20, 30, 61, 81, 99),
+                (21, 31, 60, 80, 99),
+                (21, 31, 61, 81, 99),
+            ],
             "pascal_voc",
         ),
         (
             [
                 (0.01, 0.06, 0.41, 0.56),
+                (0.01, 0.06, 0.41, 0.56, 99),
                 (0.02, 0.06, 0.42, 0.56, 99),
                 (0.01, 0.05, 0.41, 0.55, 99),
                 (0.02, 0.06, 0.41, 0.55, 99),

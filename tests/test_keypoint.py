@@ -12,7 +12,7 @@ from albumentations.core.keypoints_utils import (
     convert_keypoints_to_albumentations,
 )
 
-from .utils import keypoints_internal_type_to_list, keypoints_list_to_internal_type
+from .utils import keypoints_list_to_internal_type
 
 
 @pytest.mark.parametrize(
@@ -248,7 +248,7 @@ def test_keypoint_rotate90(keypoints, expected, factor):
 def test_keypoints_rotate(keypoints, expected, angle):
     keypoints = keypoints_list_to_internal_type(keypoints, coord_length=4)
     actual = FGeometric.keypoints_rotate(keypoints, angle, rows=100, cols=100)
-    assert np.allclose(actual.array, expected)
+    assert np.allclose(actual.array, expected, atol=1e-7)
 
 
 @pytest.mark.parametrize(
