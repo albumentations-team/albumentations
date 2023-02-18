@@ -17,7 +17,8 @@ class GridDropout(DualTransform):
             Must be between 0 and 1. Default: 0.5.
         unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
             If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
+        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge, and
+            no lower than unit_size_min.
             If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
         holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
             If 'None', grid unit width is set as image_width//10. Default: `None`.
