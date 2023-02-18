@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import skimage
 
+from albumentations.diy_coverage import write_coverage
 from albumentations import random_utils
 from albumentations.augmentations.utils import (
     MAX_VALUES_BY_DTYPE,
@@ -213,17 +214,23 @@ def posterize(img, bits):
         numpy.ndarray: Image with reduced color channels.
 
     """
+    write_coverage("posterize", "00:main_control_flow")
     bits = np.uint8(bits)
 
     if img.dtype != np.uint8:
+        write_coverage("posterize", "01:wrong_type")
         raise TypeError("Image must have uint8 channel type")
     if np.any((bits < 0) | (bits > 8)):
+        write_coverage("posterize", "02:bits_out_of_bounds")
         raise ValueError("bits must be in range [0, 8]")
 
     if not bits.shape or len(bits) == 1:
+        write_coverage("posterize", "03-04:no_shape_or_length_one")
         if bits == 0:
+            write_coverage("posterize", "05:bit_is_zero")
             return np.zeros_like(img)
         if bits == 8:
+            write_coverage("posterize", "06:bit_is_eight")
             return img.copy()
 
         lut = np.arange(0, 256, dtype=np.uint8)
@@ -233,13 +240,17 @@ def posterize(img, bits):
         return cv2.LUT(img, lut)
 
     if not is_rgb_image(img):
+        write_coverage("posterize", "07:not_rgb_image")
         raise TypeError("If bits is iterable image must be RGB")
 
     result_img = np.empty_like(img)
     for i, channel_bits in enumerate(bits):
+        write_coverage("posterize", "08:for_loop")
         if channel_bits == 0:
+            write_coverage("posterize", "09:channel_bits_is_zero")
             result_img[..., i] = np.zeros_like(img[..., i])
         elif channel_bits == 8:
+            write_coverage("posterize", "10:channel_bits_is_eight")
             result_img[..., i] = img[..., i].copy()
         else:
             lut = np.arange(0, 256, dtype=np.uint8)
@@ -317,42 +328,55 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
         numpy.ndarray: Equalized image.
 
     """
+    write_coverage("equalize", "00.main_control_flow")
     if img.dtype != np.uint8: # +1 keyword. CCN = 2.
+        write_coverage("equalize", "01.img_data_type_not_uint8")
         raise TypeError("Image must have uint8 channel type")
 
     modes = ["cv", "pil"]
 
     if mode not in modes: # +1 keyword. CCN = 3.
+        write_coverage("equalize", "02.mode_not_in_modes")
         raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
     if mask is not None: # +1 keyword. CCN = 4.
+        write_coverage("equalize", "03.mask_not_none")
         if is_rgb_image(mask) and is_grayscale_image(img): # +2 keywords. CCN = 6.
+            write_coverage("equalize", "04-05.mask_rgb_but_img_greyscale")
             raise ValueError("Wrong mask shape. Image shape: {}. " "Mask shape: {}".format(img.shape, mask.shape))
         if not by_channels and not is_grayscale_image(mask): # +2 keywords. CCN = 8.
+            write_coverage("equalize", "06-07.equalize_non_greyscale_channels_together")
             raise ValueError(
                 "When by_channels=False only 1-channel mask supports. " "Mask shape: {}".format(mask.shape)
             )
 
     if mode == "pil": # +1 keyword. CCN = 9.
+        write_coverage("equalize", "08.mode_is_pil")
         function = _equalize_pil
     else:
         function = _equalize_cv
 
     if mask is not None: # +1 keyword. CCN = 10.
+        write_coverage("equalize", "09.mask_not_none")
         mask = mask.astype(np.uint8)
 
     if is_grayscale_image(img): # +1 keyword. CCN = 11.
+        write_coverage("equalize", "10.img_greyscale")
         return function(img, mask)
 
     if not by_channels: # +1 keyword. CCN = 12.
+        write_coverage("equalize", "11.eq_channels_together")
         result_img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
         result_img[..., 0] = function(result_img[..., 0], mask)
         return cv2.cvtColor(result_img, cv2.COLOR_YCrCb2RGB)
 
     result_img = np.empty_like(img)
     for i in range(3): # +1 keyword. CCN = 13.
+        write_coverage("equalize", "12.loop_thrice")
         if mask is None: # +1 keyword. CCN = 14.
+            write_coverage("equalize", "13.mask_is_none")
             _mask = None
         elif is_grayscale_image(mask): # +1 keyword. CCN = 15.
+            write_coverage("equalize", "14.mask_is_greyscale_img")
             _mask = mask
         else:
             _mask = mask[..., i]

@@ -20,6 +20,7 @@ from albumentations.augmentations.utils import (
     is_grayscale_image,
     is_rgb_image,
 )
+from albumentations.diy_coverage import write_coverage
 
 from ..core.transforms_interface import (
     DualTransform,
@@ -2561,6 +2562,7 @@ class Spatter(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
+        write_coverage("spatter.__init__", "00.main_control_flow")
         super().__init__(always_apply=always_apply, p=p)
 
         self.mean = to_tuple(mean, mean)
@@ -2568,32 +2570,44 @@ class Spatter(ImageOnlyTransform):
         self.gauss_sigma = to_tuple(gauss_sigma, gauss_sigma)
         self.intensity = to_tuple(intensity, intensity)
         self.cutout_threshold = to_tuple(cutout_threshold, cutout_threshold)
-        self.color = (
-            color
-            if color is not None
-            else {
+        if color is not None:
+            write_coverage("spatter.__init__", "01.color_not_none")
+            self.color = color
+        else:
+            self.color = {
                 "rain": [238, 238, 175],
                 "mud": [20, 42, 63],
             }
-        )
-        self.mode = mode if isinstance(mode, (list, tuple)) else [mode]
+        if isinstance(mode, (list, tuple)):
+            write_coverage("spatter.__init__", "02.mode_is_list_of_str")
+            self.mode = mode
+        else:
+            self.mode = [mode]
 
         if len(set(self.mode)) > 1 and not isinstance(self.color, dict):
+            write_coverage("spatter.__init__", "03-04.more_than_one_mode_and_color_not_a_dict")
             raise ValueError(f"Unsupported color: {self.color}. Please specify color for each mode (use dict for it).")
 
         for i in self.mode:
+            write_coverage("spatter.__init__", "05.iterate_through_modes")
             if i not in ["rain", "mud"]:
+                write_coverage("spatter.__init__", "06.mode_not_supported")
                 raise ValueError(f"Unsupported color mode: {mode}. Transform supports only `rain` and `mud` mods.")
             if isinstance(self.color, dict):
+                write_coverage("spatter.__init__", "07.color_is_dict")
                 if i not in self.color:
+                    write_coverage("spatter.__init__", "08.bad_color_definition")
                     raise ValueError(f"Wrong color definition: {self.color}. Color for mode: {i} not specified.")
                 if len(self.color[i]) != 3:
+                    write_coverage("spatter.__init__", "09.color_not_of_length_3_rgb")
                     raise ValueError(
                         f"Unsupported color: {self.color[i]} for mode {i}. Color should be presented in RGB format."
                     )
 
         if isinstance(self.color, (list, tuple)):
+            write_coverage("spatter.__init__", "10.color_is_list_of_str")
             if len(self.color) != 3:
+                write_coverage("spatter.__init__", "11.color_not_of_length_3_rgb")
                 raise ValueError(f"Unsupported color: {self.color}. Color should be presented in RGB format.")
             self.color = {self.mode[0]: self.color}
 

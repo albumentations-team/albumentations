@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# Handle the case where cov.tmp already exists
+if [ -e "cov.tmp" ]; then
+    echo "Found existing cov.tmp file."
+    echo "For the sake of reliability, this should be removed."
+    if [[ $(read -p "Remove? (Y/n): " yn; echo "$yn") == [Yy]* ]]; then
+        rm -v cov.tmp
+    else
+        echo "Interpreting answer as no and continuing with old cov.tmp."
+        echo "Be aware that this may skew test results."
+    fi
+fi;
+
+# Run tests with suppressed output
+echo "Running tests. This may take a few minutes..."
+pytest > /dev/null
+
+echo "Done!"
+echo ""
+echo "$(tput bold)Branches taken:$(tput sgr0)"
+
+# Print one line for each time a branch was taken,
+# but sort them so that identical lines go next to
+# each other and then remove all identical lines
+cat cov.tmp | sort | uniq

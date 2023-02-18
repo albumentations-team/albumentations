@@ -4,6 +4,7 @@ import random
 from copy import deepcopy
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
+from albumentations.diy_coverage import write_coverage
 
 import cv2
 import numpy as np
@@ -47,25 +48,37 @@ def to_tuple(param, low=None, bias=None):
         low:  Second element of tuple can be passed as optional argument
         bias: An offset factor added to each element
     """
+    write_coverage("to_tuple", "00:main_control_flow")
     if low is not None and bias is not None:
+        write_coverage("to_tuple", "01-02:low_and_bias_set")
         raise ValueError("Arguments low and bias are mutually exclusive")
 
     if param is None:
+        write_coverage("to_tuple", "03:param_is_none")
         return param
 
     if isinstance(param, (int, float)):
+        write_coverage("to_tuple", "04-05:param_is_int_or_float")
         if low is None:
+            write_coverage("to_tuple", "06:low_is_none")
             param = -param, +param
         else:
-            param = (low, param) if low < param else (param, low)
+            if low < param:
+                write_coverage("to_tuple", "07:low_less_than_param")
+                param = (low, param)
+            else:
+                param = (param, low)
     elif isinstance(param, Sequence):
+        write_coverage("to_tuple", "08:param_is_sequence")
         if len(param) != 2:
+            write_coverage("to_tuple", "09:sequence_wrong_length")
             raise ValueError("to_tuple expects 1 or 2 values")
         param = tuple(param)
     else:
         raise ValueError("Argument param must be either scalar (int, float) or tuple")
 
     if bias is not None:
+        write_coverage("to_tuple", "10:bias_is_set")
         return tuple(bias + x for x in param)
 
     return tuple(param)
@@ -90,26 +103,36 @@ class BasicTransform(Serializable):
         self.applied_in_replay = False
 
     def __call__(self, *args, force_apply: bool = False, **kwargs) -> Dict[str, Any]:
+        write_coverage("BasicTransform.__call__", "00:main_control_flow")
         if args:
+            write_coverage("BasicTransform.__call__", "01:unnamed_arguments")
             raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
         if self.replay_mode:
+            write_coverage("BasicTransform.__call__", "02:replay_mode")
             if self.applied_in_replay:
+                write_coverage("BasicTransform.__call__", "03:applied_in_replay")
                 return self.apply_with_params(self.params, **kwargs)
 
             return kwargs
 
         if (random.random() < self.p) or self.always_apply or force_apply:
+            write_coverage("BasicTransform.__call__", "04-06:should_apply")
             params = self.get_params()
 
             if self.targets_as_params:
+                write_coverage("BasicTransform.__call__", "07:targets_as_params")
                 assert all(key in kwargs for key in self.targets_as_params), "{} requires {}".format(
                     self.__class__.__name__, self.targets_as_params
                 )
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
+                if len(self.targets_as_params) > 0:
+                    write_coverage("BasicTransform.__call__", "08-09:targets_as_params_iteration")
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
             if self.deterministic:
+                write_coverage("BasicTransform.__call__", "10:deterministic")
                 if self.targets_as_params:
+                    write_coverage("BasicTransform.__call__", "11:deterministic_with_targets")
                     warn(
                         self.get_class_fullname() + " could work incorrectly in ReplayMode for other input data"
                         " because its' params depend on targets."
