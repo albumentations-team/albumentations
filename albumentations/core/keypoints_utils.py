@@ -182,17 +182,7 @@ def filter_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int, remove
     return resulting_keypoints
 
 
-def convert_keypoint_to_albumentations(
-    keypoint: Sequence,
-    source_format: str,
-    rows: int,
-    cols: int,
-    check_validity: bool = False,
-    angle_in_degrees: bool = True,
-) -> Tuple:
-    if source_format not in keypoint_formats:
-        raise ValueError("Unknown target_format {}. Supported formats are: {}".format(source_format, keypoint_formats))
-
+def get_xysa_tail(source_format: str, keypoint: Sequence):
     if source_format == "xy":
         (x, y), tail = keypoint[:2], tuple(keypoint[2:])
         a, s = 0.0, 0.0
@@ -211,6 +201,22 @@ def convert_keypoint_to_albumentations(
         (x, y, s, a), tail = keypoint[:4], tuple(keypoint[4:])
     else:
         raise ValueError(f"Unsupported source format. Got {source_format}")
+
+    return x, y, s, a, tail
+
+
+def convert_keypoint_to_albumentations(
+    keypoint: Sequence,
+    source_format: str,
+    rows: int,
+    cols: int,
+    check_validity: bool = False,
+    angle_in_degrees: bool = True,
+) -> Tuple:
+    if source_format not in keypoint_formats:
+        raise ValueError("Unknown target_format {}. Supported formats are: {}".format(source_format, keypoint_formats))
+
+    x, y, s, a, tail = get_xysa_tail(source_format, keypoint)
 
     if angle_in_degrees:
         a = math.radians(a)
