@@ -299,6 +299,8 @@ def _equalize_cv(img, mask=None):
     return cv2.LUT(img, lut)
 
 
+# Daniel. CCN Starts at 1, and Lizard does not include return statements
+# or *thrown* exceptions (i.e. *raised* errors) in the count.
 @preserve_channel_dim
 def equalize(img, mask=None, mode="cv", by_channels=True):
     """Equalize the image histogram.
@@ -315,42 +317,42 @@ def equalize(img, mask=None, mode="cv", by_channels=True):
         numpy.ndarray: Equalized image.
 
     """
-    if img.dtype != np.uint8:
+    if img.dtype != np.uint8: # +1 keyword. CCN = 2.
         raise TypeError("Image must have uint8 channel type")
 
     modes = ["cv", "pil"]
 
-    if mode not in modes:
+    if mode not in modes: # +1 keyword. CCN = 3.
         raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
-    if mask is not None:
-        if is_rgb_image(mask) and is_grayscale_image(img):
+    if mask is not None: # +1 keyword. CCN = 4.
+        if is_rgb_image(mask) and is_grayscale_image(img): # +2 keywords. CCN = 6.
             raise ValueError("Wrong mask shape. Image shape: {}. " "Mask shape: {}".format(img.shape, mask.shape))
-        if not by_channels and not is_grayscale_image(mask):
+        if not by_channels and not is_grayscale_image(mask): # +2 keywords. CCN = 8.
             raise ValueError(
                 "When by_channels=False only 1-channel mask supports. " "Mask shape: {}".format(mask.shape)
             )
 
-    if mode == "pil":
+    if mode == "pil": # +1 keyword. CCN = 9.
         function = _equalize_pil
     else:
         function = _equalize_cv
 
-    if mask is not None:
+    if mask is not None: # +1 keyword. CCN = 10.
         mask = mask.astype(np.uint8)
 
-    if is_grayscale_image(img):
+    if is_grayscale_image(img): # +1 keyword. CCN = 11.
         return function(img, mask)
 
-    if not by_channels:
+    if not by_channels: # +1 keyword. CCN = 12.
         result_img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
         result_img[..., 0] = function(result_img[..., 0], mask)
         return cv2.cvtColor(result_img, cv2.COLOR_YCrCb2RGB)
 
     result_img = np.empty_like(img)
-    for i in range(3):
-        if mask is None:
+    for i in range(3): # +1 keyword. CCN = 13.
+        if mask is None: # +1 keyword. CCN = 14.
             _mask = None
-        elif is_grayscale_image(mask):
+        elif is_grayscale_image(mask): # +1 keyword. CCN = 15.
             _mask = mask
         else:
             _mask = mask[..., i]
