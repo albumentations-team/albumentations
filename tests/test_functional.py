@@ -871,6 +871,23 @@ def test_posterize_return_zeros():
     img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
     assert (F.posterize(img, 0) == np.zeros_like(img)) 
 
+def test_posterize_bit_is_eight():
+    """Check to see if bits == 8, function Posterize should return a copy of the image."""
+    img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
+    assert np.array_equal(F.posterize(img, 8), img.copy()) 
+
+def test_posterize_channel_bits_is_zero():
+    """" Check if channel_bits == [0,0,0]], function Posterize should return new array with only 0."""
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    result_img = np.zeros_like(img)
+    assert np.array_equal(F.posterize(img, [0, 0, 0]), result_img)
+
+def test_posterize_channel_bits_is_eight():
+    """" Check if channel_bits == [8,8,8], function Posterize should return a copy of the image."""
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    assert np.array_equal(F.posterize(img, [8, 8, 8]), img.copy())
+
+
 def test_equalize_checks():
     img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
 
