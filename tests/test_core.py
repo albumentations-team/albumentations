@@ -8,6 +8,8 @@ import cv2
 import numpy as np
 import pytest
 
+from albumentations.augmentations.transforms import Equalize
+
 from albumentations import (
     BasicTransform,
     Blur,
@@ -209,6 +211,17 @@ def test_deterministic_oneof():
         data2 = ReplayCompose.replay(data["replay"], image=image2)
         assert np.array_equal(data["image"], data2["image"])
 
+def test_deterministic_targets_as_params():
+    aug = Equalize(p=1)
+    aug.set_deterministic(True)
+    image = (np.random.random((8, 8)) * 255).astype(np.uint8)
+    with pytest.warns(UserWarning):
+        aug(image=image, replay={})
+
+def test_basictransform_repr():
+    aug = Equalize(p=1)
+    data = aug.__repr__()
+    assert data == "Equalize(always_apply=False, p=1, mode='cv', by_channels=True)"
 
 def test_deterministic_one_or_other():
     aug = ReplayCompose([OneOrOther(HorizontalFlip(), Blur())], p=1)
