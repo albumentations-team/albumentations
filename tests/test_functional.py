@@ -860,6 +860,15 @@ def test_posterize_checks():
         F.posterize(img, [1, 2, 3])
     assert str(exc_info.value) == "If bits is iterable image must be RGB"
 
+    img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
+    with pytest.raises(ValueError) as exc_info:
+        F.posterize(img, 10)
+    assert str(exc_info.value) == "Bits must be in rage 0 to 8"
+
+def test_posterize_return_zeros():
+    img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
+    assert (F.posterize(img, 0) == np.zeros_like(img)) 
+
 
 def test_equalize_checks():
     img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
