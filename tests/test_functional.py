@@ -871,6 +871,23 @@ def test_posterize_return_zeros():
     img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
     assert (F.posterize(img, 0) == np.zeros_like(img)) 
 
+def test_posterize_bit_is_eight():
+    """Check to see if bits == 8, function Posterize should return a copy of the image."""
+    img = np.random.randint(0, 256, [256, 256], dtype=np.uint8)
+    assert np.array_equal(F.posterize(img, 8), img.copy()) 
+
+def test_posterize_channel_bits_is_zero():
+    """" Check if channel_bits == [0,0,0]], function Posterize should return new array with only 0."""
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    result_img = np.zeros_like(img)
+    assert np.array_equal(F.posterize(img, [0, 0, 0]), result_img)
+
+def test_posterize_channel_bits_is_eight():
+    """" Check if channel_bits == [8,8,8], function Posterize should return a copy of the image."""
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    assert np.array_equal(F.posterize(img, [8, 8, 8]), img.copy())
+
+
 def test_equalize_checks():
     img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
 
@@ -1056,3 +1073,14 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     image_float = (image_float * 255).astype(int)
 
     assert np.abs(image_int.astype(int) - image_float).max() <= 1
+
+
+def test_spatter_preserve_shape_incorrect_mode():
+    """ Check if an unsupported spatter mode is passed when running spatter from preserve_shape, ValueError should be raised."""
+    unsupported_mode = "unsupported"
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    with pytest.raises(ValueError) as exc_info:
+        F.spatter(img=img, non_mud=None, mud=None, rain=None, mode=unsupported_mode)
+
+    message = f"Unsupported spatter mode: {unsupported_mode}"
+    assert str(exc_info.value).startswith(message)
