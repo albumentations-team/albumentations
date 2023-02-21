@@ -32,6 +32,7 @@ __all__ = [
     "KeypointType",
     "KeypointInternalType",
     "BatchInternalType",
+    "Floats4Internal",
     "BBoxesInternalType",
     "BoxesArray",
     "KeypointsInternalType",
@@ -99,39 +100,43 @@ class BatchInternalType:
 
 
 @dataclass
-class BBoxesInternalType(BatchInternalType):
-    array: BoxesArray = field(default=np.empty((0, 4)))
-
+class Floats4Internal(BatchInternalType):
     def __eq__(self, other):
-        if not isinstance(other, BBoxesInternalType):
+        if not isinstance(other, self.__class__):
             raise TypeError(
-                "`BBoxesInternalType` is only comparable with another `BBoxesInternalType`, "
+                f"`{self.__class__}` is only comparable with another `{self.__class__}`, "
                 f"given {type(other)} instead."
             )
+
         if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
             # This's because numpy does not treat array([], dtype=float64)
             # and array=array([], shape=(0, 4), dtype=float64) equally.
             return True
         return np.array_equal(self.array, other.array) and self.targets == other.targets
 
-    def __getitem__(self, item) -> "BBoxesInternalType":
-        _bboxes = self.array[item].astype(float)
+    def __getitem__(self, item):
+        _arr = self.array[item].astype(float)
         if isinstance(item, int):
-            _bboxes = _bboxes[np.newaxis, ...]
+            _arr = _arr[np.newaxis, ...]
             _target = [self.targets[item]] if self.targets else []
         elif isinstance(item, slice):
             _target = self.targets[item]
         else:
             _target = [self.targets[i] for i in item] if self.targets else []
-        return BBoxesInternalType(array=_bboxes, targets=_target)
+        return self.__class__(array=_arr, targets=_target)
 
-    def __setitem__(self, idx, value: "BBoxesInternalType"):
+    def __setitem__(self, idx, value: "Floats4Internal"):
         self.array[idx] = value.array
         if isinstance(idx, int):
             self.targets[idx] = value.targets[0]
         else:
             for i, target in zip(idx, value.targets):
                 self.targets[i] = target
+
+
+@dataclass(eq=False)
+class BBoxesInternalType(Floats4Internal):
+    array: BoxesArray = field(default=np.empty((0, 4)))
 
     @staticmethod
     def assert_array_format(bboxes: np.ndarray):  # noqa
@@ -153,40 +158,9 @@ class BBoxesInternalType(BatchInternalType):
         self.assert_array_format(self.array)
 
 
-@dataclass
-class KeypointsInternalType(BatchInternalType):
+@dataclass(eq=False)
+class KeypointsInternalType(Floats4Internal):
     array: KeypointsArray = field(default=np.empty((0, 4)))
-
-    def __eq__(self, other):
-        if not isinstance(other, KeypointsInternalType):
-            raise TypeError(
-                "`KeypointsInternalType` is only comparable with another `KeypointsInternalType`, "
-                f"given {type(other)} instead."
-            )
-        if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
-            # This's because numpy does not treat array([], dtype=float64)
-            # and array=array([], shape=(0, 4), dtype=float64) equally.
-            return True
-        return np.array_equal(self.array, other.array) and self.targets == other.targets
-
-    def __getitem__(self, item) -> "KeypointsInternalType":
-        _kps = self.array[item].astype(float)
-        if isinstance(item, int):
-            _kps = _kps[np.newaxis, ...]
-            _target = [self.targets[item]] if self.targets else []
-        elif isinstance(item, slice):
-            _target = self.targets[item]
-        else:
-            _target = [self.targets[i] for i in item] if self.targets else []
-        return KeypointsInternalType(array=_kps, targets=_target)
-
-    def __setitem__(self, idx, value: "KeypointsInternalType"):
-        self.array[idx] = value.array
-        if isinstance(idx, int):
-            self.targets[idx] = value.targets[0]
-        else:
-            for i, target in zip(idx, value.targets):
-                self.targets[i] = target
 
     @staticmethod
     def assert_array_format(keypoints: np.ndarray):  # noqa
