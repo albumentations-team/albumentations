@@ -1073,3 +1073,14 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     image_float = (image_float * 255).astype(int)
 
     assert np.abs(image_int.astype(int) - image_float).max() <= 1
+
+
+def test_spatter_preserve_shape_incorrect_mode():
+    """ Check if an unsupported spatter mode is passed when running spatter from preserve_shape, ValueError should be raised."""
+    unsupported_mode = "unsupported"
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    with pytest.raises(ValueError) as exc_info:
+        F.spatter(img=img, non_mud=None, mud=None, rain=None, mode=unsupported_mode)
+
+    message = f"Unsupported spatter mode: {unsupported_mode}"
+    assert str(exc_info.value).startswith(message)
