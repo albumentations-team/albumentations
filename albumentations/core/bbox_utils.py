@@ -315,7 +315,7 @@ def convert_bbox_to_albumentations(
         where `x`, `y` coordinates of the center of the box, all values normalized to 1 by image height and width.
 
     Raises:
-        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`, ot `yolo`.
+        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`, or `yolo`.
         ValueError: If in YOLO format all labels not in range (0, 1).
 
     """
