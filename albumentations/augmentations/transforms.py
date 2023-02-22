@@ -1508,8 +1508,28 @@ class ToGray(ImageOnlyTransform):
     """Convert the input RGB image to grayscale. If the mean pixel value for the resulting image is greater
     than 127, invert the resulting grayscale image.
 
+    This function returns a 3-channel image, which is in grayscale. To deal with a single-channel image,
+    select any of the three.
     Args:
         p (float): probability of applying the transform. Default: 0.5.
+        method (str): Method to be used for grayscale conversion. Defaults to: 'weighted_average'.
+                      Options are:-
+                      'average': Average value of R,G and B channels.
+                                 Formula is, gray = (R + G + B)/3
+                      'luminosity': Based on the human perception of brightness and assigns more weight to
+                                    the G channel than the R or B channels.
+                                    Formula is, gray = 0.21 * R + 0.72 * G + 0.07 * B
+                      'lightness': Uses the maximum and minimum values of the R,G and B channels.
+                                   Formula is, gray = (max(R, G, B) + min(R, G, B)) / 2
+                      'weighted_average'': Assigns different weights to the red, green, and blue channels.
+                                           Used by OpenCV. Formula is, gray =  0.2989 * R + 0.5870 * G + 0.1140 * B
+                      'extract_luminance_hsv': Converts the image to the HSV color space and
+                                               then extracts the Value channel.
+                      'extract_luminance_lab': Used to preserve color information by converting the
+                                               image to LAB color space and then extracting the Luminance channel.
+                      'single_channel': Selects one of the R,G, or B channels as the grayscale image.
+
+        random_method (bool): Flag to choose grayscale method randomly. Defaults to: False
 
     Targets:
         image
@@ -1518,6 +1538,11 @@ class ToGray(ImageOnlyTransform):
         uint8, float32
     """
 
+    def __init__(self, p=0.5, method="weighted_average", random_method=False):
+        super().__init__(p)
+        self.method = method
+        self.random_method = random_method
+
     def apply(self, img, **params):
         if is_grayscale_image(img):
             warnings.warn("The image is already gray.")
@@ -1525,10 +1550,24 @@ class ToGray(ImageOnlyTransform):
         if not is_rgb_image(img):
             raise TypeError("ToGray transformation expects 3-channel images.")
 
-        return F.to_gray(img)
+        available_choices = [
+            "average",
+            "luminosity",
+            "lightness",
+            "weighted_average",
+            "extract_luminance_hsv",
+            "extract_luminance_lab",
+            "single_channel",
+        ]
 
-    def get_transform_init_args_names(self):
-        return ()
+        if self.random_method:
+            method = random.choice(available_choices)
+        elif self.method not in available_choices:
+            raise ValueError(f"Method {self.method} not supported. Please choose between available methods.")
+        else:
+            method = self.method
+
+        return F.to_gray(img, method)
 
 
 class ToRGB(ImageOnlyTransform):
