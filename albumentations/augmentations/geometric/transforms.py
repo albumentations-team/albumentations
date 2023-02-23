@@ -34,6 +34,7 @@ __all__ = [
     "OpticalDistortion",
     "GridDistortion",
     "PadIfNeeded",
+    "Mixup"
 ]
 
 
@@ -1491,3 +1492,43 @@ class GridDistortion(DualTransform):
 
     def get_transform_init_args_names(self):
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
+
+
+class MixUp2(DualTransform):
+    """Generates a weighted combination of the pair of input images.
+
+    Targets:
+        image, image1, bboxes, bboxes1
+    Image types:
+        uint8, float32
+    """
+
+    def __init__(
+        self,
+        always_apply: bool = False,
+        p: float = 1,
+    ):
+        super(MixUp2, self).__init__(always_apply, p)
+
+    def apply(self, image, image_l, **params) -> np.ndarray:
+        h1, w1, _ = image_l[0].shape
+        h2, w2, _ = image_l[0].shape
+        if h1 != h2 or w1 != w2:
+            raise TypeError("MixUp transformation expects both images to have identical shape.")
+        r = np.random.beta(32.0, 32.0)  # mixup ratio, alpha=beta=32.0
+        im = (image_l[0] * r + image_l[1] * (1 - r)).astype(np.uint8)
+        return im
+    
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], bboxes_l, **params) -> List[BoxType]:
+        bboxes_l = sum(bboxes_l, [])  # 2D bbox list to 1D
+        return bboxes_l 
+
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "image_l": [params['image'], params['image1']], 
+            "bboxes_l": [params['bboxes'], params['bboxes1']]
+        }
+    
+    @property
+    def targets_as_params(self) -> List[str]:
+        return ["image", "image1", "bboxes", "bboxes1"]
