@@ -1508,25 +1508,24 @@ class MixUp(DualTransform):
         always_apply: bool = False,
         p: float = 1,
     ):
-        super(MixUp2, self).__init__(always_apply, p)
+        super(MixUp, self).__init__(always_apply, p)
 
-    def apply(self, image, image_l, **params) -> np.ndarray:
-        h1, w1, _ = image_l[0].shape
-        h2, w2, _ = image_l[0].shape
+    def apply(self, image, image1, **params) -> np.ndarray:
+        h1, w1, _ = image.shape
+        h2, w2, _ = image1.shape
         if h1 != h2 or w1 != w2:
             raise TypeError("MixUp transformation expects both images to have identical shape.")
         r = np.random.beta(32.0, 32.0)  # mixup ratio, alpha=beta=32.0
-        im = (image_l[0] * r + image_l[1] * (1 - r)).astype(np.uint8)
+        im = (image * r + image1 * (1 - r)).astype(np.uint8)
         return im
     
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], bboxes_l, **params) -> List[BoxType]:
-        bboxes_l = sum(bboxes_l, [])  # 2D bbox list to 1D
-        return bboxes_l 
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], bboxes1, **params) -> List[BoxType]:
+        return bboxes + bboxes1
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "image_l": [params['image'], params['image1']], 
-            "bboxes_l": [params['bboxes'], params['bboxes1']]
+            "image1": params['image1'], 
+            "bboxes1": params['bboxes1']
         }
     
     @property
