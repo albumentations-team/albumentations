@@ -1494,7 +1494,7 @@ class GridDistortion(DualTransform):
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
 
 
-class MixUp2(DualTransform):
+class MixUp(DualTransform):
     """Generates a weighted combination of the pair of input images.
 
     Targets:
