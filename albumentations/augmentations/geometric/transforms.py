@@ -34,7 +34,7 @@ __all__ = [
     "OpticalDistortion",
     "GridDistortion",
     "PadIfNeeded",
-    "Mixup"
+    "MixUp"
 ]
 
 
