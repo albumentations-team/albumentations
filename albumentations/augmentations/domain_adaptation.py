@@ -8,15 +8,16 @@ from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
-from ..core.transforms_interface import ImageOnlyTransform, to_tuple
-from .functional import (
+from albumentations.augmentations.utils import (
     clipped,
     get_opencv_dtype_from_numpy,
     is_grayscale_image,
     is_multispectral_image,
     preserve_shape,
+    read_rgb_image,
 )
-from .utils import read_rgb_image
+
+from ..core.transforms_interface import ImageOnlyTransform, to_tuple
 
 __all__ = [
     "HistogramMatching",
@@ -87,8 +88,15 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
         raise RuntimeError(
             f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}"
         )
-    reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
-    matched = match_histograms(np.squeeze(img), np.squeeze(reference_image), multichannel=True)
+    if img.shape[:2] != reference_image.shape[:2]:
+        reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
+
+    img, reference_image = np.squeeze(img), np.squeeze(reference_image)
+
+    try:
+        matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
+    except TypeError:
+        matched = match_histograms(img, reference_image, multichannel=True)  # case for scikit-image<0.19.1
     img = cv2.addWeighted(
         matched,
         blend_ratio,
@@ -280,9 +288,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         self.blend_ratio = blend_ratio
         expected_transformers = ("pca", "standard", "minmax")
         if transform_type not in expected_transformers:
-            raise ValueError(
-                f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}"
-            )
+            raise ValueError(f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}")
         self.transform_type = transform_type
 
     @staticmethod

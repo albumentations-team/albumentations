@@ -1,17 +1,16 @@
 import math
 
-import albumentations as A
 import numpy as np
 import pytest
 
+import albumentations as A
 import albumentations.augmentations.geometric.functional as FGeometric
-
-from albumentations.augmentations.keypoints_utils import (
-    convert_keypoint_from_albumentations,
-    convert_keypoints_from_albumentations,
-    convert_keypoint_to_albumentations,
-    convert_keypoints_to_albumentations,
+from albumentations.core.keypoints_utils import (
     angle_to_2pi_range,
+    convert_keypoint_from_albumentations,
+    convert_keypoint_to_albumentations,
+    convert_keypoints_from_albumentations,
+    convert_keypoints_to_albumentations,
 )
 
 
@@ -262,7 +261,7 @@ def test_keypoint_scale(keypoint, expected, scale):
 
 @pytest.mark.parametrize(
     ["keypoint", "expected", "angle", "scale", "dx", "dy"],
-    [[[50, 50, 0, 5], [120, 160, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
+    [[[50, 50, 0, 5], [120, 158, math.pi / 2, 10], 90, 2, 0.1, 0.1]],
 )
 def test_keypoint_shift_scale_rotate(keypoint, expected, angle, scale, dx, dy):
     actual = FGeometric.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows=100, cols=200)
@@ -305,3 +304,21 @@ def test_coarse_dropout():
 
     result = aug(image=np.zeros((128, 128)), keypoints=((10, 10), (20, 30)))
     assert len(result["keypoints"]) == 0
+
+
+@pytest.mark.parametrize(
+    ["keypoints", "expected_keypoints", "holes"],
+    [
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(40, 40, 60, 60), (70, 70, 80, 80), (10, 10, 20, 20)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(10, 10, 20, 20), (40, 40, 60, 60), (70, 70, 80, 80)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(40, 40, 60, 60), (10, 10, 20, 20), (70, 70, 80, 80)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(75, 75, 0, 0)], [(40, 40, 60, 60), (10, 10, 20, 20)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(50, 50, 0, 0)], [(70, 70, 80, 80), (10, 10, 20, 20)]],
+        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(50, 50, 0, 0), (75, 75, 0, 0)], [(10, 10, 20, 20)]],
+    ],
+)
+def test_coarse_dropout_remove_keypoints(keypoints, expected_keypoints, holes):
+    t = A.CoarseDropout()
+    result_keypoints = t.apply_to_keypoints(keypoints, holes)
+
+    assert set(result_keypoints) == set(expected_keypoints)

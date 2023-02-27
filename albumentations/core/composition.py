@@ -7,17 +7,17 @@ from collections import defaultdict
 
 import numpy as np
 
-from albumentations import random_utils
-from albumentations.augmentations.bbox_utils import BboxProcessor
-from albumentations.augmentations.keypoints_utils import KeypointsProcessor
-from albumentations.core.serialization import (
+from .. import random_utils
+from .bbox_utils import BboxParams, BboxProcessor
+from .keypoints_utils import KeypointParams, KeypointsProcessor
+from .serialization import (
     SERIALIZABLE_REGISTRY,
-    SerializableMeta,
+    Serializable,
     get_shortest_class_fullname,
     instantiate_nonserializable,
 )
-from albumentations.core.transforms_interface import BasicTransform
-from albumentations.core.utils import Params, format_args, get_shape
+from .transforms_interface import BasicTransform
+from .utils import format_args, get_shape
 
 __all__ = [
     "BaseCompose",
@@ -47,7 +47,7 @@ def get_always_apply(transforms: typing.Union["BaseCompose", TransformsSeqType])
     return new_transforms
 
 
-class BaseCompose(metaclass=SerializableMeta):
+class BaseCompose(Serializable):
     def __init__(self, transforms: TransformsSeqType, p: float):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -128,6 +128,8 @@ class Compose(BaseCompose):
         keypoint_params (KeypointParams): Parameters for keypoints transforms
         additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
         p (float): probability of applying all list of transforms. Default: 1.0.
+        is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
+            would like to disable this check - pass False (do it only if you are sure in your data consistency).
     """
 
     def __init__(
@@ -137,6 +139,7 @@ class Compose(BaseCompose):
         keypoint_params: typing.Optional[typing.Union[dict, "KeypointParams"]] = None,
         additional_targets: typing.Optional[typing.Dict[str, str]] = None,
         p: float = 1.0,
+        is_check_shapes: bool = True,
     ):
         super(Compose, self).__init__(transforms, p)
 
@@ -172,6 +175,8 @@ class Compose(BaseCompose):
         self.is_check_args = True
         self._disable_check_args_for_transforms(self.transforms)
 
+        self.is_check_shapes = is_check_shapes
+
     @staticmethod
     def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:
         for transform in transforms:
@@ -202,7 +207,7 @@ class Compose(BaseCompose):
             p.preprocess(data)
 
         for idx, t in enumerate(transforms):
-            data = t(force_apply=force_apply, **data)
+            data = t(**data)
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
@@ -235,6 +240,7 @@ class Compose(BaseCompose):
                 if keypoints_processor
                 else None,
                 "additional_targets": self.additional_targets,
+                "is_check_shapes": self.is_check_shapes,
             }
         )
         return dictionary
@@ -251,6 +257,7 @@ class Compose(BaseCompose):
                 else None,
                 "additional_targets": self.additional_targets,
                 "params": None,
+                "is_check_shapes": self.is_check_shapes,
             }
         )
         return dictionary
@@ -260,17 +267,27 @@ class Compose(BaseCompose):
         checked_multi = ["masks"]
         check_bbox_param = ["bboxes"]
         # ["bboxes", "keypoints"] could be almost any type, no need to check them
+        shapes = []
         for data_name, data in kwargs.items():
             internal_data_name = self.additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
                     raise TypeError("{} must be numpy array type".format(data_name))
+                shapes.append(data.shape[:2])
             if internal_data_name in checked_multi:
-                if data:
+                if data is not None:
                     if not isinstance(data[0], np.ndarray):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
+                    shapes.append(data[0].shape[:2])
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 raise ValueError("bbox_params must be specified for bbox transformations")
+
+        if self.is_check_shapes and shapes and shapes.count(shapes[0]) != len(shapes):
+            raise ValueError(
+                "Height and Width of image, mask or masks should be equal. You can disable shapes check "
+                "by setting a parameter is_check_shapes=False of Compose class (do it only if you are sure "
+                "about your data consistency)."
+            )
 
     @staticmethod
     def _make_targets_contiguous(data: typing.Dict[str, typing.Any]) -> typing.Dict[str, typing.Any]:
@@ -423,9 +440,12 @@ class ReplayCompose(Compose):
         keypoint_params: typing.Optional[typing.Union[dict, "KeypointParams"]] = None,
         additional_targets: typing.Optional[typing.Dict[str, str]] = None,
         p: float = 1.0,
+        is_check_shapes: bool = True,
         save_key: str = "replay",
     ):
-        super(ReplayCompose, self).__init__(transforms, bbox_params, keypoint_params, additional_targets, p)
+        super(ReplayCompose, self).__init__(
+            transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes
+        )
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
 
@@ -471,7 +491,9 @@ class ReplayCompose(Compose):
                 ]
             transform = cls(**args)
 
-        transform.params = params
+        transform = typing.cast(BasicTransform, transform)
+        if isinstance(transform, BasicTransform):
+            transform.params = params
         transform.replay_mode = True
         transform.applied_in_replay = applied
         return transform
@@ -495,105 +517,6 @@ class ReplayCompose(Compose):
         dictionary = super(ReplayCompose, self)._to_dict()
         dictionary.update({"save_key": self.save_key})
         return dictionary
-
-
-class BboxParams(Params):
-    """
-    Parameters of bounding boxes
-
-    Args:
-        format (str): format of bounding boxes. Should be 'coco', 'pascal_voc', 'albumentations' or 'yolo'.
-
-            The `coco` format
-                `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
-            The `pascal_voc` format
-                `[x_min, y_min, x_max, y_max]`, e.g. [97, 12, 247, 212].
-            The `albumentations` format
-                is like `pascal_voc`, but normalized,
-                in other words: `[x_min, y_min, x_max, y_max]`, e.g. [0.2, 0.3, 0.4, 0.5].
-            The `yolo` format
-                `[x, y, width, height]`, e.g. [0.1, 0.2, 0.3, 0.4];
-                `x`, `y` - normalized bbox center; `width`, `height` - normalized bbox width and height.
-        label_fields (list): list of fields that are joined with boxes, e.g labels.
-            Should be same type as boxes.
-        min_area (float): minimum area of a bounding box. All bounding boxes whose
-            visible area in pixels is less than this value will be removed. Default: 0.0.
-        min_visibility (float): minimum fraction of area for a bounding box
-            to remain this box in list. Default: 0.0.
-        check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
-            Default: `True`
-    """
-
-    def __init__(
-        self,
-        format: str,
-        label_fields: typing.Optional[typing.Sequence[str]] = None,
-        min_area: float = 0.0,
-        min_visibility: float = 0.0,
-        check_each_transform: bool = True,
-    ):
-        super(BboxParams, self).__init__(format, label_fields)
-        self.min_area = min_area
-        self.min_visibility = min_visibility
-        self.check_each_transform = check_each_transform
-
-    def _to_dict(self) -> typing.Dict[str, typing.Any]:
-        data = super(BboxParams, self)._to_dict()
-        data.update(
-            {
-                "min_area": self.min_area,
-                "min_visibility": self.min_visibility,
-                "check_each_transform": self.check_each_transform,
-            }
-        )
-        return data
-
-
-class KeypointParams(Params):
-    """
-    Parameters of keypoints
-
-    Args:
-        format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
-
-            x - X coordinate,
-
-            y - Y coordinate
-
-            s - Keypoint scale
-
-            a - Keypoint orientation in radians or degrees (depending on KeypointParams.angle_in_degrees)
-        label_fields (list): list of fields that are joined with keypoints, e.g labels.
-            Should be same type as keypoints.
-        remove_invisible (bool): to remove invisible points after transform or not
-        angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
-        check_each_transform (bool): if `True`, then keypoints will be checked after each dual transform.
-            Default: `True`
-    """
-
-    def __init__(
-        self,
-        format: str,  # skipcq: PYL-W0622
-        label_fields: typing.Optional[typing.Sequence[str]] = None,
-        remove_invisible: bool = True,
-        angle_in_degrees: bool = True,
-        check_each_transform: bool = True,
-    ):
-        super(KeypointParams, self).__init__(format, label_fields)
-        self.remove_invisible = remove_invisible
-        self.angle_in_degrees = angle_in_degrees
-        self.check_each_transform = check_each_transform
-
-    def _to_dict(self) -> typing.Dict[str, typing.Any]:
-        data = super(KeypointParams, self)._to_dict()
-        data.update(
-            {
-                "remove_invisible": self.remove_invisible,
-                "angle_in_degrees": self.angle_in_degrees,
-                "check_each_transform": self.check_each_transform,
-            }
-        )
-        return data
 
 
 class Sequential(BaseCompose):

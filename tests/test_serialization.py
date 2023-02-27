@@ -9,6 +9,7 @@ import pytest
 
 import albumentations as A
 import albumentations.augmentations.functional as F
+import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
@@ -16,7 +17,6 @@ from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
     check_all_augs_exists,
-    get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
     set_seed,
@@ -41,6 +41,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
         except_augmentations={
             A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
@@ -74,7 +75,10 @@ AUGMENTATION_CLS_PARAMS = [
         },
     ],
     [A.JpegCompression, {"quality_lower": 10, "quality_upper": 80}],
-    [A.HueSaturationValue, {"hue_shift_limit": 70, "sat_shift_limit": 95, "val_shift_limit": 55}],
+    [
+        A.HueSaturationValue,
+        {"hue_shift_limit": 70, "sat_shift_limit": 95, "val_shift_limit": 55},
+    ],
     [A.RGBShift, {"r_shift_limit": 70, "g_shift_limit": 80, "b_shift_limit": 40}],
     [A.RandomBrightnessContrast, {"brightness_limit": 0.5, "contrast_limit": 0.8}],
     [A.Blur, {"blur_limit": 3}],
@@ -86,7 +90,10 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomGamma, {"gamma_limit": (10, 90)}],
     [A.Cutout, {"num_holes": 4, "max_h_size": 4, "max_w_size": 4}],
     [A.CoarseDropout, {"max_holes": 4, "max_height": 4, "max_width": 4}],
-    [A.RandomSnow, {"snow_point_lower": 0.2, "snow_point_upper": 0.4, "brightness_coeff": 4}],
+    [
+        A.RandomSnow,
+        {"snow_point_lower": 0.2, "snow_point_upper": 0.4, "brightness_coeff": 4},
+    ],
     [
         A.RandomRain,
         {
@@ -114,6 +121,13 @@ AUGMENTATION_CLS_PARAMS = [
         },
     ],
     [
+        A.RandomGravel,
+        {
+            "gravel_roi": (0.1, 0.4, 0.9, 0.9),
+            "number_of_patches": 2,
+        },
+    ],
+    [
         A.RandomShadow,
         {
             "shadow_roi": (0.1, 0.4, 0.9, 0.9),
@@ -124,7 +138,12 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [
         A.PadIfNeeded,
-        {"min_height": 512, "min_width": 512, "border_mode": cv2.BORDER_CONSTANT, "value": (10, 10, 10)},
+        {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": cv2.BORDER_CONSTANT,
+            "value": (10, 10, 10),
+        },
     ],
     [
         A.Rotate,
@@ -133,6 +152,7 @@ AUGMENTATION_CLS_PARAMS = [
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
             "value": (10, 10, 10),
+            "crop_border": False,
         },
     ],
     [
@@ -204,7 +224,14 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomSizedCrop, {"min_max_height": (4, 8), "height": 10, "width": 10}],
     [A.Crop, {"x_max": 64, "y_max": 64}],
     [A.ToFloat, {"max_value": 16536}],
-    [A.Normalize, {"mean": (0.385, 0.356, 0.306), "std": (0.129, 0.124, 0.125), "max_pixel_value": 100.0}],
+    [
+        A.Normalize,
+        {
+            "mean": (0.385, 0.356, 0.306),
+            "std": (0.129, 0.124, 0.125),
+            "max_pixel_value": 100.0,
+        },
+    ],
     [A.RandomBrightness, {"limit": 0.4}],
     [A.RandomContrast, {"limit": 0.4}],
     [A.RandomScale, {"scale_limit": 0.2, "interpolation": cv2.INTER_CUBIC}],
@@ -215,10 +242,18 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Solarize, {"threshold": 32}],
     [A.Posterize, {"num_bits": 1}],
     [A.Equalize, {"mode": "pil", "by_channels": False}],
-    [A.MultiplicativeNoise, {"multiplier": (0.7, 2.3), "per_channel": True, "elementwise": True}],
+    [
+        A.MultiplicativeNoise,
+        {"multiplier": (0.7, 2.3), "per_channel": True, "elementwise": True},
+    ],
     [
         A.ColorJitter,
-        {"brightness": [0.2, 0.3], "contrast": [0.7, 0.9], "saturation": [1.2, 1.7], "hue": [-0.2, 0.1]},
+        {
+            "brightness": [0.2, 0.3],
+            "contrast": [0.7, 0.9],
+            "saturation": [1.2, 1.7],
+            "hue": [-0.2, 0.1],
+        },
     ],
     [
         A.Perspective,
@@ -249,7 +284,12 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [
         A.Superpixels,
-        {"p_replace": (0.5, 0.7), "n_segments": (20, 30), "max_size": 25, "interpolation": cv2.INTER_CUBIC},
+        {
+            "p_replace": (0.5, 0.7),
+            "n_segments": (20, 30),
+            "max_size": 25,
+            "interpolation": cv2.INTER_CUBIC,
+        },
     ],
     [
         A.Affine,
@@ -306,18 +346,50 @@ AUGMENTATION_CLS_PARAMS = [
     [A.InvertImg, {}],
     [A.MaskDropout, dict(max_objects=2, image_fill_value=10, mask_fill_value=20)],
     [A.NoOp, {}],
-    [A.RandomResizedCrop, dict(height=20, width=30, scale=(0.5, 0.6), ratio=(0.8, 0.9))],
+    [
+        A.RandomResizedCrop,
+        dict(height=20, width=30, scale=(0.5, 0.6), ratio=(0.8, 0.9)),
+    ],
     [A.FancyPCA, dict(alpha=0.3)],
     [A.RandomRotate90, {}],
     [A.ToGray, {}],
+    [A.ToRGB, {}],
     [A.ToSepia, {}],
     [A.Transpose, {}],
     [A.VerticalFlip, {}],
     [A.RingingOvershoot, dict(blur_limit=(7, 15), cutoff=(np.pi / 5, np.pi / 2))],
-    [A.UnsharpMask, {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15}],
+    [
+        A.UnsharpMask,
+        {"blur_limit": 3, "sigma_limit": 0.5, "alpha": 0.2, "threshold": 15},
+    ],
     [A.AdvancedBlur, dict(blur_limit=(3, 5), rotate_limit=(60, 90))],
     [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": True, "drop_value": None}],
-    [A.PixelDropout, {"dropout_prob": 0.1, "per_channel": False, "drop_value": None, "mask_drop_value": 15}],
+    [
+        A.PixelDropout,
+        {
+            "dropout_prob": 0.1,
+            "per_channel": False,
+            "drop_value": None,
+            "mask_drop_value": 15,
+        },
+    ],
+    [
+        A.RandomCropFromBorders,
+        dict(crop_left=0.2, crop_right=0.3, crop_top=0.05, crop_bottom=0.5),
+    ],
+    [
+        A.Spatter,
+        dict(
+            mean=0.2,
+            std=0.1,
+            gauss_sigma=3,
+            cutout_threshold=0.4,
+            intensity=0.7,
+            mode="mud",
+        ),
+    ],
+    [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
+    [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -327,14 +399,17 @@ AUGMENTATION_CLS_EXCEPT = {
     A.Lambda,
     A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
+    A.BBoxSafeRandomCrop,
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
+    A.Mosaic,
 }
 
 
 @pytest.mark.parametrize(
-    ["augmentation_cls", "params"], check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT)
+    ["augmentation_cls", "params"],
+    check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT),
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -354,7 +429,8 @@ def test_augmentations_serialization_with_custom_parameters(
 
 
 @pytest.mark.parametrize(
-    ["augmentation_cls", "params"], check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT)
+    ["augmentation_cls", "params"],
+    check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT),
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -389,6 +465,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+            A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -453,6 +530,7 @@ def test_augmentations_for_bboxes_serialization(
             A.MaskDropout,
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
             A.TemplateTransform,
         },
     ),
@@ -474,7 +552,13 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params", "call_params"],
-    [[A.RandomCropNearBBox, {"max_part_shift": 0.15}, {"cropping_bbox": [-59, 77, 177, 231]}]],
+    [
+        [
+            A.RandomCropNearBBox,
+            {"max_part_shift": 0.15},
+            {"cropping_bbox": [-59, 77, 177, 231]},
+        ]
+    ],
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
@@ -513,8 +597,18 @@ def test_transform_pipeline_serialization(seed, image, mask):
                         A.RandomSizedCrop(min_max_height=(256, 1024), height=512, width=512, p=1),
                         A.OneOf(
                             [
-                                A.RandomSizedCrop(min_max_height=(256, 512), height=384, width=384, p=0.5),
-                                A.RandomSizedCrop(min_max_height=(256, 512), height=512, width=512, p=0.5),
+                                A.RandomSizedCrop(
+                                    min_max_height=(256, 512),
+                                    height=384,
+                                    width=384,
+                                    p=0.5,
+                                ),
+                                A.RandomSizedCrop(
+                                    min_max_height=(256, 512),
+                                    height=512,
+                                    width=512,
+                                    p=0.5,
+                                ),
                             ]
                         ),
                     ]
@@ -565,8 +659,18 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
     aug = A.Compose(
         [
             A.OneOrOther(
-                A.Compose([A.RandomRotate90(), A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)])]),
-                A.Compose([A.Rotate(p=0.5), A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1)]),
+                A.Compose(
+                    [
+                        A.RandomRotate90(),
+                        A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)]),
+                    ]
+                ),
+                A.Compose(
+                    [
+                        A.Rotate(p=0.5),
+                        A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1),
+                    ]
+                ),
             ),
             A.SomeOf(
                 [
@@ -604,8 +708,18 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     aug = A.Compose(
         [
             A.OneOrOther(
-                A.Compose([A.RandomRotate90(), A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)])]),
-                A.Compose([A.Rotate(p=0.5), A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1)]),
+                A.Compose(
+                    [
+                        A.RandomRotate90(),
+                        A.OneOf([A.HorizontalFlip(p=0.5), A.VerticalFlip(p=0.5)]),
+                    ]
+                ),
+                A.Compose(
+                    [
+                        A.Rotate(p=0.5),
+                        A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1),
+                    ]
+                ),
             ),
             A.SomeOf(
                 n=2,
@@ -633,12 +747,20 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_image_only_transforms(
-        except_augmentations={A.HistogramMatching, A.FDA, A.PixelDistributionAdaptation, A.TemplateTransform},
+        except_augmentations={
+            A.HistogramMatching,
+            A.FDA,
+            A.PixelDistributionAdaptation,
+            A.TemplateTransform,
+        },
     ),
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
-    aug = A.Compose([augmentation_cls(always_apply=True, **params)], additional_targets={"image2": "image"})
+    aug = A.Compose(
+        [augmentation_cls(always_apply=True, **params)],
+        additional_targets={"image2": "image"},
+    )
     image2 = image.copy()
 
     serialized_aug = A.to_dict(aug)
@@ -655,18 +777,25 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 @pytest.mark.parametrize("p", [1])
 def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, seed, p):
     def vflip_image(image, **kwargs):
-        return F.vflip(image)
+        return FGeometric.vflip(image)
 
     def vflip_mask(mask, **kwargs):
-        return F.vflip(mask)
+        return FGeometric.vflip(mask)
 
     def vflip_bbox(bbox, **kwargs):
-        return F.bbox_vflip(bbox, **kwargs)
+        return FGeometric.bbox_vflip(bbox, **kwargs)
 
     def vflip_keypoint(keypoint, **kwargs):
-        return F.keypoint_vflip(keypoint, **kwargs)
+        return FGeometric.keypoint_vflip(keypoint, **kwargs)
 
-    aug = A.Lambda(name="vflip", image=vflip_image, mask=vflip_mask, bbox=vflip_bbox, keypoint=vflip_keypoint, p=p)
+    aug = A.Lambda(
+        name="vflip",
+        image=vflip_image,
+        mask=vflip_mask,
+        bbox=vflip_bbox,
+        keypoint=vflip_keypoint,
+        p=p,
+    )
 
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"vflip": aug})
@@ -752,6 +881,7 @@ def test_serialization_v2_to_dict():
         "bbox_params": None,
         "keypoint_params": None,
         "additional_targets": {},
+        "is_check_shapes": True,
     }
 
 

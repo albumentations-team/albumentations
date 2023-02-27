@@ -1,5 +1,9 @@
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request:
 
 jobs:
   test_and_lint:
@@ -8,8 +12,7 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-11]
-        python-version: [3.6, 3.7, 3.8, 3.9]
-        albumentations-version: [tests, develop]
+        python-version: [3.7, 3.8, 3.9, "3.10"]
       fail-fast: false
     steps:
     - name: Checkout
@@ -27,15 +30,23 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==1.8.1+cpu torchvision==0.9.1+cpu
-        -f https://download.pytorch.org/whl/torch_stable.html
+        pip install torch==1.13.1 torchvision==0.14.1
+        --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==1.8.1 torchvision==0.9.1
+      run: pip install torch==1.13.1 torchvision==0.14.1
     - name: Install dependencies
-      run: pip install .[${{ matrix.albumentations-version }}]
+      run: pip install .[tests]
     - name: Install linters
-      run: pip install flake8==3.9.2 flake8-docstrings==1.6.0 mypy==0.910 isort==5.9.3 types-PyYAML==5.4.10 types-setuptools
+      run: >
+        pip install
+        flake8==5.0.3
+        flake8-docstrings==1.6.0
+        isort==5.11.5
+        mypy==0.991
+        types-PyYAML
+        types-setuptools
+        types-pkg-resources
     - name: Cleanup the build directory
       uses: JesseTG/rm@v1.0.2
       with:
@@ -65,29 +76,9 @@ jobs:
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install Black
-      run: pip install black==21.9b0
+      run: pip install black==22.6.0
     - name: Run Black
       run: black --config=black.toml --check .
-
-  check_sphinx_build:
-    name: Check Sphinx build for docs
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [3.8]
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Update pip
-      run: python -m pip install --upgrade pip
-    - name: Install dependencies
-      run: pip install -r docs/requirements.txt
-    - name: Run Sphinx
-      run: sphinx-build -b html docs /tmp/_docs_build
 
   check_transforms_docs:
     name: Check that transforms docs are not outdated

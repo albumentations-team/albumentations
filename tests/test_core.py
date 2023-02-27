@@ -20,7 +20,7 @@ from albumentations import (
     Resize,
     Rotate,
 )
-from albumentations.augmentations.bbox_utils import check_bboxes
+from albumentations.core.bbox_utils import check_bboxes
 from albumentations.core.composition import (
     BaseCompose,
     BboxParams,
@@ -125,6 +125,13 @@ def test_image_only_transform(image, mask):
             data = aug(image=image, mask=mask)
             mocked_apply.assert_called_once_with(image, interpolation=cv2.INTER_LINEAR, cols=width, rows=height)
             assert np.array_equal(data["mask"], mask)
+
+
+def test_compose_doesnt_pass_force_apply(image):
+    transforms = [HorizontalFlip(p=0, always_apply=False)]
+    augmentation = Compose(transforms, p=1)
+    result = augmentation(force_apply=True, image=image)
+    assert np.array_equal(result["image"], image)
 
 
 def test_dual_transform(image, mask):
@@ -405,3 +412,26 @@ def test_contiguous_output(transforms):
     # confirm output contiguous
     assert data["image"].flags["C_CONTIGUOUS"]
     assert data["mask"].flags["C_CONTIGUOUS"]
+
+
+@pytest.mark.parametrize(
+    "targets",
+    [
+        {"image": np.ones((20, 20, 3), dtype=np.uint8), "mask": np.ones((30, 20))},
+        {"image": np.ones((20, 20, 3), dtype=np.uint8), "masks": [np.ones((30, 20))]},
+    ],
+)
+def test_compose_image_mask_equal_size(targets):
+    transforms = Compose([])
+
+    with pytest.raises(ValueError) as exc_info:
+        transforms(**targets)
+
+    assert str(exc_info.value).startswith(
+        "Height and Width of image, mask or masks should be equal. "
+        "You can disable shapes check by setting a parameter is_check_shapes=False "
+        "of Compose class (do it only if you are sure about your data consistency)."
+    )
+    # test after disabling shapes check
+    transforms = Compose([], is_check_shapes=False)
+    transforms(**targets)

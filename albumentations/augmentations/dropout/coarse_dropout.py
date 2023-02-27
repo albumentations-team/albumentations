@@ -1,12 +1,10 @@
 import random
-import typing
-from typing import Optional, List, Tuple, Iterable, Union
+from typing import Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
-from ...core.transforms_interface import DualTransform
+from ...core.transforms_interface import DualTransform, KeypointType
 from .functional import cutout
-
 
 __all__ = ["CoarseDropout"]
 
@@ -161,19 +159,20 @@ class CoarseDropout(DualTransform):
     def targets_as_params(self):
         return ["image"]
 
-    def _keypoint_in_hole(self, keypoint: Tuple[float, ...], hole: Tuple[int, int, int, int]) -> bool:
+    def _keypoint_in_hole(self, keypoint: KeypointType, hole: Tuple[int, int, int, int]) -> bool:
         x1, y1, x2, y2 = hole
         x, y = keypoint[:2]
         return x1 <= x < x2 and y1 <= y < y2
 
-    def apply_to_keypoints(self, keypoints: List[Tuple[float, ...]], holes: Iterable[Tuple] = (), **params):
+    def apply_to_keypoints(
+        self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params
+    ) -> List[KeypointType]:
+        result = set(keypoints)
         for hole in holes:
-            remaining_keypoints = []
             for kp in keypoints:
-                if not self._keypoint_in_hole(kp, typing.cast(Tuple[int, int, int, int], hole)):
-                    remaining_keypoints.append(kp)
-            keypoints = remaining_keypoints
-        return keypoints
+                if self._keypoint_in_hole(kp, hole):
+                    result.discard(kp)
+        return list(result)
 
     def get_transform_init_args_names(self):
         return (

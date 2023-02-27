@@ -1,8 +1,5 @@
 from __future__ import division
 
-import math
-from functools import wraps
-from itertools import product
 from typing import List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
@@ -11,16 +8,24 @@ import numpy as np
 import skimage
 
 from albumentations import random_utils
-
-from .bbox_utils import denormalize_bbox, normalize_bbox
-from .keypoints_utils import angle_to_2pi_range
+from albumentations.augmentations.utils import (
+    MAX_VALUES_BY_DTYPE,
+    _maybe_process_in_chunks,
+    clip,
+    clipped,
+    ensure_contiguous,
+    is_grayscale_image,
+    is_rgb_image,
+    non_rgb_warning,
+    preserve_channel_dim,
+    preserve_shape,
+)
 
 __all__ = [
-    "MAX_VALUES_BY_DTYPE",
-    "_maybe_process_in_chunks",
     "add_fog",
     "add_rain",
     "add_shadow",
+    "add_gravel",
     "add_snow",
     "add_sun_flare",
     "add_weighted",
@@ -28,59 +33,25 @@ __all__ = [
     "adjust_contrast_torchvision",
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
-    "angle_2pi_range",
-    "bbox_flip",
-    "bbox_hflip",
-    "bbox_mosaic4",
-    "bbox_transpose",
-    "bbox_vflip",
-    "blur",
     "brightness_contrast_adjust",
     "channel_shuffle",
     "clahe",
-    "clip",
-    "clipped",
     "convolve",
     "downscale",
-    "elastic_transform_approx",
     "equalize",
     "fancy_pca",
     "from_float",
     "gamma_transform",
     "gauss_noise",
-    "gaussian_blur",
-    "get_num_channels",
-    "get_opencv_dtype_from_numpy",
-    "glass_blur",
-    "grid_distortion",
-    "hflip",
-    "hflip_cv2",
     "image_compression",
     "invert",
-    "is_grayscale_image",
-    "is_multispectral_image",
-    "is_rgb_image",
     "iso_noise",
-    "keypoint_flip",
-    "keypoint_hflip",
-    "keypoint_transpose",
-    "keypoint_vflip",
     "linear_transformation_rgb",
-    "median_blur",
-    "mosaic4",
     "move_tone_curve",
     "multiply",
-    "non_rgb_warning",
     "noop",
     "normalize",
-    "optical_distortion",
-    "pad",
-    "pad_with_params",
     "posterize",
-    "preserve_channel_dim",
-    "preserve_shape",
-    "random_flip",
-    "rot90",
     "shift_hsv",
     "shift_rgb",
     "solarize",
@@ -88,164 +59,30 @@ __all__ = [
     "swap_tiles_on_image",
     "to_float",
     "to_gray",
-    "transpose",
+    "gray_to_rgb",
     "unsharp_mask",
-    "vflip",
 ]
 
-MAX_VALUES_BY_DTYPE = {
-    np.dtype("uint8"): 255,
-    np.dtype("uint16"): 65535,
-    np.dtype("uint32"): 4294967295,
-    np.dtype("float32"): 1.0,
-}
 
-NPDTYPE_TO_OPENCV_DTYPE = {
-    np.uint8: cv2.CV_8U,
-    np.uint16: cv2.CV_16U,
-    np.int32: cv2.CV_32S,
-    np.float32: cv2.CV_32F,
-    np.float64: cv2.CV_64F,
-    np.dtype("uint8"): cv2.CV_8U,
-    np.dtype("uint16"): cv2.CV_16U,
-    np.dtype("int32"): cv2.CV_32S,
-    np.dtype("float32"): cv2.CV_32F,
-    np.dtype("float64"): cv2.CV_64F,
-}
+def normalize_cv2(img, mean, denominator):
+    if mean.shape and len(mean) != 4 and mean.shape != img.shape:
+        mean = np.array(mean.tolist() + [0] * (4 - len(mean)), dtype=np.float64)
+    if not denominator.shape:
+        denominator = np.array([denominator.tolist()] * 4, dtype=np.float64)
+    elif len(denominator) != 4 and denominator.shape != img.shape:
+        denominator = np.array(denominator.tolist() + [1] * (4 - len(denominator)), dtype=np.float64)
+
+    img = np.ascontiguousarray(img.astype("float32"))
+    cv2.subtract(img, mean.astype(np.float64), img)
+    cv2.multiply(img, denominator.astype(np.float64), img)
+    return img
 
 
-def angle_2pi_range(func):
-    @wraps(func)
-    def wrapped_function(keypoint, *args, **kwargs):
-        (x, y, a, s) = func(keypoint, *args, **kwargs)
-        return (x, y, angle_to_2pi_range(a), s)
-
-    return wrapped_function
-
-
-def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object]) -> int:
-    """
-    Return a corresponding OpenCV dtype for a numpy's dtype
-    :param value: Input dtype of numpy array
-    :return: Corresponding dtype for OpenCV
-    """
-    if isinstance(value, np.ndarray):
-        value = value.dtype
-    return NPDTYPE_TO_OPENCV_DTYPE[value]
-
-
-def clip(img, dtype, maxval):
-    return np.clip(img, 0, maxval).astype(dtype)
-
-
-def clipped(func):
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        dtype = img.dtype
-        maxval = MAX_VALUES_BY_DTYPE.get(dtype, 1.0)
-        return clip(func(img, *args, **kwargs), dtype, maxval)
-
-    return wrapped_function
-
-
-def preserve_shape(func):
-    """
-    Preserve shape of the image
-
-    """
-
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        shape = img.shape
-        result = func(img, *args, **kwargs)
-        result = result.reshape(shape)
-        return result
-
-    return wrapped_function
-
-
-def preserve_channel_dim(func):
-    """
-    Preserve dummy channel dim.
-
-    """
-
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        shape = img.shape
-        result = func(img, *args, **kwargs)
-        if len(shape) == 3 and shape[-1] == 1 and len(result.shape) == 2:
-            result = np.expand_dims(result, axis=-1)
-        return result
-
-    return wrapped_function
-
-
-def ensure_contiguous(func):
-    """
-    Ensure that input img is contiguous.
-    """
-
-    @wraps(func)
-    def wrapped_function(img, *args, **kwargs):
-        img = np.require(img, requirements=["C_CONTIGUOUS"])
-        result = func(img, *args, **kwargs)
-        return result
-
-    return wrapped_function
-
-
-def is_rgb_image(image):
-    return len(image.shape) == 3 and image.shape[-1] == 3
-
-
-def is_grayscale_image(image):
-    return (len(image.shape) == 2) or (len(image.shape) == 3 and image.shape[-1] == 1)
-
-
-def is_multispectral_image(image):
-    return len(image.shape) == 3 and image.shape[-1] not in [1, 3]
-
-
-def get_num_channels(image):
-    return image.shape[2] if len(image.shape) == 3 else 1
-
-
-def non_rgb_warning(image):
-    if not is_rgb_image(image):
-        message = "This transformation expects 3-channel images"
-        if is_grayscale_image(image):
-            message += "\nYou can convert your grayscale image to RGB using cv2.cvtColor(image, cv2.COLOR_GRAY2RGB))"
-        if is_multispectral_image(image):  # Any image with a number of channels other than 1 and 3
-            message += "\nThis transformation cannot be applied to multi-spectral images"
-
-        raise ValueError(message)
-
-
-def vflip(img):
-    return np.ascontiguousarray(img[::-1, ...])
-
-
-def hflip(img):
-    return np.ascontiguousarray(img[:, ::-1, ...])
-
-
-def hflip_cv2(img):
-    return cv2.flip(img, 1)
-
-
-@preserve_shape
-def random_flip(img, code):
-    return cv2.flip(img, code)
-
-
-def transpose(img):
-    return img.transpose(1, 0, 2) if len(img.shape) > 2 else img.transpose(1, 0)
-
-
-def rot90(img, factor):
-    img = np.rot90(img, factor)
-    return np.ascontiguousarray(img)
+def normalize_numpy(img, mean, denominator):
+    img = img.astype(np.float32)
+    img -= mean
+    img *= denominator
+    return img
 
 
 def normalize(img, mean, std, max_pixel_value=255.0):
@@ -257,51 +94,9 @@ def normalize(img, mean, std, max_pixel_value=255.0):
 
     denominator = np.reciprocal(std, dtype=np.float32)
 
-    img = img.astype(np.float32)
-    img -= mean
-    img *= denominator
-    return img
-
-
-def _maybe_process_in_chunks(process_fn, **kwargs):
-    """
-    Wrap OpenCV function to enable processing images with more than 4 channels.
-
-    Limitations:
-        This wrapper requires image to be the first argument and rest must be sent via named arguments.
-
-    Args:
-        process_fn: Transform function (e.g cv2.resize).
-        kwargs: Additional parameters.
-
-    Returns:
-        numpy.ndarray: Transformed image.
-
-    """
-
-    @wraps(process_fn)
-    def __process_fn(img):
-        num_channels = get_num_channels(img)
-        if num_channels > 4:
-            chunks = []
-            for index in range(0, num_channels, 4):
-                if num_channels - index == 2:
-                    # Many OpenCV functions cannot work with 2-channel images
-                    for i in range(2):
-                        chunk = img[:, :, index + i : index + i + 1]
-                        chunk = process_fn(chunk, **kwargs)
-                        chunk = np.expand_dims(chunk, -1)
-                        chunks.append(chunk)
-                else:
-                    chunk = img[:, :, index : index + 4]
-                    chunk = process_fn(chunk, **kwargs)
-                    chunks.append(chunk)
-            img = np.dstack(chunks)
-        else:
-            img = process_fn(img, **kwargs)
-        return img
-
-    return __process_fn
+    if img.ndim == 3 and img.shape[-1] == 3:
+        return normalize_cv2(img, mean, denominator)
+    return normalize_numpy(img, mean, denominator)
 
 
 def _shift_hsv_uint8(img, hue_shift, sat_shift, val_shift):
@@ -590,7 +385,7 @@ def move_tone_curve(img, low_y, high_y):
 
     # Defines responze of a four-point bezier curve
     def evaluate_bez(t):
-        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t ** 2 * high_y + t ** 3
+        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t**2 * high_y + t**3
 
     evaluate_bez = np.vectorize(evaluate_bez)
     remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
@@ -668,82 +463,6 @@ def clahe(img, clip_limit=2.0, tile_grid_size=(8, 8)):
         img = cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
     return img
-
-
-@preserve_channel_dim
-def pad(img, min_height, min_width, border_mode=cv2.BORDER_REFLECT_101, value=None):
-    height, width = img.shape[:2]
-
-    if height < min_height:
-        h_pad_top = int((min_height - height) / 2.0)
-        h_pad_bottom = min_height - height - h_pad_top
-    else:
-        h_pad_top = 0
-        h_pad_bottom = 0
-
-    if width < min_width:
-        w_pad_left = int((min_width - width) / 2.0)
-        w_pad_right = min_width - width - w_pad_left
-    else:
-        w_pad_left = 0
-        w_pad_right = 0
-
-    img = pad_with_params(img, h_pad_top, h_pad_bottom, w_pad_left, w_pad_right, border_mode, value)
-
-    if img.shape[:2] != (max(min_height, height), max(min_width, width)):
-        raise RuntimeError(
-            "Invalid result shape. Got: {}. Expected: {}".format(
-                img.shape[:2], (max(min_height, height), max(min_width, width))
-            )
-        )
-
-    return img
-
-
-@preserve_channel_dim
-def pad_with_params(
-    img: np.ndarray,
-    h_pad_top: int,
-    h_pad_bottom: int,
-    w_pad_left: int,
-    w_pad_right: int,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[int] = None,
-) -> np.ndarray:
-    pad_fn = _maybe_process_in_chunks(
-        cv2.copyMakeBorder,
-        top=h_pad_top,
-        bottom=h_pad_bottom,
-        left=w_pad_left,
-        right=w_pad_right,
-        borderType=border_mode,
-        value=value,
-    )
-    return pad_fn(img)
-
-
-@preserve_shape
-def blur(img, ksize):
-    blur_fn = _maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
-    return blur_fn(img)
-
-
-@preserve_shape
-def gaussian_blur(img, ksize, sigma=0):
-    # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
-    blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
-    return blur_fn(img)
-
-
-@preserve_shape
-def median_blur(img, ksize):
-    if img.dtype == np.float32 and ksize not in {3, 5}:
-        raise ValueError(
-            "Invalid ksize value {}. For a float32 image the only valid ksize values are 3 and 5".format(ksize)
-        )
-
-    blur_fn = _maybe_process_in_chunks(cv2.medianBlur, ksize=ksize)
-    return blur_fn(img)
 
 
 @preserve_shape
@@ -1047,187 +766,49 @@ def add_shadow(img, vertices_list):
     return image_rgb
 
 
+@ensure_contiguous
 @preserve_shape
-def optical_distortion(
-    img,
-    k=0,
-    dx=0,
-    dy=0,
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-):
-    """Barrel / pincushion distortion. Unconventional augment.
+def add_gravel(img: np.ndarray, gravels: list):
+    """Add gravel to the image.
 
-    Reference:
-        |  https://stackoverflow.com/questions/6199636/formulas-for-barrel-pincushion-distortion
-        |  https://stackoverflow.com/questions/10364201/image-transformation-in-opencv
-        |  https://stackoverflow.com/questions/2477774/correcting-fisheye-distortion-programmatically
-        |  http://www.coldvision.io/2017/03/02/advanced-lane-finding-using-opencv/
+    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
+    Args:
+        img (numpy.ndarray): image to add gravel to
+        gravels (list): list of gravel parameters. (float, float, float, float):
+            (top-left x, top-left y, bottom-right x, bottom right y)
+
+    Returns:
+        numpy.ndarray:
     """
-    height, width = img.shape[:2]
+    non_rgb_warning(img)
+    input_dtype = img.dtype
+    needs_float = False
 
-    fx = width
-    fy = height
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype("uint8"))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError("Unexpected dtype {} for AddGravel augmentation".format(input_dtype))
 
-    cx = width * 0.5 + dx
-    cy = height * 0.5 + dy
+    image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
 
-    camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
+    for gravel in gravels:
+        y1, y2, x1, x2, sat = gravel
+        image_hls[x1:x2, y1:y2, 1] = sat
 
-    distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
-    img = cv2.remap(
-        img,
-        map1,
-        map2,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return img
+    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
+    if needs_float:
+        image_rgb = to_float(image_rgb, max_value=255)
 
-@preserve_shape
-def grid_distortion(
-    img,
-    num_steps=10,
-    xsteps=(),
-    ysteps=(),
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-):
-    """Perform a grid distortion of an input image.
-
-    Reference:
-        http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
-    """
-    height, width = img.shape[:2]
-
-    x_step = width // num_steps
-    xx = np.zeros(width, np.float32)
-    prev = 0
-    for idx in range(num_steps + 1):
-        x = idx * x_step
-        start = int(x)
-        end = int(x) + x_step
-        if end > width:
-            end = width
-            cur = width
-        else:
-            cur = prev + x_step * xsteps[idx]
-
-        xx[start:end] = np.linspace(prev, cur, end - start)
-        prev = cur
-
-    y_step = height // num_steps
-    yy = np.zeros(height, np.float32)
-    prev = 0
-    for idx in range(num_steps + 1):
-        y = idx * y_step
-        start = int(y)
-        end = int(y) + y_step
-        if end > height:
-            end = height
-            cur = height
-        else:
-            cur = prev + y_step * ysteps[idx]
-
-        yy[start:end] = np.linspace(prev, cur, end - start)
-        prev = cur
-
-    map_x, map_y = np.meshgrid(xx, yy)
-    map_x = map_x.astype(np.float32)
-    map_y = map_y.astype(np.float32)
-
-    remap_fn = _maybe_process_in_chunks(
-        cv2.remap,
-        map1=map_x,
-        map2=map_y,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return remap_fn(img)
+    return image_rgb
 
 
-@preserve_shape
-def elastic_transform_approx(
-    img,
-    alpha,
-    sigma,
-    alpha_affine,
-    interpolation=cv2.INTER_LINEAR,
-    border_mode=cv2.BORDER_REFLECT_101,
-    value=None,
-    random_state=None,
-):
-    """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
-    Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
-
-    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
-         Convolutional Neural Networks applied to Visual Document Analysis", in
-         Proc. of the International Conference on Document Analysis and
-         Recognition, 2003.
-    """
-    height, width = img.shape[:2]
-
-    # Random affine
-    center_square = np.float32((height, width)) // 2
-    square_size = min((height, width)) // 3
-    alpha = float(alpha)
-    sigma = float(sigma)
-    alpha_affine = float(alpha_affine)
-
-    pts1 = np.float32(
-        [
-            center_square + square_size,
-            [center_square[0] + square_size, center_square[1] - square_size],
-            center_square - square_size,
-        ]
-    )
-    pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
-        np.float32
-    )
-    matrix = cv2.getAffineTransform(pts1, pts2)
-
-    warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine,
-        M=matrix,
-        dsize=(width, height),
-        flags=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    img = warp_fn(img)
-
-    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-    cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
-    dx *= alpha
-
-    dy = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-    cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
-    dy *= alpha
-
-    x, y = np.meshgrid(np.arange(width), np.arange(height))
-
-    map_x = np.float32(x + dx)
-    map_y = np.float32(y + dy)
-
-    remap_fn = _maybe_process_in_chunks(
-        cv2.remap,
-        map1=map_x,
-        map2=map_y,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
-    )
-    return remap_fn(img)
-
-
-def invert(img):
-    return 255 - img
+def invert(img: np.ndarray) -> np.ndarray:
+    # Supports all the valid dtypes
+    # clips the img to avoid unexpected behaviour.
+    return MAX_VALUES_BY_DTYPE[img.dtype] - img
 
 
 def channel_shuffle(img, channels_shuffled):
@@ -1282,7 +863,7 @@ def _brightness_contrast_adjust_uint(img, alpha=1, beta=0, beta_by_max=False):
         if beta_by_max:
             lut += beta * max_value
         else:
-            lut += beta * np.mean(img)
+            lut += (alpha * beta) * np.mean(img)
 
     lut = np.clip(lut, 0, max_value).astype(dtype)
     img = cv2.LUT(img, lut)
@@ -1343,15 +924,21 @@ def to_gray(img):
     return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
 
 
+def gray_to_rgb(img):
+    return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+
 @preserve_shape
-def downscale(img, scale, interpolation=cv2.INTER_NEAREST):
+def downscale(img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR):
     h, w = img.shape[:2]
 
-    need_cast = interpolation != cv2.INTER_NEAREST and img.dtype == np.uint8
+    need_cast = (
+        up_interpolation != cv2.INTER_NEAREST or down_interpolation != cv2.INTER_NEAREST
+    ) and img.dtype == np.uint8
     if need_cast:
         img = to_float(img)
-    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=interpolation)
-    upscaled = cv2.resize(downscaled, (w, h), interpolation=interpolation)
+    downscaled = cv2.resize(img, None, fx=scale, fy=scale, interpolation=down_interpolation)
+    upscaled = cv2.resize(downscaled, (w, h), interpolation=up_interpolation)
     if need_cast:
         upscaled = from_float(np.clip(upscaled, 0, 1), dtype=np.dtype("uint8"))
     return upscaled
@@ -1381,159 +968,6 @@ def from_float(img, dtype, max_value=None):
     return (img * max_value).astype(dtype)
 
 
-def bbox_vflip(bbox, rows, cols):  # skipcq: PYL-W0613
-    """Flip a bounding box vertically around the x-axis.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return x_min, 1 - y_max, x_max, 1 - y_min
-
-
-def bbox_hflip(bbox, rows, cols):  # skipcq: PYL-W0613
-    """Flip a bounding box horizontally around the y-axis.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    return 1 - x_max, y_min, 1 - x_min, y_max
-
-
-def bbox_flip(bbox, d, rows, cols):
-    """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        d (int):
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: if value of `d` is not -1, 0 or 1.
-
-    """
-    if d == 0:
-        bbox = bbox_vflip(bbox, rows, cols)
-    elif d == 1:
-        bbox = bbox_hflip(bbox, rows, cols)
-    elif d == -1:
-        bbox = bbox_hflip(bbox, rows, cols)
-        bbox = bbox_vflip(bbox, rows, cols)
-    else:
-        raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
-    return bbox
-
-
-def bbox_transpose(bbox, axis, rows, cols):  # skipcq: PYL-W0613
-    """Transposes a bounding box along given axis.
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        axis (int): 0 - main axis, 1 - secondary axis.
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
-
-    Raises:
-        ValueError: If axis not equal to 0 or 1.
-
-    """
-    x_min, y_min, x_max, y_max = bbox[:4]
-    if axis not in {0, 1}:
-        raise ValueError("Axis must be either 0 or 1.")
-    if axis == 0:
-        bbox = (y_min, x_min, y_max, x_max)
-    if axis == 1:
-        bbox = (1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min)
-    return bbox
-
-
-@angle_2pi_range
-def keypoint_vflip(keypoint, rows, cols):
-    """Flip a keypoint vertically around the x-axis.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        rows (int): Image height.
-        cols( int): Image width.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint
-    angle = -angle
-    return x, (rows - 1) - y, angle, scale
-
-
-@angle_2pi_range
-def keypoint_hflip(keypoint, rows, cols):
-    """Flip a keypoint horizontally around the y-axis.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint
-    angle = math.pi - angle
-    return (cols - 1) - x, y, angle, scale
-
-
-def keypoint_flip(keypoint, d, rows, cols):
-    """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        d (int): Number of flip. Must be -1, 0 or 1:
-            * 0 - vertical flip,
-            * 1 - horizontal flip,
-            * -1 - vertical and horizontal flip.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    Raises:
-        ValueError: if value of `d` is not -1, 0 or 1.
-
-    """
-    if d == 0:
-        keypoint = keypoint_vflip(keypoint, rows, cols)
-    elif d == 1:
-        keypoint = keypoint_hflip(keypoint, rows, cols)
-    elif d == -1:
-        keypoint = keypoint_hflip(keypoint, rows, cols)
-        keypoint = keypoint_vflip(keypoint, rows, cols)
-    else:
-        raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
-    return keypoint
-
-
 def noop(input_obj, **params):  # skipcq: PYL-W0613
     return input_obj
 
@@ -1561,26 +995,6 @@ def swap_tiles_on_image(image, tiles):
         ]
 
     return new_image
-
-
-def keypoint_transpose(keypoint):
-    """Rotate a keypoint by angle.
-
-    Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-
-    Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
-
-    """
-    x, y, angle, scale = keypoint[:4]
-
-    if angle <= np.pi:
-        angle = np.pi - angle
-    else:
-        angle = 3 * np.pi - angle
-
-    return y, x, angle, scale
 
 
 @clipped
@@ -1637,17 +1051,54 @@ def multiply(img, multiplier):
     return _multiply_non_uint8(img, multiplier)
 
 
+def bbox_from_mask(mask):
+    """Create bounding box from binary mask (fast version)
+
+    Args:
+        mask (numpy.ndarray): binary mask.
+
+    Returns:
+        tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
+
+    """
+    rows = np.any(mask, axis=1)
+    if not rows.any():
+        return -1, -1, -1, -1
+    cols = np.any(mask, axis=0)
+    y_min, y_max = np.where(rows)[0][[0, -1]]
+    x_min, x_max = np.where(cols)[0][[0, -1]]
+    return x_min, y_min, x_max + 1, y_max + 1
+
+
+def mask_from_bbox(img, bbox):
+    """Create binary mask from bounding box
+
+    Args:
+        img (numpy.ndarray): input image
+        bbox: A bounding box tuple `(x_min, y_min, x_max, y_max)`
+
+    Returns:
+        mask (numpy.ndarray): binary mask
+
+    """
+
+    mask = np.zeros(img.shape[:2], dtype=np.uint8)
+    x_min, y_min, x_max, y_max = bbox
+    mask[y_min:y_max, x_min:x_max] = 1
+    return mask
+
+
 def fancy_pca(img, alpha=0.1):
     """Perform 'Fancy PCA' augmentation from:
     http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
 
     Args:
-        img:  numpy array with (h, w, rgb) shape, as ints between 0-255)
-        alpha:  how much to perturb/scale the eigen vecs and vals
+        img (numpy.ndarray): numpy array with (h, w, rgb) shape, as ints between 0-255
+        alpha (float): how much to perturb/scale the eigen vecs and vals
                 the paper used std=0.1
 
     Returns:
-        numpy image-like array as float range(0, 1)
+        numpy.ndarray: numpy image-like array as uint8 range(0, 255)
 
     """
     if not is_rgb_image(img) or img.dtype != np.uint8:
@@ -1704,38 +1155,6 @@ def fancy_pca(img, alpha=0.1):
     return orig_img
 
 
-@preserve_shape
-def glass_blur(img, sigma, max_delta, iterations, dxy, mode):
-    x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
-
-    if mode == "fast":
-
-        hs = np.arange(img.shape[0] - max_delta, max_delta, -1)
-        ws = np.arange(img.shape[1] - max_delta, max_delta, -1)
-        h = np.tile(hs, ws.shape[0])
-        w = np.repeat(ws, hs.shape[0])
-
-        for i in range(iterations):
-            dy = dxy[:, i, 0]
-            dx = dxy[:, i, 1]
-            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
-
-    elif mode == "exact":
-        for ind, (i, h, w) in enumerate(
-            product(
-                range(iterations),
-                range(img.shape[0] - max_delta, max_delta, -1),
-                range(img.shape[1] - max_delta, max_delta, -1),
-            )
-        ):
-            ind = ind if ind < len(dxy) else ind % len(dxy)
-            dy = dxy[ind, i, 0]
-            dx = dxy[ind, i, 1]
-            x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
-
-    return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
-
-
 def _adjust_brightness_torchvision_uint8(img, factor):
     lut = np.arange(0, 256) * factor
     lut = np.clip(lut, 0, 255).astype(np.uint8)
@@ -1774,7 +1193,9 @@ def adjust_contrast_torchvision(img, factor):
         mean = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY).mean()
 
     if factor == 0:
-        return np.full_like(img, int(mean + 0.5), dtype=img.dtype)
+        if img.dtype != np.float32:
+            mean = int(mean + 0.5)
+        return np.full_like(img, mean, dtype=img.dtype)
 
     if img.dtype == np.uint8:
         return _adjust_contrast_torchvision_uint8(img, factor, mean)
@@ -1848,9 +1269,7 @@ def superpixels(
             scale = max_size / size
             height, width = image.shape[:2]
             new_height, new_width = int(height * scale), int(width * scale)
-            resize_fn = _maybe_process_in_chunks(
-                cv2.resize, dsize=(new_width, new_height), interpolation=interpolation
-            )
+            resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(new_width, new_height), interpolation=interpolation)
             image = resize_fn(image)
 
     from skimage.segmentation import slic
@@ -1935,105 +1354,27 @@ def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[fl
     return np.where(drop_mask, drop_values, image)
 
 
-def mosaic4(image_batch: List[np.ndarray], height: int, width: int, fill_value: int = 0) -> np.ndarray:
-    """Arrange the images in a 2x2 grid. Images can have different shape.
-    This implementation is based on YOLOv5 with some modification:
-    https://github.com/ultralytics/yolov5/blob/932dc78496ca532a41780335468589ad7f0147f7/utils/datasets.py#L648
+@clipped
+@preserve_shape
+def spatter(
+    img: np.ndarray,
+    non_mud: Optional[np.ndarray],
+    mud: Optional[np.ndarray],
+    rain: Optional[np.ndarray],
+    mode: str,
+) -> np.ndarray:
+    non_rgb_warning(img)
 
-    Args:
-        image_batch (List[np.ndarray]): image list. The length should be 4.
-        height (int): Height of output mosaic image
-        width (int): Width of output mosaic image
-        fill_value (int): padding value
+    coef = MAX_VALUES_BY_DTYPE[img.dtype]
+    img = img.astype(np.float32) * (1 / coef)
 
-    """
-    if len(image_batch) != 4:
-        raise ValueError(f"Length of image_batch should be 4. Got {len(image_batch)}")
-
-    if len(image_batch[0].shape) == 2:
-        out_shape = [height, width]
+    if mode == "rain":
+        assert rain is not None
+        img = img + rain
+    elif mode == "mud":
+        assert non_mud is not None and mud is not None
+        img = img * non_mud + mud
     else:
-        out_shape = [height, width, image_batch[0].shape[2]]
+        raise ValueError("Unsupported spatter mode: " + str(mode))
 
-    center_x = width // 2
-    center_y = height // 2
-    img4 = np.full(out_shape, fill_value, dtype=np.uint8)  # base image with 4 tiles
-    for i, img in enumerate(image_batch):
-        (h, w) = img.shape[:2]
-
-        # place img in img4
-        # this based on the yolo5's implementation
-        #
-        if i == 0:  # top left
-            x1a, y1a, x2a, y2a = (
-                max(center_x - w, 0),
-                max(center_y - h, 0),
-                center_x,
-                center_y,
-            )  # xmin, ymin, xmax, ymax (large image)
-            x1b, y1b, x2b, y2b = w - (x2a - x1a), h - (y2a - y1a), w, h  # xmin, ymin, xmax, ymax (small image)
-        elif i == 1:  # top right
-            x1a, y1a, x2a, y2a = (
-                center_x,
-                max(center_y - h, 0),
-                min(center_x + w, width),
-                center_y,
-            )
-            x1b, y1b, x2b, y2b = 0, h - (y2a - y1a), min(w, x2a - x1a), h
-        elif i == 2:  # bottom left
-            x1a, y1a, x2a, y2a = (
-                max(center_x - w, 0),
-                center_y,
-                center_x,
-                min(height, center_y + h),
-            )
-            x1b, y1b, x2b, y2b = w - (x2a - x1a), 0, w, min(y2a - y1a, h)
-        elif i == 3:  # bottom right
-            x1a, y1a, x2a, y2a = (
-                center_x,
-                center_y,
-                min(center_x + w, width),
-                min(height, center_y + h),
-            )
-            x1b, y1b, x2b, y2b = 0, 0, min(w, x2a - x1a), min(y2a - y1a, h)
-
-        img4[y1a:y2a, x1a:x2a] = img[y1b:y2b, x1b:x2b]  # img4[ymin:ymax, xmin:xmax]
-
-    return img4
-
-
-def bbox_mosaic4(bbox: Tuple, rows: int, cols: int, position_index: int, height: int, width: int):
-    """Put the given bbox in one of the cells of the 2x2 grid.
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)` or `(x_min, y_min, x_max, y_max, label, ...)`.
-        rows (int): Height of input image that corresponds to one of the mosaic cells
-        cols (int): Width of input image that corresponds to one of the mosaic cells
-        position_index (int): Index of the mosaic cell. 0: top left, 1: top right, 2: bottom left, 3: bottom right
-        height (int): Height of output mosaic image
-        width (int): Width of output mosaic image
-    """
-    bbox = denormalize_bbox(bbox, rows, cols)
-    bbox, tail = bbox[:4], tuple(bbox[4:])
-    center_x = width // 2
-    center_y = height // 2
-    if position_index == 0:  # top left
-        shift_x = center_x - cols
-        shift_y = center_y - rows
-    elif position_index == 1:  # top right
-        shift_x = center_x
-        shift_y = center_y - rows
-    elif position_index == 2:  # bottom left
-        shift_x = center_x - cols
-        shift_y = center_y
-    elif position_index == 3:  # bottom right
-        shift_x = center_x
-        shift_y = center_y
-    bbox = (
-        bbox[0] + shift_x,
-        bbox[1] + shift_y,
-        bbox[2] + shift_x,
-        bbox[3] + shift_y,
-    )
-
-    bbox = normalize_bbox(bbox, height, width)
-    return tuple(bbox + tail)
+    return img * 255

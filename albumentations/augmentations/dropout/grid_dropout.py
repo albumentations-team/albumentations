@@ -1,10 +1,10 @@
 import random
-from typing import Tuple, Iterable
+from typing import Iterable, Optional, Tuple
 
 import numpy as np
 
-from . import functional as F
 from ...core.transforms_interface import DualTransform
+from . import functional as F
 
 __all__ = ["GridDropout"]
 
@@ -47,15 +47,15 @@ class GridDropout(DualTransform):
     def __init__(
         self,
         ratio: float = 0.5,
-        unit_size_min: int = None,
-        unit_size_max: int = None,
-        holes_number_x: int = None,
-        holes_number_y: int = None,
+        unit_size_min: Optional[int] = None,
+        unit_size_max: Optional[int] = None,
+        holes_number_x: Optional[int] = None,
+        holes_number_y: Optional[int] = None,
         shift_x: int = 0,
         shift_y: int = 0,
         random_offset: bool = False,
         fill_value: int = 0,
-        mask_fill_value: int = None,
+        mask_fill_value: Optional[int] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -149,6 +149,7 @@ class GridDropout(DualTransform):
             "holes_number_y",
             "shift_x",
             "shift_y",
-            "mask_fill_value",
             "random_offset",
+            "fill_value",
+            "mask_fill_value",
         )
