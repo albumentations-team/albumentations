@@ -1,6 +1,6 @@
 from __future__ import division
 
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence, Union
 from warnings import warn
 
 import cv2
