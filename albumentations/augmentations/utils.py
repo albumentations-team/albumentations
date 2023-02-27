@@ -209,3 +209,9 @@ def _maybe_process_in_chunks(
         return img
 
     return __process_fn
+
+# https://docs.opencv.org/4.x/d8/d01/group__imgproc__color__conversions.html#ga397ae87e1288a81d2363b61574eb8cab
+# The conventional ranges for R, G, and B channel values are: 0 to 255 for CV_8U images,  0 to 65535 for CV_16U images , 0 to 1 for CV_32F images
+def is_dithered(image: np.ndarray) -> bool:
+    if len(image.shape) < 3: return False
+    else : return True
