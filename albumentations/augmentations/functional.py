@@ -929,37 +929,24 @@ def gray_to_rgb(img):
 
 
 def to_dither(img):
-    if img.dtype != np.uint8:
-        raise TypeError("Image must have uint8 channel type")
-    (width, height) = np.shape(img)
-    for x in range(width):
-        for y in range(height):
-            oldpixel = img[x][y]
-            newpixel = 0 if oldpixel < 128 else 255
-            img[x][y] = newpixel
+    if img.dtype != np.float32:
+        raise TypeError("Image must have float32 channel type")
+    (height, width) = np.shape(img)
+    for y in range(height):
+        for x in range(width):
+            oldpixel = img[y][x]
+            newpixel = round(oldpixel)
+            img[y][x] = newpixel
             quant_error = oldpixel - newpixel
             if x < width - 1:
-                img[x + 1][y] = truncate_add(img[x + 1][y], quant_error * 7 / 16)
-            if y < height-1:
-                img[x][y + 1] = truncate_add(img[x][y + 1], quant_error * 5 / 16)
+                img[y][x + 1] = img[y][x + 1] + quant_error * 7 / 16
             if x > 0 and y < height-1:
-                img[x - 1][y + 1] = truncate_add(img[x - 1][y + 1], quant_error * 3 / 16)
+                img[y + 1][x - 1] = img[y + 1][x - 1] + quant_error * 3 / 16
+            if y < height-1:
+                img[y + 1][x] = img[y + 1][x] + quant_error * 5 / 16
             if x < width - 1 and y < height-1:
-                img[x + 1][y + 1] = truncate_add(img[x + 1][y + 1], quant_error * 1 / 16)
+                img[y + 1][x + 1] = img[y + 1][x + 1] + quant_error * 1 / 16
     return img
-
-
-def truncate_add(a,b):
-    res = a + b
-    if b < 0:
-        if res > a:
-            return 0
-        return res
-    else:
-        if res < a:
-            return 255
-        return res
-
 
 @preserve_shape
 def downscale(img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR):
