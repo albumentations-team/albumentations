@@ -2664,3 +2664,43 @@ class Spatter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
+
+class Dither(ImageOnlyTransform):
+    """
+    Apply dither transform. Dither is an intentionally applied form of noise used to randomize quantization error, 
+    preventing large-scale patterns such as color banding in images. 
+
+    Args: 
+        p (float): p for probability to apply transform. Default 0.5.
+    
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+    
+    References :
+        https://en.wikipedia.org/wiki/Dither
+        https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+    """
+
+    def __init__(
+        self, 
+        always_apply: bool = False, 
+        p: float =0.5):
+        
+        super().__init__(always_apply, p)
+        self.always_apply = always_apply
+        self.p = p
+
+    def apply(self, img):
+        if not is_grayscale_image(img):
+            raise TypeError("Dither transformation expects grayscale image.")
+        if is_dithered(img):
+            warnings.warn("The image is already dithered")
+            return img
+
+        return F.to_dither(img)
+    
+    def get_transform_init_args_names(self):
+        return "always_app", "p"
