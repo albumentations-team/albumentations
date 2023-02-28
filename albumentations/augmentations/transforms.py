@@ -44,6 +44,7 @@ __all__ = [
     "ChannelShuffle",
     "InvertImg",
     "ToGray",
+    "Dither",
     "ToRGB",
     "ToSepia",
     "JpegCompression",
@@ -2687,20 +2688,16 @@ class Dither(ImageOnlyTransform):
     def __init__(
         self, 
         always_apply: bool = False, 
-        p: float =0.5):
+        p: float = 0.5,
+        nc: int = 2):
         
         super().__init__(always_apply, p)
         self.always_apply = always_apply
         self.p = p
+        self.nc = nc
 
-    def apply(self, img):
-        if not is_grayscale_image(img):
-            raise TypeError("Dither transformation expects grayscale image.")
-        if is_dithered(img):
-            warnings.warn("The image is already dithered")
-            return img
-
-        return F.to_dither(img)
+    def apply(self, img, **params):
+        return F.dither(img, self.nc)
     
     def get_transform_init_args_names(self):
         return "always_app", "p"
