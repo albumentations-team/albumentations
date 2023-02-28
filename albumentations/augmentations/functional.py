@@ -928,6 +928,26 @@ def gray_to_rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
 
+def to_dither(img):
+    if img.dtype != np.float32:
+        raise TypeError("Image must have float32 channel type")
+    (height, width) = np.shape(img)
+    for y in range(height):
+        for x in range(width):
+            oldpixel = img[y][x]
+            newpixel = round(oldpixel)
+            img[y][x] = newpixel
+            quant_error = oldpixel - newpixel
+            if x < width - 1:
+                img[y][x + 1] = img[y][x + 1] + quant_error * 7 / 16
+            if x > 0 and y < height-1:
+                img[y + 1][x - 1] = img[y + 1][x - 1] + quant_error * 3 / 16
+            if y < height-1:
+                img[y + 1][x] = img[y + 1][x] + quant_error * 5 / 16
+            if x < width - 1 and y < height-1:
+                img[y + 1][x + 1] = img[y + 1][x + 1] + quant_error * 1 / 16
+    return img
+
 @preserve_shape
 def downscale(img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR):
     h, w = img.shape[:2]
