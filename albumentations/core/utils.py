@@ -96,11 +96,11 @@ class DataProcessor(ABC):
         pass
 
     @abstractmethod
-    def convert_to_internal_type(self, data):
+    def convert_to_internal_type(self, data: Any) -> InternalDtype:  # type: ignore[type-var]
         raise NotImplementedError
 
     @abstractmethod
-    def convert_to_original_type(self, data):
+    def convert_to_original_type(self, data: InternalDtype) -> Any:
         raise NotImplementedError
 
     def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -145,11 +145,11 @@ class DataProcessor(ABC):
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: Any, rows: int, cols: int) -> InternalDtype:  # type: ignore[type-var]
+    def convert_to_albumentations(self, data: InternalDtype, rows: int, cols: int) -> InternalDtype:
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data: InternalDtype, rows: int, cols: int) -> Any:
+    def convert_from_albumentations(self, data: InternalDtype, rows: int, cols: int) -> InternalDtype:
         pass
 
     def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
