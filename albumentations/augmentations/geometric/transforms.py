@@ -1496,28 +1496,41 @@ class GridDistortion(DualTransform):
 
 class MixUp(DualTransform):
     """Generates a weighted combination of the pair of input images.
+    The bboxes are kept as in the input images
 
+    Args:
+        alpha (float): Alpha for distribution
+        beta (float): Beta for distribution
     Targets:
         image, image1, bboxes, bboxes1
     Image types:
         uint8, float32
+    Reference:
+        Hongyi Zhang, Moustapha Cisse, Yann N. Dauphin, David Lopez-Paz:
+        "mixup: Beyond Empirical Risk Minimization"
     """
 
     def __init__(
         self,
+        alpha = 32,
+        beta = 32,
         always_apply: bool = False,
         p: float = 1,
     ):
-        super(MixUp, self).__init__(always_apply, p)
+        super(MixUp, self).__init__(always_apply=always_apply, p=p)
+        self.alpha = alpha
+        self.beta = beta
 
-    def apply(self, image, image1, **params) -> np.ndarray:
+    def apply(self, image, image1, r, **params) -> np.ndarray:
         h1, w1, _ = image.shape
         h2, w2, _ = image1.shape
         if h1 != h2 or w1 != w2:
             raise TypeError("MixUp transformation expects both images to have identical shape.")
-        r = np.random.beta(32.0, 32.0)  # mixup ratio, alpha=beta=32.0
         im = (image * r + image1 * (1 - r)).astype(np.uint8)
         return im
+    
+    def get_params(self):
+        return {"r": np.random.beta(self.alpha, self.beta)}  # draw samples from a Beta distribution.
     
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], bboxes1, **params) -> List[BoxType]:
         return bboxes + bboxes1
@@ -1531,3 +1544,4 @@ class MixUp(DualTransform):
     @property
     def targets_as_params(self) -> List[str]:
         return ["image", "image1", "bboxes", "bboxes1"]
+
