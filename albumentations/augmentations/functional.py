@@ -940,12 +940,38 @@ def dither(img, nc):
             quant_error = oldpixel - newpixel
             if x < width - 1:
                 img[y][x + 1] += quant_error * 7 / 16
-            if x > 0 and y < height-1:
-                img[y + 1][x - 1] += quant_error * 3 / 16
             if y < height-1:
                 img[y + 1][x] += quant_error * 5 / 16
-            if x < width - 1 and y < height-1:
-                img[y + 1][x + 1] += quant_error * 1 / 16
+                if x > 0:
+                    img[y + 1][x - 1] += quant_error * 3 / 16
+                if x < width - 1:
+                    img[y + 1][x + 1] += quant_error * 1 / 16
+    return img
+
+def dither_vectorized(img, nc):
+    if img.dtype != np.float32:
+        raise TypeError("Image must have float32 channel type")
+    (height, width) = (np.shape(img)[0],np.shape(img)[1])
+    for y in range(height):
+        oldrow = img[y].copy()
+        lists = np.transpose(oldrow).tolist()
+        for list in lists:
+            for x in range(width):
+                oldpixel = list[x]
+                newpixel = round(oldpixel * (nc - 1)) / (nc - 1)
+                list[x] = newpixel
+                quant_error = oldpixel - newpixel
+                if x < width - 1:
+                    list[x + 1] += quant_error * (7 / 16)
+        img[y] = np.transpose(lists)
+        if y < height-1:
+            quant_error = oldrow - img[y]
+            r1 = np.roll(quant_error, -1, axis=0) * (3/16)
+            r1[-1] = np.zeros_like(r1[-1])
+            r2 = np.roll(quant_error, 1, axis=0) * (1/16)
+            r2[0] = np.zeros_like(r2[0])
+            update = r1 + r2 + quant_error * (5/16)
+            img[y+1] += update
     return img
 
 @preserve_shape
