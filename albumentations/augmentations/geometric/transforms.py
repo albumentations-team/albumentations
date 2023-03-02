@@ -1512,8 +1512,8 @@ class MixUp(DualTransform):
 
     def __init__(
         self,
-        alpha = 32,
-        beta = 32,
+        alpha = 32.,
+        beta = 32.,
         always_apply: bool = False,
         p: float = 1,
     ):
@@ -1521,18 +1521,18 @@ class MixUp(DualTransform):
         self.alpha = alpha
         self.beta = beta
 
-    def apply(self, image, image1, r, **params) -> np.ndarray:
+    def apply(self, image: np.ndarray, image1: np.ndarray, r, **params) -> np.ndarray:
         h1, w1, _ = image.shape
         h2, w2, _ = image1.shape
         if h1 != h2 or w1 != w2:
             raise TypeError("MixUp transformation expects both images to have identical shape.")
-        im = (image * r + image1 * (1 - r)).astype(np.uint8)
+        im = (image * r + image1 * (1 - r))
         return im
     
     def get_params(self):
         return {"r": np.random.beta(self.alpha, self.beta)}  # draw samples from a Beta distribution.
     
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], bboxes1, **params) -> List[BoxType]:
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], bboxes1: Sequence[BoxType], **params) -> List[BoxType]:
         return bboxes + bboxes1
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -1544,4 +1544,3 @@ class MixUp(DualTransform):
     @property
     def targets_as_params(self) -> List[str]:
         return ["image", "image1", "bboxes", "bboxes1"]
-
