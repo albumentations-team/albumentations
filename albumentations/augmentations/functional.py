@@ -39,6 +39,7 @@ __all__ = [
     "convolve",
     "downscale",
     "equalize",
+    "dither",
     "fancy_pca",
     "from_float",
     "gamma_transform",
@@ -928,10 +929,10 @@ def gray_to_rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
 
-def to_dither(img):
+def dither(img, nc):
     if img.dtype != np.float32:
         raise TypeError("Image must have float32 channel type")
-    (height, width) = np.shape(img)
+    (height, width) = (np.shape(img)[0],np.shape(img)[1])
     for y in range(height):
         for x in range(width):
             oldpixel = img[y][x]

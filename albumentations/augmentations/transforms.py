@@ -19,6 +19,7 @@ from albumentations.augmentations.utils import (
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
+    is_dithered
 )
 
 from ..core.transforms_interface import (
@@ -2667,40 +2668,43 @@ class Spatter(ImageOnlyTransform):
 
 class Dither(ImageOnlyTransform):
     """
-    Apply dither transform. Dither is an intentionally applied form of noise used to randomize quantization error, 
-    preventing large-scale patterns such as color banding in images. 
+    Apply dither transform. Dither is an intentionally applied form of noise used to randomize quantization error,
+    preventing large-scale patterns such as color banding in images.
 
-    Args: 
+    Args:
         p (float): p for probability to apply transform. Default 0.5.
-    
+        nc (int): the number of colour choices per channel,
+            e.g. if nc = 2 we only have 0 and 1, and if nc = 4 we have 0, 0.33, 0.67 and 1 etc
+
     Targets:
         image
 
     Image types:
         uint8, float32
-    
+
     References :
         https://en.wikipedia.org/wiki/Dither
         https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
     """
 
     def __init__(
-        self, 
-        always_apply: bool = False, 
+        self,
+        always_apply: bool = False,
         p: float =0.5):
-        
+
         super().__init__(always_apply, p)
         self.always_apply = always_apply
         self.p = p
 
-    def apply(self, img):
-        if not is_grayscale_image(img):
-            raise TypeError("Dither transformation expects grayscale image.")
-        if is_dithered(img):
-            warnings.warn("The image is already dithered")
+    def apply(self, img, **params):
+        if img.dtype == np.uint8:
+            img = img.astype(np.float32)/255
+        if img.dtype != np.float32:
+            raise TypeError("Image must have float32 channel type")
+        if is_dithered(img, self.nc):
+            warnings.warn("Image is already dithered.")
             return img
+        return F.dither(img, self.nc)
 
-        return F.to_dither(img)
-    
     def get_transform_init_args_names(self):
         return "always_app", "p"
