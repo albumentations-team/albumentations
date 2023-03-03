@@ -39,6 +39,7 @@ __all__ = [
     "convolve",
     "downscale",
     "equalize",
+    "dither",
     "fancy_pca",
     "from_float",
     "gamma_transform",
