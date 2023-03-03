@@ -45,6 +45,7 @@ __all__ = [
     "ChannelShuffle",
     "InvertImg",
     "ToGray",
+    "Dither",
     "ToRGB",
     "ToSepia",
     "JpegCompression",
@@ -2690,11 +2691,13 @@ class Dither(ImageOnlyTransform):
     def __init__(
         self,
         always_apply: bool = False,
-        p: float =0.5):
+        p: float = 0.5,
+        nc: int = 2):
 
         super().__init__(always_apply, p)
         self.always_apply = always_apply
         self.p = p
+        self.nc = nc
 
     def apply(self, img, **params):
         if img.dtype == np.uint8:
