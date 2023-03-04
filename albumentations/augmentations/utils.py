@@ -209,12 +209,3 @@ def _maybe_process_in_chunks(
         return img
 
     return __process_fn
-
-
-def is_dithered(img, nc):
-    dithered = True
-    dithered_pixel_values = np.round(np.linspace(0, 1, nc))
-    for pixel in np.nditer(img):
-        if pixel not in dithered_pixel_values:
-            dithered = False
-    return dithered
