@@ -953,7 +953,7 @@ def dither(img, nc):
             img[y] = np.transpose(channels)
             quant_errors = np.transpose(quant_errors)
         else:
-            img[y] = _apply_dithering_to_channel(img[y].tolist(), nc)
+            img[y], quant_errors = _apply_dithering_to_channel(img[y].tolist(), nc)
 
 
         if y < height-1:
