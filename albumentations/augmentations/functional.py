@@ -928,26 +928,67 @@ def to_gray(img):
 def gray_to_rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
-
+@preserve_shape
 def dither(img, nc):
-    if img.dtype != np.float32:
-        raise TypeError("Image must have float32 channel type")
-    (height, width) = (np.shape(img)[0],np.shape(img)[1])
+    height = np.shape(img)[0]
+    is_rgb = True if len(np.shape(img)) == 3 else False
+
     for y in range(height):
-        for x in range(width):
-            oldpixel = img[y][x]
-            newpixel = round(oldpixel)
-            img[y][x] = newpixel
-            quant_error = oldpixel - newpixel
-            if x < width - 1:
-                img[y][x + 1] = img[y][x + 1] + quant_error * 7 / 16
-            if x > 0 and y < height-1:
-                img[y + 1][x - 1] = img[y + 1][x - 1] + quant_error * 3 / 16
-            if y < height-1:
-                img[y + 1][x] = img[y + 1][x] + quant_error * 5 / 16
-            if x < width - 1 and y < height-1:
-                img[y + 1][x + 1] = img[y + 1][x + 1] + quant_error * 1 / 16
+        oldrow = img[y].copy()
+        quant_errors = []
+
+        if is_rgb:
+            # Turn into one list of length `width`, per channel (R, G, B)
+            #
+            # Use `tolist()` since operating on individual elements of an ndarray
+            # is very slow compared to a normal list.
+            channels = np.transpose(oldrow).tolist()
+
+            for ch in channels:
+                ch, qe = _apply_dithering_to_channel(ch, nc)
+                quant_errors.append(qe)
+
+            # Transpose back to one list containing all channels
+            # and replace the row
+            img[y] = np.transpose(channels)
+            quant_errors = np.transpose(quant_errors)
+        else:
+            img[y], quant_errors = _apply_dithering_to_channel(img[y].tolist(), nc)
+
+
+        if y < height-1:
+            r1 = np.roll(quant_errors, -1, axis=0) * (3/16)
+            r1[-1] = np.zeros_like(r1[-1])
+            r2 = np.roll(quant_errors, 1, axis=0) / 16
+            r2[0] = np.zeros_like(r2[0])
+            updated_row = r1 + r2 + np.array(quant_errors) * (5/16)
+            img[y+1] += updated_row
     return img
+
+def _apply_dithering_to_channel(ch, nc):
+    width = len(ch)
+
+    # We want to build the quant error list while
+    # iterating, as otherwise we'll base the error
+    # on the original value instead of the value it
+    # got after being affected by error propagation.
+    quant_error = [0]*width
+
+    for x in range(width-1):
+        oldval = ch[x]
+        newval = round(oldval * (nc - 1)) / (nc - 1)
+        ch[x] = newval
+        quant_error[x] = oldval - newval
+        ch[x + 1] += quant_error[x] * (7 / 16)
+    # Process the last pixel as a separate case (no propagation
+    # to the right).
+    oldval = ch[width-1]
+    newval = round(oldval * (nc - 1)) / (nc - 1)
+    ch[width-1] = newval
+    quant_error[-1] = oldval - newval
+
+    return ch, quant_error
+
 
 @preserve_shape
 def downscale(img, scale, down_interpolation=cv2.INTER_AREA, up_interpolation=cv2.INTER_LINEAR):

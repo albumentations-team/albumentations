@@ -45,6 +45,7 @@ __all__ = [
     "ChannelShuffle",
     "InvertImg",
     "ToGray",
+    "Dither",
     "ToRGB",
     "ToSepia",
     "JpegCompression",
@@ -2695,6 +2696,7 @@ class Dither(ImageOnlyTransform):
 
         super().__init__(always_apply=always_apply, p=p)
         self.nc=nc
+
 
     def apply(self, img, **params):
 
