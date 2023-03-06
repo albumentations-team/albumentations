@@ -2673,9 +2673,9 @@ class Dither(ImageOnlyTransform):
     preventing large-scale patterns such as color banding in images.
 
     Args:
-        p (float): p for probability to apply transform. Default 0.5.
         nc (int): the number of colour choices per channel,
             e.g. if nc = 2 we only have 0 and 1, and if nc = 4 we have 0, 0.33, 0.67 and 1 etc
+            Default value is 2 (the pixel can either be on or off).
 
     Targets:
         image
@@ -2690,24 +2690,25 @@ class Dither(ImageOnlyTransform):
 
     def __init__(
         self,
+        nc: int = 2,
         always_apply: bool = False,
-        p: float = 0.5,
-        nc: int = 2):
+        p: float = 0.5):
 
-        super().__init__(always_apply, p)
-        self.always_apply = always_apply
-        self.p = p
-        self.nc = nc
+        super().__init__(always_apply=always_apply, p=p)
+        self.nc=nc
+
 
     def apply(self, img, **params):
+
+        original_dtype = img.dtype
         if img.dtype == np.uint8:
             img = img.astype(np.float32)/255
-        if img.dtype != np.float32:
-            raise TypeError("Image must have float32 channel type")
-        if is_dithered(img, self.nc):
-            warnings.warn("Image is already dithered.")
-            return img
-        return F.dither(img, self.nc)
+        elif img.dtype != np.float32:
+            raise TypeError("Image must have float32 channel type")     
+        img = F.dither(img, self.nc)
+        if original_dtype == np.uint8:
+            img = np.floor(img.astype(np.uint8)*255)
+        return img
 
     def get_transform_init_args_names(self):
         return "always_app", "p"
