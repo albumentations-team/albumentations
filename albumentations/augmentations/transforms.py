@@ -2714,5 +2714,8 @@ class Dither(ImageOnlyTransform):
 
         return img
 
+    def get_params(self):
+        return {"nc": random.randint(2,256)}
+
     def get_transform_init_args_names(self):
-        return "always_app", "p"
+        return "nc"

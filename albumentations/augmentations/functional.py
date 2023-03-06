@@ -930,6 +930,7 @@ def gray_to_rgb(img):
 
 @preserve_shape
 def dither(img, nc):
+    img = img.copy()
     height = np.shape(img)[0]
     is_rgb = True if len(np.shape(img)) == 3 else False
 
