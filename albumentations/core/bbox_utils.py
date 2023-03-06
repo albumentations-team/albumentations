@@ -263,7 +263,7 @@ def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarra
 
 @ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
-def convert_bboxes_to_albumentations(
+def a(
     bboxes: BoxesArray, source_format: str, rows: int, cols: int, check_validity: bool = False
 ) -> BoxesArray:
     """Convert a batch of bounding boxes from a format specified in `source_format` to the format used by albumentations
@@ -279,7 +279,8 @@ def convert_bboxes_to_albumentations(
         BoxesArray: A batch of bounding boxes in `albumentations` format.
 
     Raises:
-        ValueError: raise when unknown source format is given.
+        ValueError: if `target_format` is not equal to `coco` or `pascal_voc`, or `yolo`.
+        ValueError: If in YOLO format all labels not in range (0, 1).
 
     """
     if not len(bboxes):
