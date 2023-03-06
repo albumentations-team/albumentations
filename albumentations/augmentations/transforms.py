@@ -19,7 +19,6 @@ from albumentations.augmentations.utils import (
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
-    is_dithered
 )
 
 from ..core.transforms_interface import (
@@ -77,6 +76,7 @@ __all__ = [
     "UnsharpMask",
     "PixelDropout",
     "Spatter",
+    "Dither"
 ]
 
 
@@ -2699,15 +2699,19 @@ class Dither(ImageOnlyTransform):
 
 
     def apply(self, img, **params):
-
         original_dtype = img.dtype
+
         if img.dtype == np.uint8:
             img = img.astype(np.float32)/255
         elif img.dtype != np.float32:
-            raise TypeError("Image must have float32 channel type")     
+            raise TypeError("Image must have float32 channel type")
+
         img = F.dither(img, self.nc)
+
         if original_dtype == np.uint8:
-            img = np.floor(img.astype(np.uint8)*255)
+            img *= 255
+            img = img.astype(np.uint8)
+
         return img
 
     def get_transform_init_args_names(self):
