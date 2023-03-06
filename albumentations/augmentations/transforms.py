@@ -76,7 +76,7 @@ __all__ = [
     "UnsharpMask",
     "PixelDropout",
     "Spatter",
-    "Dither"
+    "Dither",
 ]
 
 
@@ -2667,6 +2667,7 @@ class Spatter(ImageOnlyTransform):
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
 
+
 class Dither(ImageOnlyTransform):
     """
     Apply dither transform. Dither is an intentionally applied form of noise used to randomize quantization error,
@@ -2688,21 +2689,16 @@ class Dither(ImageOnlyTransform):
         https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
     """
 
-    def __init__(
-        self,
-        nc: int = 2,
-        always_apply: bool = False,
-        p: float = 0.5):
+    def __init__(self, nc: int = 2, always_apply: bool = False, p: float = 0.5):
 
         super().__init__(always_apply=always_apply, p=p)
-        self.nc=nc
-
+        self.nc = nc
 
     def apply(self, img, **params):
         original_dtype = img.dtype
 
         if img.dtype == np.uint8:
-            img = img.astype(np.float32)/255
+            img = img.astype(np.float32) / 255
         elif img.dtype != np.float32:
             raise TypeError("Image must have float32 channel type")
 
@@ -2715,7 +2711,7 @@ class Dither(ImageOnlyTransform):
         return img
 
     def get_params(self):
-        return {"nc": random.randint(2,256)}
+        return {"nc": random.randint(2, 256)}
 
-    def get_transform_init_args_names(self):
-        return "nc"
+    def get_transform_init_args(self):
+        return {"nc": self.nc}
