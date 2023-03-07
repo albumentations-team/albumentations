@@ -39,6 +39,7 @@ __all__ = [
     "convolve",
     "downscale",
     "equalize",
+    "dither",
     "fancy_pca",
     "from_float",
     "gamma_transform",
@@ -591,7 +592,7 @@ def add_rain(
 
     image = img.copy()
 
-    for (rain_drop_x0, rain_drop_y0) in rain_drops:
+    for rain_drop_x0, rain_drop_y0 in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
 
@@ -698,7 +699,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     overlay = img.copy()
     output = img.copy()
 
-    for (alpha, (x, y), rad3, (r_color, g_color, b_color)) in circles:
+    for alpha, (x, y), rad3, (r_color, g_color, b_color) in circles:
         cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
 
         cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
@@ -926,6 +927,70 @@ def to_gray(img):
 
 def gray_to_rgb(img):
     return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+
+
+@preserve_shape
+def dither(img, nc):
+    img = img.copy()
+    height = np.shape(img)[0]
+    is_rgb = True if len(np.shape(img)) == 3 else False
+
+    for y in range(height):
+        oldrow = img[y].copy()
+        quant_errors = []
+
+        if is_rgb:
+            # Turn into one list of length `width`, per channel (R, G, B)
+            #
+            # Use `tolist()` since operating on individual elements of an ndarray
+            # is very slow compared to a normal list.
+            channels = np.transpose(oldrow).tolist()
+
+            for ch in channels:
+                ch, qe = _apply_dithering_to_channel(ch, nc)
+                quant_errors.append(qe)
+
+            # Transpose back to one list containing all channels
+            # and replace the row
+            img[y] = np.transpose(channels)
+            quant_errors = np.transpose(quant_errors)
+        else:
+            img[y], quant_errors = _apply_dithering_to_channel(img[y].tolist(), nc)
+
+        if y < height - 1:
+            zero_or_zeros = 0 if np.shape(quant_errors[-1]) == () else np.zeros_like(quant_errors[-1])
+            r1 = np.roll(quant_errors, -1, axis=0) * (3 / 16)
+            r1[-1] = zero_or_zeros
+            r2 = np.roll(quant_errors, 1, axis=0) / 16
+            r2[0] = zero_or_zeros
+            updated_row = r1 + r2 + np.array(quant_errors) * (5 / 16)
+            img[y + 1] += updated_row
+    return img
+
+
+def _apply_dithering_to_channel(ch, nc):
+    width = len(ch)
+
+    # We want to build the quant error list while
+    # iterating, as otherwise we'll base the error
+    # on the original value instead of the value it
+    # got after being affected by error propagation.
+    quant_error = [0] * width
+
+    for x in range(width - 1):
+        oldval = ch[x]
+        newval = round(oldval * (nc - 1)) / (nc - 1)
+        ch[x] = newval
+        quant_error[x] = oldval - newval
+        ch[x + 1] += quant_error[x] * (7 / 16)
+    # Process the last pixel as a separate case (no propagation
+    # to the right).
+    oldval = ch[width - 1]
+    newval = round(oldval * (nc - 1)) / (nc - 1)
+    ch[width - 1] = newval
+    quant_error[-1] = oldval - newval
+
+    return ch, quant_error
 
 
 @preserve_shape

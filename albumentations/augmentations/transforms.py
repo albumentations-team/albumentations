@@ -44,6 +44,7 @@ __all__ = [
     "ChannelShuffle",
     "InvertImg",
     "ToGray",
+    "Dither",
     "ToRGB",
     "ToSepia",
     "JpegCompression",
@@ -75,6 +76,7 @@ __all__ = [
     "UnsharpMask",
     "PixelDropout",
     "Spatter",
+    "Dither",
 ]
 
 
@@ -2664,3 +2666,51 @@ class Spatter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
+
+
+class Dither(ImageOnlyTransform):
+    """
+    Apply dither transform. Dither is an intentionally applied form of noise used to randomize quantization error,
+    preventing large-scale patterns such as color banding in images.
+
+    Args:
+        nc (int): the number of colour choices per channel,
+            e.g. if nc = 2 we only have 0 and 1, and if nc = 4 we have 0, 0.33, 0.67 and 1 etc
+            Default value is 2 (the pixel can either be on or off).
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    References :
+        https://en.wikipedia.org/wiki/Dither
+        https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+    """
+
+    def __init__(self, nc: int = 2, always_apply: bool = False, p: float = 0.5):
+        super().__init__(always_apply=always_apply, p=p)
+        self.nc = nc
+
+    def apply(self, img, **params):
+        original_dtype = img.dtype
+
+        if img.dtype == np.uint8:
+            img = img.astype(np.float32) / 255
+        elif img.dtype != np.float32:
+            raise TypeError("Image must have float32 channel type")
+
+        img = F.dither(img, self.nc)
+
+        if original_dtype == np.uint8:
+            img *= 255
+            img = img.astype(np.uint8)
+
+        return img
+
+    def get_params(self):
+        return {"nc": random.randint(2, 256)}
+
+    def get_transform_init_args(self):
+        return {"nc": self.nc}
