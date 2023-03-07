@@ -263,7 +263,7 @@ def calculate_bboxes_area(bboxes: BoxesArray, rows: int, cols: int) -> np.ndarra
 
 @ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
-def a(
+def convert_bboxes_to_albumentations(
     bboxes: BoxesArray, source_format: str, rows: int, cols: int, check_validity: bool = False
 ) -> BoxesArray:
     """Convert a batch of bounding boxes from a format specified in `source_format` to the format used by albumentations
