@@ -17,7 +17,8 @@ class GridDropout(DualTransform):
             Must be between 0 and 1. Default: 0.5.
         unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
             If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
+        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge, and
+            no lower than unit_size_min.
             If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
         holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
             If 'None', grid unit width is set as image_width//10. Default: `None`.
@@ -85,6 +86,32 @@ class GridDropout(DualTransform):
     def get_params_dependent_on_targets(self, params):
         img = params["image"]
         height, width = img.shape[:2]
+        
+        # generate grid parameters
+        unit_width, unit_height, hole_width, hole_height = self.generate_grid_params(height, width)
+        
+        # set offset of the grid
+        if self.random_offset:
+            shift_x = random.randint(0, unit_width - hole_width)
+            shift_y = random.randint(0, unit_height - hole_height)
+        else:
+            shift_x = self.shift_x or 0
+            shift_y = self.shift_y or 0
+            shift_x = min(max(0, shift_x), unit_width - hole_width)
+            shift_y = min(max(0, shift_y), unit_height - hole_height)
+
+        holes = []
+        for i in range(width // unit_width + 1):
+            for j in range(height // unit_height + 1):
+                x1 = min(shift_x + unit_width * i, width)
+                y1 = min(shift_y + unit_height * j, height)
+                x2 = min(x1 + hole_width, width)
+                y2 = min(y1 + hole_height, height)
+                holes.append((x1, y1, x2, y2))
+
+        return {"holes": holes}
+        
+    def generate_grid_params(self, height, width):
         # set grid using unit size limits
         if self.unit_size_min and self.unit_size_max:
             if not 2 <= self.unit_size_min <= self.unit_size_max:
@@ -113,28 +140,8 @@ class GridDropout(DualTransform):
         # min 1 pixel and max unit length - 1
         hole_width = min(max(hole_width, 1), unit_width - 1)
         hole_height = min(max(hole_height, 1), unit_height - 1)
-        # set offset of the grid
-        if self.shift_x is None:
-            shift_x = 0
-        else:
-            shift_x = min(max(0, self.shift_x), unit_width - hole_width)
-        if self.shift_y is None:
-            shift_y = 0
-        else:
-            shift_y = min(max(0, self.shift_y), unit_height - hole_height)
-        if self.random_offset:
-            shift_x = random.randint(0, unit_width - hole_width)
-            shift_y = random.randint(0, unit_height - hole_height)
-        holes = []
-        for i in range(width // unit_width + 1):
-            for j in range(height // unit_height + 1):
-                x1 = min(shift_x + unit_width * i, width)
-                y1 = min(shift_y + unit_height * j, height)
-                x2 = min(x1 + hole_width, width)
-                y2 = min(y1 + hole_height, height)
-                holes.append((x1, y1, x2, y2))
-
-        return {"holes": holes}
+        
+        return unit_width, unit_height, hole_width, hole_height
 
     @property
     def targets_as_params(self):
