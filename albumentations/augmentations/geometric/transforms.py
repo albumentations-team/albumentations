@@ -1,16 +1,21 @@
 import math
 import random
 from enum import Enum
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
 import skimage.transform
 
-from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.bbox_utils import (
+    convert_bboxes_to_albumentations,
+    denormalize_bbox,
+    normalize_bbox,
+)
 
 from ... import random_utils
 from ...core.transforms_interface import (
+    BatchBasedTransform,
     BoxInternalType,
     DualTransform,
     ImageColorType,
@@ -34,6 +39,7 @@ __all__ = [
     "OpticalDistortion",
     "GridDistortion",
     "PadIfNeeded",
+    "Mosaic4",
 ]
 
 
@@ -1491,3 +1497,130 @@ class GridDistortion(DualTransform):
 
     def get_transform_init_args_names(self):
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
+
+
+class Mosaic4(BatchBasedTransform):
+    """Mosaic augmentation arranges randomly selected four images into single image in a 2x2 grid layout.
+
+    The input images should have the same number of channels but can have different widths and heights.
+    The output is cropped around the intersection point of the four images with the size (out_with x out_height).
+    If the mosaic image is smaller than with x height, the gap is filled by the fill_value.
+
+    Args:
+        out_height (int)): output image height.
+            The mosaic image is cropped by this height around the mosaic center.
+            If the size of the mosaic image is smaller than this value the gap is filled by the `value`.
+        out_width (int): output image width.
+            The mosaic image is cropped by this height around the mosaic center.
+            If the size of the mosaic image is smaller than this value the gap is filled by the `value`.
+        value (int, float, list of ints, list of float): padding value. Default 0 (None).
+        replace (bool): whether to allow replacement in sampling or not. When the value is `True`, the same image
+            can be selected multiple times. When False, the batch size of the input should be at least four.
+        out_batch_size(int): output batch size. If the replace = False,
+            the input batch size should be 4 * out_batch_size.
+        mask_value (int, float, list of ints, list of float): padding value for masks. Default 0 (None).
+    Targets:
+        image_batch, mask_batch, bboxes_batch
+    [Bochkovskiy] Bochkovskiy A, Wang CY, Liao HYM. （2020） "YOLOv 4 : Optimal speed and accuracy of object detection.",
+    https://arxiv.org/pdf/2004.10934.pdf
+    """
+
+    def __init__(
+        self,
+        out_height,
+        out_width,
+        value=None,
+        replace=True,
+        out_batch_size=1,
+        mask_value=None,
+        always_apply=False,
+        p=0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+
+        if out_height <= 0:
+            raise ValueError(f"out_height should be larger than 0, got {out_height}")
+        if out_width <= 0:
+            raise ValueError(f"out_width should be larger than 0, got {out_width}")
+        if out_batch_size <= 0:
+            raise ValueError(f"out_batch_size should be larger than 0, got {out_batch_size}")
+
+        self.n_tiles = 4  # 2x2
+        self.out_height = out_height
+        self.out_width = out_width
+        self.replace = replace
+        self.value = value
+        self.mask_value = mask_value
+        self.out_batch_size = out_batch_size
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("out_height", "out_width", "replace", "value", "out_batch_size", "mask_value")
+
+    @property
+    def targets_as_params(self):
+        return ["image_batch"]
+
+    def apply_to_image_batch(self, image_batch, indices, **params):
+        output_batch = []
+        for i_batch in range(self.out_batch_size):
+            idx_chunk = indices[self.n_tiles * i_batch : self.n_tiles * (i_batch + 1)]
+            image_chunk = [image_batch[i] for i in idx_chunk]
+            mosaiced = F.mosaic4(image_chunk, self.out_height, self.out_width, self.value)
+            output_batch.append(mosaiced)
+        return output_batch
+
+    def apply_to_mask_batch(self, mask_batch, indices, **params):
+        output_batch = []
+        for i_batch in range(self.out_batch_size):
+            idx_chunk = indices[self.n_tiles * i_batch : self.n_tiles * (i_batch + 1)]
+            mask_chunk = [mask_batch[i] for i in idx_chunk]
+            mosaiced = F.mosaic4(mask_chunk, self.out_height, self.out_width, self.mask_value)
+            output_batch.append(mosaiced)
+        return output_batch
+
+    def apply_to_bboxes_batch(self, bboxes_batch, indices, image_shapes, **params):
+        output_batch = []
+        for i_batch in range(self.out_batch_size):
+            idx_chunk = indices[self.n_tiles * i_batch : self.n_tiles * (i_batch + 1)]
+            bboxes_chunk = [bboxes_batch[i] for i in idx_chunk]
+            shape_chunk = [image_shapes[i] for i in idx_chunk]
+            new_bboxes = []
+            for i in range(self.n_tiles):
+                bboxes = bboxes_chunk[i]
+                rows, cols = shape_chunk[i]
+                for bbox in bboxes:
+                    new_bbox = F.bbox_mosaic4(bbox[:4], rows, cols, i, self.out_height, self.out_width)
+                    new_bboxes.append(tuple(new_bbox) + tuple(bbox[4:]))
+            output_batch.append(new_bboxes)
+        return output_batch
+
+    def apply_to_keypoints_batch(self, keyboints_batch, indices, image_shapes, **params):
+        output_batch = []
+        for i_batch in range(self.out_batch_size):
+            idx_chunk = indices[self.n_tiles * i_batch : self.n_tiles * (i_batch + 1)]
+            keypoints_chunk = [keyboints_batch[i] for i in idx_chunk]
+            shape_chunk = [image_shapes[i] for i in idx_chunk]
+            new_keypoints = []
+            for i in range(self.n_tiles):
+                keypoints = keypoints_chunk[i]
+                rows, cols = shape_chunk[i]
+                for keypoint in keypoints:
+                    new_keypoint = F.keypoint_mosaic4(keypoint[:4], rows, cols, i, self.out_height, self.out_width)
+                    new_keypoints.append(new_keypoint + tuple(keypoint[4:]))
+            output_batch.append(new_keypoints)
+        return output_batch
+
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        image_batch = params["image_batch"]
+        n = len(image_batch)
+        if not self.replace and self.n_tiles * self.out_batch_size > n:
+            raise ValueError(
+                f"If replace == False, the batch size (= {n}) should be larger than "
+                + f"{self.n_tiles} x out_batch_size (= {self.n_tiles * self.out_batch_size})"
+            )
+        indices = np.random.choice(range(n), size=self.n_tiles * self.out_batch_size, replace=self.replace).tolist()
+        image_shapes = [tuple(image.shape[:2]) for image in image_batch]
+        return {
+            "indices": indices,
+            "image_shapes": image_shapes,
+        }

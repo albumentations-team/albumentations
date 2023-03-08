@@ -37,6 +37,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.Mosaic4: {"out_height": 10, "out_width": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -57,12 +58,20 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image, m
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    set_seed(seed)
-    aug_data = aug(image=image, mask=mask)
-    set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, mask=mask)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        set_seed(seed)
+        aug_data = aug(image_batch=[image], mask_batch=[mask])
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image_batch=[image], mask_batch=[mask])
+        assert np.array_equal(aug_data["image_batch"], deserialized_aug_data["image_batch"])
+        assert np.array_equal(aug_data["mask_batch"], deserialized_aug_data["mask_batch"])
+    else:
+        set_seed(seed)
+        aug_data = aug(image=image, mask=mask)
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+        assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+        assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
 AUGMENTATION_CLS_PARAMS = [
@@ -390,6 +399,7 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
     [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
+    [A.Mosaic4, {"out_height": 10, "out_width": 10, "replace": True}],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -419,12 +429,20 @@ def test_augmentations_serialization_with_custom_parameters(
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    set_seed(seed)
-    aug_data = aug(image=image, mask=mask)
-    set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, mask=mask)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        set_seed(seed)
+        aug_data = aug(image_batch=[image], mask_batch=[mask])
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image_batch=[image], mask_batch=[mask])
+        assert np.array_equal(aug_data["image_batch"], deserialized_aug_data["image_batch"])
+        assert np.array_equal(aug_data["mask_batch"], deserialized_aug_data["mask_batch"])
+    else:
+        set_seed(seed)
+        aug_data = aug(image=image, mask=mask)
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+        assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+        assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
 @pytest.mark.parametrize(
@@ -443,12 +461,20 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         filepath = "serialized.{}".format(data_format)
         A.save(aug, filepath, data_format=data_format)
         deserialized_aug = A.load(filepath, data_format=data_format)
-        set_seed(seed)
-        aug_data = aug(image=image, mask=mask)
-        set_seed(seed)
-        deserialized_aug_data = deserialized_aug(image=image, mask=mask)
-        assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-        assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
+        if issubclass(augmentation_cls, A.BatchBasedTransform):
+            set_seed(seed)
+            aug_data = aug(image_batch=[image], mask_batch=[mask])
+            set_seed(seed)
+            deserialized_aug_data = deserialized_aug(image_batch=[image], mask_batch=[mask])
+            assert np.array_equal(aug_data["image_batch"], deserialized_aug_data["image_batch"])
+            assert np.array_equal(aug_data["mask_batch"], deserialized_aug_data["mask_batch"])
+        else:
+            set_seed(seed)
+            aug_data = aug(image=image, mask=mask)
+            set_seed(seed)
+            deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+            assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+            assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
 @pytest.mark.parametrize(
@@ -465,6 +491,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
+            A.Mosaic4: {"out_height": 10, "out_width": 10, "replace": True},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -493,12 +520,20 @@ def test_augmentations_for_bboxes_serialization(
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    set_seed(seed)
-    aug_data = aug(image=image, bboxes=albumentations_bboxes)
-    set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        set_seed(seed)
+        aug_data = aug(image_batch=[image], bboxes_batch=[albumentations_bboxes])
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image_batch=[image], bboxes_batch=[albumentations_bboxes])
+        assert np.array_equal(aug_data["image_batch"], deserialized_aug_data["image_batch"])
+        assert np.array_equal(aug_data["bboxes_batch"], deserialized_aug_data["bboxes_batch"])
+    else:
+        set_seed(seed)
+        aug_data = aug(image=image, bboxes=albumentations_bboxes)
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
+        assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+        assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
 
 
 @pytest.mark.parametrize(
@@ -513,6 +548,7 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.Mosaic4: {"out_height": 10, "out_width": 10, "replace": True},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -541,12 +577,20 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    set_seed(seed)
-    aug_data = aug(image=image, keypoints=keypoints)
-    set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
-    assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        set_seed(seed)
+        aug_data = aug(image_batch=[image], keypoints_batch=[keypoints])
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image_batch=[image], keypoints_batch=[keypoints])
+        assert np.array_equal(aug_data["image_batch"], deserialized_aug_data["image_batch"])
+        assert np.array_equal(aug_data["keypoints_batch"], deserialized_aug_data["keypoints_batch"])
+    else:
+        set_seed(seed)
+        aug_data = aug(image=image, keypoints=keypoints)
+        set_seed(seed)
+        deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
+        assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+        assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
 
 
 @pytest.mark.parametrize(

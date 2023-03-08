@@ -108,12 +108,21 @@ def get_dual_transforms(
     return get_filtered_transforms((albumentations.DualTransform,), custom_arguments, except_augmentations)
 
 
+def get_batch_transforms(
+    custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.BatchBasedTransform], dict]] = None,
+    except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BatchBasedTransform]]] = None,
+) -> typing.List[typing.Tuple[typing.Type, dict]]:
+    return get_filtered_transforms((albumentations.BatchBasedTransform,), custom_arguments, except_augmentations)
+
+
 def get_transforms(
     custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.BasicTransform], dict]] = None,
     except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
 ) -> typing.List[typing.Tuple[typing.Type, dict]]:
     return get_filtered_transforms(
-        (albumentations.ImageOnlyTransform, albumentations.DualTransform), custom_arguments, except_augmentations
+        (albumentations.ImageOnlyTransform, albumentations.DualTransform, albumentations.BatchBasedTransform),
+        custom_arguments,
+        except_augmentations,
     )
 
 

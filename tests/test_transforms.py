@@ -204,8 +204,11 @@ def test_semantic_mask_interpolation(augmentation_cls, params):
 
 
 def __test_multiprocessing_support_proc(args):
-    x, transform = args
-    return transform(image=x)
+    x, transform, is_batch = args
+    if is_batch:
+        return transform(image_batch=[x])
+    else:
+        return transform(image=x)
 
 
 @pytest.mark.parametrize(
@@ -223,6 +226,7 @@ def __test_multiprocessing_support_proc(args):
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
+            A.Mosaic4: {"out_height": 10, "out_width": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -240,8 +244,8 @@ def test_multiprocessing_support(mp_pool, augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-
-    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10))
+    is_batch = issubclass(augmentation_cls, A.BatchBasedTransform)
+    mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug, is_batch), [image] * 10))
 
 
 def test_force_apply():
@@ -1330,3 +1334,87 @@ def test_spatter_incorrect_color(unsupported_color, mode, message):
         A.Spatter(mode=mode, color=unsupported_color)
 
     assert str(exc_info.value).startswith(message)
+
+
+@pytest.mark.parametrize(
+    ["replace", "out_batch_size", "expect_error"],
+    [
+        [False, 1, False],
+        [False, 2, True],
+        [True, 2, False],
+    ],
+)
+def test_mosaic4(replace, out_batch_size, expect_error):
+    image_batch = [
+        np.zeros((10, 10)),
+        np.zeros((10, 10)),
+        np.zeros((10, 10)),
+        np.zeros((10, 10)),
+    ]
+    mask_batch = [
+        np.zeros((10, 10)),
+        np.zeros((10, 10)),
+        np.zeros((10, 10)),
+        np.zeros((10, 10)),
+    ]
+    bboxes_batch = [
+        [[0, 0, 5, 5]],
+        [[1, 0, 5, 5]],
+        [[0, 1, 5, 5]],
+        [[1, 1, 5, 5]],
+    ]
+    keypoints_batch = [
+        [[0, 0]],
+        [[1, 0]],
+        [[0, 1]],
+        [[1, 1]],
+    ]
+    blabels_batch = [
+        [0],
+        [1],
+        [2],
+        [3],
+    ]
+    klabels_batch = [
+        [5],
+        [6],
+        [7],
+        [8],
+    ]
+
+    aug = A.BatchCompose(
+        A.Mosaic4(out_height=20, out_width=20, replace=replace, out_batch_size=out_batch_size, p=1),
+        bbox_params=A.BboxParams(format="coco", label_fields=["blabels_batch"]),
+        keypoint_params=A.KeypointParams(format="xy", label_fields=["klabels_batch"]),
+    )
+
+    if not expect_error:
+        data = aug(
+            image_batch=image_batch,
+            mask_batch=mask_batch,
+            bboxes_batch=bboxes_batch,
+            keypoints_batch=keypoints_batch,
+            blabels_batch=blabels_batch,
+            klabels_batch=klabels_batch,
+        )
+        assert len(data["image_batch"]) == out_batch_size
+        assert len(data["mask_batch"]) == out_batch_size
+        assert len(data["bboxes_batch"]) == out_batch_size
+        assert len(data["keypoints_batch"]) == out_batch_size
+        assert len(data["blabels_batch"]) == out_batch_size
+        assert len(data["klabels_batch"]) == out_batch_size
+
+        if not replace:
+            # result include all labels
+            assert set(np.array(data["blabels_batch"]).flatten()) == set(np.array(blabels_batch).flatten())
+            assert set(np.array(data["klabels_batch"]).flatten()) == set(np.array(klabels_batch).flatten())
+    else:
+        with pytest.raises(ValueError):
+            data = aug(
+                image_batch=image_batch,
+                mask_batch=mask_batch,
+                bboxes_batch=bboxes_batch,
+                keypoints_batch=keypoints_batch,
+                blabels_batch=blabels_batch,
+                klabels_batch=klabels_batch,
+            )
