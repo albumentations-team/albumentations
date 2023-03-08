@@ -1337,9 +1337,9 @@ def superpixels(
             resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(new_width, new_height), interpolation=interpolation)
             image = resize_fn(image)
 
-    from skimage.segmentation import slic
-
-    segments = skimage.segmentation.slic(image, n_segments=n_segments, compactness=10)
+    segments = skimage.segmentation.slic(
+        image, n_segments=n_segments, compactness=10, channel_axis=-1 if image.ndim > 2 else None
+    )
 
     min_value = 0
     max_value = MAX_VALUES_BY_DTYPE[image.dtype]
