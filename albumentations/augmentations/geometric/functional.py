@@ -74,6 +74,7 @@ __all__ = [
     "keypoint_vflip",
     "mosaic4",
     "bbox_mosaic4",
+    "keypoint_mosaic4",
 ]
 
 
