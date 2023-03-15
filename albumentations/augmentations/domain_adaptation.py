@@ -3,10 +3,13 @@ from typing import Callable, List, Tuple, Union
 
 import cv2
 import numpy as np
-from qudida import DomainAdapter
-from skimage.exposure import match_histograms
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
+try:
+    from qudida import DomainAdapter
+    from skimage.exposure import match_histograms
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import MinMaxScaler, StandardScaler
+except ModuleNotFoundError:
+    pass
 
 from albumentations.augmentations.utils import (
     clipped,

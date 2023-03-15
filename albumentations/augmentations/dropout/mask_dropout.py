@@ -3,7 +3,10 @@ from typing import Any, Dict, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-from skimage.measure import label
+try:
+    from skimage.measure import label
+except ModuleNotFoundError:
+    pass
 
 from ...core.transforms_interface import DualTransform, to_tuple
 

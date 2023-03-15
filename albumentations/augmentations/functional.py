@@ -5,7 +5,10 @@ from warnings import warn
 
 import cv2
 import numpy as np
-import skimage
+try:
+    import skimage
+except ModuleNotFoundError:
+    pass
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import (

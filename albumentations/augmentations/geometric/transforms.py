@@ -5,7 +5,10 @@ from typing import Dict, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
-import skimage.transform
+try:
+    import skimage.transform
+except ModuleNotFoundError:
+    pass
 
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 
@@ -650,7 +653,7 @@ class Affine(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        matrix: skimage.transform.ProjectiveTransform = None,
+        matrix: "skimage.transform.ProjectiveTransform" = None,
         output_shape: Sequence[int] = (),
         **params
     ) -> np.ndarray:
@@ -666,7 +669,7 @@ class Affine(DualTransform):
     def apply_to_mask(
         self,
         img: np.ndarray,
-        matrix: skimage.transform.ProjectiveTransform = None,
+        matrix: "skimage.transform.ProjectiveTransform" = None,
         output_shape: Sequence[int] = (),
         **params
     ) -> np.ndarray:
@@ -682,7 +685,7 @@ class Affine(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        matrix: skimage.transform.ProjectiveTransform = None,
+        matrix: "skimage.transform.ProjectiveTransform" = None,
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
@@ -693,7 +696,7 @@ class Affine(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        matrix: Optional[skimage.transform.ProjectiveTransform] = None,
+        matrix: Optional["skimage.transform.ProjectiveTransform"] = None,
         scale: Optional[dict] = None,
         **params
     ) -> KeypointInternalType:
@@ -764,8 +767,8 @@ class Affine(DualTransform):
 
     @staticmethod
     def _compute_affine_warp_output_shape(
-        matrix: skimage.transform.ProjectiveTransform, input_shape: Sequence[int]
-    ) -> Tuple[skimage.transform.ProjectiveTransform, Sequence[int]]:
+        matrix: "skimage.transform.ProjectiveTransform", input_shape: Sequence[int]
+    ) -> Tuple["skimage.transform.ProjectiveTransform", Sequence[int]]:
         height, width = input_shape[:2]
 
         if height == 0 or width == 0:
@@ -944,11 +947,11 @@ class PiecewiseAffine(DualTransform):
             "matrix": matrix,
         }
 
-    def apply(self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, matrix: "skimage.transform.PiecewiseAffineTransform" = None, **params) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
 
     def apply_to_mask(
-        self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params
+        self, img: np.ndarray, matrix: "skimage.transform.PiecewiseAffineTransform" = None, **params
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
@@ -957,7 +960,7 @@ class PiecewiseAffine(DualTransform):
         bbox: BoxInternalType,
         rows: int = 0,
         cols: int = 0,
-        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        matrix: "skimage.transform.PiecewiseAffineTransform" = None,
         **params
     ) -> BoxInternalType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
@@ -967,7 +970,7 @@ class PiecewiseAffine(DualTransform):
         keypoint: KeypointInternalType,
         rows: int = 0,
         cols: int = 0,
-        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        matrix: "skimage.transform.PiecewiseAffineTransform" = None,
         **params
     ):
         return F.keypoint_piecewise_affine(keypoint, matrix, rows, cols, self.keypoints_threshold)

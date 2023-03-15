@@ -3,8 +3,11 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
-import skimage.transform
-from scipy.ndimage import gaussian_filter
+try:
+    import skimage.transform
+    from scipy.ndimage import gaussian_filter
+except ModuleNotFoundError:
+    pass
 
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
@@ -537,14 +540,14 @@ def perspective_keypoint(
     return x, y, angle, scale
 
 
-def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:
+def _is_identity_matrix(matrix: "skimage.transform.ProjectiveTransform") -> bool:
     return np.allclose(matrix.params, np.eye(3, dtype=np.float32))
 
 
 @preserve_channel_dim
 def warp_affine(
     image: np.ndarray,
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: "skimage.transform.ProjectiveTransform",
     interpolation: int,
     cval: Union[int, float, Sequence[int], Sequence[float]],
     mode: int,
@@ -564,7 +567,7 @@ def warp_affine(
 @angle_2pi_range
 def keypoint_affine(
     keypoint: KeypointInternalType,
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: "skimage.transform.ProjectiveTransform",
     scale: dict,
 ) -> KeypointInternalType:
     if _is_identity_matrix(matrix):
@@ -579,7 +582,7 @@ def keypoint_affine(
 
 def bbox_affine(
     bbox: BoxInternalType,
-    matrix: skimage.transform.ProjectiveTransform,
+    matrix: "skimage.transform.ProjectiveTransform",
     rotate_method: str,
     rows: int,
     cols: int,
@@ -690,7 +693,7 @@ def keypoint_safe_rotate(
 @clipped
 def piecewise_affine(
     img: np.ndarray,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: "skimage.transform.PiecewiseAffineTransform",
     interpolation: int,
     mode: str,
     cval: float,
@@ -823,7 +826,7 @@ def from_distance_maps(
 
 def keypoint_piecewise_affine(
     keypoint: KeypointInternalType,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: "skimage.transform.PiecewiseAffineTransform",
     h: int,
     w: int,
     keypoints_threshold: float,
@@ -837,7 +840,7 @@ def keypoint_piecewise_affine(
 
 def bbox_piecewise_affine(
     bbox: BoxInternalType,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: "skimage.transform.PiecewiseAffineTransform",
     h: int,
     w: int,
     keypoints_threshold: float,
