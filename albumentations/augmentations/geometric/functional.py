@@ -580,22 +580,32 @@ def keypoint_affine(
 def bbox_affine(
     bbox: BoxInternalType,
     matrix: skimage.transform.ProjectiveTransform,
+    rotate_method: str,
     rows: int,
     cols: int,
     output_shape: Sequence[int],
 ) -> BoxInternalType:
     if _is_identity_matrix(matrix):
         return bbox
-
     x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
-    points = np.array(
-        [
-            [x_min, y_min],
-            [x_max, y_min],
-            [x_max, y_max],
-            [x_min, y_max],
-        ]
-    )
+    if rotate_method == "largest_box":
+        points = np.array(
+            [
+                [x_min, y_min],
+                [x_max, y_min],
+                [x_max, y_max],
+                [x_min, y_max],
+            ]
+        )
+    elif rotate_method == "ellipse":
+        w = (x_max - x_min) / 2
+        h = (y_max - y_min) / 2
+        data = np.arange(0, 360, dtype=np.float32)
+        x = w * np.sin(np.radians(data)) + (w + x_min - 0.5)
+        y = h * np.cos(np.radians(data)) + (h + y_min - 0.5)
+        points = np.hstack([x.reshape(-1, 1), y.reshape(-1, 1)])
+    else:
+        raise ValueError(f"Method {rotate_method} is not a valid rotation method.")
     points = skimage.transform.matrix_transform(points, matrix.params)
     x_min = np.min(points[:, 0])
     x_max = np.max(points[:, 0])
