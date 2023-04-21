@@ -695,9 +695,12 @@ def piecewise_affine(
     mode: str,
     cval: float,
 ) -> np.ndarray:
-    return skimage.transform.warp(
-        img, matrix, order=interpolation, mode=mode, cval=cval, preserve_range=True, output_shape=img.shape
-    )
+    try:
+        return skimage.transform.warp(
+            img, matrix, order=interpolation, mode=mode, cval=cval, preserve_range=True, output_shape=img.shape
+        )
+    except Exception as e:
+        return img
 
 
 def to_distance_maps(
