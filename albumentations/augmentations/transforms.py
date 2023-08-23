@@ -1456,7 +1456,8 @@ class ChannelShuffle(ImageOnlyTransform):
 
 
 class InvertImg(ImageOnlyTransform):
-    """Invert the input image by subtracting pixel values from 255.
+    """Invert the input image by subtracting pixel values from max values of the image types,
+    i.e., 255 for uint8 and 1.0 for float32.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
