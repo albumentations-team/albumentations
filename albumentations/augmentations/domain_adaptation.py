@@ -278,7 +278,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         blend_ratio: Tuple[float, float] = (0.25, 1.0),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         transform_type: str = "pca",
-        always_apply=False,
+        always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
