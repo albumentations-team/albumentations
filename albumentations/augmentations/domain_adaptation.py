@@ -1,5 +1,5 @@
 import random
-from typing import Any, Callable, List, Sequence, Tuple
+from typing import Any, Callable, Literal, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -277,7 +277,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         reference_images: Sequence[Any],
         blend_ratio: Tuple[float, float] = (0.25, 1.0),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
-        transform_type: str = "pca",
+        transform_type: Literal["pca", "standard", "minmax"] = "pca",
         always_apply: bool = False,
         p: float = 0.5,
     ):
