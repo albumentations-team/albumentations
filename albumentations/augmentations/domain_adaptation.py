@@ -1,5 +1,5 @@
 import random
-from typing import Callable, List, Tuple, Union
+from typing import Any, Callable, List, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -17,7 +17,7 @@ from albumentations.augmentations.utils import (
     read_rgb_image,
 )
 
-from ..core.transforms_interface import ImageOnlyTransform, to_tuple
+from ..core.transforms_interface import ImageOnlyTransform, ScaleFloatType, to_tuple
 
 __all__ = [
     "HistogramMatching",
@@ -134,12 +134,12 @@ class HistogramMatching(ImageOnlyTransform):
         https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
 
     Args:
-        reference_images (List[str] or List(np.ndarray)): List of file paths for reference images
-            or list of reference images.
+        reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
+        it expects a sequence of paths to images.
         blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
             with random blend factor for increased diversity of generated images.
-        read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
-            array of image pixels.
+        read_fn (Callable): Used-defined function to read image. Function should get an element of `reference_images`
+        and return numpy array of image pixels. Default: takes as input a path to an image and returns a numpy array.
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -151,11 +151,11 @@ class HistogramMatching(ImageOnlyTransform):
 
     def __init__(
         self,
-        reference_images: List[Union[str, np.ndarray]],
-        blend_ratio=(0.5, 1.0),
-        read_fn=read_rgb_image,
-        always_apply=False,
-        p=0.5,
+        reference_images: Sequence[Any],
+        blend_ratio: Tuple[float, float] = (0.5, 1.0),
+        read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
@@ -184,11 +184,11 @@ class FDA(ImageOnlyTransform):
     Simple "style transfer".
 
     Args:
-        reference_images (List[str] or List(np.ndarray)): List of file paths for reference images
-            or list of reference images.
+        reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
+        it expects a sequence of paths to images.
         beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
-        read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
-            array of image pixels.
+        read_fn (Callable): Used-defined function to read image. Function should get an element of `reference_images`
+        and return numpy array of image pixels. Default: takes as input a path to an image and returns a numpy array.
 
     Targets:
         image
@@ -212,11 +212,11 @@ class FDA(ImageOnlyTransform):
 
     def __init__(
         self,
-        reference_images: List[Union[str, np.ndarray]],
-        beta_limit=0.1,
-        read_fn=read_rgb_image,
-        always_apply=False,
-        p=0.5,
+        reference_images: Sequence[Any],
+        beta_limit: ScaleFloatType = 0.1,
+        read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super(FDA, self).__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
@@ -254,13 +254,12 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     image and then performs inverse transformation using transform fitted on reference image.
 
     Args:
-        reference_images (List[str] or List(np.ndarray)): List of file paths for reference images
-            or list of reference images.
+        reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
+        it expects a sequence of paths to images.
         blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
             with random blend factor for increased diversity of generated images.
-        read_fn (Callable): Used-defined function to read image. Function should get image path and return numpy
-            array of image pixels. Usually it's default `read_rgb_image` when images paths are used as reference,
-            otherwise it could be identity function `lambda x: x` if reference images have been read in advance.
+        read_fn (Callable): Used-defined function to read image. Function should get an element of `reference_images`
+        and return numpy array of image pixels. Default: takes as input a path to an image and returns a numpy array.
         transform_type (str): type of transform; "pca", "standard", "minmax" are allowed.
         p (float): probability of applying the transform. Default: 1.0.
 
@@ -275,12 +274,12 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     def __init__(
         self,
-        reference_images: List[Union[str, np.ndarray]],
+        reference_images: Sequence[Any],
         blend_ratio: Tuple[float, float] = (0.25, 1.0),
-        read_fn: Callable[[Union[str, np.ndarray]], np.ndarray] = read_rgb_image,
+        read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         transform_type: str = "pca",
         always_apply=False,
-        p=0.5,
+        p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
