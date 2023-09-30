@@ -413,7 +413,6 @@ class PerChannel(BaseCompose):
 
     def __call__(self, *args, force_apply: bool = False, **data) -> typing.Dict[str, typing.Any]:
         if force_apply or random.random() < self.p:
-
             image = data["image"]
 
             # Expand mono images to have a single channel

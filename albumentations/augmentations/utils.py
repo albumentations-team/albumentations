@@ -38,16 +38,16 @@ MAX_VALUES_BY_DTYPE = {
 }
 
 NPDTYPE_TO_OPENCV_DTYPE = {
-    np.uint8: cv2.CV_8U,
-    np.uint16: cv2.CV_16U,
-    np.int32: cv2.CV_32S,
-    np.float32: cv2.CV_32F,
-    np.float64: cv2.CV_64F,
-    np.dtype("uint8"): cv2.CV_8U,
-    np.dtype("uint16"): cv2.CV_16U,
-    np.dtype("int32"): cv2.CV_32S,
-    np.dtype("float32"): cv2.CV_32F,
-    np.dtype("float64"): cv2.CV_64F,
+    np.uint8: cv2.CV_8U,  # type: ignore[attr-defined]
+    np.uint16: cv2.CV_16U,  # type: ignore[attr-defined]
+    np.int32: cv2.CV_32S,  # type: ignore[attr-defined]
+    np.float32: cv2.CV_32F,  # type: ignore[attr-defined]
+    np.float64: cv2.CV_64F,  # type: ignore[attr-defined]
+    np.dtype("uint8"): cv2.CV_8U,  # type: ignore[attr-defined]
+    np.dtype("uint16"): cv2.CV_16U,  # type: ignore[attr-defined]
+    np.dtype("int32"): cv2.CV_32S,  # type: ignore[attr-defined]
+    np.dtype("float32"): cv2.CV_32F,  # type: ignore[attr-defined]
+    np.dtype("float64"): cv2.CV_64F,  # type: ignore[attr-defined]
 }
 
 
