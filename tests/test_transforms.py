@@ -857,7 +857,6 @@ def test_shift_scale_separate_shift_x_shift_y(image, mask):
 
 @pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
 def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
-
     x_uint8 = np.zeros((5, 5)).astype(np.uint8)
     x_uint8[2, 2] = val_uint8
 
