@@ -591,7 +591,7 @@ def add_rain(
 
     image = img.copy()
 
-    for (rain_drop_x0, rain_drop_y0) in rain_drops:
+    for rain_drop_x0, rain_drop_y0 in rain_drops:
         rain_drop_x1 = rain_drop_x0 + slant
         rain_drop_y1 = rain_drop_y0 + drop_length
 
@@ -698,7 +698,7 @@ def add_sun_flare(img, flare_center_x, flare_center_y, src_radius, src_color, ci
     overlay = img.copy()
     output = img.copy()
 
-    for (alpha, (x, y), rad3, (r_color, g_color, b_color)) in circles:
+    for alpha, (x, y), rad3, (r_color, g_color, b_color) in circles:
         cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
 
         cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
