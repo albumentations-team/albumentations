@@ -341,7 +341,7 @@ class Perspective(DualTransform):
 
         scale = random_utils.uniform(*self.scale)
         points = random_utils.normal(0, scale, [4, 2])
-        points = np.mod(np.abs(points), 1)
+        points = np.mod(np.abs(points), 0.32)
 
         # top left -- no changes needed, just use jitter
         # top right
