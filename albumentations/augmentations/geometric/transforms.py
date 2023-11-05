@@ -908,7 +908,12 @@ class PiecewiseAffine(DualTransform):
 
         jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
-            return {"matrix": None}
+            for i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
+                jitter = random_utils.normal(0, scale, (nb_cells, 2))
+                if np.any(jitter > 0):
+                    break
+            if not np.any(jitter > 0):
+                return {"matrix": None}
 
         y = np.linspace(0, h, nb_rows)
         x = np.linspace(0, w, nb_cols)
@@ -944,11 +949,13 @@ class PiecewiseAffine(DualTransform):
             "matrix": matrix,
         }
 
-    def apply(self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params) -> np.ndarray:
+    def apply(
+        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params
+    ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
 
     def apply_to_mask(
-        self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params
+        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
@@ -957,7 +964,7 @@ class PiecewiseAffine(DualTransform):
         bbox: BoxInternalType,
         rows: int = 0,
         cols: int = 0,
-        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
         **params
     ) -> BoxInternalType:
         return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
@@ -967,7 +974,7 @@ class PiecewiseAffine(DualTransform):
         keypoint: KeypointInternalType,
         rows: int = 0,
         cols: int = 0,
-        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
         **params
     ):
         return F.keypoint_piecewise_affine(keypoint, matrix, rows, cols, self.keypoints_threshold)

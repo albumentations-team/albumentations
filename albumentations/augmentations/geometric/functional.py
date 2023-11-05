@@ -690,11 +690,13 @@ def keypoint_safe_rotate(
 @clipped
 def piecewise_affine(
     img: np.ndarray,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
     interpolation: int,
     mode: str,
     cval: float,
 ) -> np.ndarray:
+    if matrix is None:
+        return img
     return skimage.transform.warp(
         img, matrix, order=interpolation, mode=mode, cval=cval, preserve_range=True, output_shape=img.shape
     )
@@ -823,11 +825,13 @@ def from_distance_maps(
 
 def keypoint_piecewise_affine(
     keypoint: KeypointInternalType,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
     h: int,
     w: int,
     keypoints_threshold: float,
 ) -> KeypointInternalType:
+    if matrix is None:
+        return keypoint
     x, y, a, s = keypoint[:4]
     dist_maps = to_distance_maps([(x, y)], h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
@@ -837,11 +841,13 @@ def keypoint_piecewise_affine(
 
 def bbox_piecewise_affine(
     bbox: BoxInternalType,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
     h: int,
     w: int,
     keypoints_threshold: float,
 ) -> BoxInternalType:
+    if matrix is None:
+        return bbox
     x1, y1, x2, y2 = denormalize_bbox(bbox, h, w)[:4]
     keypoints = [
         (x1, y1),
