@@ -1456,7 +1456,6 @@ class GridDistortion(DualTransform):
         return bbox_returned
 
     def _normalize(self, h, w, xsteps, ysteps):
-
         # compensate for smaller last steps in source image.
         x_step = w // self.num_steps
         last_x_step = min(w, ((self.num_steps + 1) * x_step)) - (self.num_steps * x_step)
