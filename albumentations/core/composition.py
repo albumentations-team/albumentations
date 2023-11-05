@@ -275,7 +275,7 @@ class Compose(BaseCompose):
                     raise TypeError("{} must be numpy array type".format(data_name))
                 shapes.append(data.shape[:2])
             if internal_data_name in checked_multi:
-                if data is not None:
+                if data is not None and len(data):
                     if not isinstance(data[0], np.ndarray):
                         raise TypeError("{} must be list of numpy arrays".format(data_name))
                     shapes.append(data[0].shape[:2])
