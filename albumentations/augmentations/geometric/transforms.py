@@ -908,7 +908,12 @@ class PiecewiseAffine(DualTransform):
 
         jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
-            return {"matrix": None}
+            for i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
+                jitter = random_utils.normal(0, scale, (nb_cells, 2))
+                if np.any(jitter > 0):
+                    break
+            if not np.any(jitter > 0):
+                return {"matrix": None}
 
         y = np.linspace(0, h, nb_rows)
         x = np.linspace(0, w, nb_cols)
