@@ -439,6 +439,37 @@ def test_gamma_float_equal_uint8():
     assert (np.abs(img - img_f) <= 1).all()
 
 
+@pytest.mark.parametrize(["gamma", "expected"], [(1, 1), (0.8, 3)])
+def test_gamma_invert_transform(gamma, expected):
+    img = np.ones((100, 100, 3), dtype=np.uint8)
+    img = F.gamma_invert_transform(img, gamma=gamma)
+    assert img.dtype == np.dtype("uint8")
+    assert (img == expected).all()
+
+
+@pytest.mark.parametrize(["gamma", "expected"], [(1, 0.4), (10, 0.9939534)])
+def test_gamma_invert_transform_float(gamma, expected):
+    img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
+    expected = np.ones((100, 100, 3), dtype=np.float32) * expected
+    img = F.gamma_invert_transform(img, gamma=gamma)
+    assert img.dtype == np.dtype("float32")
+    assert np.allclose(img, expected)
+
+
+def test_gamma_invert_float_equal_uint8():
+    img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    img_f = img.astype(np.float32) / 255.0
+    gamma = 0.5
+
+    img = F.gamma_invert_transform(img, gamma)
+    img_f = F.gamma_invert_transform(img_f, gamma)
+
+    img = img.astype(np.float32)
+    img_f *= 255.0
+
+    assert (np.abs(img - img_f) <= 1).all()
+
+
 @pytest.mark.parametrize(["dtype", "divider"], [(np.uint8, 255), (np.uint16, 65535), (np.uint32, 4294967295)])
 def test_to_float_without_max_value_specified(dtype, divider):
     img = np.ones((100, 100, 3), dtype=dtype)
