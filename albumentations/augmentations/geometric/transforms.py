@@ -7,7 +7,12 @@ import cv2
 import numpy as np
 import skimage.transform
 
-from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.bbox_utils import (
+    denormalize_bbox,
+    normalize_bbox,
+    to_ndarray_bboxes,
+    to_tuple_bboxes,
+)
 
 from ... import random_utils
 from ...core.transforms_interface import (
@@ -70,10 +75,14 @@ class ShiftScaleRotate(DualTransform):
             in the range [0, 1]. Default: None.
         rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or "ellipse".
             Default: "largest_box"
+        reflec_annotation: If True and the border_mode is one of: cv2.BORDER_REFLECT, cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101, then annotations(keypoints are not supported yet) are also reflected or wrapped
+            in the same way as the image.
+            Default: False
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, keypoints
+        image, mask, keypoints, bboxes
 
     Image types:
         uint8, float32
@@ -91,6 +100,7 @@ class ShiftScaleRotate(DualTransform):
         shift_limit_x=None,
         shift_limit_y=None,
         rotate_method="largest_box",
+        reflect_annotation=False,
         always_apply=False,
         p=0.5,
     ):
@@ -104,6 +114,7 @@ class ShiftScaleRotate(DualTransform):
         self.value = value
         self.mask_value = mask_value
         self.rotate_method = rotate_method
+        self.reflect_annotation = reflect_annotation
 
         if self.rotate_method not in ["largest_box", "ellipse"]:
             raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
@@ -124,6 +135,19 @@ class ShiftScaleRotate(DualTransform):
             "dx": random.uniform(self.shift_limit_x[0], self.shift_limit_x[1]),
             "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
+
+    def apply_to_bboxes(self, bboxes, angle, scale, dx, dy, rows, cols, **params):
+        if not self.reflect_annotation:
+            bboxes = super().apply_to_bboxes(
+                bboxes, angle=angle, scale=scale, dx=dx, dy=dy, rows=rows, cols=cols, **params
+            )
+        else:
+            bboxes, labels = to_ndarray_bboxes(bboxes)
+            bboxes = F.bboxes_shift_scale_rotate_reflect(
+                bboxes, angle, scale, dx, dy, self.rotate_method, rows, cols, self.border_mode
+            )
+            bboxes = to_tuple_bboxes(bboxes, labels)
+        return bboxes
 
     def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
         return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, self.rotate_method, **params)

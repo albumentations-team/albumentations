@@ -8,7 +8,12 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
 )
 
-from ...core.bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.bbox_utils import (
+    denormalize_bbox,
+    denormalize_bboxes2,
+    normalize_bbox,
+    normalize_bboxes2,
+)
 from ...core.transforms_interface import BoxInternalType, KeypointInternalType
 from ..geometric import functional as FGeometric
 
@@ -16,6 +21,7 @@ __all__ = [
     "get_random_crop_coords",
     "random_crop",
     "crop_bbox_by_coords",
+    "crop_bboxes_by_coords",
     "bbox_random_crop",
     "crop_keypoint_by_coords",
     "keypoint_random_crop",
@@ -85,6 +91,38 @@ def crop_bbox_by_coords(
     x1, y1, _, _ = crop_coords
     cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
     return normalize_bbox(cropped_bbox, crop_height, crop_width)
+
+
+def crop_bboxes_by_coords(
+    bboxes: np.ndarray, crop_coords: Tuple[int, int, int, int], crop_height: int, crop_width: int, rows: int, cols: int
+):
+    """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
+    required height and width of the crop.
+    Args:
+        bboxes (np.ndarray): A cropped box `(x_min, y_min, x_max, y_max)`.
+        crop_coords (tuple): Crop coordinates `(x1, y1, x2, y2)`.
+        crop_height (int):
+        crop_width (int):
+        rows (int): Image rows.
+        cols (int): Image cols.
+    Returns:
+        bboxes (np.ndarray): A cropped bounding box `(x_min, y_min, x_max, y_max)`.
+    """
+    if not isinstance(bboxes, np.ndarray):
+        raise ValueError("bboxes should be np.ndarray")
+
+    bboxes = denormalize_bboxes2(bboxes, rows, cols)
+    bboxes = np.array(bboxes)
+    new_bboxes = bboxes.copy()
+    x1, y1, _, _ = crop_coords
+
+    new_bboxes[:, 0] = bboxes[:, 0] - x1
+    new_bboxes[:, 1] = bboxes[:, 1] - y1
+    new_bboxes[:, 2] = bboxes[:, 2] - x1
+    new_bboxes[:, 3] = bboxes[:, 3] - y1
+    new_bboxes = normalize_bboxes2(new_bboxes, crop_height, crop_width)
+
+    return new_bboxes
 
 
 def bbox_random_crop(
