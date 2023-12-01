@@ -13,9 +13,14 @@ def batch2list(data: Dict[str, List]) -> List[Dict[str, Any]]:
         ...
     ]
     """
-    if "image_batch" not in data:
-        raise ValueError("Batch-based transform should have `image_batch` target")
-    batch_size = len(data["image_batch"])
+    if "image_batch" in data:
+        batch_size = len(data["image_batch"])
+    else:
+        _names = [k for k in data.keys() if k.endswith("_batch")]
+        if len(_names) == 0:
+            raise ValueError("Batch-based transform should have `*_batch` target")
+        batch_size = len(data[_names[0]])
+
     items = []
     for i in range(batch_size):
         item = {}
