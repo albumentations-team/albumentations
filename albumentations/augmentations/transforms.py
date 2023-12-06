@@ -2494,7 +2494,7 @@ class PixelDropout(DualTransform):
             if img.dtype in (np.uint8, np.uint16, np.uint32):
                 drop_value = rnd.randint(0, int(F.MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
             elif img.dtype in [np.float32, np.double]:
-                drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
+                drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtype)
             else:
                 raise ValueError(f"Unsupported dtype: {img.dtype}")
         else:
