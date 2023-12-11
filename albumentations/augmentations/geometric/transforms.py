@@ -1,7 +1,7 @@
 import math
 import random
 from enum import Enum
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union, List
 
 import cv2
 import numpy as np
@@ -203,12 +203,13 @@ class ElasticTransform(DualTransform):
         self.same_dxdy = same_dxdy
 
     def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
+        # For supporting ``apply_to_keypoint`` function, Using ``elastic_transform_v2`` to replace ``elastic_transform``
         return F.elastic_transform(
             img,
             self.alpha,
             self.sigma,
             self.alpha_affine,
-            interpolation,
+            self.interpolation,
             self.border_mode,
             self.value,
             np.random.RandomState(random_state),
@@ -251,6 +252,28 @@ class ElasticTransform(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
         return bbox_returned
+    
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, random_state=None, half_win=9, **params) -> KeypointInternalType:
+        """
+            Only consider 2-D case.
+        """
+        image = np.zeros([params["cols"], params["rows"]])
+        X, Y = np.meshgrid(np.arange(image.shape[0]), np.arange(image.shape[1]))
+        image[Y, X] = np.exp(- 0.5 / (0.02 ** 2) *
+                             (((X - keypoint[0]) / image.shape[0]) ** 2 + ((Y - keypoint[1]) / image.shape[1]) ** 2))
+        remap_image = F.elastic_transform(
+            image,
+            self.alpha,
+            self.sigma,
+            self.alpha_affine,
+            self.interpolation,
+            self.border_mode,
+            self.mask_value,
+            np.random.RandomState(random_state),
+            self.approximate,
+        )
+        interp_y, interp_x = np.where(remap_image == np.max(remap_image))
+        return (interp_x[0], interp_y[0], 0.0, 0.0)
 
     def get_params(self):
         return {"random_state": random.randint(0, 10000)}
