@@ -136,7 +136,7 @@ class Floats4Internal(BatchInternalType):
 
 @dataclass(eq=False)
 class BBoxesInternalType(Floats4Internal):
-    array: BoxesArray = field(default=np.empty((0, 4)))
+    array: BoxesArray = field(default_factory=lambda: np.empty((0, 4)))
 
     @staticmethod
     def assert_array_format(bboxes: np.ndarray):  # noqa
@@ -160,7 +160,7 @@ class BBoxesInternalType(Floats4Internal):
 
 @dataclass(eq=False)
 class KeypointsInternalType(Floats4Internal):
-    array: KeypointsArray = field(default=np.empty((0, 4)))
+    array: KeypointsArray = field(default_factory=lambda: np.empty((0, 4)))
 
     @staticmethod
     def assert_array_format(keypoints: np.ndarray):  # noqa
