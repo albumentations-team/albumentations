@@ -762,11 +762,13 @@ def keypoints_safe_rotate(
 @clipped
 def piecewise_affine(
     img: np.ndarray,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
     interpolation: int,
     mode: str,
     cval: float,
 ) -> np.ndarray:
+    if matrix is None:
+        return img
     return skimage.transform.warp(
         img, matrix, order=interpolation, mode=mode, cval=cval, preserve_range=True, output_shape=img.shape
     )
@@ -897,12 +899,12 @@ def from_distance_maps(
 @use_keypoints_ndarray(return_array=True)
 def keypoints_piecewise_affine(
     keypoints: KeypointsArray,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
     h: int,
     w: int,
     keypoints_threshold: float,
 ) -> KeypointsArray:
-    if not len(keypoints):
+    if not len(keypoints) or matrix is None:
         return keypoints
     dist_maps = to_distance_maps(keypoints[..., [0, 1]], h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
@@ -914,12 +916,12 @@ def keypoints_piecewise_affine(
 @use_bboxes_ndarray(return_array=True)
 def bboxes_piecewise_affine(
     bboxes: BoxesArray,
-    matrix: skimage.transform.PiecewiseAffineTransform,
+    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
     h: int,
     w: int,
     keypoints_threshold: float,
 ) -> BoxesArray:
-    if not len(bboxes):
+    if not len(bboxes) or matrix is None:
         return bboxes
     bboxes = denormalize_bboxes_np(bboxes, h, w)
     points = np.stack(
@@ -1249,7 +1251,9 @@ def optical_distortion(
     camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
+    map1, map2 = cv2.initUndistortRectifyMap(
+        camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1  # type: ignore[attr-defined]
+    )
     return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
 
 

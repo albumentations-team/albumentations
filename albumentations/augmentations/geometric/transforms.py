@@ -357,7 +357,7 @@ class Perspective(DualTransform):
 
         scale = random_utils.uniform(*self.scale)
         points = random_utils.normal(0, scale, [4, 2])
-        points = np.mod(np.abs(points), 1)
+        points = np.mod(np.abs(points), 0.32)
 
         # top left -- no changes needed, just use jitter
         # top right
@@ -924,7 +924,12 @@ class PiecewiseAffine(DualTransform):
 
         jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
-            return {"matrix": None}
+            for i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
+                jitter = random_utils.normal(0, scale, (nb_cells, 2))
+                if np.any(jitter > 0):
+                    break
+            if not np.any(jitter > 0):
+                return {"matrix": None}
 
         y = np.linspace(0, h, nb_rows)
         x = np.linspace(0, w, nb_cols)
@@ -960,11 +965,13 @@ class PiecewiseAffine(DualTransform):
             "matrix": matrix,
         }
 
-    def apply(self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params) -> np.ndarray:
+    def apply(
+        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params
+    ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
 
     def apply_to_mask(
-        self, img: np.ndarray, matrix: skimage.transform.PiecewiseAffineTransform = None, **params
+        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
@@ -973,7 +980,7 @@ class PiecewiseAffine(DualTransform):
         bboxes: BBoxesInternalType,
         rows: int = 0,
         cols: int = 0,
-        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
         **params
     ) -> BBoxesInternalType:
         return F.bboxes_piecewise_affine(bboxes, matrix, rows, cols, self.keypoints_threshold)
@@ -983,7 +990,7 @@ class PiecewiseAffine(DualTransform):
         keypoints: KeypointsInternalType,
         rows: int = 0,
         cols: int = 0,
-        matrix: skimage.transform.PiecewiseAffineTransform = None,
+        matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
         **params
     ) -> KeypointsInternalType:
         return F.keypoints_piecewise_affine(keypoints, matrix, rows, cols, self.keypoints_threshold)
@@ -1470,7 +1477,6 @@ class GridDistortion(DualTransform):
         return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
     def _normalize(self, h, w, xsteps, ysteps):
-
         # compensate for smaller last steps in source image.
         x_step = w // self.num_steps
         last_x_step = min(w, ((self.num_steps + 1) * x_step)) - (self.num_steps * x_step)

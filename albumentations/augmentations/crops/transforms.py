@@ -383,7 +383,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         always_apply=False,
         p=1.0,
     ):
-
         super(RandomResizedCrop, self).__init__(
             height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p
         )

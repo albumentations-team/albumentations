@@ -1457,7 +1457,8 @@ class ChannelShuffle(ImageOnlyTransform):
 
 
 class InvertImg(ImageOnlyTransform):
-    """Invert the input image by subtracting pixel values from 255.
+    """Invert the input image by subtracting pixel values from max values of the image types,
+    i.e., 255 for uint8 and 1.0 for float32.
 
     Args:
         p (float): probability of applying the transform. Default: 0.5.
@@ -2511,7 +2512,7 @@ class PixelDropout(DualTransform):
             if img.dtype in (np.uint8, np.uint16, np.uint32):
                 drop_value = rnd.randint(0, int(F.MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
             elif img.dtype in [np.float32, np.double]:
-                drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtpye)
+                drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtype)
             else:
                 raise ValueError(f"Unsupported dtype: {img.dtype}")
         else:
