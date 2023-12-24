@@ -111,7 +111,7 @@ def test_convert_bboxes_to_albumentations(bboxes, source_format, expected):
     )
 
     assert np.allclose(converted_bboxes.array, expected.array)
-    assert converted_bboxes.targets == expected.targets
+    assert np.array_equal(converted_bboxes.targets, expected.targets)
 
 
 @pytest.mark.parametrize(
@@ -134,7 +134,7 @@ def test_convert_bboxes_from_albumentations(bboxes, target_format, expected):
         bboxes, rows=image.shape[0], cols=image.shape[1], target_format=target_format
     )
     assert np.allclose(converted_bboxes.array, expected.array)
-    assert converted_bboxes.targets == expected.targets
+    assert np.array_equal(converted_bboxes.targets, expected.targets)
 
 
 @pytest.mark.parametrize(
@@ -183,7 +183,7 @@ def test_convert_bboxes_to_albumentations_and_back(bboxes, bbox_format):
     )
 
     assert np.allclose(converted_back_bboxes.array, bboxes.array)
-    assert converted_back_bboxes.targets == bboxes.targets
+    assert np.array_equal(converted_back_bboxes.targets, bboxes.targets)
 
 
 @pytest.mark.parametrize(

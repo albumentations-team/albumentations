@@ -101,7 +101,7 @@ def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format):
         converted_kp, rows=image.shape[0], cols=image.shape[1], target_format=keypoint_format
     )
     assert np.allclose(kp.array, converted_back_kp.array)
-    assert kp.targets == converted_back_kp.targets
+    assert np.array_equal(kp.targets, converted_back_kp.targets)
 
 
 @pytest.mark.parametrize(

@@ -61,15 +61,17 @@ FillValueType = Optional[Union[int, float, Sequence[int], Sequence[float]]]
 @dataclass
 class BatchInternalType:
     array: np.ndarray
-    targets: List[Any] = field(default_factory=list)
+    targets: np.ndarray = field(default_factory=lambda: np.empty((0, 0), dtype=object))
 
     def __post_init__(self):
         if not isinstance(self.array, np.ndarray):
             self.array = np.array(self.array, dtype=float)
         elif isinstance(self.array, np.ndarray):
             self.array = self.array.astype(float)
-        if len(self.array) and not self.targets:
-            self.targets = [()] * len(self.array)
+        if not isinstance(self.targets, np.ndarray):
+            self.targets = np.array(self.targets, dtype=object)
+        if len(self.array) and not self.targets.shape[0]:
+            self.targets = np.empty((len(self.array), 0), dtype=object)
         self.check_consistency()
 
     def __setattr__(self, key, value):
@@ -108,30 +110,23 @@ class Floats4Internal(BatchInternalType):
                 f"given {type(other)} instead."
             )
 
-        if not len(self.array) and not len(other.array) and len(self.targets) == len(other.targets) == 0:
+        if len(self.array) == len(other.array) == len(self.targets) == len(other.targets) == 0:
             # This's because numpy does not treat array([], dtype=float64)
             # and array=array([], shape=(0, 4), dtype=float64) equally.
             return True
-        return np.array_equal(self.array, other.array) and self.targets == other.targets
+        return np.array_equal(self.array, other.array) and np.array_equal(self.targets, other.targets)
 
     def __getitem__(self, item):
         _arr = self.array[item].astype(float)
+        _target = self.targets[item]
         if isinstance(item, int):
-            _arr = _arr[np.newaxis, ...]
-            _target = [self.targets[item]] if self.targets else []
-        elif isinstance(item, slice):
-            _target = self.targets[item]
-        else:
-            _target = [self.targets[i] for i in item] if self.targets else []
+            _arr = _arr[np.newaxis, :]
+            _target = _target[np.newaxis, :]
         return self.__class__(array=_arr, targets=_target)
 
     def __setitem__(self, idx, value: "Floats4Internal"):
         self.array[idx] = value.array
-        if isinstance(idx, int):
-            self.targets[idx] = value.targets[0]
-        else:
-            for i, target in zip(idx, value.targets):
-                self.targets[i] = target
+        self.targets[idx] = value.targets
 
 
 @dataclass(eq=False)
@@ -165,7 +160,7 @@ class KeypointsInternalType(Floats4Internal):
     @staticmethod
     def assert_array_format(keypoints: np.ndarray):  # noqa
         if not isinstance(keypoints, np.ndarray):
-            raise TypeError("Bboxes should be a numpy ndarray.")
+            raise TypeError("keypoints should be a numpy ndarray.")
         if len(keypoints):
             if not (len(keypoints.shape) == 2 and 2 <= keypoints.shape[-1] <= 4):
                 raise ValueError(

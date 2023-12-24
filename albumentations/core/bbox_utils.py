@@ -155,7 +155,7 @@ class BboxProcessor(DataProcessor):
         for _data in data:
             box_array.append(_data[:4])
             targets.append(_data[4:])
-        return BBoxesInternalType(array=np.array(box_array).astype(float), targets=targets)
+        return BBoxesInternalType(array=np.array(box_array).astype(float), targets=np.array(targets))
 
     def convert_to_original_type(self, data):
         return [tuple(bbox.array[0].tolist()) + tuple(bbox.targets[0]) for bbox in data]  # type: ignore[attr-defined]

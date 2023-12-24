@@ -149,11 +149,13 @@ class KeypointsProcessor(DataProcessor):
             kps_array = np.pad(kps_array, [(0, 0), (0, 4 - ori_kp_len)], mode="constant").astype(float)
         else:
             kps_array = np.array(kps_array, dtype=float)
-        return KeypointsInternalType(array=kps_array, targets=targets)
+        return KeypointsInternalType(array=kps_array, targets=np.array(targets))
 
     def convert_to_original_type(self, data):
         dl = len(self.params.format)
-        return [tuple(kp.array[0].tolist()[:dl]) + tuple(kp.targets[0]) for kp in data]  # type: ignore[attr-defined]
+        return [
+            tuple(kp.array[0].tolist()[:dl]) + tuple(kp.targets[0].tolist()) for kp in data
+        ]  # type: ignore[attr-defined]
 
     @property
     def default_data_name(self) -> str:
