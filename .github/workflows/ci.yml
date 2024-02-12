@@ -65,14 +65,12 @@ jobs:
       run: python -m pip install --upgrade pip
     - name: Install linters
       run: pip install -r requirements-dev.txt
-
     - name: Run checks on Linux and macOS
       if: matrix.operating-system == 'ubuntu-latest' || matrix.operating-system == 'macos-latest'
-      run: pre-commit run --files $(find src -type f)
-
+      run: pre-commit run --files $(find albumentations -type f)
     - name: Run checks on Windows
       if: matrix.operating-system == 'windows-latest'
-      run: pre-commit run --files $(Get-ChildItem src -Recurse -File | Foreach-Object { $_.FullName })
+      run: pre-commit run --files $(Get-ChildItem albumentations -Recurse -File | Foreach-Object { $_.FullName })
       shell: pwsh
 
 
