@@ -64,24 +64,18 @@ jobs:
     - name: Update pip
       run: python -m pip install --upgrade pip
     - name: Install linters
-      run: >
-        pip install
-        flake8==5.0.3
-        flake8-docstrings==1.6.0
-        isort==5.11.5
-        mypy==0.991
-        types-PyYAML
-        types-setuptools
-        types-pkg-resources
-        black==22.6.0
-    - name: Run Black
-      run: black --config=black.toml --check .
-    - name: Run Flake8
-      run: flake8
-    - name: Run mypy
-      run: mypy .
-    - name: Run isort
-      run: isort --profile black albumentations
+      run: pip install -r requirements-dev.txt
+
+    - name: Run checks on Linux and macOS
+      if: matrix.operating-system == 'ubuntu-latest' || matrix.operating-system == 'macos-latest'
+      run: pre-commit run --files $(find src -type f)
+
+    - name: Run checks on Windows
+      if: matrix.operating-system == 'windows-latest'
+      run: pre-commit run --files $(Get-ChildItem src -Recurse -File | Foreach-Object { $_.FullName })
+      shell: pwsh
+
+
 
   check_transforms_docs:
     name: Check that transforms docs are not outdated

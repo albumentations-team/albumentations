@@ -1,0 +1,9 @@
+flake8==5.0.3
+flake8-docstrings==1.6.0
+isort==5.11.5
+mypy==0.991
+types-PyYAML
+types-setuptools
+types-pkg-resources
+black==22.6.0
+pre_commit>=3.5.0
