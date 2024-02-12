@@ -65,6 +65,7 @@ pip install -e .[develop]
 ## Coding Guidelines
 
 ### Using Pre-commit Hooks
+
 To maintain code quality and consistency, we use pre-commit hooks. These hooks run checks on your commits before they are submitted, helping catch common issues early. To set up pre-commit hooks in your local repository, follow these steps:
 
 1. **Install pre-commit:** If you haven't already, you need to install pre-commit on your machine. You can do this using pip:
