@@ -403,6 +403,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
+    A.Mosaic,
 }
 
 
