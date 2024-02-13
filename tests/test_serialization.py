@@ -47,6 +47,7 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
+            A.CutAndPaste,
         },
     ),
 )
@@ -403,6 +404,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
+    A.CutAndPaste,
 }
 
 
@@ -481,6 +483,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.MaskDropout,
             A.OpticalDistortion,
             A.TemplateTransform,
+            A.CutAndPaste,
         },
     ),
 )
@@ -531,6 +534,7 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
+            A.CutAndPaste,
         },
     ),
 )
