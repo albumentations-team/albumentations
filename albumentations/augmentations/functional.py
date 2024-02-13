@@ -61,6 +61,7 @@ __all__ = [
     "to_gray",
     "gray_to_rgb",
     "unsharp_mask",
+    "swap_tile_on_image",
 ]
 
 
@@ -994,6 +995,29 @@ def swap_tiles_on_image(image, tiles):
             tile[2] : tile[2] + tile[4], tile[3] : tile[3] + tile[5]
         ]
 
+    return new_image
+
+def swap_tile_on_image(image, tiles):
+    """
+    Swap tiles on image.
+
+    Args:
+        image (np.ndarray): Input image.
+        tiles (np.ndarray): array of tuples(
+            current_left_up_corner_row, current_left_up_corner_col,
+            old_left_up_corner_row, old_left_up_corner_col,
+            height_tile, width_tile)
+
+    Returns:
+        np.ndarray: Output image.
+
+    """
+    new_image = image.copy()
+    tile = tiles[-1]
+    new_image = image[
+            tile[2] : tile[2] + tile[4], tile[3] : tile[3] + tile[5]
+    ]
+    
     return new_image
 
 

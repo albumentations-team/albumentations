@@ -211,7 +211,7 @@ class Compose(BaseCompose):
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
-        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
+        # data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
         for p in self.processors.values():
             p.postprocess(data)
