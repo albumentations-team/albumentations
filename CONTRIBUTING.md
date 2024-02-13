@@ -24,12 +24,18 @@ python3 -m venv env
 source env/bin/activate
 ```
 
-#### Install development dependencies:
+#### Install development dependencies
 
-Install the project's development dependencies, which include testing and documentation tools:
+Install the project's dependencies by running:
 
 ```bash
 pip install -e .[develop]
+```
+
+Additionally, to ensure you have all the necessary tools for code formatting, linting, and additional development utilities, install the requirements from `requirements-dev.txt`:
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 ## Navigating the Project
@@ -66,7 +72,7 @@ pip install -e .[develop]
 
 ### Using Pre-commit Hooks
 
-To maintain code quality and consistency, we use pre-commit hooks. These hooks run checks on your commits before they are submitted, helping catch common issues early. To set up pre-commit hooks in your local repository, follow these steps:
+To maintain code quality and consistency, we use pre-commit hooks. Follow these steps to set up pre-commit hooks in your local repository:
 
 1. **Install pre-commit:** If you haven't already, you need to install pre-commit on your machine. You can do this using pip:
 
@@ -84,9 +90,9 @@ pre-commit install
 
 This command sets up the pre-commit hooks based on the configurations found in `.pre-commit-config.yaml` at the root of the repository.
 
-3. **Run pre-commit hooks:**
+3. **Running pre-commit hooks:**
 
-Pre-commit will now automatically run on each commit. However, you can manually run the checks on all files in the repository with:
+Pre-commit will automatically run the configured hooks on each commit. You can also manually run the hooks on all files in the repository with:
 
 ```bash
 pre-commit run --all-files
@@ -110,19 +116,20 @@ Run the tests:
 
 With `pytest` installed, you can run all tests using the following command from the root of the repository:
 
-bash
-Copy code
+```bash
 pytest
+```
+
 This will execute all the tests and display the results, indicating whether each test passed or failed.
 
-**Tip**: If you've made changes to a specific area of the library, you can run a subset of the tests related to your changes. This can save time and make it easier to debug issues. Use the pytest documentation to learn more about running specific tests.
+**Tip**: If you've made changes to a specific area of the library, you can run a subset of the tests related to your changes. This can save time and make it easier to debug issues. Use the `pytest` documentation to learn more about running specific tests.
 
 ### Ensuring Your Contribution is Ready
 
 * After setting up pre-commit hooks and ensuring all tests pass, your contribution is nearly ready for submission.
 * Review your changes one last time, ensuring they meet the project's coding guidelines and documentation standards.
 * If your changes affect how users interact with Albumentations, update the documentation accordingly.
-*
+
 By following these guidelines, you help ensure that Albumentations remains a high-quality, reliable library. We appreciate your contributions and look forward to your pull request!
 
 ## Additional Resources
