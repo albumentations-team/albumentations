@@ -1046,3 +1046,59 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     image_float = (image_float * 255).astype(int)
 
     assert np.abs(image_int.astype(int) - image_float).max() <= 1
+
+
+def test_mosaic4():
+    h = 10
+    w = 20
+    value = 5
+    img1 = np.full((10, 10), 1)  # top left
+    img2 = np.full((10, 10), 2)  # top right
+    img3 = np.full((10, 10), 3)  # bottom left
+    img4 = np.full((5, 5), 4)  # bottom right
+    img_out = FGeometric.mosaic4([img1, img2, img3, img4], height=h, width=w, value=value)
+
+    assert img_out.shape[:2] == (h, w)
+    # top left
+    assert np.all(img_out[:5, :10] == np.full((5, 10), 1))
+    # top right
+    assert np.all(img_out[:5, 10:] == np.full((5, 10), 2))
+    # bottom left
+    assert np.all(img_out[5:, :10] == np.full((5, 10), 3))
+    # bottom right
+    assert np.all(img_out[5:, 10:15] == np.full((5, 5), 4))
+    # bottom right filled area
+    assert np.all(img_out[5:, 15:] == np.full((5, 5), 5))
+
+
+@pytest.mark.parametrize(
+    ["bbox", "pos", "rows", "cols", "expected"],
+    [
+        ([0.5, 0.5, 0.6, 0.6], 0, 100, 100, [0.0, 0.0, 0.1, 0.1]),
+        ([0.4, 0.5, 0.5, 0.6], 1, 100, 100, [0.9, 0.0, 1.0, 0.1]),
+        ([0.0, 0.8, 0.2, 1.0], 2, 50, 50, [0.0, 0.9, 0.1, 1.0]),
+        ([0.8, 0.8, 1.0, 1.0], 3, 50, 50, [0.9, 0.9, 1.0, 1.0]),
+    ],
+)
+def test_bbox_mosaic4(bbox, pos, rows, cols, expected):
+    h = 100
+    w = 100
+    actual = FGeometric.bbox_mosaic4(bbox, rows, cols, pos, h, w)
+    assert np.array_equal(actual, expected)
+
+
+@pytest.mark.parametrize(
+    ["xy", "pos", "rows", "cols", "expected"],
+    [
+        ([50, 50], 0, 100, 100, [0, 0]),
+        ([50, 50], 1, 100, 100, [100, 0]),
+        ([0, 50], 2, 50, 50, [0, 100]),
+        ([50, 50], 3, 50, 50, [100, 100]),
+    ],
+)
+def test_keypoint_mosaic4(xy, pos, rows, cols, expected):
+    h = 100
+    w = 100
+    keypoint = xy + [0, 0]  # (x, y, angle, scale)
+    actual = FGeometric.keypoint_mosaic4(keypoint, rows, cols, pos, h, w)
+    assert np.array_equal(actual[:2], expected)

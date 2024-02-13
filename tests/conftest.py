@@ -87,6 +87,21 @@ def float_template():
     return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
 
 
+@pytest.fixture
+def image_batch():
+    return [np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8) for _ in range(2)]
+
+
+@pytest.fixture
+def mask_batch():
+    return [np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8) for _ in range(2)]
+
+
+@pytest.fixture
+def float_image_batch():
+    return [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32") for _ in range(2)]
+
+
 @pytest.fixture(scope="package")
 def mp_pool():
     # Usage of `fork` as a start method for multiprocessing could lead to deadlocks on macOS.

@@ -7,7 +7,12 @@ import pytest
 
 import albumentations as A
 
-from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
+from .utils import (
+    get_batch_transforms,
+    get_dual_transforms,
+    get_image_only_transforms,
+    get_transforms,
+)
 
 
 @pytest.mark.parametrize(
@@ -132,6 +137,42 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
+    get_batch_transforms(
+        custom_arguments={
+            A.Mosaic4: {"out_height": 100, "out_width": 100, "replace": True},
+        },
+        except_augmentations=None,
+    ),
+)
+def test_batch_augmentations(augmentation_cls, params, image_batch, mask_batch):
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image_batch=image_batch, mask_batch=mask_batch)
+    for image in data["image_batch"]:
+        assert image.dtype == np.uint8
+    for mask in data["mask_batch"]:
+        assert mask.dtype == np.uint8
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_batch_transforms(
+        custom_arguments={
+            A.Mosaic4: {"out_height": 100, "out_width": 100, "replace": True},
+        },
+        except_augmentations=None,
+    ),
+)
+def test_batch_augmentations_with_float_values(augmentation_cls, params, float_image_batch, mask_batch):
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image_batch=float_image_batch, mask_batch=mask_batch)
+    for image in data["image_batch"]:
+        assert image.dtype == np.float32
+    for mask in data["mask_batch"]:
+        assert mask.dtype == np.uint8
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
@@ -158,6 +199,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
+            A.Mosaic4: {"out_height": 100, "out_width": 100, "replace": True},
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
     ),
@@ -166,7 +208,10 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
     image_copy = image.copy()
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
-    aug(image=image, mask=mask)
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        aug(image_batch=[image], mask_batch=[mask])
+    else:
+        aug(image=image, mask=mask)
     assert np.array_equal(image, image_copy)
     assert np.array_equal(mask, mask_copy)
 
@@ -200,6 +245,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.TemplateTransform: {
                 "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
             },
+            A.Mosaic4: {"out_height": 100, "out_width": 100, "replace": True},
         },
         except_augmentations={
             A.CLAHE,
@@ -219,7 +265,10 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
 def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
     float_image_copy = float_image.copy()
     aug = augmentation_cls(p=1, **params)
-    aug(image=float_image)
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        aug(image_batch=[float_image])
+    else:
+        aug(image=float_image)
     assert np.array_equal(float_image, float_image_copy)
 
 
@@ -273,6 +322,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.UnsharpMask,
             A.RandomCropFromBorders,
             A.Spatter,
+            A.Mosaic4,
         },
     ),
 )
@@ -333,6 +383,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             A.PadIfNeeded,
             A.RandomScale,
             A.RandomCropFromBorders,
+            A.Mosaic4,
         },
     ),
 )
@@ -371,15 +422,22 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
         [A.GridDistortion, {"border_mode": cv2.BORDER_CONSTANT, "value": 100, "mask_value": 1}],
         [A.Affine, {"mode": cv2.BORDER_CONSTANT, "cval_mask": 1, "cval": 100}],
         [A.PiecewiseAffine, {"mode": "constant", "cval_mask": 1, "cval": 100}],
+        [A.Mosaic4, {"out_width": 128, "out_height": 128, "replace": True, "value": 100, "mask_value": 1}],
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
     random.seed(42)
     aug = augmentation_cls(p=1, **params)
-    input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
-    output = aug(**input)
-    assert (output["image"] == 100).all()
-    assert (output["mask"] == 1).all()
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        input = {"image_batch": [np.full((32, 32), 100, dtype=np.uint8)], "mask_batch": [np.ones((32, 32))]}
+        output = aug(**input)
+        assert (output["image_batch"][0] == 100).all()
+        assert (output["mask_batch"][0] == 1).all()
+    else:
+        input = {"image": np.full((512, 512), 100, dtype=np.uint8), "mask": np.ones((512, 512))}
+        output = aug(**input)
+        assert (output["image"] == 100).all()
+        assert (output["mask"] == 1).all()
 
 
 @pytest.mark.parametrize(
@@ -404,6 +462,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 256, (100, 100, 6), dtype=np.uint8),
             },
+            A.Mosaic4: {"out_width": 10, "out_height": 10, "replace": True},
         },
         except_augmentations={
             A.CLAHE,
@@ -438,9 +497,15 @@ def test_mask_fill_value(augmentation_cls, params):
 def test_multichannel_image_augmentations(augmentation_cls, params):
     image = np.zeros((100, 100, 6), dtype=np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
-    assert data["image"].dtype == np.uint8
-    assert data["image"].shape[2] == 6
+    if issubclass(augmentation_cls, A.BatchBasedTransform):
+        data = aug(image_batch=[image])
+        assert data["image_batch"][0].dtype == np.uint8
+        assert data["image_batch"][0].shape[2] == 6
+    else:
+        aug = augmentation_cls(p=1, **params)
+        data = aug(image=image)
+        assert data["image"].dtype == np.uint8
+        assert data["image"].shape[2] == 6
 
 
 @pytest.mark.parametrize(
@@ -496,6 +561,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomToneCurve,
             A.PixelDistributionAdaptation,
             A.Spatter,
+            A.Mosaic4,
         },
     ),
 )
@@ -521,6 +587,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
             },
+            A.Mosaic4: {"out_width": 10, "out_height": 10, "replace": True},
         },
         except_augmentations={
             A.CLAHE,
@@ -558,9 +625,14 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     for num_channels in range(3, 13):
         image = np.zeros((100, 100, num_channels), dtype=np.uint8)
         aug = augmentation_cls(p=1, **params)
-        data = aug(image=image)
-        assert data["image"].dtype == np.uint8
-        assert data["image"].shape[2] == num_channels
+        if issubclass(augmentation_cls, A.BatchBasedTransform):
+            data = aug(image_batch=[image])
+            assert data["image_batch"][0].dtype == np.uint8
+            assert data["image_batch"][0].shape[2] == num_channels
+        else:
+            data = aug(image=image)
+            assert data["image"].dtype == np.uint8
+            assert data["image"].shape[2] == num_channels
 
 
 @pytest.mark.parametrize(
@@ -579,6 +651,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.TemplateTransform: {
                 "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
             },
+            A.Mosaic4: {"out_width": 10, "out_height": 10, "replace": True},
         },
         except_augmentations={
             A.CLAHE,
@@ -617,9 +690,14 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
     for num_channels in range(3, 13):
         image = np.zeros((100, 100, num_channels), dtype=np.float32)
         aug = augmentation_cls(p=1, **params)
-        data = aug(image=image)
-        assert data["image"].dtype == np.float32
-        assert data["image"].shape[2] == num_channels
+        if issubclass(augmentation_cls, A.BatchBasedTransform):
+            data = aug(image_batch=[image])
+            assert data["image_batch"][0].dtype == np.float32
+            assert data["image_batch"][0].shape[2] == num_channels
+        else:
+            data = aug(image=image)
+            assert data["image"].dtype == np.float32
+            assert data["image"].shape[2] == num_channels
 
 
 @pytest.mark.parametrize(
@@ -854,6 +932,7 @@ def test_pixel_domain_adaptation(kind):
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.5},
+            A.Mosaic4: {"out_width": 128, "out_height": 128, "replace": True},
         },
     ),
 )
@@ -873,6 +952,9 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         # requires "bboxes" arg
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
         aug(image=image, mask=mask, bboxes=bboxes)
+    elif issubclass(augmentation_cls, A.BatchBasedTransform):
+        aug = augmentation_cls(p=1, **params)
+        aug(image_batch=[image], mask_batch=[mask])
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:

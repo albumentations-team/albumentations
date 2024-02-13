@@ -10,6 +10,7 @@ import pytest
 
 from albumentations import (
     BasicTransform,
+    BatchBasedTransform,
     Blur,
     ChannelShuffle,
     Crop,
@@ -23,12 +24,15 @@ from albumentations import (
 from albumentations.core.bbox_utils import check_bboxes
 from albumentations.core.composition import (
     BaseCompose,
+    BatchCompose,
     BboxParams,
     Compose,
+    ForEach,
     KeypointParams,
     OneOf,
     OneOrOther,
     PerChannel,
+    Repeat,
     ReplayCompose,
     Sequential,
     SomeOf,
@@ -361,12 +365,12 @@ def test_bbox_params_is_not_set(image, bboxes):
 
 
 @pytest.mark.parametrize(
-    "compose_transform", get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}})
+    "compose_transform", get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}, Repeat: {"n": 1}})
 )
 @pytest.mark.parametrize(
     "inner_transform",
     [(Normalize, {}), (Resize, {"height": 100, "width": 100})]
-    + get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}}),  # type: ignore
+    + get_filtered_transforms((BaseCompose,), custom_arguments={SomeOf: {"n": 1}, Repeat: {"n": 1}}),  # type: ignore
 )
 def test_single_transform_compose(
     compose_transform: typing.Tuple[typing.Type[BaseCompose], dict],
@@ -435,3 +439,156 @@ def test_compose_image_mask_equal_size(targets):
     # test after disabling shapes check
     transforms = Compose([], is_check_shapes=False)
     transforms(**targets)
+
+
+def test_batch_based_transform():
+    aug = BatchBasedTransform(always_apply=True)
+
+    # default params has been cleared
+    assert len(aug.params) == 0
+
+    # check mapping target and apply
+    with pytest.raises(NotImplementedError) as err:
+        aug(image_batch=[])
+    assert "image_batch" in str(err.value)
+
+    with pytest.raises(NotImplementedError) as err:
+        aug(mask_batch=[])
+    assert "mask_batch" in str(err.value)
+
+    with pytest.raises(NotImplementedError) as err:
+        aug(bboxes_batch=[])
+    assert "bboxes_batch" in str(err.value)
+
+    with pytest.raises(NotImplementedError) as err:
+        aug(keypoints_batch=[])
+    assert "keypoints_batch" in str(err.value)
+
+
+def test_batched_compose():
+    first = MagicMock(side_effect=lambda **data: data)
+    second = MagicMock(side_effect=lambda **data: data)
+    aug = BatchCompose([first, second], p=1)
+    image = np.ones((8, 8))
+    aug(image_batch=[image])
+    assert first.called
+    assert second.called
+
+
+def test_foreach():
+    # Test that the ForEach correctly remap the target names,
+    # and calls inner transforms.
+
+    aug = BatchCompose(
+        ForEach([HorizontalFlip(p=1)]),
+        bbox_params=BboxParams(label_fields=["bboxes_labels_batch"], format="coco"),
+        keypoint_params=KeypointParams(label_fields=["keypoints_labels_batch"], format="xy"),
+    )
+    image1 = np.zeros((100, 100))
+    image1[0, 0] = 1
+    mask1 = np.zeros((100, 100))
+    mask1[0, 0] = 1
+    bboxes1 = [[0, 0, 10, 10]]
+    keypoints1 = [[0, 0]]
+    b_labels1 = ["b1"]
+    k_labels1 = ["k1"]
+
+    image2 = np.zeros((100, 100))
+    image2[0, 0] = 2
+    mask2 = np.zeros((100, 100))
+    mask2[0, 0] = 2
+    bboxes2 = [[0, 5, 10, 10]]
+    keypoints2 = [[1, 0]]
+    b_labels2 = ["b2"]
+    k_labels2 = ["k2"]
+
+    data = aug(
+        image_batch=[image1, image2],
+        mask_batch=[mask1, mask2],
+        bboxes_batch=[bboxes1, bboxes2],
+        keypoints_batch=[keypoints1, keypoints2],
+        bboxes_labels_batch=[b_labels1, b_labels2],
+        keypoints_labels_batch=[k_labels1, k_labels2],
+    )
+
+    assert data["image_batch"][0][0, 0] == 0
+    assert data["image_batch"][0][0, 99] == 1
+    assert data["image_batch"][1][0, 0] == 0
+    assert data["image_batch"][1][0, 99] == 2
+    assert data["mask_batch"][0][0, 0] == 0
+    assert data["mask_batch"][0][0, 99] == 1
+    assert data["mask_batch"][1][0, 0] == 0
+    assert data["mask_batch"][1][0, 99] == 2
+    assert data["bboxes_batch"][0][0] == (90, 0, 10, 10)
+    assert data["bboxes_batch"][1][0] == (90, 5, 10, 10)
+    assert data["keypoints_batch"][0][0] == (99, 0)
+    assert data["keypoints_batch"][1][0] == (98, 0)
+    assert data["bboxes_labels_batch"][0][0] == "b1"
+    assert data["bboxes_labels_batch"][1][0] == "b2"
+    assert data["keypoints_labels_batch"][0][0] == "k1"
+    assert data["keypoints_labels_batch"][1][0] == "k2"
+
+
+def test_repeat(image_batch):
+    in_batch_size = len(image_batch)
+    n = 2
+    aug = Repeat([ForEach([HorizontalFlip(p=1)])], n=n)
+    data = aug(image_batch=image_batch)
+    assert len(data["image_batch"]) == n * in_batch_size
+
+
+def test_foreach_add_targets():
+    aug = BatchCompose(
+        ForEach([HorizontalFlip(p=1)]),
+        additional_targets={"image1_batch": "image_batch"},
+    )
+    image1 = np.zeros((10, 10))
+    image1[0, 0] = 1
+    image2 = np.zeros((10, 10))
+    image2[0, 0] = 2
+    data = aug(
+        image_batch=[image1],
+        image1_batch=[image2],
+    )
+    assert data["image_batch"][0][0, 0] == 0
+    assert data["image_batch"][0][0, 9] == 1
+    assert data["image1_batch"][0][0, 0] == 0
+    assert data["image1_batch"][0][0, 9] == 2
+
+
+def test_targets_have_batch_suffix():
+    # `label_fields` should have "_batch" suffix
+    with pytest.raises(ValueError) as err:
+        invalid_name = "bboxes_labels"
+        aug = BatchCompose(
+            ForEach([HorizontalFlip(p=1)]),
+            bbox_params=BboxParams(label_fields=[invalid_name], format="coco"),
+        )
+    assert "must have '_batch' suffix" in str(err.value)
+
+    # `additional_targets` should have "_batch" suffix
+    with pytest.raises(ValueError) as err:
+        invalid_name = "bboxes_labels"
+        aug = BatchCompose(
+            ForEach([HorizontalFlip(p=1)]),
+            additional_targets={"image1": "image_batch"},
+        )
+    assert "must have '_batch' suffix" in str(err.value)
+
+    aug = BatchCompose(
+        ForEach([HorizontalFlip(p=1)]),
+        bbox_params=BboxParams(label_fields=["bboxes_labels_batch"], format="coco"),
+    )
+    image = np.zeros((10, 10))
+    bboxes = [[0, 0, 1, 1]]
+    bboxes_labels = [0]
+
+    # All targets should have "_batch" suffix
+    with pytest.raises(ValueError) as err:
+        aug(
+            image_batch=[image],
+            bbox_batch=[bboxes],
+            bboxes_labels_batch=[bboxes_labels],
+            labels=[bboxes_labels],
+        )
+    assert "must have '_batch' suffix" in str(err.value)

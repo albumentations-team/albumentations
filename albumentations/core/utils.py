@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
