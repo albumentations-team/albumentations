@@ -1329,3 +1329,22 @@ def test_spatter_incorrect_color(unsupported_color, mode, message):
         A.Spatter(mode=mode, color=unsupported_color)
 
     assert str(exc_info.value).startswith(message)
+
+
+def test_dither_type_error():
+    image = np.ndarray(shape=(1, 1), dtype=np.float64)
+    with pytest.raises(TypeError) as exc_info:
+        A.Dither().apply(image)
+    assert str(exc_info.value) == "Image must have float32 channel type"
+
+
+def test_dither_uint8():
+    image = np.ndarray(shape=(1, 1), dtype=np.uint8)
+    image = A.Dither().apply(image)
+    assert image.dtype == np.uint8
+
+
+def test_dither_float32():
+    image = np.ndarray(shape=(1, 1), dtype=np.float32)
+    image = A.Dither().apply(image)
+    assert image.dtype == np.float32
