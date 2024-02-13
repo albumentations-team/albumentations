@@ -226,7 +226,7 @@ class Compose(BaseCompose):
                 continue
 
             for data_name in p.data_fields:
-                data[data_name] = p.filter(data[data_name], rows, cols)
+                data[data_name] = p.filter(data[data_name], rows, cols, data_name)
         return data
 
     def _to_dict(self) -> typing.Dict[str, typing.Any]:

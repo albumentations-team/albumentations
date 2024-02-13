@@ -6,7 +6,10 @@ import numpy as np
 from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
-from albumentations.core.transforms_interface import KeypointInternalType
+from albumentations.core.transforms_interface import (
+    KeypointsArray,
+    KeypointsInternalType,
+)
 
 __all__ = [
     "read_bgr_image",
@@ -15,7 +18,7 @@ __all__ = [
     "NPDTYPE_TO_OPENCV_DTYPE",
     "clipped",
     "get_opencv_dtype_from_numpy",
-    "angle_2pi_range",
+    "angles_2pi_range",
     "clip",
     "preserve_shape",
     "preserve_channel_dim",
@@ -85,13 +88,15 @@ def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object])
     return NPDTYPE_TO_OPENCV_DTYPE[value]
 
 
-def angle_2pi_range(
-    func: Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]
-) -> Callable[Concatenate[KeypointInternalType, P], KeypointInternalType]:
+def angles_2pi_range(
+    func: Callable[Concatenate[KeypointsArray, P], KeypointsArray],
+) -> Callable[Concatenate[KeypointsArray, P], KeypointsArray]:
     @wraps(func)
-    def wrapped_function(keypoint: KeypointInternalType, *args: P.args, **kwargs: P.kwargs) -> KeypointInternalType:
-        (x, y, a, s) = func(keypoint, *args, **kwargs)[:4]
-        return (x, y, angle_to_2pi_range(a), s)
+    def wrapped_function(keypoints: KeypointsArray, *args: P.args, **kwargs: P.kwargs) -> KeypointsArray:
+
+        keypoints = func(keypoints, *args, **kwargs)
+        keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
+        return keypoints
 
     return wrapped_function
 

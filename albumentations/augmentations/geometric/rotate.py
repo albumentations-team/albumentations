@@ -6,10 +6,10 @@ import cv2
 import numpy as np
 
 from ...core.transforms_interface import (
-    BoxInternalType,
+    BBoxesInternalType,
     DualTransform,
     FillValueType,
-    KeypointInternalType,
+    KeypointsInternalType,
     to_tuple,
 )
 from ..crops import functional as FCrops
@@ -42,11 +42,11 @@ class RandomRotate90(DualTransform):
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bbox(self, bbox, factor=0, **params):
-        return F.bbox_rot90(bbox, factor, **params)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, factor: int = 0, **params) -> BBoxesInternalType:
+        return F.bboxes_rot90(bboxes, factor=factor, **params)
 
-    def apply_to_keypoint(self, keypoint, factor=0, **params):
-        return F.keypoint_rot90(keypoint, factor, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, factor=0, **params) -> KeypointsInternalType:
+        return F.keypoints_rot90(keypoints, factor, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -118,19 +118,47 @@ class Rotate(DualTransform):
             img_out = FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
-    def apply_to_bbox(self, bbox, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params):
-        bbox_out = F.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
+    def apply_to_bboxes(
+        self,
+        bboxes: BBoxesInternalType,
+        angle: int = 0,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        cols: int = 0,
+        rows: int = 0,
+        **params
+    ) -> BBoxesInternalType:
+        bboxes = F.bboxes_rotate(bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
         if self.crop_border:
-            bbox_out = FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
-        return bbox_out
+            bboxes = FCrops.bboxes_crop(
+                bboxes,
+                x_min=x_min,
+                y_min=y_min,
+                x_max=x_max,
+                y_max=y_max,
+                rows=rows,
+                cols=cols,
+            )
+        return bboxes
 
-    def apply_to_keypoint(
-        self, keypoint, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, cols=0, rows=0, **params
+    def apply_to_keypoints(
+        self,
+        keypoints: KeypointsInternalType,
+        angle=0,
+        x_min=None,
+        x_max=None,
+        y_min=None,
+        y_max=None,
+        cols=0,
+        rows=0,
+        **params
     ):
-        keypoint_out = F.keypoint_rotate(keypoint, angle, rows, cols, **params)
+        keypoints_out = F.keypoints_rotate(keypoints, angle, rows, cols, **params)
         if self.crop_border:
-            keypoint_out = FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
-        return keypoint_out
+            keypoints_out = FCrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
+        return keypoints_out
 
     @staticmethod
     def _rotated_rect_with_max_area(h, w, angle):
@@ -233,20 +261,20 @@ class SafeRotate(DualTransform):
     def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, cols: int = 0, rows: int = 0, **params) -> BoxInternalType:
-        return F.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, rows: int = 0, cols: int = 0, **params) -> BBoxesInternalType:
+        return F.bboxes_safe_rotate(bboxes, params["matrix"], rows=rows, cols=cols)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: KeypointsInternalType,
         angle: float = 0,
         scale_x: float = 0,
         scale_y: float = 0,
         cols: int = 0,
         rows: int = 0,
         **params
-    ) -> KeypointInternalType:
-        return F.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
+    ) -> KeypointsInternalType:
+        return F.keypoints_safe_rotate(keypoints, params["matrix"], angle, scale_x, scale_y, cols, rows)
 
     @property
     def targets_as_params(self) -> List[str]:

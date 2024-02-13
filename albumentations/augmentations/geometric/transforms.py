@@ -1,20 +1,21 @@
 import math
 import random
 from enum import Enum
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
 import skimage.transform
 
-from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.bbox_utils import denormalize_bboxes_np, normalize_bboxes_np
 
 from ... import random_utils
 from ...core.transforms_interface import (
+    BBoxesInternalType,
     BoxInternalType,
     DualTransform,
     ImageColorType,
-    KeypointInternalType,
+    KeypointsInternalType,
     ScaleFloatType,
     to_tuple,
 )
@@ -114,8 +115,10 @@ class ShiftScaleRotate(DualTransform):
     def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
         return F.shift_scale_rotate(img, angle, scale, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_keypoint(self, keypoint, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, **params):
-        return F.keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols)
+    def apply_to_keypoints(
+        self, keypoints: KeypointsInternalType, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, **params
+    ) -> KeypointsInternalType:
+        return F.keypoints_shift_scale_rotate(keypoints, angle, scale, dx, dy, rows, cols)
 
     def get_params(self):
         return {
@@ -125,8 +128,10 @@ class ShiftScaleRotate(DualTransform):
             "dy": random.uniform(self.shift_limit_y[0], self.shift_limit_y[1]),
         }
 
-    def apply_to_bbox(self, bbox, angle, scale, dx, dy, **params):
-        return F.bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, self.rotate_method, **params)
+    def apply_to_bboxes(
+        self, bboxes: BBoxesInternalType, angle: int = 0, scale: int = 0, dx: int = 0, dy: int = 0, **params
+    ) -> BBoxesInternalType:
+        return F.bboxes_shift_scale_rotate(bboxes, angle, scale, dx, dy, self.rotate_method, **params)
 
     def get_transform_init_args(self):
         return {
@@ -230,12 +235,12 @@ class ElasticTransform(DualTransform):
             self.same_dxdy,
         )
 
-    def apply_to_bbox(self, bbox, random_state=None, **params):
+    def apply_to_bbox(self, bbox: BoxInternalType, random_state=None, **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
-        x_min, y_min, x_max, y_max = bbox_denorm[:4]
-        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        bbox_array = np.array([bbox], dtype=float)
+        bbox_array = F.denormalize_bboxes_np(bbox_array, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_array.astype(int)[0]
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.elastic_transform(
             mask,
@@ -249,8 +254,7 @@ class ElasticTransform(DualTransform):
             self.approximate,
         )
         bbox_returned = bbox_from_mask(mask)
-        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
-        return bbox_returned
+        return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
     def get_params(self):
         return {"random_state": random.randint(0, 10000)}
@@ -324,12 +328,24 @@ class Perspective(DualTransform):
             img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, params["interpolation"]
         )
 
-    def apply_to_bbox(self, bbox, matrix=None, max_height=None, max_width=None, **params):
-        return F.perspective_bbox(bbox, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size)
+    def apply_to_bboxes(
+        self, bboxes: BBoxesInternalType, matrix=None, max_height=None, max_width=None, **params
+    ) -> BBoxesInternalType:
+        return F.perspective_bboxes(
+            bboxes,
+            height=params["rows"],
+            width=params["cols"],
+            matrix=matrix,
+            max_width=max_width,
+            max_height=max_height,
+            keep_size=self.keep_size,
+        )
 
-    def apply_to_keypoint(self, keypoint, matrix=None, max_height=None, max_width=None, **params):
-        return F.perspective_keypoint(
-            keypoint, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
+    def apply_to_keypoints(
+        self, keypoints: KeypointsInternalType, matrix=None, max_height=None, max_width=None, **params
+    ) -> KeypointsInternalType:
+        return F.perspective_keypoints(
+            keypoints, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
         )
 
     @property
@@ -679,26 +695,26 @@ class Affine(DualTransform):
             output_shape=output_shape,
         )
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: BBoxesInternalType,
         matrix: skimage.transform.ProjectiveTransform = None,
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
         **params
-    ) -> BoxInternalType:
-        return F.bbox_affine(bbox, matrix, self.rotate_method, rows, cols, output_shape)
+    ) -> BBoxesInternalType:
+        return F.bboxes_affine(bboxes, matrix, self.rotate_method, rows, cols, output_shape)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: KeypointsInternalType,
         matrix: Optional[skimage.transform.ProjectiveTransform] = None,
         scale: Optional[dict] = None,
         **params
-    ) -> KeypointInternalType:
+    ) -> KeypointsInternalType:
         assert scale is not None and matrix is not None
-        return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
+        return F.keypoints_affine(keypoints, matrix=matrix, scale=scale)
 
     @property
     def targets_as_params(self):
@@ -959,25 +975,25 @@ class PiecewiseAffine(DualTransform):
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: BBoxesInternalType,
         rows: int = 0,
         cols: int = 0,
         matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
         **params
-    ) -> BoxInternalType:
-        return F.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
+    ) -> BBoxesInternalType:
+        return F.bboxes_piecewise_affine(bboxes, matrix, rows, cols, self.keypoints_threshold)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: KeypointsInternalType,
         rows: int = 0,
         cols: int = 0,
         matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
         **params
-    ):
-        return F.keypoint_piecewise_affine(keypoint, matrix, rows, cols, self.keypoints_threshold)
+    ) -> KeypointsInternalType:
+        return F.keypoints_piecewise_affine(keypoints, matrix, rows, cols, self.keypoints_threshold)
 
 
 class PadIfNeeded(DualTransform):
@@ -1115,9 +1131,9 @@ class PadIfNeeded(DualTransform):
             value=self.mask_value,
         )
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: BBoxesInternalType,
         pad_top: int = 0,
         pad_bottom: int = 0,
         pad_left: int = 0,
@@ -1125,22 +1141,22 @@ class PadIfNeeded(DualTransform):
         rows: int = 0,
         cols: int = 0,
         **params
-    ) -> BoxInternalType:
-        x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
-        bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
-        return normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
+    ) -> BBoxesInternalType:
+        bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
+        bboxes.array += np.array([pad_left, pad_top, pad_left, pad_top])
+        return normalize_bboxes_np(bboxes, rows + pad_top + pad_bottom, cols + pad_left + pad_right)
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: KeypointsInternalType,
         pad_top: int = 0,
         pad_bottom: int = 0,
         pad_left: int = 0,
         pad_right: int = 0,
         **params
-    ) -> KeypointInternalType:
-        x, y, angle, scale = keypoint[:4]
-        return x + pad_left, y + pad_top, angle, scale
+    ) -> KeypointsInternalType:
+        keypoints.array[..., :2] += np.array([pad_left, pad_top])
+        return keypoints
 
     def get_transform_init_args_names(self):
         return (
@@ -1207,11 +1223,11 @@ class VerticalFlip(DualTransform):
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.vflip(img)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        return F.bbox_vflip(bbox, **params)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_vflip(bboxes)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_vflip(keypoint, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_vflip(keypoints, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -1238,11 +1254,11 @@ class HorizontalFlip(DualTransform):
 
         return F.hflip(img)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        return F.bbox_hflip(bbox, **params)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_hflip(bboxes)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_hflip(keypoint, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_hflip(keypoints, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -1273,11 +1289,11 @@ class Flip(DualTransform):
         # Random int in the range [-1, 1]
         return {"d": random.randint(-1, 1)}
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        return F.bbox_flip(bbox, **params)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_flip(bboxes, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_flip(keypoint, **params)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_flip(keypoints, **params)
 
     def get_transform_init_args_names(self):
         return ()
@@ -1299,11 +1315,11 @@ class Transpose(DualTransform):
     def apply(self, img: np.ndarray, **params) -> np.ndarray:
         return F.transpose(img)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        return F.bbox_transpose(bbox, 0, **params)
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+        return F.bboxes_transpose(bboxes, 0, **params)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        return F.keypoint_transpose(keypoint)
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+        return F.keypoints_transpose(keypoints)
 
     def get_transform_init_args_names(self):
         return ()
@@ -1364,14 +1380,13 @@ class OpticalDistortion(DualTransform):
     def apply_to_bbox(self, bbox: BoxInternalType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
-        x_min, y_min, x_max, y_max = bbox_denorm[:4]
-        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        bbox_array = np.array([bbox], dtype=float)
+        bbox_array = F.denormalize_bboxes_np(bbox_array, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_array.astype(int)[0]
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
         bbox_returned = bbox_from_mask(mask)
-        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
-        return bbox_returned
+        return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
     def get_params(self):
         return {
@@ -1451,16 +1466,15 @@ class GridDistortion(DualTransform):
     def apply_to_bbox(self, bbox: BoxInternalType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox_denorm = F.denormalize_bbox(bbox, rows, cols)
-        x_min, y_min, x_max, y_max = bbox_denorm[:4]
-        x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
+        bbox_array = np.array([bbox], dtype=float)
+        bbox_array = F.denormalize_bboxes_np(bbox_array, rows, cols)
+        x_min, y_min, x_max, y_max = bbox_array.astype(int)[0]
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.grid_distortion(
             mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
         bbox_returned = bbox_from_mask(mask)
-        bbox_returned = F.normalize_bbox(bbox_returned, rows, cols)
-        return bbox_returned
+        return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
     def _normalize(self, h, w, xsteps, ysteps):
         # compensate for smaller last steps in source image.

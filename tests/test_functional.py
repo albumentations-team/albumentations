@@ -13,6 +13,7 @@ from albumentations.augmentations.utils import (
     is_multispectral_image,
 )
 from albumentations.core.bbox_utils import filter_bboxes
+from albumentations.core.transforms_interface import BBoxesInternalType
 from tests.utils import convert_2d_to_target_format
 
 
@@ -603,58 +604,166 @@ def test_resize_nearest_interpolation_float(target):
     assert np.array_equal(resized_img, expected)
 
 
-def test_bbox_vflip():
-    assert FGeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.1, 0.5, 0.6, 0.8)
-
-
-def test_bbox_hflip():
-    assert FGeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.4, 0.2, 0.9, 0.5)
+@pytest.mark.parametrize(
+    "bboxes, target",
+    [
+        (np.array([(0.1, 0.2, 0.6, 0.5)]), np.array([(0.1, 0.5, 0.6, 0.8)])),
+    ],
+)
+def test_bboxes_vflip(bboxes, target):
+    bboxes = BBoxesInternalType(array=bboxes)
+    assert np.array_equal(FGeometric.bboxes_vflip(bboxes).array, target)
 
 
 @pytest.mark.parametrize(
-    ["code", "func"],
+    "bboxes, target",
     [
-        [0, FGeometric.bbox_vflip],
-        [1, FGeometric.bbox_hflip],
-        [-1, lambda bbox, rows, cols: FGeometric.bbox_vflip(FGeometric.bbox_hflip(bbox, rows, cols), rows, cols)],
+        (np.array([(0.1, 0.2, 0.6, 0.5)]), np.array([(0.4, 0.2, 0.9, 0.5)])),
     ],
 )
-def test_bbox_flip(code, func):
-    rows, cols = 100, 200
-    bbox = [0.1, 0.2, 0.6, 0.5]
-    assert FGeometric.bbox_flip(bbox, code, rows, cols) == func(bbox, rows, cols)
+def test_bboxes_hflip(bboxes, target):
+    bboxes = BBoxesInternalType(array=bboxes)
+    assert np.array_equal(FGeometric.bboxes_hflip(bboxes).array, target)
 
 
-def test_crop_bbox_by_coords():
-    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
+@pytest.mark.parametrize(
+    "axis, func, bboxes",
+    [
+        (0, FGeometric.bboxes_vflip, np.array([[0.1, 0.2, 0.6, 0.5]])),
+        (1, FGeometric.bboxes_hflip, np.array([[0.1, 0.2, 0.6, 0.5]])),
+        (-1, lambda bboxes: FGeometric.bboxes_vflip(FGeometric.bboxes_hflip(bboxes)), np.array([[0.1, 0.2, 0.6, 0.5]])),
+    ],
+)
+def test_bboxes_flip(axis, func, bboxes):
+    bboxes = BBoxesInternalType(array=bboxes)
+    assert np.array_equal(FGeometric.bboxes_flip(bboxes, axis).array, func(bboxes).array)
 
 
-def test_bbox_center_crop():
-    cropped_bbox = A.bbox_center_crop((0.5, 0.2, 0.9, 0.7), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
+@pytest.mark.parametrize(
+    "bboxes, params, expected",
+    [
+        (
+            np.array([(0.5, 0.2, 0.9, 0.7)]),
+            {"crop_coords": ((18, 18, 82, 82),), "crop_height": 64, "crop_width": 64, "rows": 100, "cols": 100},
+            np.array([(0.5, 0.03125, 1.125, 0.8125)]),
+        )
+    ],
+)
+def test_crop_bboxes_by_coords(bboxes, params, expected):
+    bboxes = BBoxesInternalType(array=bboxes)
+    cropped_bboxes = A.crop_bboxes_by_coords(bboxes, **params)
+    assert np.array_equal(cropped_bboxes.array, expected)
 
 
-def test_bbox_crop():
-    cropped_bbox = A.bbox_crop((0.5, 0.2, 0.9, 0.7), 24, 24, 64, 64, 100, 100)
-    assert cropped_bbox == (0.65, -0.1, 1.65, 1.15)
+@pytest.mark.parametrize(
+    "bboxes, params, expected",
+    [
+        (
+            np.array([(0.5, 0.2, 0.9, 0.7)]),
+            {"crop_height": 64, "crop_width": 64, "rows": 100, "cols": 100},
+            np.array([(0.5, 0.03125, 1.125, 0.8125)]),
+        )
+    ],
+)
+def test_bboxes_center_crop(bboxes, params, expected):
+    bboxes = BBoxesInternalType(array=bboxes)
+    cropped_bboxes = A.bboxes_center_crop(bboxes, **params)
+    assert np.array_equal(cropped_bboxes.array, expected)
 
 
-def test_bbox_random_crop():
-    cropped_bbox = A.bbox_random_crop((0.5, 0.2, 0.9, 0.7), 80, 80, 0.2, 0.1, 100, 100)
-    assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
+@pytest.mark.parametrize(
+    "bboxes, params, expected",
+    [
+        (
+            np.array([(0.5, 0.2, 0.9, 0.7)]),
+            {"x_min": 24, "y_min": 24, "x_max": 64, "y_max": 64, "rows": 100, "cols": 100},
+            np.array([(0.65, -0.1, 1.65, 1.15)]),
+        ),
+        (
+            np.array([(0.5, 0.2, 0.9, 0.7)]),
+            {"x_min": 24, "y_min": 40, "x_max": 34, "y_max": 60, "rows": 100, "cols": 100},
+            np.array([(1.3, -2.0, 3.3, 3.0)]),
+        ),
+    ],
+)
+def test_bboxes_crop(bboxes, params, expected):
+    bboxes = BBoxesInternalType(array=bboxes)
+    cropped_bboxes = A.bboxes_crop(bboxes, **params)
+    assert np.array_equal(cropped_bboxes.array, expected)
 
 
-def test_bbox_rot90():
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0, 100, 200) == (0.1, 0.2, 0.3, 0.4)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1, 100, 200) == (0.2, 0.7, 0.4, 0.9)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2, 100, 200) == (0.7, 0.6, 0.9, 0.8)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3, 100, 200) == (0.6, 0.1, 0.8, 0.3)
+@pytest.mark.parametrize(
+    "bboxes, params, expected",
+    [
+        (
+            np.array([(0.5, 0.2, 0.9, 0.7)]),
+            {"crop_height": 80, "crop_width": 80, "h_start": 0.2, "w_start": 0.1, "rows": 100, "cols": 100},
+            np.array([(0.6, 0.2, 1.1, 0.825)]),
+        )
+    ],
+)
+def test_bboxes_random_crop(bboxes, params, expected):
+    bboxes = BBoxesInternalType(array=bboxes)
+    cropped_bboxes = A.bboxes_random_crop(bboxes, **params)
+    assert np.array_equal(cropped_bboxes.array, expected)
 
 
-def test_bbox_transpose():
-    assert np.allclose(FGeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4), 0, 100, 200), (0.1, 0.7, 0.4, 0.8))
-    assert np.allclose(FGeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4), 1, 100, 200), (0.6, 0.2, 0.9, 0.3))
+@pytest.mark.parametrize(
+    "bboxes, factors, rows, cols, expect",
+    [
+        (
+            np.array([(0.1, 0.2, 0.3, 0.4)]),
+            0,
+            100,
+            200,
+            np.array([(0.1, 0.2, 0.3, 0.4)]),
+        ),
+        (
+            np.array([(0.1, 0.2, 0.3, 0.4)]),
+            1,
+            100,
+            200,
+            np.array([(0.2, 0.7, 0.4, 0.9)]),
+        ),
+        (
+            np.array([(0.1, 0.2, 0.3, 0.4)]),
+            2,
+            100,
+            200,
+            np.array([(0.7, 0.6, 0.9, 0.8)]),
+        ),
+        (
+            np.array([(0.1, 0.2, 0.3, 0.4)]),
+            3,
+            100,
+            200,
+            np.array([(0.6, 0.1, 0.8, 0.3)]),
+        ),
+    ],
+)
+def test_bboxes_rot90(bboxes, factors, rows, cols, expect):
+    bboxes = BBoxesInternalType(array=bboxes)
+    assert np.array_equal(FGeometric.bboxes_rot90(bboxes, factors, rows, cols).array, expect)
+
+
+@pytest.mark.parametrize(
+    "bboxes, axis, expect",
+    [
+        (
+            np.array([(0.7, 0.1, 0.8, 0.4)]),
+            0,
+            np.array([(0.1, 0.7, 0.4, 0.8)]),
+        ),
+        (
+            np.array([(0.7, 0.1, 0.8, 0.4)]),
+            1,
+            np.array([(0.6, 0.2, 0.9, 0.3)]),
+        ),
+    ],
+)
+def test_bboxes_transpose(bboxes, axis, expect):
+    bboxes = BBoxesInternalType(bboxes)
+    assert np.allclose(FGeometric.bboxes_transpose(bboxes, axis).array, expect)
 
 
 @pytest.mark.parametrize(
@@ -672,8 +781,14 @@ def test_bbox_transpose():
     ],
 )
 def test_filter_bboxes(bboxes, min_area, min_visibility, target):
-    filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
-    assert filtered_bboxes == target
+    filtered_bboxes = filter_bboxes(
+        BBoxesInternalType(array=np.array(bboxes), targets=[()] * len(bboxes)),
+        min_area=min_area,
+        min_visibility=min_visibility,
+        rows=100,
+        cols=100,
+    )
+    assert np.array_equal(filtered_bboxes.array, np.array(target))
 
 
 @pytest.mark.parametrize(
@@ -706,8 +821,14 @@ def test_filter_bboxes(bboxes, min_area, min_visibility, target):
     ],
 )
 def test_filter_bboxes_by_min_width_height(bboxes, img_width, img_height, min_width, min_height, target):
-    filtered_bboxes = filter_bboxes(bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height)
-    assert filtered_bboxes == target
+    filtered_bboxes = filter_bboxes(
+        BBoxesInternalType(array=np.array(bboxes)),
+        cols=img_width,
+        rows=img_height,
+        min_width=min_width,
+        min_height=min_height,
+    )
+    assert np.array_equal(filtered_bboxes.array, np.array(target))
 
 
 def test_fun_max_size():

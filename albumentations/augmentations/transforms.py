@@ -6,7 +6,7 @@ import random
 import warnings
 from enum import IntEnum
 from types import LambdaType
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -24,6 +24,7 @@ from albumentations.augmentations.utils import (
 from ..core.transforms_interface import (
     DualTransform,
     ImageOnlyTransform,
+    KeypointInternalType,
     NoOp,
     ScaleFloatType,
     to_tuple,
@@ -103,8 +104,8 @@ class RandomGridShuffle(DualTransform):
         return F.swap_tiles_on_image(img, tiles)
 
     def apply_to_keypoint(
-        self, keypoint: Tuple[float, ...], tiles: np.ndarray = np.array(None), rows: int = 0, cols: int = 0, **params
-    ):
+        self, keypoint: KeypointInternalType, tiles: np.ndarray = np.array(None), rows: int = 0, cols: int = 0, **params
+    ) -> KeypointInternalType:
         for (
             current_left_up_corner_row,
             current_left_up_corner_col,
@@ -113,14 +114,14 @@ class RandomGridShuffle(DualTransform):
             height_tile,
             width_tile,
         ) in tiles:
-            x, y = keypoint[:2]
+            x, y, a, s = keypoint
 
             if (old_left_up_corner_row <= y < (old_left_up_corner_row + height_tile)) and (
                 old_left_up_corner_col <= x < (old_left_up_corner_col + width_tile)
             ):
                 x = x - old_left_up_corner_col + current_left_up_corner_col
                 y = y - old_left_up_corner_row + current_left_up_corner_row
-                keypoint = (x, y) + tuple(keypoint[2:])
+                keypoint = (x, y, a, s)
                 break
 
         return keypoint
@@ -1736,7 +1737,7 @@ class Downscale(ImageOnlyTransform):
 
 class Lambda(NoOp):
     """A flexible transformation class for using user-defined transformation functions per targets.
-    Function signature must include **kwargs to accept optinal arguments like interpolation method, image size, etc:
+    Function signature must include **kwargs to accept optional arguments like interpolation method, image size, etc:
 
     Args:
         image (callable): Image transformation function.
@@ -1756,22 +1757,31 @@ class Lambda(NoOp):
     def __init__(
         self,
         image=None,
-        mask=None,
-        keypoint=None,
-        bbox=None,
+        mask: Optional[Callable] = None,
+        keypoint: Optional[Callable] = None,
+        keypoints: Optional[Callable] = None,
+        bbox: Optional[Callable] = None,
+        bboxes: Optional[Callable] = None,
         name=None,
         always_apply=False,
         p=1.0,
     ):
         super(Lambda, self).__init__(always_apply, p)
+        if bbox is not None and bboxes is not None:
+            raise ValueError("bbox and bboxes should not be assigned at the same time.")
+        if keypoint is not None and keypoints is not None:
+            raise ValueError("keypoint and keypoints should not be assigned at the same time.")
+
+        bbox_keyname = "bbox" if bbox else "bboxes"
+        kp_keyname = "keypoint" if keypoint else "keypoints"
 
         self.name = name
-        self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
+        self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", kp_keyname, bbox_keyname)}
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
-            "keypoint": keypoint,
-            "bbox": bbox,
+            kp_keyname: keypoint or keypoints,
+            bbox_keyname: bbox or bboxes,
         }.items():
             if custom_apply_fn is not None:
                 if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
@@ -1793,6 +1803,14 @@ class Lambda(NoOp):
     def apply_to_bbox(self, bbox, **params):
         fn = self.custom_apply_fns["bbox"]
         return fn(bbox, **params)
+
+    def apply_to_bboxes(self, bboxes, **params):
+        fn = self.custom_apply_fns["bboxes"]
+        return fn(bboxes, **params)
+
+    def apply_to_keypoints(self, keypoints, **params):
+        fn = self.custom_apply_fns["keypoints"]
+        return fn(keypoints, **params)
 
     def apply_to_keypoint(self, keypoint, **params):
         fn = self.custom_apply_fns["keypoint"]

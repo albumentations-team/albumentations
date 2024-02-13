@@ -1,3 +1,4 @@
+import copy
 import random
 from functools import partial
 
@@ -9,6 +10,10 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
+    KeypointsInternalType,
+)
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
@@ -332,26 +337,34 @@ def test_lambda_transform():
         new_mask = np.eye(num_channels, dtype=np.uint8)[mask]
         return new_mask
 
-    def vflip_bbox(bbox, **kwargs):
-        return FGeometric.bbox_vflip(bbox, **kwargs)
+    def vflip_bboxes(bboxes, **kwargs):
+        return FGeometric.bboxes_vflip(bboxes, **kwargs)
 
-    def vflip_keypoint(keypoint, **kwargs):
-        return FGeometric.keypoint_vflip(keypoint, **kwargs)
+    def vflip_keypoints(keypoints, **kwargs):
+        return FGeometric.keypoints_vflip(keypoints, **kwargs)
 
     aug = A.Lambda(
-        image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
+        image=negate_image,
+        mask=partial(one_hot_mask, num_channels=16),
+        bboxes=vflip_bboxes,
+        keypoints=vflip_keypoints,
+        p=1,
     )
+
+    bboxes = BBoxesInternalType(array=np.array([(10, 15, 25, 35)], dtype=float))
+    keypoints = KeypointsInternalType(array=np.array([(20, 30, 40, 50)], dtype=float))
 
     output = aug(
         image=np.ones((10, 10, 3), dtype=np.float32),
         mask=np.tile(np.arange(0, 10), (10, 1)),
-        bboxes=[(10, 15, 25, 35)],
-        keypoints=[(20, 30, 40, 50)],
+        bboxes=copy.deepcopy(bboxes),
+        keypoints=copy.deepcopy(keypoints),
     )
+
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [FGeometric.bbox_vflip((10, 15, 25, 35), 10, 10)]
-    assert output["keypoints"] == [FGeometric.keypoint_vflip((20, 30, 40, 50), 10, 10)]
+    assert output["bboxes"] == vflip_bboxes(bboxes, w=10, h=10)
+    assert output["keypoints"] == vflip_keypoints(keypoints, rows=10, cols=10)
 
 
 def test_channel_droput():
@@ -459,64 +472,62 @@ def test_downscale(interpolation):
         np.testing.assert_almost_equal(transformed, func_applied)
 
 
-def test_crop_keypoints():
+@pytest.mark.parametrize(
+    "keypoints, crop_coords, expected",
+    (
+        ([(50, 50, 0, 0)], (0, 0, 80, 80), [(50, 50, 0, 0)]),
+        ([(50, 50, 0, 0)], (50, 50, 100, 100), [(0, 0, 0, 0)]),
+    ),
+)
+def test_crop_keypoints(keypoints, crop_coords, expected):
     image = np.random.randint(0, 256, (100, 100), np.uint8)
-    keypoints = [(50, 50, 0, 0)]
-
-    aug = A.Crop(0, 0, 80, 80, p=1)
+    aug = A.Compose([A.Crop(*crop_coords, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == keypoints
-
-    aug = A.Crop(50, 50, 100, 100, p=1)
-    result = aug(image=image, keypoints=keypoints)
-    assert result["keypoints"] == [(0, 0, 0, 0)]
+    assert result["keypoints"] == expected
 
 
-def test_longest_max_size_keypoints():
+@pytest.mark.parametrize(
+    "max_size, expected",
+    [
+        (100, [(18, 10, 0, 0)]),
+        (5, [(0.9, 0.5, 0, 0)]),
+        (50, [(9, 5, 0, 0)]),
+    ],
+)
+def test_longest_max_size_keypoints(max_size, expected):
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.LongestMaxSize(max_size=100, p=1)
+    aug = A.Compose([A.LongestMaxSize(max_size=max_size, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(18, 10, 0, 0)]
-
-    aug = A.LongestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(0.9, 0.5, 0, 0)]
-
-    aug = A.LongestMaxSize(max_size=50, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    assert np.array_equal(result["keypoints"], expected)
 
 
-def test_smallest_max_size_keypoints():
+@pytest.mark.parametrize(
+    "max_size, expected",
+    [
+        (100, [(90, 50, 0, 0)]),
+        (5, [(4.5, 2.5, 0, 0)]),
+        (10, [(9, 5, 0, 0)]),
+    ],
+)
+def test_smallest_max_size_keypoints(max_size, expected):
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.SmallestMaxSize(max_size=100, p=1)
+    aug = A.Compose([A.SmallestMaxSize(max_size=max_size, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(90, 50, 0, 0)]
-
-    aug = A.SmallestMaxSize(max_size=5, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 2.5, 0, 0)]
-
-    aug = A.SmallestMaxSize(max_size=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    assert np.array_equal(result["keypoints"], expected)
 
 
-def test_resize_keypoints():
+@pytest.mark.parametrize("height, width, expected", [(100, 5, [(4.5, 10, 0, 0)]), (50, 10, [(9, 5, 0, 0)])])
+def test_resize_keypoints(height, width, expected):
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.Resize(height=100, width=5, p=1)
+    aug = A.Compose([A.Resize(height=height, width=width, p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(4.5, 10, 0, 0)]
-
-    aug = A.Resize(height=50, width=10, p=1)
-    result = aug(image=img, keypoints=keypoints)
-    assert result["keypoints"] == [(9, 5, 0, 0)]
+    assert np.array_equal(result["keypoints"], expected)
 
 
 @pytest.mark.parametrize(
@@ -915,7 +926,7 @@ def test_longest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.LongestMaxSize(max_size=[5, 10], p=1)
+    aug = A.Compose([A.LongestMaxSize(max_size=[5, 10], p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(10, 2), (5, 1)]
     assert result["keypoints"] in [[(0.9, 0.5, 0, 0)], [(1.8, 1, 0, 0)]]
@@ -925,7 +936,7 @@ def test_smallest_max_size_list():
     img = np.random.randint(0, 256, [50, 10], np.uint8)
     keypoints = [(9, 5, 0, 0)]
 
-    aug = A.SmallestMaxSize(max_size=[50, 100], p=1)
+    aug = A.Compose([A.SmallestMaxSize(max_size=[50, 100], p=1)], keypoint_params={"format": "xyas"})
     result = aug(image=img, keypoints=keypoints)
     assert result["image"].shape in [(250, 50), (500, 100)]
     assert result["keypoints"] in [[(45, 25, 0, 0)], [(90, 50, 0, 0)]]
@@ -1066,6 +1077,33 @@ def test_affine_scale_ratio(params):
 def test_affine_incorrect_scale_range(params):
     with pytest.raises(ValueError):
         A.Affine(**params)
+
+
+@pytest.mark.parametrize(
+    "params, expected",
+    [
+        (
+            {"scale": (0.03, 0.05), "nb_rows": 4, "nb_cols": 4},
+            [(0.03, 0.09, 0.25, 0.99), (0.2, 0.29, 0.62, 0.79), (0.14, 0.2, 0.43, 0.35)],
+        ),
+        (
+            {"scale": (0.01, 0.08), "nb_rows": 4, "nb_cols": 4},
+            [[0.03, 0.09, 0.25, 0.99], [0.2, 0.29, 0.62, 0.79], [0.14, 0.21, 0.42, 0.34]],
+        ),
+        (
+            {"scale": (0.03, 0.05), "nb_rows": (2, 4), "nb_cols": (2, 4)},
+            [[0.03, 0.09, 0.25, 0.99], [0.2, 0.27, 0.61, 0.79], [0.15, 0.2, 0.4, 0.3]],
+        ),
+    ],
+)
+def test_piecewise_affine(params, expected):
+    bboxes = [(0.0375, 0.125, 0.25, 1.0), (0.2, 0.3, 0.6, 0.8), (0.15, 0.234, 0.4, 0.33)]
+    bboxes = BBoxesInternalType(array=np.array(bboxes))
+    image = np.zeros(shape=(100, 100, 3), dtype=np.uint8)
+    set_seed(0)
+    aug = A.PiecewiseAffine(**params)
+    aug_ret = aug(image=image, bboxes=bboxes, force_apply=True)
+    assert np.allclose(aug_ret["bboxes"].array, expected)
 
 
 @pytest.mark.parametrize(

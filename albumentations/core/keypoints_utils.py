@@ -1,11 +1,14 @@
 from __future__ import division
 
 import math
-import typing
 import warnings
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
-from .utils import DataProcessor, Params
+import numpy as np
+
+from .transforms_interface import KeypointsArray, KeypointsInternalType, KeypointType
+from .utils import DataProcessor, Params, ensure_internal_format
 
 __all__ = [
     "angle_to_2pi_range",
@@ -15,14 +18,62 @@ __all__ = [
     "filter_keypoints",
     "KeypointsProcessor",
     "KeypointParams",
+    "use_keypoints_ndarray",
 ]
 
 keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
 
 
-def angle_to_2pi_range(angle: float) -> float:
+def angle_to_2pi_range(angle: Union[np.ndarray, float]):
     two_pi = 2 * math.pi
     return angle % two_pi
+
+
+def split_keypoints_targets(keypoints: Sequence[KeypointType], coord_length: int) -> Tuple[np.ndarray, List[Any]]:
+    kps_array, targets = [], []
+    for kp in keypoints:
+        kps_array.append(kp[:coord_length])
+        targets.append(kp[coord_length:])
+    return np.array(kps_array, dtype=float), targets
+
+
+def use_keypoints_ndarray(return_array: bool = True) -> Callable:
+    """Decorate a function and return a decorator.
+    Since most transformation functions does not alter the amount of bounding boxes, only update the internal
+    keypoints' coordinates, thus this function provides a way to interact directly with
+    the KeypointsInternalType's internal array member.
+
+    Args:
+        return_array (bool): whether the return of the decorated function is a KeypointsArray.
+
+    Returns:
+        Callable: A decorator function.
+    """
+
+    def dec(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(
+            keypoints: Union[KeypointsInternalType, np.ndarray], *args, **kwargs
+        ) -> Union[KeypointsInternalType, np.ndarray]:
+            if isinstance(keypoints, KeypointsInternalType):
+                ret = func(keypoints.array, *args, **kwargs)
+                if not return_array:
+                    return ret
+                if not isinstance(ret, np.ndarray):
+                    raise TypeError(f"The return from {func.__name__} must be a numpy ndarray.")
+                keypoints.array = ret
+            elif isinstance(keypoints, np.ndarray):
+                keypoints = func(keypoints.astype(float), *args, **kwargs)
+            else:
+                raise TypeError(
+                    f"The first input of {func.__name__} must be either a `KeypointsInternalType` or a `np.ndarray`. "
+                    f"Given {type(keypoints)} instead."
+                )
+            return keypoints
+
+        return wrapper
+
+    return dec
 
 
 class KeypointParams(Params):
@@ -82,7 +133,29 @@ class KeypointParams(Params):
 
 class KeypointsProcessor(DataProcessor):
     def __init__(self, params: KeypointParams, additional_targets: Optional[Dict[str, str]] = None):
+        assert isinstance(params, KeypointParams)
         super().__init__(params, additional_targets)
+
+    def convert_to_internal_type(self, data):
+        if not len(data):
+            return KeypointsInternalType(array=np.empty(0))
+        kps_array = []
+        targets = []
+        ori_kp_len = len(self.params.format)
+        for _data in data:
+            kps_array.append(_data[:ori_kp_len])
+            targets.append(_data[ori_kp_len:])
+        if ori_kp_len != 4:
+            kps_array = np.pad(kps_array, [(0, 0), (0, 4 - ori_kp_len)], mode="constant").astype(float)
+        else:
+            kps_array = np.array(kps_array, dtype=float)
+        return KeypointsInternalType(array=kps_array, targets=np.array(targets))
+
+    def convert_to_original_type(self, data):
+        dl = len(self.params.format)
+        return [
+            tuple(kp.array[0].tolist()[:dl]) + tuple(kp.targets[0].tolist()) for kp in data
+        ]  # type: ignore[attr-defined]
 
     @property
     def default_data_name(self) -> str:
@@ -117,170 +190,191 @@ class KeypointsProcessor(DataProcessor):
                     )
                     break
 
-    def filter(self, data: Sequence[Sequence], rows: int, cols: int) -> Sequence[Sequence]:
+    def filter(self, data, rows: int, cols: int, target_name: str):
         self.params: KeypointParams
-        return filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
+        data = filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
+        return data
 
-    def check(self, data: Sequence[Sequence], rows: int, cols: int) -> None:
+    def check(self, data, rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
 
-    def convert_from_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
-        params = self.params
+    def convert_from_albumentations(self, data, rows: int, cols: int):
         return convert_keypoints_from_albumentations(
             data,
-            params.format,
+            self.params.format,
             rows,
             cols,
-            check_validity=params.remove_invisible,
-            angle_in_degrees=params.angle_in_degrees,
+            check_validity=self.params.remove_invisible,
+            angle_in_degrees=self.params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
-        params = self.params
+    def convert_to_albumentations(self, data, rows: int, cols: int):
         return convert_keypoints_to_albumentations(
             data,
-            params.format,
+            self.params.format,
             rows,
             cols,
-            check_validity=params.remove_invisible,
-            angle_in_degrees=params.angle_in_degrees,
+            check_validity=self.params.remove_invisible,
+            angle_in_degrees=self.params.angle_in_degrees,
         )
 
 
-def check_keypoint(kp: Sequence, rows: int, cols: int) -> None:
-    """Check if keypoint coordinates are less than image shapes"""
-    for name, value, size in zip(["x", "y"], kp[:2], [cols, rows]):
-        if not 0 <= value < size:
-            raise ValueError(
-                "Expected {name} for keypoint {kp} "
-                "to be in the range [0.0, {size}], got {value}.".format(kp=kp, name=name, value=value, size=size)
-            )
-
-    angle = kp[2]
-    if not (0 <= angle < 2 * math.pi):
-        raise ValueError("Keypoint angle must be in range [0, 2 * PI). Got: {angle}".format(angle=angle))
-
-
-def check_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int) -> None:
+@use_keypoints_ndarray(return_array=False)
+def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
     """Check if keypoints boundaries are less than image shapes"""
-    for kp in keypoints:
-        check_keypoint(kp, rows, cols)
+
+    if not len(keypoints):
+        return
+
+    row_idx, *_ = np.where(
+        ~np.logical_and(0 <= keypoints[..., 0], keypoints[..., 0] < cols)
+        | ~np.logical_and(0 <= keypoints[..., 1], keypoints[..., 1] < rows)
+    )
+    if row_idx:
+        raise ValueError(
+            f"Expected keypoints `x` in the range [0.0, {cols}] and `y` in the range [0.0, {rows}]. "
+            f"Got {keypoints[row_idx]}."
+        )
+    row_idx, *_ = np.where(~np.logical_and(0 <= keypoints[..., 2], keypoints[..., 2] < 2 * math.pi))
+    if len(row_idx):
+        raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {keypoints[row_idx, 2]}.")
 
 
-def filter_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool) -> Sequence[Sequence]:
+@ensure_internal_format
+def filter_keypoints(
+    keypoints: KeypointsInternalType, rows: int, cols: int, remove_invisible: bool
+) -> KeypointsInternalType:
+    """Remove keypoints that are not visible.
+    Args:
+        keypoints (KeypointsInternalType): A batch of keypoints in `x, y, a, s` format.
+        rows (int): Image height.
+        cols (int): Image width.
+        remove_invisible (bool): whether to remove invisible keypoints or not.
+
+    Returns:
+        KeypointsInternalType: A batch of keypoints in `x, y, a, s` format.
+
+    """
     if not remove_invisible:
         return keypoints
+    if not len(keypoints):
+        return keypoints
 
-    resulting_keypoints = []
-    for kp in keypoints:
-        x, y = kp[:2]
-        if x < 0 or x >= cols:
-            continue
-        if y < 0 or y >= rows:
-            continue
-        resulting_keypoints.append(kp)
-    return resulting_keypoints
+    x = keypoints.array[..., 0]
+    y = keypoints.array[..., 1]
+    idx, *_ = np.where(np.logical_and(0 <= x, x < cols) & np.logical_and(0 <= y, y < rows))
+
+    return keypoints[idx] if len(idx) != len(keypoints) else keypoints
 
 
-def convert_keypoint_to_albumentations(
-    keypoint: Sequence,
+@ensure_internal_format
+@use_keypoints_ndarray(return_array=True)
+def convert_keypoints_to_albumentations(
+    keypoints: KeypointsArray,
     source_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> Tuple:
+) -> KeypointsArray:
+    """Convert a batch of keypoints from source format to the format used by albumentations.
+
+    Args:
+        keypoints (KeypointsArray): a batch of keypoints in source format.
+        source_format (str):
+        rows (int):
+        cols (int):
+        check_validity (bool):
+        angle_in_degrees (bool):
+
+    Returns:
+        KeypointsArray: A batch of keypoints in `albumentations` format, which is [x, y, a, s].
+
+    Raises:
+        ValueError: Unknown keypoint format is given.
+
+    """
     if source_format not in keypoint_formats:
-        raise ValueError("Unknown target_format {}. Supported formats are: {}".format(source_format, keypoint_formats))
+        raise ValueError(f"Unknown source_format {source_format}. " f"Supported formats are {keypoint_formats}.")
+    if not len(keypoints):
+        return keypoints
 
     if source_format == "xy":
-        (x, y), tail = keypoint[:2], tuple(keypoint[2:])
-        a, s = 0.0, 0.0
+        keypoints = np.concatenate((keypoints[..., :2], np.zeros_like(keypoints[..., :2])), axis=1)
     elif source_format == "yx":
-        (y, x), tail = keypoint[:2], tuple(keypoint[2:])
-        a, s = 0.0, 0.0
+        keypoints = np.concatenate((keypoints[..., :2][..., ::-1], np.zeros_like(keypoints[..., :2])), axis=1)
     elif source_format == "xya":
-        (x, y, a), tail = keypoint[:3], tuple(keypoint[3:])
-        s = 0.0
+        keypoints = np.concatenate((keypoints[..., :3], np.zeros_like(keypoints[..., 0][..., np.newaxis])), axis=1)
     elif source_format == "xys":
-        (x, y, s), tail = keypoint[:3], tuple(keypoint[3:])
-        a = 0.0
+        keypoints = np.insert(keypoints[..., :3], 2, np.zeros_like(keypoints[..., 0]), axis=1)
     elif source_format == "xyas":
-        (x, y, a, s), tail = keypoint[:4], tuple(keypoint[4:])
+        keypoints = keypoints[..., :4]
     elif source_format == "xysa":
-        (x, y, s, a), tail = keypoint[:4], tuple(keypoint[4:])
+        keypoints = keypoints[..., [0, 1, 3, 2]]
     else:
-        raise ValueError(f"Unsupported source format. Got {source_format}")
+        raise ValueError(f"Unsupported source format. Got {source_format}.")
 
     if angle_in_degrees:
-        a = math.radians(a)
-
-    keypoint = (x, y, angle_to_2pi_range(a), s) + tail
+        keypoints[..., 2] = np.radians(keypoints[..., 2])
+    keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
     if check_validity:
-        check_keypoint(keypoint, rows, cols)
-    return keypoint
+        check_keypoints(keypoints, rows=rows, cols=cols)
+    return keypoints
 
 
-def convert_keypoint_from_albumentations(
-    keypoint: Sequence,
-    target_format: str,
-    rows: int,
-    cols: int,
-    check_validity: bool = False,
-    angle_in_degrees: bool = True,
-) -> Tuple:
-    if target_format not in keypoint_formats:
-        raise ValueError("Unknown target_format {}. Supported formats are: {}".format(target_format, keypoint_formats))
-
-    (x, y, angle, scale), tail = keypoint[:4], tuple(keypoint[4:])
-    angle = angle_to_2pi_range(angle)
-    if check_validity:
-        check_keypoint((x, y, angle, scale), rows, cols)
-    if angle_in_degrees:
-        angle = math.degrees(angle)
-
-    kp: Tuple
-    if target_format == "xy":
-        kp = (x, y)
-    elif target_format == "yx":
-        kp = (y, x)
-    elif target_format == "xya":
-        kp = (x, y, angle)
-    elif target_format == "xys":
-        kp = (x, y, scale)
-    elif target_format == "xyas":
-        kp = (x, y, angle, scale)
-    elif target_format == "xysa":
-        kp = (x, y, scale, angle)
-    else:
-        raise ValueError(f"Invalid target format. Got: {target_format}")
-
-    return kp + tail
-
-
-def convert_keypoints_to_albumentations(
-    keypoints: Sequence[Sequence],
-    source_format: str,
-    rows: int,
-    cols: int,
-    check_validity: bool = False,
-    angle_in_degrees: bool = True,
-) -> List[Tuple]:
-    return [
-        convert_keypoint_to_albumentations(kp, source_format, rows, cols, check_validity, angle_in_degrees)
-        for kp in keypoints
-    ]
-
-
+@ensure_internal_format
+@use_keypoints_ndarray(return_array=True)
 def convert_keypoints_from_albumentations(
-    keypoints: Sequence[Sequence],
+    keypoints: KeypointsArray,
     target_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> List[Tuple]:
-    return [
-        convert_keypoint_from_albumentations(kp, target_format, rows, cols, check_validity, angle_in_degrees)
-        for kp in keypoints
-    ]
+) -> KeypointsArray:
+    """Convert a batch of keypoints from `albumentations` format to target format.
+
+    Args:
+        keypoints (KeypointsArray): A batch of keypoints in `albumentations` format, which is [x, y, a, s].
+        target_format (str):
+        rows (int):
+        cols (int):
+        check_validity (bool):
+        angle_in_degrees (bool):
+
+    Returns:
+        KeypointsArray: A batch of keypoints in target format.
+
+    Raises:
+        ValueError: Unknown target format is given.
+
+    """
+    if target_format not in keypoint_formats:
+        raise ValueError(f"Unknown target_format {target_format}. " f"Supported formats are: {keypoint_formats}.")
+
+    if not len(keypoints):
+        return keypoints
+
+    keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
+    if check_validity:
+        check_keypoints(keypoints, rows, cols)
+
+    if angle_in_degrees:
+        keypoints[..., 2] = np.degrees(keypoints[..., 2])
+
+    if target_format == "xy":
+        keypoints = keypoints[..., :2]
+    elif target_format == "yx":
+        keypoints = keypoints[..., :2][..., ::-1]
+    elif target_format == "xya":
+        keypoints = keypoints[..., [0, 1, 2]]
+    elif target_format == "xys":
+        keypoints = keypoints[..., [0, 1, 3]]
+    elif target_format == "xyas":
+        keypoints = keypoints[..., :4]
+    elif target_format == "xysa":
+        keypoints = keypoints[..., [0, 1, 3, 2]]
+    else:
+        raise ValueError(f"Invalid target format. Got: {target_format}.")
+
+    return keypoints

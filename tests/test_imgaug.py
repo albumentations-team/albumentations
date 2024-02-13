@@ -5,9 +5,9 @@ import pytest
 
 import albumentations as A
 from albumentations import Compose
-from albumentations.core.bbox_utils import (
-    convert_bboxes_from_albumentations,
-    convert_bboxes_to_albumentations,
+from albumentations.core.transforms_interface import (
+    BBoxesInternalType,
+    KeypointsInternalType,
 )
 from albumentations.imgaug.transforms import (
     IAAAdditiveGaussianNoise,
@@ -23,6 +23,24 @@ from albumentations.imgaug.transforms import (
 from tests.utils import set_seed
 
 TEST_SEEDS = (0, 1, 42, 111, 9999)
+
+
+def to_internal_bboxes(bboxes) -> BBoxesInternalType:
+    box_array = []
+    targets = []
+    for bbox in bboxes:
+        box_array.append(bbox[:4])
+        targets.append(bbox[4:])
+    return BBoxesInternalType(array=np.array(box_array), targets=targets)
+
+
+def to_internal_keypoints(kps) -> KeypointsInternalType:
+    kp_array = []
+    targets = []
+    for kp in kps:
+        kp_array.append(kp[:4])
+        targets.append(kp[4:])
+    return KeypointsInternalType(array=np.array(kp_array), targets=targets)
 
 
 @pytest.mark.parametrize("augmentation_cls", [IAASuperpixels, IAASharpen, IAAAdditiveGaussianNoise])
@@ -51,29 +69,37 @@ def test_imagaug_dual_augmentations_are_deterministic(augmentation_cls, image):
         assert np.array_equal(data["image"], data["mask"])
 
 
-def test_imagaug_fliplr_transform_bboxes(image):
-    aug = IAAFliplr(p=1)
+@pytest.mark.parametrize(
+    "aug, bboxes, expected",
+    [
+        (
+            IAAFlipud,
+            [(10, 10, 20, 20, 123), (20, 10, 30, 40, 1234)],
+            [(10, 80, 20, 90, 123), (20, 60, 30, 90, 1234)],
+        ),
+        (
+            IAAFlipud,
+            [(10, 10, 20, 20, 123, 99), (20, 10, 30, 40, 1234, 999)],
+            [(10, 80, 20, 90, 123, 99), (20, 60, 30, 90, 1234, 999)],
+        ),
+        (
+            IAAFliplr,
+            [(10, 10, 20, 20, 123), (20, 10, 30, 40, 1234)],
+            [(80, 10, 90, 20, 123), (70, 10, 80, 40, 1234)],
+        ),
+        (
+            IAAFliplr,
+            [(10, 10, 20, 20, 123, 99), (20, 10, 30, 40, 1234, 999)],
+            [(80, 10, 90, 20, 123, 99), (70, 10, 80, 40, 1234, 999)],
+        ),
+    ],
+)
+def test_imagaug_flipud_transform_bboxes(aug, bboxes, expected, image):
+    aug = Compose([aug(p=1)], bbox_params={"format": "pascal_voc"})
     mask = np.copy(image)
-    bboxes = [(10, 10, 20, 20), (20, 10, 30, 40)]
-    expect = [(80, 10, 90, 20), (70, 10, 80, 40)]
-    bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1])
     data = aug(image=image, mask=mask, bboxes=bboxes)
-    actual = convert_bboxes_from_albumentations(data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1])
     assert np.array_equal(data["image"], data["mask"])
-    assert np.allclose(actual, expect)
-
-
-def test_imagaug_flipud_transform_bboxes(image):
-    aug = IAAFlipud(p=1)
-    mask = np.copy(image)
-    dummy_class = 1234
-    bboxes = [(10, 10, 20, 20, dummy_class), (20, 10, 30, 40, dummy_class)]
-    expect = [(10, 80, 20, 90, dummy_class), (20, 60, 30, 90, dummy_class)]
-    bboxes = convert_bboxes_to_albumentations(bboxes, "pascal_voc", rows=image.shape[0], cols=image.shape[1])
-    data = aug(image=image, mask=mask, bboxes=bboxes)
-    actual = convert_bboxes_from_albumentations(data["bboxes"], "pascal_voc", rows=image.shape[0], cols=image.shape[1])
-    assert np.array_equal(data["image"], data["mask"])
-    assert np.allclose(actual, expect)
+    assert np.allclose(data["bboxes"], expected)
 
 
 @pytest.mark.parametrize(
@@ -156,12 +182,12 @@ def test_imgaug_augmentations_for_bboxes_serialization(
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
     ia.seed(seed)
-    aug_data = aug(image=image, bboxes=albumentations_bboxes)
+    aug_data = aug(image=image, bboxes=to_internal_bboxes(albumentations_bboxes))
     set_seed(seed)
     ia.seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, bboxes=albumentations_bboxes)
+    deserialized_aug_data = deserialized_aug(image=image, bboxes=to_internal_bboxes(albumentations_bboxes))
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["bboxes"], deserialized_aug_data["bboxes"])
+    assert aug_data["bboxes"] == deserialized_aug_data["bboxes"]
 
 
 @pytest.mark.parametrize(
@@ -188,12 +214,12 @@ def test_imgaug_augmentations_for_keypoints_serialization(
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
     ia.seed(seed)
-    aug_data = aug(image=image, keypoints=keypoints)
+    aug_data = aug(image=image, keypoints=to_internal_keypoints(keypoints))
     set_seed(seed)
     ia.seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, keypoints=keypoints)
+    deserialized_aug_data = deserialized_aug(image=image, keypoints=to_internal_keypoints(keypoints))
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
-    assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
+    assert aug_data["keypoints"] == deserialized_aug_data["keypoints"]
 
 
 @pytest.mark.parametrize(

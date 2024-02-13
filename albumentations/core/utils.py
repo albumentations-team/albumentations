@@ -1,11 +1,41 @@
 from __future__ import absolute_import
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, Tuple
+from functools import wraps
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 
 from .serialization import Serializable
+
+InternalDtype = TypeVar("InternalDtype")
+
+
+def ensure_internal_format(func: Callable) -> Callable:
+    """Ensure data in inputs of the provided function is BatchInternalType,
+    and ensure its data consistency.
+
+    Args:
+        func (Callable): a callable with the first argument being BatchInternalType.
+
+    Returns:
+        Callable, a callable with the first argument with type BatchInternalType.
+    """
+    from .transforms_interface import BatchInternalType
+
+    @wraps(func)
+    def wrapper(data, *args, **kwargs):  # noqa
+        data = func(data, *args, **kwargs)
+        if isinstance(data, BatchInternalType):
+            data.check_consistency()
+        else:
+            raise TypeError(
+                f"The return from {func.__name__} should be a `BatchInternalType`, "
+                f"instead it returns a {type(data)}."
+            )
+        return data
+
+    return wrapper
 
 
 def get_shape(img: Any) -> Tuple[int, int]:
@@ -65,12 +95,21 @@ class DataProcessor(ABC):
     def ensure_transforms_valid(self, transforms: Sequence[object]) -> None:
         pass
 
+    @abstractmethod
+    def convert_to_internal_type(self, data: Any) -> InternalDtype:  # type: ignore[type-var]
+        raise NotImplementedError
+
+    @abstractmethod
+    def convert_to_original_type(self, data: InternalDtype) -> Any:
+        raise NotImplementedError
+
     def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
 
         for data_name in self.data_fields:
-            data[data_name] = self.filter(data[data_name], rows, cols)
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
+            _data = self.filter(data[data_name], rows, cols, data_name)
+            _data = self.check_and_convert(_data, rows, cols, direction="from")
+            data[data_name] = self.convert_to_original_type(_data)
 
         data = self.remove_label_fields_from_data(data)
         return data
@@ -80,9 +119,10 @@ class DataProcessor(ABC):
 
         rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
+            data[data_name] = self.convert_to_internal_type(data[data_name])
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(self, data: Sequence, rows: int, cols: int, direction: str = "to") -> Sequence:
+    def check_and_convert(self, data: Union[Sequence, InternalDtype], rows: int, cols: int, direction: str = "to"):
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -95,19 +135,21 @@ class DataProcessor(ABC):
             raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def filter(
+        self, data: Union[Sequence, InternalDtype], rows: int, cols: int, target_name: str
+    ) -> Union[Sequence, InternalDtype]:
         pass
 
     @abstractmethod
-    def check(self, data: Sequence, rows: int, cols: int) -> None:
+    def check(self, data: Union[Sequence, InternalDtype], rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_to_albumentations(self, data: InternalDtype, rows: int, cols: int) -> InternalDtype:
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_from_albumentations(self, data: InternalDtype, rows: int, cols: int) -> InternalDtype:
         pass
 
     def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:

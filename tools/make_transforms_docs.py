@@ -1,12 +1,11 @@
+import argparse
 import inspect
 import os
 import sys
 from enum import Enum
-import argparse
 
 sys.path.append("..")
 import albumentations  # noqa: E402
-
 
 IGNORED_CLASSES = {
     "BasicTransform",
