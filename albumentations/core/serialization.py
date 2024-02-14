@@ -1,10 +1,8 @@
-from __future__ import absolute_import
-
 import json
 import typing
 import warnings
 from abc import ABC, ABCMeta, abstractmethod
-from typing import IO, Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Dict, Optional, Tuple, Type, Union
 
 try:
     import yaml
@@ -33,18 +31,13 @@ def shorten_class_name(class_fullname: str) -> str:
     return class_fullname
 
 
-def get_shortest_class_fullname(cls: Type) -> str:
-    class_fullname = "{cls.__module__}.{cls.__name__}".format(cls=cls)
-    return shorten_class_name(class_fullname)
-
-
 class SerializableMeta(ABCMeta):
     """
     A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` or `NON_SERIALIZABLE_REGISTRY`
     so they can be found later while deserializing transformation pipeline using classes full names.
     """
 
-    def __new__(mcs, name: str, bases: Tuple[type, ...], *args, **kwargs) -> "SerializableMeta":
+    def __new__(mcs, name: str, bases: Tuple[type, ...], *args: Any, **kwargs: Any) -> "SerializableMeta":
         cls_obj = super().__new__(mcs, name, bases, *args, **kwargs)
         if name != "Serializable" and ABC not in bases:
             if cls_obj.is_serializable():
@@ -141,9 +134,7 @@ def instantiate_nonserializable(
             )
         result_transform = nonserializable.get(name)
         if transform is None:
-            raise ValueError(
-                "Non-serializable transform with {name} was not found in `nonserializable`".format(name=name)
-            )
+            raise ValueError(f"Non-serializable transform with {name} was not found in `nonserializable`")
         return result_transform
     return None
 
@@ -181,7 +172,7 @@ def from_dict(
 
 def check_data_format(data_format: str) -> None:
     if data_format not in {"json", "yaml"}:
-        raise ValueError("Unknown data_format {}. Supported formats are: 'json' and 'yaml'".format(data_format))
+        raise ValueError(f"Unknown data_format {data_format}. Supported formats are: 'json' and 'yaml'")
 
 
 def save(
@@ -201,9 +192,13 @@ def save(
     """
     check_data_format(data_format)
     transform_dict = transform.to_dict(on_not_implemented_error=on_not_implemented_error)
-    dump_fn = json.dump if data_format == "json" else yaml.safe_dump
     with open(filepath, "w") as f:
-        dump_fn(transform_dict, f)  # type: ignore
+        if data_format == "yaml":
+            if not yaml_available:
+                raise ValueError("You need to install PyYAML to save a pipeline in yaml format")
+            yaml.safe_dump(transform_dict, f, default_flow_style=False)
+        elif data_format == "json":
+            json.dump(transform_dict, f)
 
 
 def load(
@@ -245,3 +240,17 @@ def register_additional_transforms() -> None:
         import albumentations.pytorch
     except ImportError:
         pass
+
+
+def get_shortest_class_fullname(cls: Type[Any]) -> str:
+    """
+    The function `get_shortest_class_fullname` takes a class object as input and returns its shortened
+    full name.
+
+    :param cls: The parameter `cls` is of type `Type[BasicCompose]`, which means it expects a class that
+    is a subclass of `BasicCompose`
+    :type cls: Type[BasicCompose]
+    :return: a string, which is the shortened version of the full class name.
+    """
+    class_fullname = "{cls.__module__}.{cls.__name__}".format(cls=cls)
+    return shorten_class_name(class_fullname)

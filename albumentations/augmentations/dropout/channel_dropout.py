@@ -1,5 +1,5 @@
 import random
-from typing import Any, Mapping, Tuple, Union
+from typing import Any, Dict, List, Mapping, Tuple, Union
 
 import numpy as np
 
@@ -32,7 +32,7 @@ class ChannelDropout(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(ChannelDropout, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
 
         self.channel_drop_range = channel_drop_range
 
@@ -40,14 +40,14 @@ class ChannelDropout(ImageOnlyTransform):
         self.max_channels = channel_drop_range[1]
 
         if not 1 <= self.min_channels <= self.max_channels:
-            raise ValueError("Invalid channel_drop_range. Got: {}".format(channel_drop_range))
+            raise ValueError(f"Invalid channel_drop_range. Got: {channel_drop_range}")
 
         self.fill_value = fill_value
 
-    def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params: Any) -> np.ndarray:
         return channel_dropout(img, channels_to_drop, self.fill_value)
 
-    def get_params_dependent_on_targets(self, params: Mapping[str, Any]):
+    def get_params_dependent_on_targets(self, params: Mapping[str, Any]) -> Dict[str, Any]:
         img = params["image"]
 
         num_channels = img.shape[-1]
@@ -68,5 +68,5 @@ class ChannelDropout(ImageOnlyTransform):
         return "channel_drop_range", "fill_value"
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]

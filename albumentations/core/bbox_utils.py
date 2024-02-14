@@ -1,10 +1,8 @@
-from __future__ import division
-
-from typing import Any, Dict, List, Optional, Sequence, Tuple, TypeVar, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 
-from .transforms_interface import BoxInternalType, BoxType
+from .types import BoxInternalType, BoxType
 from .utils import DataProcessor, Params
 
 __all__ = [
@@ -25,8 +23,6 @@ __all__ = [
     "BboxProcessor",
     "BboxParams",
 ]
-
-TBox = TypeVar("TBox", BoxType, BoxInternalType)
 
 
 class BboxParams(Params):
@@ -70,7 +66,7 @@ class BboxParams(Params):
         min_height: float = 0.0,
         check_each_transform: bool = True,
     ):
-        super(BboxParams, self).__init__(format, label_fields)
+        super().__init__(format, label_fields)
         self.min_area = min_area
         self.min_visibility = min_visibility
         self.min_width = min_width
@@ -78,7 +74,7 @@ class BboxParams(Params):
         self.check_each_transform = check_each_transform
 
     def _to_dict(self) -> Dict[str, Any]:
-        data = super(BboxParams, self)._to_dict()
+        data = super()._to_dict()
         data.update(
             {
                 "min_area": self.min_area,
@@ -120,7 +116,7 @@ class BboxProcessor(DataProcessor):
             if not all(i in data.keys() for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
-    def filter(self, data: Sequence, rows: int, cols: int) -> List:
+    def filter(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
         self.params: BboxParams
         return filter_bboxes(
             data,
@@ -132,17 +128,17 @@ class BboxProcessor(DataProcessor):
             min_height=self.params.min_height,
         )
 
-    def check(self, data: Sequence, rows: int, cols: int) -> None:
+    def check(self, data: Sequence[BoxType], rows: int, cols: int) -> None:
         check_bboxes(data)
 
-    def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> List[BoxType]:
+    def convert_from_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
     def convert_to_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
-def normalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
+def normalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     """Normalize coordinates of a bounding box. Divide x-coordinates by image width and y-coordinates
     by image height.
 
@@ -166,14 +162,15 @@ def normalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
 
     tail: Tuple[Any, ...]
     (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
+    x_min /= cols
+    x_max /= cols
+    y_min /= rows
+    y_max /= rows
 
-    x_min, x_max = x_min / cols, x_max / cols
-    y_min, y_max = y_min / rows, y_max / rows
-
-    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
+    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)
 
 
-def denormalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
+def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     """Denormalize coordinates of a bounding box. Multiply x-coordinates by image width and y-coordinates
     by image height. This is an inverse operation for :func:`~albumentations.augmentations.bbox.normalize_bbox`.
 
@@ -200,7 +197,7 @@ def denormalize_bbox(bbox: TBox, rows: int, cols: int) -> TBox:
     x_min, x_max = x_min * cols, x_max * cols
     y_min, y_max = y_min * rows, y_max * rows
 
-    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)  # type: ignore
+    return cast(BoxType, (x_min, y_min, x_max, y_max) + tail)
 
 
 def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
@@ -344,7 +341,7 @@ def convert_bbox_to_albumentations(
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
 
-    bbox = (x_min, y_min, x_max, y_max) + tuple(tail)  # type: ignore
+    bbox = (x_min, y_min, x_max, y_max) + tuple(tail)
 
     if source_format != "yolo":
         bbox = normalize_bbox(bbox, rows, cols)
@@ -402,7 +399,7 @@ def convert_bbox_from_albumentations(
 
 
 def convert_bboxes_to_albumentations(
-    bboxes: Sequence[BoxType], source_format, rows, cols, check_validity=False
+    bboxes: Sequence[BoxType], source_format: str, rows: int, cols: int, check_validity: bool = False
 ) -> List[BoxType]:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     return [convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity) for bbox in bboxes]
@@ -496,7 +493,7 @@ def filter_bboxes(
     return resulting_boxes
 
 
-def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_rate: float = 0.0) -> BoxType:
+def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_rate: float = 0.0) -> BoxInternalType:
     """Calculate union of bounding boxes.
 
     Args:

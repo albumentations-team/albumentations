@@ -1,6 +1,4 @@
-from __future__ import absolute_import
-
-import warnings
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -11,14 +9,14 @@ from ..core.transforms_interface import BasicTransform
 __all__ = ["ToTensorV2"]
 
 
-def img_to_tensor(im, normalize=None):
+def img_to_tensor(im: np.ndarray, normalize: Optional[bool] = None) -> torch.Tensor:
     tensor = torch.from_numpy(np.moveaxis(im / (255.0 if im.dtype == np.uint8 else 1), -1, 0).astype(np.float32))
     if normalize is not None:
         return F.normalize(tensor, **normalize)
     return tensor
 
 
-def mask_to_tensor(mask, num_classes, sigmoid):
+def mask_to_tensor(mask: np.ndarray, num_classes: int, sigmoid: bool) -> torch.Tensor:
     if num_classes > 1:
         if not sigmoid:
             # softmax
@@ -48,7 +46,7 @@ class ToTensor(BasicTransform):
 
     """
 
-    def __init__(self, num_classes=1, sigmoid=True, normalize=None):
+    def __init__(self, num_classes: int = 1, sigmoid: bool = True, normalize: Optional[bool] = None):
         raise RuntimeError(
             "`ToTensor` is obsolete and it was removed from Albumentations. Please use `ToTensorV2` instead - "
             "https://albumentations.ai/docs/api_reference/pytorch/transforms/"
@@ -72,15 +70,15 @@ class ToTensorV2(BasicTransform):
         p (float): Probability of applying the transform. Default: 1.0.
     """
 
-    def __init__(self, transpose_mask=False, always_apply=True, p=1.0):
-        super(ToTensorV2, self).__init__(always_apply=always_apply, p=p)
+    def __init__(self, transpose_mask: bool = False, always_apply: bool = True, p: float = 1.0):
+        super().__init__(always_apply=always_apply, p=p)
         self.transpose_mask = transpose_mask
 
     @property
-    def targets(self):
+    def targets(self) -> Dict[str, Any]:
         return {"image": self.apply, "mask": self.apply_to_mask, "masks": self.apply_to_masks}
 
-    def apply(self, img, **params):  # skipcq: PYL-W0613
+    def apply(self, img: np.ndarray, **params: Any) -> torch.Tensor:
         if len(img.shape) not in [2, 3]:
             raise ValueError("Albumentations only supports images in HW or HWC format")
 
@@ -89,16 +87,16 @@ class ToTensorV2(BasicTransform):
 
         return torch.from_numpy(img.transpose(2, 0, 1))
 
-    def apply_to_mask(self, mask, **params):  # skipcq: PYL-W0613
+    def apply_to_mask(self, mask: np.ndarray, **params: Any) -> torch.Tensor:
         if self.transpose_mask and mask.ndim == 3:
             mask = mask.transpose(2, 0, 1)
         return torch.from_numpy(mask)
 
-    def apply_to_masks(self, masks, **params):
+    def apply_to_masks(self, masks: List[np.ndarray], **params: Any) -> List[torch.Tensor]:
         return [self.apply_to_mask(mask, **params) for mask in masks]
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("transpose_mask",)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params: Any) -> Dict[str, Any]:
         return {}

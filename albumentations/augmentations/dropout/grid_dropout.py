@@ -1,9 +1,10 @@
 import random
-from typing import Iterable, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
 from ...core.transforms_interface import DualTransform
+from ...core.types import ScalarType
 from . import functional as F
 
 __all__ = ["GridDropout"]
@@ -13,7 +14,7 @@ class GridDropout(DualTransform):
     """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
 
     Args:
-        ratio (float): the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
+        ratio: the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
             Must be between 0 and 1. Default: 0.5.
         unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
             If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
@@ -55,11 +56,11 @@ class GridDropout(DualTransform):
         shift_y: int = 0,
         random_offset: bool = False,
         fill_value: int = 0,
-        mask_fill_value: Optional[int] = None,
+        mask_fill_value: Optional[ScalarType] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(GridDropout, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.ratio = ratio
         self.unit_size_min = unit_size_min
         self.unit_size_max = unit_size_max
@@ -73,16 +74,18 @@ class GridDropout(DualTransform):
         if not 0 < self.ratio <= 1:
             raise ValueError("ratio must be between 0 and 1.")
 
-    def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any) -> np.ndarray:
         return F.cutout(img, holes, self.fill_value)
 
-    def apply_to_mask(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params) -> np.ndarray:
+    def apply_to_mask(
+        self, mask: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any
+    ) -> np.ndarray:
         if self.mask_fill_value is None:
-            return img
+            return mask
 
-        return F.cutout(img, holes, self.mask_fill_value)
+        return F.cutout(mask, holes, self.mask_fill_value)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
         # set grid using unit size limits
@@ -137,10 +140,10 @@ class GridDropout(DualTransform):
         return {"holes": holes}
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "ratio",
             "unit_size_min",

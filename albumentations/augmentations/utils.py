@@ -1,12 +1,12 @@
 from functools import wraps
-from typing import Callable, Union
+from typing import Any, Callable, Union
 
 import cv2
 import numpy as np
 from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
-from albumentations.core.transforms_interface import KeypointInternalType
+from albumentations.core.types import KeypointInternalType
 
 __all__ = [
     "read_bgr_image",
@@ -38,24 +38,24 @@ MAX_VALUES_BY_DTYPE = {
 }
 
 NPDTYPE_TO_OPENCV_DTYPE = {
-    np.uint8: cv2.CV_8U,  # type: ignore[attr-defined]
-    np.uint16: cv2.CV_16U,  # type: ignore[attr-defined]
-    np.int32: cv2.CV_32S,  # type: ignore[attr-defined]
-    np.float32: cv2.CV_32F,  # type: ignore[attr-defined]
-    np.float64: cv2.CV_64F,  # type: ignore[attr-defined]
-    np.dtype("uint8"): cv2.CV_8U,  # type: ignore[attr-defined]
-    np.dtype("uint16"): cv2.CV_16U,  # type: ignore[attr-defined]
-    np.dtype("int32"): cv2.CV_32S,  # type: ignore[attr-defined]
-    np.dtype("float32"): cv2.CV_32F,  # type: ignore[attr-defined]
-    np.dtype("float64"): cv2.CV_64F,  # type: ignore[attr-defined]
+    np.uint8: cv2.CV_8U,
+    np.uint16: cv2.CV_16U,
+    np.int32: cv2.CV_32S,
+    np.float32: cv2.CV_32F,
+    np.float64: cv2.CV_64F,
+    np.dtype("uint8"): cv2.CV_8U,
+    np.dtype("uint16"): cv2.CV_16U,
+    np.dtype("int32"): cv2.CV_32S,
+    np.dtype("float32"): cv2.CV_32F,
+    np.dtype("float64"): cv2.CV_64F,
 }
 
 
-def read_bgr_image(path):
+def read_bgr_image(path: str) -> np.ndarray:
     return cv2.imread(path, cv2.IMREAD_COLOR)
 
 
-def read_rgb_image(path):
+def read_rgb_image(path: str) -> np.ndarray:
     image = cv2.imread(path, cv2.IMREAD_COLOR)
     return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
@@ -169,7 +169,7 @@ def non_rgb_warning(image: np.ndarray) -> None:
 
 
 def _maybe_process_in_chunks(
-    process_fn: Callable[Concatenate[np.ndarray, P], np.ndarray], **kwargs
+    process_fn: Callable[Concatenate[np.ndarray, P], np.ndarray], **kwargs: Any
 ) -> Callable[[np.ndarray], np.ndarray]:
     """
     Wrap OpenCV function to enable processing images with more than 4 channels.

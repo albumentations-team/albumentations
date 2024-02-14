@@ -1,11 +1,12 @@
 import random
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
 from skimage.measure import label
 
 from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.types import ScalarType
 
 __all__ = ["MaskDropout"]
 
@@ -37,20 +38,20 @@ class MaskDropout(DualTransform):
         self,
         max_objects: int = 1,
         image_fill_value: Union[int, float, str] = 0,
-        mask_fill_value: Union[int, float] = 0,
+        mask_fill_value: ScalarType = 0,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(MaskDropout, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.max_objects = to_tuple(max_objects, 1)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["mask"]
 
-    def get_params_dependent_on_targets(self, params) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         mask = params["mask"]
 
         label_image, num_labels = label(mask, return_num=True)
@@ -72,7 +73,7 @@ class MaskDropout(DualTransform):
         params.update({"dropout_mask": dropout_mask})
         return params
 
-    def apply(self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         if dropout_mask is None:
             return img
 
@@ -87,13 +88,13 @@ class MaskDropout(DualTransform):
 
         return img
 
-    def apply_to_mask(self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         if dropout_mask is None:
-            return img
+            return mask
 
-        img = img.copy()
-        img[dropout_mask] = self.mask_fill_value
-        return img
+        mask = mask.copy()
+        mask[dropout_mask] = self.mask_fill_value
+        return mask
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "max_objects", "image_fill_value", "mask_fill_value"

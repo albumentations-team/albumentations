@@ -1,18 +1,18 @@
-from __future__ import division
+from typing import Optional
 
 import numpy as np
 import torch
 import torchvision.transforms.functional as F
 
 
-def img_to_tensor(im, normalize=None):
-    tensor = torch.from_numpy(np.moveaxis(im / (255.0 if im.dtype == np.uint8 else 1), -1, 0).astype(np.float32))
+def img_to_tensor(image: np.ndarray, normalize: Optional[bool] = None) -> torch.Tensor:
+    tensor = torch.from_numpy(np.moveaxis(image / (255.0 if image.dtype == np.uint8 else 1), -1, 0).astype(np.float32))
     if normalize is not None:
         return F.normalize(tensor, **normalize)
     return tensor
 
 
-def mask_to_tensor(mask, num_classes, sigmoid):
+def mask_to_tensor(mask: np.ndarray, num_classes: int, sigmoid: bool) -> torch.Tensor:
     if num_classes > 1:
         if not sigmoid:
             # softmax

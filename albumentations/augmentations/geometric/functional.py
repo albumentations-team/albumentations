@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -16,12 +16,8 @@ from albumentations.augmentations.utils import (
 
 from ... import random_utils
 from ...core.bbox_utils import denormalize_bbox, normalize_bbox
-from ...core.transforms_interface import (
-    BoxInternalType,
-    FillValueType,
-    ImageColorType,
-    KeypointInternalType,
-)
+from ...core.types import BoxInternalType, ImageColorType, KeypointInternalType
+from ..core.transforms_interface import FillValueType
 
 __all__ = [
     "optical_distortion",
@@ -41,7 +37,6 @@ __all__ = [
     "resize",
     "scale",
     "keypoint_scale",
-    "py3round",
     "_func_max_size",
     "longest_max_size",
     "smallest_max_size",
@@ -72,10 +67,12 @@ __all__ = [
     "keypoint_hflip",
     "keypoint_transpose",
     "keypoint_vflip",
+    "normalize_bbox",
+    "denormalize_bbox",
 ]
 
 
-def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
+def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -101,7 +98,9 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxI
 
 
 @angle_2pi_range
-def keypoint_rot90(keypoint: KeypointInternalType, factor: int, rows: int, cols: int, **params) -> KeypointInternalType:
+def keypoint_rot90(
+    keypoint: KeypointInternalType, factor: int, rows: int, cols: int, **params: Any
+) -> KeypointInternalType:
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -139,7 +138,7 @@ def rotate(
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
     value: Optional[ImageColorType] = None,
-):
+) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
     # we get an ugly black border for 90deg rotations
@@ -194,7 +193,9 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
 
 
 @angle_2pi_range
-def keypoint_rotate(keypoint, angle, rows, cols, **params):
+def keypoint_rotate(
+    keypoint: KeypointInternalType, angle: float, rows: int, cols: int, **params: Any
+) -> KeypointInternalType:
     """Rotate a keypoint by angle.
 
     Args:
@@ -216,8 +217,15 @@ def keypoint_rotate(keypoint, angle, rows, cols, **params):
 
 @preserve_channel_dim
 def shift_scale_rotate(
-    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
-):
+    img: np.ndarray,
+    angle: float,
+    scale: float,
+    dx: int,
+    dy: int,
+    interpolation: int = cv2.INTER_LINEAR,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[Tuple[int, ...]] = None,
+) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
     # we get an ugly black border for 90deg rotations
@@ -233,7 +241,9 @@ def shift_scale_rotate(
 
 
 @angle_2pi_range
-def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **params):
+def keypoint_shift_scale_rotate(
+    keypoint: KeypointInternalType, angle: float, scale: float, dx: int, dy: int, rows: int, cols: int, **params: Any
+) -> KeypointInternalType:
     (
         x,
         y,
@@ -248,12 +258,22 @@ def keypoint_shift_scale_rotate(keypoint, angle, scale, dx, dy, rows, cols, **pa
 
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     angle = a + math.radians(angle)
-    scale = s * scale
+    scale *= s
 
     return x, y, angle, scale
 
 
-def bbox_shift_scale_rotate(bbox, angle, scale, dx, dy, rotate_method, rows, cols, **kwargs):  # skipcq: PYL-W0613
+def bbox_shift_scale_rotate(
+    bbox: BoxInternalType,
+    angle: float,
+    scale: float,
+    dx: int,
+    dy: int,
+    rotate_method: str,
+    rows: int,
+    cols: int,
+    **kwargs: Any,
+) -> BoxInternalType:
     """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
     scaling is made by scale factor and shifting is made by dx and dy.
 
@@ -311,7 +331,7 @@ def elastic_transform(
     random_state: Optional[np.random.RandomState] = None,
     approximate: bool = False,
     same_dxdy: bool = False,
-):
+) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
@@ -384,7 +404,7 @@ def elastic_transform(
 
 
 @preserve_channel_dim
-def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+def resize(img: np.ndarray, height: int, width: int, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
     img_height, img_width = img.shape[:2]
     if height == img_height and width == img_width:
         return img
@@ -415,22 +435,14 @@ def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: floa
     return x * scale_x, y * scale_y, angle, scale * max(scale_x, scale_y)
 
 
-def py3round(number):
-    """Unified rounding in all python versions."""
-    if abs(round(number) - number) == 0.5:
-        return int(2.0 * round(number / 2.0))
-
-    return int(round(number))
-
-
-def _func_max_size(img, max_size, interpolation, func):
+def _func_max_size(img: np.ndarray, max_size: int, interpolation: int, func: Callable[..., Any]) -> np.ndarray:
     height, width = img.shape[:2]
 
     scale = max_size / float(func(width, height))
 
     if scale != 1.0:
-        new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
-        img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
+        new_height, new_width = tuple(round(dim * scale) for dim in (height, width))
+        return resize(img, height=new_height, width=new_width, interpolation=interpolation)
     return img
 
 
@@ -454,8 +466,8 @@ def perspective(
     border_mode: int,
     keep_size: bool,
     interpolation: int,
-):
-    h, w = img.shape[:2]
+) -> np.ndarray:
+    height, width = img.shape[:2]
     perspective_func = _maybe_process_in_chunks(
         cv2.warpPerspective,
         M=matrix,
@@ -467,7 +479,7 @@ def perspective(
     warped = perspective_func(img)
 
     if keep_size:
-        return resize(warped, h, w, interpolation=interpolation)
+        return resize(warped, height, width, interpolation=interpolation)
 
     return warped
 
@@ -494,7 +506,10 @@ def perspective_bbox(
         y1 = min(y1, y)
         y2 = max(y2, y)
 
-    return normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width)
+    return cast(
+        BoxInternalType,
+        normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width),
+    )
 
 
 def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
@@ -565,7 +580,7 @@ def warp_affine(
 def keypoint_affine(
     keypoint: KeypointInternalType,
     matrix: skimage.transform.ProjectiveTransform,
-    scale: dict,
+    scale: Dict[str, Any],
 ) -> KeypointInternalType:
     if _is_identity_matrix(matrix):
         return keypoint
@@ -612,7 +627,7 @@ def bbox_affine(
     y_min = np.min(points[:, 1])
     y_max = np.max(points[:, 1])
 
-    return normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1])
+    return cast(BoxInternalType, normalize_bbox((x_min, y_min, x_max, y_max), output_shape[0], output_shape[1]))
 
 
 @preserve_channel_dim
@@ -662,7 +677,7 @@ def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows:
     x1, x2 = fix_point(x1, x2, cols)
     y1, y2 = fix_point(y1, y2, rows)
 
-    return normalize_bbox((x1, y1, x2, y2), rows, cols)
+    return cast(KeypointInternalType, normalize_bbox((x1, y1, x2, y2), rows, cols))
 
 
 def keypoint_safe_rotate(
@@ -749,7 +764,7 @@ def to_distance_maps(
 def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
-    if_not_found_coords: Optional[Union[Sequence[int], dict]],
+    if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
     threshold: Optional[float] = None,
 ) -> List[Tuple[float, float]]:
     """Convert outputs of ``to_distance_maps()`` to ``KeypointsOnImage``.
@@ -864,7 +879,7 @@ def bbox_piecewise_affine(
     y1 = keypoints_arr[:, 1].min()
     x2 = keypoints_arr[:, 0].max()
     y2 = keypoints_arr[:, 1].max()
-    return normalize_bbox((x1, y1, x2, y2), h, w)
+    return cast(BoxInternalType, normalize_bbox((x1, y1, x2, y2), h, w))
 
 
 def vflip(img: np.ndarray) -> np.ndarray:
@@ -893,7 +908,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
-def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
+def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box vertically around the x-axis.
 
     Args:
@@ -909,7 +924,7 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType: 
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:  # skipcq: PYL-W0613
+def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
@@ -949,7 +964,7 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
         bbox = bbox_hflip(bbox, rows, cols)
         bbox = bbox_vflip(bbox, rows, cols)
     else:
-        raise ValueError("Invalid d value {}. Valid values are -1, 0 and 1".format(d))
+        raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
     return bbox
 
 
@@ -1155,9 +1170,7 @@ def optical_distortion(
     camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-    map1, map2 = cv2.initUndistortRectifyMap(
-        camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1  # type: ignore[attr-defined]
-    )
+    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
     return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
 
 
@@ -1165,8 +1178,8 @@ def optical_distortion(
 def grid_distortion(
     img: np.ndarray,
     num_steps: int = 10,
-    xsteps: Tuple = (),
-    ysteps: Tuple = (),
+    xsteps: Tuple[()] = (),
+    ysteps: Tuple[()] = (),
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
     value: Optional[ImageColorType] = None,

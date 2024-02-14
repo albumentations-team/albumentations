@@ -1,6 +1,6 @@
 import random
 import warnings
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
@@ -8,12 +8,8 @@ import numpy as np
 from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
 from albumentations.augmentations.blur import functional as F
-from albumentations.core.transforms_interface import (
-    ImageOnlyTransform,
-    ScaleFloatType,
-    ScaleIntType,
-    to_tuple,
-)
+from albumentations.core.transforms_interface import ImageOnlyTransform, to_tuple
+from albumentations.core.types import ScaleFloatType, ScaleIntType
 
 __all__ = ["Blur", "MotionBlur", "GaussianBlur", "GlassBlur", "AdvancedBlur", "MedianBlur", "Defocus", "ZoomBlur"]
 
@@ -22,9 +18,9 @@ class Blur(ImageOnlyTransform):
     """Blur the input image using a random-sized kernel.
 
     Args:
-        blur_limit (int, (int, int)): maximum kernel size for blurring the input image.
+        blur_limit: maximum kernel size for blurring the input image.
             Should be in range [3, inf). Default: (3, 7).
-        p (float): probability of applying the transform. Default: 0.5.
+        p: probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -35,9 +31,9 @@ class Blur(ImageOnlyTransform):
 
     def __init__(self, blur_limit: ScaleIntType = 7, always_apply: bool = False, p: float = 0.5):
         super().__init__(always_apply, p)
-        self.blur_limit = to_tuple(blur_limit, 3)
+        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 3))
 
-    def apply(self, img: np.ndarray, ksize: int = 3, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, ksize: int = 3, **params: Any) -> np.ndarray:
         return F.blur(img, ksize)
 
     def get_params(self) -> Dict[str, Any]:
@@ -80,13 +76,13 @@ class MotionBlur(Blur):
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return super().get_transform_init_args_names() + ("allow_shifted",)
 
-    def apply(self, img: np.ndarray, kernel: np.ndarray = None, **params) -> np.ndarray:  # type: ignore
-        return FMain.convolve(img, kernel=kernel)
+    def apply(self, img: np.ndarray, ksize: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+        return FMain.convolve(img, kernel=ksize)
 
     def get_params(self) -> Dict[str, Any]:
         ksize = random.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))
         if ksize <= 2:
-            raise ValueError("ksize must be > 2. Got: {}".format(ksize))
+            raise ValueError(f"ksize must be > 2. Got: {ksize}")
         kernel = np.zeros((ksize, ksize), dtype=np.uint8)
         x1, x2 = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
         if x1 == x2:
@@ -94,7 +90,7 @@ class MotionBlur(Blur):
         else:
             y1, y2 = random.randint(0, ksize - 1), random.randint(0, ksize - 1)
 
-        def make_odd_val(v1, v2):
+        def make_odd_val(v1: int, v2: int) -> Tuple[int, int]:
             len_v = abs(v1 - v2) + 1
             if len_v % 2 != 1:
                 if v2 > v1:
@@ -113,8 +109,8 @@ class MotionBlur(Blur):
             center = ksize / 2 - 0.5
             dx = xc - center
             dy = yc - center
-            x1, x2 = [int(i - dx) for i in [x1, x2]]
-            y1, y2 = [int(i - dy) for i in [y1, y2]]
+            x1, x2 = (int(i - dx) for i in [x1, x2])
+            y1, y2 = (int(i - dy) for i in [y1, y2])
 
         cv2.line(kernel, (x1, y1), (x2, y2), 1, thickness=1)
 
@@ -143,7 +139,7 @@ class MedianBlur(Blur):
         if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
             raise ValueError("MedianBlur supports only odd blur limits.")
 
-    def apply(self, img: np.ndarray, ksize: int = 3, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, ksize: int = 3, **params: Any) -> np.ndarray:
         return F.median_blur(img, ksize)
 
 
@@ -176,7 +172,7 @@ class GaussianBlur(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.blur_limit = to_tuple(blur_limit, 0)
+        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 0))
         self.sigma_limit = to_tuple(sigma_limit if sigma_limit is not None else 0, 0)
 
         if self.blur_limit[0] == 0 and self.sigma_limit[0] == 0:
@@ -191,7 +187,7 @@ class GaussianBlur(ImageOnlyTransform):
         ):
             raise ValueError("GaussianBlur supports only odd blur limits.")
 
-    def apply(self, img: np.ndarray, ksize: int = 3, sigma: float = 0, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, ksize: int = 3, sigma: float = 0, **params: Any) -> np.ndarray:
         return F.gaussian_blur(img, ksize, sigma=sigma)
 
     def get_params(self) -> Dict[str, float]:
@@ -258,7 +254,7 @@ class GlassBlur(Blur):
         # generate array containing all necessary values for transformations
         width_pixels = img.shape[0] - self.max_delta * 2
         height_pixels = img.shape[1] - self.max_delta * 2
-        total_pixels = width_pixels * height_pixels
+        total_pixels = int(width_pixels * height_pixels)
         dxy = random_utils.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
 
         return {"dxy": dxy}
@@ -315,7 +311,7 @@ class AdvancedBlur(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.blur_limit = to_tuple(blur_limit, 3)
+        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 3))
         self.sigmaX_limit = self.__check_values(to_tuple(sigmaX_limit, 0.0), name="sigmaX_limit")
         self.sigmaY_limit = self.__check_values(to_tuple(sigmaY_limit, 0.0), name="sigmaY_limit")
         self.rotate_limit = to_tuple(rotate_limit)
@@ -341,7 +337,7 @@ class AdvancedBlur(ImageOnlyTransform):
             raise ValueError(f"{name} values should be between {bounds}")
         return value
 
-    def apply(self, img: np.ndarray, kernel: np.ndarray = np.array(None), **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, kernel: np.ndarray = np.array(None), **params: Any) -> np.ndarray:
         return FMain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, np.ndarray]:
@@ -372,7 +368,7 @@ class AdvancedBlur(ImageOnlyTransform):
         # Described in "Parameter Estimation For Multivariate Generalized Gaussian Distributions"
         kernel = np.exp(-0.5 * np.power(np.sum(np.dot(grid, inverse_sigma) * grid, 2), beta))
         # Add noise
-        kernel = kernel * noise_matrix
+        kernel *= noise_matrix
 
         # Normalize kernel
         kernel = kernel.astype(np.float32) / np.sum(kernel)
@@ -424,7 +420,7 @@ class Defocus(ImageOnlyTransform):
         if self.alias_blur[0] < 0:
             raise ValueError("Parameter alias_blur must be non-negative")
 
-    def apply(self, img: np.ndarray, radius: int = 3, alias_blur: float = 0.5, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, radius: int = 3, alias_blur: float = 0.5, **params: Any) -> np.ndarray:
         return F.defocus(img, radius, alias_blur)
 
     def get_params(self) -> Dict[str, Any]:
@@ -473,7 +469,7 @@ class ZoomBlur(ImageOnlyTransform):
         if self.step_factor[0] <= 0:
             raise ValueError("Step factor must be positive")
 
-    def apply(self, img: np.ndarray, zoom_factors: np.ndarray = np.array(None), **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, zoom_factors: np.ndarray = np.array(None), **params: Any) -> np.ndarray:
         assert zoom_factors is not None
         return F.zoom_blur(img, zoom_factors)
 
