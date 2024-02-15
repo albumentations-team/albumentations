@@ -16,13 +16,7 @@ no_implicit_reexport = true
 # for strict mypy: (this is the tricky one :-))
 disallow_untyped_defs = true
 
-exclude = '''
-(
-  /benchmark/|
-  /tests/|
-  /tools/
-)
-'''
+
 
 
 [tool.black]
