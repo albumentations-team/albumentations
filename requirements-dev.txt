@@ -1,9 +1,8 @@
-flake8==5.0.3
-flake8-docstrings==1.6.0
-isort==5.11.5
-mypy==0.991
+black==24.2.0
+flake8==7.0.0
+isort==5.13.2
+mypy==1.8.0
+pre_commit>=3.5.0
+types-pkg-resources
 types-PyYAML
 types-setuptools
-types-pkg-resources
-black==22.6.0
-pre_commit>=3.5.0

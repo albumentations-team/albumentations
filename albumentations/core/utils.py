@@ -1,14 +1,16 @@
-from __future__ import absolute_import
-
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 import numpy as np
 
 from .serialization import Serializable
+from .types import BoxOrKeypointType, SizeType
+
+if TYPE_CHECKING:
+    import torch
 
 
-def get_shape(img: Any) -> Tuple[int, int]:
+def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
     if isinstance(img, np.ndarray):
         rows, cols = img.shape[:2]
         return rows, cols
@@ -17,8 +19,7 @@ def get_shape(img: Any) -> Tuple[int, int]:
         import torch
 
         if torch.is_tensor(img):
-            rows, cols = img.shape[-2:]
-            return rows, cols
+            return img.shape[-2:]
     except ImportError:
         pass
 
@@ -27,7 +28,7 @@ def get_shape(img: Any) -> Tuple[int, int]:
     )
 
 
-def format_args(args_dict: Dict):
+def format_args(args_dict: Dict[str, Any]) -> str:
     formatted_args = []
     for k, v in args_dict.items():
         if isinstance(v, str):
@@ -82,7 +83,9 @@ class DataProcessor(ABC):
         for data_name in self.data_fields:
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(self, data: Sequence, rows: int, cols: int, direction: str = "to") -> Sequence:
+    def check_and_convert(
+        self, data: List[BoxOrKeypointType], rows: int, cols: int, direction: str = "to"
+    ) -> List[BoxOrKeypointType]:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -95,19 +98,21 @@ class DataProcessor(ABC):
             raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def filter(self, data: Sequence[BoxOrKeypointType], rows: int, cols: int) -> Sequence[BoxOrKeypointType]:
         pass
 
     @abstractmethod
-    def check(self, data: Sequence, rows: int, cols: int) -> None:
+    def check(self, data: List[BoxOrKeypointType], rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_to_albumentations(self, data: List[BoxOrKeypointType], rows: int, cols: int) -> List[BoxOrKeypointType]:
         pass
 
     @abstractmethod
-    def convert_from_albumentations(self, data: Sequence, rows: int, cols: int) -> Sequence:
+    def convert_from_albumentations(
+        self, data: List[BoxOrKeypointType], rows: int, cols: int
+    ) -> List[BoxOrKeypointType]:
         pass
 
     def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:

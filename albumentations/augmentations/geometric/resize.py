@@ -1,14 +1,15 @@
 import random
-from typing import Dict, Sequence, Tuple, Union
+from typing import Any, Dict, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import (
+from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.types import (
     BoxInternalType,
-    DualTransform,
     KeypointInternalType,
-    to_tuple,
+    ScaleFloatType,
+    ScaleIntType,
 )
 from . import functional as F
 
@@ -35,25 +36,35 @@ class RandomScale(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, scale_limit=0.1, interpolation=cv2.INTER_LINEAR, always_apply=False, p=0.5):
-        super(RandomScale, self).__init__(always_apply, p)
+    def __init__(
+        self,
+        scale_limit: ScaleFloatType = 0.1,
+        interpolation: int = cv2.INTER_LINEAR,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
         self.interpolation = interpolation
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, float]:
         return {"scale": random.uniform(self.scale_limit[0], self.scale_limit[1])}
 
-    def apply(self, img, scale=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self, img: np.ndarray, scale: float = 0, interpolation: int = cv2.INTER_LINEAR, **params: Any
+    ) -> np.ndarray:
         return F.scale(img, scale, interpolation)
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
         return bbox
 
-    def apply_to_keypoint(self, keypoint, scale=0, **params):
+    def apply_to_keypoint(
+        self, keypoint: KeypointInternalType, scale: float = 0, **params: Any
+    ) -> KeypointInternalType:
         return F.keypoint_scale(keypoint, scale, scale)
 
-    def get_transform_init_args(self):
+    def get_transform_init_args(self) -> Dict[str, Any]:
         return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
 
 
@@ -80,20 +91,22 @@ class LongestMaxSize(DualTransform):
         always_apply: bool = False,
         p: float = 1,
     ):
-        super(LongestMaxSize, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.interpolation = interpolation
         self.max_size = max_size
 
     def apply(
-        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params
+        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params: Any
     ) -> np.ndarray:
         return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
         return bbox
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
+    def apply_to_keypoint(
+        self, keypoint: KeypointInternalType, max_size: int = 1024, **params: Any
+    ) -> KeypointInternalType:
         height = params["rows"]
         width = params["cols"]
 
@@ -130,19 +143,21 @@ class SmallestMaxSize(DualTransform):
         always_apply: bool = False,
         p: float = 1,
     ):
-        super(SmallestMaxSize, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.interpolation = interpolation
         self.max_size = max_size
 
     def apply(
-        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params
+        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params: Any
     ) -> np.ndarray:
         return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         return bbox
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, max_size: int = 1024, **params) -> KeypointInternalType:
+    def apply_to_keypoint(
+        self, keypoint: KeypointInternalType, max_size: int = 1024, **params: Any
+    ) -> KeypointInternalType:
         height = params["rows"]
         width = params["cols"]
 
@@ -174,25 +189,27 @@ class Resize(DualTransform):
         uint8, float32
     """
 
-    def __init__(self, height, width, interpolation=cv2.INTER_LINEAR, always_apply=False, p=1):
-        super(Resize, self).__init__(always_apply, p)
+    def __init__(
+        self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1
+    ):
+        super().__init__(always_apply, p)
         self.height = height
         self.width = width
         self.interpolation = interpolation
 
-    def apply(self, img, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(self, img: np.ndarray, interpolation: int = cv2.INTER_LINEAR, **params: Any) -> np.ndarray:
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
-    def apply_to_bbox(self, bbox, **params):
+    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
         return bbox
 
-    def apply_to_keypoint(self, keypoint, **params):
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         height = params["rows"]
         width = params["cols"]
         scale_x = self.width / width
         scale_y = self.height / height
         return F.keypoint_scale(keypoint, scale_x, scale_y)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("height", "width", "interpolation")

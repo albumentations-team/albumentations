@@ -1,3 +1,5 @@
+from typing import Any
+
 __all__ = [
     "IAAEmboss",
     "IAASuperpixels",
@@ -13,15 +15,19 @@ __all__ = [
 
 
 class IAAStub:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         cls_name = self.__class__.__name__
-        doc_link = "https://albumentations.ai/docs/api_reference/augmentations" + self.doc_link
+        # Use getattr to safely access subclass attributes with a default value
+        doc_link = "https://albumentations.ai/docs/api_reference/augmentations" + getattr(
+            self, "doc_link", "/default_doc_link"
+        )
+        alternative = getattr(self, "alternative", "DefaultAlternative")
         raise RuntimeError(
             f"You are trying to use a deprecated augmentation '{cls_name}' which depends on the imgaug library, "
             f"but imgaug is not installed.\n\n"
             "There are two options to fix this error:\n"
             "1. [Recommended]. Switch to the Albumentations' implementation of the augmentation with the same API: "
-            f"{self.alternative} - {doc_link}\n"
+            f"{alternative} - {doc_link}\n"
             "2. Install a version of Albumentations that contains imgaug by running "
             "'pip install -U albumentations[imgaug]'."
         )

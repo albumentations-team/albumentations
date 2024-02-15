@@ -1,6 +1,6 @@
 import random
 import warnings
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 import numpy as np
 
@@ -41,7 +41,7 @@ class Cutout(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(Cutout, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.num_holes = num_holes
         self.max_h_size = max_h_size
         self.max_w_size = max_w_size
@@ -51,7 +51,13 @@ class Cutout(ImageOnlyTransform):
             FutureWarning,
         )
 
-    def apply(self, img: np.ndarray, fill_value: Union[int, float] = 0, holes=(), **params):
+    def apply(
+        self,
+        img: np.ndarray,
+        fill_value: Union[int, float] = 0,
+        holes: Iterable[Tuple[int, int, int, int]] = (),
+        **params: Any,
+    ) -> np.ndarray:
         return cutout(img, holes, fill_value)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -72,8 +78,8 @@ class Cutout(ImageOnlyTransform):
         return {"holes": holes}
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("num_holes", "max_h_size", "max_w_size")
+        return "num_holes", "max_h_size", "max_w_size"
