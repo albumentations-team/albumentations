@@ -12,7 +12,7 @@ jobs:
     strategy:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: [3.8, 3.9, "3.10", "3.11"]
+        python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
       fail-fast: false
     steps:
     - name: Checkout
@@ -30,11 +30,11 @@ jobs:
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==2.0.1 torchvision==0.15.2
+        pip install torch==2.2.0 torchvision==0.17.0
         --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
-      run: pip install torch==2.0.1 torchvision==0.15.2
+      run: pip install torch==2.2.0 torchvision==0.17.0
     - name: Install dependencies
       run: |
         pip install .[tests]
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11"]
+        python-version: ["3.8"]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
