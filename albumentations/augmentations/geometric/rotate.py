@@ -6,15 +6,7 @@ import cv2
 import numpy as np
 
 from ...core.transforms_interface import DualTransform, FillValueType, to_tuple
-from ...core.types import (
-    BoxInternalType,
-    BoxType,
-    KeypointInternalType,
-    KeypointType,
-    ScaleFloatType,
-    ScaleIntType,
-    ScaleType,
-)
+from ...core.types import BoxInternalType, KeypointInternalType, ScaleIntType
 from ..crops import functional as FCrops
 from . import functional as F
 
@@ -59,7 +51,7 @@ class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
 
     Args:
-        limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
+        limit: range from which a random angle is picked. If limit is a single int
             an angle is picked from (-limit, limit). Default: (-90, 90)
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
@@ -112,14 +104,14 @@ class Rotate(DualTransform):
         img: np.ndarray,
         angle: float = 0,
         interpolation: int = cv2.INTER_LINEAR,
-        x_min: int = -1,
-        x_max: int = -1,
-        y_min: int = -1,
-        y_max: int = -1,
+        x_min: Optional[int] = None,
+        x_max: Optional[int] = None,
+        y_min: Optional[int] = None,
+        y_max: Optional[int] = None,
         **params: Any,
     ) -> np.ndarray:
         img_out = F.rotate(img, angle, interpolation, self.border_mode, self.value)
-        if self.crop_border:
+        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
             return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
@@ -127,48 +119,48 @@ class Rotate(DualTransform):
         self,
         mask: np.ndarray,
         angle: float,
-        x_min: int,
-        x_max: int,
-        y_min: int,
-        y_max: int,
+        x_min: Optional[int] = None,
+        x_max: Optional[int] = None,
+        y_min: Optional[int] = None,
+        y_max: Optional[int] = None,
         **params: Any,
     ) -> np.ndarray:
         img_out = F.rotate(mask, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
-        if self.crop_border:
+        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
             return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        angle: float,
-        x_min: int,
-        x_max: int,
-        y_min: int,
-        y_max: int,
+        angle: float = 0,
+        x_min: Optional[int] = None,
+        x_max: Optional[int] = None,
+        y_min: Optional[int] = None,
+        y_max: Optional[int] = None,
         cols: int = 0,
         rows: int = 0,
         **params: Any,
     ) -> np.ndarray:
         bbox_out = F.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
-        if self.crop_border:
+        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
             return FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
         return bbox_out
 
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        angle: float,
-        x_min: int,
-        x_max: int,
-        y_min: int,
-        y_max: int,
+        angle: float = 0,
+        x_min: Optional[int] = None,
+        x_max: Optional[int] = None,
+        y_min: Optional[int] = None,
+        y_max: Optional[int] = None,
         cols: int = 0,
         rows: int = 0,
         **params: Any,
     ) -> KeypointInternalType:
         keypoint_out = F.keypoint_rotate(keypoint, angle, rows, cols, **params)
-        if self.crop_border:
+        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
             return FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
         return keypoint_out
 

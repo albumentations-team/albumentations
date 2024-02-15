@@ -71,6 +71,7 @@ class MaskDropout(DualTransform):
                     dropout_mask |= label_image == label_index
 
         params.update({"dropout_mask": dropout_mask})
+        del params["mask"]
         return params
 
     def apply(self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
@@ -79,12 +80,12 @@ class MaskDropout(DualTransform):
 
         if self.image_fill_value == "inpaint":
             dropout_mask = dropout_mask.astype(np.uint8)
-            _, _, w, h = cv2.boundingRect(dropout_mask)
-            radius = min(3, max(w, h) // 2)
-            img = cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
-        else:
-            img = img.copy()
-            img[dropout_mask] = self.image_fill_value
+            _, _, width, height = cv2.boundingRect(dropout_mask)
+            radius = min(3, max(width, height) // 2)
+            return cv2.inpaint(img, dropout_mask, radius, cv2.INPAINT_NS)
+
+        img = img.copy()
+        img[dropout_mask] = self.image_fill_value
 
         return img
 

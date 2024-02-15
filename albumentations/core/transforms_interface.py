@@ -119,7 +119,7 @@ class BasicTransform(Serializable):
 
         return kwargs
 
-    def apply_with_params(self, params: Dict[str, Any], **kwargs: Any) -> Any:
+    def apply_with_params(self, params: Dict[str, Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
         if params is None:
             return kwargs
         params = self.update_params(params, **kwargs)
@@ -149,8 +149,7 @@ class BasicTransform(Serializable):
         if key in self._additional_targets:
             transform_key = self._additional_targets.get(key, key)
 
-        target_function = self.targets.get(transform_key, lambda x, **p: x)
-        return target_function
+        return self.targets.get(transform_key, lambda x, **p: x)
 
     def apply(self, img: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         raise NotImplementedError

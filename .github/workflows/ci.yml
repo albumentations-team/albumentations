@@ -36,7 +36,9 @@ jobs:
       if: matrix.operating-system == 'macos-latest'
       run: pip install torch==2.0.1 torchvision==0.15.2
     - name: Install dependencies
-      run: pip install .[tests]
+      run: |
+        pip install .[tests]
+        pip install imgaug
     - name: Cleanup the build directory
       uses: JesseTG/rm@v1.0.3
       with:

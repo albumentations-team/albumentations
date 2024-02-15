@@ -160,3 +160,4 @@ fabric.properties
 conda_build/
 
 .vscode/
+conda.recipe/

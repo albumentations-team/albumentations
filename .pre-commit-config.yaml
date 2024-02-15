@@ -22,23 +22,16 @@ repos:
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: check-symlinks
-      - id: check-merge-conflict
       - id: check-toml
       - id: check-xml
-      - id: debug-statements
       - id: detect-private-key
       - id: forbid-new-submodules
       - id: forbid-submodules
       - id: mixed-line-ending
-      - id: name-tests-test
       - id: destroyed-symlinks
       - id: fix-byte-order-marker
-      - id: mixed-line-ending
-      - id: name-tests-test
-      - id: check-docstring-first
       - id: pretty-format-json
       - id: check-json
-      - id: check-merge-conflict
       - id: check-yaml
         args: [ --unsafe ]
       - id: debug-statements
@@ -77,11 +70,7 @@ repos:
     rev: v1.8.0
     hooks:
       - id: mypy
-        additional_dependencies: [ types-PyYAML, types-pkg-resources, types-setuptools ]
+        files: ^albumentations/
+        additional_dependencies: [ types-PyYAML]
         args:
-          [
-            --ignore-missing-imports,
-            --warn-no-return,
-            --warn-redundant-casts,
-            --disallow-incomplete-defs,
-          ]
+          [ --config-file=pyproject.toml ]

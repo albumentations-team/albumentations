@@ -13,7 +13,7 @@ from albumentations.augmentations.blur.functional import gaussian_blur
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 
 
-def set_seed(seed=0):
+def set_seed(seed: int = 0):
     random.seed(seed)
     np.random.seed(seed)
 
@@ -788,9 +788,9 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
     _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
 
     if hue != 0:
-        assert _max <= 10, "Max: {}".format(_max)
+        assert _max <= 10, f"Max: {_max}"
     else:
-        assert _max <= 2, "Max: {}".format(_max)
+        assert _max <= 2, f"Max: {_max}"
 
 
 @pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
@@ -839,7 +839,7 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
             res2 = (t2(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
 
             _max = np.abs(res1.astype(np.int32) - res2).max()
-            assert _max <= 10, "Max value: {}".format(_max)
+            assert _max <= 10, f"Max value: {_max}"
 
 
 def test_shift_scale_separate_shift_x_shift_y(image, mask):
@@ -972,7 +972,7 @@ def test_template_transform_incorrect_size(template):
         transform = A.TemplateTransform(template, always_apply=True)
         transform(image=image)
 
-    message = "Image and template must be the same size, got {} and {}".format(image.shape[:2], template.shape[:2])
+    message = f"Image and template must be the same size, got {image.shape[:2]} and {template.shape[:2]}"
     assert str(exc_info.value) == message
 
 

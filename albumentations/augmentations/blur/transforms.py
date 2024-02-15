@@ -33,8 +33,8 @@ class Blur(ImageOnlyTransform):
         super().__init__(always_apply, p)
         self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 3))
 
-    def apply(self, img: np.ndarray, ksize: int = 3, **params: Any) -> np.ndarray:
-        return F.blur(img, ksize)
+    def apply(self, img: np.ndarray, kernel: int = 3, **params: Any) -> np.ndarray:
+        return F.blur(img, kernel)
 
     def get_params(self) -> Dict[str, Any]:
         return {"ksize": int(random.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2))))}
@@ -76,8 +76,8 @@ class MotionBlur(Blur):
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return super().get_transform_init_args_names() + ("allow_shifted",)
 
-    def apply(self, img: np.ndarray, ksize: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
-        return FMain.convolve(img, kernel=ksize)
+    def apply(self, img: np.ndarray, kernel: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+        return FMain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, Any]:
         ksize = random.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))
@@ -139,8 +139,8 @@ class MedianBlur(Blur):
         if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
             raise ValueError("MedianBlur supports only odd blur limits.")
 
-    def apply(self, img: np.ndarray, ksize: int = 3, **params: Any) -> np.ndarray:
-        return F.median_blur(img, ksize)
+    def apply(self, img: np.ndarray, kernel: int = 3, **params: Any) -> np.ndarray:
+        return F.median_blur(img, kernel)
 
 
 class GaussianBlur(ImageOnlyTransform):

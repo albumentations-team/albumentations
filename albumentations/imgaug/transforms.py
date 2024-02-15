@@ -64,13 +64,18 @@ class BasicIAATransform(BasicTransform):
         params["deterministic_processor"] = self.processor.to_deterministic()
         return params
 
-    def apply(self, img: np.ndarray, deterministic_processor: Any, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, deterministic_processor: iaa.Augmenter, **params: Any) -> np.ndarray:
         return deterministic_processor.augment_image(img)
 
 
 class DualIAATransform(DualTransform, BasicIAATransform):
     def apply_to_bboxes(
-        self, bboxes: Sequence[BoxType], deterministic_processor: Any, rows: int = 0, cols: int = 0, **params: Any
+        self,
+        bboxes: Sequence[BoxType],
+        deterministic_processor: iaa.Augmenter,
+        rows: int = 0,
+        cols: int = 0,
+        **params: Any,
     ) -> Sequence[BoxType]:
         if len(bboxes) > 0:
             bboxes = convert_bboxes_from_albumentations(bboxes, "pascal_voc", rows=rows, cols=cols)
@@ -96,7 +101,7 @@ class DualIAATransform(DualTransform, BasicIAATransform):
     def apply_to_keypoints(
         self,
         keypoints: Sequence[KeypointType],
-        deterministic_processor: Any,
+        deterministic_processor: iaa.Augmenter,
         rows: int = 0,
         cols: int = 0,
         **params: Any,
@@ -374,9 +379,9 @@ class IAAAffine(DualIAATransform):
 
     def __init__(
         self,
-        scale: float,
-        translate_percent: float,
-        translate_px: float,
+        scale: float = 1,
+        translate_percent: Optional[float] = None,
+        translate_px: Optional[float] = None,
         rotate: float = 0.0,
         shear: float = 0.0,
         order: int = 1,
@@ -387,8 +392,15 @@ class IAAAffine(DualIAATransform):
     ):
         super().__init__(always_apply, p)
         self.scale = to_tuple(scale, 1.0)
-        self.translate_percent = to_tuple(translate_percent, 0)
-        self.translate_px = to_tuple(translate_px, 0)
+        if translate_percent is None:
+            self.translate_percent = None
+        else:
+            self.translate_percent = to_tuple(translate_percent, 0)
+
+        if translate_px is None:
+            self.translate_px = None
+        else:
+            self.translate_px = to_tuple(translate_px, 0)
         self.rotate = to_tuple(rotate)
         self.shear = to_tuple(shear)
         self.order = order

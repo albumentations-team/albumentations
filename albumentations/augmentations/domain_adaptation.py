@@ -1,5 +1,5 @@
 import random
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
@@ -227,7 +227,7 @@ class FDA(ImageOnlyTransform):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
-        self.beta_limit = to_tuple(beta_limit, low=0)
+        self.beta_limit = cast(Tuple[float, float], to_tuple(beta_limit, low=0))
 
     def apply(
         self, img: np.ndarray, target_image: Optional[np.ndarray] = None, beta: float = 0.1, **params: Any

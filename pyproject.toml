@@ -4,6 +4,8 @@
 # character.
 
 [tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true
 follow_imports = "silent"
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -14,15 +16,18 @@ no_implicit_reexport = true
 # for strict mypy: (this is the tricky one :-))
 disallow_untyped_defs = true
 
-[tool.pydantic-mypy]
-init_forbid_extra = true
-init_typed = true
-warn_required_dynamic_aliases = true
+exclude = '''
+(
+  /benchmark/|
+  /tests/|
+  /tools/
+)
+'''
 
 
 [tool.black]
 line-length = 120
-target-version = ['py310']
+target-version = ["py38"]
 include = '\.pyi?$'
 exclude = '''
 /(

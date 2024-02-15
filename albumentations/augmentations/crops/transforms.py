@@ -956,7 +956,7 @@ class CropAndPad(DualTransform):
 
     @staticmethod
     def _get_pad_value(pad_value: Union[float, Sequence[float]]) -> Union[int, float]:
-        if isinstance(pad_value, float):
+        if isinstance(pad_value, (float, int)):
             return pad_value
 
         if len(pad_value) == 2:

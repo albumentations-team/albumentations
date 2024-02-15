@@ -170,7 +170,7 @@ def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val
         img = _shift_hsv_non_uint8(img, hue_shift, sat_shift, val_shift)
 
     if is_gray:
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+        return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
     return img
 
@@ -379,9 +379,9 @@ def move_tone_curve(img: np.ndarray, low_y: float, high_y: float) -> np.ndarray:
     """
     input_dtype = img.dtype
 
-    if not 0 < low_y < 1:
+    if not 0 <= low_y <= 1:
         raise ValueError("low_shift must be in range [0, 1]")
-    if not 0 < high_y < 1:
+    if not 0 <= high_y <= 1:
         raise ValueError("high_shift must be in range [0, 1]")
 
     if input_dtype != np.uint8:
@@ -979,8 +979,8 @@ def from_float(img: np.ndarray, dtype: np.dtype, max_value: Optional[float] = No
             max_value = MAX_VALUES_BY_DTYPE[dtype]
         except KeyError:
             raise RuntimeError(
-                "Can't infer the maximum value for dtype {}. You need to specify the maximum value manually by "
-                "passing the max_value argument".format(dtype)
+                f"Can't infer the maximum value for dtype {dtype}. You need to specify the maximum value manually by "
+                f"passing the max_value argument"
             )
     return (img * max_value).astype(dtype)
 
@@ -994,8 +994,8 @@ def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray) -> np.ndarray:
     Swap tiles on image.
 
     Args:
-        image (np.ndarray): Input image.
-        tiles (np.ndarray): array of tuples(
+        image: Input image.
+        tiles: array of tuples(
             current_left_up_corner_row, current_left_up_corner_col,
             old_left_up_corner_row, old_left_up_corner_col,
             height_tile, width_tile)

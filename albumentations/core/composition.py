@@ -209,7 +209,7 @@ class Compose(BaseCompose):
         for p in self.processors.values():
             p.preprocess(data)
 
-        for idx, t in enumerate(transforms):
+        for t in transforms:
             data = t(**data)
 
             if check_each_transform:
@@ -540,7 +540,7 @@ class Sequential(BaseCompose):
     def __init__(self, transforms: TransformsSeqType, p: float = 0.5):
         super().__init__(transforms, p)
 
-    def __call__(self, *args: Any, force_apply: bool, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
         for t in self.transforms:
             data = t(**data)
         return data

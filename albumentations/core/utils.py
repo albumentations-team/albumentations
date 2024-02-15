@@ -1,19 +1,23 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 import numpy as np
-import torch
 
 from .serialization import Serializable
 from .types import BoxOrKeypointType, SizeType
 
+if TYPE_CHECKING:
+    import torch
 
-def get_shape(img: Union[np.ndarray, torch.Tensor]) -> SizeType:
+
+def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
     if isinstance(img, np.ndarray):
         rows, cols = img.shape[:2]
         return rows, cols
 
     try:
+        import torch
+
         if torch.is_tensor(img):
             return img.shape[-2:]
     except ImportError:

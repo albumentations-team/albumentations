@@ -484,8 +484,8 @@ class RandomGravel(ImageOnlyTransform):
             )
         }
 
-    # def get_transform_init_args_names(self) -> Dict[str, Any]:
-    #     return {"gravel_roi": self.gravel_roi, "number_of_patches": self.number_of_patches}
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return "gravel_roi", "number_of_patches"
 
 
 class RandomRain(ImageOnlyTransform):
@@ -1015,9 +1015,9 @@ class HueSaturationValue(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.hue_shift_limit = to_tuple(hue_shift_limit)
-        self.sat_shift_limit = to_tuple(sat_shift_limit)
-        self.val_shift_limit = to_tuple(val_shift_limit)
+        self.hue_shift_limit = cast(Tuple[float, float], to_tuple(hue_shift_limit))
+        self.sat_shift_limit = cast(Tuple[float, float], to_tuple(sat_shift_limit))
+        self.val_shift_limit = cast(Tuple[float, float], to_tuple(val_shift_limit))
 
     def apply(
         self, img: np.ndarray, hue_shift: int = 0, sat_shift: int = 0, val_shift: int = 0, **params: Any
@@ -1059,6 +1059,8 @@ class Solarize(ImageOnlyTransform):
             self.threshold = to_tuple(threshold, low=threshold)
         else:
             self.threshold = to_tuple(threshold, low=0)
+
+        self.threshold = cast(Tuple[int, int], self.threshold)
 
     def apply(self, img: np.ndarray, threshold: int = 0, **params: Any) -> np.ndarray:
         return F.solarize(img, threshold)
@@ -1109,7 +1111,8 @@ class Posterize(ImageOnlyTransform):
     def get_params(self) -> Dict[str, Any]:
         if len(self.num_bits) == 3:
             return {"num_bits": [random.randint(int(i[0]), int(i[1])) for i in self.num_bits]}
-        return {"num_bits": random.randint(int(self.num_bits[0]), int(self.num_bits[1]))}
+        num_bits = cast(Tuple[int, int], self.num_bits)
+        return {"num_bits": random.randint(num_bits[0], num_bits[1])}
 
     def get_transform_init_args_names(self) -> Tuple[str]:
         return ("num_bits",)
@@ -1198,9 +1201,9 @@ class RGBShift(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.r_shift_limit = to_tuple(r_shift_limit)
-        self.g_shift_limit = to_tuple(g_shift_limit)
-        self.b_shift_limit = to_tuple(b_shift_limit)
+        self.r_shift_limit = cast(Tuple[int, int], to_tuple(r_shift_limit))
+        self.g_shift_limit = cast(Tuple[int, int], to_tuple(g_shift_limit))
+        self.b_shift_limit = cast(Tuple[int, int], to_tuple(b_shift_limit))
 
     def apply(self, img: np.ndarray, r_shift: int = 0, g_shift: int = 0, b_shift: int = 0, **params: Any) -> np.ndarray:
         if not is_rgb_image(img):

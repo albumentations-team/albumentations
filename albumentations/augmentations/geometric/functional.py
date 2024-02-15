@@ -16,8 +16,8 @@ from albumentations.augmentations.utils import (
 
 from ... import random_utils
 from ...core.bbox_utils import denormalize_bbox, normalize_bbox
+from ...core.transforms_interface import FillValueType
 from ...core.types import BoxInternalType, ImageColorType, KeypointInternalType
-from ..core.transforms_interface import FillValueType
 
 __all__ = [
     "optical_distortion",
@@ -199,13 +199,13 @@ def keypoint_rotate(
     """Rotate a keypoint by angle.
 
     Args:
-        keypoint (tuple): A keypoint `(x, y, angle, scale)`.
-        angle (float): Rotation angle.
-        rows (int): Image height.
-        cols (int): Image width.
+        keypoint: A keypoint `(x, y, angle, scale)`.
+        angle: Rotation angle.
+        rows: Image height.
+        cols: Image width.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        A keypoint `(x, y, angle, scale)`.
 
     """
     center = (cols - 1) * 0.5, (rows - 1) * 0.5
