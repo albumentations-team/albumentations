@@ -1,4 +1,5 @@
 # Albumentations
+
 [![PyPI version](https://badge.fury.io/py/albumentations.svg)](https://badge.fury.io/py/albumentations)
 ![CI](https://github.com/albumentations-team/albumentations/workflows/CI/badge.svg)
 
@@ -8,6 +9,7 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 ![parrot](https://habrastorage.org/webt/bd/ne/rv/bdnerv5ctkudmsaznhw4crsdfiw.jpeg)
 
 ## Why Albumentations
+
 - Albumentations **[supports all common computer vision tasks](#i-want-to-use-albumentations-for-the-specific-task-such-as-classification-or-segmentation)** such as classification, semantic segmentation, instance segmentation, object detection, and pose estimation.
 - The library provides **[a simple unified API](#a-simple-example)** to work with all data types: images (RBG-images, grayscale images, multispectral images), segmentation masks, bounding boxes, and keypoints.
 - The library contains **[more than 70 different augmentations](#list-of-augmentations)** to generate new training samples from the existing data.
@@ -30,7 +32,7 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
     - [I want to know how to use Albumentations with deep learning frameworks](#i-want-to-know-how-to-use-albumentations-with-deep-learning-frameworks)
     - [I want to explore augmentations and see Albumentations in action](#i-want-to-explore-augmentations-and-see-albumentations-in-action)
   - [Who is using Albumentations](#who-is-using-albumentations)
-      - [See also:](#see-also)
+    - [See also](#see-also)
   - [List of augmentations](#list-of-augmentations)
     - [Pixel-level transforms](#pixel-level-transforms)
     - [Spatial-level transforms](#spatial-level-transforms)
@@ -41,10 +43,12 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
     - [Keypoints augmentation](#keypoints-augmentation)
   - [Benchmarking results](#benchmarking-results)
   - [Contributing](#contributing)
+  - [Community and Support](#community-and-support)
   - [Comments](#comments)
   - [Citing](#citing)
 
 ## Authors
+
 [**Alexander Buslaev** — Computer Vision Engineer at Mapbox](https://www.linkedin.com/in/al-buslaev/) | [Kaggle Master](https://www.kaggle.com/albuslaev)
 
 [**Alex Parinov**](https://www.linkedin.com/in/alex-parinov/) | [Kaggle Master](https://www.kaggle.com/creafz)
@@ -55,20 +59,22 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 [**Mikhail Druzhinin**](https://www.linkedin.com/in/mikhail-druzhinin-548229100/) | [Kaggle Expert](https://www.kaggle.com/dipetm)
 
-
 ## Installation
+
 Albumentations requires Python 3.7 or higher. To install the latest version from PyPI:
 
-```
+```bash
 pip install -U albumentations
 ```
 
 Other installation options are described in the [documentation](https://albumentations.ai/docs/getting_started/installation/).
 
 ## Documentation
+
 The full documentation is available at **[https://albumentations.ai/docs/](https://albumentations.ai/docs/)**.
 
 ## A simple example
+
 ```python
 import albumentations as A
 import cv2
@@ -92,18 +98,23 @@ transformed_image = transformed["image"]
 ## Getting started
 
 ### I am new to image augmentation
+
 Please start with the [introduction articles](https://albumentations.ai/docs/#introduction-to-image-augmentation) about why image augmentation is important and how it helps to build better models.
 
 ### I want to use Albumentations for the specific task such as classification or segmentation
+
 If you want to use Albumentations for a specific task such as classification, segmentation, or object detection, refer to the [set of articles](https://albumentations.ai/docs/#getting-started-with-albumentations) that has an in-depth description of this task. We also have a [list of examples](https://albumentations.ai/docs/examples/) on applying Albumentations for different use cases.
 
 ### I want to know how to use Albumentations with deep learning frameworks
+
 We have [examples of using Albumentations](https://albumentations.ai/docs/#examples-of-how-to-use-albumentations-with-different-deep-learning-frameworks) along with PyTorch and TensorFlow.
 
 ### I want to explore augmentations and see Albumentations in action
+
 Check the [online demo of the library](https://albumentations-demo.herokuapp.com/). With it, you can apply augmentations to different images and see the result. Also, we have a [list of all available augmentations and their targets](#list-of-augmentations).
 
 ## Who is using Albumentations
+
 <a href="https://www.lyft.com/" target="_blank"><img src="https://habrastorage.org/webt/ce/bs/sa/cebssajf_5asst5yshmyykqjhcg.png" width="100"/></a>
 <a href="https://imedhub.org/" target="_blank"><img src="https://habrastorage.org/webt/eq/8x/m-/eq8xm-fjfx_uqkka4_ekxsdwtiq.png" width="100"/></a>
 <a href="https://recursionpharma.com" target="_blank"><img src="https://pbs.twimg.com/profile_images/925897897165639683/jI8YvBfC_400x400.jpg" width="100"/></a>
@@ -120,7 +131,8 @@ Check the [online demo of the library](https://albumentations-demo.herokuapp.com
 <a href="https://www.idrnd.ai/" target="_blank"><img src="https://www.idrnd.ai/wp-content/uploads/2019/09/Logo-IDRND.png.webp" width="100"/></a>
 <a href="https://openface.me/" target="_blank"><img src="https://drive.google.com/uc?export=view&id=1mC8B55CPFlpUC69Wnli2vitp6pImIfz7" width="100"/></a>
 
-#### See also:
+### See also
+
 - [A list of papers that cite Albumentations](https://albumentations.ai/whos_using#research).
 - [A list of teams that were using Albumentations and took high places in machine learning competitions](https://albumentations.ai/whos_using#competitions).
 - [Open source projects that use Albumentations](https://albumentations.ai/whos_using#open-source).
@@ -274,10 +286,17 @@ Python and library versions: Python 3.9.5 (default, Jun 23 2021, 15:01:51) [GCC 
 
 ## Contributing
 
-To create a pull request to the repository, follow the documentation at [https://albumentations.ai/docs/contributing/](https://albumentations.ai/docs/contributing/)
+To create a pull request to the repository, follow the documentation at [CONTRIBUTING.md](CONTRIBUTING.md)
 
+![https://github.com/albuemntations-team/albumentation/graphs/contributors](https://contrib.rocks/image?repo=albumentations-team/albumentations)
+
+## Community and Support
+
+* [Twitter](https://twitter.com/albumentations)
+* [Discord](https://discord.gg/AKPrrDYNAt)
 
 ## Comments
+
 In some systems, in the multiple GPU regime, PyTorch may deadlock the DataLoader if OpenCV was compiled with OpenCL optimizations. Adding the following two lines before the library import may help. For more details [https://github.com/pytorch/pytorch/issues/1355](https://github.com/pytorch/pytorch/issues/1355)
 
 ```python
