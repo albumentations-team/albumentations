@@ -1,5 +1,5 @@
 import random
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
@@ -51,8 +51,8 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 
     if target_img.shape != img.shape:
         raise ValueError(
-            "The source and target images must have the same shape,"
-            " but got {} and {} respectively.".format(img.shape, target_img.shape)
+            f"The source and target images must have the same shape, "
+            f"but got {img.shape} and {target_img.shape} respectively."
         )
 
     # get fft of both source and target
@@ -78,9 +78,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 
     # get mutated image
     src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
-    src_image_transformed = np.real(src_image_transformed)
-
-    return src_image_transformed
+    return np.real(src_image_transformed)
 
 
 @preserve_shape
@@ -97,7 +95,7 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
     try:
         matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
     except TypeError:
-        matched = match_histograms(img, reference_image, multichannel=True)  # case for scikit-image<0.19.1
+        matched = match_histograms(img, reference_image, multichannel=True)
     return cv2.addWeighted(
         matched,
         blend_ratio,
@@ -116,8 +114,7 @@ def adapt_pixel_distribution(
     transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
     adapter = DomainAdapter(transformer=transformer, ref_img=ref)
     result = adapter(img).astype("float32")
-    blended = (img.astype("float32") * (1 - weight) + result * weight).astype(initial_type)
-    return blended
+    return (img.astype("float32") * (1 - weight) + result * weight).astype(initial_type)
 
 
 class HistogramMatching(ImageOnlyTransform):
@@ -126,7 +123,7 @@ class HistogramMatching(ImageOnlyTransform):
     the histogram of the reference image. If the images have multiple channels, the matching is done independently
     for each channel, as long as the number of channels is equal in the input image and the reference.
 
-    Histogram matching can be used as a lightweight normalisation for image processing,
+    Histogram matching can be used as a lightweight normalization for image processing,
     such as feature matching, especially in circumstances where the images have been taken from different
     sources or in different conditions (i.e. lighting).
 
@@ -136,11 +133,11 @@ class HistogramMatching(ImageOnlyTransform):
     Args:
         reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
         it expects a sequence of paths to images.
-        blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
+        blend_ratio: Tuple of min and max blend ratio. Matched image will be blended with original
             with random blend factor for increased diversity of generated images.
         read_fn (Callable): Used-defined function to read image. Function should get an element of `reference_images`
         and return numpy array of image pixels. Default: takes as input a path to an image and returns a numpy array.
-        p (float): probability of applying the transform. Default: 1.0.
+        p: probability of applying the transform. Default: 1.0.
 
     Targets:
         image
@@ -227,7 +224,7 @@ class FDA(ImageOnlyTransform):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
-        self.beta_limit = cast(Tuple[float, float], to_tuple(beta_limit, low=0))
+        self.beta_limit = to_tuple(beta_limit, low=0)
 
     def apply(
         self, img: np.ndarray, target_image: Optional[np.ndarray] = None, beta: float = 0.1, **params: Any

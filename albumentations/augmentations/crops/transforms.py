@@ -930,8 +930,9 @@ class CropAndPad(DualTransform):
                 params = [px] * 4
         else:
             if isinstance(self.px[0], int):
-                return self.px
-            return [random.randrange(*i) for i in self.px]
+                params = self.px
+            else:
+                params = [random.randrange(*i) for i in self.px]
 
         return params
 
@@ -949,14 +950,15 @@ class CropAndPad(DualTransform):
                 params = [px] * 4
         else:
             if isinstance(self.percent[0], (int, float)):
-                return self.percent
-            return [random.uniform(*i) for i in self.percent]
+                params = self.percent
+            else:
+                params = [random.uniform(*i) for i in self.percent]
 
         return params  # params = [top, right, bottom, left]
 
     @staticmethod
     def _get_pad_value(pad_value: Union[float, Sequence[float]]) -> Union[int, float]:
-        if isinstance(pad_value, (float, int)):
+        if isinstance(pad_value, (int, float)):
             return pad_value
 
         if len(pad_value) == 2:
