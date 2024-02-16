@@ -1448,7 +1448,7 @@ class RandomGamma(ImageOnlyTransform):
     see: https://en.wikipedia.org/wiki/Gamma_correction
 
     Attributes:
-        gamma_limit (ScaleIntType): The range for gamma adjustment. If `gamma_limit` is a single
+        gamma_limit (Union[int, Tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
             int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much
             to adjust the image's gamma. Default is (80, 120).
         always_apply (bool): If `True`, the transform will always be applied, regardless of `p`.
