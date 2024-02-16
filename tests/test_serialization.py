@@ -1,14 +1,14 @@
-import json
-import os
+import io
 import random
+from pathlib import Path
 from unittest.mock import patch
 
 import cv2
 import numpy as np
 import pytest
+from deepdiff import DeepDiff
 
 import albumentations as A
-import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
@@ -808,61 +808,58 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     assert np.array_equal(aug_data["keypoints"], deserialized_aug_data["keypoints"])
 
 
-# def test_serialization_v2_conversion_without_totensor():
-#     current_directory = os.path.dirname(os.path.abspath(__file__))
-#     files_directory = os.path.join(current_directory, "files")
-#     transform_1_1_0 = A.load(os.path.join(files_directory, "transform_v1.1.0_without_totensor.json"))
-#     with open(os.path.join(files_directory, "output_v1.1.0_without_totensor.json")) as f:
-#         output_1_1_0 = json.load(f)
-#     np.random.seed(42)
-#     image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-#     random.seed(42)
-#     transformed_image = transform_1_1_0(image=image)["image"]
-#     assert transformed_image.tolist() == output_1_1_0
+@pytest.mark.parametrize(
+    "transform_file_name",
+    ["transform_v1.1.0_without_totensor.json", "transform_serialization_v2_without_totensor.json"],
+)
+def test_serialization_conversion_without_totensor(transform_file_name):
+    # Step 1: Load transform from file
+    current_directory = Path(__file__).resolve().parent
+    files_directory = current_directory / "files"
+    transform_file_path = files_directory / transform_file_name
+    transform = A.load(transform_file_path, data_format="json")
+
+    # Step 2: Serialize it to buffer in memory
+    buffer = io.StringIO()
+    A.save(transform, buffer, data_format="json")
+    buffer.seek(0)  # Reset buffer position to the beginning
+
+    # Step 3: Load transform from this memory buffer
+    transform_from_buffer = A.load(buffer, data_format="json")
+
+    # Ensure the buffer is closed after use
+    buffer.close()
+
+    assert (
+        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict()) == {}
+    ), "The loaded transform is not equal to the original one"
 
 
-# @skipif_no_torch
-# def test_serialization_v2_conversion_with_totensor():
-#     current_directory = os.path.dirname(os.path.abspath(__file__))
-#     files_directory = os.path.join(current_directory, "files")
-#     transform_1_1_0 = A.load(os.path.join(files_directory, "transform_v1.1.0_with_totensor.json"))
-#     with open(os.path.join(files_directory, "output_v1.1.0_with_totensor.json")) as f:
-#         output_1_1_0 = json.load(f)
-#     np.random.seed(42)
-#     random.seed(42)
-#     image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-#     transformed_image = transform_1_1_0(image=image)["image"]
-#     assert transformed_image.numpy().tolist() == output_1_1_0
+@pytest.mark.parametrize(
+    "transform_file_name",
+    ["transform_v1.1.0_with_totensor.json", "transform_serialization_v2_with_totensor.json"],
+)
+@skipif_no_torch
+def test_serialization_conversion_with_totensor(transform_file_name):
+    # Load transform from file
+    current_directory = Path(__file__).resolve().parent
+    files_directory = current_directory / "files"
+    transform_file_path = files_directory / transform_file_name
 
+    transform = A.load(transform_file_path, data_format="json")
 
-# def test_serialization_v2_without_totensor():
-#     current_directory = os.path.dirname(os.path.abspath(__file__))
-#     files_directory = os.path.join(current_directory, "files")
-#     transform = A.load(os.path.join(files_directory, "transform_serialization_v2_without_totensor.json"))
-#     with open(os.path.join(files_directory, "output_v1.1.0_without_totensor.json")) as f:
-#         output_1_1_0 = json.load(f)
-#     np.random.seed(42)
-#     random.seed(42)
-#     image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-#     transformed_image = transform(image=image)["image"]
+    # Serialize it to buffer in memory
+    buffer = io.StringIO()
+    A.save(transform, buffer, data_format="json")
+    buffer.seek(0)  # Reset buffer position to the beginning
 
-#     with open("1.json", "w") as f:
-#         json.dump(transformed_image.tolist(), f)
-#     assert transformed_image.tolist() == output_1_1_0
+    # Load transform from this memory buffer
+    transform_from_buffer = A.load(buffer, data_format="json")
+    buffer.close()  # Ensure the buffer is closed after use
 
-
-# @skipif_no_torch
-# def test_serialization_v2_with_totensor():
-#     current_directory = os.path.dirname(os.path.abspath(__file__))
-#     files_directory = os.path.join(current_directory, "files")
-#     transform = A.load(os.path.join(files_directory, "transform_serialization_v2_with_totensor.json"))
-#     with open(os.path.join(files_directory, "output_v1.1.0_with_totensor.json")) as f:
-#         output_1_1_0 = json.load(f)
-#     np.random.seed(42)
-#     image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-#     random.seed(42)
-#     transformed_image = transform(image=image)["image"]
-#     assert transformed_image.numpy().tolist() == output_1_1_0
+    assert (
+        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict()) == {}
+    ), "The loaded transform is not equal to the original one"
 
 
 def test_custom_transform_with_overlapping_name():

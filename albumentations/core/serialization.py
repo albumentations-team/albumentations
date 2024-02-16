@@ -1,8 +1,8 @@
 import json
-import typing
 import warnings
 from abc import ABC, ABCMeta, abstractmethod
-from typing import Any, Dict, Optional, Tuple, Type, Union
+from pathlib import Path
+from typing import Any, Dict, Optional, TextIO, Tuple, Type, Union, cast
 
 try:
     import yaml
@@ -146,7 +146,7 @@ def from_dict(
 ) -> Optional[Serializable]:
     """
     Args:
-        transform_dict (dict): A dictionary with serialized transform pipeline.
+        transform_dict: A dictionary with serialized transform pipeline.
         nonserializable (dict): A dictionary that contains non-serializable transforms.
             This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
             Keys in that dictionary should be named same as `name` arguments in respective transforms from
@@ -155,7 +155,7 @@ def from_dict(
     """
     if lambda_transforms != "deprecated":
         warnings.warn("lambda_transforms argument is deprecated, please use 'nonserializable'", DeprecationWarning)
-        nonserializable = typing.cast(Optional[Dict[str, Any]], lambda_transforms)
+        nonserializable = cast(Optional[Dict[str, Any]], lambda_transforms)
 
     register_additional_transforms()
     transform = transform_dict["transform"]
@@ -176,57 +176,94 @@ def check_data_format(data_format: str) -> None:
 
 
 def save(
-    transform: Serializable, filepath: str, data_format: str = "json", on_not_implemented_error: str = "raise"
+    transform: "Serializable",
+    filepath_or_buffer: Union[str, Path, TextIO],
+    data_format: str = "json",
+    on_not_implemented_error: str = "raise",
 ) -> None:
     """
-    Take a transform pipeline, serialize it and save a serialized version to a file
-    using either json or yaml format.
+    Serialize a transform pipeline and save it to either a file specified by a path or a file-like object
+    in either JSON or YAML format.
 
     Args:
-        transform (obj): Transform to serialize.
-        filepath (str): Filepath to write to.
-        data_format (str): Serialization format. Should be either `json` or 'yaml'.
-        on_not_implemented_error (str): Parameter that describes what to do if a transform doesn't implement
-            the `to_dict` method. If 'raise' then `NotImplementedError` is raised, if `warn` then the exception will be
-            ignored and no transform arguments will be saved.
+        transform (Serializable): The transform pipeline to serialize.
+        filepath_or_buffer (Union[str, Path, TextIO]): The file path or file-like object to write the serialized
+            data to.
+            If a string is provided, it is interpreted as a path to a file. If a file-like object is provided,
+            the serialized data will be written to it directly.
+        data_format (str): The format to serialize the data in. Valid options are 'json' and 'yaml'.
+            Defaults to 'json'.
+        on_not_implemented_error (str): Determines the behavior if a transform does not implement the `to_dict` method.
+            If set to 'raise', a `NotImplementedError` is raised. If set to 'warn', the exception is ignored, and
+            no transform arguments are saved. Defaults to 'raise'.
+
+    Raises:
+        ValueError: If `data_format` is 'yaml' but PyYAML is not installed.
     """
     check_data_format(data_format)
     transform_dict = transform.to_dict(on_not_implemented_error=on_not_implemented_error)
-    with open(filepath, "w") as f:
+
+    # Determine whether to write to a file or a file-like object
+    if isinstance(filepath_or_buffer, (str, Path)):  # It's a filepath
+        with open(filepath_or_buffer, "w") as f:
+            if data_format == "yaml":
+                if not yaml_available:
+                    raise ValueError("You need to install PyYAML to save a pipeline in YAML format")
+                yaml.safe_dump(transform_dict, f, default_flow_style=False)
+            elif data_format == "json":
+                json.dump(transform_dict, f)
+    else:  # Assume it's a file-like object
         if data_format == "yaml":
             if not yaml_available:
-                raise ValueError("You need to install PyYAML to save a pipeline in yaml format")
-            yaml.safe_dump(transform_dict, f, default_flow_style=False)
+                raise ValueError("You need to install PyYAML to save a pipeline in YAML format")
+            yaml.safe_dump(transform_dict, filepath_or_buffer, default_flow_style=False)
         elif data_format == "json":
-            json.dump(transform_dict, f)
+            json.dump(transform_dict, filepath_or_buffer)
 
 
 def load(
-    filepath: str,
+    filepath_or_buffer: Union[str, Path, TextIO],
     data_format: str = "json",
     nonserializable: Optional[Dict[str, Any]] = None,
-    lambda_transforms: Union[Optional[Dict[str, Any]], str] = "deprecated",
 ) -> object:
     """
-    Load a serialized pipeline from a json or yaml file and construct a transform pipeline.
+    Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
 
     Args:
-        filepath (str): Filepath to read from.
-        data_format (str): Serialization format. Should be either `json` or 'yaml'.
-        nonserializable (dict): A dictionary that contains non-serializable transforms.
-            This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
-            Keys in that dictionary should be named same as `name` arguments in respective transforms from
-            a serialized pipeline.
-        lambda_transforms (dict): Deprecated. Use 'nonserizalizable' instead.
-    """
-    if lambda_transforms != "deprecated":
-        warnings.warn("lambda_transforms argument is deprecated, please use 'nonserializable'", DeprecationWarning)
-        nonserializable = typing.cast(Optional[Dict[str, Any]], lambda_transforms)
+        filepath_or_buffer (Union[str, Path, TextIO]): The file path or file-like object to read the serialized
+            data from.
+            If a string is provided, it is interpreted as a path to a file. If a file-like object is provided,
+            the serialized data will be read from it directly.
+        data_format (str): The format of the serialized data. Valid options are 'json' and 'yaml'.
+            Defaults to 'json'.
+        nonserializable (Optional[Dict[str, Any]]): A dictionary that contains non-serializable transforms.
+            This dictionary is required when restoring a pipeline that contains non-serializable transforms.
+            Keys in the dictionary should be named the same as the `name` arguments in respective transforms
+            from the serialized pipeline. Defaults to None.
 
+    Returns:
+        object: The deserialized transform pipeline.
+
+    Raises:
+        ValueError: If `data_format` is 'yaml' but PyYAML is not installed.
+    """
     check_data_format(data_format)
-    load_fn = json.load if data_format == "json" else yaml.safe_load
-    with open(filepath) as f:
-        transform_dict = load_fn(f)  # type: ignore
+
+    if isinstance(filepath_or_buffer, (str, Path)):  # Assume it's a filepath
+        with open(filepath_or_buffer) as f:
+            if data_format == "json":
+                transform_dict = json.load(f)
+            else:
+                if not yaml_available:
+                    raise ValueError("You need to install PyYAML to load a pipeline in yaml format")
+                transform_dict = yaml.safe_load(f)
+    else:  # Assume it's a file-like object
+        if data_format == "json":
+            transform_dict = json.load(filepath_or_buffer)
+        else:
+            if not yaml_available:
+                raise ValueError("You need to install PyYAML to load a pipeline in yaml format")
+            transform_dict = yaml.safe_load(filepath_or_buffer)
 
     return from_dict(transform_dict, nonserializable=nonserializable)
 

@@ -30,7 +30,6 @@ repos:
       - id: mixed-line-ending
       - id: destroyed-symlinks
       - id: fix-byte-order-marker
-      - id: pretty-format-json
       - id: check-json
       - id: check-yaml
         args: [ --unsafe ]

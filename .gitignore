@@ -161,3 +161,7 @@ conda_build/
 
 .vscode/
 conda.recipe/
+
+.gitingore
+
+*.ipynb

@@ -35,6 +35,8 @@ jobs:
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-latest'
       run: pip install torch==2.2.0 torchvision==0.17.0
+    - name: Install dev requirements
+      run: pip install -r requirements-dev.txt
     - name: Install dependencies
       run: |
         pip install .[tests]
@@ -61,7 +63,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Update pip
       run: python -m pip install --upgrade pip
-    - name: Install linters
+    - name: Install dev requirements
       run: pip install -r requirements-dev.txt
     - name: Run checks
       run: pre-commit run --files $(find albumentations -type f)
