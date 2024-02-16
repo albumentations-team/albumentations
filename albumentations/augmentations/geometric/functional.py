@@ -968,9 +968,7 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
     return bbox
 
 
-def bbox_transpose(
-    bbox: KeypointInternalType, axis: int, rows: int, cols: int
-) -> KeypointInternalType:  # skipcq: PYL-W0613
+def bbox_transpose(bbox: KeypointInternalType, axis: int, rows: int, cols: int) -> KeypointInternalType:
     """Transposes a bounding box along given axis.
 
     Args:
