@@ -2,8 +2,10 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
+    branches:
+      - main
 
 jobs:
   test_and_lint:
@@ -40,7 +42,6 @@ jobs:
     - name: Install dependencies
       run: |
         pip install .[tests]
-        pip install imgaug
     - name: Cleanup the build directory
       uses: JesseTG/rm@v1.0.3
       with:

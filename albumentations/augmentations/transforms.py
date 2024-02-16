@@ -42,8 +42,6 @@ __all__ = [
     "RandomGridShuffle",
     "HueSaturationValue",
     "RGBShift",
-    "RandomBrightness",
-    "RandomContrast",
     "GaussNoise",
     "CLAHE",
     "ChannelShuffle",
@@ -51,7 +49,6 @@ __all__ = [
     "ToGray",
     "ToRGB",
     "ToSepia",
-    "JpegCompression",
     "ImageCompression",
     "ToFloat",
     "FromFloat",
@@ -291,40 +288,6 @@ class ImageCompression(ImageOnlyTransform):
             "quality_lower": self.quality_lower,
             "quality_upper": self.quality_upper,
             "compression_type": self.compression_type.value,
-        }
-
-
-class JpegCompression(ImageCompression):
-    """Decreases image quality by Jpeg compression of an image.
-
-    Args:
-        quality_lower: lower bound on the jpeg quality. Should be in [0, 100] range
-        quality_upper: upper bound on the jpeg quality. Should be in [0, 100] range
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, quality_lower: int = 99, quality_upper: int = 100, always_apply: bool = False, p: float = 0.5):
-        super().__init__(
-            quality_lower=quality_lower,
-            quality_upper=quality_upper,
-            compression_type=ImageCompression.ImageCompressionType.JPEG,
-            always_apply=always_apply,
-            p=p,
-        )
-        warnings.warn(
-            f"{self.__class__.__name__} has been deprecated. Please use ImageCompression",
-            FutureWarning,
-        )
-
-    def get_transform_init_args(self) -> Dict[str, float]:
-        return {
-            "quality_lower": self.quality_lower,
-            "quality_upper": self.quality_upper,
         }
 
 
@@ -1266,58 +1229,6 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         return ("brightness_limit", "contrast_limit", "brightness_by_max")
 
 
-class RandomBrightness(RandomBrightnessContrast):
-    """Randomly change brightness of the input image.
-
-    Args:
-        limit: factor range for changing brightness.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        p: probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, limit: ScaleFloatType = 0.2, always_apply: bool = False, p: float = 0.5):
-        super().__init__(brightness_limit=limit, contrast_limit=0, always_apply=always_apply, p=p)
-        warnings.warn(
-            "This class has been deprecated. Please use RandomBrightnessContrast",
-            FutureWarning,
-        )
-
-    def get_transform_init_args(self) -> Dict[str, Any]:
-        return {"limit": self.brightness_limit}
-
-
-class RandomContrast(RandomBrightnessContrast):
-    """Randomly change contrast of the input image.
-
-    Args:
-        limit: factor range for changing contrast.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        p: probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, limit: ScaleFloatType = 0.2, always_apply: bool = False, p: float = 0.5):
-        super().__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
-        warnings.warn(
-            f"{self.__class__.__name__} has been deprecated. Please use RandomBrightnessContrast",
-            FutureWarning,
-        )
-
-    def get_transform_init_args(self) -> Dict[str, ScaleFloatType]:
-        return {"limit": self.contrast_limit}
-
-
 class GaussNoise(ImageOnlyTransform):
     """Apply gaussian noise to the input image.
 
@@ -1529,11 +1440,20 @@ class InvertImg(ImageOnlyTransform):
 
 
 class RandomGamma(ImageOnlyTransform):
-    """
-    Args:
-        gamma_limit: If gamma_limit is a single float value, the range will be (-gamma_limit, gamma_limit).
-            Default: (80, 120).
-        eps: Deprecated.
+    """Applies random gamma correction to an image as a form of data augmentation.
+
+    This class adjusts the luminance of an image by applying gamma correction with a randomly
+    selected gamma value from a specified range. Gamma correction can simulate various lighting
+    conditions, potentially enhancing model generalization. For more details on gamma correction,
+    see: https://en.wikipedia.org/wiki/Gamma_correction
+
+    Attributes:
+        gamma_limit (Union[int, Tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
+            int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much
+            to adjust the image's gamma. Default is (80, 120).
+        always_apply (bool): If `True`, the transform will always be applied, regardless of `p`.
+            Default is `False`.
+        p (float): The probability that the transform will be applied. Default is 0.5.
 
     Targets:
         image
@@ -1545,13 +1465,11 @@ class RandomGamma(ImageOnlyTransform):
     def __init__(
         self,
         gamma_limit: ScaleIntType = (80, 120),
-        eps: Optional[Any] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
         self.gamma_limit = to_tuple(gamma_limit)
-        self.eps = eps
 
     def apply(self, img: np.ndarray, gamma: float = 1, **params: Any) -> np.ndarray:
         return F.gamma_transform(img, gamma=gamma)
@@ -1559,8 +1477,8 @@ class RandomGamma(ImageOnlyTransform):
     def get_params(self) -> Dict[str, float]:
         return {"gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
-        return ("gamma_limit", "eps")
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("gamma_limit",)
 
 
 class ToGray(ImageOnlyTransform):

@@ -1,5 +1,4 @@
 import io
-import random
 from pathlib import Path
 from unittest.mock import patch
 
@@ -74,7 +73,6 @@ AUGMENTATION_CLS_PARAMS = [
             "compression_type": A.ImageCompression.ImageCompressionType.WEBP,
         },
     ],
-    [A.JpegCompression, {"quality_lower": 10, "quality_upper": 80}],
     [
         A.HueSaturationValue,
         {"hue_shift_limit": 70, "sat_shift_limit": 95, "val_shift_limit": 55},
@@ -88,7 +86,6 @@ AUGMENTATION_CLS_PARAMS = [
     [A.GaussNoise, {"var_limit": (20, 90), "mean": 10, "per_channel": False}],
     [A.CLAHE, {"clip_limit": 2, "tile_grid_size": (12, 12)}],
     [A.RandomGamma, {"gamma_limit": (10, 90)}],
-    [A.Cutout, {"num_holes": 4, "max_h_size": 4, "max_w_size": 4}],
     [A.CoarseDropout, {"max_holes": 4, "max_height": 4, "max_width": 4}],
     [
         A.RandomSnow,
@@ -232,8 +229,6 @@ AUGMENTATION_CLS_PARAMS = [
             "max_pixel_value": 100.0,
         },
     ],
-    [A.RandomBrightness, {"limit": 0.4}],
-    [A.RandomContrast, {"limit": 0.4}],
     [A.RandomScale, {"scale_limit": 0.2, "interpolation": cv2.INTER_CUBIC}],
     [A.Resize, {"height": 64, "width": 64}],
     [A.SmallestMaxSize, {"max_size": 64, "interpolation": cv2.INTER_CUBIC}],
@@ -797,7 +792,7 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     )
 
     serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"vflip": aug})
+    deserialized_aug = A.from_dict(serialized_aug, nonserializable={"vflip": aug})
     set_seed(seed)
     aug_data = aug(image=image, mask=mask, bboxes=albumentations_bboxes, keypoints=keypoints)
     set_seed(seed)
@@ -904,7 +899,7 @@ def test_template_transform_serialization(image, template, seed, p):
     aug = A.Compose([A.Flip(), template_transform, A.Blur()])
 
     serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"template": template_transform})
+    deserialized_aug = A.from_dict(serialized_aug, nonserializable={"template": template_transform})
 
     set_seed(seed)
     aug_data = aug(image=image)

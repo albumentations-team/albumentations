@@ -1,17 +1,16 @@
-import io
 import os
 import re
 
 from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import find_packages, setup
 
-INSTALL_REQUIRES = ["numpy>=1.11.1", "scipy>=1.1.0", "scikit-image>=0.16.1", "PyYAML", "qudida>=0.0.4"]
+INSTALL_REQUIRES = ["numpy>=1.24.4", "scipy>=1.10.0", "scikit-image>=0.21.0", "PyYAML", "qudida>=0.0.4"]
 
 # If none of packages in first installed, install second package
 CHOOSE_INSTALL_REQUIRES = [
     (
-        ("opencv-python>=4.1.1", "opencv-contrib-python>=4.1.1", "opencv-contrib-python-headless>=4.1.1"),
-        "opencv-python-headless>=4.1.1",
+        ("opencv-python>=4.9.0", "opencv-contrib-python>=4.9.0", "opencv-contrib-python-headless>=4.9.0"),
+        "opencv-python-headless>=4.9.0",
     )
 ]
 
@@ -19,13 +18,13 @@ CHOOSE_INSTALL_REQUIRES = [
 def get_version():
     current_dir = os.path.abspath(os.path.dirname(__file__))
     version_file = os.path.join(current_dir, "albumentations", "__init__.py")
-    with io.open(version_file, encoding="utf-8") as f:
+    with open(version_file, encoding="utf-8") as f:
         return re.search(r'^__version__ = [\'"]([^\'"]*)[\'"]', f.read(), re.M).group(1)
 
 
 def get_long_description():
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    with io.open(os.path.join(base_dir, "README.md"), encoding="utf-8") as f:
+    with open(os.path.join(base_dir, "README.md"), encoding="utf-8") as f:
         return f.read()
 
 
@@ -60,13 +59,13 @@ setup(
     description="Fast image augmentation library and easy to use wrapper around other libraries",
     long_description=get_long_description(),
     long_description_content_type="text/markdown",
-    author="Buslaev Alexander, Alexander Parinov, Vladimir Iglovikov, Eugene Khvedchenya, Druzhinin Mikhail",
+    author="Vladimir I. Iglovikov, Mikhail Druzhinin, Alex Parinov, Alexander Buslaev, Eugene Khvedchenya",
     license="MIT",
     url="https://github.com/albumentations-team/albumentations",
     packages=find_packages(exclude=["tests"]),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
-    extras_require={"tests": ["pytest"], "imgaug": ["imgaug>=0.4.0"], "develop": ["pytest", "imgaug>=0.4.0"]},
+    extras_require={"tests": ["pytest"], "develop": ["pytest"]},
     classifiers=[
         "Development Status :: 4 - Beta",
         "License :: OSI Approved :: MIT License",

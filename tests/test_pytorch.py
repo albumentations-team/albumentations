@@ -1,12 +1,11 @@
-import pytest
-
 import numpy as np
+import pytest
 import torch
 from PIL import Image
 from torchvision.transforms import ColorJitter
 
 import albumentations as A
-from albumentations.pytorch.transforms import ToTensor, ToTensorV2
+from albumentations.pytorch.transforms import ToTensorV2
 
 
 def test_torch_to_tensor_v2_augmentations(image, mask):
@@ -91,18 +90,6 @@ def test_torch_to_tensor_v2_on_gray_scale_images():
     assert data["image"].dtype == torch.uint8
 
 
-def test_torch_to_tensor_raises_runtime_error():
-    with pytest.raises(RuntimeError) as exc_info:
-        aug = ToTensor()  # noqa F841
-    message = (
-        "`ToTensor` is obsolete and it was removed from Albumentations. Please use `ToTensorV2` instead - "
-        "https://albumentations.ai/docs/api_reference/pytorch/transforms/"
-        "#albumentations.pytorch.transforms.ToTensorV2. "
-        "\n\nIf you need `ToTensor` downgrade Albumentations to version 0.5.2."
-    )
-    assert str(exc_info.value) == message
-
-
 def test_with_replaycompose():
     aug = A.ReplayCompose([ToTensorV2()])
     kwargs = {
@@ -159,7 +146,7 @@ def test_color_jitter(brightness, contrast, saturation, hue):
     res2 = np.array(pil_transform(pil_image))
 
     _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
-    assert _max <= 2, "Max: {}".format(_max)
+    assert _max <= 2, f"Max: {_max}"
 
 
 def test_post_data_check():
