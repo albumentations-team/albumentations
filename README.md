@@ -194,6 +194,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [ZoomBlur](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.ZoomBlur)
 
 ### Spatial-level transforms
+
 Spatial-level transforms will simultaneously change both an input image as well as additional targets such as masks, bounding boxes, and keypoints. The following table shows which additional targets are supported by each transform.
 
 | Transform                                                                                                                                                                       | Image | Masks | BBoxes | Keypoints |
@@ -237,21 +238,26 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [VerticalFlip](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.VerticalFlip)                 | ✓     | ✓     | ✓      | ✓         |
 
 ## A few more examples of augmentations
+
 ### Semantic segmentation on the Inria dataset
 
 ![inria](https://habrastorage.org/webt/su/wa/np/suwanpeo6ww7wpwtobtrzd_cg20.jpeg)
 
 ### Medical imaging
+
 ![medical](https://habrastorage.org/webt/1i/fi/wz/1ifiwzy0lxetc4nwjvss-71nkw0.jpeg)
 
 ### Object detection and semantic segmentation on the Mapillary Vistas dataset
+
 ![vistas](https://habrastorage.org/webt/rz/-h/3j/rz-h3jalbxic8o_fhucxysts4tc.jpeg)
 
 ### Keypoints augmentation
+
 <img src="https://habrastorage.org/webt/e-/6k/z-/e-6kz-fugp2heak3jzns3bc-r8o.jpeg" width=100%>
 
 
 ## Benchmarking results
+
 To run the benchmark yourself, follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
 
 Results for running the benchmark on the first 2000 images from the ImageNet validation set using an Intel(R) Xeon(R) Gold 6140 CPU.
