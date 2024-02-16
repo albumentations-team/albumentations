@@ -1,4 +1,5 @@
 black==24.2.0
+deepdiff==6.7.1
 flake8==7.0.0
 isort==5.13.2
 mypy==1.8.0

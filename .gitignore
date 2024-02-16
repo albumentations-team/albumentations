@@ -163,3 +163,5 @@ conda_build/
 conda.recipe/
 
 .gitingore
+
+*.ipynb
