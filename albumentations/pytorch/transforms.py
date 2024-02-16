@@ -2,7 +2,6 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
-from torchvision.transforms import functional as F
 
 from ..core.transforms_interface import BasicTransform
 

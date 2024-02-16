@@ -1440,11 +1440,20 @@ class InvertImg(ImageOnlyTransform):
 
 
 class RandomGamma(ImageOnlyTransform):
-    """
-    Args:
-        gamma_limit: If gamma_limit is a single float value, the range will be (-gamma_limit, gamma_limit).
-            Default: (80, 120).
-        eps: Deprecated.
+    """Applies random gamma correction to an image as a form of data augmentation.
+
+    This class adjusts the luminance of an image by applying gamma correction with a randomly
+    selected gamma value from a specified range. Gamma correction can simulate various lighting
+    conditions, potentially enhancing model generalization. For more details on gamma correction,
+    see: https://en.wikipedia.org/wiki/Gamma_correction
+
+    Attributes:
+        gamma_limit (ScaleIntType): The range for gamma adjustment. If `gamma_limit` is a single
+            int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much
+            to adjust the image's gamma. Default is (80, 120).
+        always_apply (bool): If `True`, the transform will always be applied, regardless of `p`.
+            Default is `False`.
+        p (float): The probability that the transform will be applied. Default is 0.5.
 
     Targets:
         image
@@ -1456,13 +1465,11 @@ class RandomGamma(ImageOnlyTransform):
     def __init__(
         self,
         gamma_limit: ScaleIntType = (80, 120),
-        eps: Optional[Any] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
         self.gamma_limit = to_tuple(gamma_limit)
-        self.eps = eps
 
     def apply(self, img: np.ndarray, gamma: float = 1, **params: Any) -> np.ndarray:
         return F.gamma_transform(img, gamma=gamma)
@@ -1470,8 +1477,8 @@ class RandomGamma(ImageOnlyTransform):
     def get_params(self) -> Dict[str, float]:
         return {"gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
-        return ("gamma_limit", "eps")
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("gamma_limit",)
 
 
 class ToGray(ImageOnlyTransform):
