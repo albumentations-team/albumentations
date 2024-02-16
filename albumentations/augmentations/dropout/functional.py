@@ -1,10 +1,10 @@
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, Tuple, Union
 
 import numpy as np
 
 from albumentations.augmentations.utils import preserve_shape
 
-__all__ = ["cutout", "channel_dropout"]
+__all__ = ["channel_dropout"]
 
 
 @preserve_shape

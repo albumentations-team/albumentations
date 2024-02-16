@@ -42,8 +42,6 @@ __all__ = [
     "RandomGridShuffle",
     "HueSaturationValue",
     "RGBShift",
-    "RandomBrightness",
-    "RandomContrast",
     "GaussNoise",
     "CLAHE",
     "ChannelShuffle",
@@ -51,7 +49,6 @@ __all__ = [
     "ToGray",
     "ToRGB",
     "ToSepia",
-    "JpegCompression",
     "ImageCompression",
     "ToFloat",
     "FromFloat",
@@ -291,40 +288,6 @@ class ImageCompression(ImageOnlyTransform):
             "quality_lower": self.quality_lower,
             "quality_upper": self.quality_upper,
             "compression_type": self.compression_type.value,
-        }
-
-
-class JpegCompression(ImageCompression):
-    """Decreases image quality by Jpeg compression of an image.
-
-    Args:
-        quality_lower: lower bound on the jpeg quality. Should be in [0, 100] range
-        quality_upper: upper bound on the jpeg quality. Should be in [0, 100] range
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, quality_lower: int = 99, quality_upper: int = 100, always_apply: bool = False, p: float = 0.5):
-        super().__init__(
-            quality_lower=quality_lower,
-            quality_upper=quality_upper,
-            compression_type=ImageCompression.ImageCompressionType.JPEG,
-            always_apply=always_apply,
-            p=p,
-        )
-        warnings.warn(
-            f"{self.__class__.__name__} has been deprecated. Please use ImageCompression",
-            FutureWarning,
-        )
-
-    def get_transform_init_args(self) -> Dict[str, float]:
-        return {
-            "quality_lower": self.quality_lower,
-            "quality_upper": self.quality_upper,
         }
 
 
@@ -1264,58 +1227,6 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str]:
         return ("brightness_limit", "contrast_limit", "brightness_by_max")
-
-
-class RandomBrightness(RandomBrightnessContrast):
-    """Randomly change brightness of the input image.
-
-    Args:
-        limit: factor range for changing brightness.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        p: probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, limit: ScaleFloatType = 0.2, always_apply: bool = False, p: float = 0.5):
-        super().__init__(brightness_limit=limit, contrast_limit=0, always_apply=always_apply, p=p)
-        warnings.warn(
-            "This class has been deprecated. Please use RandomBrightnessContrast",
-            FutureWarning,
-        )
-
-    def get_transform_init_args(self) -> Dict[str, Any]:
-        return {"limit": self.brightness_limit}
-
-
-class RandomContrast(RandomBrightnessContrast):
-    """Randomly change contrast of the input image.
-
-    Args:
-        limit: factor range for changing contrast.
-            If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
-        p: probability of applying the transform. Default: 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-    """
-
-    def __init__(self, limit: ScaleFloatType = 0.2, always_apply: bool = False, p: float = 0.5):
-        super().__init__(brightness_limit=0, contrast_limit=limit, always_apply=always_apply, p=p)
-        warnings.warn(
-            f"{self.__class__.__name__} has been deprecated. Please use RandomBrightnessContrast",
-            FutureWarning,
-        )
-
-    def get_transform_init_args(self) -> Dict[str, ScaleFloatType]:
-        return {"limit": self.contrast_limit}
 
 
 class GaussNoise(ImageOnlyTransform):

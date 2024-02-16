@@ -140,9 +140,7 @@ def instantiate_nonserializable(
 
 
 def from_dict(
-    transform_dict: Dict[str, Any],
-    nonserializable: Optional[Dict[str, Any]] = None,
-    lambda_transforms: Union[Optional[Dict[str, Any]], str] = "deprecated",
+    transform_dict: Dict[str, Any], nonserializable: Optional[Dict[str, Any]] = None
 ) -> Optional[Serializable]:
     """
     Args:
@@ -151,12 +149,7 @@ def from_dict(
             This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
             Keys in that dictionary should be named same as `name` arguments in respective transforms from
             a serialized pipeline.
-        lambda_transforms (dict): Deprecated. Use 'nonserizalizable' instead.
     """
-    if lambda_transforms != "deprecated":
-        warnings.warn("lambda_transforms argument is deprecated, please use 'nonserializable'", DeprecationWarning)
-        nonserializable = cast(Optional[Dict[str, Any]], lambda_transforms)
-
     register_additional_transforms()
     transform = transform_dict["transform"]
     lmbd = instantiate_nonserializable(transform, nonserializable)

@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
@@ -9,58 +9,9 @@ from ..core.transforms_interface import BasicTransform
 __all__ = ["ToTensorV2"]
 
 
-def img_to_tensor(im: np.ndarray, normalize: Optional[bool] = None) -> torch.Tensor:
-    tensor = torch.from_numpy(np.moveaxis(im / (255.0 if im.dtype == np.uint8 else 1), -1, 0).astype(np.float32))
-    if normalize is not None:
-        return F.normalize(tensor, **normalize)
-    return tensor
-
-
-def mask_to_tensor(mask: np.ndarray, num_classes: int, sigmoid: bool) -> torch.Tensor:
-    if num_classes > 1:
-        if not sigmoid:
-            # softmax
-            long_mask = np.zeros((mask.shape[:2]), dtype=np.int64)
-            if len(mask.shape) == 3:
-                for c in range(mask.shape[2]):
-                    long_mask[mask[..., c] > 0] = c
-            else:
-                long_mask[mask > 127] = 1
-                long_mask[mask == 0] = 0
-            mask = long_mask
-        else:
-            mask = np.moveaxis(mask / (255.0 if mask.dtype == np.uint8 else 1), -1, 0).astype(np.float32)
-    else:
-        mask = np.expand_dims(mask / (255.0 if mask.dtype == np.uint8 else 1), 0).astype(np.float32)
-    return torch.from_numpy(mask)
-
-
-class ToTensor(BasicTransform):
-    """Convert image and mask to `torch.Tensor` and divide by 255 if image or mask are `uint8` type.
-    This transform is now removed from Albumentations. If you need it downgrade the library to version 0.5.2.
-
-    Args:
-        num_classes (int): only for segmentation
-        sigmoid (bool, optional): only for segmentation, transform mask to LongTensor or not.
-        normalize (dict, optional): dict with keys [mean, std] to pass it into torchvision.normalize
-
-    """
-
-    def __init__(self, num_classes: int = 1, sigmoid: bool = True, normalize: Optional[bool] = None):
-        raise RuntimeError(
-            "`ToTensor` is obsolete and it was removed from Albumentations. Please use `ToTensorV2` instead - "
-            "https://albumentations.ai/docs/api_reference/pytorch/transforms/"
-            "#albumentations.pytorch.transforms.ToTensorV2. "
-            "\n\nIf you need `ToTensor` downgrade Albumentations to version 0.5.2."
-        )
-
-
 class ToTensorV2(BasicTransform):
     """Convert image and mask to `torch.Tensor`. The numpy `HWC` image is converted to pytorch `CHW` tensor.
     If the image is in `HW` format (grayscale image), it will be converted to pytorch `HW` tensor.
-    This is a simplified and improved version of the old `ToTensor`
-    transform (`ToTensor` was deprecated, and now it is not present in Albumentations. You should use `ToTensorV2`
-    instead).
 
     Args:
         transpose_mask (bool): If True and an input mask has three dimensions, this transform will transpose dimensions
