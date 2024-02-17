@@ -36,7 +36,7 @@ class XYMasking(DualTransform):
             sizes in the vertical direction.
         fill_value (Union[int, float, List[int], List[float]]): Value to fill image masks. Defaults to 0.
         mask_fill_value (Optional[Union[int, float, List[int], List[float]]]): Value to fill masks in the mask.
-            If `None`, uses fill_value. Default: `None`.
+            If `None`, uses mask is not affected. Default: `None`.
         p (float): Probability of applying the transform. Defaults to 0.5.
 
     Targets:
@@ -87,7 +87,7 @@ class XYMasking(DualTransform):
         self.mask_x_length = mask_x_length
         self.mask_y_length = mask_y_length
         self.fill_value = fill_value
-        self.mask_fill_value = mask_fill_value if mask_fill_value is not None else fill_value
+        self.mask_fill_value = mask_fill_value
 
     def apply(
         self,
@@ -163,9 +163,10 @@ class XYMasking(DualTransform):
 
         masks = []
 
-        num_mask_range = cast(Tuple[int, int], to_tuple(num_masks))
-
-        num_masks_integer = random.randint(num_mask_range[0], num_mask_range[1])
+        if isinstance(num_masks, int):
+            num_masks_integer = num_masks
+        else:
+            num_masks_integer = random.randint(num_masks[0], num_masks[1])
 
         for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)
@@ -201,10 +202,8 @@ class XYMasking(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
-            "min_masks_x",
-            "max_masks_x",
-            "min_masks_y",
-            "max_masks_y",
+            "num_masks_x",
+            "num_masks_y",
             "mask_x_length",
             "mask_y_length",
             "fill_value",

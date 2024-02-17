@@ -19,8 +19,11 @@ def channel_dropout(
 
 
 def cutout(img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], fill_value: ColorType = 0) -> np.ndarray:
-    # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
+    # Convert fill_value to a NumPy array for consistent broadcasting
+    if isinstance(fill_value, (tuple, list)):
+        fill_value = np.array(fill_value)
+
     for x1, y1, x2, y2 in holes:
         img[y1:y2, x1:x2] = fill_value
     return img

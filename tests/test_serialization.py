@@ -37,10 +37,8 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {
-                "min_masks_x": 1,
-                "max_masks_x": 3,
-                "min_masks_y": 1,
-                "max_masks_y": 3,
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
@@ -398,10 +396,8 @@ AUGMENTATION_CLS_PARAMS = [
     [
         A.XYMasking,
         {
-            "min_masks_x": 1,
-            "max_masks_x": 3,
-            "min_masks_y": 1,
-            "max_masks_y": 3,
+            "num_masks_x": (1, 3),
+            "num_masks_y": (1, 3),
             "mask_x_length": 10,
             "mask_y_length": 10,
             "mask_fill_value": 1,
@@ -533,14 +529,12 @@ def test_augmentations_for_bboxes_serialization(
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {
-                "min_masks_x": 1,
-                "max_masks_x": 3,
-                "min_masks_y": 1,
-                "max_masks_y": 3,
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
                 "mask_x_length": 10,
                 "mask_y_length": 10,
-                "mask_fill_value": 1,
                 "fill_value": 0,
+                "mask_fill_value": 1,
             },
         },
         except_augmentations={
