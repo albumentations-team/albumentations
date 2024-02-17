@@ -8,7 +8,7 @@ from albumentations.core.types import ColorType, KeypointType
 
 @preserve_shape
 def channel_dropout(
-    img: np.ndarray, channels_to_drop: Union[int, Tuple[int, ...], np.ndarray], fill_value: Union[int, float] = 0
+    img: np.ndarray, channels_to_drop: Union[int, Tuple[int, ...], np.ndarray], fill_value: ColorType = 0
 ) -> np.ndarray:
     if len(img.shape) == 2 or img.shape[2] == 1:
         raise NotImplementedError("Only one channel. ChannelDropout is not defined.")

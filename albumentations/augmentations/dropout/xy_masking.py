@@ -1,11 +1,11 @@
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
 
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType
 
-from ...core.transforms_interface import DualTransform
+from ...core.transforms_interface import DualTransform, to_tuple
 from .functional import cutout, keypoint_in_hole
 
 __all__ = ["XYMasking"]
@@ -22,16 +22,14 @@ class XYMasking(DualTransform):
     maximum size along each axis.
 
     Args:
-        min_masks_x (int): Minimum number of horizontal masks. Defaults to 0.
-        max_masks_x (int): Maximum number of horizontal masks. Defaults to 0.
-        min_masks_y (int): Minimum number of vertical masks. Defaults to 1.
-        max_masks_y (int): Maximum number of vertical masks. Defaults to 1.
-        mask_x_length (Optional[Union[int, Tuple[int, int]]]): Specifies the length of the masks along
+        num_masks_x (Union[int, Tuple[int, int]]): Number or range of horizontal regions to mask. Defaults to 0.
+        num_masks_y (Union[int, Tuple[int, int]]): Number or range of vertical regions to mask. Defaults to 0.
+        mask_x_length ([Union[int, Tuple[int, int]]): Specifies the length of the masks along
             the X (horizontal) axis. If an integer is provided, it sets a fixed mask length.
             If a tuple of two integers (min, max) is provided,
             the mask length is randomly chosen within this range for each mask.
             This allows for variable-length masks in the horizontal direction.
-        mask_y_length (Optional[Union[int, Tuple[int, int]]]): Specifies the height of the masks along
+        mask_y_length (Union[int, Tuple[int, int]]): Specifies the height of the masks along
             the Y (vertical) axis. Similar to `mask_x_length`, an integer sets a fixed mask height,
             while a tuple (min, max) allows for variable-height masks, chosen randomly
             within the specified range for each mask. This flexibility facilitates creating masks of various
@@ -52,12 +50,10 @@ class XYMasking(DualTransform):
 
     def __init__(
         self,
-        min_masks_x: int = 0,
-        max_masks_x: int = 1,
-        min_masks_y: int = 0,
-        max_masks_y: int = 1,
-        mask_x_length: Optional[ScaleIntType] = None,
-        mask_y_length: Optional[ScaleIntType] = None,
+        num_masks_x: ScaleIntType = 0,
+        num_masks_y: ScaleIntType = 0,
+        mask_x_length: ScaleIntType = 0,
+        mask_y_length: ScaleIntType = 0,
         fill_value: ColorType = 0,
         mask_fill_value: ColorType = 0,
         always_apply: bool = False,
@@ -65,18 +61,29 @@ class XYMasking(DualTransform):
     ):
         super().__init__(always_apply, p)
 
-        if mask_x_length is None and mask_y_length is None:
-            raise ValueError("At least one of `mask_x_length` or `mask_y_length` must be specified.")
+        if (
+            isinstance(mask_x_length, (int, float))
+            and mask_x_length <= 0
+            and isinstance(mask_y_length, (int, float))
+            and mask_y_length <= 0
+        ):
+            raise ValueError("At least one of `mask_x_length` or `mask_y_length` Should be a positive number.")
 
-        if not 0 <= min_masks_x <= max_masks_x:
-            raise ValueError("`min_masks_x` must be >= 0 and <= `max_masks_x`.")
-        if not 0 <= min_masks_y <= max_masks_y:
-            raise ValueError("`min_masks_y` must be >= 0 and <= `max_masks_y`.")
+        if isinstance(num_masks_x, int) and num_masks_x <= 0 and isinstance(num_masks_y, int) and num_masks_y <= 0:
+            raise ValueError(
+                "At least one of `num_masks_x` or `num_masks_y` "
+                "should be a positive number or tuple of two positive numbers."
+            )
 
-        self.min_masks_x = min_masks_x
-        self.max_masks_x = max_masks_x
-        self.min_masks_y = min_masks_y
-        self.max_masks_y = max_masks_y
+        if isinstance(num_masks_x, (tuple, list)) and min(num_masks_x) <= 0:
+            raise ValueError("All values in `num_masks_x` should be non negative integers.")
+
+        if isinstance(num_masks_y, (tuple, list)) and min(num_masks_y) <= 0:
+            raise ValueError("All values in `num_masks_y` should be non negative integers.")
+
+        self.num_masks_x = num_masks_x
+        self.num_masks_y = num_masks_y
+
         self.mask_x_length = mask_x_length
         self.mask_y_length = mask_y_length
         self.fill_value = fill_value
@@ -131,8 +138,8 @@ class XYMasking(DualTransform):
         self.validate_mask_length(self.mask_x_length, width, "mask_x_length")
         self.validate_mask_length(self.mask_y_length, height, "mask_y_length")
 
-        masks_x = self.generate_masks(self.min_masks_x, self.max_masks_x, width, height, self.mask_x_length, axis="x")
-        masks_y = self.generate_masks(self.min_masks_y, self.max_masks_y, width, height, self.mask_y_length, axis="y")
+        masks_x = self.generate_masks(self.num_masks_x, width, height, self.mask_x_length, axis="x")
+        masks_y = self.generate_masks(self.num_masks_y, width, height, self.mask_y_length, axis="y")
 
         return {"masks_x": masks_x, "masks_y": masks_y}
 
@@ -145,19 +152,22 @@ class XYMasking(DualTransform):
 
     def generate_masks(
         self,
-        min_masks: int,
-        max_masks: int,
+        num_masks: ScaleIntType,
         width: int,
         height: int,
         max_length: Optional[ScaleIntType],
         axis: str,
     ) -> List[Tuple[int, int, int, int]]:
-        if max_length is None or max_length == 0 or max_masks == 0:
+        if max_length is None or max_length == 0 or isinstance(num_masks, (int, float)) and num_masks == 0:
             return []
 
         masks = []
-        num_masks = random.randint(min_masks, max_masks)
-        for _ in range(num_masks):
+
+        num_mask_range = cast(Tuple[int, int], to_tuple(num_masks))
+
+        num_masks_integer = random.randint(num_mask_range[0], num_mask_range[1])
+
+        for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)
 
             if axis == "x":
