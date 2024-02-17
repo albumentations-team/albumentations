@@ -10,6 +10,7 @@ from .serialization import Serializable, get_shortest_class_fullname
 from .types import (
     BoxInternalType,
     BoxType,
+    ColorType,
     KeypointInternalType,
     KeypointType,
     ScalarType,
@@ -74,8 +75,8 @@ class Interpolation:
 class BasicTransform(Serializable):
     call_backup = None
     interpolation: Union[int, Interpolation]
-    fill_value: ScalarType
-    mask_fill_value: Optional[ScalarType]
+    fill_value: ColorType
+    mask_fill_value: Optional[ColorType]
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
         self.p = p

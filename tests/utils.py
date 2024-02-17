@@ -2,7 +2,7 @@ import inspect
 import random
 import typing
 from io import StringIO
-from typing import Optional, Set, Type
+from typing import Optional, Set
 
 import numpy as np
 
@@ -26,7 +26,7 @@ def convert_2d_to_target_format(arrays, target):
     if target == "image_4_channels":
         return convert_2d_to_3d(arrays, num_channels=4)
 
-    raise ValueError("Unknown target {}".format(target))
+    raise ValueError(f"Unknown target {target}")
 
 
 class InMemoryFile(StringIO):
@@ -73,7 +73,7 @@ def get_filtered_transforms(
 
     result = []
 
-    for name, cls in inspect.getmembers(albumentations):
+    for _, cls in inspect.getmembers(albumentations):
         if not inspect.isclass(cls) or not issubclass(cls, (albumentations.BasicTransform, albumentations.BaseCompose)):
             continue
 
@@ -83,14 +83,7 @@ def get_filtered_transforms(
         if not issubclass(cls, base_classes) or any(cls == i for i in base_classes) or cls in except_augmentations:
             continue
 
-        try:
-            if issubclass(cls, albumentations.BasicIAATransform):
-                continue
-        except AttributeError:
-            pass
-
         result.append((cls, custom_arguments.get(cls, {})))
-
     return result
 
 

@@ -96,6 +96,14 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "fill_value": 0,
+                "mask_fill_value": 1,
+            },
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
     ),
@@ -119,6 +127,14 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
     ),
@@ -157,6 +173,14 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
             },
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
@@ -200,6 +224,14 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.TemplateTransform: {
                 "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -238,6 +270,14 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.Normalize: {"mean": 0, "std": 1},
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(224, 224), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
             },
         },
         except_augmentations={
@@ -314,6 +354,14 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             },
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
             },
         },
         except_augmentations={
@@ -404,6 +452,14 @@ def test_mask_fill_value(augmentation_cls, params):
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 256, (100, 100, 6), dtype=np.uint8),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -467,6 +523,14 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.TemplateTransform: {
                 "templates": np.random.uniform(0.0, 1.0, (100, 100, 6)).astype(np.float32),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={
             A.CLAHE,
@@ -520,6 +584,14 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
             },
         },
         except_augmentations={
@@ -578,6 +650,14 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
                 "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
             },
         },
         except_augmentations={
@@ -800,7 +880,7 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
 def test_pixel_domain_adaptation(kind):
     img_uint8 = np.random.randint(low=100, high=200, size=(100, 100, 3), dtype=np.uint8)
     ref_img_uint8 = np.random.randint(low=0, high=100, size=(100, 100, 3), dtype=np.uint8)
-    img_float, ref_img_float = [x.astype("float32") / 255.0 for x in (img_uint8, ref_img_uint8)]
+    img_float, ref_img_float = (x.astype("float32") / 255.0 for x in (img_uint8, ref_img_uint8))
 
     for img, ref_img in ((img_uint8, ref_img_uint8), (img_float, ref_img_float)):
         adapter = A.PixelDistributionAdaptation(
@@ -854,6 +934,14 @@ def test_pixel_domain_adaptation(kind):
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.5},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
     ),
 )

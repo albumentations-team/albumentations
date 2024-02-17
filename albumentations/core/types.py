@@ -3,7 +3,7 @@ from typing import Any, Sequence, Tuple, Union
 import numpy as np
 
 ScalarType = Union[int, float]
-ColorType = Union[int, float, Tuple[int, int, int], Tuple[float, float, float]]
+ColorType = Union[int, float, Sequence[int], Sequence[float]]
 SizeType = Sequence[int]
 
 BoxInternalType = Tuple[float, float, float, float]
