@@ -61,7 +61,7 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 
 ## Installation
 
-Albumentations requires Python 3.7 or higher. To install the latest version from PyPI:
+Albumentations requires Python 3.8 or higher. To install the latest version from PyPI:
 
 ```bash
 pip install -U albumentations
