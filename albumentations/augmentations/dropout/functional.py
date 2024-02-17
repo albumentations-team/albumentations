@@ -3,8 +3,7 @@ from typing import Iterable, Tuple, Union
 import numpy as np
 
 from albumentations.augmentations.utils import preserve_shape
-
-__all__ = ["channel_dropout"]
+from albumentations.core.types import ColorType, KeypointType
 
 
 @preserve_shape
@@ -19,11 +18,15 @@ def channel_dropout(
     return img
 
 
-def cutout(
-    img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], fill_value: Union[int, float] = 0
-) -> np.ndarray:
+def cutout(img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], fill_value: ColorType = 0) -> np.ndarray:
     # Make a copy of the input image since we don't want to modify it directly
     img = img.copy()
     for x1, y1, x2, y2 in holes:
         img[y1:y2, x1:x2] = fill_value
     return img
+
+
+def keypoint_in_hole(keypoint: KeypointType, hole: Tuple[int, int, int, int]) -> bool:
+    x, y = keypoint[:2]
+    x1, y1, x2, y2 = hole
+    return x1 <= x < x2 and y1 <= y < y2

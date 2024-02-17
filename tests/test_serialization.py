@@ -36,6 +36,16 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "min_masks_x": 1,
+                "max_masks_x": 3,
+                "min_masks_y": 1,
+                "max_masks_y": 3,
+                "max_x_length": 10,
+                "max_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -385,6 +395,19 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
     [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
+    [
+        A.XYMasking,
+        {
+            "min_masks_x": 1,
+            "max_masks_x": 3,
+            "min_masks_y": 1,
+            "max_masks_y": 3,
+            "max_x_length": 10,
+            "max_y_length": 10,
+            "mask_fill_value": 1,
+            "fill_value": 0,
+        },
+    ],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -476,6 +499,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.MaskDropout,
             A.OpticalDistortion,
             A.TemplateTransform,
+            A.XYMasking,
         },
     ),
 )
@@ -508,6 +532,16 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "min_masks_x": 1,
+                "max_masks_x": 3,
+                "min_masks_y": 1,
+                "max_masks_y": 3,
+                "max_x_length": 10,
+                "max_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,

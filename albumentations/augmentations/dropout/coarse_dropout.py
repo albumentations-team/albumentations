@@ -5,7 +5,7 @@ import numpy as np
 
 from ...core.transforms_interface import DualTransform
 from ...core.types import KeypointType, ScalarType
-from .functional import cutout
+from .functional import cutout, keypoint_in_hole
 
 __all__ = ["CoarseDropout"]
 
@@ -79,7 +79,8 @@ class CoarseDropout(DualTransform):
         if not 0 < self.min_width <= self.max_width:
             raise ValueError(f"Invalid combination of min_width and max_width. Got: {[min_width, max_width]}")
 
-    def check_range(self, dimension: ScalarType) -> None:
+    @staticmethod
+    def check_range(dimension: ScalarType) -> None:
         if isinstance(dimension, float) and not 0 <= dimension < 1.0:
             raise ValueError(f"Invalid value {dimension}. If using floats, the value should be in the range [0.0, 1.0)")
 
@@ -108,7 +109,7 @@ class CoarseDropout(DualTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for _n in range(random.randint(self.min_holes, self.max_holes)):
+        for _ in range(random.randint(self.min_holes, self.max_holes)):
             if all(
                 [
                     isinstance(self.min_height, int),
@@ -156,20 +157,14 @@ class CoarseDropout(DualTransform):
     def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def _keypoint_in_hole(self, keypoint: KeypointType, hole: Tuple[int, int, int, int]) -> bool:
-        x1, y1, x2, y2 = hole
-        x, y = keypoint[:2]
-        return x1 <= x < x2 and y1 <= y < y2
-
     def apply_to_keypoints(
         self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any
     ) -> List[KeypointType]:
-        result = set(keypoints)
-        for hole in holes:
-            for kp in keypoints:
-                if self._keypoint_in_hole(kp, hole):
-                    result.discard(kp)
-        return list(result)
+        filtered_keypoints = []
+        for keypoint in keypoints:
+            if not any(keypoint_in_hole(keypoint, hole) for hole in holes):
+                filtered_keypoints.append(keypoint)
+        return filtered_keypoints
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (

@@ -156,6 +156,16 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.XYMasking: {
+                "min_masks_x": 1,
+                "max_masks_x": 3,
+                "min_masks_y": 1,
+                "max_masks_y": 3,
+                "max_x_length": 10,
+                "max_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout},
     ),
@@ -188,13 +198,12 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.BBoxSafeRandomCrop,
             A.CropAndPad,
             A.PixelDropout,
+            A.XYMasking,
         },
     ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
-    """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts.
-    Note: IAAAffine, IAAPiecewiseAffine, IAAPerspective does not properly operate if mask has values other than {0;1}
-    """
+    """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts."""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
@@ -222,6 +231,16 @@ def __test_multiprocessing_support_proc(args):
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "min_masks_x": 1,
+                "max_masks_x": 3,
+                "min_masks_y": 1,
+                "max_masks_y": 3,
+                "max_x_length": 10,
+                "max_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
             },
         },
         except_augmentations={
