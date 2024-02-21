@@ -2,6 +2,13 @@
 
 Thank you for your interest in contributing to Albumentations! This guide is designed to make it easier for you to get involved and help us build a powerful, efficient, and easy-to-use image augmentation library.
 
+For small changes (e.g., bug fixes), feel free to submit a PR.
+
+For larger changes, consider
+creating an [**issue**](https://github.com/albumentations-team/albumentations/issues) outlining your proposed change.
+You can also join us on [**Discord**](https://discord.com/invite/astral-sh) to discuss your idea with the
+community.
+
 ## Getting Started
 
 ### Setting Up Your Development Environment
