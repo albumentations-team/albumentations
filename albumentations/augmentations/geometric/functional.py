@@ -6,6 +6,7 @@ import numpy as np
 import skimage.transform
 from scipy.ndimage import gaussian_filter
 
+from albumentations import random_utils
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     angle_2pi_range,
@@ -13,11 +14,9 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-
-from ... import random_utils
-from ...core.bbox_utils import denormalize_bbox, normalize_bbox
-from ...core.transforms_interface import FillValueType
-from ...core.types import BoxInternalType, ImageColorType, KeypointInternalType
+from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.transforms_interface import FillValueType
+from albumentations.core.types import BoxInternalType, ImageColorType, KeypointInternalType
 
 __all__ = [
     "optical_distortion",
@@ -42,7 +41,7 @@ __all__ = [
     "smallest_max_size",
     "perspective",
     "perspective_bbox",
-    "rotation2DMatrixToEulerAngles",
+    "rotation2d_matrix_to_euler_angles",
     "perspective_keypoint",
     "_is_identity_matrix",
     "warp_affine",
@@ -71,28 +70,34 @@ __all__ = [
     "denormalize_bbox",
 ]
 
+TWO = 2
+THREE = 3
+
 
 def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
+    ----
         bbox: A bounding box tuple (x_min, y_min, x_max, y_max).
         factor: Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
+    -------
         tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
 
     """
     if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
+        msg = "Parameter n must be in set {0, 1, 2, 3}"
+        raise ValueError(msg)
     x_min, y_min, x_max, y_max = bbox[:4]
     if factor == 1:
         bbox = y_min, 1 - x_max, y_max, 1 - x_min
-    elif factor == 2:
+    elif factor == TWO:
         bbox = 1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min
-    elif factor == 3:
+    elif factor == THREE:
         bbox = 1 - y_max, x_min, 1 - y_min, x_max
     return bbox
 
@@ -104,28 +109,32 @@ def keypoint_rot90(
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
     Args:
+    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         factor: Number of CCW rotations. Must be in range [0;3] See np.rot90.
         rows: Image height.
         cols: Image width.
 
     Returns:
+    -------
         tuple: A keypoint `(x, y, angle, scale)`.
 
     Raises:
+    ------
         ValueError: if factor not in set {0, 1, 2, 3}
 
     """
     x, y, angle, scale = keypoint[:4]
 
     if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
+        msg = "Parameter n must be in set {0, 1, 2, 3}"
+        raise ValueError(msg)
 
     if factor == 1:
         x, y, angle = y, (cols - 1) - x, angle - math.pi / 2
-    elif factor == 2:
+    elif factor == TWO:
         x, y, angle = (cols - 1) - x, (rows - 1) - y, angle - math.pi
-    elif factor == 3:
+    elif factor == THREE:
         x, y, angle = (rows - 1) - y, x, angle + math.pi / 2
 
     return x, y, angle, scale
@@ -154,6 +163,7 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
     """Rotates a bounding box by angle degrees.
 
     Args:
+    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         angle: Angle of rotation in degrees.
         method: Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
@@ -161,9 +171,11 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
         cols: Image cols.
 
     Returns:
+    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     References:
+    ----------
         https://arxiv.org/abs/2109.13488
 
     """
@@ -199,12 +211,14 @@ def keypoint_rotate(
     """Rotate a keypoint by angle.
 
     Args:
+    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         angle: Rotation angle.
         rows: Image height.
         cols: Image width.
 
     Returns:
+    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -279,6 +293,7 @@ def bbox_shift_scale_rotate(
 
 
     Args:
+    ----
         bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
         angle (int): Angle of rotation in degrees.
         scale (int): Scale factor.
@@ -290,6 +305,7 @@ def bbox_shift_scale_rotate(
         cols (int): Image cols.
 
     Returns:
+    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -423,11 +439,13 @@ def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: floa
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
+    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         scale_x: Scale coefficient x-axis.
         scale_y: Scale coefficient y-axis.
 
     Returns:
+    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -462,7 +480,7 @@ def perspective(
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
-    border_val: Union[int, float, List[int], List[float], np.ndarray],
+    border_val: Union[float, List[float], np.ndarray],
     border_mode: int,
     keep_size: bool,
     interpolation: int,
@@ -499,8 +517,8 @@ def perspective_bbox(
 
     x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
     for pt in points:
-        pt = perspective_keypoint(pt.tolist() + [0, 0], height, width, matrix, max_width, max_height, keep_size)
-        x, y = pt[:2]
+        point = perspective_keypoint((*pt.tolist(), 0, 0), height, width, matrix, max_width, max_height, keep_size)
+        x, y = point[:2]
         x1 = min(x1, x)
         x2 = max(x2, x)
         y1 = min(y1, y)
@@ -512,11 +530,12 @@ def perspective_bbox(
     )
 
 
-def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
-    """
-    Args:
+def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool = False) -> float:
+    """Args:
+    ----
         matrix (np.ndarray): Rotation matrix
         y_up (bool): is Y axis looks up or down
+
     """
     if y_up:
         return np.arctan2(matrix[1, 0], matrix[0, 0])
@@ -538,7 +557,7 @@ def perspective_keypoint(
     keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
 
     x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
-    angle += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
+    angle += rotation2d_matrix_to_euler_angles(matrix[:2, :2], y_up=True)
 
     scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
     scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
@@ -561,7 +580,7 @@ def warp_affine(
     image: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
     interpolation: int,
-    cval: Union[int, float, Sequence[int], Sequence[float]],
+    cval: Union[float, Sequence[float]],
     mode: int,
     output_shape: Sequence[int],
 ) -> np.ndarray:
@@ -572,8 +591,7 @@ def warp_affine(
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
     )
-    tmp = warp_fn(image)
-    return tmp
+    return warp_fn(image)
 
 
 @angle_2pi_range
@@ -587,7 +605,7 @@ def keypoint_affine(
 
     x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
-    a += rotation2DMatrixToEulerAngles(matrix.params[:2])
+    a += rotation2d_matrix_to_euler_angles(matrix.params[:2])
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
 
@@ -729,6 +747,7 @@ def to_distance_maps(
     method that only supports the augmentation of images.
 
     Args:
+    ----
         keypoint: keypoint coordinates
         height: image height
         width: image width
@@ -738,6 +757,7 @@ def to_distance_maps(
             exactly the position of the respective keypoint.
 
     Returns:
+    -------
         (H, W, N) ndarray
             A ``float32`` array containing ``N`` distance maps for ``N``
             keypoints. Each location ``(y, x, n)`` in the array denotes the
@@ -745,6 +765,7 @@ def to_distance_maps(
             If `inverted` is ``True``, the distance ``d`` is replaced
             by ``d/(d+1)``. The height and width of the array match the
             height and width in ``KeypointsOnImage.shape``.
+
     """
     distance_maps = np.zeros((height, width, len(keypoints)), dtype=np.float32)
 
@@ -761,79 +782,62 @@ def to_distance_maps(
     return distance_maps
 
 
+def validate_if_not_found_coords(
+    if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
+) -> Tuple[bool, int, int]:
+    """Validate and process `if_not_found_coords` parameter."""
+    if if_not_found_coords is None:
+        return True, -1, -1
+    if isinstance(if_not_found_coords, (tuple, list)):
+        if len(if_not_found_coords) != TWO:
+            msg = "Expected tuple/list 'if_not_found_coords' to contain exactly two entries."
+            raise ValueError(msg)
+        return False, if_not_found_coords[0], if_not_found_coords[1]
+    if isinstance(if_not_found_coords, dict):
+        return False, if_not_found_coords["x"], if_not_found_coords["y"]
+
+    msg = "Expected if_not_found_coords to be None, tuple, list, or dict."
+    raise ValueError(msg)
+
+
+def find_keypoint(
+    position: Tuple[int, int], distance_map: np.ndarray, threshold: Optional[float], inverted: bool
+) -> Optional[Tuple[float, float]]:
+    """Determine if a valid keypoint can be found at the given position."""
+    y, x = position
+    value = distance_map[y, x]
+    if not inverted and threshold is not None and value >= threshold:
+        return None
+    if inverted and threshold is not None and value < threshold:
+        return None
+    return float(x), float(y)
+
+
 def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
     if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
     threshold: Optional[float] = None,
 ) -> List[Tuple[float, float]]:
-    """Convert outputs of ``to_distance_maps()`` to ``KeypointsOnImage``.
+    """Convert outputs of `to_distance_maps` to `KeypointsOnImage`.
     This is the inverse of `to_distance_maps`.
-
-    Args:
-        distance_maps (np.ndarray): The distance maps. ``N`` is the number of keypoints.
-        inverted (bool): Whether the given distance maps were generated in inverted mode
-            (i.e. :func:`KeypointsOnImage.to_distance_maps` was called with ``inverted=True``) or in non-inverted mode.
-        if_not_found_coords (tuple, list, dict or None, optional):
-            Coordinates to use for keypoints that cannot be found in `distance_maps`.
-
-            * If this is a ``list``/``tuple``, it must contain two ``int`` values.
-            * If it is a ``dict``, it must contain the keys ``x`` and ``y`` with each containing one ``int`` value.
-            * If this is ``None``, then the keypoint will not be added.
-        threshold (float): The search for keypoints works by searching for the
-            argmin (non-inverted) or argmax (inverted) in each channel. This
-            parameters contains the maximum (non-inverted) or minimum (inverted) value to accept in order to view a hit
-            as a keypoint. Use ``None`` to use no min/max.
-        nb_channels (None, int): Number of channels of the image on which the keypoints are placed.
-            Some keypoint augmenters require that information. If set to ``None``, the keypoint's shape will be set
-            to ``(height, width)``, otherwise ``(height, width, nb_channels)``.
     """
-    if distance_maps.ndim != 3:
-        raise ValueError(
-            f"Expected three-dimensional input, "
-            f"got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
-        )
+    if distance_maps.ndim != THREE:
+        msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
+        raise ValueError(msg)
     height, width, nb_keypoints = distance_maps.shape
 
-    drop_if_not_found = False
-    if if_not_found_coords is None:
-        drop_if_not_found = True
-        if_not_found_x = -1
-        if_not_found_y = -1
-    elif isinstance(if_not_found_coords, (tuple, list)):
-        if len(if_not_found_coords) != 2:
-            raise ValueError(
-                f"Expected tuple/list 'if_not_found_coords' to contain exactly two entries, "
-                f"got {len(if_not_found_coords)}."
-            )
-        if_not_found_x = if_not_found_coords[0]
-        if_not_found_y = if_not_found_coords[1]
-    elif isinstance(if_not_found_coords, dict):
-        if_not_found_x = if_not_found_coords["x"]
-        if_not_found_y = if_not_found_coords["y"]
-    else:
-        raise ValueError(
-            f"Expected if_not_found_coords to be None or tuple or list or dict, got {type(if_not_found_coords)}."
-        )
+    drop_if_not_found, if_not_found_x, if_not_found_y = validate_if_not_found_coords(if_not_found_coords)
 
     keypoints = []
     for i in range(nb_keypoints):
-        if inverted:
-            hitidx_flat = np.argmax(distance_maps[..., i])
-        else:
-            hitidx_flat = np.argmin(distance_maps[..., i])
+        hitidx_flat = np.argmax(distance_maps[..., i]) if inverted else np.argmin(distance_maps[..., i])
         hitidx_ndim = np.unravel_index(hitidx_flat, (height, width))
-        if not inverted and threshold is not None:
-            found = distance_maps[hitidx_ndim[0], hitidx_ndim[1], i] < threshold
-        elif inverted and threshold is not None:
-            found = distance_maps[hitidx_ndim[0], hitidx_ndim[1], i] >= threshold
-        else:
-            found = True
-        if found:
-            keypoints.append((float(hitidx_ndim[1]), float(hitidx_ndim[0])))
-        else:
-            if not drop_if_not_found:
-                keypoints.append((if_not_found_x, if_not_found_y))
+        keypoint = find_keypoint(hitidx_ndim, distance_maps[:, :, i], threshold, inverted)
+        if keypoint:
+            keypoints.append(keypoint)
+        elif not drop_if_not_found:
+            keypoints.append((if_not_found_x, if_not_found_y))
 
     return keypoints
 
@@ -900,7 +904,7 @@ def random_flip(img: np.ndarray, code: int) -> np.ndarray:
 
 
 def transpose(img: np.ndarray) -> np.ndarray:
-    return img.transpose(1, 0, 2) if len(img.shape) > 2 else img.transpose(1, 0)
+    return img.transpose(1, 0, 2) if len(img.shape) > TWO else img.transpose(1, 0)
 
 
 def rot90(img: np.ndarray, factor: int) -> np.ndarray:
@@ -912,11 +916,13 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box vertically around the x-axis.
 
     Args:
+    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
+    -------
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -928,11 +934,13 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
+    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
+    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -944,15 +952,18 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
     Args:
+    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         d: dimension. 0 for vertical flip, 1 for horizontal, -1 for transpose
         rows: Image rows.
         cols: Image cols.
 
     Returns:
+    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     Raises:
+    ------
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
@@ -972,21 +983,25 @@ def bbox_transpose(bbox: KeypointInternalType, axis: int, rows: int, cols: int) 
     """Transposes a bounding box along given axis.
 
     Args:
+    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         axis: 0 - main axis, 1 - secondary axis.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
+    -------
         A bounding box tuple `(x_min, y_min, x_max, y_max)`.
 
     Raises:
+    ------
         ValueError: If axis not equal to 0 or 1.
 
     """
     x_min, y_min, x_max, y_max = bbox[:4]
     if axis not in {0, 1}:
-        raise ValueError("Axis must be either 0 or 1.")
+        msg = "Axis must be either 0 or 1."
+        raise ValueError(msg)
     if axis == 0:
         bbox = (y_min, x_min, y_max, x_max)
     if axis == 1:
@@ -999,11 +1014,13 @@ def keypoint_vflip(keypoint: KeypointInternalType, rows: int, cols: int) -> Keyp
     """Flip a keypoint vertically around the x-axis.
 
     Args:
+    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         rows: Image height.
         cols: Image width.
 
     Returns:
+    -------
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
@@ -1017,11 +1034,13 @@ def keypoint_hflip(keypoint: KeypointInternalType, rows: int, cols: int) -> Keyp
     """Flip a keypoint horizontally around the y-axis.
 
     Args:
+    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         rows: Image height.
         cols: Image width.
 
     Returns:
+    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -1034,6 +1053,7 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
 
     Args:
+    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         d: Number of flip. Must be -1, 0 or 1:
             * 0 - vertical flip,
@@ -1043,9 +1063,11 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
         cols: Image width.
 
     Returns:
+    -------
         A keypoint `(x, y, angle, scale)`.
 
     Raises:
+    ------
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
@@ -1065,18 +1087,17 @@ def keypoint_transpose(keypoint: KeypointInternalType) -> KeypointInternalType:
     """Rotate a keypoint by angle.
 
     Args:
+    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
 
     Returns:
+    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
     x, y, angle, scale = keypoint[:4]
 
-    if angle <= np.pi:
-        angle = np.pi - angle
-    else:
-        angle = 3 * np.pi - angle
+    angle = np.pi - angle if angle <= np.pi else 3 * np.pi - angle
 
     return y, x, angle, scale
 
@@ -1109,9 +1130,7 @@ def pad(
 
     if img.shape[:2] != (max(min_height, height), max(min_width, width)):
         raise RuntimeError(
-            "Invalid result shape. Got: {}. Expected: {}".format(
-                img.shape[:2], (max(min_height, height), max(min_width, width))
-            )
+            f"Invalid result shape. Got: {img.shape[:2]}. Expected: {(max(min_height, height), max(min_width, width))}"
         )
 
     return img

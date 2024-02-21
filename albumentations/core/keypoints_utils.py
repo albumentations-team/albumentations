@@ -1,5 +1,4 @@
 import math
-import warnings
 from typing import Any, Dict, List, Optional, Sequence
 
 from .types import KeypointType
@@ -24,10 +23,10 @@ def angle_to_2pi_range(angle: float) -> float:
 
 
 class KeypointParams(Params):
-    """
-    Parameters of keypoints
+    """Parameters of keypoints
 
     Args:
+    ----
         format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
 
             x - X coordinate,
@@ -43,6 +42,7 @@ class KeypointParams(Params):
         angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
         check_each_transform (bool): if `True`, then keypoints will be checked after each dual transform.
             Default: `True`
+
     """
 
     def __init__(
@@ -58,8 +58,8 @@ class KeypointParams(Params):
         self.angle_in_degrees = angle_in_degrees
         self.check_each_transform = check_each_transform
 
-    def _to_dict(self) -> Dict[str, Any]:
-        data = super()._to_dict()
+    def to_dict_private(self) -> Dict[str, Any]:
+        data = super().to_dict_private()
         data.update(
             {
                 "remove_invisible": self.remove_invisible,
@@ -87,16 +87,12 @@ class KeypointsProcessor(DataProcessor):
         return "keypoints"
 
     def ensure_data_valid(self, data: Dict[str, Any]) -> None:
-        if self.params.label_fields:
-            if not all(i in data.keys() for i in self.params.label_fields):
-                raise ValueError(
-                    "Your 'label_fields' are not valid - them must have same names as params in "
-                    "'keypoint_params' dict"
-                )
+        if self.params.label_fields and not all(i in data for i in self.params.label_fields):
+            msg = "Your 'label_fields' are not valid - them must have same names as params in " "'keypoint_params' dict"
+            raise ValueError(msg)
 
     def filter(self, data: Sequence[KeypointType], rows: int, cols: int) -> Sequence[KeypointType]:
-        """
-        The function filters a sequence of data based on the number of rows and columns, and returns a
+        """The function filters a sequence of data based on the number of rows and columns, and returns a
         sequence of keypoints.
 
         :param data: The `data` parameter is a sequence of sequences. Each inner sequence represents a
@@ -143,10 +139,7 @@ def check_keypoint(kp: KeypointType, rows: int, cols: int) -> None:
     """Check if keypoint coordinates are less than image shapes"""
     for name, value, size in zip(["x", "y"], kp[:2], [cols, rows]):
         if not 0 <= value < size:
-            raise ValueError(
-                "Expected {name} for keypoint {kp} "
-                "to be in the range [0.0, {size}], got {value}.".format(kp=kp, name=name, value=value, size=size)
-            )
+            raise ValueError(f"Expected {name} for keypoint {kp} " f"to be in the range [0.0, {size}], got {value}.")
 
     angle = kp[2]
     if not (0 <= angle < 2 * math.pi):
@@ -209,7 +202,7 @@ def convert_keypoint_to_albumentations(
     if angle_in_degrees:
         a = math.radians(a)
 
-    keypoint = (x, y, angle_to_2pi_range(a), s) + tail
+    keypoint = (x, y, angle_to_2pi_range(a), s, *tail)
     if check_validity:
         check_keypoint(keypoint, rows, cols)
     return keypoint
@@ -234,17 +227,17 @@ def convert_keypoint_from_albumentations(
         angle = math.degrees(angle)
 
     if target_format == "xy":
-        return (x, y) + tail
+        return (x, y, *tail)
     if target_format == "yx":
-        return (y, x) + tail
+        return (y, x, *tail)
     if target_format == "xya":
-        return (x, y, angle) + tail
+        return (x, y, angle, *tail)
     if target_format == "xys":
-        return (x, y, scale) + tail
+        return (x, y, scale, *tail)
     if target_format == "xyas":
-        return (x, y, angle, scale) + tail
+        return (x, y, angle, scale, *tail)
     if target_format == "xysa":
-        return (x, y, scale, angle) + tail
+        return (x, y, scale, angle, *tail)
 
     raise ValueError(f"Invalid target format. Got: {target_format}")
 

@@ -16,9 +16,8 @@ from albumentations.augmentations.utils import (
     preserve_shape,
     read_rgb_image,
 )
-
-from ..core.transforms_interface import ImageOnlyTransform, to_tuple
-from ..core.types import ScaleFloatType
+from albumentations.core.transforms_interface import ImageOnlyTransform, to_tuple
+from albumentations.core.types import ScaleFloatType
 
 __all__ = [
     "HistogramMatching",
@@ -29,23 +28,25 @@ __all__ = [
     "adapt_pixel_distribution",
 ]
 
+THREE = 3
+
 
 @clipped
 @preserve_shape
 def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
-    """
-    Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
+    """Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
 
     Args:
+    ----
         img:  source image
         target_img:  target image for domain adaptation
         beta: coefficient from source paper
 
     Returns:
+    -------
         transformed image
 
     """
-
     img = np.squeeze(img)
     target_img = np.squeeze(target_img)
 
@@ -93,7 +94,7 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
     img, reference_image = np.squeeze(img), np.squeeze(reference_image)
 
     try:
-        matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == 3 else None)
+        matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == THREE else None)
     except TypeError:
         matched = match_histograms(img, reference_image, multichannel=True)
     return cv2.addWeighted(
@@ -118,8 +119,7 @@ def adapt_pixel_distribution(
 
 
 class HistogramMatching(ImageOnlyTransform):
-    """
-    Apply histogram matching. It manipulates the pixels of an input image so that its histogram matches
+    """Apply histogram matching. It manipulates the pixels of an input image so that its histogram matches
     the histogram of the reference image. If the images have multiple channels, the matching is done independently
     for each channel, as long as the number of channels is equal in the input image and the reference.
 
@@ -131,6 +131,7 @@ class HistogramMatching(ImageOnlyTransform):
         https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
 
     Args:
+    ----
         reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
         it expects a sequence of paths to images.
         blend_ratio: Tuple of min and max blend ratio. Matched image will be blended with original
@@ -144,6 +145,7 @@ class HistogramMatching(ImageOnlyTransform):
 
     Image types:
         uint8, uint16, float32
+
     """
 
     def __init__(
@@ -177,16 +179,17 @@ class HistogramMatching(ImageOnlyTransform):
     def get_transform_init_args_names(self) -> Tuple[str, str, str]:
         return ("reference_images", "blend_ratio", "read_fn")
 
-    def _to_dict(self) -> Dict[str, Any]:
-        raise NotImplementedError("HistogramMatching can not be serialized.")
+    def to_dict_private(self) -> Dict[str, Any]:
+        msg = "HistogramMatching can not be serialized."
+        raise NotImplementedError(msg)
 
 
 class FDA(ImageOnlyTransform):
-    """
-    Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
+    """Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
     Simple "style transfer".
 
     Args:
+    ----
         reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
         it expects a sequence of paths to images.
         beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
@@ -204,6 +207,7 @@ class FDA(ImageOnlyTransform):
         https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
 
     Example:
+    -------
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
@@ -248,17 +252,18 @@ class FDA(ImageOnlyTransform):
     def get_transform_init_args_names(self) -> Tuple[str, str, str]:
         return "reference_images", "beta_limit", "read_fn"
 
-    def _to_dict(self) -> Dict[str, Any]:
-        raise NotImplementedError("FDA can not be serialized.")
+    def to_dict_private(self) -> Dict[str, Any]:
+        msg = "FDA can not be serialized."
+        raise NotImplementedError(msg)
 
 
 class PixelDistributionAdaptation(ImageOnlyTransform):
-    """
-    Another naive and quick pixel-level domain adaptation. It fits a simple transform (such as PCA, StandardScaler
+    """Another naive and quick pixel-level domain adaptation. It fits a simple transform (such as PCA, StandardScaler
     or MinMaxScaler) on both original and reference image, transforms original image with transform trained on this
     image and then performs inverse transformation using transform fitted on reference image.
 
     Args:
+    ----
         reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
         it expects a sequence of paths to images.
         blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
@@ -275,6 +280,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         uint8, float32
 
     See also: https://github.com/arsenyinfo/qudida
+
     """
 
     def __init__(
@@ -338,5 +344,6 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
         return "reference_images", "blend_ratio", "read_fn", "transform_type"
 
-    def _to_dict(self) -> Dict[str, Any]:
-        raise NotImplementedError("PixelDistributionAdaptation can not be serialized.")
+    def to_dict_private(self) -> Dict[str, Any]:
+        msg = "PixelDistributionAdaptation can not be serialized."
+        raise NotImplementedError(msg)

@@ -23,29 +23,35 @@ __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", 
 
 FillValueType = Optional[Union[int, float, Sequence[int], Sequence[float]]]
 
+TWO = 2
+THREE = 3
+
 
 def to_tuple(
     param: ScaleType,
     low: Optional[ScaleType] = None,
     bias: Optional[ScalarType] = None,
 ) -> Union[Tuple[int, int], Tuple[float, float]]:
-    """
-    Convert input argument to a min-max tuple.
+    """Convert input argument to a min-max tuple.
 
     Args:
+    ----
         param: Input value which could be a scalar or a sequence of exactly 2 scalars.
         low: Second element of the tuple, provided as an optional argument for when `param` is a scalar.
         bias: An offset added to both elements of the tuple.
 
     Returns:
+    -------
         A tuple of two scalars, optionally adjusted by `bias`.
         Raises ValueError for invalid combinations or types of arguments.
+
     """
     # Validate mutually exclusive arguments
     if low is not None and bias is not None:
-        raise ValueError("Arguments 'low' and 'bias' cannot be used together.")
+        msg = "Arguments 'low' and 'bias' cannot be used together."
+        raise ValueError(msg)
 
-    if isinstance(param, Sequence) and len(param) == 2:
+    if isinstance(param, Sequence) and len(param) == TWO:
         min_val, max_val = min(param), max(param)
 
     # Handle scalar input
@@ -57,7 +63,8 @@ def to_tuple(
             # Create a symmetric tuple around 0
             min_val, max_val = -param, param
     else:
-        raise ValueError("Argument 'param' must be either a scalar or a sequence of 2 elements.")
+        msg = "Argument 'param' must be either a scalar or a sequence of 2 elements."
+        raise ValueError(msg)
 
     # Apply bias if provided
     if bias is not None:
@@ -92,7 +99,8 @@ class BasicTransform(Serializable):
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
         if args:
-            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
+            msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
+            raise KeyError(msg)
         if self.replay_mode:
             if self.applied_in_replay:
                 return self.apply_with_params(self.params, **kwargs)
@@ -103,9 +111,10 @@ class BasicTransform(Serializable):
             params = self.get_params()
 
             if self.targets_as_params:
-                assert all(key in kwargs for key in self.targets_as_params), "{} requires {}".format(
-                    self.__class__.__name__, self.targets_as_params
-                )
+                if not all(key in kwargs for key in self.targets_as_params):
+                    msg = f"{self.__class__.__name__} requires {self.targets_as_params}"
+                    raise ValueError(msg)
+
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
@@ -135,7 +144,10 @@ class BasicTransform(Serializable):
         return res
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
-        assert save_key != "params", "params save_key is reserved"
+        if save_key == "params":
+            msg = "params save_key is reserved"
+            raise KeyError(msg)
+
         self.deterministic = flag
         self.save_key = save_key
         return self
@@ -161,8 +173,9 @@ class BasicTransform(Serializable):
     @property
     def targets(self) -> Dict[str, Callable[..., Any]]:
         # you must specify targets in subclass
-        # for example: ('image', 'mask')
-        #              ('image', 'boxes')
+        # foe example:
+        # >>  ('image', 'mask')
+        # >>  ('image', 'boxes')
         raise NotImplementedError
 
     def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
@@ -186,7 +199,9 @@ class BasicTransform(Serializable):
         by the way you must have at least one object with key 'image'
 
         Args:
+        ----
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
+
         """
         self._additional_targets = additional_targets
 
@@ -208,10 +223,9 @@ class BasicTransform(Serializable):
         return True
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        raise NotImplementedError(
-            "Class {name} is not serializable because the `get_transform_init_args_names` method is not "
-            "implemented".format(name=self.get_class_fullname())
-        )
+        msg = f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
+        "method is not implemented"
+        raise NotImplementedError(msg)
 
     def get_base_init_args(self) -> Dict[str, Any]:
         return {"always_apply": self.always_apply, "p": self.p}
@@ -219,14 +233,14 @@ class BasicTransform(Serializable):
     def get_transform_init_args(self) -> Dict[str, Any]:
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
 
-    def _to_dict(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> Dict[str, Any]:
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
         return state
 
     def get_dict_with_id(self) -> Dict[str, Any]:
-        d = self._to_dict()
+        d = self.to_dict_private()
         d["id"] = id(self)
         return d
 

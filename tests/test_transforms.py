@@ -1035,7 +1035,7 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
     [
         [{"blur_limit": (2, 5)}],
         [{"blur_limit": (3, 6)}],
-        [{"sigmaX_limit": (0.0, 1.0), "sigmaY_limit": (0.0, 1.0)}],
+        [{"sigma_x_limit": (0.0, 1.0), "sigma_y_limit": (0.0, 1.0)}],
         [{"beta_limit": (0.1, 0.9)}],
         [{"beta_limit": (1.1, 8.0)}],
     ],

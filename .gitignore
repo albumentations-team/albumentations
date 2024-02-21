@@ -165,3 +165,5 @@ conda.recipe/
 .gitingore
 
 *.ipynb
+
+.ruff_cache/

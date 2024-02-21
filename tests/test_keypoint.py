@@ -15,7 +15,7 @@ from albumentations.core.keypoints_utils import (
 
 
 @pytest.mark.parametrize(
-    ["kp", "source_format", "expected"],
+    ("kp", "source_format", "expected"),
     [
         ((20, 30), "xy", (20, 30, 0, 0)),
         (np.array([20, 30]), "xy", (20, 30, 0, 0)),

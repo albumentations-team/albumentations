@@ -7,25 +7,19 @@ import cv2
 import numpy as np
 import skimage.transform
 
+from albumentations import random_utils
+from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-
-from ... import random_utils
-from ...core.transforms_interface import DualTransform, to_tuple
-from ...core.types import (
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import (
     BoxInternalType,
-    BoxType,
-    ColorType,
     ImageColorType,
     KeypointInternalType,
-    KeypointType,
-    NumType,
-    ScalarType,
     ScaleFloatType,
     ScaleIntType,
-    ScaleType,
     SizeType,
 )
-from ..functional import bbox_from_mask
+
 from . import functional as F
 
 __all__ = [
@@ -43,11 +37,15 @@ __all__ = [
     "PadIfNeeded",
 ]
 
+TWO = 2
+THREE = 3
+
 
 class ShiftScaleRotate(DualTransform):
     """Randomly apply affine transforms: translate, scale and rotate the input.
 
     Args:
+    ----
         shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
             upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
@@ -84,6 +82,7 @@ class ShiftScaleRotate(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def __init__(
@@ -182,6 +181,7 @@ class ElasticTransform(DualTransform):
          Recognition, 2003.
 
     Args:
+    ----
         alpha (float):
         sigma (float): Gaussian filter parameter.
         alpha_affine (float): The range will be (-alpha_affine, alpha_affine)
@@ -205,6 +205,7 @@ class ElasticTransform(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def __init__(
@@ -306,10 +307,11 @@ class Perspective(DualTransform):
     """Perform a random four point perspective transform of the input.
 
     Args:
+    ----
         scale: standard deviation of the normal distributions. These are used to sample
             the random distances of the subimage's corners from the full image's corners.
             If scale is a single float value, the range will be (0, scale). Default: (0.05, 0.1).
-        keep_size: Whether to resize image’s back to their original size after applying the perspective
+        keep_size: Whether to resize image back to their original size after applying the perspective
             transform. If set to False, the resulting images may end up having different shapes
             and will always be a list, never an array. Default: True
         pad_mode (OpenCV flag): OpenCV border mode.
@@ -329,6 +331,7 @@ class Perspective(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def __init__(
@@ -336,8 +339,8 @@ class Perspective(DualTransform):
         scale: ScaleFloatType = (0.05, 0.1),
         keep_size: bool = True,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_val: Union[int, float, List[float], List[int]] = 0,
-        mask_pad_val: Union[int, float, List[float], List[int]] = 0,
+        pad_val: Union[float, List[float]] = 0,
+        mask_pad_val: Union[float, List[float]] = 0,
         fit_output: bool = False,
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
@@ -419,12 +422,12 @@ class Perspective(DualTransform):
         # x-coordiates or the top-right and top-left x-coordinates
         min_width = None
         max_width = None
-        while min_width is None or min_width < 2:
+        while min_width is None or min_width < TWO:
             width_top = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
             width_bottom = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
             max_width = int(max(width_top, width_bottom))
             min_width = int(min(width_top, width_bottom))
-            if min_width < 2:
+            if min_width < TWO:
                 step_size = (2 - min_width) / 2
                 tl[0] -= step_size
                 tr[0] += step_size
@@ -435,12 +438,12 @@ class Perspective(DualTransform):
         # and bottom-right y-coordinates or the top-left and bottom-left y-coordinates
         min_height = None
         max_height = None
-        while min_height is None or min_height < 2:
+        while min_height is None or min_height < TWO:
             height_right = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
             height_left = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
             max_height = int(max(height_right, height_left))
             min_height = int(min(height_right, height_left))
-            if min_height < 2:
+            if min_height < TWO:
                 step_size = (2 - min_height) / 2
                 tl[1] -= step_size
                 tr[1] -= step_size
@@ -523,6 +526,7 @@ class Affine(DualTransform):
     `mask_interpolation` deals with the method of interpolation used for this.
 
     Args:
+    ----
         scale (number, tuple of number or dict): Scaling factor to use, where ``1.0`` denotes "no change" and
             ``0.5`` is zoomed out to ``50`` percent of the original size.
                 * If a single number, then that value will be used for all images.
@@ -598,6 +602,7 @@ class Affine(DualTransform):
 
     Reference:
         [1] https://arxiv.org/abs/2109.13488
+
     """
 
     def __init__(
@@ -609,8 +614,8 @@ class Affine(DualTransform):
         shear: Optional[Union[ScaleFloatType, Dict[str, Any]]] = None,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        cval: Union[int, float, Tuple[int, int], Tuple[float, float]] = 0,
-        cval_mask: Union[int, float, Tuple[int, int], Tuple[float, float]] = 0,
+        cval: Union[float, Tuple[float, float]] = 0,
+        cval_mask: Union[float, Tuple[float, float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
         fit_output: bool = False,
         keep_ratio: bool = False,
@@ -621,7 +626,7 @@ class Affine(DualTransform):
         super().__init__(always_apply=always_apply, p=p)
 
         params = [scale, translate_percent, translate_px, rotate, shear]
-        if all([p is None for p in params]):
+        if all(p is None for p in params):
             scale = {"x": (0.9, 1.1), "y": (0.9, 1.1)}
             translate_percent = {"x": (-0.1, 0.1), "y": (-0.1, 0.1)}
             rotate = (-15, 15)
@@ -688,16 +693,16 @@ class Affine(DualTransform):
             translate_px = 0
 
         if translate_percent is not None and translate_px is not None:
-            raise ValueError(
-                "Expected either translate_percent or translate_px to be " "provided, " "but neither of them was."
-            )
+            msg = "Expected either translate_percent or translate_px to be " "provided, " "but neither of them was."
+            raise ValueError(msg)
 
         if translate_percent is not None:
             # translate by percent
             return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
 
         if translate_px is None:
-            raise ValueError("translate_px is None.")
+            msg = "translate_px is None."
+            raise ValueError(msg)
         # translate by pixels
         return translate_percent, cls._handle_dict_arg(translate_px, "translate_px")
 
@@ -751,7 +756,13 @@ class Affine(DualTransform):
         scale: Optional[Dict[str, Any]] = None,
         **params: Any,
     ) -> KeypointInternalType:
-        assert scale is not None and matrix is not None
+        if scale is None:
+            msg = "Expected scale to be provided, but got None."
+            raise ValueError(msg)
+        if matrix is None:
+            msg = "Expected matrix to be provided, but got None."
+            raise ValueError(msg)
+
         return F.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @property
@@ -834,7 +845,7 @@ class Affine(DualTransform):
         maxr = corners[:, 1].max()
         out_height = maxr - minr + 1
         out_width = maxc - minc + 1
-        if len(input_shape) == 3:
+        if len(input_shape) == THREE:
             output_shape = np.ceil((out_height, out_width, input_shape[2]))
         else:
             output_shape = np.ceil((out_height, out_width))
@@ -855,14 +866,17 @@ class PiecewiseAffine(DualTransform):
     See also ``Affine`` for a similar technique.
 
     Note:
+    ----
         This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.
 
     Note:
+    ----
         For coordinate-based inputs (keypoints, bounding boxes, polygons, ...),
         this augmenter still has to perform an image-based augmentation,
         which will make it significantly slower and not fully correct for such inputs than other transforms.
 
     Args:
+    ----
         scale (float, tuple of float): Each point on the regular grid is moved around via a normal distribution.
             This scale factor is equivalent to the normal distribution's sigma.
             Note that the jitter (how far each point is moved in which direction) is multiplied by the height/width of
@@ -962,7 +976,7 @@ class PiecewiseAffine(DualTransform):
 
         jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
-            for i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
+            for _i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
                 jitter = random_utils.normal(0, scale, (nb_cells, 2))
                 if np.any(jitter > 0):
                     break
@@ -1038,6 +1052,7 @@ class PadIfNeeded(DualTransform):
     """Pad side of the image / max if side is less than desired number.
 
     Args:
+    ----
         min_height (int): minimal result image height.
         min_width (int): minimal result image width.
         pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
@@ -1057,9 +1072,27 @@ class PadIfNeeded(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     class PositionType(Enum):
+        """Enumerates the types of positions for placing an object within a container.
+
+        This Enum class is utilized to define specific anchor positions that an object can
+        assume relative to a container. It's particularly useful in image processing, UI layout,
+        and graphic design to specify the alignment and positioning of elements.
+
+        Attributes
+        ----------
+            CENTER (str): Specifies that the object should be placed at the center.
+            TOP_LEFT (str): Specifies that the object should be placed at the top-left corner.
+            TOP_RIGHT (str): Specifies that the object should be placed at the top-right corner.
+            BOTTOM_LEFT (str): Specifies that the object should be placed at the bottom-left corner.
+            BOTTOM_RIGHT (str): Specifies that the object should be placed at the bottom-right corner.
+            RANDOM (str): Indicates that the object's position should be determined randomly.
+
+        """
+
         CENTER = "center"
         TOP_LEFT = "top_left"
         TOP_RIGHT = "top_right"
@@ -1081,10 +1114,12 @@ class PadIfNeeded(DualTransform):
         p: float = 1.0,
     ):
         if (min_height is None) == (pad_height_divisor is None):
-            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
+            msg = "Only one of 'min_height' and 'pad_height_divisor' parameters must be set"
+            raise ValueError(msg)
 
         if (min_width is None) == (pad_width_divisor is None):
-            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
+            msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
+            raise ValueError(msg)
 
         super().__init__(always_apply, p)
         self.min_height = min_height
@@ -1261,6 +1296,7 @@ class VerticalFlip(DualTransform):
     """Flip the input vertically around the x-axis.
 
     Args:
+    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1268,6 +1304,7 @@ class VerticalFlip(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -1287,6 +1324,7 @@ class HorizontalFlip(DualTransform):
     """Flip the input horizontally around the y-axis.
 
     Args:
+    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1294,10 +1332,11 @@ class HorizontalFlip(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
+        if img.ndim == THREE and img.shape[2] > 1 and img.dtype == np.uint8:
             # Opencv is faster than numpy only in case of
             # non-gray scale 8bits images
             return F.hflip_cv2(img)
@@ -1318,6 +1357,7 @@ class Flip(DualTransform):
     """Flip the input either horizontally, vertically or both horizontally and vertically.
 
     Args:
+    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1325,6 +1365,7 @@ class Flip(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def apply(self, img: np.ndarray, d: int = 0, **params: Any) -> np.ndarray:
@@ -1353,6 +1394,7 @@ class Transpose(DualTransform):
     """Transpose the input by swapping rows and columns.
 
     Args:
+    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1360,6 +1402,7 @@ class Transpose(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -1376,8 +1419,8 @@ class Transpose(DualTransform):
 
 
 class OpticalDistortion(DualTransform):
-    """
-    Args:
+    """Args:
+    ----
         distort_limit (float, (float, float)): If distort_limit is a single float, the range
             will be (-distort_limit, distort_limit). Default: (-0.05, 0.05).
         shift_limit (float, (float, float))): If shift_limit is a single float, the range
@@ -1398,6 +1441,7 @@ class OpticalDistortion(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def __init__(
@@ -1465,8 +1509,8 @@ class OpticalDistortion(DualTransform):
 
 
 class GridDistortion(DualTransform):
-    """
-    Args:
+    """Args:
+    ----
         num_steps (int): count of grid cells on each side.
         distort_limit (float, (float, float)): If distort_limit is a single float, the range
             will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).
@@ -1488,6 +1532,7 @@ class GridDistortion(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def __init__(

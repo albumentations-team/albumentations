@@ -3,20 +3,25 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import torch
 
-from ..core.transforms_interface import BasicTransform
+from albumentations.core.transforms_interface import BasicTransform
 
 __all__ = ["ToTensorV2"]
+
+TWO = 2
+THREE = 3
 
 
 class ToTensorV2(BasicTransform):
     """Converts images/masks to PyTorch Tensors, inheriting from BasicTransform. Supports images in numpy `HWC` format
     and converts them to PyTorch `CHW` format. If the image is in `HW` format, it will be converted to PyTorch `HW`.
 
-    Attributes:
+    Attributes
+    ----------
         transpose_mask (bool): If True, transposes 3D input mask dimensions from `[height, width, num_channels]` to
             `[num_channels, height, width]`.
         always_apply (bool): Indicates if this transformation should be always applied. Default: True.
         p (float): Probability of applying the transform. Default: 1.0.
+
     """
 
     def __init__(self, transpose_mask: bool = False, always_apply: bool = True, p: float = 1.0):
@@ -29,15 +34,16 @@ class ToTensorV2(BasicTransform):
 
     def apply(self, img: np.ndarray, **params: Any) -> torch.Tensor:
         if len(img.shape) not in [2, 3]:
-            raise ValueError("Albumentations only supports images in HW or HWC format")
+            msg = "Albumentations only supports images in HW or HWC format"
+            raise ValueError(msg)
 
-        if len(img.shape) == 2:
+        if len(img.shape) == TWO:
             img = np.expand_dims(img, 2)
 
         return torch.from_numpy(img.transpose(2, 0, 1))
 
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> torch.Tensor:
-        if self.transpose_mask and mask.ndim == 3:
+        if self.transpose_mask and mask.ndim == THREE:
             mask = mask.transpose(2, 0, 1)
         return torch.from_numpy(mask)
 
