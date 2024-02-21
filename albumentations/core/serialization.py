@@ -1,8 +1,9 @@
+import importlib.util
 import json
 import warnings
 from abc import ABC, ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Dict, Optional, TextIO, Tuple, Type, Union, cast
+from typing import Any, Dict, Optional, TextIO, Tuple, Type, Union
 
 try:
     import yaml
@@ -32,13 +33,12 @@ def shorten_class_name(class_fullname: str) -> str:
 
 
 class SerializableMeta(ABCMeta):
-    """
-    A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` or `NON_SERIALIZABLE_REGISTRY`
+    """A metaclass that is used to register classes in `SERIALIZABLE_REGISTRY` or `NON_SERIALIZABLE_REGISTRY`
     so they can be found later while deserializing transformation pipeline using classes full names.
     """
 
-    def __new__(mcs, name: str, bases: Tuple[type, ...], *args: Any, **kwargs: Any) -> "SerializableMeta":
-        cls_obj = super().__new__(mcs, name, bases, *args, **kwargs)
+    def __new__(cls, name: str, bases: Tuple[type, ...], *args: Any, **kwargs: Any) -> "SerializableMeta":
+        cls_obj = super().__new__(cls, name, bases, *args, **kwargs)
         if name != "Serializable" and ABC not in bases:
             if cls_obj.is_serializable():
                 SERIALIZABLE_REGISTRY[cls_obj.get_class_fullname()] = cls_obj
@@ -47,15 +47,15 @@ class SerializableMeta(ABCMeta):
         return cls_obj
 
     @classmethod
-    def is_serializable(mcs) -> bool:
+    def is_serializable(cls) -> bool:
         return False
 
     @classmethod
-    def get_class_fullname(mcs) -> str:
-        return get_shortest_class_fullname(mcs)
+    def get_class_fullname(cls) -> str:
+        return get_shortest_class_fullname(cls)
 
     @classmethod
-    def _to_dict(mcs) -> Dict[str, Any]:
+    def _to_dict(cls) -> Dict[str, Any]:
         return {}
 
 
@@ -71,32 +71,31 @@ class Serializable(metaclass=SerializableMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def _to_dict(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> Dict[str, Any]:
         raise NotImplementedError
 
     def to_dict(self, on_not_implemented_error: str = "raise") -> Dict[str, Any]:
-        """
-        Take a transform pipeline and convert it to a serializable representation that uses only standard
+        """Take a transform pipeline and convert it to a serializable representation that uses only standard
         python data types: dictionaries, lists, strings, integers, and floats.
 
         Args:
+        ----
             self: A transform that should be serialized. If the transform doesn't implement the `to_dict`
                 method and `on_not_implemented_error` equals to 'raise' then `NotImplementedError` is raised.
                 If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
                 but no transform parameters will be serialized.
             on_not_implemented_error (str): `raise` or `warn`.
+
         """
         if on_not_implemented_error not in {"raise", "warn"}:
-            raise ValueError(
-                "Unknown on_not_implemented_error value: {}. Supported values are: 'raise' and 'warn'".format(
-                    on_not_implemented_error
-                )
-            )
+            msg = f"Unknown on_not_implemented_error value: {on_not_implemented_error}. Supported values are: 'raise' "
+            "and 'warn'"
+            raise ValueError(msg)
         try:
-            transform_dict = self._to_dict()
-        except NotImplementedError as e:
+            transform_dict = self.to_dict_private()
+        except NotImplementedError:
             if on_not_implemented_error == "raise":
-                raise e
+                raise
 
             transform_dict = {}
             warnings.warn(
@@ -108,16 +107,17 @@ class Serializable(metaclass=SerializableMeta):
 
 
 def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") -> Dict[str, Any]:
-    """
-    Take a transform pipeline and convert it to a serializable representation that uses only standard
+    """Take a transform pipeline and convert it to a serializable representation that uses only standard
     python data types: dictionaries, lists, strings, integers, and floats.
 
     Args:
+    ----
         transform: A transform that should be serialized. If the transform doesn't implement the `to_dict`
             method and `on_not_implemented_error` equals to 'raise' then `NotImplementedError` is raised.
             If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
             but no transform parameters will be serialized.
         on_not_implemented_error (str): `raise` or `warn`.
+
     """
     return transform.to_dict(on_not_implemented_error)
 
@@ -128,10 +128,9 @@ def instantiate_nonserializable(
     if transform.get("__class_fullname__") in NON_SERIALIZABLE_REGISTRY:
         name = transform["__name__"]
         if nonserializable is None:
-            raise ValueError(
-                "To deserialize a non-serializable transform with name {name} you need to pass a dict with"
-                "this transform as the `lambda_transforms` argument".format(name=name)
-            )
+            msg = f"To deserialize a non-serializable transform with name {name} you need to pass a dict with"
+            "this transform as the `lambda_transforms` argument"
+            raise ValueError(msg)
         result_transform = nonserializable.get(name)
         if transform is None:
             raise ValueError(f"Non-serializable transform with {name} was not found in `nonserializable`")
@@ -142,13 +141,14 @@ def instantiate_nonserializable(
 def from_dict(
     transform_dict: Dict[str, Any], nonserializable: Optional[Dict[str, Any]] = None
 ) -> Optional[Serializable]:
-    """
-    Args:
+    """Args:
+    ----
         transform_dict: A dictionary with serialized transform pipeline.
         nonserializable (dict): A dictionary that contains non-serializable transforms.
             This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
             Keys in that dictionary should be named same as `name` arguments in respective transforms from
             a serialized pipeline.
+
     """
     register_additional_transforms()
     transform = transform_dict["transform"]
@@ -174,11 +174,11 @@ def save(
     data_format: str = "json",
     on_not_implemented_error: str = "raise",
 ) -> None:
-    """
-    Serialize a transform pipeline and save it to either a file specified by a path or a file-like object
+    """Serialize a transform pipeline and save it to either a file specified by a path or a file-like object
     in either JSON or YAML format.
 
     Args:
+    ----
         transform (Serializable): The transform pipeline to serialize.
         filepath_or_buffer (Union[str, Path, TextIO]): The file path or file-like object to write the serialized
             data to.
@@ -191,7 +191,9 @@ def save(
             no transform arguments are saved. Defaults to 'raise'.
 
     Raises:
+    ------
         ValueError: If `data_format` is 'yaml' but PyYAML is not installed.
+
     """
     check_data_format(data_format)
     transform_dict = transform.to_dict(on_not_implemented_error=on_not_implemented_error)
@@ -201,17 +203,18 @@ def save(
         with open(filepath_or_buffer, "w") as f:
             if data_format == "yaml":
                 if not yaml_available:
-                    raise ValueError("You need to install PyYAML to save a pipeline in YAML format")
+                    msg = "You need to install PyYAML to save a pipeline in YAML format"
+                    raise ValueError(msg)
                 yaml.safe_dump(transform_dict, f, default_flow_style=False)
             elif data_format == "json":
                 json.dump(transform_dict, f)
-    else:  # Assume it's a file-like object
-        if data_format == "yaml":
-            if not yaml_available:
-                raise ValueError("You need to install PyYAML to save a pipeline in YAML format")
-            yaml.safe_dump(transform_dict, filepath_or_buffer, default_flow_style=False)
-        elif data_format == "json":
-            json.dump(transform_dict, filepath_or_buffer)
+    elif data_format == "yaml":
+        if not yaml_available:
+            msg = "You need to install PyYAML to save a pipeline in YAML format"
+            raise ValueError(msg)
+        yaml.safe_dump(transform_dict, filepath_or_buffer, default_flow_style=False)
+    elif data_format == "json":
+        json.dump(transform_dict, filepath_or_buffer)
 
 
 def load(
@@ -219,10 +222,10 @@ def load(
     data_format: str = "json",
     nonserializable: Optional[Dict[str, Any]] = None,
 ) -> object:
-    """
-    Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
+    """Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
 
     Args:
+    ----
         filepath_or_buffer (Union[str, Path, TextIO]): The file path or file-like object to read the serialized
             data from.
             If a string is provided, it is interpreted as a path to a file. If a file-like object is provided,
@@ -235,10 +238,13 @@ def load(
             from the serialized pipeline. Defaults to None.
 
     Returns:
+    -------
         object: The deserialized transform pipeline.
 
     Raises:
+    ------
         ValueError: If `data_format` is 'yaml' but PyYAML is not installed.
+
     """
     check_data_format(data_format)
 
@@ -248,33 +254,37 @@ def load(
                 transform_dict = json.load(f)
             else:
                 if not yaml_available:
-                    raise ValueError("You need to install PyYAML to load a pipeline in yaml format")
+                    msg = "You need to install PyYAML to load a pipeline in yaml format"
+                    raise ValueError(msg)
                 transform_dict = yaml.safe_load(f)
-    else:  # Assume it's a file-like object
-        if data_format == "json":
-            transform_dict = json.load(filepath_or_buffer)
-        else:
-            if not yaml_available:
-                raise ValueError("You need to install PyYAML to load a pipeline in yaml format")
-            transform_dict = yaml.safe_load(filepath_or_buffer)
+    elif data_format == "json":
+        transform_dict = json.load(filepath_or_buffer)
+    else:
+        if not yaml_available:
+            msg = "You need to install PyYAML to load a pipeline in yaml format"
+            raise ValueError(msg)
+        transform_dict = yaml.safe_load(filepath_or_buffer)
 
     return from_dict(transform_dict, nonserializable=nonserializable)
 
 
 def register_additional_transforms() -> None:
+    """Register transforms that are not imported directly into the `albumentations` module by checking
+    the availability of optional dependencies.
     """
-    Register transforms that are not imported directly into the `albumentations` module.
-    """
-    try:
-        # This import will result in ImportError if `torch` is not installed
-        import albumentations.pytorch
-    except ImportError:
-        pass
+    if importlib.util.find_spec("torch") is not None:
+        try:
+            # Import `albumentations.pytorch` only if `torch` is installed.
+            import albumentations.pytorch
+
+            # Use a dummy operation to acknowledge the use of the imported module and avoid linting errors.
+            _ = albumentations.pytorch.ToTensorV2
+        except ImportError:
+            pass
 
 
 def get_shortest_class_fullname(cls: Type[Any]) -> str:
-    """
-    The function `get_shortest_class_fullname` takes a class object as input and returns its shortened
+    """The function `get_shortest_class_fullname` takes a class object as input and returns its shortened
     full name.
 
     :param cls: The parameter `cls` is of type `Type[BasicCompose]`, which means it expects a class that
@@ -282,5 +292,5 @@ def get_shortest_class_fullname(cls: Type[Any]) -> str:
     :type cls: Type[BasicCompose]
     :return: a string, which is the shortened version of the full class name.
     """
-    class_fullname = "{cls.__module__}.{cls.__name__}".format(cls=cls)
+    class_fullname = f"{cls.__module__}.{cls.__name__}"
     return shorten_class_name(class_fullname)

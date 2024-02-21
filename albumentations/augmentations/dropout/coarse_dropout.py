@@ -3,8 +3,9 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from ...core.transforms_interface import DualTransform
-from ...core.types import KeypointType, ScalarType
+from albumentations.core.transforms_interface import DualTransform
+from albumentations.core.types import KeypointType, ScalarType
+
 from .functional import cutout, keypoint_in_hole
 
 __all__ = ["CoarseDropout"]
@@ -14,6 +15,7 @@ class CoarseDropout(DualTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
+    ----
         max_holes (int): Maximum number of regions to zero out.
         max_height (int, float): Maximum height of the hole.
         If float, it is calculated as a fraction of the image height.
@@ -42,6 +44,7 @@ class CoarseDropout(DualTransform):
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+
     """
 
     def __init__(
@@ -131,19 +134,18 @@ class CoarseDropout(DualTransform):
                 hole_height = int(height * random.uniform(self.min_height, self.max_height))
                 hole_width = int(width * random.uniform(self.min_width, self.max_width))
             else:
-                raise ValueError(
-                    "Min width, max width, \
+                msg = "Min width, max width, \
                     min height and max height \
                     should all either be ints or floats. \
                     Got: {} respectively".format(
-                        [
-                            type(self.min_width),
-                            type(self.max_width),
-                            type(self.min_height),
-                            type(self.max_height),
-                        ]
-                    )
+                    [
+                        type(self.min_width),
+                        type(self.max_width),
+                        type(self.min_height),
+                        type(self.max_height),
+                    ]
                 )
+                raise ValueError(msg)
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
@@ -160,11 +162,7 @@ class CoarseDropout(DualTransform):
     def apply_to_keypoints(
         self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any
     ) -> List[KeypointType]:
-        filtered_keypoints = []
-        for keypoint in keypoints:
-            if not any(keypoint_in_hole(keypoint, hole) for hole in holes):
-                filtered_keypoints.append(keypoint)
-        return filtered_keypoints
+        return [keypoint for keypoint in keypoints if not any(keypoint_in_hole(keypoint, hole) for hole in holes)]
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (

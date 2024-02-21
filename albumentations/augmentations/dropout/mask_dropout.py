@@ -5,15 +5,14 @@ import cv2
 import numpy as np
 from skimage.measure import label
 
-from ...core.transforms_interface import DualTransform, to_tuple
-from ...core.types import ScalarType
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import ScalarType
 
 __all__ = ["MaskDropout"]
 
 
 class MaskDropout(DualTransform):
-    """
-    Image & mask augmentation that zero out mask and image regions corresponding
+    """Image & mask augmentation that zero out mask and image regions corresponding
     to randomly chosen object instance from mask.
 
     Mask must be single-channel image, zero values treated as background.
@@ -22,6 +21,7 @@ class MaskDropout(DualTransform):
     Inspired by https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
 
     Args:
+    ----
         max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
         image_fill_value: Fill value to use when filling image.
             Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
@@ -32,12 +32,13 @@ class MaskDropout(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
     def __init__(
         self,
         max_objects: int = 1,
-        image_fill_value: Union[int, float, str] = 0,
+        image_fill_value: Union[float, str] = 0,
         mask_fill_value: ScalarType = 0,
         always_apply: bool = False,
         p: float = 0.5,

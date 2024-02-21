@@ -5,13 +5,16 @@ import numpy as np
 from albumentations.augmentations.utils import preserve_shape
 from albumentations.core.types import ColorType, KeypointType
 
+TWO = 2
+
 
 @preserve_shape
 def channel_dropout(
     img: np.ndarray, channels_to_drop: Union[int, Tuple[int, ...], np.ndarray], fill_value: ColorType = 0
 ) -> np.ndarray:
-    if len(img.shape) == 2 or img.shape[2] == 1:
-        raise NotImplementedError("Only one channel. ChannelDropout is not defined.")
+    if len(img.shape) == TWO or img.shape[2] == 1:
+        msg = "Only one channel. ChannelDropout is not defined."
+        raise NotImplementedError(msg)
 
     img = img.copy()
     img[..., channels_to_drop] = fill_value

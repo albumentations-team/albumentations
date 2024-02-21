@@ -2,6 +2,7 @@
 
 [![PyPI version](https://badge.fury.io/py/albumentations.svg)](https://badge.fury.io/py/albumentations)
 ![CI](https://github.com/albumentations-team/albumentations/workflows/CI/badge.svg)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 Albumentations is a Python library for image augmentation. Image augmentation is used in deep learning and computer vision tasks to increase the quality of trained models. The purpose of image augmentation is to create new training samples from the existing data.
 
@@ -19,6 +20,7 @@ Here is an example of how you can apply some [pixel-level](#pixel-level-transfor
 - The library is [**widely used**](#who-is-using-albumentations) in industry, deep learning research, machine learning competitions, and open source projects.
 
 ## Table of contents
+
 - [Albumentations](#albumentations)
   - [Why Albumentations](#why-albumentations)
   - [Table of contents](#table-of-contents)
