@@ -1,43 +1,39 @@
-from __future__ import division, print_function
 import argparse
 import math
 import os
 import sys
 from abc import ABC
-from timeit import Timer
 from collections import defaultdict
-import pkg_resources
+from contextlib import suppress
+from timeit import Timer
 
+import cv2
+import numpy as np
+import pandas as pd
+import pkg_resources
+import solt.core as slc
+import solt.transforms as slt
+import tensorflow as tf
+import torchvision.transforms.functional as torchvision
 from Augmentor import Operations, Pipeline
+from imgaug import augmenters as iaa
 from PIL import Image, ImageOps
 from pytablewriter import MarkdownTableWriter
 from pytablewriter.style import Style
-
-import cv2
-
+from torchvision.transforms import InterpolationMode
+from torchvision.transforms import functional as T
 from tqdm import tqdm
-import numpy as np
-import pandas as pd
-import torchvision.transforms.functional as torchvision
-import keras_preprocessing.image as keras
-from imgaug import augmenters as iaa
-import solt.transforms as slt
-import solt.core as slc
-import solt.utils as slu
 
-import albumentations.augmentations.functional as albumentations
 import albumentations as A
-from albumentations.augmentations.geometric.functional import rotate, resize, shift_scale_rotate
-from albumentations.augmentations.crops.functional import random_crop
 
-cv2.setNumThreads(0)  # noqa E402
-cv2.ocl.setUseOpenCL(False)  # noqa E402
+cv2.setNumThreads(0)
+cv2.ocl.setUseOpenCL(False)
 
-os.environ["OMP_NUM_THREADS"] = "1"  # noqa E402
-os.environ["OPENBLAS_NUM_THREADS"] = "1"  # noqa E402
-os.environ["MKL_NUM_THREADS"] = "1"  # noqa E402
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"  # noqa E402
-os.environ["NUMEXPR_NUM_THREADS"] = "1"  # noqa E402
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 
 DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "imgaug", "torchvision", "keras", "augmentor", "solt"]
@@ -82,10 +78,8 @@ def get_package_versions():
     ]
     package_versions = {"Python": sys.version}
     for package in packages:
-        try:
+        with suppress(pkg_resources.DistributionNotFound):
             package_versions[package] = pkg_resources.get_distribution(package).version
-        except pkg_resources.DistributionNotFound:
-            pass
     return package_versions
 
 
@@ -104,7 +98,7 @@ class MarkdownGenerator:
                 continue
             if result > best_result:
                 best_result = result
-        return ["**{}**".format(r) if r == str(best_result) else r for r in results]
+        return [f"**{r}**" if r == str(best_result) else r for r in results]
 
     def _make_headers(self):
         libraries = self._df.columns.to_list()
@@ -113,17 +107,17 @@ class MarkdownGenerator:
             version = self._package_versions[library]
             library_description = self._libraries_description.get(library)
             if library_description:
-                library += " {}".format(library_description)
+                library += f" {library_description}"
 
-            columns.append("{library}<br><small>{version}</small>".format(library=library, version=version))
-        return [""] + columns
+            columns.append(f"{library}<br><small>{version}</small>")
+        return ["", *columns]
 
     def _make_value_matrix(self):
         index = self._df.index.tolist()
         values = self._df.values.tolist()
         value_matrix = []
         for transform, results in zip(index, values):
-            row = [transform] + self._highlight_best_result(results)
+            row = [transform, *self._highlight_best_result(results)]
             value_matrix.append(row)
         return value_matrix
 
@@ -135,13 +129,12 @@ class MarkdownGenerator:
         ]
         return "Python and library versions: {}.".format(", ".join(libraries_with_versions))
 
-    def print(self):
+    def print(self) -> None:
         writer = MarkdownTableWriter()
         writer.headers = self._make_headers()
         writer.value_matrix = self._make_value_matrix()
         writer.styles = [Style(align="left")] + [Style(align="center") for _ in range(len(writer.headers) - 1)]
         writer.write_table()
-        print("\n" + self._make_versions_text())
 
 
 def read_img_pillow(path):
@@ -152,8 +145,7 @@ def read_img_pillow(path):
 
 def read_img_cv2(filepath):
     img = cv2.imread(filepath)
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    return img
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
 
 def format_results(images_per_second_for_aug, show_std=False):
@@ -161,7 +153,7 @@ def format_results(images_per_second_for_aug, show_std=False):
         return "-"
     result = str(math.floor(np.mean(images_per_second_for_aug)))
     if show_std:
-        result += " ± {}".format(math.ceil(np.std(images_per_second_for_aug)))
+        result += f" ± {math.ceil(np.std(images_per_second_for_aug))}"
     return result
 
 
@@ -195,7 +187,7 @@ class BenchmarkTest(ABC):
 
         return hasattr(self, library)
 
-    def run(self, library, imgs):
+    def run(self, library, imgs) -> None:
         transform = getattr(self, library)
         for img in imgs:
             transform(img)
@@ -208,16 +200,16 @@ class HorizontalFlip(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Flip(p=1, axis=1)])
 
     def albumentations(self, img):
-        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
-            return albumentations.hflip_cv2(img)
+        # if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
+        #     return A.augmentations.hflip(img)
 
-        return albumentations.hflip(img)
+        return A.hflip_cv2(img)
 
     def torchvision_transform(self, img):
         return torchvision.hflip(img)
 
-    def keras(self, img):
-        return np.ascontiguousarray(keras.flip_axis(img, axis=1))
+    def keras(self, img: np.ndarray):
+        return tf.image.flip_left_right(img).numpy()
 
     def imgaug(self, img):
         return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
@@ -229,16 +221,16 @@ class VerticalFlip(BenchmarkTest):
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="TOP_BOTTOM")
         self.solt_stream = slc.Stream([slt.Flip(p=1, axis=0)])
 
-    def albumentations(self, img):
-        return albumentations.vflip(img)
+    # def albumentations(self, img: np.ndarray) -> np.ndarray:
+    #     return A.vflip(img)
 
-    def torchvision_transform(self, img):
+    def torchvision_transform(self, img: np.ndarray) -> np.ndarray:
         return torchvision.vflip(img)
 
-    def keras(self, img):
-        return np.ascontiguousarray(keras.flip_axis(img, axis=0))
+    def keras(self, img: np.ndarray) -> np.ndarray:
+        return tf.image.flip_up_down(img).numpy()
 
-    def imgaug(self, img):
+    def imgaug(self, img: np.ndarray) -> np.ndarray:
         return np.ascontiguousarray(self.imgaug_transform.augment_image(img))
 
 
@@ -248,44 +240,19 @@ class Rotate(BenchmarkTest):
         self.augmentor_op = Operations.RotateStandard(probability=1, max_left_rotation=45, max_right_rotation=45)
         self.solt_stream = slc.Stream([slt.Rotate(p=1, angle_range=(45, 45))], padding="r")
 
-    def albumentations(self, img):
-        return rotate(img, angle=-45)
+    def albumentations(self, img: np.ndarray) -> np.ndarray:
+        return A.rotate(img, angle=-45)
 
     def torchvision_transform(self, img):
-        return torchvision.rotate(img, angle=-45, resample=Image.BILINEAR)
+        return T.rotate(img, angle=-45, interpolation=InterpolationMode.BILINEAR)
 
     def keras(self, img):
-        img = keras.apply_affine_transform(img, theta=45, channel_axis=2, fill_mode="reflect")
-        return np.ascontiguousarray(img)
-
-
-class Brightness(BenchmarkTest):
-    def __init__(self):
-        self.imgaug_transform = iaa.Add((127, 127), per_channel=False)
-        self.augmentor_op = Operations.RandomBrightness(probability=1, min_factor=1.5, max_factor=1.5)
-        self.solt_stream = slc.Stream([slt.Brightness(p=1, brightness_range=(127, 127))])
-
-    def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, beta=0.5, beta_by_max=True)
-
-    def torchvision_transform(self, img):
-        return torchvision.adjust_brightness(img, brightness_factor=1.5)
-
-    def keras(self, img):
-        return keras.apply_brightness_shift(img, brightness=1.5).astype(np.uint8)
-
-
-class Contrast(BenchmarkTest):
-    def __init__(self):
-        self.imgaug_transform = iaa.Multiply((1.5, 1.5), per_channel=False)
-        self.augmentor_op = Operations.RandomContrast(probability=1, min_factor=1.5, max_factor=1.5)
-        self.solt_stream = slc.Stream([slt.Contrast(p=1, contrast_range=(1.5, 1.5))])
-
-    def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, alpha=1.5)
-
-    def torchvision_transform(self, img):
-        return torchvision.adjust_contrast(img, contrast_factor=1.5)
+        # Rotate the image by -45 degrees
+        # Note: The 'rg' parameter specifies the rotation range in degrees. Here, we set it to 45 for both directions
+        # to effectively rotate by -45 degrees. Adjust 'rg' as needed for your specific rotation requirements.
+        return tf.keras.preprocessing.image.random_rotation(
+            img, rg=45, row_axis=1, col_axis=2, channel_axis=0, fill_mode="nearest", cval=0.0, interpolation_order=1
+        )
 
 
 class BrightnessContrast(BenchmarkTest):
@@ -303,17 +270,26 @@ class BrightnessContrast(BenchmarkTest):
         )
 
     def albumentations(self, img):
-        return albumentations.brightness_contrast_adjust(img, alpha=1.5, beta=0.5, beta_by_max=True)
+        return A.brightness_contrast_adjust(img, alpha=1.5, beta=0.5, beta_by_max=True)
 
     def torchvision_transform(self, img):
         img = torchvision.adjust_brightness(img, brightness_factor=1.5)
-        img = torchvision.adjust_contrast(img, contrast_factor=1.5)
-        return img
+        return torchvision.adjust_contrast(img, contrast_factor=1.5)
 
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
             (img,) = operation.perform_operation([img])
         return np.array(img, np.uint8, copy=False)
+
+    def keras(self, img):
+        # Convert to tensor
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+        # Adjust brightness by adding delta
+        img_bright = tf.image.adjust_brightness(img_tensor, delta=0.1)
+        # Adjust contrast
+        img_contrast = tf.image.adjust_contrast(img_bright, contrast_factor=1.5)
+        # Convert back to numpy array
+        return img_contrast.numpy()
 
 
 class ShiftScaleRotate(BenchmarkTest):
@@ -323,14 +299,39 @@ class ShiftScaleRotate(BenchmarkTest):
         )
 
     def albumentations(self, img):
-        return shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
+        return A.shift_scale_rotate(img, angle=-45, scale=2, dx=0.2, dy=0.2)
 
     def torchvision_transform(self, img):
-        return torchvision.affine(img, angle=45, translate=(50, 50), scale=2, shear=0, resample=Image.BILINEAR)
+        return torchvision.affine(
+            img, angle=45, translate=(50, 50), scale=2, shear=0, interpolation=InterpolationMode.BILINEAR
+        )
 
     def keras(self, img):
-        img = keras.apply_affine_transform(img, theta=45, tx=50, ty=50, zx=0.5, zy=0.5, fill_mode="reflect")
-        return np.ascontiguousarray(img)
+        # Convert to tensor
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+        rotated_img = tf.keras.preprocessing.image.random_rotation(
+            img_tensor,
+            rg=45,  # This is a range, for random rotation
+            row_axis=1,
+            col_axis=2,
+            channel_axis=0,
+            fill_mode="nearest",
+            cval=0.0,
+            interpolation_order=1,
+        )
+
+        img_tensor = tf.image.resize(rotated_img, [int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)], method="bilinear")
+
+        # Shift the image (example: shifting by 50 pixels right and 25 pixels down)
+        # Creating a translation matrix for the affine transformation
+        shift_height, shift_width = 25, 50  # Example: shift down by 25 pixels and right by 50 pixels
+
+        # Pad the image with zeros on the top and left by the shift amounts
+        # Then, crop the bottom and right by the same amounts to achieve the shift effect
+        img_padded = tf.pad(img_tensor, [[shift_height, 0], [shift_width, 0], [0, 0]], "CONSTANT")
+        img_translated = tf.image.crop_to_bounding_box(img_padded, 0, 0, img_tensor.shape[0], img_tensor.shape[1])
+
+        return img_translated.numpy()
 
 
 class ShiftHSV(BenchmarkTest):
@@ -339,24 +340,45 @@ class ShiftHSV(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.HSV(p=1, h_range=(20, 20), s_range=(20, 20), v_range=(20, 20))])
 
     def albumentations(self, img):
-        return albumentations.shift_hsv(img, hue_shift=20, sat_shift=20, val_shift=20)
+        return A.shift_hsv(img, hue_shift=20, sat_shift=20, val_shift=20)
 
     def torchvision_transform(self, img):
         img = torchvision.adjust_hue(img, hue_factor=0.1)
         img = torchvision.adjust_saturation(img, saturation_factor=1.2)
-        img = torchvision.adjust_brightness(img, brightness_factor=1.2)
-        return img
+        return torchvision.adjust_brightness(img, brightness_factor=1.2)
 
+    def keras(self, img):
+        # Ensure img is a tensor in the range [0, 255]
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
 
-class Solarize(BenchmarkTest):
-    def __init__(self):
-        pass
+        # Normalize the image to [0, 1] by dividing by 255
+        normalized_img = img_tensor / 255.0
 
-    def albumentations(self, img):
-        return albumentations.solarize(img)
+        # Convert RGB to HSV
+        hsv_img = tf.image.rgb_to_hsv(normalized_img)
 
-    def pillow(self, img):
-        return ImageOps.solarize(img)
+        # Shift Hue, Saturation, and Value (Brightness)
+        # Hue values are in [0, 1], so a shift of 20 degrees would be (20/360) in the HSV color space.
+        hue_shift = 20 / 360.0
+        sat_shift = 0.2  # Assuming a 20% increase in saturation
+        value_shift = 0.2  # Assuming a 20% increase in brightness
+
+        # Apply shifts
+        hsv_img = tf.stack(
+            [
+                tf.clip_by_value(hsv_img[..., 0] + hue_shift, 0, 1),
+                tf.clip_by_value(hsv_img[..., 1] * (1 + sat_shift), 0, 1),
+                tf.clip_by_value(hsv_img[..., 2] * (1 + value_shift), 0, 1),
+            ],
+            axis=-1,
+        )
+
+        # Convert back to RGB
+        rgb_img = tf.image.hsv_to_rgb(hsv_img)
+
+        # Rescale back to [0, 255] and convert to uint8
+        final_img = tf.clip_by_value(rgb_img * 255.0, 0, 255)
+        final_img = tf.cast(final_img, tf.uint8)
 
 
 class Equalize(BenchmarkTest):
@@ -365,7 +387,7 @@ class Equalize(BenchmarkTest):
         self.augmentor_op = Operations.HistogramEqualisation(probability=1)
 
     def albumentations(self, img):
-        return albumentations.equalize(img)
+        return A.equalize(img)
 
     def pillow(self, img):
         return ImageOps.equalize(img)
@@ -382,7 +404,7 @@ class RandomCrop64(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Crop(crop_to=(64, 64), crop_mode="r")])
 
     def albumentations(self, img):
-        img = random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        img = A.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
         return np.ascontiguousarray(img)
 
     def torchvision_transform(self, img):
@@ -391,6 +413,31 @@ class RandomCrop64(BenchmarkTest):
     def solt(self, img):
         img = self.solt_stream({"image": img}, return_torch=False).data[0]
         return np.ascontiguousarray(img)
+
+    def keras(self, img):
+        # Ensure img is a tensor in the range [0, 255] and has rank 3
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+
+        # TensorFlow's random_crop expects the image tensor's shape to be known,
+        # so ensure your image tensor has a fully defined shape.
+        # We also need the image to be at least 64x64 pixels.
+        # Check and potentially resize the image to meet the requirements.
+        shape = tf.shape(img_tensor)
+        height, width = shape[0], shape[1]
+        target_height, target_width = 64, 64
+
+        # Conditionally resizing to ensure the image is at least 64x64
+        img_resized = tf.cond(
+            tf.logical_or(tf.less(height, target_height), tf.less(width, target_width)),
+            lambda: tf.image.resize_with_pad(img_tensor, target_height, target_width),
+            lambda: img_tensor,
+        )
+
+        # Randomly crop to 64x64
+        cropped_img = tf.image.random_crop(img_resized, size=[64, 64, 3])
+
+        # Convert back to numpy array
+        return cropped_img.numpy()
 
 
 class RandomSizedCrop_64_512(BenchmarkTest):
@@ -401,13 +448,13 @@ class RandomSizedCrop_64_512(BenchmarkTest):
             Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
         )
         self.imgaug_transform = iaa.Sequential(
-            [iaa.CropToFixedSize(width=64, height=64), iaa.Scale(size=512, interpolation="linear")]
+            [iaa.CropToFixedSize(width=64, height=64), iaa.Resize(size=512, interpolation="linear")]
         )
         self.solt_stream = slc.Stream([slt.Crop(crop_to=(64, 64), crop_mode="r"), slt.Resize(resize_to=(512, 512))])
 
     def albumentations(self, img):
-        img = random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
-        return resize(img, height=512, width=512)
+        img = A.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        return A.resize(img, height=512, width=512)
 
     def augmentor(self, img):
         for operation in self.augmentor_pipeline.operations:
@@ -418,17 +465,68 @@ class RandomSizedCrop_64_512(BenchmarkTest):
         img = torchvision.crop(img, top=0, left=0, height=64, width=64)
         return torchvision.resize(img, (512, 512))
 
+    def keras(self, img):
+        # Ensure img is a tensor in the range [0, 255]
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+
+        # Assume the input image size is at least 64x64. If not, resize to at least 64x64 before cropping.
+        # This step ensures that random_crop can be applied safely.
+        shape = tf.shape(img_tensor)
+        min_dim = tf.reduce_min([shape[0], shape[1]])
+        img_resized = tf.cond(
+            tf.less(min_dim, 64),
+            lambda: tf.image.resize_with_pad(img_tensor, 64, 64),  # Ensuring the image is at least 64x64
+            lambda: img_tensor,
+        )
+
+        # Randomly crop to 64x64
+        cropped_img = tf.image.random_crop(img_resized, size=[64, 64, 3])
+
+        # Resize cropped image to 512x512
+        resized_img = tf.image.resize(cropped_img, [512, 512], method=tf.image.ResizeMethod.BILINEAR)
+
+        # Convert back to numpy array, assuming the original image was uint8
+        final_img = tf.cast(resized_img, tf.uint8)
+
+        return final_img.numpy()
+
 
 class ShiftRGB(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Add((100, 100), per_channel=False)
 
     def albumentations(self, img):
-        return albumentations.shift_rgb(img, r_shift=100, g_shift=100, b_shift=100)
+        return A.shift_rgb(img, r_shift=100, g_shift=100, b_shift=100)
 
     def keras(self, img):
-        img = keras.apply_channel_shift(img, intensity=100, channel_axis=2)
-        return np.ascontiguousarray(img)
+        # Ensure img is a tensor in the range [0, 255]
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+
+        # Create shifts for each channel
+        r_shift = 100.0
+        g_shift = 100.0
+        b_shift = 100.0
+
+        # Split the image tensor into its respective RGB channels
+        r, g, b = tf.split(img_tensor, num_or_size_splits=3, axis=-1)
+
+        # Apply the shifts
+        r_shifted = r + r_shift
+        g_shifted = g + g_shift
+        b_shifted = b + b_shift
+
+        # Clip the values to ensure they remain within [0, 255]
+        r_clipped = tf.clip_by_value(r_shifted, clip_value_min=0, clip_value_max=255)
+        g_clipped = tf.clip_by_value(g_shifted, clip_value_min=0, clip_value_max=255)
+        b_clipped = tf.clip_by_value(b_shifted, clip_value_min=0, clip_value_max=255)
+
+        # Concatenate the channels back together
+        shifted_img = tf.concat([r_clipped, g_clipped, b_clipped], axis=-1)
+
+        # Convert back to numpy array
+        final_img = tf.cast(shifted_img, tf.uint8).numpy()
+
+        return final_img
 
 
 class PadToSize512(BenchmarkTest):
@@ -436,7 +534,7 @@ class PadToSize512(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Pad(pad_to=(512, 512), padding="r")])
 
     def albumentations(self, img):
-        return albumentations.pad(img, min_height=512, min_width=512)
+        return A.pad(img, min_height=512, min_width=512)
 
     def torchvision_transform(self, img):
         if img.size[0] < 512:
@@ -445,18 +543,59 @@ class PadToSize512(BenchmarkTest):
             img = torchvision.pad(img, (0, int((1 + 512 - img.size[1]) / 2)), padding_mode="reflect")
         return img
 
+    def keras(self, img):
+        # Ensure img is a tensor
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+
+        # Get current image size
+        img_height, img_width = tf.shape(img_tensor)[0], tf.shape(img_tensor)[1]
+
+        # Calculate padding sizes
+        pad_height = tf.maximum(512 - img_height, 0)
+        pad_width = tf.maximum(512 - img_width, 0)
+
+        # Divide the padding to pad evenly on both sides
+        pad_top = pad_height // 2
+        pad_bottom = pad_height - pad_top
+        pad_left = pad_width // 2
+        pad_right = pad_width - pad_left
+
+        # Apply padding
+        padded_img = tf.pad(img_tensor, [[pad_top, pad_bottom], [pad_left, pad_right], [0, 0]], mode="REFLECT")
+
+        # Optionally resize the image back to 512x512 if it was larger to begin with
+        # This ensures the output is always exactly 512x512
+        resized_padded_img = tf.image.resize_with_crop_or_pad(padded_img, 512, 512)
+
+        # Convert back to numpy array
+        final_img = tf.cast(resized_padded_img, tf.uint8).numpy()
+
+        return final_img
+
 
 class Resize512(BenchmarkTest):
     def __init__(self):
-        self.imgaug_transform = iaa.Scale(size=512, interpolation="linear")
+        self.imgaug_transform = iaa.Resize(size=512, interpolation="linear")
         self.solt_stream = slc.Stream([slt.Resize(resize_to=(512, 512))])
         self.augmentor_op = Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
 
     def albumentations(self, img):
-        return resize(img, height=512, width=512)
+        return A.resize(img, height=512, width=512)
 
     def torchvision_transform(self, img):
         return torchvision.resize(img, (512, 512))
+
+    def keras(self, img):
+        # Ensure img is a tensor
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+
+        # Resize the image to 512x512 pixels
+        # tf.image.resize expects the size in the format [height, width]
+        resized_img = tf.image.resize(img_tensor, [512, 512], method="bilinear")
+
+        # Convert back to numpy array and adjust dtype if necessary
+        # Assuming the original dtype was uint8, we cast the resized image back to uint8
+        return tf.cast(resized_img, tf.uint8).numpy()
 
 
 class Gamma(BenchmarkTest):
@@ -464,10 +603,27 @@ class Gamma(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.GammaCorrection(p=1, gamma_range=(0.5, 0.5))])
 
     def albumentations(self, img):
-        return albumentations.gamma_transform(img, gamma=0.5)
+        return A.gamma_transform(img, gamma=0.5)
 
     def torchvision_transform(self, img):
         return torchvision.adjust_gamma(img, gamma=0.5)
+
+    def keras(self, img):
+        # Ensure img is a tensor in the range [0, 255]
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+
+        # Normalize the image to [0, 1] by dividing by 255
+        normalized_img = img_tensor / 255.0
+
+        # Apply gamma correction with gamma = 0.5
+        gamma_corrected_img = tf.pow(normalized_img, 0.5)
+
+        # Rescale back to [0, 255] and convert to uint8
+        rescaled_img = tf.clip_by_value(gamma_corrected_img * 255.0, 0, 255)
+        final_img = tf.cast(rescaled_img, tf.uint8)
+
+        # Convert back to numpy array
+        return final_img.numpy()
 
 
 class Grayscale(BenchmarkTest):
@@ -477,7 +633,7 @@ class Grayscale(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.CvtColor(mode="rgb2gs")])
 
     def albumentations(self, img):
-        return albumentations.to_gray(img)
+        return A.to_gray(img)
 
     def torchvision_transform(self, img):
         return torchvision.to_grayscale(img, num_output_channels=3)
@@ -487,13 +643,11 @@ class Grayscale(BenchmarkTest):
         img = np.array(img, np.uint8, copy=False)
         return np.dstack([img, img, img])
 
-
-class Posterize(BenchmarkTest):
-    def albumentations(self, img):
-        return albumentations.posterize(img, 4)
-
-    def pillow(self, img):
-        return ImageOps.posterize(img, 4)
+    def keras(self, img):
+        # Convert to tensor
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+        # Convert to grayscale
+        return tf.image.rgb_to_grayscale(img_tensor).numpy()
 
 
 class Multiply(BenchmarkTest):
@@ -501,7 +655,7 @@ class Multiply(BenchmarkTest):
         self.imgaug_transform = iaa.Multiply(mul=1.5)
 
     def albumentations(self, img):
-        return albumentations.multiply(img, np.array([1.5]))
+        return A.multiply(img, np.array([1.5]))
 
 
 class MultiplyElementwise(BenchmarkTest):
@@ -511,6 +665,22 @@ class MultiplyElementwise(BenchmarkTest):
 
     def albumentations(self, img):
         return self.aug(image=img)["image"]
+
+    def keras(self, img):
+        # Ensure img is a tensor
+        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
+
+        # Multiply the image tensor by 1.5
+        # Note: This might increase pixel values beyond the typical range for uint8 images ([0, 255]).
+        # You may want to clip the values to stay within this range depending on your application's needs.
+        multiplied_img = img_tensor * 1.5
+
+        # Clip values to [0, 255] and cast to uint8 to maintain image data format
+        clipped_img = tf.clip_by_value(multiplied_img, clip_value_min=0, clip_value_max=255)
+        final_img = tf.cast(clipped_img, tf.uint8)
+
+        # Convert back to numpy array
+        return final_img.numpy()
 
 
 class ColorJitter(BenchmarkTest):
@@ -522,33 +692,57 @@ class ColorJitter(BenchmarkTest):
         img = iaa.pillike.enhance_brightness(img, 1.5)
         img = iaa.pillike.enhance_contrast(img, 1.5)
         img = iaa.pillike.enhance_color(img, 1.5)
-        img = self.imgaug_transform.augment_image(img)
-        return img
+        return self.imgaug_transform.augment_image(img)
 
     def albumentations(self, img):
-        img = albumentations.adjust_brightness_torchvision(img, 1.5)
-        img = albumentations.adjust_contrast_torchvision(img, 1.5)
-        img = albumentations.adjust_saturation_torchvision(img, 1.5)
-        img = albumentations.adjust_hue_torchvision(img, 0.5)
-        return img
+        img = A.adjust_brightness_torchvision(img, 1.5)
+        img = A.adjust_contrast_torchvision(img, 1.5)
+        img = A.adjust_saturation_torchvision(img, 1.5)
+        return A.adjust_hue_torchvision(img, 0.5)
 
     def torchvision_transform(self, img):
         img = torchvision.adjust_brightness(img, 1.5)
         img = torchvision.adjust_contrast(img, 1.5)
         img = torchvision.adjust_saturation(img, 1.5)
-        img = torchvision.adjust_hue(img, 0.5)
-        return img
+        return torchvision.adjust_hue(img, 0.5)
+
+    def keras(self, img):
+        # Ensure img is a float32 tensor in the range [0, 1]
+        img = tf.convert_to_tensor(img, dtype=tf.float32) / 255.0
+
+        # Adjust brightness (+50%)
+        img_bright = tf.image.adjust_brightness(img, delta=0.5)
+
+        # Adjust contrast (*1.5)
+        img_contrast = tf.image.adjust_contrast(img_bright, contrast_factor=1.5)
+
+        # Adjust hue (+0.1 of the 0-1 range, equivalent to +36 degrees since 0.1 * 360 = 36)
+        img_hue = tf.image.adjust_hue(img_contrast, delta=0.1)
+
+        # Adjust saturation (*1.5)
+        # This is more complex in TensorFlow as it doesn't have a direct saturation function
+        # Convert RGB to HSV, scale the S channel, convert back to RGB
+        img_hsv = tf.image.rgb_to_hsv(img_hue)
+        hue, saturation, value = tf.split(img_hsv, 3, axis=-1)
+        saturation = saturation * 1.5
+        # Ensure saturation remains within [0, 1]
+        saturation = tf.clip_by_value(saturation, clip_value_min=0, clip_value_max=1)
+        img_adjusted_hsv = tf.concat([hue, saturation, value], axis=-1)
+        img_saturation = tf.image.hsv_to_rgb(img_adjusted_hsv)
+
+        # Convert back to numpy array and scale to [0, 255]
+        return (img_saturation.numpy() * 255).astype(np.uint8)
 
 
-def main():
+def main() -> None:
     args = parse_args()
     package_versions = get_package_versions()
     if args.print_package_versions:
-        print(package_versions)
+        pass
     images_per_second = defaultdict(dict)
     libraries = args.libraries
     data_dir = args.data_dir
-    paths = list(sorted(os.listdir(data_dir)))
+    paths = sorted(os.listdir(data_dir))
     paths = paths[: args.images]
     imgs_cv2 = [read_img_cv2(os.path.join(data_dir, path)) for path in paths]
     imgs_pillow = [read_img_pillow(os.path.join(data_dir, path)) for path in paths]
@@ -558,8 +752,6 @@ def main():
         VerticalFlip(),
         Rotate(),
         ShiftScaleRotate(),
-        Brightness(),
-        Contrast(),
         BrightnessContrast(),
         ShiftRGB(),
         ShiftHSV(),
@@ -569,8 +761,6 @@ def main():
         PadToSize512(),
         Resize512(),
         RandomSizedCrop_64_512(),
-        Posterize(),
-        Solarize(),
         Equalize(),
         Multiply(),
         MultiplyElementwise(),
@@ -580,7 +770,7 @@ def main():
         imgs = imgs_pillow if library in ("torchvision", "augmentor", "pillow") else imgs_cv2
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
-            pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
+            pbar.set_description(f"Current benchmark: {library} | {benchmark}")
             benchmark_images_per_second = None
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs))
@@ -591,7 +781,7 @@ def main():
         pbar.close()
     pd.set_option("display.width", 1000)
     df = pd.DataFrame.from_dict(images_per_second)
-    df = df.applymap(lambda r: format_results(r, args.show_std))
+    df = df.map(lambda r: format_results(r, args.show_std))
     df = df[libraries]
     augmentations = [str(i) for i in benchmarks]
     df = df.reindex(augmentations)
@@ -599,7 +789,7 @@ def main():
         makedown_generator = MarkdownGenerator(df, package_versions)
         makedown_generator.print()
     else:
-        print(df.head(len(augmentations)))
+        pass
 
 
 if __name__ == "__main__":
