@@ -107,7 +107,7 @@ class BasicTransform(Serializable):
 
             return kwargs
 
-        if (random.random() < self.p) or self.always_apply or force_apply:
+        if force_apply or self.always_apply or (random.random() < self.p):
             params = self.get_params()
 
             if self.targets_as_params:
