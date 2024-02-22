@@ -288,7 +288,7 @@ class BrightnessContrast(BenchmarkTest):
 class ShiftScaleRotate(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Affine(
-            scale=(2, 2), rotate=(45, 45), translate_px=(50, 50), order=1, mode="reflect"
+            scale=(2, 2), rotate=(25, 25), translate_px=(50, 50), order=1, mode="reflect"
         )
 
     def albumentations(self, img):
@@ -296,7 +296,7 @@ class ShiftScaleRotate(BenchmarkTest):
 
     def torchvision_transform(self, img):
         return torchvision.affine(
-            img, angle=45, translate=(50, 50), scale=2, shear=0, interpolation=InterpolationMode.BILINEAR
+            img, angle=25, translate=(50, 50), scale=2, shear=0, interpolation=InterpolationMode.BILINEAR
         )
 
     def keras(self, img):
@@ -304,7 +304,7 @@ class ShiftScaleRotate(BenchmarkTest):
         img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
         rotated_img = tf.keras.preprocessing.image.random_rotation(
             img_tensor,
-            rg=45,  # This is a range, for random rotation
+            rg=25,  # This is a range, for random rotation
             row_axis=1,
             col_axis=2,
             channel_axis=0,
