@@ -86,7 +86,6 @@ class MarkdownGenerator:
     def __init__(self, df, package_versions):
         self._df = df
         self._package_versions = package_versions
-        # self._libraries_description = {"torchvision": "(Pillow-SIMD backend)"}
 
     def _highlight_best_result(self, results):
         best_result = float("-inf")
@@ -118,7 +117,7 @@ class MarkdownGenerator:
         return value_matrix
 
     def _make_versions_text(self):
-        libraries = ["Python", "numpy", "pillow-simd", "opencv-python", "scikit-image", "scipy"]
+        libraries = ["Python", "numpy", "pillow", "opencv-python", "scikit-image", "scipy"]
         libraries_with_versions = [
             "{library} {version}".format(library=library, version=self._package_versions[library].replace("\n", ""))
             for library in libraries
@@ -299,33 +298,6 @@ class ShiftScaleRotate(BenchmarkTest):
             img, angle=25, translate=(50, 50), scale=2, shear=0, interpolation=InterpolationMode.BILINEAR
         )
 
-    def keras(self, img):
-        # Convert to tensor
-        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
-        rotated_img = tf.keras.preprocessing.image.random_rotation(
-            img_tensor,
-            rg=25,  # This is a range, for random rotation
-            row_axis=1,
-            col_axis=2,
-            channel_axis=0,
-            fill_mode="nearest",
-            cval=0.0,
-            interpolation_order=1,
-        )
-
-        img_tensor = tf.image.resize(rotated_img, [int(img.shape[0] * 0.5), int(img.shape[1] * 0.5)], method="bilinear")
-
-        # Shift the image (example: shifting by 50 pixels right and 25 pixels down)
-        # Creating a translation matrix for the affine transformation
-        shift_height, shift_width = 25, 50  # Example: shift down by 25 pixels and right by 50 pixels
-
-        # Pad the image with zeros on the top and left by the shift amounts
-        # Then, crop the bottom and right by the same amounts to achieve the shift effect
-        img_padded = tf.pad(img_tensor, [[shift_height, 0], [shift_width, 0], [0, 0]], "CONSTANT")
-        img_translated = tf.image.crop_to_bounding_box(img_padded, 0, 0, img_tensor.shape[0], img_tensor.shape[1])
-
-        return img_translated.numpy()
-
 
 class ShiftHSV(BenchmarkTest):
     def __init__(self):
@@ -381,9 +353,6 @@ class Equalize(BenchmarkTest):
 
     def albumentations(self, img):
         return A.equalize(img)
-
-    def pillow(self, img):
-        return ImageOps.equalize(img)
 
     def imgaug(self, img):
         img = self.imgaug_transform.augment_image(img)
@@ -536,35 +505,6 @@ class PadToSize512(BenchmarkTest):
             img = torchvision.pad(img, (0, int((1 + 512 - img.size[1]) / 2)), padding_mode="reflect")
         return img
 
-    def keras(self, img):
-        # Ensure img is a tensor
-        img_tensor = tf.convert_to_tensor(img, dtype=tf.float32)
-
-        # Get current image size
-        img_height, img_width = tf.shape(img_tensor)[0], tf.shape(img_tensor)[1]
-
-        # Calculate padding sizes
-        pad_height = tf.maximum(512 - img_height, 0)
-        pad_width = tf.maximum(512 - img_width, 0)
-
-        # Divide the padding to pad evenly on both sides
-        pad_top = pad_height // 2
-        pad_bottom = pad_height - pad_top
-        pad_left = pad_width // 2
-        pad_right = pad_width - pad_left
-
-        # Apply padding
-        padded_img = tf.pad(img_tensor, [[pad_top, pad_bottom], [pad_left, pad_right], [0, 0]], mode="REFLECT")
-
-        # Optionally resize the image back to 512x512 if it was larger to begin with
-        # This ensures the output is always exactly 512x512
-        resized_padded_img = tf.image.resize_with_crop_or_pad(padded_img, 512, 512)
-
-        # Convert back to numpy array
-        final_img = tf.cast(resized_padded_img, tf.uint8).numpy()
-
-        return final_img
-
 
 class Resize512(BenchmarkTest):
     def __init__(self):
@@ -591,7 +531,7 @@ class Resize512(BenchmarkTest):
         return tf.cast(resized_img, tf.uint8).numpy()
 
 
-class Gamma(BenchmarkTest):
+class RandomGamma(BenchmarkTest):
     def __init__(self):
         self.solt_stream = slc.Stream([slt.GammaCorrection(p=1, gamma_range=(0.5, 0.5))])
 
@@ -653,8 +593,8 @@ class Multiply(BenchmarkTest):
 
 class MultiplyElementwise(BenchmarkTest):
     def __init__(self):
-        self.aug = A.MultiplicativeNoise((0, 1), per_channel=True, elementwise=True, p=1)
-        self.imgaug_transform = iaa.MultiplyElementwise(mul=(0, 1), per_channel=True)
+        self.aug = A.MultiplicativeNoise((1.5, 1.5), per_channel=True, elementwise=True, p=1)
+        self.imgaug_transform = iaa.MultiplyElementwise(mul=(1.5, 1.5), per_channel=True)
 
     def albumentations(self, img):
         return self.aug(image=img)["image"]
@@ -748,7 +688,7 @@ def main() -> None:
         BrightnessContrast(),
         ShiftRGB(),
         ShiftHSV(),
-        Gamma(),
+        RandomGamma(),
         Grayscale(),
         RandomCrop64(),
         PadToSize512(),
@@ -760,7 +700,7 @@ def main() -> None:
         ColorJitter(),
     ]
     for library in libraries:
-        imgs = imgs_pillow if library in ("torchvision", "augmentor", "pillow") else imgs_cv2
+        imgs = imgs_pillow if library in ("torchvision", "augmentor") else imgs_cv2
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description(f"Current benchmark: {library} | {benchmark}")
