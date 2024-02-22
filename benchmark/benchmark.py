@@ -72,7 +72,6 @@ def get_package_versions():
         "scikit-image",
         "scipy",
         "pillow",
-        "pillow-simd",
         "augmentor",
         "solt",
     ]
@@ -87,7 +86,7 @@ class MarkdownGenerator:
     def __init__(self, df, package_versions):
         self._df = df
         self._package_versions = package_versions
-        self._libraries_description = {"torchvision": "(Pillow-SIMD backend)"}
+        # self._libraries_description = {"torchvision": "(Pillow-SIMD backend)"}
 
     def _highlight_best_result(self, results):
         best_result = float("-inf")
@@ -105,9 +104,6 @@ class MarkdownGenerator:
         columns = []
         for library in libraries:
             version = self._package_versions[library]
-            library_description = self._libraries_description.get(library)
-            if library_description:
-                library += f" {library_description}"
 
             columns.append(f"{library}<br><small>{version}</small>")
         return ["", *columns]
@@ -200,9 +196,6 @@ class HorizontalFlip(BenchmarkTest):
         self.solt_stream = slc.Stream([slt.Flip(p=1, axis=1)])
 
     def albumentations(self, img):
-        # if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
-        #     return A.augmentations.hflip(img)
-
         return A.hflip_cv2(img)
 
     def torchvision_transform(self, img):
@@ -221,8 +214,8 @@ class VerticalFlip(BenchmarkTest):
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="TOP_BOTTOM")
         self.solt_stream = slc.Stream([slt.Flip(p=1, axis=0)])
 
-    # def albumentations(self, img: np.ndarray) -> np.ndarray:
-    #     return A.vflip(img)
+    def albumentations(self, img: np.ndarray) -> np.ndarray:
+        return A.vflip(img)
 
     def torchvision_transform(self, img: np.ndarray) -> np.ndarray:
         return torchvision.vflip(img)
