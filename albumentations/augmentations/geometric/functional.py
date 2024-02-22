@@ -68,6 +68,7 @@ __all__ = [
     "keypoint_vflip",
     "normalize_bbox",
     "denormalize_bbox",
+    "vflip",
 ]
 
 TWO = 2
