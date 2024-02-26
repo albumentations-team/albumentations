@@ -993,7 +993,7 @@ class HueSaturationValue(ImageOnlyTransform):
         sat_shift_limit: range for changing saturation. If sat_shift_limit is a single int,
             the range will be (-sat_shift_limit, sat_shift_limit). Default: (-30, 30).
         val_shift_limit: range for changing value. If val_shift_limit is a single int, the range
-            will be. Default: (-20, 20).
+            will be (-val_shift_limit, val_shift_limit). Default: (-20, 20).
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
