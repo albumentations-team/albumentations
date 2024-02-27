@@ -128,7 +128,7 @@ class XYMasking(DualTransform):
 
         """
         if mask_length is not None:
-            if isinstance(mask_length, tuple):
+            if isinstance(mask_length, (tuple, list)):
                 if mask_length[0] < 0 or mask_length[1] > dimension_size:
                     raise ValueError(
                         f"{dimension_name} range {mask_length} is out of valid range [0, {dimension_size}]"
