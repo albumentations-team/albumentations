@@ -534,7 +534,7 @@ def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_
         height (float): Height of image or space.
         width (float): Width of image or space.
         bboxes (List[tuple]): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
-        erosion_rate (float): How much each bounding box can be shrinked, useful for erosive cropping.
+        erosion_rate (float): How much each bounding box can be shrunk, useful for erosive cropping.
             Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox to lose its volume.
 
     Returns:

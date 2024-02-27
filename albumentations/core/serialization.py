@@ -23,10 +23,10 @@ NON_SERIALIZABLE_REGISTRY: Dict[str, "SerializableMeta"] = {}
 
 
 def shorten_class_name(class_fullname: str) -> str:
-    splitted = class_fullname.split(".")
-    if len(splitted) == 1:
+    split = class_fullname.split(".")
+    if len(split) == 1:
         return class_fullname
-    top_module, *_, class_name = splitted
+    top_module, *_, class_name = split
     if top_module == "albumentations":
         return class_name
     return class_fullname

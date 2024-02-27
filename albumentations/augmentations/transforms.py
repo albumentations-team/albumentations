@@ -2533,7 +2533,7 @@ class PixelDropout(DualTransform):
     Args:
     ----
         dropout_prob (float): pixel drop probability. Default: 0.01
-        per_channel (bool): if set to `True` drop mask will be sampled fo each channel,
+        per_channel (bool): if set to `True` drop mask will be sampled for each channel,
             otherwise the same mask will be sampled for all channels. Default: False
         drop_value (number or sequence of numbers or None): Value that will be set in dropped place.
             If set to None value will be sampled randomly, default ranges will be used:
