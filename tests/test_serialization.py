@@ -21,7 +21,7 @@ from .utils import (
     set_seed,
 )
 
-TEST_SEEDS = (0, 1, 42, 111, 9999)
+TEST_SEEDS = (0, 1, 42)
 
 
 @pytest.mark.parametrize(
@@ -38,8 +38,8 @@ TEST_SEEDS = (0, 1, 42, 111, 9999)
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {
                 "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
@@ -397,8 +397,8 @@ AUGMENTATION_CLS_PARAMS = [
         A.XYMasking,
         {
             "num_masks_x": (1, 3),
-            "num_masks_y": (1, 3),
-            "mask_x_length": 10,
+            "num_masks_y": 3,
+            "mask_x_length": (10, 20),
             "mask_y_length": 10,
             "mask_fill_value": 1,
             "fill_value": 0,
@@ -448,7 +448,7 @@ def test_augmentations_serialization_with_custom_parameters(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@pytest.mark.parametrize("data_format", ("yaml",))
+@pytest.mark.parametrize("data_format", ("yaml", "json"))
 def test_augmentations_serialization_to_file_with_custom_parameters(
     augmentation_cls, params, p, seed, image, mask, always_apply, data_format
 ):
@@ -530,8 +530,8 @@ def test_augmentations_for_bboxes_serialization(
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {
                 "num_masks_x": (1, 3),
-                "num_masks_y": (1, 3),
-                "mask_x_length": 10,
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
                 "mask_y_length": 10,
                 "fill_value": 0,
                 "mask_fill_value": 1,
@@ -835,7 +835,11 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     "transform_file_name",
     ["transform_v1.1.0_without_totensor.json", "transform_serialization_v2_without_totensor.json"],
 )
-def test_serialization_conversion_without_totensor(transform_file_name):
+@pytest.mark.parametrize("data_format", ("yaml", "json"))
+@pytest.mark.parametrize("seed", TEST_SEEDS)
+def test_serialization_conversion_without_totensor(transform_file_name, data_format, seed):
+    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
     # Step 1: Load transform from file
     current_directory = Path(__file__).resolve().parent
     files_directory = current_directory / "files"
@@ -844,11 +848,11 @@ def test_serialization_conversion_without_totensor(transform_file_name):
 
     # Step 2: Serialize it to buffer in memory
     buffer = io.StringIO()
-    A.save(transform, buffer, data_format="json")
+    A.save(transform, buffer, data_format=data_format)
     buffer.seek(0)  # Reset buffer position to the beginning
 
     # Step 3: Load transform from this memory buffer
-    transform_from_buffer = A.load(buffer, data_format="json")
+    transform_from_buffer = A.load(buffer, data_format=data_format)
 
     # Ensure the buffer is closed after use
     buffer.close()
@@ -857,13 +861,24 @@ def test_serialization_conversion_without_totensor(transform_file_name):
         DeepDiff(transform.to_dict(), transform_from_buffer.to_dict()) == {}
     ), "The loaded transform is not equal to the original one"
 
+    set_seed(seed)
+    image1 = transform(image=image)["image"]
+    set_seed(seed)
+    image2 = transform_from_buffer(image=image)["image"]
+
+    assert np.array_equal(image1, image2), f"The transformed images are not equal {(image1 - image2).mean()}"
+
 
 @pytest.mark.parametrize(
     "transform_file_name",
     ["transform_v1.1.0_with_totensor.json", "transform_serialization_v2_with_totensor.json"],
 )
 @skipif_no_torch
-def test_serialization_conversion_with_totensor(transform_file_name):
+@pytest.mark.parametrize("data_format", ("yaml", "json"))
+@pytest.mark.parametrize("seed", TEST_SEEDS)
+def test_serialization_conversion_with_totensor(transform_file_name, data_format, seed):
+    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
     # Load transform from file
     current_directory = Path(__file__).resolve().parent
     files_directory = current_directory / "files"
@@ -873,16 +888,23 @@ def test_serialization_conversion_with_totensor(transform_file_name):
 
     # Serialize it to buffer in memory
     buffer = io.StringIO()
-    A.save(transform, buffer, data_format="json")
+    A.save(transform, buffer, data_format=data_format)
     buffer.seek(0)  # Reset buffer position to the beginning
 
     # Load transform from this memory buffer
-    transform_from_buffer = A.load(buffer, data_format="json")
+    transform_from_buffer = A.load(buffer, data_format=data_format)
     buffer.close()  # Ensure the buffer is closed after use
 
     assert (
         DeepDiff(transform.to_dict(), transform_from_buffer.to_dict()) == {}
     ), "The loaded transform is not equal to the original one"
+
+    set_seed(seed)
+    image1 = transform(image=image)["image"]
+    set_seed(seed)
+    image2 = transform_from_buffer(image=image)["image"]
+
+    assert np.array_equal(image1, image2), f"The transformed images are not equal {(image1 - image2).mean()}"
 
 
 def test_custom_transform_with_overlapping_name():

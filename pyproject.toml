@@ -69,7 +69,6 @@ exclude = [
     "venv",
     "tests",
     "benchmark",
-    "tools",
     "setup.py"
 ]
 
