@@ -5,7 +5,7 @@ import sys
 from enum import Enum
 
 sys.path.append("..")
-import albumentations  # noqa: E402
+import albumentations
 
 IGNORED_CLASSES = {
     "BasicTransform",
@@ -18,8 +18,8 @@ def make_augmentation_docs_link(cls):
     module_parts = cls.__module__.split(".")
     module_page = "/".join(module_parts[1:])
     return (
-        "[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
-    ).format(module_page=module_page, cls=cls)
+        f"[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
+    )
 
 
 class Targets(Enum):

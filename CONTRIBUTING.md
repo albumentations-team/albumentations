@@ -6,7 +6,7 @@ For small changes (e.g., bug fixes), feel free to submit a PR.
 
 For larger changes, consider
 creating an [**issue**](https://github.com/albumentations-team/albumentations/issues) outlining your proposed change.
-You can also join us on [**Discord**](https://discord.com/invite/astral-sh) to discuss your idea with the
+You can also join us on [**Discord**](https://discord.gg/e6zHCXTvaN) to discuss your idea with the
 community.
 
 ## Getting Started
@@ -18,13 +18,13 @@ community.
 Start by forking the project repository to your GitHub account, then clone your fork to your local machine:
 
 ```bash
-git clone https://github.com/your-username/albumentations.git
+git clone https://github.com/albumentations/albumentations.git
 cd albumentations
 ```
 
 #### Create a virtual environment
 
-We recommend using a virtual environment to isolate project dependencies:
+We recommend using a virtual environment to isolate project dependencies. Ensure you have Python 3.8 or higher installed on your machine, as it is the minimum supported version for Albumentations. To create and activate a virtual environment, run the following commands:
 
 ```bash
 python3 -m venv env
@@ -81,13 +81,13 @@ pip install -r requirements-dev.txt
 
 To maintain code quality and consistency, we use pre-commit hooks. Follow these steps to set up pre-commit hooks in your local repository:
 
-1. **Install pre-commit:** If you haven't already, you need to install pre-commit on your machine. You can do this using pip:
+**Install pre-commit:** If you haven't already, you need to install pre-commit on your machine. You can do this using pip:
 
 ```bash
 pip install pre-commit
 ```
 
-2. **Initialize pre-commit:**
+**Initialize pre-commit:**
 
 Navigate to the root of your cloned repository and run:
 
@@ -97,7 +97,7 @@ pre-commit install
 
 This command sets up the pre-commit hooks based on the configurations found in `.pre-commit-config.yaml` at the root of the repository.
 
-3. **Running pre-commit hooks:**
+**Running pre-commit hooks:**
 
 Pre-commit will automatically run the configured hooks on each commit. You can also manually run the hooks on all files in the repository with:
 
@@ -116,7 +116,11 @@ Install test dependencies:
 If you haven't installed the development dependencies, make sure to do so. These dependencies include `pytest`, which is required to run the tests.
 
 ```bash
-pip install -e .[tests]
+pip install -e .
+```
+
+```bash
+pip install -r requirements-dev.txt
 ```
 
 Run the tests:
