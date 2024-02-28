@@ -53,9 +53,7 @@ class DomainAdapter:
         self.target_transformer.fit(self.flatten(ref_img))
 
     def to_colorspace(self, img: np.ndarray) -> np.ndarray:
-        if self.color_in is None:
-            return img
-        return cv2.cvtColor(img, self.color_in)
+        return img if self.color_in is None else cv2.cvtColor(img, self.color_in)
 
     def from_colorspace(self, img: np.ndarray) -> np.ndarray:
         if self.color_out is None:
