@@ -1,19 +1,15 @@
+import argparse
 import inspect
 import os
 import sys
 from enum import Enum
-import argparse
 
 sys.path.append("..")
-import albumentations  # noqa: E402
-
+import albumentations
 
 IGNORED_CLASSES = {
     "BasicTransform",
-    "BasicIAATransform",
-    "DualIAATransform",
     "DualTransform",
-    "ImageOnlyIAATransform",
     "ImageOnlyTransform",
 }
 
@@ -22,8 +18,8 @@ def make_augmentation_docs_link(cls):
     module_parts = cls.__module__.split(".")
     module_page = "/".join(module_parts[1:])
     return (
-        "[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
-    ).format(module_page=module_page, cls=cls)
+        f"[{cls.__name__}](https://albumentations.ai/docs/api_reference/{module_page}/#{cls.__module__}.{cls.__name__})"
+    )
 
 
 class Targets(Enum):
@@ -77,9 +73,6 @@ def get_transforms_info():
             ):
                 targets.add(Targets.KEYPOINTS)
 
-            if issubclass(cls, albumentations.DualIAATransform):
-                targets.update({Targets.BBOXES, Targets.KEYPOINTS})
-
             if issubclass(cls, albumentations.Lambda):
                 targets.add(Targets.MASKS)
                 targets.add(Targets.BBOXES)
@@ -118,7 +111,7 @@ def make_transforms_targets_table(transforms_info, header):
                 "{column: <{width}}".format(width=width, column=column) for width, column in zip(column_widths, row)
             )
         )
-    return "\n".join("| {line} |".format(line=line) for line in lines)
+    return "\n".join(f"| {line} |" for line in lines)
 
 
 def make_transforms_targets_links(transforms_info):
@@ -128,7 +121,7 @@ def make_transforms_targets_links(transforms_info):
 
 
 def check_docs(filepath, image_only_transforms_links, dual_transforms_table):
-    with open(filepath, "r", encoding="utf8") as f:
+    with open(filepath, encoding="utf8") as f:
         text = f.read()
     outdated_docs = set()
     image_only_lines_not_in_text = []
@@ -168,9 +161,7 @@ def main():
     args = parse_args()
     command = args.command
     if command not in {"make", "check"}:
-        raise ValueError(
-            "You should provide a valid command: {{make|check}}. Got {command} instead.".format(command=command)
-        )
+        raise ValueError(f"You should provide a valid command: {{make|check}}. Got {command} instead.")
     transforms_info = get_transforms_info()
     image_only_transforms = {transform: info for transform, info in transforms_info.items() if info["image_only"]}
     dual_transforms = {transform: info for transform, info in transforms_info.items() if not info["image_only"]}

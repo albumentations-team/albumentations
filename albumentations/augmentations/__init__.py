@@ -6,12 +6,13 @@ from .crops.transforms import *
 
 # New transformations goes to individual files listed below
 from .domain_adaptation import *
+from .domain_adaptation_functional import *
 from .dropout.channel_dropout import *
 from .dropout.coarse_dropout import *
-from .dropout.cutout import *
 from .dropout.functional import *
 from .dropout.grid_dropout import *
 from .dropout.mask_dropout import *
+from .dropout.xy_masking import *
 from .functional import *
 from .geometric.functional import *
 from .geometric.resize import *

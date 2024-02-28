@@ -5,7 +5,7 @@ keras
 numpy
 opencv-python
 pandas
-pillow-simd
+pillow
 pytablewriter
 solt
 tensorflow # required for keras

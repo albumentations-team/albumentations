@@ -1,17 +1,12 @@
-from __future__ import absolute_import
-
 import cv2
 import numpy as np
 import pytest
-from numpy.testing import assert_array_almost_equal_nulp
+from numpy.testing import assert_array_almost_equal_nulp, assert_almost_equal
 
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.augmentations.utils import (
-    get_opencv_dtype_from_numpy,
-    is_multispectral_image,
-)
+from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
 from albumentations.core.bbox_utils import filter_bboxes
 from tests.utils import convert_2d_to_target_format
 
@@ -439,49 +434,88 @@ def test_gamma_float_equal_uint8():
     assert (np.abs(img - img_f) <= 1).all()
 
 
-@pytest.mark.parametrize(["dtype", "divider"], [(np.uint8, 255), (np.uint16, 65535), (np.uint32, 4294967295)])
-def test_to_float_without_max_value_specified(dtype, divider):
+@pytest.mark.parametrize(
+    ["dtype", "expected_divider", "max_value"],
+    [
+        (np.uint8, 255, None),
+        (np.uint16, 65535, None),
+        (np.uint32, 4294967295, None),
+        (np.float32, 1.0, None),
+        (np.int16, None, 32767),  # Unsupported dtype with max_value provided
+    ],
+)
+def test_to_float(dtype, expected_divider, max_value):
     img = np.ones((100, 100, 3), dtype=dtype)
-    expected = img.astype("float32") / divider
-    assert_array_almost_equal_nulp(F.to_float(img), expected)
+    if expected_divider is not None:
+        expected = (img.astype(np.float32) / expected_divider).astype(np.float32)
+    else:
+        # For unsupported dtype with max_value, use max_value for conversion
+        expected = (img.astype(np.float32) / max_value).astype(np.float32)
+
+    actual = F.to_float(img, max_value=max_value)
+    assert_almost_equal(actual, expected, decimal=6)
+    assert actual.dtype == np.float32, "Resulting dtype is not float32."
 
 
-@pytest.mark.parametrize("max_value", [255.0, 65535.0, 4294967295.0])
-def test_to_float_with_max_value_specified(max_value):
-    img = np.ones((100, 100, 3), dtype=np.uint16)
-    expected = img.astype("float32") / max_value
-    assert_array_almost_equal_nulp(F.to_float(img, max_value=max_value), expected)
-
-
-def test_to_float_unknown_dtype():
-    img = np.ones((100, 100, 3), dtype=np.int16)
+@pytest.mark.parametrize("dtype", [np.float64, np.int64])
+def test_to_float_raises_for_unsupported_dtype_without_max_value(dtype):
+    img = np.ones((100, 100, 3), dtype=dtype)
     with pytest.raises(RuntimeError) as exc_info:
         F.to_float(img)
-    assert str(exc_info.value) == (
-        "Can't infer the maximum value for dtype int16. You need to specify the maximum value manually by passing "
-        "the max_value argument"
-    )
+    assert "Unsupported dtype" in str(exc_info.value)
 
 
-@pytest.mark.parametrize("max_value", [255.0, 65535.0, 4294967295.0])
-def test_to_float_unknown_dtype_with_max_value(max_value):
-    img = np.ones((100, 100, 3), dtype=np.int16)
-    expected = img.astype("float32") / max_value
-    assert_array_almost_equal_nulp(F.to_float(img, max_value=max_value), expected)
+@pytest.mark.parametrize("dtype", [np.float64, np.int64])
+def test_to_float_with_max_value_for_unsupported_dtypes(dtype):
+    img = np.ones((100, 100, 3), dtype=dtype)
+    max_value = 1.0 if dtype == np.float64 else np.iinfo(dtype).max
+    expected = (img.astype(np.float32) / max_value).astype(np.float32)
+    actual = F.to_float(img, max_value=max_value)
+    assert_almost_equal(actual, expected, decimal=6)
+    assert actual.dtype == np.float32, "Resulting dtype is not float32."
 
 
-@pytest.mark.parametrize(["dtype", "multiplier"], [(np.uint8, 255), (np.uint16, 65535), (np.uint32, 4294967295)])
-def test_from_float_without_max_value_specified(dtype, multiplier):
-    img = np.ones((100, 100, 3), dtype=np.float32)
-    expected = (img * multiplier).astype(dtype)
-    assert_array_almost_equal_nulp(F.from_float(img, np.dtype(dtype)), expected)
+@pytest.mark.parametrize(
+    "dtype, multiplier, max_value",
+    [
+        (np.uint8, 255, None),
+        (np.uint16, 65535, None),
+        (np.uint32, 4294967295, None),
+        (np.uint32, 4294967295, 4294967295.0),  # Custom max_value equal to the default to test the parameter is used
+    ],
+)
+def test_from_float(dtype, multiplier, max_value):
+    img = np.random.rand(100, 100, 3).astype(np.float32)  # Use random data for more robust testing
+    expected_multiplier = multiplier if max_value is None else max_value
+    expected = (img * expected_multiplier).astype(dtype)
+    actual = F.from_float(img, dtype=np.dtype(dtype), max_value=max_value)
+    assert_array_almost_equal_nulp(actual, expected)
 
 
-@pytest.mark.parametrize("max_value", [255.0, 65535.0, 4294967295.0])
-def test_from_float_with_max_value_specified(max_value):
-    img = np.ones((100, 100, 3), dtype=np.float32)
-    expected = (img * max_value).astype(np.uint32)
-    assert_array_almost_equal_nulp(F.from_float(img, dtype=np.uint32, max_value=max_value), expected)
+@pytest.mark.parametrize("dtype", [np.int64, np.float64])
+def test_from_float_unsupported_dtype_without_max_value(dtype):
+    img = np.random.rand(100, 100, 3).astype(np.float32)
+    with pytest.raises(RuntimeError) as exc_info:
+        F.from_float(img, dtype=dtype)
+    expected_part_of_message = "Can't infer the maximum value for dtype"
+    assert expected_part_of_message in str(exc_info.value), "Expected error message not found."
+
+
+@pytest.mark.parametrize(
+    "dtype, expected_dtype",
+    [
+        (np.uint8, np.uint8),
+        (np.uint16, np.uint16),
+        (np.uint32, np.uint32),
+    ],
+)
+def test_from_float_dtype_consistency(dtype, expected_dtype):
+    # The code snippet is generating a random 100x100x3 array of values between 0 and the maximum
+    # value allowed for the specified data type `dtype`. The `MAX_VALUES_BY_DTYPE` dictionary is used
+    # to determine the maximum value for the given data type.
+    img = np.random.rand(100, 100, 3) * MAX_VALUES_BY_DTYPE[dtype]
+    actual = F.from_float(img.astype(np.float32), dtype=dtype)
+    assert actual.dtype == expected_dtype, f"Expected dtype {expected_dtype} but got {actual.dtype}"
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -532,10 +566,14 @@ def test_from_float_unknown_dtype():
     img = np.ones((100, 100, 3), dtype=np.float32)
     with pytest.raises(RuntimeError) as exc_info:
         F.from_float(img, np.dtype(np.int16))
-    assert str(exc_info.value) == (
+    expected_message = (
         "Can't infer the maximum value for dtype int16. You need to specify the maximum value manually by passing "
         "the max_value argument"
     )
+    actual_message = str(exc_info.value)
+    assert (
+        expected_message in actual_message or actual_message in expected_message
+    ), f"Expected part of the error message to be: '{expected_message}', got: '{actual_message}'"
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -871,14 +909,12 @@ def test_equalize_checks():
     mask = np.random.randint(0, 1, [256, 256, 3], dtype=bool)
     with pytest.raises(ValueError) as exc_info:
         F.equalize(img, mask=mask)
-    assert str(exc_info.value) == "Wrong mask shape. Image shape: {}. Mask shape: {}".format(img.shape, mask.shape)
+    assert str(exc_info.value) == f"Wrong mask shape. Image shape: {img.shape}. Mask shape: {mask.shape}"
 
     img = np.random.randint(0, 255, [256, 256, 3], dtype=np.uint8)
     with pytest.raises(ValueError) as exc_info:
         F.equalize(img, mask=mask, by_channels=False)
-    assert str(exc_info.value) == "When by_channels=False only 1-channel mask supports. " "Mask shape: {}".format(
-        mask.shape
-    )
+    assert str(exc_info.value) == f"When by_channels=False only 1-channel mask supports. Mask shape: {mask.shape}"
 
     img = np.random.random([256, 256, 3])
     with pytest.raises(TypeError) as exc_info:

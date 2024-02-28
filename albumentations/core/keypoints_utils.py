@@ -1,10 +1,7 @@
-from __future__ import division
-
 import math
-import typing
-import warnings
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence
 
+from .types import KeypointType
 from .utils import DataProcessor, Params
 
 __all__ = [
@@ -26,10 +23,10 @@ def angle_to_2pi_range(angle: float) -> float:
 
 
 class KeypointParams(Params):
-    """
-    Parameters of keypoints
+    """Parameters of keypoints
 
     Args:
+    ----
         format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
 
             x - X coordinate,
@@ -45,23 +42,24 @@ class KeypointParams(Params):
         angle_in_degrees (bool): angle in degrees or radians in 'xya', 'xyas', 'xysa' keypoints
         check_each_transform (bool): if `True`, then keypoints will be checked after each dual transform.
             Default: `True`
+
     """
 
     def __init__(
         self,
-        format: str,  # skipcq: PYL-W0622
+        format: str,
         label_fields: Optional[Sequence[str]] = None,
         remove_invisible: bool = True,
         angle_in_degrees: bool = True,
         check_each_transform: bool = True,
     ):
-        super(KeypointParams, self).__init__(format, label_fields)
+        super().__init__(format, label_fields)
         self.remove_invisible = remove_invisible
         self.angle_in_degrees = angle_in_degrees
         self.check_each_transform = check_each_transform
 
-    def _to_dict(self) -> Dict[str, Any]:
-        data = super(KeypointParams, self)._to_dict()
+    def to_dict_private(self) -> Dict[str, Any]:
+        data = super().to_dict_private()
         data.update(
             {
                 "remove_invisible": self.remove_invisible,
@@ -89,42 +87,32 @@ class KeypointsProcessor(DataProcessor):
         return "keypoints"
 
     def ensure_data_valid(self, data: Dict[str, Any]) -> None:
-        if self.params.label_fields:
-            if not all(i in data.keys() for i in self.params.label_fields):
-                raise ValueError(
-                    "Your 'label_fields' are not valid - them must have same names as params in "
-                    "'keypoint_params' dict"
-                )
+        if self.params.label_fields and not all(i in data for i in self.params.label_fields):
+            msg = "Your 'label_fields' are not valid - them must have same names as params in " "'keypoint_params' dict"
+            raise ValueError(msg)
 
-    def ensure_transforms_valid(self, transforms: Sequence[object]) -> None:
-        # IAA-based augmentations supports only transformation of xy keypoints.
-        # If your keypoints formats is other than 'xy' we emit warning to let user
-        # be aware that angle and size will not be modified.
+    def filter(self, data: Sequence[KeypointType], rows: int, cols: int) -> Sequence[KeypointType]:
+        """The function filters a sequence of data based on the number of rows and columns, and returns a
+        sequence of keypoints.
 
-        try:
-            from albumentations.imgaug.transforms import DualIAATransform
-        except ImportError:
-            # imgaug is not installed so we skip imgaug checks.
-            return
-
-        if self.params.format is not None and self.params.format != "xy":
-            for transform in transforms:
-                if isinstance(transform, DualIAATransform):
-                    warnings.warn(
-                        "{} transformation supports only 'xy' keypoints "
-                        "augmentation. You have '{}' keypoints format. Scale "
-                        "and angle WILL NOT BE transformed.".format(transform.__class__.__name__, self.params.format)
-                    )
-                    break
-
-    def filter(self, data: Sequence[Sequence], rows: int, cols: int) -> Sequence[Sequence]:
+        :param data: The `data` parameter is a sequence of sequences. Each inner sequence represents a
+        set of keypoints
+        :type data: Sequence[Sequence]
+        :param rows: The `rows` parameter represents the number of rows in the data matrix. It specifies
+        the number of rows that will be used for filtering the keypoints
+        :type rows: int
+        :param cols: The parameter "cols" represents the number of columns in the grid that the
+        keypoints will be filtered on
+        :type cols: int
+        :return: a sequence of KeypointType objects.
+        """
         self.params: KeypointParams
         return filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
 
-    def check(self, data: Sequence[Sequence], rows: int, cols: int) -> None:
+    def check(self, data: Sequence[KeypointType], rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
 
-    def convert_from_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
+    def convert_from_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> List[KeypointType]:
         params = self.params
         return convert_keypoints_from_albumentations(
             data,
@@ -135,7 +123,7 @@ class KeypointsProcessor(DataProcessor):
             angle_in_degrees=params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data: Sequence[Sequence], rows: int, cols: int) -> List[Tuple]:
+    def convert_to_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> List[KeypointType]:
         params = self.params
         return convert_keypoints_to_albumentations(
             data,
@@ -147,27 +135,26 @@ class KeypointsProcessor(DataProcessor):
         )
 
 
-def check_keypoint(kp: Sequence, rows: int, cols: int) -> None:
+def check_keypoint(kp: KeypointType, rows: int, cols: int) -> None:
     """Check if keypoint coordinates are less than image shapes"""
     for name, value, size in zip(["x", "y"], kp[:2], [cols, rows]):
         if not 0 <= value < size:
-            raise ValueError(
-                "Expected {name} for keypoint {kp} "
-                "to be in the range [0.0, {size}], got {value}.".format(kp=kp, name=name, value=value, size=size)
-            )
+            raise ValueError(f"Expected {name} for keypoint {kp} " f"to be in the range [0.0, {size}], got {value}.")
 
     angle = kp[2]
     if not (0 <= angle < 2 * math.pi):
-        raise ValueError("Keypoint angle must be in range [0, 2 * PI). Got: {angle}".format(angle=angle))
+        raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {angle}")
 
 
-def check_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int) -> None:
+def check_keypoints(keypoints: Sequence[KeypointType], rows: int, cols: int) -> None:
     """Check if keypoints boundaries are less than image shapes"""
     for kp in keypoints:
         check_keypoint(kp, rows, cols)
 
 
-def filter_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int, remove_invisible: bool) -> Sequence[Sequence]:
+def filter_keypoints(
+    keypoints: Sequence[KeypointType], rows: int, cols: int, remove_invisible: bool
+) -> Sequence[KeypointType]:
     if not remove_invisible:
         return keypoints
 
@@ -183,15 +170,15 @@ def filter_keypoints(keypoints: Sequence[Sequence], rows: int, cols: int, remove
 
 
 def convert_keypoint_to_albumentations(
-    keypoint: Sequence,
+    keypoint: KeypointType,
     source_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> Tuple:
+) -> KeypointType:
     if source_format not in keypoint_formats:
-        raise ValueError("Unknown target_format {}. Supported formats are: {}".format(source_format, keypoint_formats))
+        raise ValueError(f"Unknown target_format {source_format}. Supported formats are: {keypoint_formats}")
 
     if source_format == "xy":
         (x, y), tail = keypoint[:2], tuple(keypoint[2:])
@@ -215,22 +202,22 @@ def convert_keypoint_to_albumentations(
     if angle_in_degrees:
         a = math.radians(a)
 
-    keypoint = (x, y, angle_to_2pi_range(a), s) + tail
+    keypoint = (x, y, angle_to_2pi_range(a), s, *tail)
     if check_validity:
         check_keypoint(keypoint, rows, cols)
     return keypoint
 
 
 def convert_keypoint_from_albumentations(
-    keypoint: Sequence,
+    keypoint: KeypointType,
     target_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> Tuple:
+) -> KeypointType:
     if target_format not in keypoint_formats:
-        raise ValueError("Unknown target_format {}. Supported formats are: {}".format(target_format, keypoint_formats))
+        raise ValueError(f"Unknown target_format {target_format}. Supported formats are: {keypoint_formats}")
 
     (x, y, angle, scale), tail = keypoint[:4], tuple(keypoint[4:])
     angle = angle_to_2pi_range(angle)
@@ -239,33 +226,30 @@ def convert_keypoint_from_albumentations(
     if angle_in_degrees:
         angle = math.degrees(angle)
 
-    kp: Tuple
     if target_format == "xy":
-        kp = (x, y)
-    elif target_format == "yx":
-        kp = (y, x)
-    elif target_format == "xya":
-        kp = (x, y, angle)
-    elif target_format == "xys":
-        kp = (x, y, scale)
-    elif target_format == "xyas":
-        kp = (x, y, angle, scale)
-    elif target_format == "xysa":
-        kp = (x, y, scale, angle)
-    else:
-        raise ValueError(f"Invalid target format. Got: {target_format}")
+        return (x, y, *tail)
+    if target_format == "yx":
+        return (y, x, *tail)
+    if target_format == "xya":
+        return (x, y, angle, *tail)
+    if target_format == "xys":
+        return (x, y, scale, *tail)
+    if target_format == "xyas":
+        return (x, y, angle, scale, *tail)
+    if target_format == "xysa":
+        return (x, y, scale, angle, *tail)
 
-    return kp + tail
+    raise ValueError(f"Invalid target format. Got: {target_format}")
 
 
 def convert_keypoints_to_albumentations(
-    keypoints: Sequence[Sequence],
+    keypoints: Sequence[KeypointType],
     source_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> List[Tuple]:
+) -> List[KeypointType]:
     return [
         convert_keypoint_to_albumentations(kp, source_format, rows, cols, check_validity, angle_in_degrees)
         for kp in keypoints
@@ -273,13 +257,13 @@ def convert_keypoints_to_albumentations(
 
 
 def convert_keypoints_from_albumentations(
-    keypoints: Sequence[Sequence],
+    keypoints: Sequence[KeypointType],
     target_format: str,
     rows: int,
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> List[Tuple]:
+) -> List[KeypointType]:
     return [
         convert_keypoint_from_albumentations(kp, target_format, rows, cols, check_validity, angle_in_degrees)
         for kp in keypoints

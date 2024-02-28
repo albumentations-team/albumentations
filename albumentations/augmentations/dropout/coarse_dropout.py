@@ -1,10 +1,12 @@
 import random
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from ...core.transforms_interface import DualTransform, KeypointType
-from .functional import cutout
+from albumentations.core.transforms_interface import DualTransform
+from albumentations.core.types import KeypointType, ScalarType
+
+from .functional import cutout, keypoint_in_hole
 
 __all__ = ["CoarseDropout"]
 
@@ -13,6 +15,7 @@ class CoarseDropout(DualTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
+    ----
         max_holes (int): Maximum number of regions to zero out.
         max_height (int, float): Maximum height of the hole.
         If float, it is calculated as a fraction of the image height.
@@ -41,6 +44,7 @@ class CoarseDropout(DualTransform):
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+
     """
 
     def __init__(
@@ -56,7 +60,7 @@ class CoarseDropout(DualTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(CoarseDropout, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.max_holes = max_holes
         self.max_height = max_height
         self.max_width = max_width
@@ -66,7 +70,7 @@ class CoarseDropout(DualTransform):
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
         if not 0 < self.min_holes <= self.max_holes:
-            raise ValueError("Invalid combination of min_holes and max_holes. Got: {}".format([min_holes, max_holes]))
+            raise ValueError(f"Invalid combination of min_holes and max_holes. Got: {[min_holes, max_holes]}")
 
         self.check_range(self.max_height)
         self.check_range(self.min_height)
@@ -74,44 +78,41 @@ class CoarseDropout(DualTransform):
         self.check_range(self.min_width)
 
         if not 0 < self.min_height <= self.max_height:
-            raise ValueError(
-                "Invalid combination of min_height and max_height. Got: {}".format([min_height, max_height])
-            )
+            raise ValueError(f"Invalid combination of min_height and max_height. Got: {[min_height, max_height]}")
         if not 0 < self.min_width <= self.max_width:
-            raise ValueError("Invalid combination of min_width and max_width. Got: {}".format([min_width, max_width]))
+            raise ValueError(f"Invalid combination of min_width and max_width. Got: {[min_width, max_width]}")
 
-    def check_range(self, dimension):
+    @staticmethod
+    def check_range(dimension: ScalarType) -> None:
         if isinstance(dimension, float) and not 0 <= dimension < 1.0:
-            raise ValueError(
-                "Invalid value {}. If using floats, the value should be in the range [0.0, 1.0)".format(dimension)
-            )
+            raise ValueError(f"Invalid value {dimension}. If using floats, the value should be in the range [0.0, 1.0)")
 
     def apply(
         self,
         img: np.ndarray,
-        fill_value: Union[int, float] = 0,
+        fill_value: ScalarType = 0,
         holes: Iterable[Tuple[int, int, int, int]] = (),
-        **params
+        **params: Any,
     ) -> np.ndarray:
         return cutout(img, holes, fill_value)
 
     def apply_to_mask(
         self,
-        img: np.ndarray,
-        mask_fill_value: Union[int, float] = 0,
+        mask: np.ndarray,
+        mask_fill_value: ScalarType = 0,
         holes: Iterable[Tuple[int, int, int, int]] = (),
-        **params
+        **params: Any,
     ) -> np.ndarray:
         if mask_fill_value is None:
-            return img
-        return cutout(img, holes, mask_fill_value)
+            return mask
+        return cutout(mask, holes, mask_fill_value)
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
 
         holes = []
-        for _n in range(random.randint(self.min_holes, self.max_holes)):
+        for _ in range(random.randint(self.min_holes, self.max_holes)):
             if all(
                 [
                     isinstance(self.min_height, int),
@@ -133,19 +134,18 @@ class CoarseDropout(DualTransform):
                 hole_height = int(height * random.uniform(self.min_height, self.max_height))
                 hole_width = int(width * random.uniform(self.min_width, self.max_width))
             else:
-                raise ValueError(
-                    "Min width, max width, \
+                msg = "Min width, max width, \
                     min height and max height \
                     should all either be ints or floats. \
                     Got: {} respectively".format(
-                        [
-                            type(self.min_width),
-                            type(self.max_width),
-                            type(self.min_height),
-                            type(self.max_height),
-                        ]
-                    )
+                    [
+                        type(self.min_width),
+                        type(self.max_width),
+                        type(self.min_height),
+                        type(self.max_height),
+                    ]
                 )
+                raise ValueError(msg)
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
@@ -156,25 +156,15 @@ class CoarseDropout(DualTransform):
         return {"holes": holes}
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def _keypoint_in_hole(self, keypoint: KeypointType, hole: Tuple[int, int, int, int]) -> bool:
-        x1, y1, x2, y2 = hole
-        x, y = keypoint[:2]
-        return x1 <= x < x2 and y1 <= y < y2
-
     def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params
+        self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any
     ) -> List[KeypointType]:
-        result = set(keypoints)
-        for hole in holes:
-            for kp in keypoints:
-                if self._keypoint_in_hole(kp, hole):
-                    result.discard(kp)
-        return list(result)
+        return [keypoint for keypoint in keypoints if not any(keypoint_in_hole(keypoint, hole) for hole in holes)]
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "max_holes",
             "max_height",
