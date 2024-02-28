@@ -10,6 +10,8 @@ from albumentations.random_utils import beta
 
 from .functional import mix_arrays
 
+__all__ = ["MixUp"]
+
 
 class MixUp(DualTransform):
     """Perform the MixUp augmentation, combining pairs of images and labels in a convex manner to create new samples.
