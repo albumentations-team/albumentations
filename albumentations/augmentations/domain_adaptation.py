@@ -3,17 +3,15 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
-from qudida import DomainAdapter
-from skimage.exposure import match_histograms
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
+from albumentations.augmentations.domain_adaptation_functional import (
+    adapt_pixel_distribution,
+    apply_histogram,
+    fourier_domain_adaptation,
+)
 from albumentations.augmentations.utils import (
-    clipped,
-    get_opencv_dtype_from_numpy,
     is_grayscale_image,
     is_multispectral_image,
-    preserve_shape,
     read_rgb_image,
 )
 from albumentations.core.transforms_interface import ImageOnlyTransform, to_tuple
@@ -23,99 +21,7 @@ __all__ = [
     "HistogramMatching",
     "FDA",
     "PixelDistributionAdaptation",
-    "fourier_domain_adaptation",
-    "apply_histogram",
-    "adapt_pixel_distribution",
 ]
-
-THREE = 3
-
-
-@clipped
-@preserve_shape
-def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
-    """Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
-
-    Args:
-    ----
-        img:  source image
-        target_img:  target image for domain adaptation
-        beta: coefficient from source paper
-
-    Returns:
-    -------
-        transformed image
-
-    """
-    img = np.squeeze(img)
-    target_img = np.squeeze(target_img)
-
-    if target_img.shape != img.shape:
-        raise ValueError(
-            f"The source and target images must have the same shape, "
-            f"but got {img.shape} and {target_img.shape} respectively."
-        )
-
-    # get fft of both source and target
-    fft_src = np.fft.fft2(img.astype(np.float32), axes=(0, 1))
-    fft_trg = np.fft.fft2(target_img.astype(np.float32), axes=(0, 1))
-
-    # extract amplitude and phase of both fft-s
-    amplitude_src, phase_src = np.abs(fft_src), np.angle(fft_src)
-    amplitude_trg = np.abs(fft_trg)
-
-    # mutate the amplitude part of source with target
-    amplitude_src = np.fft.fftshift(amplitude_src, axes=(0, 1))
-    amplitude_trg = np.fft.fftshift(amplitude_trg, axes=(0, 1))
-    height, width = amplitude_src.shape[:2]
-    border = np.floor(min(height, width) * beta).astype(int)
-    center_y, center_x = np.floor([height / 2.0, width / 2.0]).astype(int)
-
-    y1, y2 = center_y - border, center_y + border + 1
-    x1, x2 = center_x - border, center_x + border + 1
-
-    amplitude_src[y1:y2, x1:x2] = amplitude_trg[y1:y2, x1:x2]
-    amplitude_src = np.fft.ifftshift(amplitude_src, axes=(0, 1))
-
-    # get mutated image
-    src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
-    return np.real(src_image_transformed)
-
-
-@preserve_shape
-def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
-    if img.dtype != reference_image.dtype:
-        raise RuntimeError(
-            f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}"
-        )
-    if img.shape[:2] != reference_image.shape[:2]:
-        reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
-
-    img, reference_image = np.squeeze(img), np.squeeze(reference_image)
-
-    try:
-        matched = match_histograms(img, reference_image, channel_axis=2 if len(img.shape) == THREE else None)
-    except TypeError:
-        matched = match_histograms(img, reference_image, multichannel=True)
-    return cv2.addWeighted(
-        matched,
-        blend_ratio,
-        img,
-        1 - blend_ratio,
-        0,
-        dtype=get_opencv_dtype_from_numpy(img.dtype),
-    )
-
-
-@preserve_shape
-def adapt_pixel_distribution(
-    img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5
-) -> np.ndarray:
-    initial_type = img.dtype
-    transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()
-    adapter = DomainAdapter(transformer=transformer, ref_img=ref)
-    result = adapter(img).astype("float32")
-    return (img.astype("float32") * (1 - weight) + result * weight).astype(initial_type)
 
 
 class HistogramMatching(ImageOnlyTransform):

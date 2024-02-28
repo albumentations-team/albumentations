@@ -46,11 +46,6 @@ repos:
         args: [ --fix ]
       # Run the formatter.
       - id: ruff-format
-  - repo: https://github.com/psf/black
-    rev: 24.2.0
-    hooks:
-      - id: black
-        args: [ --config=pyproject.toml ]
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.10.0
     hooks:
