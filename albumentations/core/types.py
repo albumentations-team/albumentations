@@ -1,4 +1,4 @@
-from typing import Any, Sequence, Tuple, Union
+from typing import Any, Literal, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -24,3 +24,10 @@ ImageColorType = Union[float, Sequence[float]]
 
 IntNumType = Union[np.integer, np.ndarray]
 FloatNumType = Union[np.floating, np.ndarray]
+
+
+image_modes = ["cv", "pil"]
+ImageMode = Literal["cv", "pil"]
+
+
+SpatterMode = Literal["rain", "mud"]

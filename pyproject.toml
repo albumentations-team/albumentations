@@ -17,27 +17,6 @@ no_implicit_reexport = true
 disallow_untyped_defs = true
 
 
-[tool.black]
-line-length = 120
-target-version = ["py38"]
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | node_modules
-  setup.py
-)/
-'''
-
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [

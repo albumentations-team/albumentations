@@ -50,7 +50,7 @@ jobs:
       run: pytest
 
   check_code_formatting_types:
-    name: Check code formatting with Black, isort, mypy, flake8
+    name: Check code formatting with ruff and mypy
     runs-on: ubuntu-latest
     strategy:
       matrix:
