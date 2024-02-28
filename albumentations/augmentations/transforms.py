@@ -65,6 +65,7 @@ __all__ = [
     "UnsharpMask",
     "PixelDropout",
     "Spatter",
+    "Dither",
 ]
 
 HUNDRED = 100
@@ -2785,3 +2786,44 @@ class Spatter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
+
+class Dither(ImageOnlyTransform):
+    """
+    Apply dither transform. Dither is an intentionally applied form of noise used to randomize quantization error,
+    preventing large-scale patterns such as color banding in images.
+    Args:
+        nc int: the number of colour choices per channel,
+            e.g. if nc = 2 we only have 0 and 1, and if nc = 4 we have 0, 0.33, 0.67 and 1 etc
+            Default value is 2 (the pixel can either be on or off).
+
+        always_apply (bool): If `True`, the transform will always be applied, regardless of `p`.
+            Default is `False`.
+        p (float): The probability that the transform will be applied. Default is 0.5.
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    References :
+        https://en.wikipedia.org/wiki/Dither
+        https://en.wikipedia.org/wiki/Floyd%E2%80%93Steinberg_dithering
+    """
+
+    def __init__(
+        self,
+        nc: int = 2,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.nc = nc
+
+    def apply(self, img: np.ndarray, nc: int = 2, **params) -> np.ndarray:
+        return F.dither(img, nc=nc)
+
+    def get_params(self):
+        return {"nc": random.randint(2, 256)}
+
+    def get_transform_init_args(self):
+        return {"nc": self.nc}
