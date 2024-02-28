@@ -18,7 +18,7 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-from albumentations.core.types import ColorType, ScalarType
+from albumentations.core.types import ColorType, ImageMode, ScalarType, SpatterMode, image_modes
 
 __all__ = [
     "add_fog",
@@ -320,9 +320,8 @@ def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], mode: str,
         msg = "Image must have uint8 channel type"
         raise TypeError(msg)
 
-    modes = ["cv", "pil"]
-    if mode not in modes:
-        raise ValueError(f"Unsupported equalization mode. Supports: {modes}. Got: {mode}")
+    if mode not in image_modes:
+        raise ValueError(f"Unsupported equalization mode. Supports: {image_modes}. Got: {mode}")
 
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
@@ -346,7 +345,7 @@ def _handle_mask(
 
 @preserve_channel_dim
 def equalize(
-    img: np.ndarray, mask: Optional[np.ndarray] = None, mode: str = "cv", by_channels: bool = True
+    img: np.ndarray, mask: Optional[np.ndarray] = None, mode: ImageMode = "cv", by_channels: bool = True
 ) -> np.ndarray:
     _check_preconditions(img, mask, mode, by_channels)
 
@@ -1399,7 +1398,7 @@ def spatter(
     non_mud: Optional[np.ndarray],
     mud: Optional[np.ndarray],
     rain: Optional[np.ndarray],
-    mode: str,
+    mode: SpatterMode,
 ) -> np.ndarray:
     non_rgb_warning(img)
 

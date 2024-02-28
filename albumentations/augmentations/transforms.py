@@ -19,7 +19,16 @@ from albumentations.augmentations.utils import (
     is_rgb_image,
 )
 from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, Interpolation, NoOp, to_tuple
-from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleFloatType, ScaleIntType, ScaleType
+from albumentations.core.types import (
+    BoxInternalType,
+    ImageMode,
+    KeypointInternalType,
+    ScaleFloatType,
+    ScaleIntType,
+    ScaleType,
+    SpatterMode,
+    image_modes,
+)
 from albumentations.core.utils import format_args
 
 from . import functional as F
@@ -1145,16 +1154,15 @@ class Equalize(ImageOnlyTransform):
 
     def __init__(
         self,
-        mode: str = "cv",
+        mode: ImageMode = "cv",
         by_channels: bool = True,
         mask: Optional[np.ndarray] = None,
         mask_params: Tuple[()] = (),
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        modes = ["cv", "pil"]
-        if mode not in modes:
-            raise ValueError(f"Unsupported equalization mode. Supports: {modes}. " f"Got: {mode}")
+        if mode not in image_modes:
+            raise ValueError(f"Unsupported equalization mode. Supports: {image_modes}. " f"Got: {mode}")
 
         super().__init__(always_apply, p)
         self.mode = mode
@@ -2678,7 +2686,7 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: ScaleFloatType = 2,
         cutout_threshold: ScaleFloatType = 0.68,
         intensity: ScaleFloatType = 0.6,
-        mode: Union[str, Sequence[str]] = "rain",
+        mode: Union[SpatterMode, Sequence[SpatterMode]] = "rain",
         color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None,
         always_apply: bool = False,
         p: float = 0.5,
@@ -2725,7 +2733,7 @@ class Spatter(ImageOnlyTransform):
         non_mud: Optional[np.ndarray] = None,
         mud: Optional[np.ndarray] = None,
         drops: Optional[np.ndarray] = None,
-        mode: str = "",
+        mode: SpatterMode = "mud",
         **params: Dict[str, Any],
     ) -> np.ndarray:
         return F.spatter(img, non_mud, mud, drops, mode)
