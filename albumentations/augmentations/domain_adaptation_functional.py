@@ -16,6 +16,7 @@ from albumentations.augmentations.utils import (
 )
 
 NON_GRAY_IMAGE_SHAPE = 3
+RGB_NUM_CHANNELS = 3
 
 __all__ = [
     "fourier_domain_adaptation",
@@ -162,7 +163,7 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
     img, reference_image = np.squeeze(img), np.squeeze(reference_image)
 
     # Determine if the images are multi-channel based on a predefined condition or shape analysis
-    is_multichannel = img.ndim == NON_GRAY_IMAGE_SHAPE and img.shape[2] == NON_GRAY_IMAGE_SHAPE
+    is_multichannel = img.ndim == NON_GRAY_IMAGE_SHAPE and img.shape[2] == RGB_NUM_CHANNELS
 
     # Match histograms between the images
     matched = match_histograms(img, reference_image, channel_axis=2 if is_multichannel else None)
