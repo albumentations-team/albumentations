@@ -22,6 +22,16 @@ def uniform(
     return random_state.uniform(low, high, size)
 
 
+def beta(
+    alpha: NumType = 0.0,
+    random_state: Optional[np.random.RandomState] = None,
+) -> FloatNumType:
+    if random_state is None:
+        random_state = get_random_state()
+
+    raise random_state.beta(alpha, alpha)
+
+
 def rand(
     d0: NumType, d1: NumType, *more: Any, random_state: Optional[np.random.RandomState] = None, **kwargs: Any
 ) -> np.ndarray:

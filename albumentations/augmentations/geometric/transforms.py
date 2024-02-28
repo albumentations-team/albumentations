@@ -976,7 +976,7 @@ class PiecewiseAffine(DualTransform):
 
         jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
-            for _i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
+            for _ in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
                 jitter = random_utils.normal(0, scale, (nb_cells, 2))
                 if np.any(jitter > 0):
                     break

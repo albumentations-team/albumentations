@@ -56,6 +56,7 @@ NPDTYPE_TO_OPENCV_DTYPE = {
 
 TWO = 2
 THREE = 3
+RGB_NUM_CHANNELS = 3
 FOUR = 4
 
 
@@ -147,7 +148,7 @@ def ensure_contiguous(
 
 
 def is_rgb_image(image: np.ndarray) -> bool:
-    return len(image.shape) == THREE and image.shape[-1] == THREE
+    return len(image.shape) == THREE and image.shape[-1] == RGB_NUM_CHANNELS
 
 
 def is_grayscale_image(image: np.ndarray) -> bool:
