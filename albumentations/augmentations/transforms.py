@@ -1153,8 +1153,6 @@ class Equalize(ImageOnlyTransform):
 
     def __init__(
         self,
-        # The code snippet is defining a variable `mode` with the value `"cv"` and specifying the type
-        # of the variable as `ImageMode`.
         mode: ImageMode = "cv",
         by_channels: bool = True,
         mask: Optional[np.ndarray] = None,
