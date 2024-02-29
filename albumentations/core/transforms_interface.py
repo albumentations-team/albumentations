@@ -308,7 +308,6 @@ class DualTransform(BasicTransform):
         msg = f"Method apply_to_keypoint is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
-
     def apply_to_global_label(self, label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
