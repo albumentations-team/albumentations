@@ -1,7 +1,7 @@
 import random
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Dict, Generator, Iterator, Optional, Sequence, Tuple, TypedDict, Union
 
 import numpy as np
 from typing_extensions import NotRequired
@@ -68,8 +68,8 @@ class MixUp(DualTransform):
 
     def __init__(
         self,
-        reference_data: Optional[Sequence[ReferenceImage]] = None,
-        read_fn: Callable[[ReferenceImage], np.ndarray] = lambda x: x,
+        reference_data: Optional[Union[Generator[ReferenceImage, None, None], Sequence[ReferenceImage]]] = None,
+        read_fn: Callable[[ReferenceImage], Dict[str, Any]] = lambda x: {"image": x, "mask": None, "class_label": None},
         alpha: float = 0.4,
         always_apply: bool = False,
         p: float = 0.5,
@@ -79,15 +79,13 @@ class MixUp(DualTransform):
             msg = "Alpha must be >= 0."
             raise ValueError(msg)
 
+        self.read_fn = read_fn
+        self.alpha = alpha
+
         if reference_data is None:
             warnings.warn("No reference data provided for MixUp. This transform will act as a no-op.")
-
-        self.alpha = alpha
-        if reference_data is None:
-            self.reference_data: Sequence[ReferenceImage] = []
-        else:
-            self.reference_data = reference_data
-        self.read_fn = read_fn
+            # Create an empty generator
+        self.reference_data = reference_data or []
 
     def apply(self, img: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_img = mix_data.get("image")
@@ -105,16 +103,23 @@ class MixUp(DualTransform):
             return mix_coef * label + (1 - mix_coef) * mix_label
         return label
 
-    def get_params(self) -> Dict[str, Any]:
-        if not self.reference_data:
-            return {"mix_data": None, "mix_coef": 1.0}
+    def get_params(self) -> Dict[str, Union[None, float, Dict[str, Any]]]:
+        if self.reference_data and isinstance(self.reference_data, Sequence):
+            mix_idx = random.randint(0, len(self.reference_data) - 1)
+            mix_data = self.reference_data[mix_idx]
+        elif self.reference_data and isinstance(self.reference_data, Iterator):
+            try:
+                mix_data = next(self.reference_data)  # Get the next item from the iterator
+            except StopIteration:
+                warnings.warn(
+                    "Reference data iterator/generator has been exhausted. "
+                    "Further MixUp augmentations will not be applied.",
+                    RuntimeWarning,
+                )
+                return {"mix_data": None, "mix_coef": 1}
 
-        mix_idx = random.randint(0, len(self.reference_data) - 1)
-        mix_coef = beta(self.alpha, self.alpha)
-
-        mix_data = self.read_fn(self.reference_data[mix_idx])
-
-        return {"mix_data": mix_data, "mix_coef": mix_coef}
+        mix_coef = beta(self.alpha, self.alpha) if mix_data else 1
+        return {"mix_data": self.read_fn(mix_data) if mix_data else None, "mix_coef": mix_coef}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "reference_data", "alpha"

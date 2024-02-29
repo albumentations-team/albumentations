@@ -27,16 +27,13 @@ __all__ = [
 
 class TransformerInterface(Protocol):
     @abc.abstractmethod
-    def inverse_transform(self, x: np.ndarray) -> np.ndarray:
-        ...
+    def inverse_transform(self, x: np.ndarray) -> np.ndarray: ...
 
     @abc.abstractmethod
-    def fit(self, x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray:
-        ...
+    def fit(self, x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray: ...
 
     @abc.abstractmethod
-    def transform(self, x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray:
-        ...
+    def transform(self, x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray: ...
 
 
 class DomainAdapter:
