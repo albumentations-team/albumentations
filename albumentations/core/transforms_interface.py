@@ -262,7 +262,7 @@ class DualTransform(BasicTransform):
         apply_to_keypoint(keypoint: KeypointInternalType, *args: Any, **params: Any) -> KeypointInternalType:
             Applies the transform to a single keypoint. Should be implemented in the subclass.
 
-        apply_to_class_label(label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        apply_to_global_label(label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
             Applies the transform to a single label. Should be implemented in the subclass.
 
         apply_to_bboxes(bboxes: Sequence[BoxType], *args: Any, **params: Any) -> Sequence[BoxType]:
@@ -277,7 +277,7 @@ class DualTransform(BasicTransform):
         apply_to_masks(masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
             Applies the transform to a list of masks. Delegates to `apply_to_mask` for each mask.
 
-        apply_to_class_labels(labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+        apply_to_global_labels(labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
             Applies the transform to a list of labels. Delegates to `apply_to_label` for each label.
 
     Note:
