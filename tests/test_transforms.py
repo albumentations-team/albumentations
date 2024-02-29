@@ -1257,7 +1257,7 @@ def test_bbox_clipping_perspective():
     assert len(res) == 0
 
 
-@pytest.mark.parametrize("seed", [i for i in range(10)])
+@pytest.mark.parametrize("seed", list(range(10)))
 def test_motion_blur_allow_shifted(seed):
     set_seed(seed)
 
