@@ -307,7 +307,9 @@ class DualTransform(BasicTransform):
         raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
 
     def apply_to_class_label(self, label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        raise NotImplementedError("Method apply_to_label is not implemented in class " + self.__class__.__name__)
+        raise NotImplementedError(
+            f"Method apply_to_label is not implemented in class {self.__class__.__name__}"
+        )
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], *args: Any, **params: Any) -> Sequence[BoxType]:
         return [
