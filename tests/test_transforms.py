@@ -1189,7 +1189,7 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
         np.random.randint(0, 256, [100, 25, 3], np.uint8),
     ],
 )
-@pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
+@pytest.mark.parametrize("angle", list(range(-360, 360, 15)))
 def test_rotate_equal(img, aug_cls, angle):
     set_seed(0)
 
