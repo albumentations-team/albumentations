@@ -38,19 +38,23 @@ class MixUp(DualTransform):
     Args:
     ----
         reference_data Sequence[ReferenceImage]: A sequence of dictionaries containing the reference
-            images, masks, and class labels for mixing. Each dictionary should have 'image', but 'mask', and
-            'class_label' are optional. Defaults to an empty list, resulting in no operation if not provided.
-        read_fn Callable[[Any], Dict[str, np.ndarray]]: A function to load and process the data
+            images, masks, and class labels for mixing. Each dictionary should have keys 'image', and optionally 'mask',
+            and 'class_label'. Defaults to an empty list, resulting in no operation if not provided.
+        read_fn Callable[[Any], Dict[str, np.ndarray]]:  A function to load and process the data
             from the reference_data dictionaries. It should accept one argument (one of the dictionaries) and
-            return a processed dictionary containing the keys 'image' and optionally 'mask', and 'class_label'
-            with their corresponding np.ndarray values. Class label should be one-hot encoded.
-            Defaults to a lambda function that returns its input.
-        alpha (float, optional): The alpha parameter of the Beta distribution used to sample the lambda value.
+            return a processed dictionary containing numpy arrays for keys 'image', and optionally 'mask'
+            and 'class_label'. The 'class_label' should be one-hot encoded if provided.
+            Defaults to a lambda function that acts as a no-op for simplification.
+        alpha (float): The alpha parameter of the Beta distribution used to sample the lambda value.
             Must be greater than or equal to 0. Higher values make the distribution closer to uniform,
             resulting in more balanced mixing. Defaults to 0.4.
-        always_apply (bool, optional): Whether the transform should always be applied, regardless of the
-            probability `p`. Defaults to False.
-        p (float, optional): Probability that the transform will be applied. Defaults to 0.5.
+        p (float): Probability that the transform will be applied. Defaults to 0.5.
+
+    Targets:
+        image, mask, class_label
+
+    Image types:
+        uint8, float32
 
     Raises:
     ------
@@ -59,16 +63,13 @@ class MixUp(DualTransform):
     Notes:
     -----
         - If no reference data is provided, this transform will issue a warning and act as a no-op.
-        - The lambda value used for mixing is sampled once per batch and applied globally across all images
-          and labels within that batch.
-        - The class labels are expected to be numpy arrays, enabling the mixing process when applicable.
 
     """
 
     def __init__(
         self,
         reference_data: Sequence[ReferenceImage] = [],
-        read_fn: Callable[[Any], np.ndarray] = lambda x: x,
+        read_fn: Callable[[ReferenceImage], np.ndarray] = lambda x: x,
         alpha: float = 0.4,
         always_apply: bool = False,
         p: float = 0.5,
