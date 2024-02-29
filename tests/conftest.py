@@ -35,6 +35,10 @@ def pytest_ignore_collect(path):
 def image():
     return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
+@pytest.fixture
+def global_label():
+    return np.array([1, 0, 0])
+
 
 @pytest.fixture
 def mask():

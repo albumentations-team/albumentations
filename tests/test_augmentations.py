@@ -1,4 +1,3 @@
-import random
 from typing import Dict, Tuple, Type
 
 import cv2

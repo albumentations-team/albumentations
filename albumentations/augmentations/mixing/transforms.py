@@ -17,7 +17,7 @@ __all__ = ["MixUp"]
 class ReferenceImage(TypedDict):
     image: Union[str, Path]
     mask: NotRequired[np.ndarray]
-    class_label: NotRequired[np.ndarray]
+    global_label: NotRequired[np.ndarray]
 
 
 class MixUp(DualTransform):
@@ -51,7 +51,7 @@ class MixUp(DualTransform):
         p (float): Probability that the transform will be applied. Defaults to 0.5.
 
     Targets:
-        image, mask, class_label
+        image, mask, global_label
 
     Image types:
         uint8, float32
@@ -95,10 +95,10 @@ class MixUp(DualTransform):
         mix_mask = mix_data.get("mask")
         return mix_arrays(mask, mix_mask, mix_coef) if mix_mask is not None else mask
 
-    def apply_to_class_label(
+    def apply_to_global_label(
         self, label: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any
     ) -> np.ndarray:
-        mix_label = mix_data.get("class_label")
+        mix_label = mix_data.get("global_label")
         if mix_label is not None and label is not None:
             return mix_coef * label + (1 - mix_coef) * mix_label
         return label

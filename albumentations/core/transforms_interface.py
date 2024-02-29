@@ -296,20 +296,22 @@ class DualTransform(BasicTransform):
             "masks": self.apply_to_masks,
             "bboxes": self.apply_to_bboxes,
             "keypoints": self.apply_to_keypoints,
-            "class_label": self.apply_to_class_label,
-            "class_labels": self.apply_to_class_labels,
+            "global_label": self.apply_to_global_label,
+            "global_labels": self.apply_to_global_labels,
         }
 
     def apply_to_bbox(self, bbox: BoxInternalType, *args: Any, **params: Any) -> BoxInternalType:
-        raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
+        msg = f"Method apply_to_bbox is not implemented in class {self.__class__.__name__}"
+        raise NotImplementedError(msg)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, *args: Any, **params: Any) -> KeypointInternalType:
-        raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
+        msg = f"Method apply_to_keypoint is not implemented in class {self.__class__.__name__}"
+        raise NotImplementedError(msg)
 
-    def apply_to_class_label(self, label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-        raise NotImplementedError(
-            f"Method apply_to_label is not implemented in class {self.__class__.__name__}"
-        )
+
+    def apply_to_global_label(self, label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
+        raise NotImplementedError(msg)
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], *args: Any, **params: Any) -> Sequence[BoxType]:
         return [
@@ -332,8 +334,8 @@ class DualTransform(BasicTransform):
     def apply_to_masks(self, masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
         return [self.apply_to_mask(mask, **params) for mask in masks]
 
-    def apply_to_class_labels(self, labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
-        return [self.apply_to_class_label(label, **params) for label in labels]
+    def apply_to_global_labels(self, labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+        return [self.apply_to_global_label(label, **params) for label in labels]
 
 
 class ImageOnlyTransform(BasicTransform):
@@ -359,7 +361,7 @@ class NoOp(DualTransform):
     def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
         return mask
 
-    def apply_to_class_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
+    def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
         return label
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
