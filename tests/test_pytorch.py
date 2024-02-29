@@ -6,6 +6,7 @@ from torchvision.transforms import ColorJitter
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
+from .utils import set_seed
 
 
 def test_torch_to_tensor_v2_augmentations(image, mask):
@@ -119,7 +120,7 @@ def test_with_replaycompose():
     ],
 )
 def test_color_jitter(brightness, contrast, saturation, hue):
-    np.random.seed(0)
+    set_seed(0)
     img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
     pil_image = Image.fromarray(img)
 

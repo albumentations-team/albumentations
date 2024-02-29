@@ -1,9 +1,8 @@
-import random
-
 import numpy as np
 import pytest
 
 from albumentations import random_utils
+from .utils import set_seed
 
 
 def _calc(args):
@@ -22,13 +21,11 @@ def _calc(args):
         [random_utils.randint, [-(1 << 15), 1 << 15, 100]],
         [random_utils.random, [100]],
         [random_utils.choice, [np.arange(1000), 100]],
-        [random_utils.beta, [0.5, 1]],
+        [random_utils.beta, [0.3, 0.4]],
     ],
 )
 def test_multiprocessing(func, args, mp_pool):
-    seed = 0
-    random.seed(seed)
-    np.random.seed(seed)
+    set_seed(0)
 
     n = 10
     status = False

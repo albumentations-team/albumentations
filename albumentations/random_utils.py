@@ -23,13 +23,13 @@ def uniform(
 
 
 def beta(
-    alpha: NumType = 0.0,
+    alpha: NumType = 0.5,
+    beta: NumType = 0.5,
     random_state: Optional[np.random.RandomState] = None,
 ) -> FloatNumType:
     if random_state is None:
         random_state = get_random_state()
-
-    raise random_state.beta(alpha, alpha)
+    return random_state.beta(alpha, beta)
 
 
 def rand(

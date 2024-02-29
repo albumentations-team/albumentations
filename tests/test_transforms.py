@@ -10,12 +10,8 @@ import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
 
-from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
-
-def set_seed(seed: int = 0):
-    random.seed(seed)
-    np.random.seed(seed)
 
 
 def test_transpose_both_image_and_mask():
@@ -165,7 +161,8 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
                 "fill_value": 0,
             },
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout,
+                              A.MixUp},
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -196,7 +193,8 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.BBoxSafeRandomCrop,
             A.CropAndPad,
             A.PixelDropout,
-            A.XYMasking,
+            A.MixUp,
+            A.XYMasking
         },
     ),
 )
@@ -248,6 +246,7 @@ def __test_multiprocessing_support_proc(args):
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
+            A.MixUp
         },
     ),
 )
@@ -755,10 +754,10 @@ def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
 
     unsharpmask = A.UnsharpMask(blur_limit=3, always_apply=True, p=1)
 
-    random.seed(0)
+    set_seed(0)
     usm_uint8 = unsharpmask(image=x_uint8)["image"]
 
-    random.seed(0)
+    set_seed(0)
     usm_float32 = unsharpmask(image=x_float32)["image"]
 
     # Before comparison, rescale the usm_float32 to [0, 255]
@@ -880,10 +879,10 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
 
     glassblur = A.GlassBlur(always_apply=True, max_delta=1)
 
-    random.seed(0)
+    set_seed(0)
     blur_uint8 = glassblur(image=x_uint8)["image"]
 
-    random.seed(0)
+    set_seed(0)
     blur_float32 = glassblur(image=x_float32)["image"]
 
     # Before comparison, rescale the blur_float32 to [0, 255]
@@ -917,9 +916,9 @@ def test_perspective_keep_size():
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
 
-    set_seed()
+    set_seed(0)
     res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
-    set_seed()
+    set_seed(0)
     res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
 
     assert np.allclose(res_1["bboxes"], res_2["bboxes"])
@@ -1192,17 +1191,17 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
 )
 @pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
 def test_rotate_equal(img, aug_cls, angle):
-    random.seed(0)
+    set_seed(0)
 
-    h, w = img.shape[:2]
-    kp = [[random.randint(0, w - 1), random.randint(0, h - 1), random.randint(0, 360)] for _ in range(50)]
+    height, width = img.shape[:2]
+    kp = [[random.randint(0, width - 1), random.randint(0, height - 1), random.randint(0, 360)] for _ in range(50)]
     kp += [
-        [round(w * 0.2), int(h * 0.3), 90],
-        [int(w * 0.2), int(h * 0.3), 90],
-        [int(w * 0.2), int(h * 0.3), 90],
-        [int(w * 0.2), int(h * 0.3), 90],
+        [round(width * 0.2), int(height * 0.3), 90],
+        [int(width * 0.2), int(height * 0.3), 90],
+        [int(width * 0.2), int(height * 0.3), 90],
+        [int(width * 0.2), int(height * 0.3), 90],
         [0, 0, 0],
-        [w - 1, h - 1, 0],
+        [width - 1, height - 1, 0],
     ]
     keypoint_params = A.KeypointParams("xya", remove_invisible=False)
 
@@ -1247,7 +1246,7 @@ def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: f
 
 
 def test_bbox_clipping_perspective():
-    random.seed(0)
+    set_seed(0)
     transform = A.Compose(
         [A.Perspective(scale=(0.05, 0.05), p=1)], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6)
     )
@@ -1260,7 +1259,7 @@ def test_bbox_clipping_perspective():
 
 @pytest.mark.parametrize("seed", [i for i in range(10)])
 def test_motion_blur_allow_shifted(seed):
-    random.seed(seed)
+    set_seed(seed)
 
     transform = A.MotionBlur(allow_shifted=False)
     kernel = transform.get_params()["kernel"]

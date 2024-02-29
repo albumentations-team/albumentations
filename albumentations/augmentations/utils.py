@@ -1,4 +1,5 @@
 from functools import wraps
+from pathlib import Path
 from typing import Any, Callable, Union
 
 import cv2
@@ -11,6 +12,7 @@ from albumentations.core.types import KeypointInternalType
 __all__ = [
     "read_bgr_image",
     "read_rgb_image",
+    "read_grayscale",
     "MAX_VALUES_BY_DTYPE",
     "NPDTYPE_TO_OPENCV_DTYPE",
     "clipped",
@@ -60,13 +62,17 @@ RGB_NUM_CHANNELS = 3
 FOUR = 4
 
 
-def read_bgr_image(path: str) -> np.ndarray:
-    return cv2.imread(path, cv2.IMREAD_COLOR)
+def read_bgr_image(path: Union[str, Path]) -> np.ndarray:
+    return cv2.imread(str(path), cv2.IMREAD_COLOR)
 
 
-def read_rgb_image(path: str) -> np.ndarray:
-    image = cv2.imread(path, cv2.IMREAD_COLOR)
+def read_rgb_image(path: Union[str, Path]) -> np.ndarray:
+    image = read_bgr_image(path)
     return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
+
+def read_grayscale(path: Union[str, Path]) -> np.ndarray:
+    return cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
 
 
 def clipped(func: Callable[Concatenate[np.ndarray, P], np.ndarray]) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:

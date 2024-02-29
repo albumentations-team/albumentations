@@ -54,6 +54,7 @@ TEST_SEEDS = (0, 1, 42)
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
+            A.MixUp
         },
     ),
 )
@@ -403,7 +404,7 @@ AUGMENTATION_CLS_PARAMS = [
             "mask_fill_value": 1,
             "fill_value": 0,
         },
-    ],
+    ]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -417,6 +418,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
+    A.MixUp
 }
 
 
@@ -496,6 +498,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.OpticalDistortion,
             A.TemplateTransform,
             A.XYMasking,
+            A.MixUp
         },
     ),
 )
@@ -554,6 +557,7 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
+            A.MixUp
         },
     ),
 )
