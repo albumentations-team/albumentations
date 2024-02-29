@@ -1,7 +1,7 @@
 import random
 import warnings
 from pathlib import Path
-from typing import Any, Callable, Dict, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypedDict, Union
 
 import numpy as np
 from typing_extensions import NotRequired
@@ -68,7 +68,7 @@ class MixUp(DualTransform):
 
     def __init__(
         self,
-        reference_data: Sequence[ReferenceImage] = [],
+        reference_data: Optional[Sequence[ReferenceImage]] = None,
         read_fn: Callable[[ReferenceImage], np.ndarray] = lambda x: x,
         alpha: float = 0.4,
         always_apply: bool = False,
@@ -79,39 +79,42 @@ class MixUp(DualTransform):
             msg = "Alpha must be >= 0."
             raise ValueError(msg)
 
-        if not reference_data:
+        if reference_data is None:
             warnings.warn("No reference data provided for MixUp. This transform will act as a no-op.")
 
         self.alpha = alpha
-        self.reference_data = reference_data
+        if reference_data is None:
+            self.reference_data: Sequence[ReferenceImage] = []
+        else:
+            self.reference_data = reference_data
         self.read_fn = read_fn
 
-    def apply(self, img: np.ndarray, mix_data: ReferenceImage, lam: float, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_img = mix_data.get("image")
-        return mix_arrays(img, mix_img, lam) if mix_img is not None else img
+        return mix_arrays(img, mix_img, mix_coef) if mix_img is not None else img
 
-    def apply_to_mask(self, mask: np.ndarray, mix_data: ReferenceImage, lam: float, **params: Any) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_mask = mix_data.get("mask")
-        return mix_arrays(mask, mix_mask, lam) if mix_mask is not None else mask
+        return mix_arrays(mask, mix_mask, mix_coef) if mix_mask is not None else mask
 
     def apply_to_class_label(
-        self, label: np.ndarray, mix_data: ReferenceImage, lam: float, **params: Any
+        self, label: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any
     ) -> np.ndarray:
         mix_label = mix_data.get("class_label")
         if mix_label is not None and label is not None:
-            return lam * label + (1 - lam) * mix_label
+            return mix_coef * label + (1 - mix_coef) * mix_label
         return label
 
     def get_params(self) -> Dict[str, Any]:
         if not self.reference_data:
-            return {"mix_data": None, "lam": 1.0}
+            return {"mix_data": None, "mix_coef": 1.0}
 
         mix_idx = random.randint(0, len(self.reference_data) - 1)
-        lam = beta(self.alpha, self.alpha)
+        mix_coef = beta(self.alpha, self.alpha)
 
         mix_data = self.read_fn(self.reference_data[mix_idx])
 
-        return {"mix_data": mix_data, "lam": lam}
+        return {"mix_data": mix_data, "mix_coef": mix_coef}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "reference_data", "alpha"
