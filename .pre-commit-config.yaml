@@ -39,7 +39,7 @@ repos:
       - id: requirements-txt-fixer
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.2.2
+    rev: v0.3.0
     hooks:
       # Run the linter.
       - id: ruff
@@ -67,3 +67,10 @@ repos:
         additional_dependencies: [ types-PyYAML]
         args:
           [ --config-file=pyproject.toml ]
+  - repo: local
+    hooks:
+      - id: update-used-by-section
+        name: Update 'Who is using Albumentations' section
+        entry: python tools/make_used_by_docs.py update
+        language: system
+        stages: [commit]  # You can choose to run it at different stages

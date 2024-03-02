@@ -48,7 +48,8 @@ exclude = [
     "venv",
     "tests",
     "benchmark",
-    "setup.py"
+    "setup.py",
+    "tools"
 ]
 
 # Same as Black.
