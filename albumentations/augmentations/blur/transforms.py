@@ -326,10 +326,10 @@ class AdvancedBlur(ImageOnlyTransform):
         available at https://arxiv.org/abs/2107.10833
 
     Targets:
-        This transformation is applied to images only.
+        image
 
     Image types:
-        This transform supports uint8 and float32 image types.
+        uint8, float32
 
     """
 

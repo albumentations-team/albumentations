@@ -50,7 +50,7 @@ jobs:
       run: pytest
 
   check_code_formatting_types:
-    name: Check code formatting with ruff and mypy
+    name: Check code formatting with ruff and mypy + tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -70,7 +70,7 @@ jobs:
       run: pre-commit run --files $(find albumentations -type f)
 
   check_transforms_docs:
-    name: Check that transforms docs are not outdated
+    name: Check Readme is not outdated
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -82,11 +82,12 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Update pip
-      run: python -m pip install --upgrade pip
-    - name: Install dependencies
+    - name: Install requirements
       run: |
+        python -m pip install --upgrade pip
+        pip install requests
         pip install .
-        pip install pytest
-    - name: Run checks
+    - name: Run checks for documentation
       run: python tools/make_transforms_docs.py check README.md
+    - name: Run checks for used by documentation
+      run: python tools/make_used_by_docs.py check

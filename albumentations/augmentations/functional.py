@@ -1071,7 +1071,7 @@ def multiply(img: np.ndarray, multiplier: np.ndarray) -> np.ndarray:
         img: Image.
         multiplier: Multiplier coefficient.
 
-    Returns
+    Returns:
     -------
         Image multiplied by `multiplier` coefficient.
 
