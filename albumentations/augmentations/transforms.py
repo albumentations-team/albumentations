@@ -253,7 +253,7 @@ class ImageCompression(ImageOnlyTransform):
 
         This Enum class is used to specify the image compression format.
 
-        Attributes
+        Attributes:
         ----------
             JPEG (int): Represents the JPEG image compression format.
             WEBP (int): Represents the WEBP image compression format.
@@ -1515,7 +1515,7 @@ class RandomGamma(ImageOnlyTransform):
     conditions, potentially enhancing model generalization. For more details on gamma correction,
     see: https://en.wikipedia.org/wiki/Gamma_correction
 
-    Attributes
+    Attributes:
     ----------
         gamma_limit (Union[int, Tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
             int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much

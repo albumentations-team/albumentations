@@ -1,8 +1,10 @@
-deepdiff==6.7.1
-mypy==1.8.0
+deepdiff>=6.7.1
+mypy>=1.8.0
 pre_commit>=3.5.0
-pytest==8.0.2
-ruff==0.3.0
+pytest>=8.0.2
+requests>=2.31.0
+ruff>=0.3.0
+tomli>=2.0.1
 types-pkg-resources
 types-PyYAML
 types-setuptools

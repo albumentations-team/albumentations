@@ -1082,7 +1082,7 @@ class PadIfNeeded(DualTransform):
         assume relative to a container. It's particularly useful in image processing, UI layout,
         and graphic design to specify the alignment and positioning of elements.
 
-        Attributes
+        Attributes:
         ----------
             CENTER (str): Specifies that the object should be placed at the center.
             TOP_LEFT (str): Specifies that the object should be placed at the top-left corner.
