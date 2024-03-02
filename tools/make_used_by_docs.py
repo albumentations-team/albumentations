@@ -15,8 +15,8 @@ def check_used_by_section(filepath: str, expected_html: list) -> None:
     if combined_html not in readme_content:
         raise ValueError(
             "The 'Who is using Albumentations' section is outdated or incorrect. "
-            "Please run 'python tools/make_used_by_docs.py make' to generate the latest section "
-            "and update the README.md file in the ## Who is using Albumentations section."
+            "Please run 'python tools/make_used_by_docs.py update' to automatically update "
+            "the README.md file in the ## Who is using Albumentations section."
         )
 
 

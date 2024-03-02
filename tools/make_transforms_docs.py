@@ -173,7 +173,13 @@ def main() -> None:
         dual_transforms, header=["Transform"] + [target.value for target in Targets]
     )
     if command == "make":
-        pass
+        print("===== COPY THIS TABLE TO README.MD BELOW ### Pixel-level transforms =====")
+        print(image_only_transforms_links)
+        print("===== END OF COPY =====")
+        print()
+        print("===== COPY THIS TABLE TO README.MD BELOW ### Spatial-level transforms =====")
+        print(dual_transforms_table)
+        print("===== END OF COPY =====")
     else:
         check_docs(args.filepath, image_only_transforms_links, dual_transforms_table)
 
