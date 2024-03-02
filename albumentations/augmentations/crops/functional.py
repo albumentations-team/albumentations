@@ -110,7 +110,7 @@ def crop_keypoint_by_coords(
 
     """
     x, y, angle, scale = keypoint[:4]
-    x1, y1, _, _ = crop_coords
+    x1, y1 = crop_coords[:2]
     return x - x1, y - y1, angle, scale
 
 

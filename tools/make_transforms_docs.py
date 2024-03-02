@@ -72,14 +72,15 @@ def get_transforms_info():
             if hasattr(cls, "apply_to_bbox") and cls.apply_to_bbox is not albumentations.DualTransform.apply_to_bbox:
                 targets.add(Targets.BBOXES)
 
-            if hasattr(cls, "apply_to_keypoint") and cls.apply_to_keypoint is not albumentations.DualTransform.apply_to_keypoint:
+            # Update this part for keypoint-related methods
+            has_keypoints_method = any(
+                hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.DualTransform, attr, None)
+                for attr in ["apply_to_keypoint", "apply_to_keypoints"]
+            )
+            if has_keypoints_method:
                 targets.add(Targets.KEYPOINTS)
 
-            if issubclass(cls, albumentations.Lambda):
-                targets.add(Targets.MASKS)
-                targets.add(Targets.BBOXES)
-                targets.add(Targets.KEYPOINTS)
-
+            # Continue with existing logic...
             transforms_info[name] = {
                 "targets": targets,
                 "docs_link": make_augmentation_docs_link(cls),
