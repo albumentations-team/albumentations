@@ -120,13 +120,14 @@ def make_transforms_targets_table(transforms_info, header):
 
 def make_transforms_targets_links(transforms_info):
     return "\n".join(
-        "- " + info["docs_link"] for transform, info in sorted(transforms_info.items(), key=lambda kv: kv[0])
+        "- " + info["docs_link"] for _, info in sorted(transforms_info.items(), key=lambda kv: kv[0])
     )
 
 
 def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> None:
     with open(filepath, encoding="utf8") as f:
         text = f.read()
+
     outdated_docs = set()
     image_only_lines_not_in_text = []
     dual_lines_not_in_text = []
@@ -134,11 +135,16 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> 
         if line not in text:
             outdated_docs.update(["Pixel-level"])
             image_only_lines_not_in_text.append(line)
+
+    print(dual_transforms_table.split("\n"))
+
     for line in dual_transforms_table.split("\n"):
         if line not in text:
             dual_lines_not_in_text.append(line)
             outdated_docs.update(["Spatial-level"])
     if outdated_docs:
+        print()
+
         msg = (
             "Docs for the following transform types are outdated: {outdated_docs_headers}. "
             "Generate new docs by executing the `python tools/{py_file} make` command "
