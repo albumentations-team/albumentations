@@ -27,7 +27,7 @@ def check_used_by_section(filepath: str, expected_html: list) -> None:
 def update_used_by_section(filepath: str, new_html: list) -> None:
     combined_html = "\n".join(new_html) + "\n"
     start_marker = "## Who is using Albumentations\n"
-    end_marker = "\n## "
+    end_marker = "\n##"
 
     try:
         with open(filepath, encoding="utf-8") as file:
