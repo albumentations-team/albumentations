@@ -86,6 +86,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install requests
+        pip install .
     - name: Run checks for documentation
       run: python tools/make_transforms_docs.py check README.md
     - name: Run checks for used by documentation
