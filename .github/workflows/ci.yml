@@ -83,7 +83,9 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install requirements
-      run: pip install requests.txt
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
     - name: Run checks
       run: |
         python tools/make_transforms_docs.py check README.md
