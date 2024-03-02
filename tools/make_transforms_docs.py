@@ -43,34 +43,36 @@ def make_separator(width: int, align_center: bool) -> str:
         return ":" + "-" * (width - 2) + ":"
     return "-" * width
 
+import warnings
+
+def is_deprecated(cls) -> bool:
+    """
+    Check if a given class is deprecated.
+    """
+    for warning in cls.__doc__.split('\n'):  # Assuming deprecation warnings are in the docstring
+        if "deprecated" in warning.lower():
+            return True  # The class itself is marked as deprecated
+    return False
+
+
 
 def get_transforms_info():
     transforms_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
         if inspect.isclass(cls) and issubclass(cls, albumentations.BasicTransform) and name not in IGNORED_CLASSES:
-            if "DeprecationWarning" in inspect.getsource(cls) or "FutureWarning" in inspect.getsource(cls):
-                continue
+            # Check if the class is deprecated
+            if is_deprecated(cls):
+                continue  # Skip deprecated classes
 
             targets = {Targets.IMAGE}
             if issubclass(cls, albumentations.DualTransform):
                 targets.add(Targets.MASKS)
 
-            if (
-                hasattr(cls, "apply_to_bbox") and cls.apply_to_bbox is not albumentations.DualTransform.apply_to_bbox
-            ) or (
-                hasattr(cls, "apply_to_bboxes")
-                and cls.apply_to_bboxes is not albumentations.DualTransform.apply_to_bboxes
-            ):
+            if hasattr(cls, "apply_to_bbox") and cls.apply_to_bbox is not albumentations.DualTransform.apply_to_bbox:
                 targets.add(Targets.BBOXES)
 
-            if (
-                hasattr(cls, "apply_to_keypoint")
-                and cls.apply_to_keypoint is not albumentations.DualTransform.apply_to_keypoint
-            ) or (
-                hasattr(cls, "apply_to_keypoints")
-                and cls.apply_to_keypoints is not albumentations.DualTransform.apply_to_keypoints
-            ):
+            if hasattr(cls, "apply_to_keypoint") and cls.apply_to_keypoint is not albumentations.DualTransform.apply_to_keypoint:
                 targets.add(Targets.KEYPOINTS)
 
             if issubclass(cls, albumentations.Lambda):
@@ -84,6 +86,7 @@ def get_transforms_info():
                 "image_only": issubclass(cls, albumentations.ImageOnlyTransform),
             }
     return transforms_info
+
 
 
 def make_transforms_targets_table(transforms_info, header):
@@ -167,6 +170,7 @@ def main() -> None:
         raise ValueError(f"You should provide a valid command: {{make|check}}. Got {command} instead.")
     transforms_info = get_transforms_info()
     image_only_transforms = {transform: info for transform, info in transforms_info.items() if info["image_only"]}
+
     dual_transforms = {transform: info for transform, info in transforms_info.items() if not info["image_only"]}
     image_only_transforms_links = make_transforms_targets_links(image_only_transforms)
     dual_transforms_table = make_transforms_targets_table(

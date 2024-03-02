@@ -63,7 +63,7 @@ target-version = "py38"
 explicit-preview-rules = true
 
 select = ["F", "E", "W", "C90", "I", "N", "D", "UP", "YTT", "ANN", "ASYNC", "TRIO", "S", "BLE", "FBT", "B", "A", "COM", "CPY", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "PERF", "FURB", "LOG", "RUF"]
-ignore = ["D211", "D213", "ANN101", "D107", "ANN401", "D102", "D103", "ANN204", "ARG002", "D104", "S311", "F403", "PLR0913", "FBT001", "FBT002", "ISC001", "COM812", "ANN102", "D100", "D205", "D101", "EM102", "TRY003", "D401", "A002", "D105", "D415", "D400", "D202", "D203", "PTH123", "D203", "B028", "ARG001", "ARG005", "B028", "N812", "FBT003", "D417", "B027"]
+ignore = [ "ANN101", "D107", "ANN401", "ANN204", "ARG002", "S311", "F403", "PLR0913", "FBT001", "FBT002", "ISC001", "COM812", "ANN102", "EM102", "TRY003", "D401", "A002", "PTH123", "B028", "ARG001", "ARG005", "B028", "N812", "FBT003", "B027", "D104", "D100", "D103", "D102", "D415", "D101", "D205", "D105", "D417"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -84,3 +84,6 @@ skip-magic-trailing-comma = false
 
 # Like Black, automatically detect the appropriate line ending.
 line-ending = "auto"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
