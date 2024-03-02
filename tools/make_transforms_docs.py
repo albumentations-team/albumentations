@@ -136,15 +136,11 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> 
             outdated_docs.update(["Pixel-level"])
             image_only_lines_not_in_text.append(line)
 
-    print(dual_transforms_table.split("\n"))
-
     for line in dual_transforms_table.split("\n"):
         if line not in text:
             dual_lines_not_in_text.append(line)
             outdated_docs.update(["Spatial-level"])
     if outdated_docs:
-        print()
-
         msg = (
             "Docs for the following transform types are outdated: {outdated_docs_headers}. "
             "Generate new docs by executing the `python tools/{py_file} make` command "
@@ -183,6 +179,8 @@ def main() -> None:
     dual_transforms_table = make_transforms_targets_table(
         dual_transforms, header=["Transform"] + [target.value for target in Targets]
     )
+
+
     if command == "make":
         print("===== COPY THIS TABLE TO README.MD BELOW ### Pixel-level transforms =====")
         print(image_only_transforms_links)
