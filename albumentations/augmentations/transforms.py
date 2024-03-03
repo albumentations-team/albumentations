@@ -27,6 +27,7 @@ from albumentations.core.types import (
     ScaleIntType,
     ScaleType,
     SpatterMode,
+    Targets,
     image_modes,
 )
 from albumentations.core.utils import format_args
@@ -98,8 +99,11 @@ class RandomGridShuffle(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
+
     def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: bool = False, p: float = 0.5):
         super().__init__(always_apply, p)
+
         self.grid = grid
 
     def apply(self, img: np.ndarray, tiles: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
@@ -1808,11 +1812,12 @@ class Lambda(NoOp):
         mask: Mask transformation function.
         keypoint: Keypoint transformation function.
         bbox: BBox transformation function.
+        global_label: Global label transformation function.
         always_apply: Indicates whether this transformation should be always applied.
         p: probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bboxes, keypoints
+        image, mask, bboxes, keypoints, global_label
 
     Image types:
         Any
@@ -1825,6 +1830,7 @@ class Lambda(NoOp):
         mask: Optional[Callable[..., Any]] = None,
         keypoint: Optional[Callable[..., Any]] = None,
         bbox: Optional[Callable[..., Any]] = None,
+        global_label: Optional[Callable[..., Any]] = None,
         name: Optional[str] = None,
         always_apply: bool = False,
         p: float = 1.0,
@@ -1832,12 +1838,15 @@ class Lambda(NoOp):
         super().__init__(always_apply, p)
 
         self.name = name
-        self.custom_apply_fns = {target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox")}
+        self.custom_apply_fns = {
+            target_name: F.noop for target_name in ("image", "mask", "keypoint", "bbox", "global_label")
+        }
         for target_name, custom_apply_fn in {
             "image": image,
             "mask": mask,
             "keypoint": keypoint,
             "bbox": bbox,
+            "global_label": global_label,
         }.items():
             if custom_apply_fn is not None:
                 if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
@@ -1863,6 +1872,10 @@ class Lambda(NoOp):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         fn = self.custom_apply_fns["keypoint"]
         return fn(keypoint, **params)
+
+    def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
+        fn = self.custom_apply_fns["global_label"]
+        return fn(label, **params)
 
     @classmethod
     def is_serializable(cls) -> bool:
@@ -2560,6 +2573,8 @@ class PixelDropout(DualTransform):
         any
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
 
     def __init__(
         self,

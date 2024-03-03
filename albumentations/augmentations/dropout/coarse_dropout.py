@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.types import KeypointType, ScalarType
+from albumentations.core.types import KeypointType, ScalarType, Targets
 
 from .functional import cutout, keypoint_in_hole
 
@@ -46,6 +46,8 @@ class CoarseDropout(DualTransform):
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     def __init__(
         self,

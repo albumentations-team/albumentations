@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from albumentations.core.transforms_interface import DualTransform, to_tuple
-from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleFloatType
+from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleFloatType, Targets
 
 from . import functional as F
 
@@ -33,6 +33,8 @@ class RandomScale(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -83,6 +85,8 @@ class LongestMaxSize(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -138,6 +142,8 @@ class SmallestMaxSize(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
+
     def __init__(
         self,
         max_size: Union[int, Sequence[int]] = 1024,
@@ -192,6 +198,8 @@ class Resize(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     def __init__(
         self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1

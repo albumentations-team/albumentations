@@ -5,35 +5,13 @@ import warnings
 import numpy as np
 import pytest
 
-try:
-    import torch
-    import torchvision
-
-    torch_available = True
-except ImportError:
-    torch_available = False
-
-
-skipif_no_torch = pytest.mark.skipif(
-    not torch_available, reason="The test was skipped because PyTorch and torchvision are not installed"
-)
-
-
-def pytest_ignore_collect(path):
-    if not torch_available and path.fnmatch("test_pytorch.py"):
-        warnings.warn(
-            UserWarning(
-                "Tests that require PyTorch and torchvision were skipped because those libraries are not installed."
-            )
-        )
-        return True
-
-    return False
-
-
 @pytest.fixture
 def image():
     return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+
+@pytest.fixture
+def global_label():
+    return np.array([1, 0, 0])
 
 
 @pytest.fixture

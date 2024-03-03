@@ -18,6 +18,7 @@ from albumentations.core.types import (
     ScaleFloatType,
     ScaleIntType,
     SizeType,
+    Targets,
 )
 
 from . import functional as F
@@ -78,12 +79,14 @@ class ShiftScaleRotate(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, keypoints
+        image, mask, keypoints, bboxes
 
     Image types:
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     def __init__(
         self,
@@ -201,12 +204,14 @@ class ElasticTransform(DualTransform):
                              Enabling this option gives ~2X speedup.
 
     Targets:
-        image, mask, bbox
+        image, mask, bboxes
 
     Image types:
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(
         self,
@@ -333,6 +338,8 @@ class Perspective(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     def __init__(
         self,
@@ -604,6 +611,8 @@ class Affine(DualTransform):
         [1] https://arxiv.org/abs/2109.13488
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -920,6 +929,8 @@ class PiecewiseAffine(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def __init__(
         self,
         scale: ScaleFloatType = (0.03, 0.05),
@@ -976,7 +987,7 @@ class PiecewiseAffine(DualTransform):
 
         jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
-            for _i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
+            for _ in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
                 jitter = random_utils.normal(0, scale, (nb_cells, 2))
                 if np.any(jitter > 0):
                     break
@@ -1068,7 +1079,7 @@ class PadIfNeeded(DualTransform):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bbox, keypoints
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -1099,6 +1110,8 @@ class PadIfNeeded(DualTransform):
         BOTTOM_LEFT = "bottom_left"
         BOTTOM_RIGHT = "bottom_right"
         RANDOM = "random"
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -1307,6 +1320,8 @@ class VerticalFlip(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.vflip(img)
 
@@ -1334,6 +1349,8 @@ class HorizontalFlip(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if img.ndim == THREE and img.shape[2] > 1 and img.dtype == np.uint8:
@@ -1367,6 +1384,8 @@ class Flip(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply(self, img: np.ndarray, d: int = 0, **params: Any) -> np.ndarray:
         """Args:
@@ -1405,6 +1424,11 @@ class Transpose(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    def __init__(self, always_apply: bool = False, p: float = 0.5):
+        super().__init__(always_apply, p)
+
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.transpose(img)
 
@@ -1437,12 +1461,14 @@ class OpticalDistortion(DualTransform):
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
 
     Targets:
-        image, mask, bbox
+        image, mask, bboxes
 
     Image types:
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(
         self,
@@ -1528,12 +1554,14 @@ class GridDistortion(DualTransform):
             See for more information: https://github.com/albumentations-team/albumentations/pull/722
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(
         self,
@@ -1548,6 +1576,7 @@ class GridDistortion(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
+
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation

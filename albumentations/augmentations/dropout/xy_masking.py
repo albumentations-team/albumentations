@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 import numpy as np
 
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.types import ColorType, KeypointType, ScaleIntType
+from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
 
 from .functional import cutout, keypoint_in_hole
 
@@ -48,6 +48,8 @@ class XYMasking(DualTransform):
     Note: Either `max_x_length` or `max_y_length` or both must be defined.
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     def __init__(
         self,

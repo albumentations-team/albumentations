@@ -1,13 +1,13 @@
 import math
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
 
 from albumentations.augmentations.crops import functional as FCrops
-from albumentations.core.transforms_interface import DualTransform, FillValueType, to_tuple
-from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleIntType
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType, ScaleIntType, Targets
 
 from . import functional as F
 
@@ -30,6 +30,8 @@ class RandomRotate90(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply(self, img: np.ndarray, factor: float = 0, **params: Any) -> np.ndarray:
         """Args:
@@ -82,6 +84,8 @@ class Rotate(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -250,13 +254,15 @@ class SafeRotate(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def __init__(
         self,
         limit: Union[float, Tuple[float, float]] = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: FillValueType = None,
-        mask_value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
+        value: Optional[ColorType] = None,
+        mask_value: Optional[ColorType] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -296,10 +302,10 @@ class SafeRotate(DualTransform):
         angle = random.uniform(self.limit[0], self.limit[1])
 
         image = params["image"]
-        h, w = image.shape[:2]
+        height, width = image.shape[:2]
 
         # https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
-        image_center = (w / 2, h / 2)
+        image_center = (width / 2, height / 2)
 
         # Rotation Matrix
         rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
@@ -309,11 +315,11 @@ class SafeRotate(DualTransform):
         abs_sin = abs(rotation_mat[0, 1])
 
         # find the new width and height bounds
-        new_w = math.ceil(h * abs_sin + w * abs_cos)
-        new_h = math.ceil(h * abs_cos + w * abs_sin)
+        new_w = math.ceil(height * abs_sin + width * abs_cos)
+        new_h = math.ceil(height * abs_cos + width * abs_sin)
 
-        scale_x = w / new_w
-        scale_y = h / new_h
+        scale_x = width / new_w
+        scale_y = height / new_h
 
         # Shift the image to create padding
         rotation_mat[0, 2] += new_w / 2 - image_center[0]

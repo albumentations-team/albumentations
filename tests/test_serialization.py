@@ -12,7 +12,6 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
-from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
     check_all_augs_exists,
@@ -54,6 +53,7 @@ TEST_SEEDS = (0, 1, 42)
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
+            A.MixUp
         },
     ),
 )
@@ -403,7 +403,7 @@ AUGMENTATION_CLS_PARAMS = [
             "mask_fill_value": 1,
             "fill_value": 0,
         },
-    ],
+    ]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -417,6 +417,7 @@ AUGMENTATION_CLS_EXCEPT = {
     A.GridDropout,
     A.GlassBlur,
     A.TemplateTransform,
+    A.MixUp
 }
 
 
@@ -496,6 +497,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.OpticalDistortion,
             A.TemplateTransform,
             A.XYMasking,
+            A.MixUp
         },
     ),
 )
@@ -554,6 +556,7 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
+            A.MixUp
         },
     ),
 )
@@ -873,7 +876,6 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
     "transform_file_name",
     ["transform_v1.1.0_with_totensor.json", "transform_serialization_v2_with_totensor.json"],
 )
-@skipif_no_torch
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_serialization_conversion_with_totensor(transform_file_name, data_format, seed):

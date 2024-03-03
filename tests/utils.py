@@ -9,6 +9,12 @@ import numpy as np
 import albumentations
 
 
+
+def set_seed(seed: int = 0):
+    random.seed(seed)
+    np.random.seed(seed)
+
+
 def convert_2d_to_3d(arrays, num_channels=3):
     # Converts a 2D numpy array with shape (H, W) into a 3D array with shape (H, W, num_channels)
     # by repeating the existing values along the new axis.
@@ -98,7 +104,7 @@ def get_dual_transforms(
     custom_arguments: typing.Optional[typing.Dict[typing.Type[albumentations.DualTransform], dict]] = None,
     except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.DualTransform]]] = None,
 ) -> typing.List[typing.Tuple[typing.Type, dict]]:
-    return get_filtered_transforms((albumentations.DualTransform,), custom_arguments, except_augmentations)
+    return get_filtered_transforms((albumentations.DualTransform, albumentations.ReferenceBasedTransform), custom_arguments, except_augmentations)
 
 
 def get_transforms(
@@ -106,7 +112,7 @@ def get_transforms(
     except_augmentations: typing.Optional[typing.Set[typing.Type[albumentations.BasicTransform]]] = None,
 ) -> typing.List[typing.Tuple[typing.Type, dict]]:
     return get_filtered_transforms(
-        (albumentations.ImageOnlyTransform, albumentations.DualTransform), custom_arguments, except_augmentations
+        (albumentations.ImageOnlyTransform, albumentations.DualTransform, albumentations.ReferenceBasedTransform), custom_arguments, except_augmentations
     )
 
 
