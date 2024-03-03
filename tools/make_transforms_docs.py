@@ -2,10 +2,12 @@ import argparse
 import inspect
 import os
 import sys
-from enum import Enum
+from pathlib import Path
 
 sys.path.append("..")
 import albumentations
+
+from albumentations.core.types import Targets
 
 IGNORED_CLASSES = {
     "BasicTransform",
@@ -48,31 +50,6 @@ def is_deprecated(cls) -> bool:
             return True  # The class itself is marked as deprecated
     return False
 
-def get_targets(cls,):
-    targets = {Targets.IMAGE, Targets.MASKS}
-
-    has_bboxes_method = any(
-        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.ReferenceBasedTransform, attr, None)
-        for attr in ["apply_to_bbox", "apply_to_bboxes"]
-    )
-    if has_bboxes_method:
-        targets.add(Targets.BBOXES)
-
-    has_keypoints_method = any(
-        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.ReferenceBasedTransform, attr, None)
-        for attr in ["apply_to_keypoint", "apply_to_keypoints"]
-    )
-    if has_keypoints_method:
-        targets.add(Targets.KEYPOINTS)
-
-    has_global_label_method = any(
-        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.ReferenceBasedTransform, attr, None)
-        for attr in ["apply_to_global_label", "apply_to_global_labels"]
-    )
-    if has_global_label_method:
-        targets.add(Targets.GLOBAL_LABEL)
-
-    return targets
 
 def get_image_only_transforms_info():
     image_only_info = {}
@@ -92,37 +69,23 @@ def get_dual_transforms_info():
         if inspect.isclass(cls) and issubclass(cls, albumentations.DualTransform) and not issubclass(cls, albumentations.ReferenceBasedTransform) and name not in IGNORED_CLASSES:
             if not is_deprecated(cls):
                 dual_transforms_info[name] = {
-                    "targets": get_targets(cls),
+                    "targets": cls._targets,
                     "docs_link": make_augmentation_docs_link(cls)
                 }
     return dual_transforms_info
 
 
 def get_mixing_transforms_info():
-    mixing_transforms_info = {}
+    dual_transforms_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
         if inspect.isclass(cls) and issubclass(cls, albumentations.ReferenceBasedTransform) and name not in IGNORED_CLASSES:
             if not is_deprecated(cls):
-                mixing_transforms_info[name] = {
-                    "targets": get_targets(cls),
+                dual_transforms_info[name] = {
+                    "targets": cls._targets,
                     "docs_link": make_augmentation_docs_link(cls)
                 }
-    return mixing_transforms_info
-
-def get_reference_based_transforms_info():
-    reference_based_transforms_info = {}
-    members = inspect.getmembers(albumentations)
-    for name, cls in members:
-        if inspect.isclass(cls) and issubclass(cls, albumentations.ReferenceBasedTransform) and name not in IGNORED_CLASSES:
-            if not is_deprecated(cls):
-                targets = {Targets.IMAGE, Targets.MASKS, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL}
-                reference_based_transforms_info[name] = {
-                    "targets": targets,
-                    "docs_link": make_augmentation_docs_link(cls)
-                }
-    return reference_based_transforms_info
-
+    return dual_transforms_info
 
 
 def make_transforms_targets_table(transforms_info, header):
@@ -186,17 +149,20 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table, mix
     if outdated_docs:
         msg = (
             "Docs for the following transform types are outdated: {outdated_docs_headers}. "
-            "Generate new docs by executing the `python tools/{py_file} make` command "
+            "Generate new docs by executing the `python -m tools.{py_file} make` command "
             "and paste them to {filename}.\n"
             "# Pixel-level transforms lines not in file:\n"
             "{image_only_lines}\n"
             "# Spatial-level transforms lines not in file:\n"
-            "{dual_lines}".format(
+            "{dual_lines}\n"
+            "# Mixing-level transforms lines not in file:\n"
+            "{mixing_lines}\n".format(
                 outdated_docs_headers=", ".join(outdated_docs),
-                py_file=os.path.basename(os.path.realpath(__file__)),
+                py_file=Path(os.path.realpath(__file__)).name,
                 filename=os.path.basename(filepath),
                 image_only_lines="\n".join(image_only_lines_not_in_text),
                 dual_lines="\n".join(dual_lines_not_in_text),
+                mixing_lines="\n".join(mixing_lines_not_in_text),
             )
         )
         raise ValueError(msg)
