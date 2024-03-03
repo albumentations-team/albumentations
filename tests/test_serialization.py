@@ -12,7 +12,6 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
-from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
     check_all_augs_exists,
@@ -877,7 +876,6 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
     "transform_file_name",
     ["transform_v1.1.0_with_totensor.json", "transform_serialization_v2_with_totensor.json"],
 )
-@skipif_no_torch
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_serialization_conversion_with_totensor(transform_file_name, data_format, seed):

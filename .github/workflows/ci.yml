@@ -41,7 +41,7 @@ jobs:
       run: pip install -r requirements-dev.txt
     - name: Install dependencies
       run: |
-        pip install .[tests]
+        pip install .
     - name: Cleanup the build directory
       uses: JesseTG/rm@v1.0.3
       with:
