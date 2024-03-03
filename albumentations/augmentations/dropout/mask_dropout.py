@@ -6,7 +6,7 @@ import numpy as np
 from skimage.measure import label
 
 from albumentations.core.transforms_interface import DualTransform, to_tuple
-from albumentations.core.types import ScalarType
+from albumentations.core.types import ScalarType, Targets
 
 __all__ = ["MaskDropout"]
 
@@ -24,7 +24,7 @@ class MaskDropout(DualTransform):
     ----
         max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
         image_fill_value: Fill value to use when filling image.
-            Can be 'inpaint' to apply inpaining (works only  for 3-chahnel images)
+            Can be 'inpaint' to apply inpainting (works only  for 3-channel images)
         mask_fill_value: Fill value to use when filling mask.
 
     Targets:
@@ -34,6 +34,8 @@ class MaskDropout(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
 
     def __init__(
         self,

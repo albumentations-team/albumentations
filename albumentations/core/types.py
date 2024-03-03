@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, Sequence, Tuple, TypedDict, Union
 
@@ -41,3 +42,11 @@ class ReferenceImage(TypedDict):
     global_label: NotRequired[np.ndarray]
     bbox: NotRequired[BoxType]
     keypoints: NotRequired[KeypointType]
+
+
+class Targets(Enum):
+    IMAGE = "Image"
+    MASK = "Mask"
+    BBOXES = "BBoxes"
+    KEYPOINTS = "Keypoints"
+    GLOBAL_LABEL = "Global Label"

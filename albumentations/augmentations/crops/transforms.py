@@ -8,7 +8,7 @@ import numpy as np
 from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.transforms_interface import DualTransform, to_tuple
-from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleFloatType
+from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleFloatType, Targets
 
 from . import functional as F
 
@@ -46,6 +46,8 @@ class RandomCrop(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(self, height: int, width: int, always_apply: bool = False, p: float = 1.0):
         super().__init__(always_apply, p)
@@ -91,6 +93,8 @@ class CenterCrop(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def __init__(self, height: int, width: int, always_apply: bool = False, p: float = 1.0):
         super().__init__(always_apply, p)
         self.height = height
@@ -126,6 +130,8 @@ class Crop(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -175,6 +181,8 @@ class CropNonEmptyMaskIfExists(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -277,6 +285,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
 class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1.0
@@ -351,6 +360,8 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def __init__(
         self,
         min_max_height: Tuple[int, int],
@@ -362,6 +373,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         p: float = 1.0,
     ):
         super().__init__(height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p)
+
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
@@ -399,6 +411,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -493,6 +507,8 @@ class RandomCropNearBBox(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def __init__(
         self,
         max_part_shift: ScaleFloatType = (0.3, 0.3),
@@ -563,6 +579,8 @@ class BBoxSafeRandomCrop(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(self, erosion_rate: float = 0.0, always_apply: bool = False, p: float = 1.0):
         super().__init__(always_apply, p)
@@ -643,6 +661,8 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(
         self,
@@ -764,6 +784,8 @@ class CropAndPad(DualTransform):
         any
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -1028,6 +1050,8 @@ class RandomCropFromBorders(DualTransform):
         uint8, float32
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,

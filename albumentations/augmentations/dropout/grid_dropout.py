@@ -4,7 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 import numpy as np
 
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.types import ScalarType
+from albumentations.core.types import ScalarType, Targets
 
 from . import functional as F
 
@@ -49,6 +49,8 @@ class GridDropout(DualTransform):
         https://arxiv.org/abs/2001.04086
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
 
     def __init__(
         self,

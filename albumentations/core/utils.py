@@ -31,8 +31,7 @@ def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
 def format_args(args_dict: Dict[str, Any]) -> str:
     formatted_args = []
     for k, v in args_dict.items():
-        if isinstance(v, str):
-            v_formatted = f"'{v}'"
+        v_formatted = f"'{v}'" if isinstance(v, str) else str(v)
         formatted_args.append(f"{k}={v_formatted}")
     return ", ".join(formatted_args)
 

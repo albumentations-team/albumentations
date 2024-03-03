@@ -23,13 +23,6 @@ def make_augmentation_docs_link(cls) -> str:
     )
 
 
-class Targets(Enum):
-    IMAGE = "Image"
-    MASKS = "Masks"
-    BBOXES = "BBoxes"
-    KEYPOINTS = "Keypoints"
-
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(help="Commands", dest="command")
@@ -55,21 +48,29 @@ def is_deprecated(cls) -> bool:
             return True  # The class itself is marked as deprecated
     return False
 
-def get_targets(cls):
+def get_targets(cls,):
     targets = {Targets.IMAGE, Targets.MASKS}
+
     has_bboxes_method = any(
-        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.DualTransform, attr, None)
+        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.ReferenceBasedTransform, attr, None)
         for attr in ["apply_to_bbox", "apply_to_bboxes"]
     )
     if has_bboxes_method:
         targets.add(Targets.BBOXES)
 
     has_keypoints_method = any(
-        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.DualTransform, attr, None)
+        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.ReferenceBasedTransform, attr, None)
         for attr in ["apply_to_keypoint", "apply_to_keypoints"]
     )
     if has_keypoints_method:
         targets.add(Targets.KEYPOINTS)
+
+    has_global_label_method = any(
+        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.ReferenceBasedTransform, attr, None)
+        for attr in ["apply_to_global_label", "apply_to_global_labels"]
+    )
+    if has_global_label_method:
+        targets.add(Targets.GLOBAL_LABEL)
 
     return targets
 
@@ -95,6 +96,19 @@ def get_dual_transforms_info():
                     "docs_link": make_augmentation_docs_link(cls)
                 }
     return dual_transforms_info
+
+
+def get_mixing_transforms_info():
+    mixing_transforms_info = {}
+    members = inspect.getmembers(albumentations)
+    for name, cls in members:
+        if inspect.isclass(cls) and issubclass(cls, albumentations.ReferenceBasedTransform) and name not in IGNORED_CLASSES:
+            if not is_deprecated(cls):
+                mixing_transforms_info[name] = {
+                    "targets": get_targets(cls),
+                    "docs_link": make_augmentation_docs_link(cls)
+                }
+    return mixing_transforms_info
 
 def get_reference_based_transforms_info():
     reference_based_transforms_info = {}
@@ -145,13 +159,15 @@ def make_transforms_targets_links(transforms_info):
     )
 
 
-def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> None:
+def check_docs(filepath, image_only_transforms_links, dual_transforms_table, mixing_transforms_table) -> None:
     with open(filepath, encoding="utf8") as f:
         text = f.read()
 
     outdated_docs = set()
     image_only_lines_not_in_text = []
     dual_lines_not_in_text = []
+    mixing_lines_not_in_text = []
+
     for line in image_only_transforms_links.split("\n"):
         if line not in text:
             outdated_docs.update(["Pixel-level"])
@@ -161,6 +177,12 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> 
         if line not in text:
             dual_lines_not_in_text.append(line)
             outdated_docs.update(["Spatial-level"])
+
+    for line in mixing_transforms_table.split("\n"):
+        if line not in text:
+            mixing_lines_not_in_text.append(line)
+            outdated_docs.update(["Mixing-level"])
+
     if outdated_docs:
         msg = (
             "Docs for the following transform types are outdated: {outdated_docs_headers}. "
@@ -185,6 +207,10 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table) -> 
     if dual_transforms_table not in text:
         msg = "Dual transforms table are outdated."
         raise ValueError(msg)
+    if mixing_transforms_table not in text:
+        msg = "Mixing transforms table are outdated."
+        raise ValueError(msg)
+
 
 
 def main() -> None:
@@ -192,15 +218,19 @@ def main() -> None:
     command = args.command
     if command not in {"make", "check"}:
         raise ValueError(f"You should provide a valid command: {{make|check}}. Got {command} instead.")
-    # transforms_info = get_transforms_info()
-    # image_only_transforms = {transform: info for transform, info in transforms_info.items() if info["image_only"]}
-    image_only_transforms = get_image_only_transforms_info()
 
+    image_only_transforms = get_image_only_transforms_info()
     dual_transforms = get_dual_transforms_info()
-    # dual_transforms = {transform: info for transform, info in transforms_info.items() if not info["image_only"]}
+    mixing_transforms = get_mixing_transforms_info()
+
     image_only_transforms_links = make_transforms_targets_links(image_only_transforms)
+
     dual_transforms_table = make_transforms_targets_table(
-        dual_transforms, header=["Transform"] + [target.value for target in Targets]
+        dual_transforms, header=["Transform"] + [target.value for target in Targets if target != Targets.GLOBAL_LABEL]
+    )
+
+    mixing_transforms_table = make_transforms_targets_table(
+        mixing_transforms, header=["Transform"] + [target.value for target in Targets]
     )
 
 
@@ -212,8 +242,13 @@ def main() -> None:
         print("===== COPY THIS TABLE TO README.MD BELOW ### Spatial-level transforms =====")
         print(dual_transforms_table)
         print("===== END OF COPY =====")
+        print()
+        print("===== COPY THIS TABLE TO README.MD BELOW ### Mixing transforms =====")
+        print(mixing_transforms_table)
+        print("===== END OF COPY =====")
+
     else:
-        check_docs(args.filepath, image_only_transforms_links, dual_transforms_table)
+        check_docs(args.filepath, image_only_transforms_links, dual_transforms_table, mixing_transforms_table)
 
 
 if __name__ == "__main__":

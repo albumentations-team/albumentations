@@ -13,8 +13,10 @@ from .types import (
     ColorType,
     KeypointInternalType,
     KeypointType,
+    ReferenceImage,
     ScalarType,
     ScaleType,
+    Targets,
 )
 from .utils import format_args
 
@@ -336,6 +338,8 @@ class DualTransform(BasicTransform):
 class ImageOnlyTransform(BasicTransform):
     """Transform applied to image only."""
 
+    _targets = Targets.IMAGE
+
     @property
     def targets(self) -> Dict[str, Callable[..., Any]]:
         return {"image": self.apply}
@@ -343,6 +347,8 @@ class ImageOnlyTransform(BasicTransform):
 
 class NoOp(DualTransform):
     """Does nothing"""
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return keypoint
@@ -364,4 +370,12 @@ class NoOp(DualTransform):
 
 
 class ReferenceBasedTransform(DualTransform):
-    pass
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
+        msg = "Transform does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        raise NotImplementedError(msg)
+
+    def apply_to_keypoints(
+        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
+    ) -> Sequence[KeypointType]:
+        msg = "Transform does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        raise NotImplementedError(msg)
