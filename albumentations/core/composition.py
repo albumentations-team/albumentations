@@ -207,6 +207,7 @@ class Compose(BaseCompose):
             raise TypeError(msg)
 
         need_to_run = force_apply or random.random() < self.p
+
         for p in self.processors.values():
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else get_always_apply(self.transforms)

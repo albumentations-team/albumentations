@@ -18,13 +18,9 @@ from .types import (
 )
 from .utils import format_args
 
-__all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp"]
+__all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 
-
-FillValueType = Optional[Union[int, float, Sequence[int], Sequence[float]]]
-
-TWO = 2
-THREE = 3
+PAIR = 2
 
 
 def to_tuple(
@@ -51,7 +47,7 @@ def to_tuple(
         msg = "Arguments 'low' and 'bias' cannot be used together."
         raise ValueError(msg)
 
-    if isinstance(param, Sequence) and len(param) == TWO:
+    if isinstance(param, Sequence) and len(param) == PAIR:
         min_val, max_val = min(param), max(param)
 
     # Handle scalar input
@@ -365,3 +361,7 @@ class NoOp(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ()
+
+
+class ReferenceBasedTransform(DualTransform):
+    pass

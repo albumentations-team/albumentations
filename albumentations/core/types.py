@@ -1,6 +1,8 @@
-from typing import Any, Literal, Sequence, Tuple, Union
+from pathlib import Path
+from typing import Any, Literal, Sequence, Tuple, TypedDict, Union
 
 import numpy as np
+from typing_extensions import NotRequired
 
 ScalarType = Union[int, float]
 ColorType = Union[int, float, Sequence[int], Sequence[float]]
@@ -31,3 +33,11 @@ ImageMode = Literal["cv", "pil"]
 
 
 SpatterMode = Literal["rain", "mud"]
+
+
+class ReferenceImage(TypedDict):
+    image: Union[str, Path]
+    mask: NotRequired[np.ndarray]
+    global_label: NotRequired[np.ndarray]
+    bbox: NotRequired[BoxType]
+    keypoints: NotRequired[KeypointType]

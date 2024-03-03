@@ -3,7 +3,6 @@ import pytest
 import math
 
 import albumentations as A
-from albumentations.core.bbox_utils import BboxParams
 from .test_functional_mixing import find_mix_coef
 
 def image_generator():
@@ -125,11 +124,10 @@ def test_bbox_error(image, mask, global_label, bboxes):
          "global_label": np.array([0, 0, 1])}
         ]
 
-    aug = A.Compose([A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)], p=1, bbox_params=BboxParams(format="pascal_voc", min_area=16))
+    aug = A.Compose([A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)], p=1, bbox_params=A.BboxParams(format="pascal_voc", min_area=16))
 
     with pytest.raises(NotImplementedError):
         aug(image=image, global_label=global_label, mask=mask, bboxes=bboxes)
-
 
 def test_keypoint_error(image, mask, global_label, keypoints):
     reference_data = [
@@ -137,9 +135,9 @@ def test_keypoint_error(image, mask, global_label, keypoints):
          "mask": np.random.randint(0, 256, (100, 100, 1), dtype=np.uint8),
          "keypoints": [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]],
          "global_label": np.array([0, 0, 1])}
-        ]
+    ]
 
-    aug = A.Compose([A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)], p=1, keypoint_params={"format": "xy"})
+    aug = A.Compose([A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)], p=1, keypoint_params=A.KeypointParams(format="xy"))
 
     with pytest.raises(NotImplementedError):
         aug(image=image, global_label=global_label, mask=mask, keypoints=keypoints)

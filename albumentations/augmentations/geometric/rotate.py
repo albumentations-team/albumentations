@@ -1,13 +1,13 @@
 import math
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
 
 from albumentations.augmentations.crops import functional as FCrops
-from albumentations.core.transforms_interface import DualTransform, FillValueType, to_tuple
-from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleIntType
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType, ScaleIntType
 
 from . import functional as F
 
@@ -255,8 +255,8 @@ class SafeRotate(DualTransform):
         limit: Union[float, Tuple[float, float]] = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: FillValueType = None,
-        mask_value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
+        value: Optional[ColorType] = None,
+        mask_value: Optional[ColorType] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):

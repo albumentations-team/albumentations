@@ -15,8 +15,7 @@ from albumentations.augmentations.utils import (
     preserve_shape,
 )
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.transforms_interface import FillValueType
-from albumentations.core.types import BoxInternalType, ImageColorType, KeypointInternalType
+from albumentations.core.types import BoxInternalType, ColorType, ImageColorType, KeypointInternalType
 
 __all__ = [
     "optical_distortion",
@@ -654,7 +653,7 @@ def safe_rotate(
     img: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    value: FillValueType = None,
+    value: Optional[ColorType] = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
     h, w = img.shape[:2]

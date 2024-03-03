@@ -1,12 +1,12 @@
 import random
-import warnings
-from pathlib import Path
-from typing import Any, Callable, Dict, Generator, Iterator, Optional, Sequence, Tuple, TypedDict, Union
+from typing import Any, Callable, Dict, Generator, Iterator, Optional, Sequence, Tuple, Union
+from warnings import warn
 
 import numpy as np
-from typing_extensions import NotRequired
 
-from albumentations.core.transforms_interface import DualTransform
+from albumentations.augmentations.utils import is_grayscale_image
+from albumentations.core.transforms_interface import ReferenceBasedTransform
+from albumentations.core.types import BoxType, KeypointType, ReferenceImage
 from albumentations.random_utils import beta
 
 from .functional import mix_arrays
@@ -14,13 +14,7 @@ from .functional import mix_arrays
 __all__ = ["MixUp"]
 
 
-class ReferenceImage(TypedDict):
-    image: Union[str, Path]
-    mask: NotRequired[np.ndarray]
-    global_label: NotRequired[np.ndarray]
-
-
-class MixUp(DualTransform):
+class MixUp(ReferenceBasedTransform):
     """Performs MixUp data augmentation, blending images, masks, and class labels with reference data.
 
     MixUp augmentation linearly combines an input (image, mask, and class label) with another set from a predefined
@@ -40,10 +34,11 @@ class MixUp(DualTransform):
                 - 'image': Mandatory key with an image array.
                 - 'mask': Optional key with a mask array.
                 - 'global_label': Optional key with a class label array.
+                - 'keypoints': Optional key with a list of keypoints.
             If None or an empty sequence is provided, no operation is performed and a warning is issued.
         read_fn (Callable[[ReferenceImage], Dict[str, Any]]):
             A function to process items from reference_data. It should accept a dictionary from reference_data
-            and return a processed dictionary containing 'image', and optionally 'mask' and 'global_label',
+            and return a processed dictionary containing 'image', and optionally 'mask', 'keypoints', 'global_label',
             each as numpy arrays. Defaults to a no-op lambda function.
         alpha (float):
             The alpha parameter for the Beta distribution, influencing the mix's balance. Must be ≥ 0.
@@ -52,9 +47,7 @@ class MixUp(DualTransform):
             The probability of applying the transformation. Defaults to 0.5.
 
     Targets:
-        - image: The input image to augment.
-        - mask: An optional segmentation mask corresponding to the input image.
-        - global_label: An optional global label associated with the input image.
+        image, mask, global_label
 
     Image types:
         - uint8, float32
@@ -62,10 +55,13 @@ class MixUp(DualTransform):
     Raises:
     ------
         - ValueError: If the alpha parameter is negative.
+        - NotImplementedError: If the transform is applied to bounding boxes.
+        - NotImplementedError: If the transform is applied to keypoints.
 
     Notes:
     -----
         - If no reference data is provided, a warning is issued, and the transform acts as a no-op.
+
 
     """
 
@@ -86,17 +82,32 @@ class MixUp(DualTransform):
         self.alpha = alpha
 
         if reference_data is None:
-            warnings.warn("No reference data provided for MixUp. This transform will act as a no-op.")
+            warn("No reference data provided for MixUp. This transform will act as a no-op.")
             # Create an empty generator
         self.reference_data = reference_data or []
 
     def apply(self, img: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_img = mix_data.get("image")
+
+        if not is_grayscale_image(img) and img.shape != img.shape:
+            msg = "The shape of the reference image should be the same as the input image."
+            raise ValueError(msg)
+
         return mix_arrays(img, mix_img, mix_coef) if mix_img is not None else img
 
     def apply_to_mask(self, mask: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_mask = mix_data.get("mask")
         return mix_arrays(mask, mix_mask, mix_coef) if mix_mask is not None else mask
+
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
+        msg = "MixUp does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        raise NotImplementedError(msg)
+
+    def apply_to_keypoints(
+        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
+    ) -> Sequence[KeypointType]:
+        msg = "MixUp does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        raise NotImplementedError(msg)
 
     def apply_to_global_label(
         self, label: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any
@@ -106,6 +117,9 @@ class MixUp(DualTransform):
             return mix_coef * label + (1 - mix_coef) * mix_label
         return label
 
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return "reference_data", "alpha"
+
     def get_params(self) -> Dict[str, Union[None, float, Dict[str, Any]]]:
         if self.reference_data and isinstance(self.reference_data, Sequence):
             mix_idx = random.randint(0, len(self.reference_data) - 1)
@@ -114,15 +128,12 @@ class MixUp(DualTransform):
             try:
                 mix_data = next(self.reference_data)  # Get the next item from the iterator
             except StopIteration:
-                warnings.warn(
+                warn(
                     "Reference data iterator/generator has been exhausted. "
-                    "Further MixUp augmentations will not be applied.",
+                    "Further mixing augmentations will not be applied.",
                     RuntimeWarning,
                 )
                 return {"mix_data": None, "mix_coef": 1}
-
         mix_coef = beta(self.alpha, self.alpha) if mix_data else 1
-        return {"mix_data": self.read_fn(mix_data) if mix_data else None, "mix_coef": mix_coef}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return "reference_data", "alpha"
+        return {"mix_data": self.read_fn(mix_data) if mix_data else None, "mix_coef": mix_coef}

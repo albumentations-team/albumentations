@@ -24,7 +24,7 @@ __all__ = [
     "BboxParams",
 ]
 
-FIVE = 5
+BBOX_WITH_LABEL_SHAPE = 5
 
 
 class BboxParams(Params):
@@ -109,7 +109,7 @@ class BboxProcessor(DataProcessor):
     def ensure_data_valid(self, data: Dict[str, Any]) -> None:
         for data_name in self.data_fields:
             data_exists = data_name in data and len(data[data_name])
-            if data_exists and len(data[data_name][0]) < FIVE and self.params.label_fields is None:
+            if data_exists and len(data[data_name][0]) < BBOX_WITH_LABEL_SHAPE and self.params.label_fields is None:
                 msg = (
                     "Please specify 'label_fields' in 'bbox_params' or add labels to the end of bbox "
                     "because bboxes must have labels"

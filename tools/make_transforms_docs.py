@@ -11,6 +11,7 @@ IGNORED_CLASSES = {
     "BasicTransform",
     "DualTransform",
     "ImageOnlyTransform",
+    "ReferenceBasedTransform"
 }
 
 
@@ -54,39 +55,59 @@ def is_deprecated(cls) -> bool:
             return True  # The class itself is marked as deprecated
     return False
 
+def get_targets(cls):
+    targets = {Targets.IMAGE, Targets.MASKS}
+    has_bboxes_method = any(
+        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.DualTransform, attr, None)
+        for attr in ["apply_to_bbox", "apply_to_bboxes"]
+    )
+    if has_bboxes_method:
+        targets.add(Targets.BBOXES)
 
+    has_keypoints_method = any(
+        hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.DualTransform, attr, None)
+        for attr in ["apply_to_keypoint", "apply_to_keypoints"]
+    )
+    if has_keypoints_method:
+        targets.add(Targets.KEYPOINTS)
 
-def get_transforms_info():
-    transforms_info = {}
+    return targets
+
+def get_image_only_transforms_info():
+    image_only_info = {}
     members = inspect.getmembers(albumentations)
     for name, cls in members:
-        if inspect.isclass(cls) and issubclass(cls, albumentations.BasicTransform) and name not in IGNORED_CLASSES:
-            # Check if the class is deprecated
-            if is_deprecated(cls):
-                continue  # Skip deprecated classes
+        if inspect.isclass(cls) and issubclass(cls, albumentations.ImageOnlyTransform) and name not in IGNORED_CLASSES:
+            if not is_deprecated(cls):
+                image_only_info[name] = {
+                    "docs_link": make_augmentation_docs_link(cls)
+                }
+    return image_only_info
 
-            targets = {Targets.IMAGE}
-            if issubclass(cls, albumentations.DualTransform):
-                targets.add(Targets.MASKS)
+def get_dual_transforms_info():
+    dual_transforms_info = {}
+    members = inspect.getmembers(albumentations)
+    for name, cls in members:
+        if inspect.isclass(cls) and issubclass(cls, albumentations.DualTransform) and not issubclass(cls, albumentations.ReferenceBasedTransform) and name not in IGNORED_CLASSES:
+            if not is_deprecated(cls):
+                dual_transforms_info[name] = {
+                    "targets": get_targets(cls),
+                    "docs_link": make_augmentation_docs_link(cls)
+                }
+    return dual_transforms_info
 
-            if hasattr(cls, "apply_to_bbox") and cls.apply_to_bbox is not albumentations.DualTransform.apply_to_bbox:
-                targets.add(Targets.BBOXES)
-
-            # Update this part for keypoint-related methods
-            has_keypoints_method = any(
-                hasattr(cls, attr) and getattr(cls, attr) is not getattr(albumentations.DualTransform, attr, None)
-                for attr in ["apply_to_keypoint", "apply_to_keypoints"]
-            )
-            if has_keypoints_method:
-                targets.add(Targets.KEYPOINTS)
-
-            # Continue with existing logic...
-            transforms_info[name] = {
-                "targets": targets,
-                "docs_link": make_augmentation_docs_link(cls),
-                "image_only": issubclass(cls, albumentations.ImageOnlyTransform),
-            }
-    return transforms_info
+def get_reference_based_transforms_info():
+    reference_based_transforms_info = {}
+    members = inspect.getmembers(albumentations)
+    for name, cls in members:
+        if inspect.isclass(cls) and issubclass(cls, albumentations.ReferenceBasedTransform) and name not in IGNORED_CLASSES:
+            if not is_deprecated(cls):
+                targets = {Targets.IMAGE, Targets.MASKS, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL}
+                reference_based_transforms_info[name] = {
+                    "targets": targets,
+                    "docs_link": make_augmentation_docs_link(cls)
+                }
+    return reference_based_transforms_info
 
 
 
@@ -171,10 +192,12 @@ def main() -> None:
     command = args.command
     if command not in {"make", "check"}:
         raise ValueError(f"You should provide a valid command: {{make|check}}. Got {command} instead.")
-    transforms_info = get_transforms_info()
-    image_only_transforms = {transform: info for transform, info in transforms_info.items() if info["image_only"]}
+    # transforms_info = get_transforms_info()
+    # image_only_transforms = {transform: info for transform, info in transforms_info.items() if info["image_only"]}
+    image_only_transforms = get_image_only_transforms_info()
 
-    dual_transforms = {transform: info for transform, info in transforms_info.items() if not info["image_only"]}
+    dual_transforms = get_dual_transforms_info()
+    # dual_transforms = {transform: info for transform, info in transforms_info.items() if not info["image_only"]}
     image_only_transforms_links = make_transforms_targets_links(image_only_transforms)
     dual_transforms_table = make_transforms_targets_table(
         dual_transforms, header=["Transform"] + [target.value for target in Targets]
