@@ -404,6 +404,7 @@ AUGMENTATION_CLS_PARAMS = [
             "fill_value": 0,
         },
     ],
+    [A.Dither, {"nc": 2}],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {

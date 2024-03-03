@@ -1082,3 +1082,35 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     image_float = (image_float * 255).astype(int)
 
     assert np.abs(image_int.astype(int) - image_float).max() <= 1
+
+@pytest.mark.parametrize("nc", range(2, 17))
+def test_dither_nc_palette(nc):
+    image = np.random.randint(0, 256, [32, 32], dtype=np.uint8)
+    image = image.astype(np.float32) / 255
+
+    image = F.dither(image, nc)
+
+    image *= 255
+    image = image.astype(np.uint8)
+    res2 = np.unique(image)
+
+    assert len(res2) <= nc
+
+
+def test_dither_grayscale():
+    image = np.ones([5, 5]) * 127
+    image = image.astype(np.float32) / 255
+
+    image = F.dither(image, nc=2)
+
+    image *= 255
+    image = image.astype(np.uint8)
+
+    expected = [
+        [0, 255, 0, 255, 0],
+        [255, 0, 255, 0, 255],
+        [0, 255, 0, 255, 0],
+        [255, 0, 255, 0, 255],
+        [0, 255, 0, 255, 0],
+    ]
+    assert np.array_equal(image, expected)
