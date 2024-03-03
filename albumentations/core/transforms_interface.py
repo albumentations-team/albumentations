@@ -346,7 +346,11 @@ class ImageOnlyTransform(BasicTransform):
 
 
 class NoOp(DualTransform):
-    """Does nothing"""
+    """Does nothing
+
+    Targets:
+        image, mask, bboxes, keypoints, global_label
+    """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL)
 

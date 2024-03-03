@@ -204,7 +204,7 @@ class ElasticTransform(DualTransform):
                              Enabling this option gives ~2X speedup.
 
     Targets:
-        image, mask, bbox
+        image, mask, bboxes
 
     Image types:
         uint8, float32
@@ -1079,7 +1079,7 @@ class PadIfNeeded(DualTransform):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bbox, keypoints
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
@@ -1461,7 +1461,7 @@ class OpticalDistortion(DualTransform):
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
 
     Targets:
-        image, mask, bbox
+        image, mask, bboxes
 
     Image types:
         uint8, float32
