@@ -656,11 +656,11 @@ def safe_rotate(
     value: Optional[ColorType] = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
-    h, w = img.shape[:2]
+    height, width = img.shape[:2]
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
-        dsize=(w, h),
+        dsize=(width, height),
         flags=interpolation,
         borderMode=border_mode,
         borderValue=value,

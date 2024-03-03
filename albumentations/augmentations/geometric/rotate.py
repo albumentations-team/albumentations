@@ -21,7 +21,7 @@ class RandomRotate90(DualTransform):
 
     Args:
     ----
-        p: probability of applying the transform. Default: 1.
+        p: probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints

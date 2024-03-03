@@ -285,7 +285,6 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
 class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
-    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1.0
