@@ -126,12 +126,16 @@ class MixUp(ReferenceBasedTransform):
         return "reference_data", "alpha"
 
     def get_params(self) -> Dict[str, Union[None, float, Dict[str, Any]]]:
-        if self.reference_data and isinstance(self.reference_data, Sequence):
-            mix_idx = random.randint(0, len(self.reference_data) - 1)
-            mix_data = self.reference_data[mix_idx]
-        elif self.reference_data and isinstance(self.reference_data, Iterator):
+        mix_data = None
+        # Check if reference_data is not empty and is a sequence (list, tuple, np.array)
+        if isinstance(self.reference_data, Sequence) and not isinstance(self.reference_data, (str, bytes)):
+            if len(self.reference_data) > 0:  # Additional check to ensure it's not empty
+                mix_idx = random.randint(0, len(self.reference_data) - 1)
+                mix_data = self.reference_data[mix_idx]
+        # Check if reference_data is an iterator or generator
+        elif isinstance(self.reference_data, Iterator):
             try:
-                mix_data = next(self.reference_data)  # Get the next item from the iterator
+                mix_data = next(self.reference_data)  # Attempt to get the next item
             except StopIteration:
                 warn(
                     "Reference data iterator/generator has been exhausted. "
@@ -139,8 +143,11 @@ class MixUp(ReferenceBasedTransform):
                     RuntimeWarning,
                 )
                 return {"mix_data": {}, "mix_coef": 1}
-        else:
-            return {"mix_data": {}, "mix_coef": 1}
-        mix_coef = beta(self.alpha, self.alpha) if mix_data else 1
 
-        return {"mix_data": self.read_fn(mix_data) if mix_data else None, "mix_coef": mix_coef}
+        # If mix_data is None or empty after the above checks, return default values
+        if mix_data is None:
+            return {"mix_data": {}, "mix_coef": 1}
+
+        # If mix_data is not None, calculate mix_coef and apply read_fn
+        mix_coef = beta(self.alpha, self.alpha)  # Assuming beta is defined elsewhere
+        return {"mix_data": self.read_fn(mix_data), "mix_coef": mix_coef}

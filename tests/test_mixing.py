@@ -26,6 +26,10 @@ def complex_read_fn_image(x):
                   "reference_data": [1],
                   "read_fn": lambda x: {"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)}},
               ),
+               (A.MixUp, {
+                  "reference_data": np.array([1]),
+                  "read_fn": lambda x: {"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)}},
+              ),
               (A.MixUp, {
                   "reference_data": None,
               }),
