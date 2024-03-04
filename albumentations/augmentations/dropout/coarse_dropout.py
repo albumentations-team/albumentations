@@ -15,7 +15,6 @@ class CoarseDropout(DualTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
-    ----
         max_holes (int): Maximum number of regions to zero out.
         max_height (int, float): Maximum height of the hole.
         If float, it is calculated as a fraction of the image height.

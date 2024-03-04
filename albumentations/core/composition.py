@@ -126,7 +126,6 @@ class Compose(BaseCompose):
     """Compose transforms and handle all transformations regarding bounding boxes
 
     Args:
-    ----
         transforms (list): list of transformations to compose.
         bbox_params (BboxParams): Parameters for bounding boxes transforms
         keypoint_params (KeypointParams): Parameters for keypoints transforms
@@ -315,7 +314,6 @@ class OneOf(BaseCompose):
     Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
-    ----
         transforms (list): list of transformations to compose.
         p (float): probability of applying selected transform. Default: 0.5.
 
@@ -345,7 +343,6 @@ class SomeOf(BaseCompose):
     Transforms probabilities will be normalized to one 1, so in this case transforms probabilities works as weights.
 
     Args:
-    ----
         transforms (list): list of transformations to compose.
         n (int): number of transforms to apply.
         replace (bool): Whether the sampled transforms are with or without replacement. Default: True.
@@ -415,7 +412,6 @@ class PerChannel(BaseCompose):
     """Apply transformations per-channel
 
     Args:
-    ----
         transforms (list): list of transformations to compose.
         channels (sequence): channels to apply the transform to. Pass None to apply to all.
         Default: None (apply to all)
@@ -481,12 +477,11 @@ class ReplayCompose(Compose):
         transform_dict: Dict[str, Any], lambda_transforms: Optional[Dict[str, Any]] = None
     ) -> TransformType:
         """Args:
-        ----
-            lambda_transforms (dict): A dictionary that contains lambda transforms, that
-            is instances of the Lambda class.
-                This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
-                in that dictionary should be named same as `name` arguments in respective lambda transforms from
-                a serialized pipeline.
+        lambda_transforms (dict): A dictionary that contains lambda transforms, that
+        is instances of the Lambda class.
+            This dictionary is required when you are restoring a pipeline that contains lambda transforms. Keys
+            in that dictionary should be named same as `name` arguments in respective lambda transforms from
+            a serialized pipeline.
 
         """
         applied = transform_dict["applied"]
@@ -537,14 +532,12 @@ class Sequential(BaseCompose):
     """Sequentially applies all transforms to targets.
 
     Note:
-    ----
         This transform is not intended to be a replacement for `Compose`. Instead, it should be used inside `Compose`
         the same way `OneOf` or `OneOrOther` are used. For instance, you can combine `OneOf` with `Sequential` to
         create an augmentation pipeline that contains multiple sequences of augmentations and applies one randomly
         chose sequence to input data (see the `Example` section for an example definition of such pipeline).
 
     Example:
-    -------
         >>> import albumentations as A
         >>> transform = A.Compose([
         >>>    A.OneOf([

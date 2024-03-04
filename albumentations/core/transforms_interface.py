@@ -32,13 +32,11 @@ def to_tuple(
     """Convert input argument to a min-max tuple.
 
     Args:
-    ----
         param: Input value which could be a scalar or a sequence of exactly 2 scalars.
         low: Second element of the tuple, provided as an optional argument for when `param` is a scalar.
         bias: An offset added to both elements of the tuple.
 
     Returns:
-    -------
         A tuple of two scalars, optionally adjusted by `bias`.
         Raises ValueError for invalid combinations or types of arguments.
 
@@ -196,7 +194,6 @@ class BasicTransform(Serializable):
         by the way you must have at least one object with key 'image'
 
         Args:
-        ----
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
 
         """
@@ -252,7 +249,6 @@ class DualTransform(BasicTransform):
             that the transform should be applied to and maps them to the corresponding methods.
 
     Methods:
-    -------
         apply_to_bbox(bbox: BoxInternalType, *args: Any, **params: Any) -> BoxInternalType:
             Applies the transform to a single bounding box. Should be implemented in the subclass.
 
@@ -272,7 +268,6 @@ class DualTransform(BasicTransform):
             Applies the transform to a list of masks. Delegates to `apply_to_mask` for each mask.
 
     Note:
-    ----
         This class is intended to be subclassed and should not be used directly. Subclasses are expected to
         implement the specific logic for each type of target (e.g., image, mask, bboxes, keypoints) in the
         corresponding `apply_to_*` methods.

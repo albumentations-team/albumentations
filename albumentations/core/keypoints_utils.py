@@ -26,7 +26,6 @@ class KeypointParams(Params):
     """Parameters of keypoints
 
     Args:
-    ----
         format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
 
             x - X coordinate,

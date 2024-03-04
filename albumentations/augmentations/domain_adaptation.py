@@ -37,7 +37,6 @@ class HistogramMatching(ImageOnlyTransform):
         https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
 
     Args:
-    ----
         reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
         it expects a sequence of paths to images.
         blend_ratio: Tuple of min and max blend ratio. Matched image will be blended with original
@@ -95,7 +94,6 @@ class FDA(ImageOnlyTransform):
     Simple "style transfer".
 
     Args:
-    ----
         reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
         it expects a sequence of paths to images.
         beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
@@ -113,7 +111,6 @@ class FDA(ImageOnlyTransform):
         https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
 
     Example:
-    -------
         >>> import numpy as np
         >>> import albumentations as A
         >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
@@ -169,7 +166,6 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     image and then performs inverse transformation using transform fitted on reference image.
 
     Args:
-    ----
         reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
         it expects a sequence of paths to images.
         blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original

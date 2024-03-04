@@ -88,7 +88,6 @@ class RandomGridShuffle(DualTransform):
     """Random shuffle grid's cells on image.
 
     Args:
-    ----
         grid ((int, int)): size of grid for splitting image.
 
     Targets:
@@ -201,7 +200,6 @@ class Normalize(ImageOnlyTransform):
     """Normalization is applied by the formula: `img = (img - mean * max_pixel_value) / (std * max_pixel_value)`
 
     Args:
-    ----
         mean: mean values
         std: std values
         max_pixel_value: maximum possible pixel value
@@ -238,7 +236,6 @@ class ImageCompression(ImageOnlyTransform):
     """Decreases image quality by Jpeg, WebP compression of an image.
 
     Args:
-    ----
         quality_lower: lower bound on the image quality. Should be in [0, 100] range for jpeg and [1, 100] for webp.
         quality_upper: upper bound on the image quality. Should be in [0, 100] range for jpeg and [1, 100] for webp.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
@@ -258,7 +255,6 @@ class ImageCompression(ImageOnlyTransform):
         This Enum class is used to specify the image compression format.
 
         Attributes:
-        ----------
             JPEG (int): Represents the JPEG image compression format.
             WEBP (int): Represents the WEBP image compression format.
 
@@ -322,7 +318,6 @@ class RandomSnow(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         snow_point_lower: lower_bond of the amount of snow. Should be in [0, 1] range
         snow_point_upper: upper_bond of the amount of snow. Should be in [0, 1] range
         brightness_coeff: larger number will lead to a more snow on the image. Should be >= 0
@@ -373,7 +368,6 @@ class RandomGravel(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         gravel_roi: (top-left x, top-left y,
             bottom-right x, bottom right y). Should be in [0, 1] range
         number_of_patches: no. of gravel patches required
@@ -487,7 +481,6 @@ class RandomRain(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         slant_lower: should be in range [-20, 20].
         slant_upper: should be in range [-20, 20].
         drop_length: should be in range [0, 100].
@@ -617,7 +610,6 @@ class RandomFog(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         fog_coef_lower: lower limit for fog intensity coefficient. Should be in [0, 1] range.
         fog_coef_upper: upper limit for fog intensity coefficient. Should be in [0, 1] range.
         alpha_coef: transparency of the fog circles. Should be in [0, 1] range.
@@ -701,7 +693,6 @@ class RandomSunFlare(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         flare_roi: region of the image where flare will appear (x_min, y_min, x_max, y_max).
             All values should be in range [0, 1].
         angle_lower: should be in range [0, `angle_upper`].
@@ -866,7 +857,6 @@ class RandomShadow(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         shadow_roi: region of the image where shadows
             will appear. All values should be in range [0, 1].
         num_shadows_lower: Lower limit for the possible number of shadows.
@@ -960,7 +950,6 @@ class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-    ----
         scale: standard deviation of the normal distribution.
             Used to sample random distances to move two control points that modify the image's curve.
             Values should be in range [0, 1]. Default: 0.1
@@ -1000,7 +989,6 @@ class HueSaturationValue(ImageOnlyTransform):
     """Randomly change hue, saturation and value of the input image.
 
     Args:
-    ----
         hue_shift_limit: range for changing hue. If hue_shift_limit is a single int, the range
             will be (-hue_shift_limit, hue_shift_limit). Default: (-20, 20).
         sat_shift_limit: range for changing saturation. If sat_shift_limit is a single int,
@@ -1053,7 +1041,6 @@ class Solarize(ImageOnlyTransform):
     """Invert all pixel values above a threshold.
 
     Args:
-    ----
         threshold: range for solarizing threshold.
             If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
         p: probability of applying the transform. Default: 0.5.
@@ -1090,7 +1077,6 @@ class Posterize(ImageOnlyTransform):
     """Reduce the number of bits for each color channel.
 
     Args:
-    ----
         num_bits ((int, int) or int,
                   or list of ints [r, g, b],
                   or list of ints [[r1, r1], [g1, g2], [b1, b2]]): number of high bits.
@@ -1138,7 +1124,6 @@ class Equalize(ImageOnlyTransform):
     """Equalize the image histogram.
 
     Args:
-    ----
         mode (str): {'cv', 'pil'}. Use OpenCV or Pillow equalization method.
         by_channels (bool): If True, use equalization by channels separately,
             else convert image to YCbCr representation and use equalization by `Y` channel.
@@ -1194,7 +1179,6 @@ class RGBShift(ImageOnlyTransform):
     """Randomly shift values for each channel of the input RGB image.
 
     Args:
-    ----
         r_shift_limit: range for changing values for the red channel. If r_shift_limit is a single
             int, the range will be (-r_shift_limit, r_shift_limit). Default: (-20, 20).
         g_shift_limit: range for changing values for the green channel. If g_shift_limit is a
@@ -1245,7 +1229,6 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     """Randomly change brightness and contrast of the input image.
 
     Args:
-    ----
         brightness_limit: factor range for changing brightness.
             If limit is a single float, the range will be (-limit, limit). Default: (-0.2, 0.2).
         contrast_limit: factor range for changing contrast.
@@ -1292,7 +1275,6 @@ class GaussNoise(ImageOnlyTransform):
     """Apply gaussian noise to the input image.
 
     Args:
-    ----
         var_limit: variance range for noise. If var_limit is a single float, the range
             will be (0, var_limit). Default: (10.0, 50.0).
         mean: mean of the noise. Default: 0
@@ -1366,7 +1348,6 @@ class ISONoise(ImageOnlyTransform):
     """Apply camera sensor noise.
 
     Args:
-    ----
         color_shift (float, float): variance range for color hue change.
             Measured as a fraction of 360 degree Hue angle in HLS colorspace.
         intensity ((float, float): Multiplicative factor that control strength
@@ -1417,7 +1398,6 @@ class CLAHE(ImageOnlyTransform):
     """Apply Contrast Limited Adaptive Histogram Equalization to the input image.
 
     Args:
-    ----
         clip_limit: upper threshold value for contrast limiting.
             If clip_limit is a single float value, the range will be (1, clip_limit). Default: (1, 4).
         tile_grid_size: size of grid for histogram equalization. Default: (8, 8).
@@ -1460,7 +1440,6 @@ class ChannelShuffle(ImageOnlyTransform):
     """Randomly rearrange channels of the input RGB image.
 
     Args:
-    ----
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1493,7 +1472,6 @@ class InvertImg(ImageOnlyTransform):
     i.e., 255 for uint8 and 1.0 for float32.
 
     Args:
-    ----
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1520,7 +1498,6 @@ class RandomGamma(ImageOnlyTransform):
     see: https://en.wikipedia.org/wiki/Gamma_correction
 
     Attributes:
-    ----------
         gamma_limit (Union[int, Tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
             int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much
             to adjust the image's gamma. Default is (80, 120).
@@ -1560,7 +1537,6 @@ class ToGray(ImageOnlyTransform):
     than 127, invert the resulting grayscale image.
 
     Args:
-    ----
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1589,7 +1565,6 @@ class ToRGB(ImageOnlyTransform):
     """Convert the input grayscale image to RGB.
 
     Args:
-    ----
         p: probability of applying the transform. Default: 1.
 
     Targets:
@@ -1621,7 +1596,6 @@ class ToSepia(ImageOnlyTransform):
     """Applies sepia filter to the input RGB image
 
     Args:
-    ----
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1654,11 +1628,9 @@ class ToFloat(ImageOnlyTransform):
     image.
 
     See Also:
-    --------
         :class:`~albumentations.augmentations.transforms.FromFloat`
 
     Args:
-    ----
         max_value: maximum possible input value. Default: None.
         p: probability of applying the transform. Default: 1.0.
 
@@ -1689,7 +1661,6 @@ class FromFloat(ImageOnlyTransform):
     This is the inverse transform for :class:`~albumentations.augmentations.transforms.ToFloat`.
 
     Args:
-    ----
         max_value: maximum possible input value. Default: None.
         dtype: data type of the output. See the `'Data types' page from the NumPy docs`_.
             Default: 'uint16'.
@@ -1724,7 +1695,6 @@ class Downscale(ImageOnlyTransform):
     """Decreases image quality by downscaling and upscaling back.
 
     Args:
-    ----
         scale_min: lower bound on the image scale. Should be < 1.
         scale_max:  lower bound on the image scale. Should be .
         interpolation: cv2 interpolation method. Could be:
@@ -1807,7 +1777,6 @@ class Lambda(NoOp):
     Function signature must include **kwargs to accept optional arguments like interpolation method, image size, etc:
 
     Args:
-    ----
         image: Image transformation function.
         mask: Mask transformation function.
         keypoint: Keypoint transformation function.
@@ -1901,7 +1870,6 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """Multiply image to random number or array of numbers.
 
     Args:
-    ----
         multiplier: If single float image will be multiplied to this number.
             If tuple of float multiplier will be in range `[multiplier[0], multiplier[1])`. Default: (0.9, 1.1).
         per_channel: If `False`, same values for all channels will be used.
@@ -1964,7 +1932,6 @@ class FancyPCA(ImageOnlyTransform):
     "ImageNet Classification with Deep Convolutional Neural Networks"
 
     Args:
-    ----
         alpha:  how much to perturb/scale the eigen vecs and vals.
             scale is samples from gaussian distribution (mu=0, sigma=alpha)
 
@@ -2002,7 +1969,6 @@ class ColorJitter(ImageOnlyTransform):
     overflow, but we use value saturation.
 
     Args:
-    ----
         brightness (float or tuple of float (min, max)): How much to jitter brightness.
             brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
             or the given [min, max]. Should be non negative numbers.
@@ -2108,7 +2074,6 @@ class Sharpen(ImageOnlyTransform):
     """Sharpen the input image and overlays the result with the original image.
 
     Args:
-    ----
         alpha: range to choose the visibility of the sharpened image. At 0, only the original image is
             visible, at 1.0 only its sharpened version is visible. Default: (0.2, 0.5).
         lightness: range to choose the lightness of the sharpened image. Default: (0.5, 1.0).
@@ -2165,7 +2130,6 @@ class Emboss(ImageOnlyTransform):
     """Emboss the input image and overlays the result with the original image.
 
     Args:
-    ----
         alpha: range to choose the visibility of the embossed image. At 0, only the original image is
             visible,at 1.0 only its embossed version is visible. Default: (0.2, 0.5).
         strength: strength range of the embossing. Default: (0.2, 0.7).
@@ -2226,12 +2190,10 @@ class Superpixels(ImageOnlyTransform):
     This implementation uses skimage's version of the SLIC algorithm.
 
     Args:
-    ----
         p_replace (float or tuple of float): Defines for any segment the probability that the pixels within that
             segment are replaced by their average color (otherwise, the pixels are not changed).
 
     Examples:
-    --------
                 * A probability of ``0.0`` would mean, that the pixels in no
                   segment are replaced by their average color (image is not
                   changed at all).
@@ -2406,7 +2368,6 @@ class RingingOvershoot(ImageOnlyTransform):
     """Create ringing or overshoot artefacts by conlvolving image with 2D sinc filter.
 
     Args:
-    ----
         blur_limit: maximum kernel size for sinc filter.
             Should be in range [3, inf). Default: (7, 15).
         cutoff: range to choose the cutoff frequency in radians.
@@ -2475,7 +2436,6 @@ class UnsharpMask(ImageOnlyTransform):
     """Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
 
     Args:
-    ----
         blur_limit: maximum Gaussian kernel size for blurring the input image.
             Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
             as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
@@ -2552,7 +2512,6 @@ class PixelDropout(DualTransform):
     """Set pixels to 0 with some probability.
 
     Args:
-    ----
         dropout_prob (float): pixel drop probability. Default: 0.01
         per_channel (bool): if set to `True` drop mask will be sampled for each channel,
             otherwise the same mask will be sampled for all channels. Default: False
@@ -2656,7 +2615,6 @@ class Spatter(ImageOnlyTransform):
     """Apply spatter transform. It simulates corruption which can occlude a lens in the form of rain or mud.
 
     Args:
-    ----
         mean (float, or tuple of floats): Mean value of normal distribution for generating liquid layer.
             If single float it will be used as mean.
             If tuple of float mean will be sampled from range `[mean[0], mean[1])`. Default: (0.65).

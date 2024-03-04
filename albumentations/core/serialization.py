@@ -79,7 +79,6 @@ class Serializable(metaclass=SerializableMeta):
         python data types: dictionaries, lists, strings, integers, and floats.
 
         Args:
-        ----
             self: A transform that should be serialized. If the transform doesn't implement the `to_dict`
                 method and `on_not_implemented_error` equals to 'raise' then `NotImplementedError` is raised.
                 If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
@@ -111,7 +110,6 @@ def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") ->
     python data types: dictionaries, lists, strings, integers, and floats.
 
     Args:
-    ----
         transform: A transform that should be serialized. If the transform doesn't implement the `to_dict`
             method and `on_not_implemented_error` equals to 'raise' then `NotImplementedError` is raised.
             If `on_not_implemented_error` equals to 'warn' then `NotImplementedError` will be ignored
@@ -142,12 +140,11 @@ def from_dict(
     transform_dict: Dict[str, Any], nonserializable: Optional[Dict[str, Any]] = None
 ) -> Optional[Serializable]:
     """Args:
-    ----
-        transform_dict: A dictionary with serialized transform pipeline.
-        nonserializable (dict): A dictionary that contains non-serializable transforms.
-            This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
-            Keys in that dictionary should be named same as `name` arguments in respective transforms from
-            a serialized pipeline.
+    transform_dict: A dictionary with serialized transform pipeline.
+    nonserializable (dict): A dictionary that contains non-serializable transforms.
+        This dictionary is required when you are restoring a pipeline that contains non-serializable transforms.
+        Keys in that dictionary should be named same as `name` arguments in respective transforms from
+        a serialized pipeline.
 
     """
     register_additional_transforms()
@@ -178,7 +175,6 @@ def save(
     in either JSON or YAML format.
 
     Args:
-    ----
         transform (Serializable): The transform pipeline to serialize.
         filepath_or_buffer (Union[str, Path, TextIO]): The file path or file-like object to write the serialized
             data to.
@@ -191,7 +187,6 @@ def save(
             no transform arguments are saved. Defaults to 'raise'.
 
     Raises:
-    ------
         ValueError: If `data_format` is 'yaml' but PyYAML is not installed.
 
     """
@@ -225,7 +220,6 @@ def load(
     """Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
 
     Args:
-    ----
         filepath_or_buffer (Union[str, Path, TextIO]): The file path or file-like object to read the serialized
             data from.
             If a string is provided, it is interpreted as a path to a file. If a file-like object is provided,
@@ -238,11 +232,9 @@ def load(
             from the serialized pipeline. Defaults to None.
 
     Returns:
-    -------
         object: The deserialized transform pipeline.
 
     Raises:
-    ------
         ValueError: If `data_format` is 'yaml' but PyYAML is not installed.
 
     """

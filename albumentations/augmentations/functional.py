@@ -183,12 +183,10 @@ def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
     """Invert all pixel values above a threshold.
 
     Args:
-    ----
         img: The image to solarize.
         threshold: All pixels above this grayscale level are inverted.
 
     Returns:
-    -------
         Solarized image.
 
     """
@@ -216,12 +214,10 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     """Reduce the number of bits for each color channel.
 
     Args:
-    ----
         img: image to posterize.
         bits: number of high bits. Must be in range [0, 8]
 
     Returns:
-    -------
         Image with reduced color channels.
 
     """
@@ -371,7 +367,6 @@ def move_tone_curve(img: np.ndarray, low_y: float, high_y: float) -> np.ndarray:
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-    ----
         img: RGB or grayscale image.
         low_y: y-position of a Bezier control point used
             to adjust the tone curve, must be in range [0, 1]
@@ -516,13 +511,11 @@ def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         img: Image.
         snow_point: Number of show points.
         brightness_coeff: Brightness coefficient.
 
     Returns:
-    -------
         Image.
 
     """
@@ -571,7 +564,6 @@ def add_rain(
     """From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         img: Image.
         slant:
         drop_length:
@@ -582,8 +574,7 @@ def add_rain(
         rain_drops:
 
     Returns:
-    -------
-        Image.
+        Image
 
     """
     non_rgb_warning(img)
@@ -630,14 +621,12 @@ def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         img: Image.
         fog_coef: Fog coefficient.
         alpha_coef: Alpha coefficient.
         haze_list:
 
     Returns:
-    -------
         Image.
 
     """
@@ -690,7 +679,6 @@ def add_sun_flare(
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         img (numpy.ndarray):
         flare_center_x (float):
         flare_center_y (float):
@@ -699,7 +687,6 @@ def add_sun_flare(
         circles (list):
 
     Returns:
-    -------
         numpy.ndarray:
 
     """
@@ -749,12 +736,10 @@ def add_shadow(img: np.ndarray, vertices_list: List[List[Tuple[int, int]]]) -> n
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         img (numpy.ndarray):
         vertices_list (list):
 
     Returns:
-    -------
         numpy.ndarray:
 
     """
@@ -795,13 +780,11 @@ def add_gravel(img: np.ndarray, gravels: List[Any]) -> np.ndarray:
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-    ----
         img (numpy.ndarray): image to add gravel to
         gravels (list): list of gravel parameters. (float, float, float, float):
             (top-left x, top-left y, bottom-right x, bottom right y)
 
     Returns:
-    -------
         numpy.ndarray:
 
     """
@@ -913,7 +896,6 @@ def iso_noise(
     """Apply poisson noise to image to simulate camera sensor noise.
 
     Args:
-    ----
         image (numpy.ndarray): Input image, currently, only RGB, uint8 images are supported.
         color_shift (float):
         intensity (float): Multiplication factor for noise values. Values of ~0.5 are produce noticeable,
@@ -922,7 +904,6 @@ def iso_noise(
         **kwargs:
 
     Returns:
-    -------
         numpy.ndarray: Noised image
 
     """
@@ -1008,7 +989,6 @@ def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray) -> np.ndarray:
     """Swap tiles on image.
 
     Args:
-    ----
         image: Input image.
         tiles: array of tuples(
             current_left_up_corner_row, current_left_up_corner_col,
@@ -1016,7 +996,6 @@ def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray) -> np.ndarray:
             height_tile, width_tile)
 
     Returns:
-    -------
         np.ndarray: Output image.
 
     """
@@ -1067,12 +1046,11 @@ def _multiply_non_uint8(img: np.ndarray, multiplier: np.ndarray) -> np.ndarray:
 
 def multiply(img: np.ndarray, multiplier: np.ndarray) -> np.ndarray:
     """Args:
-    ----
+
         img: Image.
         multiplier: Multiplier coefficient.
 
     Returns:
-    -------
         Image multiplied by `multiplier` coefficient.
 
     """
@@ -1089,11 +1067,9 @@ def bbox_from_mask(mask: np.ndarray) -> Tuple[int, int, int, int]:
     """Create bounding box from binary mask (fast version)
 
     Args:
-    ----
         mask (numpy.ndarray): binary mask.
 
     Returns:
-    -------
         tuple: A bounding box tuple `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -1110,12 +1086,10 @@ def mask_from_bbox(img: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarr
     """Create binary mask from bounding box
 
     Args:
-    ----
         img: input image
         bbox: A bounding box tuple `(x_min, y_min, x_max, y_max)`
 
     Returns:
-    -------
         mask: binary mask
 
     """
@@ -1130,13 +1104,11 @@ def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
     http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
 
     Args:
-    ----
         img: numpy array with (h, w, rgb) shape, as ints between 0-255
         alpha: how much to perturb/scale the eigen vecs and vals
                 the paper used std=0.1
 
     Returns:
-    -------
         numpy image-like array as uint8 range(0, 255)
 
     """

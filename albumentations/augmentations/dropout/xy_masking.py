@@ -21,7 +21,6 @@ class XYMasking(DualTransform):
     maximum size along each axis.
 
     Args:
-    ----
         num_masks_x (Union[int, Tuple[int, int]]): Number or range of horizontal regions to mask. Defaults to 0.
         num_masks_y (Union[int, Tuple[int, int]]): Number or range of vertical regions to mask. Defaults to 0.
         mask_x_length ([Union[int, Tuple[int, int]]): Specifies the length of the masks along
@@ -122,7 +121,6 @@ class XYMasking(DualTransform):
         """Validate the mask length against the corresponding image dimension size.
 
         Args:
-        ----
             mask_length (Optional[Union[int, Tuple[int, int]]]): The length of the mask to be validated.
             dimension_size (int): The size of the image dimension (width or height)
                 against which to validate the mask length.
