@@ -107,13 +107,13 @@ class MixUp(ReferenceBasedTransform):
         return label
 
     def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
-        msg = "Transform does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        msg = "MixUp does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 
     def apply_to_keypoints(
         self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
     ) -> Sequence[KeypointType]:
-        msg = "Transform does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        msg = "MixUp does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:

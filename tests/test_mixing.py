@@ -35,10 +35,6 @@ def test_image_only(augmentation_cls, params, image):
     data = aug(image=image)
     assert data["image"].dtype == np.uint8
 
-
-# The code snippet you provided is using the `@pytest.mark.parametrize` decorator to define
-# parameterized tests for different scenarios of the `MixUp` augmentation in the `albumentations`
-# library.
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
              [(A.MixUp, {
