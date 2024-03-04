@@ -1,5 +1,6 @@
 import random
-from typing import Any, Callable, Dict, Generator, Iterable, Iterator, Optional, Sequence, Tuple, Union
+import types
+from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -61,8 +62,8 @@ class MixUp(ReferenceBasedTransform):
 
     def __init__(
         self,
-        reference_data: Optional[Union[Generator[ReferenceImage, None, None], Sequence[ReferenceImage]]] = None,
-        read_fn: Callable[[ReferenceImage], Dict[str, Any]] = lambda x: {"image": x, "mask": None, "class_label": None},
+        reference_data: Optional[Union[Generator[ReferenceImage, None, None], Sequence[Any]]] = None,
+        read_fn: Callable[[ReferenceImage], Any] = lambda x: {"image": x, "mask": None, "class_label": None},
         alpha: float = 0.4,
         always_apply: bool = False,
         p: float = 0.5,
@@ -79,8 +80,13 @@ class MixUp(ReferenceBasedTransform):
         if reference_data is None:
             warn("No reference data provided for MixUp. This transform will act as a no-op.")
             # Create an empty generator
-        elif isinstance(reference_data, Iterable) and not isinstance(reference_data, str):
-            self.reference_data = reference_data
+            self.reference_data: List[Any] = []
+        elif (
+            isinstance(reference_data, types.GeneratorType)
+            or isinstance(reference_data, Iterable)
+            and not isinstance(reference_data, str)
+        ):
+            self.reference_data = reference_data  # type: ignore[assignment]
         else:
             msg = "reference_data must be a list, tuple, generator, or None."
             raise TypeError(msg)
@@ -120,19 +126,28 @@ class MixUp(ReferenceBasedTransform):
         return "reference_data", "alpha"
 
     def get_params(self) -> Dict[str, Union[None, float, Dict[str, Any]]]:
-        if self.reference_data and isinstance(self.reference_data, Sequence):
-            mix_idx = random.randint(0, len(self.reference_data) - 1)
-            mix_data = self.reference_data[mix_idx]
-        elif self.reference_data and isinstance(self.reference_data, Iterator):
+        mix_data = None
+        # Check if reference_data is not empty and is a sequence (list, tuple, np.array)
+        if isinstance(self.reference_data, Sequence) and not isinstance(self.reference_data, (str, bytes)):
+            if len(self.reference_data) > 0:  # Additional check to ensure it's not empty
+                mix_idx = random.randint(0, len(self.reference_data) - 1)
+                mix_data = self.reference_data[mix_idx]
+        # Check if reference_data is an iterator or generator
+        elif isinstance(self.reference_data, Iterator):
             try:
-                mix_data = next(self.reference_data)  # Get the next item from the iterator
+                mix_data = next(self.reference_data)  # Attempt to get the next item
             except StopIteration:
                 warn(
                     "Reference data iterator/generator has been exhausted. "
                     "Further mixing augmentations will not be applied.",
                     RuntimeWarning,
                 )
-                return {"mix_data": None, "mix_coef": 1}
-        mix_coef = beta(self.alpha, self.alpha) if mix_data else 1
+                return {"mix_data": {}, "mix_coef": 1}
 
-        return {"mix_data": self.read_fn(mix_data) if mix_data else None, "mix_coef": mix_coef}
+        # If mix_data is None or empty after the above checks, return default values
+        if mix_data is None:
+            return {"mix_data": {}, "mix_coef": 1}
+
+        # If mix_data is not None, calculate mix_coef and apply read_fn
+        mix_coef = beta(self.alpha, self.alpha)  # Assuming beta is defined elsewhere
+        return {"mix_data": self.read_fn(mix_data), "mix_coef": mix_coef}
