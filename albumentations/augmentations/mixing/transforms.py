@@ -1,12 +1,12 @@
 import random
-from typing import Any, Callable, Dict, Generator, Iterator, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Iterable, Iterator, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
 
 from albumentations.augmentations.utils import is_grayscale_image
 from albumentations.core.transforms_interface import ReferenceBasedTransform
-from albumentations.core.types import ReferenceImage, Targets
+from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
 from albumentations.random_utils import beta
 
 from .functional import mix_arrays
@@ -27,19 +27,15 @@ class MixUp(ReferenceBasedTransform):
         In International Conference on Learning Representations. https://arxiv.org/abs/1710.09412
 
     Args:
-    ----
-        reference_data (Optional[Union[Generator[ReferenceImage, None, None], Sequence[ReferenceImage]]]):
-            A sequence or generator of dictionaries containing the reference data for mixing. Each dictionary
-            should contain:
-                - 'image': Mandatory key with an image array.
-                - 'mask': Optional key with a mask array.
-                - 'global_label': Optional key with a class label array.
-                - 'keypoints': Optional key with a list of keypoints.
+        reference_data (Optional[Union[Generator[ReferenceImage, None, None], Sequence[Any]]]):
+            A sequence or generator of dictionaries containing the reference data for mixing
             If None or an empty sequence is provided, no operation is performed and a warning is issued.
         read_fn (Callable[[ReferenceImage], Dict[str, Any]]):
-            A function to process items from reference_data. It should accept a dictionary from reference_data
-            and return a processed dictionary containing 'image', and optionally 'mask', 'keypoints', 'global_label',
-            each as numpy arrays. Defaults to a no-op lambda function.
+            A function to process items from reference_data. It should accept items from reference_data
+            and return a dictionary containing processed data:
+                - The returned dictionary must include an 'image' key with a numpy array value.
+                - It may also include 'mask', 'global_label' each associated with numpy array values.
+            Defaults to a function that assumes input dictionary contains numpy arrays and directly returns it.
         alpha (float):
             The alpha parameter for the Beta distribution, influencing the mix's balance. Must be ≥ 0.
             Higher values lead to more uniform mixing. Defaults to 0.4.
@@ -53,16 +49,12 @@ class MixUp(ReferenceBasedTransform):
         - uint8, float32
 
     Raises:
-    ------
         - ValueError: If the alpha parameter is negative.
-        - NotImplementedError: If the transform is applied to bounding boxes.
-        - NotImplementedError: If the transform is applied to keypoints.
+        - NotImplementedError: If the transform is applied to bounding boxes or keypoints.
 
     Notes:
-    -----
         - If no reference data is provided, a warning is issued, and the transform acts as a no-op.
-
-
+        - Notes if images are in float32 format, they should be within [0, 1] range.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.GLOBAL_LABEL)
@@ -87,7 +79,11 @@ class MixUp(ReferenceBasedTransform):
         if reference_data is None:
             warn("No reference data provided for MixUp. This transform will act as a no-op.")
             # Create an empty generator
-        self.reference_data = reference_data or []
+        elif isinstance(reference_data, Iterable) and not isinstance(reference_data, str):
+            self.reference_data = reference_data
+        else:
+            msg = "reference_data must be a list, tuple, generator, or None."
+            raise TypeError(msg)
 
     def apply(self, img: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_img = mix_data.get("image")
@@ -109,6 +105,16 @@ class MixUp(ReferenceBasedTransform):
         if mix_label is not None and label is not None:
             return mix_coef * label + (1 - mix_coef) * mix_label
         return label
+
+    def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
+        msg = "Transform does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        raise NotImplementedError(msg)
+
+    def apply_to_keypoints(
+        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
+    ) -> Sequence[KeypointType]:
+        msg = "Transform does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
+        raise NotImplementedError(msg)
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "reference_data", "alpha"
