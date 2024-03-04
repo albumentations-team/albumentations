@@ -13,7 +13,6 @@ from .types import (
     ColorType,
     KeypointInternalType,
     KeypointType,
-    ReferenceImage,
     ScalarType,
     ScaleType,
     Targets,
@@ -260,9 +259,6 @@ class DualTransform(BasicTransform):
         apply_to_keypoint(keypoint: KeypointInternalType, *args: Any, **params: Any) -> KeypointInternalType:
             Applies the transform to a single keypoint. Should be implemented in the subclass.
 
-        apply_to_global_label(label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
-            Applies the transform to a single label. Should be implemented in the subclass.
-
         apply_to_bboxes(bboxes: Sequence[BoxType], *args: Any, **params: Any) -> Sequence[BoxType]:
             Applies the transform to a list of bounding boxes. Delegates to `apply_to_bbox` for each bounding box.
 
@@ -274,9 +270,6 @@ class DualTransform(BasicTransform):
 
         apply_to_masks(masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
             Applies the transform to a list of masks. Delegates to `apply_to_mask` for each mask.
-
-        apply_to_global_labels(labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
-            Applies the transform to a list of labels. Delegates to `apply_to_label` for each label.
 
     Note:
     ----
@@ -294,8 +287,6 @@ class DualTransform(BasicTransform):
             "masks": self.apply_to_masks,
             "bboxes": self.apply_to_bboxes,
             "keypoints": self.apply_to_keypoints,
-            "global_label": self.apply_to_global_label,
-            "global_labels": self.apply_to_global_labels,
         }
 
     def apply_to_bbox(self, bbox: BoxInternalType, *args: Any, **params: Any) -> BoxInternalType:
@@ -374,12 +365,12 @@ class NoOp(DualTransform):
 
 
 class ReferenceBasedTransform(DualTransform):
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
-        msg = "Transform does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
-        raise NotImplementedError(msg)
-
-    def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
-    ) -> Sequence[KeypointType]:
-        msg = "Transform does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
-        raise NotImplementedError(msg)
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "global_label": self.apply_to_global_label,
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "bboxes": self.apply_to_bboxes,
+            "keypoints": self.apply_to_keypoints,
+        }

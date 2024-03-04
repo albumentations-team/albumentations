@@ -35,7 +35,6 @@ def test_image_only(augmentation_cls, params, image):
     data = aug(image=image)
     assert data["image"].dtype == np.uint8
 
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
              [(A.MixUp, {
@@ -141,3 +140,22 @@ def test_keypoint_error(image, mask, global_label, keypoints):
 
     with pytest.raises(NotImplementedError):
         aug(image=image, global_label=global_label, mask=mask, keypoints=keypoints)
+
+
+@pytest.mark.parametrize( ["augmentation_cls", "params"], [(A.CLAHE, {"p": 1}), (A.HorizontalFlip, {"p": 1})])
+def test_pipeline(augmentation_cls, params, image, mask, global_label):
+    reference_data =[{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+                     "mask": np.random.randint(0, 256, (100, 100, 1), dtype=np.uint8),
+                     "global_label": np.array([0, 0, 1])}]
+
+    mix_up = A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)
+
+    aug = A.Compose([augmentation_cls(**params), mix_up], p=1)
+
+    data = aug(image=image, global_label=global_label, mask=mask)
+
+    assert data["image"].dtype == np.uint8
+
+    mix_coeff_label = find_mix_coef(data["global_label"], global_label, reference_data[0]["global_label"])
+
+    assert 0 <= mix_coeff_label <= 1
