@@ -1,5 +1,6 @@
 import random
-from typing import Any, Callable, Dict, Generator, Iterable, Iterator, Optional, Sequence, Tuple, Union
+import types
+from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import numpy as np
@@ -61,8 +62,8 @@ class MixUp(ReferenceBasedTransform):
 
     def __init__(
         self,
-        reference_data: Optional[Union[Generator[ReferenceImage, None, None], Sequence[ReferenceImage]]] = None,
-        read_fn: Callable[[ReferenceImage], Dict[str, Any]] = lambda x: {"image": x, "mask": None, "class_label": None},
+        reference_data: Optional[Union[Generator[ReferenceImage, None, None], Sequence[Any]]] = None,
+        read_fn: Callable[[ReferenceImage], Any] = lambda x: {"image": x, "mask": None, "class_label": None},
         alpha: float = 0.4,
         always_apply: bool = False,
         p: float = 0.5,
@@ -79,8 +80,13 @@ class MixUp(ReferenceBasedTransform):
         if reference_data is None:
             warn("No reference data provided for MixUp. This transform will act as a no-op.")
             # Create an empty generator
-        elif isinstance(reference_data, Iterable) and not isinstance(reference_data, str):
-            self.reference_data = reference_data
+            self.reference_data: List[Any] = []
+        elif (
+            isinstance(reference_data, types.GeneratorType)
+            or isinstance(reference_data, Iterable)
+            and not isinstance(reference_data, str)
+        ):
+            self.reference_data = reference_data  # type: ignore[assignment]
         else:
             msg = "reference_data must be a list, tuple, generator, or None."
             raise TypeError(msg)
@@ -132,7 +138,9 @@ class MixUp(ReferenceBasedTransform):
                     "Further mixing augmentations will not be applied.",
                     RuntimeWarning,
                 )
-                return {"mix_data": None, "mix_coef": 1}
+                return {"mix_data": {}, "mix_coef": 1}
+        else:
+            return {"mix_data": {}, "mix_coef": 1}
         mix_coef = beta(self.alpha, self.alpha) if mix_data else 1
 
         return {"mix_data": self.read_fn(mix_data) if mix_data else None, "mix_coef": mix_coef}

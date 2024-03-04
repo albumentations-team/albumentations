@@ -23,13 +23,18 @@ def complex_read_fn_image(x):
                 "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)}],
                 "read_fn": lambda x: x}),
               (A.MixUp, {
+                  "reference_data": [1],
+                  "read_fn": lambda x: {"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)}},
+              ),
+              (A.MixUp, {
+                  "reference_data": None,
+              }),
+              (A.MixUp, {
             "reference_data": image_generator(),
             "read_fn": lambda x: x}),
               (A.MixUp, {
             "reference_data": complex_image_generator(),
-            "read_fn": complex_read_fn_image})]
-
-)
+            "read_fn": complex_read_fn_image})] )
 def test_image_only(augmentation_cls, params, image):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image)
@@ -40,7 +45,13 @@ def test_image_only(augmentation_cls, params, image):
              [(A.MixUp, {
                 "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
                                    "global_label": np.array([0, 0, 1])}],
-                "read_fn": lambda x: x})]
+                "read_fn": lambda x: x}),
+            (A.MixUp, {
+                  "reference_data": [1],
+                  "read_fn": lambda x: {"image": np.ones((100, 100, 3)).astype(np.uint8),
+                                        "global_label": np.array([0, 0, 1])}},
+              ),
+              ]
 )
 def test_image_global_label(augmentation_cls, params, image, global_label):
     aug = augmentation_cls(p=1, **params)
@@ -49,8 +60,13 @@ def test_image_global_label(augmentation_cls, params, image, global_label):
 
     assert data["image"].dtype == np.uint8
 
-    mix_coeff_image = find_mix_coef(data["image"], image, aug.reference_data[0]["image"])
-    mix_coeff_label = find_mix_coef(data["global_label"], global_label, aug.reference_data[0]["global_label"])
+    reference_item = params["read_fn"](aug.reference_data[0])
+
+    reference_image = reference_item["image"]
+    reference_global_label = reference_item["global_label"]
+
+    mix_coeff_image = find_mix_coef(data["image"], image, reference_image)
+    mix_coeff_label = find_mix_coef(data["global_label"], global_label, reference_global_label)
 
     assert math.isclose(mix_coeff_image, mix_coeff_label, abs_tol=0.01)
     assert 0 <= mix_coeff_image <= 1
