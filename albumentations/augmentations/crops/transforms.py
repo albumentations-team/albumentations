@@ -34,7 +34,6 @@ class RandomCrop(DualTransform):
     """Crop a random part of the input.
 
     Args:
-    ----
         height: height of the crop.
         width: width of the crop.
         p: probability of applying the transform. Default: 1.
@@ -74,7 +73,6 @@ class CenterCrop(DualTransform):
     """Crop the central part of the input.
 
     Args:
-    ----
         height: height of the crop.
         width: width of the crop.
         p: probability of applying the transform. Default: 1.
@@ -86,7 +84,6 @@ class CenterCrop(DualTransform):
         uint8, float32
 
     Note:
-    ----
         It is recommended to use uint8 images as input.
         Otherwise the operation will require internal conversion
         float32 -> uint8 -> float32 that causes worse performance.
@@ -117,7 +114,6 @@ class Crop(DualTransform):
     """Crop region from image.
 
     Args:
-    ----
         x_min: Minimum upper left x coordinate.
         y_min: Minimum upper left y coordinate.
         x_max: Maximum lower right x coordinate.
@@ -165,7 +161,6 @@ class CropNonEmptyMaskIfExists(DualTransform):
     """Crop area with mask if mask is non-empty, else make random crop.
 
     Args:
-    ----
         height: vertical size of crop in pixels
         width: horizontal size of crop in pixels
         ignore_values (list of int): values to ignore in mask, `0` values are always ignored
@@ -341,7 +336,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     """Crop a random part of the input and rescale it to some size.
 
     Args:
-    ----
         min_max_height ((int, int)): crop size limits.
         height (int): height after crop and resize.
         width (int): width after crop and resize.
@@ -393,7 +387,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     """Torchvision's variant of crop a random part of the input and rescale it to some size.
 
     Args:
-    ----
         height (int): height after crop and resize.
         width (int): width after crop and resize.
         scale ((float, float)): range of size of the origin size cropped
@@ -484,7 +477,6 @@ class RandomCropNearBBox(DualTransform):
     """Crop bbox from image with random shift by x,y coordinates
 
     Args:
-    ----
         max_part_shift (float, (float, float)): Max shift in `height` and `width` dimensions relative
             to `cropping_bbox` dimension.
             If max_part_shift is a single float, the range will be (max_part_shift, max_part_shift).
@@ -499,7 +491,6 @@ class RandomCropNearBBox(DualTransform):
         uint8, float32
 
     Examples:
-    --------
         >>> aug = Compose([RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_box_key='test_box')],
         >>>              bbox_params=BboxParams("pascal_voc"))
         >>> result = aug(image=image, bboxes=bboxes, test_box=[0, 5, 10, 20])
@@ -569,7 +560,6 @@ class BBoxSafeRandomCrop(DualTransform):
     """Crop a random part of the input without loss of bboxes.
 
     Args:
-    ----
         erosion_rate: erosion rate applied on input image height before crop.
         p: probability of applying the transform. Default: 1.
     Targets:
@@ -646,7 +636,6 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
     """Crop a random part of the input and rescale it to some size without loss of bboxes.
 
     Args:
-    ----
         height: height after crop and resize.
         width: width after crop and resize.
         erosion_rate: erosion rate applied on input image height before crop.
@@ -701,12 +690,10 @@ class CropAndPad(DualTransform):
     This transformation will never crop images below a height or width of ``1``.
 
     Note:
-    ----
         This transformation automatically resizes images back to their original size. To deactivate this, add the
         parameter ``keep_size=False``.
 
     Args:
-    ----
         px (int or tuple):
             The number of pixels to crop (negative values) or pad (positive values)
             on each side of the image. Either this or the parameter `percent` may
@@ -1031,7 +1018,6 @@ class RandomCropFromBorders(DualTransform):
     """Crop bbox from image randomly cut parts from borders without resize at the end
 
     Args:
-    ----
         crop_left (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
         from left side in range [0, crop_left * width)
         crop_right (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut

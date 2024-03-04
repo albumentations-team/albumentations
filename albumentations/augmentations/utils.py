@@ -189,12 +189,10 @@ def _maybe_process_in_chunks(
         This wrapper requires image to be the first argument and rest must be sent via named arguments.
 
     Args:
-    ----
         process_fn: Transform function (e.g cv2.resize).
         kwargs: Additional parameters.
 
     Returns:
-    -------
         numpy.ndarray: Transformed image.
 
     """

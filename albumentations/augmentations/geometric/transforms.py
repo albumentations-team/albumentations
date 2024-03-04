@@ -46,7 +46,6 @@ class ShiftScaleRotate(DualTransform):
     """Randomly apply affine transforms: translate, scale and rotate the input.
 
     Args:
-    ----
         shift_limit ((float, float) or float): shift factor range for both height and width. If shift_limit
             is a single float value, the range will be (-shift_limit, shift_limit). Absolute values for lower and
             upper bounds should lie in range [0, 1]. Default: (-0.0625, 0.0625).
@@ -184,7 +183,6 @@ class ElasticTransform(DualTransform):
          Recognition, 2003.
 
     Args:
-    ----
         alpha (float):
         sigma (float): Gaussian filter parameter.
         alpha_affine (float): The range will be (-alpha_affine, alpha_affine)
@@ -312,7 +310,6 @@ class Perspective(DualTransform):
     """Perform a random four point perspective transform of the input.
 
     Args:
-    ----
         scale: standard deviation of the normal distributions. These are used to sample
             the random distances of the subimage's corners from the full image's corners.
             If scale is a single float value, the range will be (0, scale). Default: (0.05, 0.1).
@@ -533,7 +530,6 @@ class Affine(DualTransform):
     `mask_interpolation` deals with the method of interpolation used for this.
 
     Args:
-    ----
         scale (number, tuple of number or dict): Scaling factor to use, where ``1.0`` denotes "no change" and
             ``0.5`` is zoomed out to ``50`` percent of the original size.
                 * If a single number, then that value will be used for all images.
@@ -875,17 +871,14 @@ class PiecewiseAffine(DualTransform):
     See also ``Affine`` for a similar technique.
 
     Note:
-    ----
         This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.
 
     Note:
-    ----
         For coordinate-based inputs (keypoints, bounding boxes, polygons, ...),
         this augmenter still has to perform an image-based augmentation,
         which will make it significantly slower and not fully correct for such inputs than other transforms.
 
     Args:
-    ----
         scale (float, tuple of float): Each point on the regular grid is moved around via a normal distribution.
             This scale factor is equivalent to the normal distribution's sigma.
             Note that the jitter (how far each point is moved in which direction) is multiplied by the height/width of
@@ -1063,7 +1056,6 @@ class PadIfNeeded(DualTransform):
     """Pad side of the image / max if side is less than desired number.
 
     Args:
-    ----
         min_height (int): minimal result image height.
         min_width (int): minimal result image width.
         pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
@@ -1094,7 +1086,6 @@ class PadIfNeeded(DualTransform):
         and graphic design to specify the alignment and positioning of elements.
 
         Attributes:
-        ----------
             CENTER (str): Specifies that the object should be placed at the center.
             TOP_LEFT (str): Specifies that the object should be placed at the top-left corner.
             TOP_RIGHT (str): Specifies that the object should be placed at the top-right corner.
@@ -1309,7 +1300,6 @@ class VerticalFlip(DualTransform):
     """Flip the input vertically around the x-axis.
 
     Args:
-    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1339,7 +1329,6 @@ class HorizontalFlip(DualTransform):
     """Flip the input horizontally around the y-axis.
 
     Args:
-    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1374,7 +1363,6 @@ class Flip(DualTransform):
     """Flip the input either horizontally, vertically or both horizontally and vertically.
 
     Args:
-    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1413,7 +1401,6 @@ class Transpose(DualTransform):
     """Transpose the input by swapping rows and columns.
 
     Args:
-    ----
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1444,7 +1431,6 @@ class Transpose(DualTransform):
 
 class OpticalDistortion(DualTransform):
     """Args:
-    ----
         distort_limit (float, (float, float)): If distort_limit is a single float, the range
             will be (-distort_limit, distort_limit). Default: (-0.05, 0.05).
         shift_limit (float, (float, float))): If shift_limit is a single float, the range
@@ -1536,7 +1522,6 @@ class OpticalDistortion(DualTransform):
 
 class GridDistortion(DualTransform):
     """Args:
-    ----
         num_steps (int): count of grid cells on each side.
         distort_limit (float, (float, float)): If distort_limit is a single float, the range
             will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).

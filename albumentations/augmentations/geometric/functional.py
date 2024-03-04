@@ -78,14 +78,12 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxI
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
-    ----
         bbox: A bounding box tuple (x_min, y_min, x_max, y_max).
         factor: Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
-    -------
         tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
 
     """
@@ -109,18 +107,15 @@ def keypoint_rot90(
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         factor: Number of CCW rotations. Must be in range [0;3] See np.rot90.
         rows: Image height.
         cols: Image width.
 
     Returns:
-    -------
         tuple: A keypoint `(x, y, angle, scale)`.
 
     Raises:
-    ------
         ValueError: if factor not in set {0, 1, 2, 3}
 
     """
@@ -163,7 +158,6 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
     """Rotates a bounding box by angle degrees.
 
     Args:
-    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         angle: Angle of rotation in degrees.
         method: Rotation method used. Should be one of: "largest_box", "ellipse". Default: "largest_box".
@@ -171,11 +165,9 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
         cols: Image cols.
 
     Returns:
-    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     References:
-    ----------
         https://arxiv.org/abs/2109.13488
 
     """
@@ -211,14 +203,12 @@ def keypoint_rotate(
     """Rotate a keypoint by angle.
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         angle: Rotation angle.
         rows: Image height.
         cols: Image width.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -293,7 +283,6 @@ def bbox_shift_scale_rotate(
 
 
     Args:
-    ----
         bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
         angle (int): Angle of rotation in degrees.
         scale (int): Scale factor.
@@ -305,7 +294,6 @@ def bbox_shift_scale_rotate(
         cols (int): Image cols.
 
     Returns:
-    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -439,13 +427,11 @@ def keypoint_scale(keypoint: KeypointInternalType, scale_x: float, scale_y: floa
     """Scales a keypoint by scale_x and scale_y.
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         scale_x: Scale coefficient x-axis.
         scale_y: Scale coefficient y-axis.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -532,9 +518,8 @@ def perspective_bbox(
 
 def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool = False) -> float:
     """Args:
-    ----
-        matrix (np.ndarray): Rotation matrix
-        y_up (bool): is Y axis looks up or down
+    matrix (np.ndarray): Rotation matrix
+    y_up (bool): is Y axis looks up or down
 
     """
     if y_up:
@@ -747,7 +732,6 @@ def to_distance_maps(
     method that only supports the augmentation of images.
 
     Args:
-    ----
         keypoint: keypoint coordinates
         height: image height
         width: image width
@@ -757,7 +741,6 @@ def to_distance_maps(
             exactly the position of the respective keypoint.
 
     Returns:
-    -------
         (H, W, N) ndarray
             A ``float32`` array containing ``N`` distance maps for ``N``
             keypoints. Each location ``(y, x, n)`` in the array denotes the
@@ -916,13 +899,11 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box vertically around the x-axis.
 
     Args:
-    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
-    -------
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -934,13 +915,11 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
-    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
-    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -952,18 +931,15 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         d: dimension. 0 for vertical flip, 1 for horizontal, -1 for transpose
         rows: Image rows.
         cols: Image cols.
 
     Returns:
-    -------
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
     Raises:
-    ------
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
@@ -983,18 +959,15 @@ def bbox_transpose(bbox: KeypointInternalType, axis: int, rows: int, cols: int) 
     """Transposes a bounding box along given axis.
 
     Args:
-    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         axis: 0 - main axis, 1 - secondary axis.
         rows: Image rows.
         cols: Image cols.
 
     Returns:
-    -------
         A bounding box tuple `(x_min, y_min, x_max, y_max)`.
 
     Raises:
-    ------
         ValueError: If axis not equal to 0 or 1.
 
     """
@@ -1014,13 +987,11 @@ def keypoint_vflip(keypoint: KeypointInternalType, rows: int, cols: int) -> Keyp
     """Flip a keypoint vertically around the x-axis.
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         rows: Image height.
         cols: Image width.
 
     Returns:
-    -------
         tuple: A keypoint `(x, y, angle, scale)`.
 
     """
@@ -1034,13 +1005,11 @@ def keypoint_hflip(keypoint: KeypointInternalType, rows: int, cols: int) -> Keyp
     """Flip a keypoint horizontally around the y-axis.
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         rows: Image height.
         cols: Image width.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -1053,7 +1022,6 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         d: Number of flip. Must be -1, 0 or 1:
             * 0 - vertical flip,
@@ -1063,11 +1031,9 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
         cols: Image width.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     Raises:
-    ------
         ValueError: if value of `d` is not -1, 0 or 1.
 
     """
@@ -1087,11 +1053,9 @@ def keypoint_transpose(keypoint: KeypointInternalType) -> KeypointInternalType:
     """Rotate a keypoint by angle.
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     """

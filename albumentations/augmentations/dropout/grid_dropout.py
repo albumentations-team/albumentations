@@ -17,7 +17,6 @@ class GridDropout(DualTransform):
     """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
 
     Args:
-    ----
         ratio: the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
             Must be between 0 and 1. Default: 0.5.
         unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
@@ -45,7 +44,6 @@ class GridDropout(DualTransform):
         uint8, float32
 
     References:
-    ----------
         https://arxiv.org/abs/2001.04086
 
     """

@@ -22,7 +22,6 @@ class Blur(ImageOnlyTransform):
     """Blur the input image using a random-sized kernel.
 
     Args:
-    ----
         blur_limit: maximum kernel size for blurring the input image.
             Should be in range [3, inf). Default: (3, 7).
         p: probability of applying the transform. Default: 0.5.
@@ -53,7 +52,6 @@ class MotionBlur(Blur):
     """Apply motion blur to the input image using a random-sized kernel.
 
     Args:
-    ----
         blur_limit (int): maximum kernel size for blurring the input image.
             Should be in range [3, inf). Default: (3, 7).
         allow_shifted (bool): if set to true creates non shifted kernels only,
@@ -130,7 +128,6 @@ class MedianBlur(Blur):
     """Blur the input image using a median filter with a random aperture linear size.
 
     Args:
-    ----
         blur_limit (int): maximum aperture linear size for blurring the input image.
             Must be odd and in range [3, inf). Default: (3, 7).
         p (float): probability of applying the transform. Default: 0.5.
@@ -158,7 +155,6 @@ class GaussianBlur(ImageOnlyTransform):
     """Blur the input image using a Gaussian filter with a random kernel size.
 
     Args:
-    ----
         blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
             Must be zero or odd and in range [0, inf). If set to 0 it will be computed from sigma
             as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
@@ -219,7 +215,6 @@ class GlassBlur(Blur):
     """Apply glass noise to the input image.
 
     Args:
-    ----
         sigma (float): standard deviation for Gaussian kernel.
         max_delta (int): max distance between pixels which are swapped.
         iterations (int): number of repeats.
@@ -294,7 +289,6 @@ class AdvancedBlur(ImageOnlyTransform):
     data augmentation.
 
     Args:
-    ----
         blur_limit (ScaleIntType, optional): Maximum Gaussian kernel size for blurring the input image.
             Must be zero or odd and in range [0, inf). If set to 0, it will be computed from sigma
             as `round(sigma * (3 if img.dtype == np.uint8 else 4) * 2 + 1) + 1`.
@@ -437,7 +431,6 @@ class Defocus(ImageOnlyTransform):
     """Apply defocus transform. See https://arxiv.org/abs/1903.12261.
 
     Args:
-    ----
         radius ((int, int) or int): range for radius of defocusing.
             If limit is a single int, the range will be [1, limit]. Default: (3, 10).
         alias_blur ((float, float) or float): range for alias_blur of defocusing (sigma of gaussian blur).
@@ -488,7 +481,6 @@ class ZoomBlur(ImageOnlyTransform):
     """Apply zoom blur transform. See https://arxiv.org/abs/1903.12261.
 
     Args:
-    ----
         max_factor ((float, float) or float): range for max factor for blurring.
             If max_factor is a single float, the range will be (1, limit). Default: (1, 1.31).
             All max_factor values should be larger than 1.

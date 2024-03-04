@@ -20,7 +20,6 @@ class RandomRotate90(DualTransform):
     """Randomly rotate the input by 90 degrees zero or more times.
 
     Args:
-    ----
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -35,8 +34,7 @@ class RandomRotate90(DualTransform):
 
     def apply(self, img: np.ndarray, factor: float = 0, **params: Any) -> np.ndarray:
         """Args:
-        ----
-            factor (int): number of times the input will be rotated by 90 degrees.
+        factor (int): number of times the input will be rotated by 90 degrees.
 
         """
         return np.ascontiguousarray(np.rot90(img, factor))
@@ -59,7 +57,6 @@ class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
 
     Args:
-    ----
         limit: range from which a random angle is picked. If limit is a single int
             an angle is picked from (-limit, limit). Default: (-90, 90)
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -231,7 +228,6 @@ class SafeRotate(DualTransform):
     may see some artifacts.
 
     Args:
-    ----
         limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
             an angle is picked from (-limit, limit). Default: (-90, 90)
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:

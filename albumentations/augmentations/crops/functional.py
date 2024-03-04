@@ -66,7 +66,6 @@ def crop_bbox_by_coords(
     required height and width of the crop.
 
     Args:
-    ----
         bbox: A cropped box `(x_min, y_min, x_max, y_max)`.
         crop_coords: Crop coordinates `(x1, y1, x2, y2)`.
         crop_height:
@@ -75,7 +74,6 @@ def crop_bbox_by_coords(
         cols: Image cols.
 
     Returns:
-    -------
         A cropped bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
@@ -100,12 +98,10 @@ def crop_keypoint_by_coords(
     required height and width of the crop.
 
     Args:
-    ----
         keypoint (tuple): A keypoint `(x, y, angle, scale)`.
         crop_coords (tuple): Crop box coords `(x1, x2, y1, y2)`.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -126,7 +122,6 @@ def keypoint_random_crop(
     """Keypoint random crop.
 
     Args:
-    ----
         keypoint: (tuple): A keypoint `(x, y, angle, scale)`.
         crop_height (int): Crop height.
         crop_width (int): Crop width.
@@ -136,7 +131,6 @@ def keypoint_random_crop(
         cols (int): Image width.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -173,7 +167,6 @@ def keypoint_center_crop(
     """Keypoint center crop.
 
     Args:
-    ----
         keypoint: A keypoint `(x, y, angle, scale)`.
         crop_height: Crop height.
         crop_width: Crop width.
@@ -181,7 +174,6 @@ def keypoint_center_crop(
         cols: Image width.
 
     Returns:
-    -------
         A keypoint `(x, y, angle, scale)`.
 
     """
@@ -213,7 +205,6 @@ def bbox_crop(
     """Crop a bounding box.
 
     Args:
-    ----
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         x_min:
         y_min:
@@ -223,7 +214,6 @@ def bbox_crop(
         cols: Image cols.
 
     Returns:
-    -------
         A cropped bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
