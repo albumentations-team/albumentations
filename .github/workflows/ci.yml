@@ -47,7 +47,12 @@ jobs:
       with:
         path: build
     - name: Run PyTest
-      run: pytest
+      run: pytest --cov .
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4.0.1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        slug: albumentations-team/albumentations
 
   check_code_formatting_types:
     name: Check code formatting with ruff and mypy + tests
