@@ -50,12 +50,20 @@ TEST_SEEDS = (0, 1, 42)
             "border_mode": 0,
             "value": [124, 116, 104],
             "position": "top_left"
-            }
+            },
+            A.GlassBlur:dict(sigma=0.8, max_delta=5, iterations=3, mode="exact"),
+            A.GridDropout: dict(
+        ratio=0.75,
+        unit_size_min=2,
+        unit_size_max=10,
+        shift_x=10,
+        shift_y=20,
+        random_offset=True,
+        fill_value=10,
+        mask_fill_value=20,
+    )
         },
         except_augmentations={
-            A.RandomCropNearBBox,
-            A.RandomSizedBBoxSafeCrop,
-            A.BBoxSafeRandomCrop,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
@@ -418,7 +426,21 @@ AUGMENTATION_CLS_PARAMS = [
             "border_mode": 0,
             "value": [124, 116, 104],
             "position": "top_left"
-            }]
+            }],
+    [A.GlassBlur, dict(sigma=0.8, max_delta=5, iterations=3, mode="exact")],
+    [
+        A.GridDropout,
+        dict(
+            ratio=0.75,
+            unit_size_min=2,
+            unit_size_max=10,
+            shift_x=10,
+            shift_y=20,
+            random_offset=True,
+            fill_value=10,
+            mask_fill_value=20,
+        )
+    ],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -429,8 +451,6 @@ AUGMENTATION_CLS_EXCEPT = {
     A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
-    A.GridDropout,
-    A.GlassBlur,
     A.TemplateTransform,
     A.MixUp
 }
@@ -487,7 +507,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
             A.RandomResizedCrop: {"height": 10, "width": 10},
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
@@ -501,25 +520,22 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             "border_mode": 0,
             "value": [124, 116, 104],
             "position": "top_left"
-            }
+            },
         },
         except_augmentations={
-            A.RandomCropNearBBox,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CoarseDropout,
-            A.CropNonEmptyMaskIfExists,
-            A.ElasticTransform,
-            A.GridDistortion,
             A.RandomGridShuffle,
-            A.GridDropout,
             A.MaskDropout,
             A.OpticalDistortion,
             A.TemplateTransform,
             A.XYMasking,
-            A.MixUp
+            A.MixUp,
+            A.CropNonEmptyMaskIfExists,
+            A.GridDropout
         },
     ),
 )
@@ -569,16 +585,13 @@ def test_augmentations_for_bboxes_serialization(
             }
         },
         except_augmentations={
-            A.RandomCropNearBBox,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
-            A.CoarseDropout,
             A.CropNonEmptyMaskIfExists,
             A.ElasticTransform,
             A.GridDistortion,
-            A.RandomGridShuffle,
             A.GridDropout,
             A.MaskDropout,
             A.OpticalDistortion,
@@ -1023,7 +1036,7 @@ def test_template_transform_serialization(image, template, seed, p):
             A.TemplateTransform,
             A.MixUp,
             A.ShiftScaleRotate,
-        },) )
+        }) )
 def test_augmentations_serialization(augmentation_cls, params):
     instance = augmentation_cls(**params)
 
