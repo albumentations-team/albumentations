@@ -341,8 +341,9 @@ class RandomSnow(ImageOnlyTransform):
         super().__init__(always_apply, p)
 
         if not 0 <= snow_point_lower <= snow_point_upper <= 1:
-            msg = "Invalid combination of snow_point_lower and snow_point_upper. Got: {}".format(
-                (snow_point_lower, snow_point_upper)
+            msg = (
+                "Invalid combination of snow_point_lower and snow_point_upper. "
+                f"Got: {(snow_point_lower, snow_point_upper)}"
             )
             raise ValueError(msg)
         if brightness_coeff < 0:
@@ -741,8 +742,9 @@ class RandomSunFlare(ImageOnlyTransform):
         if not 0 <= angle_lower < angle_upper <= 1:
             raise ValueError(f"Invalid combination of angle_lower nad angle_upper. Got: {(angle_lower, angle_upper)}")
         if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
-            msg = "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. Got: {}".format(
-                (num_flare_circles_lower, num_flare_circles_upper)
+            msg = (
+                "Invalid combination of num_flare_circles_lower and num_flare_circles_upper. "
+                f"Got: {(num_flare_circles_lower, num_flare_circles_upper)}"
             )
             raise ValueError(msg)
 
@@ -889,9 +891,8 @@ class RandomShadow(ImageOnlyTransform):
         if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
             raise ValueError(f"Invalid shadow_roi. Got: {shadow_roi}")
         if not 0 <= num_shadows_lower <= num_shadows_upper:
-            msg = "Invalid combination of num_shadows_lower nad num_shadows_upper. Got: {}".format(
-                (num_shadows_lower, num_shadows_upper)
-            )
+            msg = "Invalid combination of num_shadows_lower nad num_shadows_upper. "
+            f"Got: {(num_shadows_lower, num_shadows_upper)}"
             raise ValueError(msg)
 
         self.shadow_roi = shadow_roi
@@ -1171,8 +1172,8 @@ class Equalize(ImageOnlyTransform):
     def targets_as_params(self) -> List[str]:
         return ["image", *list(self.mask_params)]
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
-        return ("mode", "by_channels")
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("mode", "by_channels", "mask", "mask_params")
 
 
 class RGBShift(ImageOnlyTransform):
@@ -2325,9 +2326,8 @@ class TemplateTransform(ImageOnlyTransform):
         if get_num_channels(template) not in [1, get_num_channels(img)]:
             msg = (
                 "Template must be a single channel or "
-                "has the same number of channels as input image ({}), got {}".format(
-                    get_num_channels(img), get_num_channels(template)
-                )
+                "has the same number of channels as input "
+                f"image ({get_num_channels(img)}), got {get_num_channels(template)}"
             )
             raise ValueError(msg)
 

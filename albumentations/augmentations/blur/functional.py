@@ -13,7 +13,7 @@ from albumentations.augmentations.utils import (
     preserve_shape,
 )
 
-__all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur"]
+__all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur", "defocus", "central_zoom", "zoom_blur"]
 
 TWO = 2
 EIGHT = 8

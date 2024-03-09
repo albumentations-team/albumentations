@@ -2,6 +2,8 @@ import importlib.util
 import json
 import warnings
 from abc import ABC, ABCMeta, abstractmethod
+from collections.abc import Mapping, Sequence
+from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, Optional, TextIO, Tuple, Type, Union
 
@@ -98,9 +100,10 @@ class Serializable(metaclass=SerializableMeta):
 
             transform_dict = {}
             warnings.warn(
-                "Got NotImplementedError while trying to serialize {obj}. Object arguments are not preserved. "
-                "Implement either '{cls_name}.get_transform_init_args_names' or '{cls_name}.get_transform_init_args' "
-                "method to make the transform serializable".format(obj=self, cls_name=self.__class__.__name__)
+                f"Got NotImplementedError while trying to serialize {self}. Object arguments are not preserved. "
+                f"Implement either '{self.__class__.__name__}.get_transform_init_args_names' "
+                f"or '{self.__class__.__name__}.get_transform_init_args' "
+                "method to make the transform serializable"
             )
         return {"__version__": __version__, "transform": transform_dict}
 
@@ -165,6 +168,17 @@ def check_data_format(data_format: str) -> None:
         raise ValueError(f"Unknown data_format {data_format}. Supported formats are: 'json' and 'yaml'")
 
 
+def serialize_enum(obj: Any) -> Any:
+    """Recursively search for Enum objects and convert them to their value.
+    Also handle any Mapping or Sequence types.
+    """
+    if isinstance(obj, Mapping):
+        return {k: serialize_enum(v) for k, v in obj.items()}
+    if isinstance(obj, Sequence) and not isinstance(obj, str):  # exclude strings since they're also sequences
+        return [serialize_enum(v) for v in obj]
+    return obj.value if isinstance(obj, Enum) else obj
+
+
 def save(
     transform: "Serializable",
     filepath_or_buffer: Union[str, Path, TextIO],
@@ -192,6 +206,7 @@ def save(
     """
     check_data_format(data_format)
     transform_dict = transform.to_dict(on_not_implemented_error=on_not_implemented_error)
+    transform_dict = serialize_enum(transform_dict)
 
     # Determine whether to write to a file or a file-like object
     if isinstance(filepath_or_buffer, (str, Path)):  # It's a filepath

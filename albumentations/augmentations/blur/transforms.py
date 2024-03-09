@@ -7,9 +7,10 @@ import numpy as np
 
 from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
-from albumentations.augmentations.blur import functional as F
 from albumentations.core.transforms_interface import ImageOnlyTransform, to_tuple
 from albumentations.core.types import ScaleFloatType, ScaleIntType
+
+from . import functional as F
 
 __all__ = ["Blur", "MotionBlur", "GaussianBlur", "GlassBlur", "AdvancedBlur", "MedianBlur", "Defocus", "ZoomBlur"]
 
@@ -273,8 +274,8 @@ class GlassBlur(Blur):
 
         return {"dxy": dxy}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str]:
-        return ("sigma", "max_delta", "iterations")
+    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+        return ("sigma", "max_delta", "iterations", "mode")
 
     @property
     def targets_as_params(self) -> List[str]:

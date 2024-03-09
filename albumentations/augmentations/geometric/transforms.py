@@ -1253,6 +1253,7 @@ class PadIfNeeded(DualTransform):
             "min_width",
             "pad_height_divisor",
             "pad_width_divisor",
+            "position",
             "border_mode",
             "value",
             "mask_value",

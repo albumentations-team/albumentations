@@ -1,6 +1,7 @@
 import math
 import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from warnings import warn
 
 import cv2
 import numpy as np
@@ -481,7 +482,8 @@ class RandomCropNearBBox(DualTransform):
             to `cropping_bbox` dimension.
             If max_part_shift is a single float, the range will be (max_part_shift, max_part_shift).
             Default (0.3, 0.3).
-        cropping_box_key (str): Additional target key for cropping box. Default `cropping_bbox`
+        cropping_bbox_key (str): Additional target key for cropping box. Default `cropping_bbox`.
+        cropping_box_key (str): [Deprecated] Use `cropping_bbox_key` instead.
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
@@ -491,7 +493,7 @@ class RandomCropNearBBox(DualTransform):
         uint8, float32
 
     Examples:
-        >>> aug = Compose([RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_box_key='test_box')],
+        >>> aug = Compose([RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key='test_box')],
         >>>              bbox_params=BboxParams("pascal_voc"))
         >>> result = aug(image=image, bboxes=bboxes, test_box=[0, 5, 10, 20])
 
@@ -502,13 +504,26 @@ class RandomCropNearBBox(DualTransform):
     def __init__(
         self,
         max_part_shift: ScaleFloatType = (0.3, 0.3),
-        cropping_box_key: str = "cropping_bbox",
+        cropping_bbox_key: str = "cropping_bbox",
+        cropping_box_key: Optional[str] = None,  # Deprecated
         always_apply: bool = False,
         p: float = 1.0,
     ):
         super().__init__(always_apply, p)
         self.max_part_shift = to_tuple(max_part_shift, low=max_part_shift)
-        self.cropping_bbox_key = cropping_box_key
+
+        # Check for deprecated parameter and issue warning
+        if cropping_box_key is not None:
+            warn(
+                "The parameter 'cropping_box_key' is deprecated and will be removed in future versions. "
+                "Use 'cropping_bbox_key' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            # Ensure the new parameter is used even if the old one is passed
+            cropping_bbox_key = cropping_box_key
+
+        self.cropping_bbox_key = cropping_bbox_key
 
         if min(self.max_part_shift) < 0 or max(self.max_part_shift) > 1:
             raise ValueError(f"Invalid max_part_shift. Got: {max_part_shift}")
@@ -552,8 +567,8 @@ class RandomCropNearBBox(DualTransform):
     def targets_as_params(self) -> List[str]:
         return [self.cropping_bbox_key]
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
-        return ("max_part_shift",)
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return ("max_part_shift", "cropping_bbox_key")
 
 
 class BBoxSafeRandomCrop(DualTransform):

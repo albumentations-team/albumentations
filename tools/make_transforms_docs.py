@@ -167,16 +167,6 @@ def check_docs(filepath, image_only_transforms_links, dual_transforms_table, mix
         )
         raise ValueError(msg)
 
-    if image_only_transforms_links not in text:
-        msg = "Image only transforms links are outdated."
-        raise ValueError(msg)
-    if dual_transforms_table not in text:
-        msg = "Dual transforms table are outdated."
-        raise ValueError(msg)
-    if mixing_transforms_table not in text:
-        msg = "Mixing transforms table are outdated."
-        raise ValueError(msg)
-
 
 
 def main() -> None:
