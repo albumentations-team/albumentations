@@ -173,9 +173,7 @@ def serialize_enum(obj: Any) -> Any:
         return {k: serialize_enum(v) for k, v in obj.items()}
     if isinstance(obj, list):
         return [serialize_enum(v) for v in obj]
-    if isinstance(obj, Enum):
-        return obj.value  # Convert Enum to its value
-    return obj
+    return obj.value if isinstance(obj, Enum) else obj
 
 
 def save(
