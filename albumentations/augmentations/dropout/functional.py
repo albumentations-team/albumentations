@@ -7,6 +7,8 @@ from albumentations.core.types import ColorType, KeypointType
 
 TWO = 2
 
+__all__ = ["cutout", "channel_dropout", "keypoint_in_hole"]
+
 
 @preserve_shape
 def channel_dropout(

@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import pytest
 from deepdiff import DeepDiff
+import inspect
 
 import albumentations as A
 import albumentations.augmentations.geometric.functional as FGeometric
@@ -43,6 +44,13 @@ TEST_SEEDS = (0, 1, 42)
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            }
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -403,7 +411,14 @@ AUGMENTATION_CLS_PARAMS = [
             "mask_fill_value": 1,
             "fill_value": 0,
         },
-    ]
+    ],
+     [A.PadIfNeeded, {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            }]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -480,6 +495,13 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
+             A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            }
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -538,6 +560,13 @@ def test_augmentations_for_bboxes_serialization(
                 "fill_value": 0,
                 "mask_fill_value": 1,
             },
+             A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            }
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -861,8 +890,8 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
     buffer.close()
 
     assert (
-        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict()) == {}
-    ), "The loaded transform is not equal to the original one"
+        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)]) == {}
+    ), f"The loaded transform is not equal to the original one {DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)])}"
 
     set_seed(seed)
     image1 = transform(image=image)["image"]
@@ -898,8 +927,8 @@ def test_serialization_conversion_with_totensor(transform_file_name, data_format
     buffer.close()  # Ensure the buffer is closed after use
 
     assert (
-        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict()) == {}
-    ), "The loaded transform is not equal to the original one"
+        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)]) == {}
+    ), f"The loaded transform is not equal to the original one {DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)])}"
 
     set_seed(seed)
     image1 = transform(image=image)["image"]
@@ -959,3 +988,51 @@ def test_template_transform_serialization(image, template, seed, p):
     deserialized_aug_data = deserialized_aug(image=image)
 
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+
+
+@pytest.mark.parametrize( ["augmentation_cls", "params"], get_transforms(custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
+                "mask_y_length": 10,
+                "fill_value": 0,
+                "mask_fill_value": 1,
+            },
+             A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            },
+             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10}
+        },                                                                        except_augmentations={
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.Lambda,
+            A.TemplateTransform,
+            A.MixUp,
+            A.ShiftScaleRotate,
+        },) )
+def test_augmentations_serialization(augmentation_cls, params):
+    instance = augmentation_cls(**params)
+
+    # Retrieve the constructor's parameters, except 'self', "always_apply"\
+    init_params = inspect.signature(augmentation_cls.__init__).parameters
+    expected_args = set(init_params.keys()) - {'self', "always_apply"}
+
+    # Retrieve the arguments reported by the instance's get_transform_init_args_names
+    reported_args = set(instance.to_dict()["transform"].keys()) - {'__class_fullname__', "always_apply"}
+
+    # Check if the reported arguments match the expected arguments
+    assert expected_args == reported_args, f"Mismatch in {augmentation_cls.__name__}: Expected {expected_args}, got {reported_args}"

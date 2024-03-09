@@ -481,7 +481,7 @@ class RandomCropNearBBox(DualTransform):
             to `cropping_bbox` dimension.
             If max_part_shift is a single float, the range will be (max_part_shift, max_part_shift).
             Default (0.3, 0.3).
-        cropping_box_key (str): Additional target key for cropping box. Default `cropping_bbox`
+        cropping_bbox_key (str): Additional target key for cropping box. Default `cropping_bbox`
         p (float): probability of applying the transform. Default: 1.
 
     Targets:
@@ -502,13 +502,13 @@ class RandomCropNearBBox(DualTransform):
     def __init__(
         self,
         max_part_shift: ScaleFloatType = (0.3, 0.3),
-        cropping_box_key: str = "cropping_bbox",
+        cropping_bbox_key: str = "cropping_bbox",
         always_apply: bool = False,
         p: float = 1.0,
     ):
         super().__init__(always_apply, p)
         self.max_part_shift = to_tuple(max_part_shift, low=max_part_shift)
-        self.cropping_bbox_key = cropping_box_key
+        self.cropping_bbox_key = cropping_bbox_key
 
         if min(self.max_part_shift) < 0 or max(self.max_part_shift) > 1:
             raise ValueError(f"Invalid max_part_shift. Got: {max_part_shift}")
@@ -552,8 +552,8 @@ class RandomCropNearBBox(DualTransform):
     def targets_as_params(self) -> List[str]:
         return [self.cropping_bbox_key]
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
-        return ("max_part_shift",)
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return ("max_part_shift", "cropping_bbox_key")
 
 
 class BBoxSafeRandomCrop(DualTransform):
