@@ -743,7 +743,7 @@ class RandomSunFlare(ImageOnlyTransform):
             raise ValueError(f"Invalid combination of angle_lower nad angle_upper. Got: {(angle_lower, angle_upper)}")
         if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
             msg = (
-                "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. "
+                "Invalid combination of num_flare_circles_lower and num_flare_circles_upper. "
                 f"Got: {(num_flare_circles_lower, num_flare_circles_upper)}"
             )
             raise ValueError(msg)
