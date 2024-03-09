@@ -341,8 +341,10 @@ class RandomSnow(ImageOnlyTransform):
         super().__init__(always_apply, p)
 
         if not 0 <= snow_point_lower <= snow_point_upper <= 1:
-            msg = "Invalid combination of snow_point_lower and snow_point_upper. "
-            f"Got: {(snow_point_lower, snow_point_upper)}"
+            msg = (
+                "Invalid combination of snow_point_lower and snow_point_upper. "
+                f"Got: {(snow_point_lower, snow_point_upper)}"
+            )
             raise ValueError(msg)
         if brightness_coeff < 0:
             raise ValueError(f"brightness_coeff must be greater than 0. Got: {brightness_coeff}")
@@ -740,8 +742,10 @@ class RandomSunFlare(ImageOnlyTransform):
         if not 0 <= angle_lower < angle_upper <= 1:
             raise ValueError(f"Invalid combination of angle_lower nad angle_upper. Got: {(angle_lower, angle_upper)}")
         if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
-            msg = "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. "
-            f"Got: {(num_flare_circles_lower, num_flare_circles_upper)}"
+            msg = (
+                "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. "
+                f"Got: {(num_flare_circles_lower, num_flare_circles_upper)}"
+            )
             raise ValueError(msg)
 
         self.flare_center_lower_x = flare_center_lower_x
