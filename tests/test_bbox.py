@@ -11,6 +11,7 @@ from albumentations.core.bbox_utils import (
     denormalize_bboxes,
     normalize_bbox,
     normalize_bboxes,
+    get_numpy_2d_array,
 )
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp
@@ -193,7 +194,7 @@ def test_compose_with_bbox_noop(bboxes, bbox_format, labels):
         aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format})
         transformed = aug(image=image, bboxes=bboxes)
     assert np.array_equal(transformed["image"], image)
-    assert np.all(np.isclose(transformed["bboxes"], bboxes))
+    assert np.all(np.isclose(transformed["bboxes"].tolist(), bboxes))
 
 
 @pytest.mark.parametrize(["bboxes", "bbox_format"], [[[[20, 30, 40, 50]], "coco"]])
@@ -222,9 +223,9 @@ def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
     aug = Compose([NoOp(p=1.0)], bbox_params={"format": bbox_format, "label_fields": list(labels.keys())})
     transformed = aug(image=image, bboxes=bboxes, **labels)
     assert np.array_equal(transformed["image"], image)
-    assert transformed["bboxes"] == bboxes
+    assert transformed["bboxes"].astype(int).tolist() == [list(i) for i in bboxes]
     for k, v in labels.items():
-        assert transformed[k] == v
+        assert transformed[k].tolist() == v
 
 
 def test_random_sized_crop_size():
@@ -281,4 +282,4 @@ def test_bbox_params_edges(transforms, bboxes, result_bboxes, min_area, min_visi
     image = np.empty([100, 100, 3], dtype=np.uint8)
     aug = Compose(transforms, bbox_params=BboxParams("pascal_voc", min_area=min_area, min_visibility=min_visibility))
     res = aug(image=image, bboxes=bboxes)["bboxes"]
-    assert np.allclose(res, result_bboxes)
+    assert np.allclose(res.tolist(), result_bboxes)

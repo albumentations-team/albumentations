@@ -8,6 +8,7 @@ import numpy as np
 
 from .serialization import Serializable, get_shortest_class_fullname
 from .types import (
+    BBoxesInternalType,
     BoxInternalType,
     BoxType,
     ColorType,
@@ -296,7 +297,14 @@ class DualTransform(BasicTransform):
         msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], *args: Any, **params: Any) -> Sequence[BoxType]:
+    def apply_to_bboxes(
+        self, bboxes: Union[BBoxesInternalType, Sequence[BoxType]], *args: Any, **params: Any
+    ) -> Union[BBoxesInternalType, Sequence[BoxType]]:
+        if isinstance(bboxes, BBoxesInternalType):
+            result = [self.apply_to_bbox(bbox, **params) for bbox in bboxes.data]
+            result = np.stack(result) if result else np.empty_like(bboxes, shape=[0, 4])
+            return BBoxesInternalType(result, bboxes.labels)
+
         return [
             self.apply_to_bbox(cast(BoxInternalType, tuple(cast(BoxInternalType, bbox[:4]))), **params)
             + tuple(bbox[4:])

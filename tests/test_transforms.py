@@ -1162,7 +1162,7 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     res = t(image=image, **targets)
 
     for key, value in expected.items():
-        assert np.allclose(np.array(value), np.array(res[key])), key
+        assert np.allclose(np.array(value).tolist(), np.array(res[key]).tolist()), key
 
 
 @pytest.mark.parametrize(
@@ -1242,7 +1242,7 @@ def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: f
     transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
 
     res = transform(image=image, bboxes=bboxes)["bboxes"]
-    assert res == expected
+    assert np.allclose(res.tolist(), expected)
 
 
 def test_bbox_clipping_perspective():

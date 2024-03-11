@@ -1,13 +1,31 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Type, Union
 
 import numpy as np
 
 from .serialization import Serializable
-from .types import BoxOrKeypointType, SizeType
+from .types import DataWithLabels, SizeType, TBBoxesOrKeypoints
 
 if TYPE_CHECKING:
     import torch
+
+
+DATA_DIM = 4
+INSIDE_TARGET_LABELS_NAME = "_INSIDE_TARGET_LABELS"
+
+
+def get_numpy_2d_array(data: Any) -> np.ndarray:
+    if not isinstance(data, np.ndarray):
+        data = np.array(data)
+
+    if data.size == 0:
+        data = data.reshape(0, 4)
+    if data.ndim == 1:
+        data = np.expand_dims(data, 1)
+    elif data.ndim != 2:  # noqa: PLR2004
+        raise ValueError(f"Expected 2d array. Got: {data.ndim}d")
+
+    return data
 
 
 def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
@@ -55,6 +73,10 @@ class DataProcessor(ABC):
                     self.data_fields.append(k)
 
     @property
+    def internal_type(self) -> Optional[Type[DataWithLabels]]:
+        return None
+
+    @property
     @abstractmethod
     def default_data_name(self) -> str:
         raise NotImplementedError
@@ -72,18 +94,23 @@ class DataProcessor(ABC):
             data[data_name] = self.filter(data[data_name], rows, cols)
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
 
-        return self.remove_label_fields_from_data(data)
+        return self.convert_from_internal_type(data)
 
-    def preprocess(self, data: Dict[str, Any]) -> None:
-        data = self.add_label_fields_to_data(data)
+    def preprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.internal_type is not None:
+            data = self.convert_to_internal_type(data)
+        else:
+            data = self.add_label_fields_to_data(data)
 
         rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
+        return data
+
     def check_and_convert(
-        self, data: List[BoxOrKeypointType], rows: int, cols: int, direction: str = "to"
-    ) -> List[BoxOrKeypointType]:
+        self, data: TBBoxesOrKeypoints, rows: int, cols: int, direction: str = "to"
+    ) -> TBBoxesOrKeypoints:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -96,22 +123,57 @@ class DataProcessor(ABC):
         raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(self, data: Sequence[BoxOrKeypointType], rows: int, cols: int) -> Sequence[BoxOrKeypointType]:
+    def filter(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> TBBoxesOrKeypoints:
         pass
 
     @abstractmethod
-    def check(self, data: List[BoxOrKeypointType], rows: int, cols: int) -> None:
+    def check(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: List[BoxOrKeypointType], rows: int, cols: int) -> List[BoxOrKeypointType]:
+    def convert_to_albumentations(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> TBBoxesOrKeypoints:
         pass
 
     @abstractmethod
-    def convert_from_albumentations(
-        self, data: List[BoxOrKeypointType], rows: int, cols: int
-    ) -> List[BoxOrKeypointType]:
+    def convert_from_albumentations(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> TBBoxesOrKeypoints:
         pass
+
+    def convert_to_internal_type(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        if self.internal_type is None:
+            return data
+
+        result_data = {**data}
+
+        def set_data_with_labels(data_name: str) -> None:
+            current_data = result_data[data_name]
+            values = current_data.data[:, :4]
+            current_data.data = values
+            current_data.labels[INSIDE_TARGET_LABELS_NAME] = [i[4:] for i in data[data_name]]  # to preserve type
+
+        for data_name in self.data_fields:
+            result_data[data_name] = self.internal_type(data=get_numpy_2d_array(data[data_name]))
+            if self.params.label_fields:
+                if result_data[data_name].data.shape[1] != DATA_DIM:
+                    if INSIDE_TARGET_LABELS_NAME in data:
+                        err_msg = (
+                            "If labels field is set data must have 4 values"
+                            f" or default label name `{INSIDE_TARGET_LABELS_NAME}` must be free."
+                        )
+                        raise ValueError(err_msg)
+                    set_data_with_labels(data_name)
+
+                for field in self.params.label_fields:
+                    if len(data[data_name]) != len(data[field]):
+                        err_msg = (
+                            f"{data_name} and {field} has different length."
+                            f" {field} can not be used as labels for {data_name}"
+                        )
+                        raise ValueError(err_msg)
+
+                    result_data[data_name].labels[field] = data[field]
+            else:
+                set_data_with_labels(data_name)
+        return result_data
 
     def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
         if self.params.label_fields is None:
@@ -127,13 +189,28 @@ class DataProcessor(ABC):
                 data[data_name] = data_with_added_field
         return data
 
-    def remove_label_fields_from_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if self.params.label_fields is None:
-            return data
+    def convert_from_internal_type(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        result_data = {**data}
         for data_name in self.data_fields:
-            label_fields_len = len(self.params.label_fields)
-            for idx, field in enumerate(self.params.label_fields):
-                data[field] = [bbox[-label_fields_len + idx] for bbox in data[data_name]]
-            if label_fields_len:
-                data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
-        return data
+            current_data = data[data_name]
+            label_fields_len = len(self.params.label_fields) if self.params.label_fields is not None else 0
+            if isinstance(current_data, DataWithLabels):
+                if label_fields_len:
+                    for field in self.params.label_fields:  # type: ignore[union-attr]
+                        result_data[field] = current_data.labels[field]
+
+                if INSIDE_TARGET_LABELS_NAME in current_data.labels:
+                    labels = current_data.labels[INSIDE_TARGET_LABELS_NAME]
+                    if labels.size:
+                        result_data[data_name] = np.concatenate(
+                            [current_data.data, labels.reshape(len(current_data), -1)], axis=1
+                        )
+                        continue
+
+                result_data[data_name] = current_data.data
+            elif self.params.label_fields is not None:
+                for idx, field in enumerate(self.params.label_fields):
+                    result_data[field] = [bbox[-label_fields_len + idx] for bbox in data[data_name]]
+                if label_fields_len:
+                    result_data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
+        return result_data

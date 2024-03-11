@@ -216,7 +216,7 @@ class Compose(BaseCompose):
         )
 
         for p in self.processors.values():
-            p.preprocess(data)
+            data = p.preprocess(data)
 
         for t in transforms:
             data = t(**data)
@@ -226,7 +226,7 @@ class Compose(BaseCompose):
         data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
         for p in self.processors.values():
-            p.postprocess(data)
+            data = p.postprocess(data)
 
         return data
 

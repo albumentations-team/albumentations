@@ -1,6 +1,6 @@
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, Sequence, Tuple, TypedDict, Union
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, TypedDict, TypeVar, Union
 
 import numpy as np
 from typing_extensions import NotRequired
@@ -50,3 +50,28 @@ class Targets(Enum):
     BBOXES = "BBoxes"
     KEYPOINTS = "Keypoints"
     GLOBAL_LABEL = "Global Label"
+
+
+class DataWithLabels:
+    def __init__(self, data: np.ndarray, labels: Optional[Dict[str, Any]] = None):
+        self.data = data.astype(float)
+        self.labels = labels if labels is not None else {}
+
+    def __repr__(self) -> str:
+        return f"data={self.data} labels={self.labels}"
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, item: Union[int, slice]) -> Union[int, float, np.ndarray]:
+        return self.data[item]
+
+
+class BBoxesInternalType(DataWithLabels):
+    pass
+
+
+TBBoxesOrKeypoints = TypeVar("TBBoxesOrKeypoints", bound=Union[DataWithLabels, Sequence[BoxOrKeypointType]])
+TRawBboxesOrKeypoints = TypeVar(
+    "TRawBboxesOrKeypoints", bound=Union[np.ndarray, Sequence[Union[BoxInternalType, KeypointInternalType]]]
+)
