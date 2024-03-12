@@ -74,7 +74,22 @@ class MixUp(ReferenceBasedTransform):
                                          mask=np.random.randint(0, 4, (100, 100, 1), dtype=np.uint8),
                                          global_label=np.random.choice([0, 1], size=3)) for i in range(10)]
 
-        aug = A.Compose([A.RandomRotate90(), A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)])
+        # In this example, the lambda function simply returns its input, which works well for data already in the expected format.
+        # For more complex scenarios, where the data might not be in the required format or additional processing is needed,
+        # a more sophisticated function can be implemented. Below is a hypothetical example where the input data is a file path,
+        # and the function reads the image file, converts it to a specific format, and possibly performs other preprocessing steps.
+
+        # Example of a more complex read_fn that reads an image from a file path, converts it to RGB, and resizes it.
+        # def custom_read_fn(file_path):
+        #     from PIL import Image
+        #     image = Image.open(file_path).convert('RGB')
+        #     image = image.resize((100, 100))  # Example resize, adjust as needed.
+        #     return np.array(image)
+
+        # aug = A.Compose([A.RandomRotate90(), A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)])
+
+        # For simplicity, the original lambda function is used in this example. Replace `lambda x: x` with `custom_read_fn`
+        # if you need to process the data more extensively.
 
         # Apply augmentations
         image = np.empty([100, 100, 3], dtype=np.uint8)
