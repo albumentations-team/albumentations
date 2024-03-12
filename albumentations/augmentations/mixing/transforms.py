@@ -37,7 +37,8 @@ class MixUp(ReferenceBasedTransform):
                 - The returned dictionary must include an 'image' key with a numpy array value.
                 - It may also include 'mask', 'global_label' each associated with numpy array values.
             Defaults to a function that assumes input dictionary contains numpy arrays and directly returns it.
-        mix_coef_return_name (str): With this name will be returned applied alpha coefficient.
+         mix_coef_return_name (str): Name used for the applied alpha coefficient in the returned dictionary.
+            Defaults to "mix_coef".
         alpha (float):
             The alpha parameter for the Beta distribution, influencing the mix's balance. Must be ≥ 0.
             Higher values lead to more uniform mixing. Defaults to 0.4.
