@@ -8,11 +8,6 @@ from .utils import set_seed
 def _calc(args):
     return args[0](*args[1])
 
-def _calc_shuffle(args):
-    func, arr = args
-    func(arr)  # Perform the shuffle in-place
-    return arr  # Return the shuffled array for verification
-
 @pytest.mark.parametrize(
     ["func", "args"],
     [
