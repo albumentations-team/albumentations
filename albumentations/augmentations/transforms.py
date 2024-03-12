@@ -106,8 +106,8 @@ class RandomGridShuffle(DualTransform):
 
         n, m = grid
 
-        if n <= 0 or m <= 0:
-            raise ValueError(f"Grid's values must be positive. Current grid [{n}, {m}]")
+if not all(isinstance(dim, int) and dim > 0 for dim in [n, m]):
+    raise ValueError(f"Grid dimensions must be positive integers. Current grid dimensions: [{n}, {m}]")
 
         self.grid = grid
 
