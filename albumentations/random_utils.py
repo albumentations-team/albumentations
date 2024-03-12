@@ -103,3 +103,12 @@ def choice(
     if random_state is None:
         random_state = get_random_state()
     return random_state.choice(a, size, replace, p)
+
+
+def shuffle(
+    a: np.ndarray,
+    random_state: Optional[np.random.RandomState] = None,
+) -> np.ndarray:
+    if random_state is None:
+        random_state = get_random_state()
+    random_state.shuffle(a)

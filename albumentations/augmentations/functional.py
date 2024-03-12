@@ -986,25 +986,24 @@ def noop(input_obj: Any, **params: Any) -> Any:
 
 
 def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray) -> np.ndarray:
-    """Swap tiles on image.
+    """Swap tiles on the image according to the new format.
 
     Args:
         image: Input image.
-        tiles: array of tuples(
-            current_left_up_corner_row, current_left_up_corner_col,
-            old_left_up_corner_row, old_left_up_corner_col,
-            height_tile, width_tile)
+        tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
 
     Returns:
-        np.ndarray: Output image.
-
+        np.ndarray: Output image with tiles swapped according to the random shuffle.
     """
-    new_image = image.copy()
+    # If no tiles are provided, return a copy of the original image
+    if tiles.size == 0:
+        return image.copy()
 
-    for tile in tiles:
-        new_image[tile[0] : tile[0] + tile[4], tile[1] : tile[1] + tile[5]] = image[
-            tile[2] : tile[2] + tile[4], tile[3] : tile[3] + tile[5]
-        ]
+    # Create a copy of the image to retain original for reference
+    new_image = np.empty_like(image)
+    for start_y, start_x, end_y, end_x in tiles:
+        # Assign the corresponding tile from the original image to the new image
+        new_image[start_y:end_y, start_x:end_x] = image[start_y:end_y, start_x:end_x]
 
     return new_image
 
@@ -1395,3 +1394,33 @@ def spatter(
         raise ValueError("Unsupported spatter mode: " + str(mode))
 
     return img * 255
+
+
+def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> np.ndarray:
+    """Splits an image shape into a uniform grid specified by the grid dimensions.
+
+    Args:
+        image_shape (Tuple[int, int]): The shape of the image as (height, width).
+        grid (Tuple[int, int]): The grid size as (rows, columns).
+
+    Returns:
+        np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
+    """
+    height, width = image_shape
+    n_rows, n_cols = grid
+
+    # Compute split points for the grid
+    height_splits = np.linspace(0, height, n_rows + 1, dtype=int)
+    width_splits = np.linspace(0, width, n_cols + 1, dtype=int)
+
+    # Initialize tiles coordinates
+    tiles = []
+
+    # Calculate tiles coordinates
+    for i in range(n_rows):
+        for j in range(n_cols):
+            start_y, end_y = height_splits[i], height_splits[i + 1]
+            start_x, end_x = width_splits[j], width_splits[j + 1]
+            tiles.append((start_y, start_x, end_y, end_x))
+
+    return np.array(tiles)
