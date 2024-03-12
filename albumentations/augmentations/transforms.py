@@ -139,7 +139,9 @@ if not all(isinstance(dim, int) and dim > 0 for dim in [n, m]):
                 new_y = (y - start_y) + new_start_y
                 return (new_x, new_y, *keypoint[2:])
 
-        # If the keypoint wasn't in any tile (shouldn't happen), return it unchanged
+        # If the keypoint wasn't in any tile (shouldn't happen), log a warning for debugging purposes
+        import warnings
+        warnings.warn("Keypoint not in any tile, returning it unchanged. This is unexpected and should be investigated.", RuntimeWarning)
         return keypoint
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
