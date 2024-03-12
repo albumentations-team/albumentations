@@ -37,6 +37,8 @@ class MixUp(ReferenceBasedTransform):
                 - The returned dictionary must include an 'image' key with a numpy array value.
                 - It may also include 'mask', 'global_label' each associated with numpy array values.
             Defaults to a function that assumes input dictionary contains numpy arrays and directly returns it.
+         mix_coef_return_name (str): Name used for the applied alpha coefficient in the returned dictionary.
+            Defaults to "mix_coef".
         alpha (float):
             The alpha parameter for the Beta distribution, influencing the mix's balance. Must be ≥ 0.
             Higher values lead to more uniform mixing. Defaults to 0.4.
@@ -65,10 +67,12 @@ class MixUp(ReferenceBasedTransform):
         reference_data: Optional[Union[Generator[ReferenceImage, None, None], Sequence[Any]]] = None,
         read_fn: Callable[[ReferenceImage], Any] = lambda x: {"image": x, "mask": None, "class_label": None},
         alpha: float = 0.4,
+        mix_coef_return_name: str = "mix_coef",
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
+        self.mix_coef_return_name = mix_coef_return_name
 
         if alpha < 0:
             msg = "Alpha must be >= 0."
@@ -151,3 +155,9 @@ class MixUp(ReferenceBasedTransform):
         # If mix_data is not None, calculate mix_coef and apply read_fn
         mix_coef = beta(self.alpha, self.alpha)  # Assuming beta is defined elsewhere
         return {"mix_data": self.read_fn(mix_data), "mix_coef": mix_coef}
+
+    def apply_with_params(self, params: Dict[str, Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
+        res = super().apply_with_params(params, *args, **kwargs)
+        if self.mix_coef_return_name:
+            res[self.mix_coef_return_name] = params["mix_coef"]
+        return res
