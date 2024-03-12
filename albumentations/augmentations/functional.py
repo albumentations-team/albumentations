@@ -61,6 +61,7 @@ __all__ = [
     "gray_to_rgb",
     "unsharp_mask",
     "MAX_VALUES_BY_DTYPE",
+    "split_uniform_grid",
 ]
 
 TWO = 2

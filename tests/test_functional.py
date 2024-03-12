@@ -1103,31 +1103,35 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     assert np.abs(image_int.astype(int) - image_float).max() <= 1
 
 
-# @pytest.mark.parametrize(
-#     "image_shape, grid, expected",
-#     [
-#         # Normal case: standard grids
-#         ((100, 200), (2, 2), np.array([[0, 0, 50, 100], [0, 100, 50, 200], [50, 0, 100, 100], [50, 100, 100, 200]])),
+@pytest.mark.parametrize(
+    "image_shape, grid, expected",
+    [
+        # Normal case: standard grids
+        ((100, 200), (2, 2), np.array([[0, 0, 50, 100], [0, 100, 50, 200], [50, 0, 100, 100], [50, 100, 100, 200]])),
 
-#         # Single row grid
-#         ((100, 200), (1, 4), np.array([[0, 0, 100, 50], [0, 50, 100, 100], [0, 100, 100, 150], [0, 150, 100, 200]])),
+        # Single row grid
+        ((100, 200), (1, 4), np.array([[0, 0, 100, 50], [0, 50, 100, 100], [0, 100, 100, 150], [0, 150, 100, 200]])),
 
-#         # Single column grid
-#         ((100, 200), (4, 1), np.array([[0, 0, 25, 200], [25, 0, 50, 200], [50, 0, 75, 200], [75, 0, 100, 200]])),
+        # Single column grid
+        ((100, 200), (4, 1), np.array([[0, 0, 25, 200], [25, 0, 50, 200], [50, 0, 75, 200], [75, 0, 100, 200]])),
 
-#         # Edge case: Grid size equals image size
-#         ((100, 200), (100, 200), np.array([[i, j, i+1, j+1] for i in range(100) for j in range(200)])),
+        # Edge case: Grid size equals image size
+        ((100, 200), (100, 200), np.array([[i, j, i+1, j+1] for i in range(100) for j in range(200)])),
 
-#         # Edge case: Very small image with larger grid in one direction
-#         ((1, 1), (1, 10), np.array([[0, i, 1, i+1] for i in range(10)])),
+        # Edge case: Image where width is much larger than height
+        ((10, 1000), (1, 10), np.array([[0, i * 100, 10, (i + 1) * 100] for i in range(10)])),
 
-#         # Edge case: Image where width is much larger than height
-#         ((10, 1000), (1, 10), np.array([[0, i * 100, 10, (i + 1) * 100] for i in range(10)])),
+        # Edge case: Image where height is much larger than width
+        ((1000, 10), (10, 1), np.array([[i * 100, 0, (i + 1) * 100, 10] for i in range(10)])),
 
-#         # Edge case: Image where height is much larger than width
-#         ((1000, 10), (10, 1), np.array([[i * 100, 0, (i + 1) * 100, 10] for i in range(10)])),
-#     ]
-# )
-# def test_split_uniform_grid(image_shape, grid, expected):
-#     result = F.split_uniform_grid(image_shape, grid)
-#     np.testing.assert_array_equal(result, expected)
+        # Corner case: height and width are not divisible by the number of splits
+        ((105, 205), (3, 4), np.array([
+            [0, 0, 35, 51], [0, 51, 35, 102], [0, 102, 35, 153], [0, 153, 35, 205],  # First row splits
+            [35, 0, 70, 51], [35, 51, 70, 102], [35, 102, 70, 153], [35, 153, 70, 205],  # Second row splits
+            [70, 0, 105, 51], [70, 51, 105, 102], [70, 102, 105, 153], [70, 153, 105, 205]  # Third row splits
+        ])),
+    ]
+)
+def test_split_uniform_grid(image_shape, grid, expected):
+    result = F.split_uniform_grid(image_shape, grid)
+    np.testing.assert_array_equal(result, expected)
