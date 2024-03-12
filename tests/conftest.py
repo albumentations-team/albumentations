@@ -4,7 +4,7 @@ import sys
 import numpy as np
 import pytest
 
-from albumentations.core.types import KeypointsInternalType
+from albumentations.core.types import KeypointsInternalType, BBoxesInternalType
 from albumentations.core.utils import INSIDE_TARGET_LABELS_NAME
 
 @pytest.fixture
@@ -28,7 +28,9 @@ def bboxes():
 
 @pytest.fixture
 def albumentations_bboxes():
-    return [[0.15, 0.12, 0.75, 0.30, 1], [0.55, 0.25, 0.90, 0.90, 2]]
+    return BBoxesInternalType(
+        np.array([[0.15, 0.12, 0.75, 0.30], [0.55, 0.25, 0.90, 0.90]]), labels={INSIDE_TARGET_LABELS_NAME: [1, 2]}
+    )
 
 
 @pytest.fixture
