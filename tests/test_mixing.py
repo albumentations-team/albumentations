@@ -40,7 +40,7 @@ def complex_read_fn_image(x):
             "reference_data": complex_image_generator(),
             "read_fn": complex_read_fn_image})] )
 def test_image_only(augmentation_cls, params, image):
-    aug = augmentation_cls(p=1, **params)
+    aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
     data = aug(image=image)
     assert data["image"].dtype == np.uint8
 
@@ -58,20 +58,25 @@ def test_image_only(augmentation_cls, params, image):
               ]
 )
 def test_image_global_label(augmentation_cls, params, image, global_label):
-    aug = augmentation_cls(p=1, **params)
+    aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
 
     data = aug(image=image, global_label=global_label)
 
     assert data["image"].dtype == np.uint8
 
-    reference_item = params["read_fn"](aug.reference_data[0])
+    reference_data = params["reference_data"][0]
+
+    reference_item = params["read_fn"](reference_data)
 
     reference_image = reference_item["image"]
     reference_global_label = reference_item["global_label"]
 
+    mix_coef = data["mix_coef"]
+
     mix_coeff_image = find_mix_coef(data["image"], image, reference_image)
     mix_coeff_label = find_mix_coef(data["global_label"], global_label, reference_global_label)
 
+    assert math.isclose(mix_coef, mix_coeff_image, abs_tol=0.01)
     assert math.isclose(mix_coeff_image, mix_coeff_label, abs_tol=0.01)
     assert 0 <= mix_coeff_image <= 1
 
@@ -85,16 +90,19 @@ def test_image_global_label(augmentation_cls, params, image, global_label):
                 "read_fn": lambda x: x})]
 )
 def test_image_mask_global_label(augmentation_cls, params, image, mask, global_label):
-    aug = augmentation_cls(p=1, **params)
+    aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
 
     data = aug(image=image, global_label=global_label, mask=mask)
 
-    assert data["image"].dtype == np.uint8
+    reference_data = params["reference_data"][0]
 
-    mix_coeff_image = find_mix_coef(data["image"], image, aug.reference_data[0]["image"])
-    mix_coeff_mask = find_mix_coef(data["mask"], mask, aug.reference_data[0]["mask"])
-    mix_coeff_label = find_mix_coef(data["global_label"], global_label, aug.reference_data[0]["global_label"])
+    mix_coef = data["mix_coef"]
 
+    mix_coeff_image = find_mix_coef(data["image"], image, reference_data["image"])
+    mix_coeff_mask = find_mix_coef(data["mask"], mask, reference_data["mask"])
+    mix_coeff_label = find_mix_coef(data["global_label"], global_label, reference_data["global_label"])
+
+    assert math.isclose(mix_coef, mix_coeff_image, abs_tol=0.01)
     assert math.isclose(mix_coeff_image, mix_coeff_label, abs_tol=0.01)
     assert math.isclose(mix_coeff_image, mix_coeff_mask, abs_tol=0.01)
     assert 0 <= mix_coeff_image <= 1
@@ -115,6 +123,8 @@ def test_additional_targets(image, mask, global_label):
 
     data = aug(image=image, global_label=global_label, mask=mask, image1=image1, global_label1=global_label1, mask1=mask1)
 
+    mix_coef = data["mix_coef"]
+
     assert data["image"].dtype == np.uint8
 
     mix_coeff_image = find_mix_coef(data["image"], image, reference_data[0]["image"])
@@ -125,6 +135,7 @@ def test_additional_targets(image, mask, global_label):
     mix_coeff_mask1 = find_mix_coef(data["mask1"], mask1, reference_data[0]["mask"])
     mix_coeff_label1 = find_mix_coef(data["global_label1"], global_label1, reference_data[0]["global_label"])
 
+    assert math.isclose(mix_coef, mix_coeff_image, abs_tol=0.01)
     assert math.isclose(mix_coeff_image, mix_coeff_label, abs_tol=0.01)
 
     assert math.isclose(mix_coeff_image, mix_coeff_mask, abs_tol=0.01)
@@ -176,6 +187,9 @@ def test_pipeline(augmentation_cls, params, image, mask, global_label):
 
     assert data["image"].dtype == np.uint8
 
+    mix_coef = data["mix_coef"]
+
     mix_coeff_label = find_mix_coef(data["global_label"], global_label, reference_data[0]["global_label"])
 
+    assert math.isclose(mix_coef, mix_coeff_label, abs_tol=0.01)
     assert 0 <= mix_coeff_label <= 1
