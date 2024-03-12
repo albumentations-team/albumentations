@@ -65,6 +65,11 @@ class MixUp(ReferenceBasedTransform):
         from albumentations.core.types import ReferenceImage
 
         # Prepare reference data
+        # Note: This code generates random reference data for demonstration purposes only.
+        # In real-world applications, it's crucial to use meaningful and representative data.
+        # The quality and relevance of your input data significantly impact the effectiveness
+        # of the augmentation process. Ensure your data closely aligns with your specific
+        # use case and application requirements.
         reference_data = [ReferenceImage(image=np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
                                          mask=np.random.randint(0, 4, (100, 100, 1), dtype=np.uint8),
                                          global_label=np.random.choice([0, 1], size=3)) for i in range(10)]
