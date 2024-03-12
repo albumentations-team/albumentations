@@ -1417,11 +1417,8 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
     # Initialize tiles coordinates
     tiles = []
 
-    # Calculate tiles coordinates
-    for i in range(n_rows):
-        for j in range(n_cols):
-            start_y, end_y = height_splits[i], height_splits[i + 1]
-            start_x, end_x = width_splits[j], width_splits[j + 1]
-            tiles.append((start_y, start_x, end_y, end_x))
+    # Calculate tiles coordinates using list comprehension for efficiency
+    tiles = [(height_splits[i], width_splits[j], height_splits[i + 1], width_splits[j + 1]) 
+             for i in range(n_rows) for j in range(n_cols)]
 
     return np.array(tiles)
