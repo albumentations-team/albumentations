@@ -8,7 +8,6 @@ from .utils import set_seed
 def _calc(args):
     return args[0](*args[1])
 
-
 @pytest.mark.parametrize(
     ["func", "args"],
     [
@@ -22,6 +21,7 @@ def _calc(args):
         [random_utils.random, [100]],
         [random_utils.choice, [np.arange(1000), 100]],
         [random_utils.beta, [0.3, 0.4]],
+        [random_utils.shuffle, [np.arange(1000)]]
     ],
 )
 def test_multiprocessing(func, args, mp_pool):
