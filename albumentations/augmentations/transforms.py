@@ -5,6 +5,7 @@ import warnings
 from enum import IntEnum
 from types import LambdaType
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from warnings import warn
 
 import cv2
 import numpy as np
@@ -106,8 +107,8 @@ class RandomGridShuffle(DualTransform):
 
         n, m = grid
 
-if not all(isinstance(dim, int) and dim > 0 for dim in [n, m]):
-    raise ValueError(f"Grid dimensions must be positive integers. Current grid dimensions: [{n}, {m}]")
+        if not all(isinstance(dim, int) and dim > 0 for dim in [n, m]):
+            raise ValueError(f"Grid dimensions must be positive integers. Current grid dimensions: [{n}, {m}]")
 
         self.grid = grid
 
@@ -137,11 +138,14 @@ if not all(isinstance(dim, int) and dim > 0 for dim in [n, m]):
                 # Map the keypoint to the new tile's position
                 new_x = (x - start_x) + new_start_x
                 new_y = (y - start_y) + new_start_y
+
                 return (new_x, new_y, *keypoint[2:])
 
         # If the keypoint wasn't in any tile (shouldn't happen), log a warning for debugging purposes
-        import warnings
-        warnings.warn("Keypoint not in any tile, returning it unchanged. This is unexpected and should be investigated.", RuntimeWarning)
+        warn(
+            "Keypoint not in any tile, returning it unchanged. This is unexpected and should be investigated.",
+            RuntimeWarning,
+        )
         return keypoint
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
