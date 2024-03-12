@@ -1414,10 +1414,7 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
     height_splits = np.linspace(0, height, n_rows + 1, dtype=int)
     width_splits = np.linspace(0, width, n_cols + 1, dtype=int)
 
-    # Initialize tiles coordinates
-    tiles = []
-
-    # Calculate tiles coordinates using list comprehension for efficiency
+    # Calculate tiles coordinates
     tiles = [
         (height_splits[i], width_splits[j], height_splits[i + 1], width_splits[j + 1])
         for i in range(n_rows)
