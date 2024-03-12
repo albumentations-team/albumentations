@@ -11,6 +11,7 @@ from albumentations.core.keypoints_utils import (
     convert_keypoint_to_albumentations,
     convert_keypoints_from_albumentations,
     convert_keypoints_to_albumentations,
+    KeypointsInternalType,
 )
 
 
@@ -120,7 +121,7 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
         aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format})
         transformed = aug(image=image, keypoints=keypoints)
     assert np.array_equal(transformed["image"], image)
-    assert transformed["keypoints"] == keypoints
+    assert np.allclose(transformed["keypoints"].tolist(), keypoints)
 
 
 @pytest.mark.parametrize(["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]])
@@ -146,9 +147,9 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, la
     aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": list(labels.keys())})
     transformed = aug(image=image, keypoints=keypoints, **labels)
     assert np.array_equal(transformed["image"], image)
-    assert transformed["keypoints"] == keypoints
+    assert np.allclose(transformed["keypoints"].tolist(), keypoints)
     for k, v in labels.items():
-        assert transformed[k] == v
+        assert np.allclose(transformed[k].tolist(), v)
 
 
 def test_random_sized_crop_size():
@@ -274,8 +275,8 @@ def test_compose_with_additional_targets():
     kp1 = [(15, 15), (55, 55)]
     aug = A.Compose([A.CenterCrop(50, 50)], keypoint_params={"format": "xy"}, additional_targets={"kp1": "keypoints"})
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
-    assert transformed["keypoints"] == [(25, 25)]
-    assert transformed["kp1"] == [(30, 30)]
+    assert np.allclose(transformed["keypoints"], [(25, 25)])
+    assert np.allclose(transformed["kp1"], [(30, 30)])
 
 
 @pytest.mark.parametrize(
@@ -319,6 +320,7 @@ def test_coarse_dropout():
 )
 def test_coarse_dropout_remove_keypoints(keypoints, expected_keypoints, holes):
     t = A.CoarseDropout()
-    result_keypoints = t.apply_to_keypoints(keypoints, holes)
+    result_keypoints = t.apply_to_keypoints(KeypointsInternalType(np.array(keypoints)), holes)
+    result_keypoints = [tuple(i) for i in result_keypoints.data]
 
     assert set(result_keypoints) == set(expected_keypoints)

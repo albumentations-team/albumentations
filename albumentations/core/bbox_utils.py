@@ -124,8 +124,8 @@ class BboxProcessor(DataProcessor):
 
     def filter(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> TBBoxesOrKeypoints:
         self.params: BboxParams
-        return filter_bboxes(  # type: ignore[return-value]
-            data,  # type: ignore[arg-type]
+        return filter_bboxes(
+            data,
             rows,
             cols,
             min_area=self.params.min_area,
@@ -135,11 +135,11 @@ class BboxProcessor(DataProcessor):
         )
 
     def check(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> None:
-        check_bboxes(data.data)  # type: ignore[union-attr]
+        check_bboxes(data.data)
 
     def convert_from_albumentations(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> TBBoxesOrKeypoints:
-        data.data = convert_bboxes_from_albumentations(  # type: ignore[union-attr]
-            data.data,  # type: ignore[union-attr]
+        data.data = convert_bboxes_from_albumentations(
+            data.data,
             self.params.format,
             rows,
             cols,
@@ -148,8 +148,8 @@ class BboxProcessor(DataProcessor):
         return data
 
     def convert_to_albumentations(self, data: TBBoxesOrKeypoints, rows: int, cols: int) -> TBBoxesOrKeypoints:
-        data.data = convert_bboxes_to_albumentations(  # type: ignore[union-attr]
-            data.data,  # type: ignore[union-attr]
+        data.data = convert_bboxes_to_albumentations(
+            data.data,
             self.params.format,
             rows,
             cols,
@@ -493,7 +493,7 @@ def filter_bboxes(
 
     """
     if not isinstance(bboxes, BBoxesInternalType):
-        msg = "filter_bboxes works only with BBoxesInternalType"
+        msg = f"filter_bboxes works only with BBoxesInternalType. Got: {type(bboxes)}"
         raise TypeError(msg)
 
     # Calculate areas of bounding box before and after clipping.

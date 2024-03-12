@@ -172,5 +172,5 @@ def test_post_data_check():
 
     res = transform(image=img, keypoints=keypoints, bboxes=bboxes)
     assert len(res["keypoints"]) != 0 and len(res["bboxes"]) != 0
-    assert res["keypoints"] == [(45, 45), (25, 25)]
+    assert np.allclose(res["keypoints"].tolist(), np.array([(45, 45), (25, 25)]))
     assert np.allclose(res["bboxes"].tolist(), np.array([(0, 0, 45, 45, 0)]))

@@ -10,15 +10,15 @@ from .serialization import Serializable, get_shortest_class_fullname
 from .types import (
     BBoxesInternalType,
     BoxInternalType,
-    BoxType,
     ColorType,
     KeypointInternalType,
-    KeypointType,
+    KeypointsInternalType,
     ScalarType,
     ScaleType,
     Targets,
+    TBBoxesOrKeypoints,
 )
-from .utils import format_args
+from .utils import DATA_DIM, format_args
 
 __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 
@@ -297,12 +297,10 @@ class DualTransform(BasicTransform):
         msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
-    def apply_to_bboxes(
-        self, bboxes: Union[BBoxesInternalType, Sequence[BoxType]], *args: Any, **params: Any
-    ) -> Union[BBoxesInternalType, Sequence[BoxType]]:
+    def apply_to_bboxes(self, bboxes: TBBoxesOrKeypoints, *args: Any, **params: Any) -> TBBoxesOrKeypoints:
         if isinstance(bboxes, BBoxesInternalType):
             result = [self.apply_to_bbox(bbox, **params) for bbox in bboxes.data]
-            result = np.stack(result) if result else np.empty_like(bboxes, shape=[0, 4])
+            result = np.stack(result) if result else np.empty_like(bboxes, shape=[0, DATA_DIM])
             return BBoxesInternalType(result, bboxes.labels)
 
         return [
@@ -311,9 +309,12 @@ class DualTransform(BasicTransform):
             for bbox in bboxes
         ]
 
-    def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
-    ) -> Sequence[KeypointType]:
+    def apply_to_keypoints(self, keypoints: TBBoxesOrKeypoints, *args: Any, **params: Any) -> TBBoxesOrKeypoints:
+        if isinstance(keypoints, KeypointsInternalType):
+            result = [self.apply_to_keypoint(keypoint, **params) for keypoint in keypoints.data]
+            result = np.stack(result) if result else np.empty_like(keypoints.data, shape=[0, DATA_DIM])
+            return KeypointsInternalType(result, keypoints.labels)
+
         return [
             self.apply_to_keypoint(cast(KeypointInternalType, tuple(keypoint[:4])), **params) + tuple(keypoint[4:])
             for keypoint in keypoints

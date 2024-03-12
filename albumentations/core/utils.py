@@ -14,12 +14,12 @@ DATA_DIM = 4
 INSIDE_TARGET_LABELS_NAME = "_INSIDE_TARGET_LABELS"
 
 
-def get_numpy_2d_array(data: Any) -> np.ndarray:
+def get_numpy_2d_array(data: Any, values_dim: int = DATA_DIM) -> np.ndarray:
     if not isinstance(data, np.ndarray):
         data = np.array(data)
 
     if data.size == 0:
-        data = data.reshape(0, 4)
+        data = data.reshape(0, values_dim)
     if data.ndim == 1:
         data = np.expand_dims(data, 1)
     elif data.ndim != 2:  # noqa: PLR2004
@@ -71,6 +71,10 @@ class DataProcessor(ABC):
             for k, v in additional_targets.items():
                 if v == self.default_data_name:
                     self.data_fields.append(k)
+
+    @property
+    def values_dim(self) -> int:
+        return DATA_DIM
 
     @property
     def internal_type(self) -> Optional[Type[DataWithLabels]]:
@@ -146,17 +150,19 @@ class DataProcessor(ABC):
 
         def set_data_with_labels(data_name: str) -> None:
             current_data = result_data[data_name]
-            values = current_data.data[:, :4]
-            current_data.data = values
-            current_data.labels[INSIDE_TARGET_LABELS_NAME] = [i[4:] for i in data[data_name]]  # to preserve type
+            if current_data.data.shape[1] == self.values_dim:
+                return
+            current_data.data = current_data.data[:, : self.values_dim]
+            # to preserve type
+            current_data.labels[INSIDE_TARGET_LABELS_NAME] = [i[self.values_dim :] for i in data[data_name]]
 
         for data_name in self.data_fields:
-            result_data[data_name] = self.internal_type(data=get_numpy_2d_array(data[data_name]))
+            result_data[data_name] = self.internal_type(data=get_numpy_2d_array(data[data_name], self.values_dim))
             if self.params.label_fields:
-                if result_data[data_name].data.shape[1] != DATA_DIM:
+                if result_data[data_name].data.shape[1] != self.values_dim:
                     if INSIDE_TARGET_LABELS_NAME in data:
                         err_msg = (
-                            "If labels field is set data must have 4 values"
+                            f"If labels field is set data must have {self.values_dim} values"
                             f" or default label name `{INSIDE_TARGET_LABELS_NAME}` must be free."
                         )
                         raise ValueError(err_msg)
@@ -201,7 +207,7 @@ class DataProcessor(ABC):
 
                 if INSIDE_TARGET_LABELS_NAME in current_data.labels:
                     labels = current_data.labels[INSIDE_TARGET_LABELS_NAME]
-                    if labels.size:
+                    if len(labels):
                         result_data[data_name] = np.concatenate(
                             [current_data.data, labels.reshape(len(current_data), -1)], axis=1
                         )

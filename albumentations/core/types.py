@@ -67,11 +67,11 @@ class DataWithLabels:
         return self.data[item]
 
 
-class BBoxesInternalType(DataWithLabels):
-    pass
+BBoxesInternalType = DataWithLabels
+KeypointsInternalType = DataWithLabels
 
 
-TBBoxesOrKeypoints = TypeVar("TBBoxesOrKeypoints", bound=Union[DataWithLabels, Sequence[BoxOrKeypointType]])
+TBBoxesOrKeypoints = DataWithLabels
 TRawBboxesOrKeypoints = TypeVar(
     "TRawBboxesOrKeypoints", bound=Union[np.ndarray, Sequence[Union[BoxInternalType, KeypointInternalType]]]
 )

@@ -1,9 +1,11 @@
 import multiprocessing
 import sys
-import warnings
 
 import numpy as np
 import pytest
+
+from albumentations.core.types import KeypointsInternalType
+from albumentations.core.utils import INSIDE_TARGET_LABELS_NAME
 
 @pytest.fixture
 def image():
@@ -31,7 +33,9 @@ def albumentations_bboxes():
 
 @pytest.fixture
 def keypoints():
-    return [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]]
+    return KeypointsInternalType(
+        np.array([[20, 30, 40, 50], [20, 30, 60, 80]]), labels={INSIDE_TARGET_LABELS_NAME: [1, 2]}
+    )
 
 
 @pytest.fixture
