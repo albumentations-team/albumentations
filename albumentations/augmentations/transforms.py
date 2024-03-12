@@ -1696,8 +1696,8 @@ class Downscale(ImageOnlyTransform):
     """Decreases image quality by downscaling and upscaling back.
 
     Args:
-        scale_min: lower bound on the image scale. Should be < 1.
-        scale_max:  lower bound on the image scale. Should be .
+        scale_min: lower bound on the image scale. Should be <= scale_max.
+        scale_max: upper bound on the image scale. Should be < 1.
         interpolation: cv2 interpolation method. Could be:
             - single cv2 interpolation flag - selected method will be used for downscale and upscale.
             - dict(downscale=flag, upscale=flag)
