@@ -1,0 +1,15 @@
+-f https://download.pytorch.org/whl/torch_stable.html
+
+albumentations
+Augmentor
+imgaug
+numpy
+opencv-python-headless
+pandas
+pillow
+pytablewriter
+tensorflow
+torchvision
+tqdm
+kornia
+torch
