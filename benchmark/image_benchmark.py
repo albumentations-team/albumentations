@@ -1,5 +1,6 @@
 import argparse
 import os
+import random
 import sys
 from collections import defaultdict
 from contextlib import suppress
@@ -7,6 +8,7 @@ from pathlib import Path
 from timeit import Timer
 from typing import Dict, List, Union
 
+import augly.image as imaugs
 import cv2
 import kornia as K
 import kornia.augmentation as Kaug
@@ -44,7 +46,15 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 
-DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "kornia", "torchvision", "tensorflow", "imgaug", "augmentor"]
+DEFAULT_BENCHMARKING_LIBRARIES = [
+    "albumentations",
+    "kornia",
+    "torchvision",
+    "tensorflow",
+    "imgaug",
+    "augly",
+    "augmentor",
+]
 
 
 def parse_args() -> argparse.Namespace:
@@ -82,6 +92,7 @@ def get_package_versions() -> Dict[str, str]:
         "pillow",
         "augmentor",
         "kornia",
+        "augly",
     ]
     package_versions = {"Python": sys.version}
     for package in packages:
@@ -115,6 +126,9 @@ class BenchmarkTest:
     def kornia(self, img: torch.Tensor) -> np.ndarray:
         return self.kornia_transform(img)
 
+    def augly(self, img: Image.Image) -> Image.Image:
+        return self.augly_transform(img)
+
     def is_supported_by(self, library: str) -> bool:
         library_attr_map = {
             "imgaug": "imgaug_transform",
@@ -123,6 +137,7 @@ class BenchmarkTest:
             "torchvision": "torchvision_transform",
             "albumentations": "albumentations_transform",
             "tensorflow": "tensorflow_transform",
+            "augly": "augly_transform",
         }
 
         # Check if the library is in the map
@@ -160,6 +175,9 @@ class HorizontalFlip(BenchmarkTest):
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomHorizontalFlip(p=1)(img)
 
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.HFlip(p=1)(img)
+
 
 class VerticalFlip(BenchmarkTest):
     def __init__(self):
@@ -177,6 +195,9 @@ class VerticalFlip(BenchmarkTest):
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomVerticalFlip(p=1)(img)
+
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.VFlip(p=1)(img)
 
 
 class Rotate(BenchmarkTest):
@@ -213,6 +234,9 @@ class Rotate(BenchmarkTest):
         # Perform rotation
         return K.geometry.transform.rotate(img, angle=angle, mode="bilinear", padding_mode="zeros")
 
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.RandomRotation(min_degrees=self.angle, max_degrees=self.angle, p=1)(img)
+
 
 class BrightnessContrast(BenchmarkTest):
     def __init__(self):
@@ -239,6 +263,9 @@ class BrightnessContrast(BenchmarkTest):
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         img_bright = K.enhance.adjust_brightness(img, self.alpha)
         return K.enhance.adjust_contrast(img_bright, self.beta)
+
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.Compose([imaugs.Brightness(factor=self.alpha, p=1), imaugs.Contrast(factor=self.beta)])(img)
 
 
 class ShiftScaleRotate(BenchmarkTest):
@@ -348,6 +375,13 @@ class RandomCrop64(BenchmarkTest):
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomCrop(size=(64, 64), p=1)(img)
+
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        x1 = 0.25
+        x2 = random.uniform(0.25, 1)
+        y1 = 0.25
+        y2 = random.uniform(0.25, 1)
+        return imaugs.Crop(x1=x1, y1=y1, x2=x2, y2=y2, p=1)(img)
 
 
 class RandomSizedCrop_64_512(BenchmarkTest):
@@ -491,6 +525,9 @@ class Resize512(BenchmarkTest):
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return K.geometry.resize(img, (512, 512), interpolation="bilinear")
 
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.Resize(width=512, height=512, resample=Image.BILINEAR, p=1)(img)
+
 
 class RandomGamma(BenchmarkTest):
     def __init__(self):
@@ -535,6 +572,9 @@ class Grayscale(BenchmarkTest):
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomGrayscale(p=1.0)(img)
 
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.Grayscale(p=1)(img)
+
 
 class Multiply(BenchmarkTest):
     def __init__(self):
@@ -565,58 +605,31 @@ class Multiply(BenchmarkTest):
 
 class ColorJitter(BenchmarkTest):
     def __init__(self):
-        imgaug_hue_param = int(0.5 * 255)
-        self.imgaug_transform = iaa.AddToHue((imgaug_hue_param, imgaug_hue_param))
-
-    def imgaug(self, img: np.ndarray) -> np.ndarray:
-        img = iaa.pillike.enhance_brightness(img, 1.5)
-        img = iaa.pillike.enhance_contrast(img, 1.5)
-        img = iaa.pillike.enhance_color(img, 1.5)
-        return self.imgaug_transform.augment_image(img)
+        self.brightness = 0.5
+        self.contrast = 1.5
+        self.saturation = 1.5
+        self.hue = 0.5
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        img = A.adjust_brightness_torchvision(img, 1.5)
-        img = A.adjust_contrast_torchvision(img, 1.5)
-        img = A.adjust_saturation_torchvision(img, 1.5)
-        return A.adjust_hue_torchvision(img, 0.5)
+        return A.ColorJitter(
+            brightness=self.brightness, contrast=self.contrast, saturation=self.saturation, hue=self.hue, p=1
+        )(image=img)["image"]
 
     def torchvision(self, img: torch.Tensor) -> torch.Tensor:
-        img = torchvision.adjust_brightness(img, 1.5)
-        img = torchvision.adjust_contrast(img, 1.5)
-        img = torchvision.adjust_saturation(img, 1.5)
-        return torchvision.adjust_hue(img, 0.5)
-
-    def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
-        # Ensure img is a float32 tensor in the range [0, 1]
-        img = tf.convert_to_tensor(img, dtype=tf.float32) / 255.0
-
-        # Adjust brightness (+50%)
-        img_bright = tf.image.adjust_brightness(img, delta=0.5)
-
-        # Adjust contrast (*1.5)
-        img_contrast = tf.image.adjust_contrast(img_bright, contrast_factor=1.5)
-
-        # Adjust hue (+0.1 of the 0-1 range, equivalent to +36 degrees since 0.1 * 360 = 36)
-        img_hue = tf.image.adjust_hue(img_contrast, delta=0.1)
-
-        # Adjust saturation (*1.5)
-        # This is more complex in TensorFlow as it doesn't have a direct saturation function
-        # Convert RGB to HSV, scale the S channel, convert back to RGB
-        img_hsv = tf.image.rgb_to_hsv(img_hue)
-        hue, saturation, value = tf.split(img_hsv, 3, axis=-1)
-        saturation = saturation * 1.5
-        # Ensure saturation remains within [0, 1]
-        saturation = tf.clip_by_value(saturation, clip_value_min=0, clip_value_max=1)
-        img_adjusted_hsv = tf.concat([hue, saturation, value], axis=-1)
-        img_saturation = tf.image.hsv_to_rgb(img_adjusted_hsv)
-
-        return img_saturation * 255
+        img = torchvision.adjust_brightness(img, self.brightness)
+        img = torchvision.adjust_contrast(img, self.contrast)
+        img = torchvision.adjust_saturation(img, self.saturation)
+        return torchvision.adjust_hue(img, self.hue)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Instantiate the ColorJitter module
-        color_jitter = Kaug.ColorJitter(brightness=0.5, contrast=1.5, saturation=1.5, hue=0.5, p=1)
-        # Apply color jitter
-        return color_jitter(img)
+        return Kaug.ColorJitter(
+            brightness=self.brightness, contrast=self.contrast, saturation=self.saturation, hue=self.hue, p=1
+        )(img)
+
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.ColorJitter(
+            brightness_factor=self.brightness, contrast_factor=self.contrast, saturation_factor=self.saturation, p=1
+        )(img)
 
 
 class RandomPerspective(BenchmarkTest):
@@ -647,6 +660,9 @@ class GaussianBlur(BenchmarkTest):
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomGaussianBlur(kernel_size=(5, 5), sigma=(self.sigma, self.sigma), p=1)(img)
+
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.Blur(radius=self.sigma, p=1)(img)
 
 
 class MedianBlur(BenchmarkTest):
@@ -719,6 +735,34 @@ class JpegCompressionTransform(BenchmarkTest):
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomJPEG(jpeg_quality=self.quality, p=1)(img)
 
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.EncodingQuality(quality=self.quality, p=1)(img)
+
+
+class GaussianNoise(BenchmarkTest):
+    def __init__(self, mean: float = 0, var: float = 0.010):
+        self.mean = mean
+        self.var = var
+        self.imgaug_transform = iaa.AdditiveGaussianNoise(loc=self.mean, scale=(self.var**0.5, self.var**0.5))
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.GaussNoise(var_limit=(20, 50), mean=self.mean, always_apply=True)
+        return transform(image=img)["image"]
+
+    def augly_transform(self, img: np.ndarray) -> np.ndarray:
+        return imaugs.RandomNoise(mean=self.mean, std=self.var)(img)
+
+    def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
+        noise = tf.random.normal(shape=tf.shape(img), mean=self.mean, stddev=self.var**0.5)
+        img_noisy = img + noise
+        return tf.clip_by_value(img_noisy, 0.0, 255.0)
+
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        # Ensure img tensor is in float format; assume it is scaled between 0 and 1
+        noise = torch.randn(img.size()) * self.var**0.5 + self.mean
+        img_noisy = img + noise
+        return torch.clamp(img_noisy, 0.0, 1.0)
+
 
 def main() -> None:
     args = parse_args()
@@ -760,7 +804,7 @@ def main() -> None:
         Posterize(),
     ]
     for library in libraries:
-        if library == "augmentor":
+        if library in ("augmentor", "augly"):
             imgs = imgs_pillow
         elif library == "torchvision":
             imgs = imgs_torch

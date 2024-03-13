@@ -13,3 +13,4 @@ torchvision
 tqdm
 kornia
 torch
+augly
