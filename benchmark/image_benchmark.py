@@ -149,7 +149,7 @@ class HorizontalFlip(BenchmarkTest):
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="LEFT_RIGHT")
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.hflip_cv2(img)
+        return A.HorizontalFlip(p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: np.ndarray) -> np.ndarray:
         return torchvision.hflip(img)
@@ -158,7 +158,7 @@ class HorizontalFlip(BenchmarkTest):
         return tf.image.flip_left_right(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return K.geometry.transform.Hflip()(img)
+        return Kaug.RandomHorizontalFlip(p=1)(img)
 
 
 class VerticalFlip(BenchmarkTest):
@@ -167,7 +167,7 @@ class VerticalFlip(BenchmarkTest):
         self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="TOP_BOTTOM")
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.vflip(img)
+        return A.VerticalFlip(p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: np.ndarray) -> np.ndarray:
         return torchvision.vflip(img)
@@ -176,7 +176,7 @@ class VerticalFlip(BenchmarkTest):
         return tf.image.flip_up_down(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return K.geometry.transform.Vflip()(img)
+        return Kaug.RandomVerticalFlip(p=1)(img)
 
 
 class Rotate(BenchmarkTest):
@@ -186,7 +186,7 @@ class Rotate(BenchmarkTest):
         self.augmentor_op = Operations.RotateStandard(probability=1, max_left_rotation=45, max_right_rotation=45)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.rotate(img, angle=-self.angle)
+        return A.Rotate(limit=self.angle, p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         return T.rotate(img, angle=-self.angle, interpolation=InterpolationMode.BILINEAR)
@@ -226,7 +226,7 @@ class BrightnessContrast(BenchmarkTest):
         )
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.brightness_contrast_adjust(img, alpha=self.alpha, beta=self.beta, beta_by_max=True)
+        return A.RandomBrightnessContrast(p=1, contrast_limit=self.beta, brightness_limit=self.beta)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         img = torchvision.adjust_brightness(img, brightness_factor=self.alpha)
@@ -255,7 +255,9 @@ class ShiftScaleRotate(BenchmarkTest):
         )
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.shift_scale_rotate(img, angle=-self.angle, scale=2, dx=0.2, dy=0.2)
+        return A.ShiftScaleRotate(rotate_limit=self.angle, scale_limit=self.scale, shift_limit=self.shift, p=1)(
+            image=img
+        )["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         return torchvision.affine(
@@ -298,66 +300,13 @@ class ShiftScaleRotate(BenchmarkTest):
         )
 
 
-class ShiftHSV(BenchmarkTest):
-    def __init__(self):
-        self.imgaug_transform = iaa.AddToHueAndSaturation((20, 20), per_channel=False)
-
-    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.shift_hsv(img, hue_shift=20, sat_shift=20, val_shift=20)
-
-    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        img = torchvision.adjust_hue(img, hue_factor=0.1)
-        img = torchvision.adjust_saturation(img, saturation_factor=1.2)
-        return torchvision.adjust_brightness(img, brightness_factor=1.2)
-
-    def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
-        # Convert RGB to HSV
-        hsv_img = tf.image.rgb_to_hsv(img)
-
-        # Shift Hue, Saturation, and Value (Brightness)
-        # Hue values are in [0, 1], so a shift of 20 degrees would be (20/360) in the HSV color space.
-        hue_shift = 20 / 360.0
-        sat_shift = 0.2  # Assuming a 20% increase in saturation
-        value_shift = 0.2  # Assuming a 20% increase in brightness
-
-        # Apply shifts
-        hsv_img = tf.stack(
-            [
-                tf.clip_by_value(hsv_img[..., 0] + hue_shift, 0, 1),
-                tf.clip_by_value(hsv_img[..., 1] * (1 + sat_shift), 0, 1),
-                tf.clip_by_value(hsv_img[..., 2] * (1 + value_shift), 0, 1),
-            ],
-            axis=-1,
-        )
-
-        # Convert back to RGB
-        return tf.image.hsv_to_rgb(hsv_img)
-
-    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Convert RGB to HSV
-        hsv_img = K.color.rgb_to_hsv(img)
-
-        # Define shifts
-        hue_shift = 20  # Hue shift in degrees
-        sat_shift = 0.2  # Saturation shift as a factor (e.g., 0.2 for 20% increase)
-        val_shift = 0.2  # Value shift as a factor
-
-        # Apply shifts
-        hsv_img[:, 0, :, :] = (hsv_img[:, 0, :, :] + hue_shift / 360.0) % 1.0  # Hue values are in [0, 1]
-        hsv_img[:, 1, :, :] = torch.clamp(hsv_img[:, 1, :, :] * (1 + sat_shift), 0, 1)  # Saturate within [0, 1]
-        hsv_img[:, 2, :, :] = torch.clamp(hsv_img[:, 2, :, :] * (1 + val_shift), 0, 1)  # Value within [0, 1]
-
-        # Convert back to RGB
-        return K.color.hsv_to_rgb(hsv_img)
-
-
 class Equalize(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.AllChannelsHistogramEqualization()
         self.augmentor_op = Operations.HistogramEqualisation(probability=1)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.equalize(img)
+        return A.Equalize(p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         return torchvision.equalize(img)
@@ -368,7 +317,7 @@ class Equalize(BenchmarkTest):
         return tf.image.adjust_contrast(img_gray, 2)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return K.enhance.equalize(img)
+        return Kaug.RandomEqualize(p=1)(img)
 
 
 class RandomCrop64(BenchmarkTest):
@@ -377,7 +326,7 @@ class RandomCrop64(BenchmarkTest):
         self.augmentor_op = Operations.Crop(probability=1, width=64, height=64, centre=False)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
+        return A.RandomCrop(height=64, width=64, p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         return torchvision.crop(img, top=0, left=0, height=64, width=64)
@@ -398,9 +347,7 @@ class RandomCrop64(BenchmarkTest):
         return tf.image.random_crop(img_resized, size=[64, 64, 3])
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        transform = K.augmentation.RandomCrop(size=(64, 64))
-
-        return transform(img)
+        return Kaug.RandomCrop(size=(64, 64), p=1)(img)
 
 
 class RandomSizedCrop_64_512(BenchmarkTest):
@@ -445,13 +392,7 @@ class RandomSizedCrop_64_512(BenchmarkTest):
         return tf.image.resize(cropped_img, [512, 512], method=tf.image.ResizeMethod.BILINEAR)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # The scale specifies the relative area of the original image to be cropped,
-        # and the ratio specifies the aspect ratio of the crop.
-        # For a fixed crop size, you might adjust these parameters as needed.
-        # Here, we approximate a process that crops to a region, then resizes to 512x512.
-        transform = K.augmentation.RandomResizedCrop(size=(512, 512), scale=(0.08, 1.0), ratio=(0.75, 1.33))
-
-        return transform(img)
+        return Kaug.RandomResizedCrop(size=(512, 512), scale=(0.08, 1.0), ratio=(0.75, 1.33))(img)
 
 
 class ShiftRGB(BenchmarkTest):
@@ -459,7 +400,7 @@ class ShiftRGB(BenchmarkTest):
         self.imgaug_transform = iaa.Add((100, 100), per_channel=False)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.shift_rgb(img, r_shift=100, g_shift=100, b_shift=100)
+        return A.RGBShift(r_shift_limit=100, g_shift_limit=100, b_shift_limit=100, p=1)(image=img)["image"]
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         # Create shifts for each channel
@@ -484,13 +425,7 @@ class ShiftRGB(BenchmarkTest):
         return tf.concat([r_clipped, g_clipped, b_clipped], axis=-1)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Define the shifts for R, G, B channels
-        shifts = torch.tensor([100.0 / 255, 100.0 / 255, 100.0 / 255]).view(3, 1, 1)
-
-        # Add the shifts to the image
-        img_shifted = img + shifts
-
-        return torch.clamp(img_shifted, min=0, max=1)
+        return Kaug.RandomRGBShift(0.5, 0.5, 0.5, p=1)(img)  # Define the shifts for R, G, B channels
 
 
 class PadToSize(BenchmarkTest):
@@ -501,7 +436,7 @@ class PadToSize(BenchmarkTest):
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         # Albumentations expects height first, then width
         transform = A.PadIfNeeded(
-            min_height=self.target_height, min_width=self.target_width, border_mode=cv2.BORDER_REFLECT
+            min_height=self.target_height, min_width=self.target_width, border_mode=cv2.BORDER_REFLECT, p=1
         )
         return transform(image=img)["image"]
 
@@ -522,13 +457,7 @@ class PadToSize(BenchmarkTest):
         return torchvision.pad(img, padding, padding_mode="reflect")
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Ensure img is in the range [0, 1] if it's in uint8 format
-        if img.dtype == torch.uint8:
-            img = img.float() / 255.0
-
-        # Kornia's PadToSize operation
-        pad_op = Kaug.PadTo(size=(self.target_width, self.target_height), pad_mode="reflect")
-        return pad_op(img)
+        return Kaug.PadTo(size=(self.target_width, self.target_height), pad_mode="reflect")(img)
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         # Calculate padding sizes
@@ -584,7 +513,7 @@ class RandomGamma(BenchmarkTest):
         return tf.clip_by_value(gamma_corrected_img * 255.0, 0, 255)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return K.enhance.adjust_gamma(img, gamma=0.5)
+        return Kaug.RandomGamma(p=1.0, gamma=(0.5, 0.5))(img)
 
 
 class Grayscale(BenchmarkTest):
@@ -604,10 +533,7 @@ class Grayscale(BenchmarkTest):
         return tf.image.rgb_to_grayscale(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Convert the image to grayscale
-        gray_img = K.color.rgb_to_grayscale(img)
-
-        return gray_img.expand(-1, 3, -1, -1)
+        return Kaug.RandomGrayscale(p=1.0)(img)
 
 
 class Multiply(BenchmarkTest):
@@ -688,9 +614,110 @@ class ColorJitter(BenchmarkTest):
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         # Instantiate the ColorJitter module
-        color_jitter = Kaug.ColorJitter(brightness=0.5, contrast=1.5, saturation=1.5, hue=0.5)
+        color_jitter = Kaug.ColorJitter(brightness=0.5, contrast=1.5, saturation=1.5, hue=0.5, p=1)
         # Apply color jitter
         return color_jitter(img)
+
+
+class RandomPerspective(BenchmarkTest):
+    def __init__(self):
+        self.scale = [0.05, 0.1]
+
+        self.imgaug_transform = iaa.PerspectiveTransform(scale=self.scale)
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.Perspective(scale=self.scale, p=1)  # Adjust scale as needed
+        return transform(image=img)["image"]
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomPerspective(distortion_scale=self.scale[0], p=1)(img)
+
+
+class GaussianBlur(BenchmarkTest):
+    def __init__(self, sigma: float = 2.0):
+        self.sigma = sigma
+        self.imgaug_transform = iaa.GaussianBlur(sigma=self.sigma)
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.GaussianBlur(blur_limit=(5, 5), sigma_limit=(self.sigma, self.sigma), p=1)
+        return transform(image=img)["image"]
+
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return torchvision.gaussian_blur(img, kernel_size=[5, 5], sigma=self.sigma)
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomGaussianBlur(kernel_size=(5, 5), sigma=(self.sigma, self.sigma), p=1)(img)
+
+
+class MedianBlur(BenchmarkTest):
+    def __init__(self, blur_limit: int = 5):
+        # blur_limit or kernel size for median blur, ensuring it's an odd number
+        self.blur_limit = blur_limit if blur_limit % 2 != 0 else blur_limit + 1
+        self.imgaug_transform = iaa.MedianBlur(k=self.blur_limit)
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.MedianBlur(blur_limit=(self.blur_limit, self.blur_limit), p=1)
+        return transform(image=img)["image"]
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomMedianBlur(kernel_size=(self.blur_limit, self.blur_limit), p=1)(img)
+
+
+class MotionBlur(BenchmarkTest):
+    def __init__(self, kernel_size: int = 5, angle: float = 45, direction: float = 0.0):
+        self.kernel_size = kernel_size  # Size of the motion blur kernel
+        self.angle = angle  # Direction of the motion blur in degrees
+        self.direction = direction  # Direction of the blur (used by ImgAug)
+        self.imgaug_transform = iaa.MotionBlur(k=self.kernel_size, angle=[self.angle], direction=self.direction)
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.MotionBlur(blur_limit=self.kernel_size, always_apply=True)
+        return transform(image=img)["image"]
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomMotionBlur(kernel_size=self.kernel_size, angle=self.angle, direction=self.direction, p=1)(img)
+
+
+class Posterize(BenchmarkTest):
+    def __init__(self, bits: int = 4):
+        self.bits = bits  # Number of bits to keep for each color channel
+        self.imgaug_transform = iaa.Posterize(nb_bits=self.bits)
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.Posterize(num_bits=self.bits, always_apply=True)
+        return transform(image=img)["image"]
+
+    def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
+        # TensorFlow does not have a built-in posterize function, so we use a workaround
+        # by scaling the image's values to the desired bit depth and back
+        scale_factor = 255.0 / (2**self.bits - 1)
+        img_scaled_down = tf.cast(img, tf.float32) / scale_factor
+        img_scaled_down = tf.cast(img_scaled_down, tf.int32)
+        return tf.cast(img_scaled_down, tf.float32) * scale_factor
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomPosterize(bits=self.bits, p=1)(img)
+
+
+class JpegCompressionTransform(BenchmarkTest):
+    def __init__(self, quality: int = 50):
+        # Quality: Value between 0 and 100 (higher means better). In imgaug, it's 0-100 scale.
+        self.quality = quality
+        self.imgaug_transform = iaa.JpegCompression(compression=self.quality)
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.ImageCompression(quality_lower=self.quality, quality_upper=self.quality, always_apply=True)
+        return transform(image=img)["image"]
+
+    def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
+        # TensorFlow approach involves encoding and decoding the image.
+        img_uint8 = tf.image.convert_image_dtype(img, tf.uint8)
+        img_encoded = tf.image.encode_jpeg(img_uint8, format="", quality=self.quality)
+        img_decoded = tf.image.decode_jpeg(img_encoded)
+        return tf.image.convert_image_dtype(img_decoded, tf.float32)
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomJPEG(jpeg_quality=self.quality, p=1)(img)
 
 
 def main() -> None:
@@ -716,7 +743,6 @@ def main() -> None:
         Rotate(),
         BrightnessContrast(),
         ShiftScaleRotate(),
-        ShiftHSV(),
         Equalize(),
         RandomCrop64(),
         RandomGamma(),
@@ -727,6 +753,11 @@ def main() -> None:
         ShiftRGB(),
         Multiply(),
         ColorJitter(),
+        RandomPerspective(),
+        GaussianBlur(),
+        MedianBlur(),
+        MotionBlur(),
+        Posterize(),
     ]
     for library in libraries:
         if library == "augmentor":
