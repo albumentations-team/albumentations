@@ -139,49 +139,36 @@ class Compose(BaseCompose):
     def __init__(
         self,
         transforms: TransformsSeqType,
-        bbox_params: Optional[Union[Dict[str, Any], "BboxParams"]] = None,
-        keypoint_params: Optional[Union[Dict[str, Any], "KeypointParams"]] = None,
+        bbox_params: Optional[Union[Dict[str, Any], BboxParams]] = None,
+        keypoint_params: Optional[Union[Dict[str, Any], KeypointParams]] = None,
         additional_targets: Optional[Dict[str, str]] = None,
         p: float = 1.0,
         is_check_shapes: bool = True,
     ):
         super().__init__(transforms, p)
-
-        self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
-        if bbox_params:
-            if isinstance(bbox_params, dict):
-                b_params = BboxParams(**bbox_params)
-            elif isinstance(bbox_params, BboxParams):
-                b_params = bbox_params
-            else:
-                msg = "unknown format of bbox_params, please use `dict` or `BboxParams`"
-                raise ValueError(msg)
-            self.processors["bboxes"] = BboxProcessor(b_params, additional_targets)
-
-        if keypoint_params:
-            if isinstance(keypoint_params, dict):
-                k_params = KeypointParams(**keypoint_params)
-            elif isinstance(keypoint_params, KeypointParams):
-                k_params = keypoint_params
-            else:
-                msg = "unknown format of keypoint_params, please use `dict` or `KeypointParams`"
-                raise ValueError(msg)
-            self.processors["keypoints"] = KeypointsProcessor(k_params, additional_targets)
-
-        if additional_targets is None:
-            additional_targets = {}
-
-        self.additional_targets = additional_targets
-
-        for proc in self.processors.values():
-            proc.ensure_transforms_valid(self.transforms)
-
-        self.add_targets(additional_targets)
-
-        self.is_check_args = True
-        self._disable_check_args_for_transforms(self.transforms)
-
+        self.processors: Dict[str, Union["BboxProcessor", "KeypointsProcessor"]] = {}
+        self.additional_targets = additional_targets or {}
         self.is_check_shapes = is_check_shapes
+        self.bbbox_params = bbox_params
+        self.keypoint_params = keypoint_params
+
+        if bbox_params:
+            self.processors["bboxes"] = self.init_processor(BboxProcessor, bbox_params)
+        if keypoint_params:
+            self.processors["keypoints"] = self.init_processor(KeypointsProcessor, keypoint_params)
+
+    def init_processor(
+        self, processor_class: Any, params: Union[Dict[str, Any], "BboxParams", "KeypointParams"]
+    ) -> Any:
+        if isinstance(params, dict):
+            return processor_class(**params, additional_targets=self.additional_targets)
+
+        return processor_class(params, additional_targets=self.additional_targets)
+
+    def update_transforms_with_params(self) -> None:
+        for transform in self.transforms:
+            if isinstance(transform, BasicTransform):
+                transform.update_with_external_params(self.bbbox_params, self.keypoint_params)
 
     @staticmethod
     def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:

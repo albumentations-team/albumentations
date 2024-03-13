@@ -1,6 +1,6 @@
 import random
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -18,6 +18,10 @@ from .types import (
     Targets,
 )
 from .utils import format_args
+
+if TYPE_CHECKING:
+    from .bbox_utils import BboxParams
+    from .keypoints_utils import KeypointParams
 
 __all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 
@@ -164,6 +168,14 @@ class BasicTransform(Serializable):
 
     def get_params(self) -> Dict[str, Any]:
         return {}
+
+    def update_with_external_params(
+        self,
+        bbox_params: Optional[Union[Dict[str, Any], "BboxParams"]] = None,
+        keypoint_params: Optional[Union[Dict[str, Any], "KeypointParams"]] = None,
+    ) -> None:
+        self.external_bbox_params = bbox_params
+        self.external_keypoint_params = keypoint_params
 
     @property
     def targets(self) -> Dict[str, Callable[..., Any]]:
