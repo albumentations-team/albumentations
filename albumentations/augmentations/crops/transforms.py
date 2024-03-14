@@ -173,9 +173,9 @@ class CropNonEmptyMaskIfExists(DualTransform):
         super(CropNonEmptyMaskIfExists, self).__init__(always_apply, p)
 
         if ignore_values is not None and not isinstance(ignore_values, list):
-            raise ValueError("Expected `ignore_values` of type `list`, got `{}`".format(type(ignore_values)))
+            raise ValueError(f"Expected `ignore_values` of type `list`, got `{type(ignore_values)}`")
         if ignore_channels is not None and not isinstance(ignore_channels, list):
-            raise ValueError("Expected `ignore_channels` of type `list`, got `{}`".format(type(ignore_channels)))
+            raise ValueError(f"Expected `ignore_channels` of type `list`, got `{type(ignore_channels)}`")
 
         self.height = height
         self.width = width
@@ -216,9 +216,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
         if self.height > mask_height or self.width > mask_width:
             raise ValueError(
-                "Crop size ({},{}) is larger than image ({},{})".format(
-                    self.height, self.width, mask_height, mask_width
-                )
+                f"Crop size ({self.height},{self.width}) is larger than image ({mask_height},{mask_width})"
             )
 
         return mask
@@ -281,7 +279,7 @@ class _BaseRandomSizedCrop(DualTransform):
         w_start: int = 0,
         rows: int = 0,
         cols: int = 0,
-        **params
+        **params,
     ) -> BBoxesInternalType:
         return F.bboxes_random_crop(
             bboxes,
@@ -302,7 +300,7 @@ class _BaseRandomSizedCrop(DualTransform):
         w_start=0,
         rows=0,
         cols=0,
-        **params
+        **params,
     ) -> KeypointsInternalType:
         keypoints = F.keypoints_random_crop(keypoints, crop_height, crop_width, h_start, w_start, rows, cols)
         scale_x = self.width / crop_width
@@ -478,7 +476,7 @@ class RandomCropNearBBox(DualTransform):
         self.cropping_bbox_key = cropping_box_key
 
         if min(self.max_part_shift) < 0 or max(self.max_part_shift) > 1:
-            raise ValueError("Invalid max_part_shift. Got: {}".format(max_part_shift))
+            raise ValueError(f"Invalid max_part_shift. Got: {max_part_shift}")
 
     def apply(
         self, img: np.ndarray, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params
@@ -528,6 +526,7 @@ class RandomCropNearBBox(DualTransform):
 
 class BBoxSafeRandomCrop(DualTransform):
     """Crop a random part of the input without loss of bboxes.
+
     Args:
         erosion_rate (float): erosion rate applied on input image height before crop.
         p (float): probability of applying the transform. Default: 1.
@@ -584,6 +583,7 @@ class BBoxSafeRandomCrop(DualTransform):
 
 class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
     """Crop a random part of the input and rescale it to some size without loss of bboxes.
+
     Args:
         height (int): height after crop and resize.
         width (int): width after crop and resize.
@@ -740,7 +740,7 @@ class CropAndPad(DualTransform):
         rows: int = 0,
         cols: int = 0,
         interpolation: int = cv2.INTER_LINEAR,
-        **params
+        **params,
     ) -> np.ndarray:
         return F.crop_and_pad(
             img, crop_params, pad_params, pad_value, rows, cols, interpolation, self.pad_mode, self.keep_size
@@ -755,7 +755,7 @@ class CropAndPad(DualTransform):
         rows: int = 0,
         cols: int = 0,
         interpolation: int = cv2.INTER_NEAREST,
-        **params
+        **params,
     ) -> np.ndarray:
         return F.crop_and_pad(
             img, crop_params, pad_params, pad_value_mask, rows, cols, interpolation, self.pad_mode, self.keep_size
@@ -770,7 +770,7 @@ class CropAndPad(DualTransform):
         cols: int = 0,
         result_rows: int = 0,
         result_cols: int = 0,
-        **params
+        **params,
     ) -> BBoxesInternalType:
         return F.crop_and_pad_bboxes(
             bboxes,
@@ -791,7 +791,7 @@ class CropAndPad(DualTransform):
         cols: int = 0,
         result_rows: int = 0,
         result_cols: int = 0,
-        **params
+        **params,
     ) -> KeypointsInternalType:
         return F.crop_and_pad_keypoints(
             keypoints, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size

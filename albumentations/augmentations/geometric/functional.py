@@ -1,5 +1,5 @@
 import math
-from typing import Iterable, List, Optional, Sequence, Tuple, Union
+from typing import List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -551,10 +551,9 @@ def perspective_bboxes(
 
 
 def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
-    """
-    Args:
-        matrix (np.ndarray): Rotation matrix
-        y_up (bool): is Y axis looks up or down
+    """Args:
+    matrix (np.ndarray): Rotation matrix
+    y_up (bool): is Y axis looks up or down
     """
     if y_up:
         return np.arctan2(matrix[1, 0], matrix[0, 0])
@@ -888,9 +887,8 @@ def from_distance_maps(
             found = True
         if found:
             keypoints.append((float(hitidx_ndim[1]), float(hitidx_ndim[0])))
-        else:
-            if not drop_if_not_found:
-                keypoints.append((if_not_found_x, if_not_found_y))
+        elif not drop_if_not_found:
+            keypoints.append((if_not_found_x, if_not_found_y))
 
     return np.array(keypoints)
 
@@ -932,9 +930,7 @@ def bboxes_piecewise_affine(
             bboxes[..., [0, 3]],
         ],
         axis=1,
-    ).reshape(
-        (-1, 2)
-    )  # points.shape == (N * 4) * 2
+    ).reshape((-1, 2))  # points.shape == (N * 4) * 2
     dist_maps = to_distance_maps(points, h, w, True)
     dist_maps = piecewise_affine(dist_maps, matrix, 0, "constant", 0)
     points = from_distance_maps(dist_maps, True, {"x": -1, "y": -1}, keypoints_threshold)
@@ -985,6 +981,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
 @use_bboxes_ndarray(return_array=True)
 def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes vertically around the x-axis.
+
     Args:
         bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
         **kwargs:
@@ -1002,6 +999,7 @@ def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
 @use_bboxes_ndarray(return_array=True)
 def bboxes_hflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
     """Flip a batch of bounding boxes horizontally around the y-axis.
+
     Args:
         bboxes (BoxesArray): A batch of bounding boxes in `albumentations` format.
         **kwargs:
@@ -1046,6 +1044,7 @@ def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs) -> BoxesArray:
 @use_bboxes_ndarray(return_array=True)
 def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs) -> BoxesArray:
     """Transpose bounding bboxes along a given axis in batch.
+
     Args:
         bboxes (BoxesArray): A batch of bounding boxes with `albumentations` format.
         axis (int): 0 as the main axis, 1 as the secondary axis.
@@ -1192,9 +1191,7 @@ def pad(
 
     if img.shape[:2] != (max(min_height, height), max(min_width, width)):
         raise RuntimeError(
-            "Invalid result shape. Got: {}. Expected: {}".format(
-                img.shape[:2], (max(min_height, height), max(min_width, width))
-            )
+            f"Invalid result shape. Got: {img.shape[:2]}. Expected: {(max(min_height, height), max(min_width, width))}"
         )
 
     return img
@@ -1252,7 +1249,12 @@ def optical_distortion(
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
     map1, map2 = cv2.initUndistortRectifyMap(
-        camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1  # type: ignore[attr-defined]
+        camera_matrix,
+        distortion,
+        None,
+        None,
+        (width, height),
+        cv2.CV_32FC1,  # type: ignore[attr-defined]
     )
     return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
 

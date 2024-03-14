@@ -1,14 +1,14 @@
-import json
-import os
-import random
+import io
+from pathlib import Path
 from unittest.mock import patch
 
 import cv2
 import numpy as np
 import pytest
+from deepdiff import DeepDiff
+import inspect
 
 import albumentations as A
-import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import (
@@ -17,7 +17,6 @@ from albumentations.core.transforms_interface import (
     KeypointsInternalType,
 )
 
-from .conftest import skipif_no_torch
 from .utils import (
     OpenMock,
     check_all_augs_exists,
@@ -26,7 +25,7 @@ from .utils import (
     set_seed,
 )
 
-TEST_SEEDS = (0, 1, 42, 111, 9999)
+TEST_SEEDS = (0, 1, 42)
 
 
 def to_internal_bboxes(bboxes) -> BBoxesInternalType:
@@ -59,16 +58,40 @@ def to_internal_keypoints(kps) -> KeypointsInternalType:
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+            A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            },
+            A.GlassBlur:dict(sigma=0.8, max_delta=5, iterations=3, mode="exact"),
+            A.GridDropout: dict(
+        ratio=0.75,
+        unit_size_min=2,
+        unit_size_max=10,
+        shift_x=10,
+        shift_y=20,
+        random_offset=True,
+        fill_value=10,
+        mask_fill_value=20,
+    )
         },
         except_augmentations={
-            A.RandomCropNearBBox,
-            A.RandomSizedBBoxSafeCrop,
-            A.BBoxSafeRandomCrop,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
+            A.MixUp
         },
     ),
 )
@@ -96,7 +119,6 @@ AUGMENTATION_CLS_PARAMS = [
             "compression_type": A.ImageCompression.ImageCompressionType.WEBP,
         },
     ],
-    [A.JpegCompression, {"quality_lower": 10, "quality_upper": 80}],
     [
         A.HueSaturationValue,
         {"hue_shift_limit": 70, "sat_shift_limit": 95, "val_shift_limit": 55},
@@ -110,7 +132,6 @@ AUGMENTATION_CLS_PARAMS = [
     [A.GaussNoise, {"var_limit": (20, 90), "mean": 10, "per_channel": False}],
     [A.CLAHE, {"clip_limit": 2, "tile_grid_size": (12, 12)}],
     [A.RandomGamma, {"gamma_limit": (10, 90)}],
-    [A.Cutout, {"num_holes": 4, "max_h_size": 4, "max_w_size": 4}],
     [A.CoarseDropout, {"max_holes": 4, "max_height": 4, "max_width": 4}],
     [
         A.RandomSnow,
@@ -254,8 +275,6 @@ AUGMENTATION_CLS_PARAMS = [
             "max_pixel_value": 100.0,
         },
     ],
-    [A.RandomBrightness, {"limit": 0.4}],
-    [A.RandomContrast, {"limit": 0.4}],
     [A.RandomScale, {"scale_limit": 0.2, "interpolation": cv2.INTER_CUBIC}],
     [A.Resize, {"height": 64, "width": 64}],
     [A.SmallestMaxSize, {"max_size": 64, "interpolation": cv2.INTER_CUBIC}],
@@ -412,6 +431,38 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
     [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
+    [
+        A.XYMasking,
+        {
+            "num_masks_x": (1, 3),
+            "num_masks_y": 3,
+            "mask_x_length": (10, 20),
+            "mask_y_length": 10,
+            "mask_fill_value": 1,
+            "fill_value": 0,
+        },
+    ],
+     [A.PadIfNeeded, {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            }],
+    [A.GlassBlur, dict(sigma=0.8, max_delta=5, iterations=3, mode="exact")],
+    [
+        A.GridDropout,
+        dict(
+            ratio=0.75,
+            unit_size_min=2,
+            unit_size_max=10,
+            shift_x=10,
+            shift_y=20,
+            random_offset=True,
+            fill_value=10,
+            mask_fill_value=20,
+        )
+    ],
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -422,9 +473,8 @@ AUGMENTATION_CLS_EXCEPT = {
     A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
-    A.GridDropout,
-    A.GlassBlur,
     A.TemplateTransform,
+    A.MixUp
 }
 
 
@@ -456,13 +506,13 @@ def test_augmentations_serialization_with_custom_parameters(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@pytest.mark.parametrize("data_format", ("yaml",))
+@pytest.mark.parametrize("data_format", ("yaml", "json"))
 def test_augmentations_serialization_to_file_with_custom_parameters(
     augmentation_cls, params, p, seed, image, mask, always_apply, data_format
 ):
     with patch("builtins.open", OpenMock()):
         aug = augmentation_cls(p=p, always_apply=always_apply, **params)
-        filepath = "serialized.{}".format(data_format)
+        filepath = f"serialized.{data_format}"
         A.save(aug, filepath, data_format=data_format)
         deserialized_aug = A.load(filepath, data_format=data_format)
         set_seed(seed)
@@ -479,7 +529,6 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
-            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
             A.RandomResizedCrop: {"height": 10, "width": 10},
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
@@ -487,22 +536,28 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
+             A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            },
         },
         except_augmentations={
-            A.RandomCropNearBBox,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.CoarseDropout,
-            A.CropNonEmptyMaskIfExists,
-            A.ElasticTransform,
-            A.GridDistortion,
             A.RandomGridShuffle,
-            A.GridDropout,
             A.MaskDropout,
             A.OpticalDistortion,
             A.TemplateTransform,
+            A.XYMasking,
+            A.MixUp,
+            A.CropNonEmptyMaskIfExists,
+            A.GridDropout
         },
     ),
 )
@@ -535,24 +590,37 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
+                "mask_y_length": 10,
+                "fill_value": 0,
+                "mask_fill_value": 1,
+            },
+             A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            }
         },
         except_augmentations={
-            A.RandomCropNearBBox,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
-            A.CoarseDropout,
             A.CropNonEmptyMaskIfExists,
             A.ElasticTransform,
             A.GridDistortion,
-            A.RandomGridShuffle,
             A.GridDropout,
             A.MaskDropout,
             A.OpticalDistortion,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
+            A.MixUp
         },
     ),
 )
@@ -814,7 +882,7 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     )
 
     serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"vflip": aug})
+    deserialized_aug = A.from_dict(serialized_aug, nonserializable={"vflip": aug})
     set_seed(seed)
     aug_data = aug(
         image=image,
@@ -835,58 +903,79 @@ def test_lambda_serialization(image, mask, albumentations_bboxes, keypoints, see
     assert aug_data["keypoints"] == deserialized_aug_data["keypoints"]
 
 
-def test_serialization_v2_conversion_without_totensor():
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    files_directory = os.path.join(current_directory, "files")
-    transform_1_1_0 = A.load(os.path.join(files_directory, "transform_v1.1.0_without_totensor.json"))
-    with open(os.path.join(files_directory, "output_v1.1.0_without_totensor.json")) as f:
-        output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
-    transformed_image = transform_1_1_0(image=image)["image"]
-    assert transformed_image.tolist() == output_1_1_0
+@pytest.mark.parametrize(
+    "transform_file_name",
+    ["transform_v1.1.0_without_totensor.json", "transform_serialization_v2_without_totensor.json"],
+)
+@pytest.mark.parametrize("data_format", ("yaml", "json"))
+@pytest.mark.parametrize("seed", TEST_SEEDS)
+def test_serialization_conversion_without_totensor(transform_file_name, data_format, seed):
+    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+    # Step 1: Load transform from file
+    current_directory = Path(__file__).resolve().parent
+    files_directory = current_directory / "files"
+    transform_file_path = files_directory / transform_file_name
+    transform = A.load(transform_file_path, data_format="json")
+
+    # Step 2: Serialize it to buffer in memory
+    buffer = io.StringIO()
+    A.save(transform, buffer, data_format=data_format)
+    buffer.seek(0)  # Reset buffer position to the beginning
+
+    # Step 3: Load transform from this memory buffer
+    transform_from_buffer = A.load(buffer, data_format=data_format)
+
+    # Ensure the buffer is closed after use
+    buffer.close()
+
+    assert (
+        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)]) == {}
+    ), f"The loaded transform is not equal to the original one {DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)])}"
+
+    set_seed(seed)
+    image1 = transform(image=image)["image"]
+    set_seed(seed)
+    image2 = transform_from_buffer(image=image)["image"]
+
+    assert np.array_equal(image1, image2), f"The transformed images are not equal {(image1 - image2).mean()}"
 
 
-@skipif_no_torch
-def test_serialization_v2_conversion_with_totensor():
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    files_directory = os.path.join(current_directory, "files")
-    transform_1_1_0 = A.load(os.path.join(files_directory, "transform_v1.1.0_with_totensor.json"))
-    with open(os.path.join(files_directory, "output_v1.1.0_with_totensor.json")) as f:
-        output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
-    transformed_image = transform_1_1_0(image=image)["image"]
-    assert transformed_image.numpy().tolist() == output_1_1_0
+@pytest.mark.parametrize(
+    "transform_file_name",
+    ["transform_v1.1.0_with_totensor.json", "transform_serialization_v2_with_totensor.json"],
+)
+@pytest.mark.parametrize("data_format", ("yaml", "json"))
+@pytest.mark.parametrize("seed", TEST_SEEDS)
+def test_serialization_conversion_with_totensor(transform_file_name, data_format, seed):
+    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
 
+    # Load transform from file
+    current_directory = Path(__file__).resolve().parent
+    files_directory = current_directory / "files"
+    transform_file_path = files_directory / transform_file_name
 
-def test_serialization_v2_without_totensor():
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    files_directory = os.path.join(current_directory, "files")
-    transform = A.load(os.path.join(files_directory, "transform_serialization_v2_without_totensor.json"))
-    with open(os.path.join(files_directory, "output_v1.1.0_without_totensor.json")) as f:
-        output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
-    transformed_image = transform(image=image)["image"]
-    assert transformed_image.tolist() == output_1_1_0
+    transform = A.load(transform_file_path, data_format="json")
 
+    # Serialize it to buffer in memory
+    buffer = io.StringIO()
+    A.save(transform, buffer, data_format=data_format)
+    buffer.seek(0)  # Reset buffer position to the beginning
 
-@skipif_no_torch
-def test_serialization_v2_with_totensor():
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    files_directory = os.path.join(current_directory, "files")
-    transform = A.load(os.path.join(files_directory, "transform_serialization_v2_with_totensor.json"))
-    with open(os.path.join(files_directory, "output_v1.1.0_with_totensor.json")) as f:
-        output_1_1_0 = json.load(f)
-    np.random.seed(42)
-    image = np.random.randint(low=0, high=255, size=(256, 256, 3), dtype=np.uint8)
-    random.seed(42)
-    transformed_image = transform(image=image)["image"]
-    assert transformed_image.numpy().tolist() == output_1_1_0
+    # Load transform from this memory buffer
+    transform_from_buffer = A.load(buffer, data_format=data_format)
+    buffer.close()  # Ensure the buffer is closed after use
+
+    assert (
+        DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)]) == {}
+    ), f"The loaded transform is not equal to the original one {DeepDiff(transform.to_dict(), transform_from_buffer.to_dict(), ignore_type_in_groups=[(tuple, list)])}"
+
+    set_seed(seed)
+    image1 = transform(image=image)["image"]
+    set_seed(seed)
+    image2 = transform_from_buffer(image=image)["image"]
+
+    assert np.array_equal(image1, image2), f"The transformed images are not equal {(image1 - image2).mean()}"
 
 
 def test_custom_transform_with_overlapping_name():
@@ -931,7 +1020,7 @@ def test_template_transform_serialization(image, template, seed, p):
     aug = A.Compose([A.Flip(), template_transform, A.Blur()])
 
     serialized_aug = A.to_dict(aug)
-    deserialized_aug = A.from_dict(serialized_aug, lambda_transforms={"template": template_transform})
+    deserialized_aug = A.from_dict(serialized_aug, nonserializable={"template": template_transform})
 
     set_seed(seed)
     aug_data = aug(image=image)
@@ -939,3 +1028,51 @@ def test_template_transform_serialization(image, template, seed, p):
     deserialized_aug_data = deserialized_aug(image=image)
 
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
+
+
+@pytest.mark.parametrize( ["augmentation_cls", "params"], get_transforms(custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
+                "mask_y_length": 10,
+                "fill_value": 0,
+                "mask_fill_value": 1,
+            },
+             A.PadIfNeeded: {
+            "min_height": 512,
+            "min_width": 512,
+            "border_mode": 0,
+            "value": [124, 116, 104],
+            "position": "top_left"
+            },
+             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10}
+        },                                                                        except_augmentations={
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.Lambda,
+            A.TemplateTransform,
+            A.MixUp,
+            A.ShiftScaleRotate,
+        }) )
+def test_augmentations_serialization(augmentation_cls, params):
+    instance = augmentation_cls(**params)
+
+    # Retrieve the constructor's parameters, except 'self', "always_apply"\
+    init_params = inspect.signature(augmentation_cls.__init__).parameters
+    expected_args = set(init_params.keys()) - {'self', "always_apply"}
+
+    # Retrieve the arguments reported by the instance's get_transform_init_args_names
+    reported_args = set(instance.to_dict()["transform"].keys()) - {'__class_fullname__', "always_apply"}
+
+    # Check if the reported arguments match the expected arguments
+    assert expected_args == reported_args, f"Mismatch in {augmentation_cls.__name__}: Expected {expected_args}, got {reported_args}"

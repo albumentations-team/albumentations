@@ -13,7 +13,10 @@ from albumentations.augmentations.utils import (
     preserve_shape,
 )
 
-__all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur"]
+__all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur", "defocus", "central_zoom", "zoom_blur"]
+
+TWO = 2
+EIGHT = 8
 
 
 @preserve_shape
@@ -63,9 +66,9 @@ def glass_blur(
                 range(img.shape[1] - max_delta, max_delta, -1),
             )
         ):
-            ind = ind if ind < len(dxy) else ind % len(dxy)
-            dy = dxy[ind, i, 0]
-            dx = dxy[ind, i, 1]
+            idx = ind if ind < len(dxy) else ind % len(dxy)
+            dy = dxy[idx, i, 0]
+            dx = dxy[idx, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
     else:
         ValueError(f"Unsupported mode `{mode}`. Supports only `fast` and `exact`.")
@@ -75,7 +78,7 @@ def glass_blur(
 
 def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
     length = np.arange(-max(8, radius), max(8, radius) + 1)
-    ksize = 3 if radius <= 8 else 5
+    ksize = 3 if radius <= EIGHT else 5
 
     x, y = np.meshgrid(length, length)
     aliased_disk = np.array((x**2 + y**2) <= radius**2, dtype=np.float32)
@@ -101,6 +104,4 @@ def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -
     for zoom_factor in zoom_factors:
         out += central_zoom(img, zoom_factor)
 
-    img = ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)
-
-    return img
+    return ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)

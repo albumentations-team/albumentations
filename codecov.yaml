@@ -1,0 +1,27 @@
+flag_management:
+  individual_flags:
+    - name: smart-tests
+      carryforward: true
+      carryforward_mode: "labels"
+      statuses:
+        - type: "project"
+        - type: "patch"
+
+cli:
+  plugins:
+    pycoverage:
+      report_type: "json"
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+      paths:
+          - "**/*.py"
+
+codecov:
+  require_ci_to_pass: false
+  ignore:
+    - "tests/"
+    - "tools/"

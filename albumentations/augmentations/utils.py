@@ -8,7 +8,6 @@ from typing_extensions import Concatenate, ParamSpec
 from albumentations.core.keypoints_utils import angle_to_2pi_range
 from albumentations.core.transforms_interface import (
     KeypointsArray,
-    KeypointsInternalType,
 )
 
 __all__ = [
@@ -78,8 +77,7 @@ def clip(img: np.ndarray, dtype: np.dtype, maxval: float) -> np.ndarray:
 
 
 def get_opencv_dtype_from_numpy(value: Union[np.ndarray, int, np.dtype, object]) -> int:
-    """
-    Return a corresponding OpenCV dtype for a numpy's dtype
+    """Return a corresponding OpenCV dtype for a numpy's dtype
     :param value: Input dtype of numpy array
     :return: Corresponding dtype for OpenCV
     """
@@ -93,7 +91,6 @@ def angles_2pi_range(
 ) -> Callable[Concatenate[KeypointsArray, P], KeypointsArray]:
     @wraps(func)
     def wrapped_function(keypoints: KeypointsArray, *args: P.args, **kwargs: P.kwargs) -> KeypointsArray:
-
         keypoints = func(keypoints, *args, **kwargs)
         keypoints[..., 2] = angle_to_2pi_range(keypoints[..., 2])
         return keypoints
@@ -102,7 +99,7 @@ def angles_2pi_range(
 
 
 def preserve_shape(
-    func: Callable[Concatenate[np.ndarray, P], np.ndarray]
+    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
     """Preserve shape of the image"""
 
@@ -117,7 +114,7 @@ def preserve_shape(
 
 
 def preserve_channel_dim(
-    func: Callable[Concatenate[np.ndarray, P], np.ndarray]
+    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
     """Preserve dummy channel dim."""
 
@@ -133,7 +130,7 @@ def preserve_channel_dim(
 
 
 def ensure_contiguous(
-    func: Callable[Concatenate[np.ndarray, P], np.ndarray]
+    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
     """Ensure that input img is contiguous."""
 
@@ -176,8 +173,7 @@ def non_rgb_warning(image: np.ndarray) -> None:
 def _maybe_process_in_chunks(
     process_fn: Callable[Concatenate[np.ndarray, P], np.ndarray], **kwargs
 ) -> Callable[[np.ndarray], np.ndarray]:
-    """
-    Wrap OpenCV function to enable processing images with more than 4 channels.
+    """Wrap OpenCV function to enable processing images with more than 4 channels.
 
     Limitations:
         This wrapper requires image to be the first argument and rest must be sent via named arguments.

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division
-
 import math
 import numbers
 import random
@@ -80,8 +78,7 @@ __all__ = [
 
 
 class RandomGridShuffle(DualTransform):
-    """
-    Random shuffle grid's cells on image.
+    """Random shuffle grid's cells on image.
 
     Args:
         grid ((int, int)): size of grid for splitting image.
@@ -256,9 +253,9 @@ class ImageCompression(ImageOnlyTransform):
             low_thresh_quality_assert = 1
 
         if not low_thresh_quality_assert <= quality_lower <= 100:
-            raise ValueError("Invalid quality_lower. Got: {}".format(quality_lower))
+            raise ValueError(f"Invalid quality_lower. Got: {quality_lower}")
         if not low_thresh_quality_assert <= quality_upper <= 100:
-            raise ValueError("Invalid quality_upper. Got: {}".format(quality_upper))
+            raise ValueError(f"Invalid quality_upper. Got: {quality_upper}")
 
         self.quality_lower = quality_lower
         self.quality_upper = quality_upper
@@ -350,12 +347,10 @@ class RandomSnow(ImageOnlyTransform):
 
         if not 0 <= snow_point_lower <= snow_point_upper <= 1:
             raise ValueError(
-                "Invalid combination of snow_point_lower and snow_point_upper. Got: {}".format(
-                    (snow_point_lower, snow_point_upper)
-                )
+                f"Invalid combination of snow_point_lower and snow_point_upper. Got: {(snow_point_lower, snow_point_upper)}"
             )
         if brightness_coeff < 0:
-            raise ValueError("brightness_coeff must be greater than 0. Got: {}".format(brightness_coeff))
+            raise ValueError(f"brightness_coeff must be greater than 0. Got: {brightness_coeff}")
 
         self.snow_point_lower = snow_point_lower
         self.snow_point_upper = snow_point_upper
@@ -524,15 +519,13 @@ class RandomRain(ImageOnlyTransform):
                 "raint_type must be one of ({}). Got: {}".format(["drizzle", "heavy", "torrential", None], rain_type)
             )
         if not -20 <= slant_lower <= slant_upper <= 20:
-            raise ValueError(
-                "Invalid combination of slant_lower and slant_upper. Got: {}".format((slant_lower, slant_upper))
-            )
+            raise ValueError(f"Invalid combination of slant_lower and slant_upper. Got: {(slant_lower, slant_upper)}")
         if not 1 <= drop_width <= 5:
-            raise ValueError("drop_width must be in range [1, 5]. Got: {}".format(drop_width))
+            raise ValueError(f"drop_width must be in range [1, 5]. Got: {drop_width}")
         if not 0 <= drop_length <= 100:
-            raise ValueError("drop_length must be in range [0, 100]. Got: {}".format(drop_length))
+            raise ValueError(f"drop_length must be in range [0, 100]. Got: {drop_length}")
         if not 0 <= brightness_coefficient <= 1:
-            raise ValueError("brightness_coefficient must be in range [0, 1]. Got: {}".format(brightness_coefficient))
+            raise ValueError(f"brightness_coefficient must be in range [0, 1]. Got: {brightness_coefficient}")
 
         self.slant_lower = slant_lower
         self.slant_upper = slant_upper
@@ -636,12 +629,10 @@ class RandomFog(ImageOnlyTransform):
 
         if not 0 <= fog_coef_lower <= fog_coef_upper <= 1:
             raise ValueError(
-                "Invalid combination if fog_coef_lower and fog_coef_upper. Got: {}".format(
-                    (fog_coef_lower, fog_coef_upper)
-                )
+                f"Invalid combination if fog_coef_lower and fog_coef_upper. Got: {(fog_coef_lower, fog_coef_upper)}"
             )
         if not 0 <= alpha_coef <= 1:
-            raise ValueError("alpha_coef must be in range [0, 1]. Got: {}".format(alpha_coef))
+            raise ValueError(f"alpha_coef must be in range [0, 1]. Got: {alpha_coef}")
 
         self.fog_coef_lower = fog_coef_lower
         self.fog_coef_upper = fog_coef_upper
@@ -732,16 +723,12 @@ class RandomSunFlare(ImageOnlyTransform):
             not 0 <= flare_center_lower_x < flare_center_upper_x <= 1
             or not 0 <= flare_center_lower_y < flare_center_upper_y <= 1
         ):
-            raise ValueError("Invalid flare_roi. Got: {}".format(flare_roi))
+            raise ValueError(f"Invalid flare_roi. Got: {flare_roi}")
         if not 0 <= angle_lower < angle_upper <= 1:
-            raise ValueError(
-                "Invalid combination of angle_lower nad angle_upper. Got: {}".format((angle_lower, angle_upper))
-            )
+            raise ValueError(f"Invalid combination of angle_lower nad angle_upper. Got: {(angle_lower, angle_upper)}")
         if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
             raise ValueError(
-                "Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. Got: {}".format(
-                    (num_flare_circles_lower, num_flare_circles_upper)
-                )
+                f"Invalid combination of num_flare_circles_lower nad num_flare_circles_upper. Got: {(num_flare_circles_lower, num_flare_circles_upper)}"
             )
 
         self.flare_center_lower_x = flare_center_lower_x
@@ -875,12 +862,10 @@ class RandomShadow(ImageOnlyTransform):
         (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
 
         if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
-            raise ValueError("Invalid shadow_roi. Got: {}".format(shadow_roi))
+            raise ValueError(f"Invalid shadow_roi. Got: {shadow_roi}")
         if not 0 <= num_shadows_lower <= num_shadows_upper:
             raise ValueError(
-                "Invalid combination of num_shadows_lower nad num_shadows_upper. Got: {}".format(
-                    (num_shadows_lower, num_shadows_upper)
-                )
+                f"Invalid combination of num_shadows_lower nad num_shadows_upper. Got: {(num_shadows_lower, num_shadows_upper)}"
             )
 
         self.shadow_roi = shadow_roi
@@ -1121,7 +1106,7 @@ class Equalize(ImageOnlyTransform):
     ):
         modes = ["cv", "pil"]
         if mode not in modes:
-            raise ValueError("Unsupported equalization mode. Supports: {}. " "Got: {}".format(modes, mode))
+            raise ValueError(f"Unsupported equalization mode. Supports: {modes}. " f"Got: {mode}")
 
         super(Equalize, self).__init__(always_apply, p)
         self.mode = mode
@@ -1323,9 +1308,7 @@ class GaussNoise(ImageOnlyTransform):
 
             self.var_limit = (0, var_limit)
         else:
-            raise TypeError(
-                "Expected var_limit type to be one of (int, float, tuple, list), got {}".format(type(var_limit))
-            )
+            raise TypeError(f"Expected var_limit type to be one of (int, float, tuple, list), got {type(var_limit)}")
 
         self.mean = mean
         self.per_channel = per_channel
@@ -1356,8 +1339,7 @@ class GaussNoise(ImageOnlyTransform):
 
 
 class ISONoise(ImageOnlyTransform):
-    """
-    Apply camera sensor noise.
+    """Apply camera sensor noise.
 
     Args:
         color_shift (float, float): variance range for color hue change.
@@ -1478,8 +1460,7 @@ class InvertImg(ImageOnlyTransform):
 
 
 class RandomGamma(ImageOnlyTransform):
-    """
-    Args:
+    """Args:
         gamma_limit (float or (float, float)): If gamma_limit is a single float value,
             the range will be (-gamma_limit, gamma_limit). Default: (80, 120).
         eps: Deprecated.
@@ -1709,9 +1690,9 @@ class Downscale(ImageOnlyTransform):
             )
 
         if scale_min > scale_max:
-            raise ValueError("Expected scale_min be less or equal scale_max, got {} {}".format(scale_min, scale_max))
+            raise ValueError(f"Expected scale_min be less or equal scale_max, got {scale_min} {scale_max}")
         if scale_max >= 1:
-            raise ValueError("Expected scale_max to be less than 1, got {}".format(scale_max))
+            raise ValueError(f"Expected scale_max to be less than 1, got {scale_max}")
         self.scale_min = scale_min
         self.scale_max = scale_max
 
@@ -1832,7 +1813,7 @@ class Lambda(NoOp):
         state = {"name": self.name}
         state.update(self.custom_apply_fns.items())
         state.update(self.get_base_init_args())
-        return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+        return f"{self.__class__.__name__}({format_args(state)})"
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
@@ -1984,15 +1965,15 @@ class ColorJitter(ImageOnlyTransform):
     def __check_values(value, name, offset=1, bounds=(0, float("inf")), clip=True):
         if isinstance(value, numbers.Number):
             if value < 0:
-                raise ValueError("If {} is a single number, it must be non negative.".format(name))
+                raise ValueError(f"If {name} is a single number, it must be non negative.")
             value = [offset - value, offset + value]
             if clip:
                 value[0] = max(value[0], 0)
         elif isinstance(value, (tuple, list)) and len(value) == 2:
             if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-                raise ValueError("{} values should be between {}".format(name, bounds))
+                raise ValueError(f"{name} values should be between {bounds}")
         else:
-            raise TypeError("{} should be a single number or a list/tuple with length 2.".format(name))
+            raise TypeError(f"{name} should be a single number or a list/tuple with length 2.")
 
         return value
 
@@ -2046,7 +2027,7 @@ class Sharpen(ImageOnlyTransform):
     @staticmethod
     def __check_values(value, name, bounds=(0, float("inf"))):
         if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError("{} values should be between {}".format(name, bounds))
+            raise ValueError(f"{name} values should be between {bounds}")
         return value
 
     @staticmethod
@@ -2094,7 +2075,7 @@ class Emboss(ImageOnlyTransform):
     @staticmethod
     def __check_values(value, name, bounds=(0, float("inf"))):
         if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError("{} values should be between {}".format(name, bounds))
+            raise ValueError(f"{name} values should be between {bounds}")
         return value
 
     @staticmethod
@@ -2131,7 +2112,8 @@ class Superpixels(ImageOnlyTransform):
     Args:
         p_replace (float or tuple of float): Defines for any segment the probability that the pixels within that
             segment are replaced by their average color (otherwise, the pixels are not changed).
-            Examples:
+
+    Examples:
                 * A probability of ``0.0`` would mean, that the pixels in no
                   segment are replaced by their average color (image is not
                   changed at all).
@@ -2198,8 +2180,7 @@ class Superpixels(ImageOnlyTransform):
 
 
 class TemplateTransform(ImageOnlyTransform):
-    """
-    Apply blending of input image with specified templates
+    """Apply blending of input image with specified templates
     Args:
         templates (numpy array or list of numpy arrays): Images as template for transform.
         img_weight ((float, float) or float): If single float will be used as weight for input image.
@@ -2254,18 +2235,14 @@ class TemplateTransform(ImageOnlyTransform):
         if get_num_channels(template) not in [1, get_num_channels(img)]:
             raise ValueError(
                 "Template must be a single channel or "
-                "has the same number of channels as input image ({}), got {}".format(
-                    get_num_channels(img), get_num_channels(template)
-                )
+                f"has the same number of channels as input image ({get_num_channels(img)}), got {get_num_channels(template)}"
             )
 
         if template.dtype != img.dtype:
             raise ValueError("Image and template must be the same image type")
 
         if img.shape[:2] != template.shape[:2]:
-            raise ValueError(
-                "Image and template must be the same size, got {} and {}".format(img.shape[:2], template.shape[:2])
-            )
+            raise ValueError(f"Image and template must be the same size, got {img.shape[:2]} and {template.shape[:2]}")
 
         if get_num_channels(template) == 1 and get_num_channels(img) > 1:
             template = np.stack((template,) * get_num_channels(img), axis=-1)
@@ -2358,8 +2335,7 @@ class RingingOvershoot(ImageOnlyTransform):
 
 
 class UnsharpMask(ImageOnlyTransform):
-    """
-    Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
+    """Sharpen the input image using Unsharp Masking processing and overlays the result with the original image.
 
     Args:
         blur_limit (int, (int, int)): maximum Gaussian kernel size for blurring the input image.
@@ -2476,7 +2452,7 @@ class PixelDropout(DualTransform):
         img: np.ndarray,
         drop_mask: np.ndarray = np.array(None),
         drop_value: Union[float, Sequence[float]] = (),
-        **params
+        **params,
     ) -> np.ndarray:
         return F.pixel_dropout(img, drop_mask, drop_value)
 
@@ -2529,8 +2505,7 @@ class PixelDropout(DualTransform):
 
 
 class Spatter(ImageOnlyTransform):
-    """
-    Apply spatter transform. It simulates corruption which can occlude a lens in the form of rain or mud.
+    """Apply spatter transform. It simulates corruption which can occlude a lens in the form of rain or mud.
 
     Args:
         mean (float, or tuple of floats): Mean value of normal distribution for generating liquid layer.
@@ -2623,7 +2598,7 @@ class Spatter(ImageOnlyTransform):
         mud: Optional[np.ndarray] = None,
         drops: Optional[np.ndarray] = None,
         mode: str = "",
-        **params
+        **params,
     ) -> np.ndarray:
         return F.spatter(img, non_mud, mud, drops, mode)
 

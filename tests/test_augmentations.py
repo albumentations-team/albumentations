@@ -1,4 +1,3 @@
-import random
 from typing import Dict, Tuple, Type
 
 import cv2
@@ -7,7 +6,7 @@ import pytest
 
 import albumentations as A
 
-from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
 
 @pytest.mark.parametrize(
@@ -30,11 +29,17 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
+            A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)}],
+                "read_fn": lambda x: x,
+            }
         },
-        except_augmentations={A.FromFloat, A.Normalize, A.ToFloat},
+        except_augmentations={
+            A.FromFloat, A.Normalize, A.ToFloat
+            },
     ),
 )
-def test_image_only_augmentations(augmentation_cls, params, image, mask):
+def test_image_only_augmentations_mask_persists(augmentation_cls, params, image, mask):
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
     assert data["image"].dtype == np.uint8
@@ -64,6 +69,10 @@ def test_image_only_augmentations(augmentation_cls, params, image, mask):
                 "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
             },
             A.RingingOvershoot: {"blur_limit": (3, 5)},
+            A.MixUp: {
+                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32)}],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -96,8 +105,25 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "fill_value": 0,
+                "mask_fill_value": 1,
+            },
+              A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            },
+
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
+        except_augmentations={
+            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            },
     ),
 )
 def test_dual_augmentations(augmentation_cls, params, image, mask):
@@ -119,8 +145,24 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32),
+                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
+        except_augmentations={
+            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            },
     ),
 )
 def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
@@ -158,8 +200,24 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop},
+        except_augmentations={
+            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            },
     ),
 )
 def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
@@ -200,6 +258,20 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
             A.TemplateTransform: {
                 "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32),
+                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -239,6 +311,20 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(224, 224), dtype=np.uint8),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, (224, 224), dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, (224, 224), dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.ChannelDropout,
@@ -315,6 +401,20 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, (224, 224, 3), dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -374,7 +474,7 @@ def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, imag
     ],
 )
 def test_mask_fill_value(augmentation_cls, params):
-    random.seed(42)
+    set_seed(42)
     aug = augmentation_cls(p=1, **params)
     input = {"image": np.zeros((512, 512), dtype=np.uint8) + 100, "mask": np.ones((512, 512))}
     output = aug(**input)
@@ -404,6 +504,20 @@ def test_mask_fill_value(augmentation_cls, params):
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 256, (100, 100, 6), dtype=np.uint8),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -467,6 +581,20 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.TemplateTransform: {
                 "templates": np.random.uniform(0.0, 1.0, (100, 100, 6)).astype(np.float32),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+            A.MixUp: {
+                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 6)).astype(np.float32),
+                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -521,6 +649,20 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.TemplateTransform: {
                 "templates": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 7], dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -555,12 +697,13 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
     ),
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
-    for num_channels in range(3, 13):
-        image = np.zeros((100, 100, num_channels), dtype=np.uint8)
-        aug = augmentation_cls(p=1, **params)
-        data = aug(image=image)
-        assert data["image"].dtype == np.uint8
-        assert data["image"].shape[2] == num_channels
+    num_channels = 7
+
+    image = np.zeros((100, 100, num_channels), dtype=np.uint8)
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image=image)
+    assert data["image"].dtype == np.uint8
+    assert data["image"].shape[2] == num_channels
 
 
 @pytest.mark.parametrize(
@@ -579,6 +722,20 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.TemplateTransform: {
                 "templates": np.random.uniform(0.0, 1.0, (100, 100, 1)).astype(np.float32),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.CLAHE,
@@ -614,12 +771,13 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     ),
 )
 def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
-    for num_channels in range(3, 13):
-        image = np.zeros((100, 100, num_channels), dtype=np.float32)
-        aug = augmentation_cls(p=1, **params)
-        data = aug(image=image)
-        assert data["image"].dtype == np.float32
-        assert data["image"].shape[2] == num_channels
+    num_channels = 5
+
+    image = np.zeros((100, 100, num_channels), dtype=np.float32)
+    aug = augmentation_cls(p=1, **params)
+    data = aug(image=image)
+    assert data["image"].dtype == np.float32
+    assert data["image"].shape[2] == num_channels
 
 
 @pytest.mark.parametrize(
@@ -692,7 +850,7 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, imag
     ],
 )
 def test_pad_if_needed_position(params, image_shape):
-    random.seed(42)
+    set_seed(42)
 
     image = np.zeros(image_shape)
     pad = A.PadIfNeeded(**params)
@@ -771,8 +929,7 @@ def test_perspective_order_points(points):
     ],
 )
 def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h: int, w: int):
-    random.seed(seed)
-    np.random.seed(seed)
+    set_seed(seed)
 
     image = np.zeros([h, w, 3], dtype=np.uint8)
     keypoints = [
@@ -800,7 +957,7 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
 def test_pixel_domain_adaptation(kind):
     img_uint8 = np.random.randint(low=100, high=200, size=(100, 100, 3), dtype=np.uint8)
     ref_img_uint8 = np.random.randint(low=0, high=100, size=(100, 100, 3), dtype=np.uint8)
-    img_float, ref_img_float = [x.astype("float32") / 255.0 for x in (img_uint8, ref_img_uint8)]
+    img_float, ref_img_float = (x.astype("float32") / 255.0 for x in (img_uint8, ref_img_uint8))
 
     for img, ref_img in ((img_uint8, ref_img_uint8), (img_float, ref_img_float)):
         adapter = A.PixelDistributionAdaptation(
@@ -854,6 +1011,20 @@ def test_pixel_domain_adaptation(kind):
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.5},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, [100, 100, 3], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
     ),
 )

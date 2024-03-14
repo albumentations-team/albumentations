@@ -1,0 +1,89 @@
+# NOTE: you have to use single-quoted strings in TOML for regular expressions.
+# It's the equivalent of r-strings in Python.  Multiline strings are treated as
+# verbose regular expressions by Black.  Use [ ] to denote a significant space
+# character.
+
+[tool.mypy]
+python_version = "3.8"
+ignore_missing_imports = true
+follow_imports = "silent"
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_any_generics = true
+check_untyped_defs = true
+no_implicit_reexport = true
+
+# for strict mypy: (this is the tricky one :-))
+disallow_untyped_defs = true
+
+
+[tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "tests",
+    "benchmark",
+    "setup.py",
+    "tools"
+]
+
+# Same as Black.
+line-length = 120
+indent-width = 4
+
+# Assume Python 3.8
+target-version = "py38"
+
+[tool.ruff.lint]
+explicit-preview-rules = true
+
+select = ["F", "E", "W", "C90", "I", "N", "D", "UP", "YTT", "ANN", "ASYNC", "TRIO", "S", "BLE", "FBT", "B", "A", "COM", "CPY", "C4", "DTZ", "T10", "DJ", "EM", "EXE", "ISC", "ICN", "G", "INP", "PIE", "T20", "PYI", "PT", "Q", "RSE", "RET", "SLF", "SLOT", "SIM", "TID", "TCH", "INT", "ARG", "PTH", "TD", "FIX", "ERA", "PD", "PGH", "PL", "TRY", "FLY", "NPY", "PERF", "FURB", "LOG", "RUF"]
+ignore = [ "ANN101", "D107", "ANN401", "ANN204", "ARG002", "S311", "F403", "PLR0913", "FBT001", "FBT002", "ISC001", "COM812", "ANN102", "EM102", "TRY003", "D401", "A002", "PTH123", "B028", "ARG001", "ARG005", "B028", "N812", "FBT003", "B027", "D104", "D100", "D103", "D102", "D415", "D101", "D205", "D105", "D417"]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Like Black, automatically detect the appropriate line ending.
+line-ending = "auto"
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

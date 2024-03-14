@@ -1,7 +1,7 @@
 import math
 import random
 from enum import Enum
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -607,9 +607,7 @@ class Affine(DualTransform):
         self.rotate_method = rotate_method
 
         if self.keep_ratio and self.scale["x"] != self.scale["y"]:
-            raise ValueError(
-                "When keep_ratio is True, the x and y scale range should be identical. got {}".format(self.scale)
-            )
+            raise ValueError(f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}")
 
     def get_transform_init_args_names(self):
         return (
@@ -668,7 +666,7 @@ class Affine(DualTransform):
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
         output_shape: Sequence[int] = (),
-        **params
+        **params,
     ) -> np.ndarray:
         return F.warp_affine(
             img,
@@ -684,7 +682,7 @@ class Affine(DualTransform):
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
         output_shape: Sequence[int] = (),
-        **params
+        **params,
     ) -> np.ndarray:
         return F.warp_affine(
             img,
@@ -702,7 +700,7 @@ class Affine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
-        **params
+        **params,
     ) -> BBoxesInternalType:
         return F.bboxes_affine(bboxes, matrix, self.rotate_method, rows, cols, output_shape)
 
@@ -711,7 +709,7 @@ class Affine(DualTransform):
         keypoints: KeypointsInternalType,
         matrix: Optional[skimage.transform.ProjectiveTransform] = None,
         scale: Optional[dict] = None,
-        **params
+        **params,
     ) -> KeypointsInternalType:
         assert scale is not None and matrix is not None
         return F.keypoints_affine(keypoints, matrix=matrix, scale=scale)
@@ -981,7 +979,7 @@ class PiecewiseAffine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
-        **params
+        **params,
     ) -> BBoxesInternalType:
         return F.bboxes_piecewise_affine(bboxes, matrix, rows, cols, self.keypoints_threshold)
 
@@ -991,7 +989,7 @@ class PiecewiseAffine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
-        **params
+        **params,
     ) -> KeypointsInternalType:
         return F.keypoints_piecewise_affine(keypoints, matrix, rows, cols, self.keypoints_threshold)
 
@@ -1140,7 +1138,7 @@ class PadIfNeeded(DualTransform):
         pad_right: int = 0,
         rows: int = 0,
         cols: int = 0,
-        **params
+        **params,
     ) -> BBoxesInternalType:
         bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
         bboxes.array += np.array([pad_left, pad_top, pad_left, pad_top])
@@ -1153,7 +1151,7 @@ class PadIfNeeded(DualTransform):
         pad_bottom: int = 0,
         pad_left: int = 0,
         pad_right: int = 0,
-        **params
+        **params,
     ) -> KeypointsInternalType:
         keypoints.array[..., :2] += np.array([pad_left, pad_top])
         return keypoints
@@ -1326,8 +1324,7 @@ class Transpose(DualTransform):
 
 
 class OpticalDistortion(DualTransform):
-    """
-    Args:
+    """Args:
         distort_limit (float, (float, float)): If distort_limit is a single float, the range
             will be (-distort_limit, distort_limit). Default: (-0.05, 0.05).
         shift_limit (float, (float, float))): If shift_limit is a single float, the range
@@ -1407,8 +1404,7 @@ class OpticalDistortion(DualTransform):
 
 
 class GridDistortion(DualTransform):
-    """
-    Args:
+    """Args:
         num_steps (int): count of grid cells on each side.
         distort_limit (float, (float, float)): If distort_limit is a single float, the range
             will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).
@@ -1495,10 +1491,10 @@ class GridDistortion(DualTransform):
         return {"stepsx": xsteps, "stepsy": ysteps}
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params):
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, float]:
         h, w = params["image"].shape[:2]
 
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
@@ -1509,5 +1505,5 @@ class GridDistortion(DualTransform):
 
         return {"stepsx": stepsx, "stepsy": stepsy}
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"

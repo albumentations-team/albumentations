@@ -1,7 +1,5 @@
-from __future__ import division
-
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
@@ -11,7 +9,7 @@ from .transforms_interface import (
     BoxInternalType,
     BoxType,
 )
-from .utils import DataProcessor, Params, ensure_internal_format
+from .utils import DataProcessor, InternalDtype, Params, ensure_internal_format
 
 __all__ = [
     "normalize_bboxes_np",
@@ -76,8 +74,7 @@ def use_bboxes_ndarray(return_array: bool = True) -> Callable:
 
 
 class BboxParams(Params):
-    """
-    Parameters of bounding boxes
+    """Parameters of bounding boxes
 
     Args:
         format (str): format of bounding boxes. Should be 'coco', 'pascal_voc', 'albumentations' or 'yolo'.
@@ -123,8 +120,8 @@ class BboxParams(Params):
         self.min_height = min_height
         self.check_each_transform = check_each_transform
 
-    def _to_dict(self) -> Dict[str, Any]:
-        data = super(BboxParams, self)._to_dict()
+    def to_dict_private(self) -> Dict[str, Any]:
+        data = super().to_dict_private()
         data.update(
             {
                 "min_area": self.min_area,
@@ -149,7 +146,7 @@ class BboxProcessor(DataProcessor):
     def __init__(self, params: BboxParams, additional_targets: Optional[Dict[str, str]] = None):
         super().__init__(params, additional_targets)
 
-    def convert_to_internal_type(self, data):
+    def convert_to_internal_type(self, data: Any) -> InternalDtype:
         box_array = []
         targets = []
         for _data in data:
@@ -157,7 +154,7 @@ class BboxProcessor(DataProcessor):
             targets.append(_data[4:])
         return BBoxesInternalType(array=np.array(box_array).astype(float), targets=np.array(targets))
 
-    def convert_to_original_type(self, data):
+    def convert_to_original_type(self, data: InternalDtype) -> Any:
         return [tuple(bbox.array[0].tolist()) + tuple(bbox.targets[0]) for bbox in data]  # type: ignore[attr-defined]
 
     @property
@@ -174,10 +171,10 @@ class BboxProcessor(DataProcessor):
                         "because bboxes must have labels"
                     )
         if self.params.label_fields:
-            if not all(i in data.keys() for i in self.params.label_fields):
+            if not all(i in data for i in self.params.label_fields):
                 raise ValueError("Your 'label_fields' are not valid - them must have same names as params in dict")
 
-    def filter(self, data, rows: int, cols: int, target_name: str):
+    def filter(self, data: BoxesArray, rows: int, cols: int, target_name: str) -> BoxesArray:
         self.params: BboxParams
         data = filter_bboxes(
             data,
@@ -191,13 +188,13 @@ class BboxProcessor(DataProcessor):
 
         return data
 
-    def check(self, data, rows: int, cols: int) -> None:
+    def check(self, data: BoxesArray, rows: int, cols: int) -> None:
         check_bboxes(data)
 
-    def convert_from_albumentations(self, data, rows: int, cols: int):
+    def convert_from_albumentations(self, data: BoxesArray, rows: int, cols: int) -> BoxesArray:
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
-    def convert_to_albumentations(self, data, rows: int, cols: int):
+    def convert_to_albumentations(self, data: BoxesArray, rows: int, cols: int) -> BoxesArray:
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
@@ -292,7 +289,6 @@ def convert_bboxes_to_albumentations(
         )
 
     if source_format == "coco":
-
         bboxes[:, 2:] += bboxes[:, :2]
     elif source_format == "yolo":
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
@@ -359,7 +355,7 @@ def check_bboxes(bboxes: BoxesArray) -> None:
         return
 
     row_idx, col_idx = np.where(
-        (~np.logical_and(0 <= bboxes, bboxes <= 1)) & (~np.isclose(bboxes, 0)) & (~np.isclose(bboxes, 1))
+        (~np.logical_and(bboxes >= 0, bboxes <= 1)) & (~np.isclose(bboxes, 0)) & (~np.isclose(bboxes, 1))
     )
     if len(row_idx) and len(col_idx):
         name = {
@@ -411,7 +407,6 @@ def filter_bboxes(
         List of bounding boxes.
 
     """
-
     if not len(bboxes):
         return bboxes
 

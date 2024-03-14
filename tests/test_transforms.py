@@ -15,12 +15,8 @@ from albumentations.core.transforms_interface import (
     KeypointsInternalType,
 )
 
-from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
+from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
-
-def set_seed(seed=0):
-    random.seed(seed)
-    np.random.seed(seed)
 
 
 def test_transpose_both_image_and_mask():
@@ -161,8 +157,17 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
-        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout},
+        except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout,
+                              A.MixUp},
     ),
 )
 def test_binary_mask_interpolation(augmentation_cls, params):
@@ -193,13 +198,13 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.BBoxSafeRandomCrop,
             A.CropAndPad,
             A.PixelDropout,
+            A.MixUp,
+            A.XYMasking
         },
     ),
 )
 def test_semantic_mask_interpolation(augmentation_cls, params):
-    """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts.
-    Note: IAAAffine, IAAPiecewiseAffine, IAAPerspective does not properly operate if mask has values other than {0;1}
-    """
+    """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts."""
     aug = augmentation_cls(p=1, **params)
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
@@ -228,6 +233,14 @@ def __test_multiprocessing_support_proc(args):
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -238,6 +251,7 @@ def __test_multiprocessing_support_proc(args):
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
+            A.MixUp
         },
     ),
 )
@@ -751,10 +765,10 @@ def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
 
     unsharpmask = A.UnsharpMask(blur_limit=3, always_apply=True, p=1)
 
-    random.seed(0)
+    set_seed(0)
     usm_uint8 = unsharpmask(image=x_uint8)["image"]
 
-    random.seed(0)
+    set_seed(0)
     usm_float32 = unsharpmask(image=x_float32)["image"]
 
     # Before comparison, rescale the usm_float32 to [0, 255]
@@ -799,9 +813,9 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
     _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
 
     if hue != 0:
-        assert _max <= 10, "Max: {}".format(_max)
+        assert _max <= 10, f"Max: {_max}"
     else:
-        assert _max <= 2, "Max: {}".format(_max)
+        assert _max <= 2, f"Max: {_max}"
 
 
 @pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
@@ -850,7 +864,7 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
             res2 = (t2(image=img.astype(np.float32) / 255.0)["image"] * 255).astype(np.uint8)
 
             _max = np.abs(res1.astype(np.int32) - res2).max()
-            assert _max <= 10, "Max value: {}".format(_max)
+            assert _max <= 10, f"Max value: {_max}"
 
 
 def test_shift_scale_separate_shift_x_shift_y(image, mask):
@@ -876,10 +890,10 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
 
     glassblur = A.GlassBlur(always_apply=True, max_delta=1)
 
-    random.seed(0)
+    set_seed(0)
     blur_uint8 = glassblur(image=x_uint8)["image"]
 
-    random.seed(0)
+    set_seed(0)
     blur_float32 = glassblur(image=x_float32)["image"]
 
     # Before comparison, rescale the blur_float32 to [0, 255]
@@ -913,9 +927,9 @@ def test_perspective_keep_size():
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
 
-    set_seed()
+    set_seed(0)
     res_1 = transform_1(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
-    set_seed()
+    set_seed(0)
     res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
 
     assert np.allclose(res_1["bboxes"], res_2["bboxes"])
@@ -983,7 +997,7 @@ def test_template_transform_incorrect_size(template):
         transform = A.TemplateTransform(template, always_apply=True)
         transform(image=image)
 
-    message = "Image and template must be the same size, got {} and {}".format(image.shape[:2], template.shape[:2])
+    message = f"Image and template must be the same size, got {image.shape[:2]} and {template.shape[:2]}"
     assert str(exc_info.value) == message
 
 
@@ -1031,7 +1045,7 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
     [
         [{"blur_limit": (2, 5)}],
         [{"blur_limit": (3, 6)}],
-        [{"sigmaX_limit": (0.0, 1.0), "sigmaY_limit": (0.0, 1.0)}],
+        [{"sigma_x_limit": (0.0, 1.0), "sigma_y_limit": (0.0, 1.0)}],
         [{"beta_limit": (0.1, 0.9)}],
         [{"beta_limit": (1.1, 8.0)}],
     ],
@@ -1213,19 +1227,19 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
         np.random.randint(0, 256, [100, 25, 3], np.uint8),
     ],
 )
-@pytest.mark.parametrize("angle", [i for i in range(-360, 360, 15)])
+@pytest.mark.parametrize("angle", list(range(-360, 360, 15)))
 def test_rotate_equal(img, aug_cls, angle):
-    random.seed(0)
+    set_seed(0)
 
-    h, w = img.shape[:2]
-    kp = [[random.randint(0, w - 1), random.randint(0, h - 1), random.randint(0, 360)] for _ in range(50)]
+    height, width = img.shape[:2]
+    kp = [[random.randint(0, width - 1), random.randint(0, height - 1), random.randint(0, 360)] for _ in range(50)]
     kp += [
-        [round(w * 0.2), int(h * 0.3), 90],
-        [int(w * 0.2), int(h * 0.3), 90],
-        [int(w * 0.2), int(h * 0.3), 90],
-        [int(w * 0.2), int(h * 0.3), 90],
+        [round(width * 0.2), int(height * 0.3), 90],
+        [int(width * 0.2), int(height * 0.3), 90],
+        [int(width * 0.2), int(height * 0.3), 90],
+        [int(width * 0.2), int(height * 0.3), 90],
         [0, 0, 0],
-        [w - 1, h - 1, 0],
+        [width - 1, height - 1, 0],
     ]
     keypoint_params = A.KeypointParams("xya", remove_invisible=False)
 
@@ -1270,7 +1284,7 @@ def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: f
 
 
 def test_bbox_clipping_perspective():
-    random.seed(0)
+    set_seed(0)
     transform = A.Compose(
         [A.Perspective(scale=(0.05, 0.05), p=1)], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6)
     )
@@ -1281,9 +1295,9 @@ def test_bbox_clipping_perspective():
     assert len(res) == 0
 
 
-@pytest.mark.parametrize("seed", [i for i in range(10)])
+@pytest.mark.parametrize("seed", list(range(10)))
 def test_motion_blur_allow_shifted(seed):
-    random.seed(seed)
+    set_seed(seed)
 
     transform = A.MotionBlur(allow_shifted=False)
     kernel = transform.get_params()["kernel"]

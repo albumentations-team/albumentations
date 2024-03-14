@@ -53,10 +53,7 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
-            "Requested crop size ({crop_height}, {crop_width}) is "
-            "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
-            )
+            f"Requested crop size ({crop_height}, {crop_width}) is " f"larger than the image size ({height}, {width})"
         )
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
     img = img[y1:y2, x1:x2]
@@ -129,7 +126,6 @@ def crop_keypoints_by_coords(
         KeypointsArray, A batch of keypoints in `(x, y, angle, scale)` format.
 
     """
-
     if not len(keypoints):
         return keypoints
     keypoints[..., [0, 1]] -= crop_coords[:2]
@@ -147,8 +143,8 @@ def keypoints_random_crop(
     rows: int,
     cols: int,
 ) -> KeypointsArray:
-    """
-    Keypoints random crop.
+    """Keypoints random crop.
+
     Args:
         keypoints (KeypointsArray): A batch of keypoints in `x, y, angle, scale` format.
         crop_height (int): Crop height.
@@ -181,10 +177,7 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
-            "Requested crop size ({crop_height}, {crop_width}) is "
-            "larger than the image size ({height}, {width})".format(
-                crop_height=crop_height, crop_width=crop_width, height=height, width=width
-            )
+            f"Requested crop size ({crop_height}, {crop_width}) is " f"larger than the image size ({height}, {width})"
         )
     x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
     img = img[y1:y2, x1:x2]
@@ -232,18 +225,14 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
     if x_max <= x_min or y_max <= y_min:
         raise ValueError(
             "We should have x_min < x_max and y_min < y_max. But we got"
-            " (x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max
-            )
+            f" (x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max})"
         )
 
     if x_min < 0 or x_max > width or y_min < 0 or y_max > height:
         raise ValueError(
             "Values for crop should be non negative and equal or smaller than image sizes"
-            "(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
-            "height = {height}, width = {width})".format(
-                x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, height=height, width=width
-            )
+            f"(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
+            f"height = {height}, width = {width})"
         )
 
     return img[y_min:y_max, x_min:x_max]
@@ -372,7 +361,6 @@ def crop_and_pad_keypoints(
     result_cols: int,
     keep_size: bool,
 ) -> KeypointsArray:
-
     if crop_params is not None:
         crop_x1, crop_y1, crop_x2, crop_y2 = crop_params
         keypoints[..., :2] -= np.array([crop_x1, crop_y1])

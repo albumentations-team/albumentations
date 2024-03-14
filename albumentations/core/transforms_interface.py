@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import random
 import sys
 from abc import abstractmethod
@@ -242,9 +240,9 @@ class BasicTransform(Serializable):
             params = self.get_params()
 
             if self.targets_as_params:
-                assert all(key in kwargs for key in self.targets_as_params), "{} requires {}".format(
-                    self.__class__.__name__, self.targets_as_params
-                )
+                assert all(
+                    key in kwargs for key in self.targets_as_params
+                ), f"{self.__class__.__name__} requires {self.targets_as_params}"
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
@@ -282,7 +280,7 @@ class BasicTransform(Serializable):
     def __repr__(self) -> str:
         state = self.get_base_init_args()
         state.update(self.get_transform_init_args())
-        return "{name}({args})".format(name=self.__class__.__name__, args=format_args(state))
+        return f"{self.__class__.__name__}({format_args(state)})"
 
     def _get_target_function(self, key: str) -> Callable:
         transform_key = key
@@ -349,8 +347,8 @@ class BasicTransform(Serializable):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         raise NotImplementedError(
-            "Class {name} is not serializable because the `get_transform_init_args_names` method is not "
-            "implemented".format(name=self.get_class_fullname())
+            f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` method is not "
+            "implemented"
         )
 
     def get_base_init_args(self) -> Dict[str, Any]:
@@ -360,6 +358,12 @@ class BasicTransform(Serializable):
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
 
     def _to_dict(self) -> Dict[str, Any]:
+        state = {"__class_fullname__": self.get_class_fullname()}
+        state.update(self.get_base_init_args())
+        state.update(self.get_transform_init_args())
+        return state
+
+    def to_dict_private(self) -> Dict[str, Any]:
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
@@ -432,3 +436,15 @@ class NoOp(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple:
         return ()
+
+
+class ReferenceBasedTransform(DualTransform):
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "global_label": self.apply_to_global_label,
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "bboxes": self.apply_to_bboxes,
+            "keypoints": self.apply_to_keypoints,
+        }

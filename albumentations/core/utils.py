@@ -1,8 +1,6 @@
-from __future__ import absolute_import
-
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 
@@ -71,7 +69,7 @@ class Params(Serializable, ABC):
         self.format = format
         self.label_fields = label_fields
 
-    def _to_dict(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> Dict[str, Any]:
         return {"format": self.format, "label_fields": self.label_fields}
 
 

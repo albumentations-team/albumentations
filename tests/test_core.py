@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import typing
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call
@@ -93,7 +91,6 @@ def test_one_of():
 def test_n_of(N, replace):
     transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)]
     augmentation = SomeOf(transforms, N, p=1, replace=replace)
-    print(augmentation.n)
     image = np.ones((8, 8))
     augmentation(image=image)
     if not replace:
@@ -162,7 +159,7 @@ def test_check_bboxes_with_correct_values():
     try:
         check_bboxes(bboxes)
     except Exception as e:  # skipcq: PYL-W0703
-        pytest.fail("Unexpected Exception {!r}".format(e))
+        pytest.fail(f"Unexpected Exception {e!r}")
 
 
 def test_check_bboxes_with_values_less_than_zero():

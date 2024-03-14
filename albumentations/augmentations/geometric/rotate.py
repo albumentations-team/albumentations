@@ -32,9 +32,8 @@ class RandomRotate90(DualTransform):
     """
 
     def apply(self, img, factor=0, **params):
-        """
-        Args:
-            factor (int): number of times the input will be rotated by 90 degrees.
+        """Args:
+        factor (int): number of times the input will be rotated by 90 degrees.
         """
         return np.ascontiguousarray(np.rot90(img, factor))
 
@@ -128,7 +127,7 @@ class Rotate(DualTransform):
         y_max: int = 0,
         cols: int = 0,
         rows: int = 0,
-        **params
+        **params,
     ) -> BBoxesInternalType:
         bboxes = F.bboxes_rotate(bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
         if self.crop_border:
@@ -153,7 +152,7 @@ class Rotate(DualTransform):
         y_max=None,
         cols=0,
         rows=0,
-        **params
+        **params,
     ):
         keypoints_out = F.keypoints_rotate(keypoints, angle, rows, cols, **params)
         if self.crop_border:
@@ -161,15 +160,13 @@ class Rotate(DualTransform):
         return keypoints_out
 
     @staticmethod
-    def _rotated_rect_with_max_area(h, w, angle):
-        """
-        Given a rectangle of size wxh that has been rotated by 'angle' (in
+    def _rotated_rect_with_max_area(h: int, w: int, angle: float) -> Dict[str, int]:
+        """Given a rectangle of size wxh that has been rotated by 'angle' (in
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
 
         Code from: https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
         """
-
         angle = math.radians(angle)
         width_is_longer = w >= h
         side_long, side_short = (w, h) if width_is_longer else (h, w)
@@ -205,7 +202,7 @@ class Rotate(DualTransform):
             out_params.update(self._rotated_rect_with_max_area(h, w, out_params["angle"]))
         return out_params
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border")
 
 
@@ -261,7 +258,9 @@ class SafeRotate(DualTransform):
     def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
         return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, rows: int = 0, cols: int = 0, **params) -> BBoxesInternalType:
+    def apply_to_bboxes(
+        self, bboxes: BBoxesInternalType, rows: int = 0, cols: int = 0, **params: Any
+    ) -> BBoxesInternalType:
         return F.bboxes_safe_rotate(bboxes, params["matrix"], rows=rows, cols=cols)
 
     def apply_to_keypoints(
@@ -272,7 +271,7 @@ class SafeRotate(DualTransform):
         scale_y: float = 0,
         cols: int = 0,
         rows: int = 0,
-        **params
+        **params: Any,
     ) -> KeypointsInternalType:
         return F.keypoints_safe_rotate(keypoints, params["matrix"], angle, scale_x, scale_y, cols, rows)
 

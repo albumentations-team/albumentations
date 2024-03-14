@@ -1,14 +1,12 @@
-from __future__ import division
-
 import math
 import warnings
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from .transforms_interface import KeypointsArray, KeypointsInternalType, KeypointType
-from .utils import DataProcessor, Params, ensure_internal_format
+from .utils import DataProcessor, InternalDtype, Params, ensure_internal_format
 
 __all__ = [
     "angle_to_2pi_range",
@@ -77,8 +75,7 @@ def use_keypoints_ndarray(return_array: bool = True) -> Callable:
 
 
 class KeypointParams(Params):
-    """
-    Parameters of keypoints
+    """Parameters of keypoints
 
     Args:
         format (str): format of keypoints. Should be 'xy', 'yx', 'xya', 'xys', 'xyas', 'xysa'.
@@ -151,11 +148,9 @@ class KeypointsProcessor(DataProcessor):
             kps_array = np.array(kps_array, dtype=float)
         return KeypointsInternalType(array=kps_array, targets=np.array(targets))
 
-    def convert_to_original_type(self, data):
+    def convert_to_original_type(self, data: InternalDtype) -> Any:
         dl = len(self.params.format)
-        return [
-            tuple(kp.array[0].tolist()[:dl]) + tuple(kp.targets[0].tolist()) for kp in data
-        ]  # type: ignore[attr-defined]
+        return [tuple(kp.array[0].tolist()[:dl]) + tuple(kp.targets[0].tolist()) for kp in data]  # type: ignore[attr-defined]
 
     @property
     def default_data_name(self) -> str:
@@ -163,7 +158,7 @@ class KeypointsProcessor(DataProcessor):
 
     def ensure_data_valid(self, data: Dict[str, Any]) -> None:
         if self.params.label_fields:
-            if not all(i in data.keys() for i in self.params.label_fields):
+            if not all(i in data for i in self.params.label_fields):
                 raise ValueError(
                     "Your 'label_fields' are not valid - them must have same names as params in "
                     "'keypoint_params' dict"
@@ -184,21 +179,21 @@ class KeypointsProcessor(DataProcessor):
             for transform in transforms:
                 if isinstance(transform, DualIAATransform):
                     warnings.warn(
-                        "{} transformation supports only 'xy' keypoints "
-                        "augmentation. You have '{}' keypoints format. Scale "
-                        "and angle WILL NOT BE transformed.".format(transform.__class__.__name__, self.params.format)
+                        f"{transform.__class__.__name__} transformation supports only 'xy' keypoints "
+                        f"augmentation. You have '{self.params.format}' keypoints format. Scale "
+                        "and angle WILL NOT BE transformed."
                     )
                     break
 
-    def filter(self, data, rows: int, cols: int, target_name: str):
+    def filter(self, data: KeypointsArray, rows: int, cols: int, target_name: str):
         self.params: KeypointParams
         data = filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
         return data
 
-    def check(self, data, rows: int, cols: int) -> None:
+    def check(self, data: KeypointsArray, rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
 
-    def convert_from_albumentations(self, data, rows: int, cols: int):
+    def convert_from_albumentations(self, data: KeypointsArray, rows: int, cols: int):
         return convert_keypoints_from_albumentations(
             data,
             self.params.format,
@@ -208,7 +203,7 @@ class KeypointsProcessor(DataProcessor):
             angle_in_degrees=self.params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data, rows: int, cols: int):
+    def convert_to_albumentations(self, data: KeypointsArray, rows: int, cols: int):
         return convert_keypoints_to_albumentations(
             data,
             self.params.format,
@@ -222,20 +217,19 @@ class KeypointsProcessor(DataProcessor):
 @use_keypoints_ndarray(return_array=False)
 def check_keypoints(keypoints: KeypointsArray, rows: int, cols: int) -> None:
     """Check if keypoints boundaries are less than image shapes"""
-
     if not len(keypoints):
         return
 
     row_idx, *_ = np.where(
-        ~np.logical_and(0 <= keypoints[..., 0], keypoints[..., 0] < cols)
-        | ~np.logical_and(0 <= keypoints[..., 1], keypoints[..., 1] < rows)
+        ~np.logical_and(keypoints[..., 0] >= 0, keypoints[..., 0] < cols)
+        | ~np.logical_and(keypoints[..., 1] >= 0, keypoints[..., 1] < rows)
     )
     if row_idx:
         raise ValueError(
             f"Expected keypoints `x` in the range [0.0, {cols}] and `y` in the range [0.0, {rows}]. "
             f"Got {keypoints[row_idx]}."
         )
-    row_idx, *_ = np.where(~np.logical_and(0 <= keypoints[..., 2], keypoints[..., 2] < 2 * math.pi))
+    row_idx, *_ = np.where(~np.logical_and(keypoints[..., 2] >= 0, keypoints[..., 2] < 2 * math.pi))
     if len(row_idx):
         raise ValueError(f"Keypoint angle must be in range [0, 2 * PI). Got: {keypoints[row_idx, 2]}.")
 
@@ -245,6 +239,7 @@ def filter_keypoints(
     keypoints: KeypointsInternalType, rows: int, cols: int, remove_invisible: bool
 ) -> KeypointsInternalType:
     """Remove keypoints that are not visible.
+
     Args:
         keypoints (KeypointsInternalType): A batch of keypoints in `x, y, a, s` format.
         rows (int): Image height.
@@ -262,7 +257,7 @@ def filter_keypoints(
 
     x = keypoints.array[..., 0]
     y = keypoints.array[..., 1]
-    idx, *_ = np.where(np.logical_and(0 <= x, x < cols) & np.logical_and(0 <= y, y < rows))
+    idx, *_ = np.where(np.logical_and(x >= 0, x < cols) & np.logical_and(y >= 0, y < rows))
 
     return keypoints[idx] if len(idx) != len(keypoints) else keypoints
 
