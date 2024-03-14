@@ -1,62 +1,83 @@
 import random
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import cv2
 import numpy as np
 
 from .serialization import Serializable, get_shortest_class_fullname
-from .types import BBoxesInternalType, BoxInternalType, KeypointInternalType, KeypointsInternalType
+from .types import (
+    BBoxesInternalType,
+    BoxInternalType,
+    ColorType,
+    KeypointInternalType,
+    KeypointsInternalType,
+    ScalarType,
+    ScaleType,
+    Targets,
+)
 from .utils import format_args
 
-__all__ = [
-    "to_tuple",
-    "BasicTransform",
-    "DualTransform",
-    "ImageOnlyTransform",
-    "NoOp",
-]
+__all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
+
+PAIR = 2
 
 
-def to_tuple(param, low=None, bias=None):
-    """Convert input argument to min-max tuple
+def to_tuple(
+    param: ScaleType,
+    low: Optional[ScaleType] = None,
+    bias: Optional[ScalarType] = None,
+) -> Union[Tuple[int, int], Tuple[float, float]]:
+    """Convert input argument to a min-max tuple.
+
     Args:
-        param (scalar, tuple or list of 2+ elements): Input value.
-            If value is scalar, return value would be (offset - value, offset + value).
-            If value is tuple, return value would be value + offset (broadcasted).
-        low:  Second element of tuple can be passed as optional argument
-        bias: An offset factor added to each element
+        param: Input value which could be a scalar or a sequence of exactly 2 scalars.
+        low: Second element of the tuple, provided as an optional argument for when `param` is a scalar.
+        bias: An offset added to both elements of the tuple.
+
+    Returns:
+        A tuple of two scalars, optionally adjusted by `bias`.
+        Raises ValueError for invalid combinations or types of arguments.
     """
+    # Validate mutually exclusive arguments
     if low is not None and bias is not None:
-        raise ValueError("Arguments low and bias are mutually exclusive")
+        msg = "Arguments 'low' and 'bias' cannot be used together."
+        raise ValueError(msg)
 
-    if param is None:
-        return param
+    if isinstance(param, Sequence) and len(param) == PAIR:
+        min_val, max_val = min(param), max(param)
 
-    if isinstance(param, (int, float)):
-        if low is None:
-            param = -param, +param
+    # Handle scalar input
+    elif isinstance(param, (int, float)):
+        if isinstance(low, (int, float)):
+            # Use low and param to create a tuple
+            min_val, max_val = (low, param) if low < param else (param, low)
         else:
-            param = (low, param) if low < param else (param, low)
-    elif isinstance(param, Sequence):
-        if len(param) != 2:
-            raise ValueError("to_tuple expects 1 or 2 values")
-        param = tuple(param)
+            # Create a symmetric tuple around 0
+            min_val, max_val = -param, param
     else:
-        raise ValueError("Argument param must be either scalar (int, float) or tuple")
+        msg = "Argument 'param' must be either a scalar or a sequence of 2 elements."
+        raise ValueError(msg)
 
+    # Apply bias if provided
     if bias is not None:
-        return tuple(bias + x for x in param)
+        return (bias + min_val, bias + max_val)
 
-    return tuple(param)
+    return min_val, max_val
+
+
+class Interpolation:
+    def __init__(self, downscale: int = cv2.INTER_NEAREST, upscale: int = cv2.INTER_NEAREST):
+        self.downscale = downscale
+        self.upscale = upscale
 
 
 class BasicTransform(Serializable):
     call_backup = None
-    interpolation: Any
-    fill_value: Any
-    mask_fill_value: Any
+    interpolation: Union[int, Interpolation]
+    fill_value: ColorType
+    mask_fill_value: Optional[ColorType]
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
         self.p = p
@@ -70,22 +91,24 @@ class BasicTransform(Serializable):
         self.replay_mode = False
         self.applied_in_replay = False
 
-    def __call__(self, *args, force_apply: bool = False, **kwargs) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
         if args:
-            raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
+            msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
+            raise KeyError(msg)
         if self.replay_mode:
             if self.applied_in_replay:
                 return self.apply_with_params(self.params, **kwargs)
 
             return kwargs
 
-        if (random.random() < self.p) or self.always_apply or force_apply:
+        if force_apply or self.always_apply or (random.random() < self.p):
             params = self.get_params()
 
             if self.targets_as_params:
-                assert all(
-                    key in kwargs for key in self.targets_as_params
-                ), f"{self.__class__.__name__} requires {self.targets_as_params}"
+                if not all(key in kwargs for key in self.targets_as_params):
+                    msg = f"{self.__class__.__name__} requires {self.targets_as_params}"
+                    raise ValueError(msg)
+
                 targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
@@ -100,7 +123,7 @@ class BasicTransform(Serializable):
 
         return kwargs
 
-    def apply_with_params(self, params: Dict[str, Any], **kwargs) -> Dict[str, Any]:  # skipcq: PYL-W0613
+    def apply_with_params(self, params: Dict[str, Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
         if params is None:
             return kwargs
         params = self.update_params(params, **kwargs)
@@ -115,7 +138,10 @@ class BasicTransform(Serializable):
         return res
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
-        assert save_key != "params", "params save_key is reserved"
+        if save_key == "params":
+            msg = "params save_key is reserved"
+            raise KeyError(msg)
+
         self.deterministic = flag
         self.save_key = save_key
         return self
@@ -125,28 +151,28 @@ class BasicTransform(Serializable):
         state.update(self.get_transform_init_args())
         return f"{self.__class__.__name__}({format_args(state)})"
 
-    def _get_target_function(self, key: str) -> Callable:
+    def _get_target_function(self, key: str) -> Callable[..., Any]:
         transform_key = key
         if key in self._additional_targets:
             transform_key = self._additional_targets.get(key, key)
 
-        target_function = self.targets.get(transform_key, lambda x, **p: x)
-        return target_function
+        return self.targets.get(transform_key, lambda x, **p: x)
 
-    def apply(self, img: np.ndarray, **params) -> np.ndarray:
+    def apply(self, img: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         raise NotImplementedError
 
-    def get_params(self) -> Dict:
+    def get_params(self) -> Dict[str, Any]:
         return {}
 
     @property
-    def targets(self) -> Dict[str, Callable]:
+    def targets(self) -> Dict[str, Callable[..., Any]]:
         # you must specify targets in subclass
-        # for example: ('image', 'mask')
-        #              ('image', 'boxes')
+        # foe example:
+        # >>  ('image', 'mask')
+        # >>  ('image', 'boxes')
         raise NotImplementedError
 
-    def update_params(self, params: Dict[str, Any], **kwargs) -> Dict[str, Any]:
+    def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         if hasattr(self, "interpolation"):
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
@@ -157,10 +183,10 @@ class BasicTransform(Serializable):
         return params
 
     @property
-    def target_dependence(self) -> Dict:
+    def target_dependence(self) -> Dict[str, Any]:
         return {}
 
-    def add_targets(self, additional_targets: Dict[str, str]):
+    def add_targets(self, additional_targets: Dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
@@ -168,6 +194,7 @@ class BasicTransform(Serializable):
 
         Args:
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
+
         """
         self._additional_targets = additional_targets
 
@@ -185,26 +212,19 @@ class BasicTransform(Serializable):
         return get_shortest_class_fullname(cls)
 
     @classmethod
-    def is_serializable(cls):
+    def is_serializable(cls) -> bool:
         return True
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        raise NotImplementedError(
-            f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` method is not "
-            "implemented"
-        )
+        msg = f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
+        "method is not implemented"
+        raise NotImplementedError(msg)
 
     def get_base_init_args(self) -> Dict[str, Any]:
         return {"always_apply": self.always_apply, "p": self.p}
 
     def get_transform_init_args(self) -> Dict[str, Any]:
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
-
-    def _to_dict(self) -> Dict[str, Any]:
-        state = {"__class_fullname__": self.get_class_fullname()}
-        state.update(self.get_base_init_args())
-        state.update(self.get_transform_init_args())
-        return state
 
     def to_dict_private(self) -> Dict[str, Any]:
         state = {"__class_fullname__": self.get_class_fullname()}
@@ -213,16 +233,41 @@ class BasicTransform(Serializable):
         return state
 
     def get_dict_with_id(self) -> Dict[str, Any]:
-        d = self._to_dict()
+        d = self.to_dict_private()
         d["id"] = id(self)
         return d
 
 
 class DualTransform(BasicTransform):
-    """Transform for segmentation task."""
+    """A base class for transformations that should be applied both to an image and its corresponding properties
+    such as masks, bounding boxes, and keypoints. This class ensures that when a transform is applied to an image,
+    all associated entities are transformed accordingly to maintain consistency between the image and its annotations.
+    Properties:
+        targets (Dict[str, Callable[..., Any]]): Defines the types of targets (e.g., image, mask, bboxes, keypoints)
+            that the transform should be applied to and maps them to the corresponding methods.
+
+    Methods:
+        apply_to_bbox(bbox: BoxInternalType, *args: Any, **params: Any) -> BoxInternalType:
+            Applies the transform to a single bounding box. Should be implemented in the subclass.
+        apply_to_keypoint(keypoint: KeypointInternalType, *args: Any, **params: Any) -> KeypointInternalType:
+            Applies the transform to a single keypoint. Should be implemented in the subclass.
+        apply_to_bboxes(bboxes: Sequence[BoxType], *args: Any, **params: Any) -> Sequence[BoxType]:
+            Applies the transform to a list of bounding boxes. Delegates to `apply_to_bbox` for each bounding box.
+        apply_to_keypoints(keypoints: Sequence[KeypointType], *args: Any, **params: Any) -> Sequence[KeypointType]:
+            Applies the transform to a list of keypoints. Delegates to `apply_to_keypoint` for each keypoint.
+        apply_to_mask(mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+            Applies the transform specifically to a single mask.
+        apply_to_masks(masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+            Applies the transform to a list of masks. Delegates to `apply_to_mask` for each mask.
+
+    Note:
+        This class is intended to be subclassed and should not be used directly. Subclasses are expected to
+        implement the specific logic for each type of target (e.g., image, mask, bboxes, keypoints) in the
+        corresponding `apply_to_*` methods.
+    """
 
     @property
-    def targets(self) -> Dict[str, Callable]:
+    def targets(self) -> Dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
@@ -231,11 +276,17 @@ class DualTransform(BasicTransform):
             "keypoints": self.apply_to_keypoints,
         }
 
-    def apply_to_bbox(self, bbox: BoxInternalType, **params) -> BoxInternalType:
-        raise NotImplementedError("Method apply_to_bbox is not implemented in class " + self.__class__.__name__)
+    def apply_to_bbox(self, bbox: BoxInternalType, *args: Any, **params: Any) -> BoxInternalType:
+        msg = f"Method apply_to_bbox is not implemented in class {self.__class__.__name__}"
+        raise NotImplementedError(msg)
 
-    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params) -> KeypointInternalType:
-        raise NotImplementedError("Method apply_to_keypoint is not implemented in class " + self.__class__.__name__)
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, *args: Any, **params: Any) -> KeypointInternalType:
+        msg = f"Method apply_to_keypoint is not implemented in class {self.__class__.__name__}"
+        raise NotImplementedError(msg)
+
+    def apply_to_global_label(self, label: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
+        raise NotImplementedError(msg)
 
     def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
         for i, bbox in enumerate(bboxes.array):  # type: ignore[arg-type]
@@ -247,37 +298,50 @@ class DualTransform(BasicTransform):
             keypoints.array[i] = self.apply_to_keypoint(kpt, **params)
         return keypoints
 
-    def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
-        return self.apply(img, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
+    def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        return self.apply(mask, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
 
-    def apply_to_masks(self, masks: Sequence[np.ndarray], **params) -> List[np.ndarray]:
+    def apply_to_masks(self, masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
         return [self.apply_to_mask(mask, **params) for mask in masks]
+
+    def apply_to_global_labels(self, labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+        return [self.apply_to_global_label(label, **params) for label in labels]
 
 
 class ImageOnlyTransform(BasicTransform):
     """Transform applied to image only."""
 
+    _targets = Targets.IMAGE
+
     @property
-    def targets(self) -> Dict[str, Callable]:
+    def targets(self) -> Dict[str, Callable[..., Any]]:
         return {"image": self.apply}
 
 
 class NoOp(DualTransform):
-    """Does nothing"""
+    """Does nothing
+    Targets:
+        image, mask, bboxes, keypoints, global_label
+    """
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
-        return keypoints
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL)
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
-        return bboxes
+    def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
+        return keypoint
 
-    def apply(self, img: np.ndarray, **params) -> np.ndarray:
+    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
+        return bbox
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return img
 
-    def apply_to_mask(self, img: np.ndarray, **params) -> np.ndarray:
-        return img
+    def apply_to_mask(self, mask: np.ndarray, **params: Any) -> np.ndarray:
+        return mask
 
-    def get_transform_init_args_names(self) -> Tuple:
+    def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
+        return label
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ()
 
 
