@@ -1028,10 +1028,9 @@ def test_pixel_domain_adaptation(kind):
         },
     ),
 )
-def test_non_contiguous_input(augmentation_cls, params):
+def test_non_contiguous_input(augmentation_cls, params, bboxes):
     image = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
     mask = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
-    bboxes = [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]]
 
     # check preconditions
     assert not image.flags["C_CONTIGUOUS"]
