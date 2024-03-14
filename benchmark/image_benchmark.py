@@ -6,7 +6,7 @@ from collections import defaultdict
 from contextlib import suppress
 from pathlib import Path
 from timeit import Timer
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Union
 
 import augly.image as imaugs
 import cv2
@@ -17,12 +17,10 @@ import pandas as pd
 import pkg_resources
 import tensorflow as tf
 import torch
-import torchvision.transforms.functional as torchvision
 from Augmentor import Operations, Pipeline
 from imgaug import augmenters as iaa
 from PIL import Image
-from torchvision.transforms import InterpolationMode
-from torchvision.transforms import functional as T
+from torchvision.transforms import InterpolationMode, v2
 from tqdm import tqdm
 
 import albumentations as A
@@ -48,11 +46,11 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 DEFAULT_BENCHMARKING_LIBRARIES = [
     "albumentations",
-    "kornia",
     "torchvision",
+    "kornia",
+    "augly",
     "tensorflow",
     "imgaug",
-    "augly",
     "augmentor",
 ]
 
@@ -102,7 +100,7 @@ def get_package_versions() -> Dict[str, str]:
 
 
 class BenchmarkTest:
-    def __str__(self):
+    def __str__(self) -> str:
         return self.__class__.__name__
 
     def albumentations(self, img: np.ndarray) -> np.ndarray:
@@ -145,7 +143,7 @@ class BenchmarkTest:
             attrs = library_attr_map[library]
             # Ensure attrs is a list for uniform processing
             if not isinstance(attrs, list):
-                attrs = [attrs]
+                attrs = [attrs]  # type: ignore[list-item]
             # Return True if any of the specified attributes exist
             return any(hasattr(self, attr) for attr in attrs)
 
@@ -166,10 +164,10 @@ class HorizontalFlip(BenchmarkTest):
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.HorizontalFlip(p=1)(image=img)["image"]
 
-    def torchvision_transform(self, img: np.ndarray) -> np.ndarray:
-        return torchvision.hflip(img)
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return v2.RandomHorizontalFlip(p=1)(img)
 
-    def tensorflow_transform(self, img: np.ndarray) -> np.ndarray:
+    def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         return tf.image.flip_left_right(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
@@ -187,8 +185,8 @@ class VerticalFlip(BenchmarkTest):
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.VerticalFlip(p=1)(image=img)["image"]
 
-    def torchvision_transform(self, img: np.ndarray) -> np.ndarray:
-        return torchvision.vflip(img)
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return v2.RandomVerticalFlip(p=1)(img)
 
     def tensorflow_transform(self, img: np.ndarray) -> np.ndarray:
         return tf.image.flip_up_down(img)
@@ -210,7 +208,7 @@ class Rotate(BenchmarkTest):
         return A.Rotate(limit=self.angle, p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return T.rotate(img, angle=-self.angle, interpolation=InterpolationMode.BILINEAR)
+        return v2.RandomRotation(degrees=self.angle, interpolation=InterpolationMode.BILINEAR)(img)
 
     def tensorflow_transform(self, img: np.ndarray) -> np.ndarray:
         # Rotate the image by -45 degrees
@@ -252,10 +250,6 @@ class BrightnessContrast(BenchmarkTest):
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.RandomBrightnessContrast(p=1, contrast_limit=self.beta, brightness_limit=self.beta)(image=img)["image"]
 
-    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        img = torchvision.adjust_brightness(img, brightness_factor=self.alpha)
-        return torchvision.adjust_contrast(img, contrast_factor=self.beta)
-
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         img_bright = tf.image.adjust_brightness(img, delta=self.alpha)
         return tf.image.adjust_contrast(img_bright, contrast_factor=self.beta)
@@ -287,14 +281,14 @@ class ShiftScaleRotate(BenchmarkTest):
         )["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return torchvision.affine(
-            img,
-            angle=self.angle,
-            translate=self.shift,
-            scale=self.scale,
+        height, width = img.shape[-2], img.shape[-1]
+        return v2.RandomAffine(
+            degrees=self.angle,
+            translate=[self.shift[0] / width, self.shift[1] / height],
+            scale=(self.scale, self.scale),
             shear=0,
             interpolation=InterpolationMode.BILINEAR,
-        )
+        )(img)
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         # Assuming 'img' is a numpy array of shape (height, width, channels)
@@ -336,7 +330,7 @@ class Equalize(BenchmarkTest):
         return A.Equalize(p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return torchvision.equalize(img)
+        return v2.RandomEqualize(p=1)(img)
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         # Convert image to grayscale for histogram equalization
@@ -356,7 +350,7 @@ class RandomCrop64(BenchmarkTest):
         return A.RandomCrop(height=64, width=64, p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return torchvision.crop(img, top=0, left=0, height=64, width=64)
+        return v2.RandomCrop(size=(64, 64))(img)
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         shape = tf.shape(img)
@@ -405,8 +399,10 @@ class RandomSizedCrop_64_512(BenchmarkTest):
         return img
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        img = torchvision.crop(img, top=0, left=0, height=64, width=64)
-        return torchvision.resize(img, (512, 512))
+        transform = v2.Compose(
+            [v2.RandomCrop(size=(64, 64)), v2.Resize(size=(512, 512), interpolation=InterpolationMode.BILINEAR)]
+        )
+        return transform(img)
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         # Assume the input image size is at least 64x64. If not, resize to at least 64x64 before cropping.
@@ -488,7 +484,7 @@ class PadToSize(BenchmarkTest):
 
         # torchvision expects padding as [left, right, top, bottom]
         padding = [pad_left, pad_right, pad_top, pad_bottom]
-        return torchvision.pad(img, padding, padding_mode="reflect")
+        return v2.Pad(padding, padding_mode="reflect")(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.PadTo(size=(self.target_width, self.target_height), pad_mode="reflect")(img)
@@ -517,7 +513,7 @@ class Resize512(BenchmarkTest):
         return A.resize(img, height=512, width=512)
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return torchvision.resize(img, (512, 512))
+        return v2.Resize(size=(512, 512), interpolation=InterpolationMode.BILINEAR)(img)
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         return tf.image.resize(img, [512, 512], method="bilinear")
@@ -537,7 +533,7 @@ class RandomGamma(BenchmarkTest):
         return A.gamma_transform(img, gamma=0.5)
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return torchvision.adjust_gamma(img, gamma=0.5)
+        return v2.functional.adjust_gamma(img, gamma=0.5)
 
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         # Normalize the image to [0, 1] by dividing by 255
@@ -575,32 +571,8 @@ class Grayscale(BenchmarkTest):
     def augly_transform(self, img: Image.Image) -> Image.Image:
         return imaugs.Grayscale(p=1)(img)
 
-
-class Multiply(BenchmarkTest):
-    def __init__(self):
-        self.imgaug_transform = iaa.Multiply(mul=1.5)
-
-    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.multiply(img, np.array([1.5]))
-
-    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Apply the multiplication
-        multiplied_img = img * 1.5
-
-        # Clip values to maintain them within [0, 1] range
-        return torch.clamp(multiplied_img, min=0.0, max=255.0)
-
-    def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
-        img_normalized = img / 255.0 if tf.reduce_max(img) > 1.0 else img
-
-        # Multiply pixel values by 1.5
-        multiplied_img = img_normalized * 1.5
-
-        # Clip values to maintain them within [0, 1] range
-        multiplied_img_clipped = tf.clip_by_value(multiplied_img, clip_value_min=0.0, clip_value_max=1.0)
-
-        # Convert back to [0, 255] range if necessary
-        return multiplied_img_clipped * 255.0 if tf.reduce_max(img) > 1.0 else multiplied_img_clipped
+    def torchvision_transform(self, img: torch.Tensor) -> np.ndarray:
+        return v2.Grayscale(num_output_channels=3)(img)
 
 
 class ColorJitter(BenchmarkTest):
@@ -616,10 +588,9 @@ class ColorJitter(BenchmarkTest):
         )(image=img)["image"]
 
     def torchvision(self, img: torch.Tensor) -> torch.Tensor:
-        img = torchvision.adjust_brightness(img, self.brightness)
-        img = torchvision.adjust_contrast(img, self.contrast)
-        img = torchvision.adjust_saturation(img, self.saturation)
-        return torchvision.adjust_hue(img, self.hue)
+        return v2.ColorJitter(
+            brightness=self.brightness, contrast=self.contrast, saturation=self.saturation, hue=self.hue, p=1
+        )
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.ColorJitter(
@@ -634,16 +605,19 @@ class ColorJitter(BenchmarkTest):
 
 class RandomPerspective(BenchmarkTest):
     def __init__(self):
-        self.scale = [0.05, 0.1]
+        self.scale = (0.05, 0.1)
 
         self.imgaug_transform = iaa.PerspectiveTransform(scale=self.scale)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.Perspective(scale=self.scale, p=1)  # Adjust scale as needed
+        transform = A.Perspective(scale=self.scale, p=1, interpolation=cv2.INTER_LINEAR)  # Adjust scale as needed
         return transform(image=img)["image"]
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return Kaug.RandomPerspective(distortion_scale=self.scale[0], p=1)(img)
+        return Kaug.RandomPerspective(distortion_scale=self.scale[1], p=1)(img)
+
+    def torchvision_transform(self, img: torch.Tensor) -> np.ndarray:
+        return v2.RandomPerspective(distortion_scale=self.scale[1], interpolation=InterpolationMode.BILINEAR, p=1)(img)
 
 
 class GaussianBlur(BenchmarkTest):
@@ -656,7 +630,7 @@ class GaussianBlur(BenchmarkTest):
         return transform(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return torchvision.gaussian_blur(img, kernel_size=[5, 5], sigma=self.sigma)
+        return v2.GaussianBlur(kernel_size=[5, 5], sigma=(self.sigma, self.sigma))(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomGaussianBlur(kernel_size=(5, 5), sigma=(self.sigma, self.sigma), p=1)(img)
@@ -714,6 +688,9 @@ class Posterize(BenchmarkTest):
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomPosterize(bits=self.bits, p=1)(img)
 
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return v2.RandomPosterize(bits=self.bits, p=1)(img)
+
 
 class JpegCompressionTransform(BenchmarkTest):
     def __init__(self, quality: int = 50):
@@ -764,13 +741,29 @@ class GaussianNoise(BenchmarkTest):
         return torch.clamp(img_noisy, 0.0, 1.0)
 
 
+class ElasticTransform(BenchmarkTest):
+    def __init__(self, alpha: float = 50.0, sigma: float = 5.0):
+        # Parameters: alpha controls the intensity of the deformation, sigma controls the smoothness
+        # alpha_affine controls the affine transformation part, not all libraries might use it directly
+        self.alpha = alpha
+        self.sigma = sigma
+        self.imgaug_transform = iaa.ElasticTransformation(alpha=self.alpha, sigma=self.sigma)
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        transform = A.ElasticTransform(alpha=self.alpha, sigma=self.sigma, always_apply=True)
+        return transform(image=img)["image"]
+
+    def kornia(self, img: torch.Tensor) -> np.ndarray:
+        return Kaug.RandomElasticTransform(alpha=self.alpha, sigma=(self.sigma, self.sigma), p=1)(img)
+
+
 def main() -> None:
     args = parse_args()
     package_versions = get_package_versions()
     if args.print_package_versions:
         pass
 
-    images_per_second = defaultdict(dict)
+    images_per_second: Dict[str, Dict[str, Any]] = defaultdict(dict)
     libraries = args.libraries
     data_dir = Path(args.data_dir)
     paths = sorted(data_dir.glob("*.*"))
@@ -795,13 +788,13 @@ def main() -> None:
         Resize512(),
         RandomSizedCrop_64_512(),
         ShiftRGB(),
-        Multiply(),
         ColorJitter(),
         RandomPerspective(),
         GaussianBlur(),
         MedianBlur(),
         MotionBlur(),
         Posterize(),
+        ElasticTransform(),
     ]
     for library in libraries:
         if library in ("augmentor", "augly"):

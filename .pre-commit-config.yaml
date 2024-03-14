@@ -71,6 +71,6 @@ repos:
     hooks:
       - id: mypy
         files: ^albumentations/
-        additional_dependencies: [ types-PyYAML]
+        additional_dependencies: [ types-PyYAML, types-setuptools]
         args:
           [ --config-file=pyproject.toml ]
