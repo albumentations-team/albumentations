@@ -1,10 +1,10 @@
 import random
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
-from ...core.transforms_interface import DualTransform, KeypointsInternalType
-from ...core.types import ScalarType
+from ...core.transforms_interface import DualTransform
+from ...core.types import KeypointsInternalType, ScalarType, Targets
 from .functional import cutout
 
 __all__ = ["CoarseDropout"]
@@ -42,7 +42,10 @@ class CoarseDropout(DualTransform):
     |  https://arxiv.org/abs/1708.04552
     |  https://github.com/uoguelph-mlrg/Cutout/blob/master/util/cutout.py
     |  https://github.com/aleju/imgaug/blob/master/imgaug/augmenters/arithmetic.py
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -57,7 +60,7 @@ class CoarseDropout(DualTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(CoarseDropout, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.max_holes = max_holes
         self.max_height = max_height
         self.max_width = max_width
@@ -79,14 +82,15 @@ class CoarseDropout(DualTransform):
         if not 0 < self.min_width <= self.max_width:
             raise ValueError(f"Invalid combination of min_width and max_width. Got: {[min_width, max_width]}")
 
-    def check_range(self, dimension: ScalarType) -> None:
+    @staticmethod
+    def check_range(dimension: ScalarType) -> None:
         if isinstance(dimension, float) and not 0 <= dimension < 1.0:
             raise ValueError(f"Invalid value {dimension}. If using floats, the value should be in the range [0.0, 1.0)")
 
     def apply(
         self,
         img: np.ndarray,
-        fill_value: Union[int, float] = 0,
+        fill_value: ScalarType = 0,
         holes: Iterable[Tuple[int, int, int, int]] = (),
         **params: Any,
     ) -> np.ndarray:
@@ -94,21 +98,21 @@ class CoarseDropout(DualTransform):
 
     def apply_to_mask(
         self,
-        img: np.ndarray,
-        mask_fill_value: Union[int, float] = 0,
+        mask: np.ndarray,
+        mask_fill_value: ScalarType = 0,
         holes: Iterable[Tuple[int, int, int, int]] = (),
         **params: Any,
     ) -> np.ndarray:
         if mask_fill_value is None:
-            return img
-        return cutout(img, holes, mask_fill_value)
+            return mask
+        return cutout(mask, holes, mask_fill_value)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
 
         holes = []
-        for _n in range(random.randint(self.min_holes, self.max_holes)):
+        for _ in range(random.randint(self.min_holes, self.max_holes)):
             if all(
                 [
                     isinstance(self.min_height, int),
@@ -130,19 +134,18 @@ class CoarseDropout(DualTransform):
                 hole_height = int(height * random.uniform(self.min_height, self.max_height))
                 hole_width = int(width * random.uniform(self.min_width, self.max_width))
             else:
-                raise ValueError(
-                    "Min width, max width, \
+                msg = "Min width, max width, \
                     min height and max height \
                     should all either be ints or floats. \
                     Got: {} respectively".format(
-                        [
-                            type(self.min_width),
-                            type(self.max_width),
-                            type(self.min_height),
-                            type(self.max_height),
-                        ]
-                    )
+                    [
+                        type(self.min_width),
+                        type(self.max_width),
+                        type(self.min_height),
+                        type(self.max_height),
+                    ]
                 )
+                raise ValueError(msg)
 
             y1 = random.randint(0, height - hole_height)
             x1 = random.randint(0, width - hole_width)
@@ -156,7 +159,8 @@ class CoarseDropout(DualTransform):
     def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def _keypoints_not_in_hole(self, keypoints: KeypointsInternalType, hole: Tuple[int, int, int, int]) -> np.ndarray:
+    @staticmethod
+    def _keypoints_not_in_hole(keypoints: KeypointsInternalType, hole: Tuple[int, int, int, int]) -> np.ndarray:
         x1, y1, x2, y2 = hole
 
         row_idx, *_ = np.where(
