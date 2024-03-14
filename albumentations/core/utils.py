@@ -1,15 +1,19 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union
 
 import numpy as np
 
 from .serialization import Serializable
+from .types import BatchInternalType, BoxOrKeypointType, SizeType
+
+if TYPE_CHECKING:
+    import torch
 
 InternalDtype = TypeVar("InternalDtype")
 
 
-def ensure_internal_format(func: Callable) -> Callable:
+def ensure_internal_format(func: Callable[[BatchInternalType], ...]) -> Callable[[BatchInternalType], ...]:
     """Ensure data in inputs of the provided function is BatchInternalType,
     and ensure its data consistency.
 
@@ -19,10 +23,9 @@ def ensure_internal_format(func: Callable) -> Callable:
     Returns:
         Callable, a callable with the first argument with type BatchInternalType.
     """
-    from .transforms_interface import BatchInternalType
 
     @wraps(func)
-    def wrapper(data, *args, **kwargs):  # noqa
+    def wrapper(data: BatchInternalType, *args: Any, **kwargs: Any) -> ...:
         data = func(data, *args, **kwargs)
         if isinstance(data, BatchInternalType):
             data.check_consistency()
@@ -36,7 +39,7 @@ def ensure_internal_format(func: Callable) -> Callable:
     return wrapper
 
 
-def get_shape(img: Any) -> Tuple[int, int]:
+def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
     if isinstance(img, np.ndarray):
         rows, cols = img.shape[:2]
         return rows, cols
@@ -45,8 +48,7 @@ def get_shape(img: Any) -> Tuple[int, int]:
         import torch
 
         if torch.is_tensor(img):
-            rows, cols = img.shape[-2:]
-            return rows, cols
+            return img.shape[-2:]
     except ImportError:
         pass
 
@@ -55,12 +57,11 @@ def get_shape(img: Any) -> Tuple[int, int]:
     )
 
 
-def format_args(args_dict: Dict):
+def format_args(args_dict: Dict[str, Any]) -> str:
     formatted_args = []
     for k, v in args_dict.items():
-        if isinstance(v, str):
-            v = f"'{v}'"
-        formatted_args.append(f"{k}={v}")
+        v_formatted = f"'{v}'" if isinstance(v, str) else str(v)
+        formatted_args.append(f"{k}={v_formatted}")
     return ", ".join(formatted_args)
 
 
@@ -109,8 +110,7 @@ class DataProcessor(ABC):
             _data = self.check_and_convert(_data, rows, cols, direction="from")
             data[data_name] = self.convert_to_original_type(_data)
 
-        data = self.remove_label_fields_from_data(data)
-        return data
+        return self.remove_label_fields_from_data(data)
 
     def preprocess(self, data: Dict[str, Any]) -> None:
         data = self.add_label_fields_to_data(data)
@@ -120,26 +120,28 @@ class DataProcessor(ABC):
             data[data_name] = self.convert_to_internal_type(data[data_name])
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
-    def check_and_convert(self, data: Union[Sequence, InternalDtype], rows: int, cols: int, direction: str = "to"):
+    def check_and_convert(
+        self, data: List[BoxOrKeypointType], rows: int, cols: int, direction: str = "to"
+    ) -> List[BoxOrKeypointType]:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
 
         if direction == "to":
             return self.convert_to_albumentations(data, rows, cols)
-        elif direction == "from":
+        if direction == "from":
             return self.convert_from_albumentations(data, rows, cols)
-        else:
-            raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
+
+        raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
     def filter(
-        self, data: Union[Sequence, InternalDtype], rows: int, cols: int, target_name: str
-    ) -> Union[Sequence, InternalDtype]:
+        self, data: Union[Sequence[BoxOrKeypointType], InternalDtype], rows: int, cols: int, target_name: str
+    ) -> Union[Sequence[BoxOrKeypointType], InternalDtype]:
         pass
 
     @abstractmethod
-    def check(self, data: Union[Sequence, InternalDtype], rows: int, cols: int) -> None:
+    def check(self, data: Union[List[BoxOrKeypointType], InternalDtype], rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
@@ -155,10 +157,12 @@ class DataProcessor(ABC):
             return data
         for data_name in self.data_fields:
             for field in self.params.label_fields:
-                assert len(data[data_name]) == len(data[field])
+                if not len(data[data_name]) == len(data[field]):
+                    raise ValueError
+
                 data_with_added_field = []
                 for d, field_value in zip(data[data_name], data[field]):
-                    data_with_added_field.append(list(d) + [field_value])
+                    data_with_added_field.append([*list(d), field_value])
                 data[data_name] = data_with_added_field
         return data
 
@@ -168,10 +172,7 @@ class DataProcessor(ABC):
         for data_name in self.data_fields:
             label_fields_len = len(self.params.label_fields)
             for idx, field in enumerate(self.params.label_fields):
-                field_values = []
-                for bbox in data[data_name]:
-                    field_values.append(bbox[-label_fields_len + idx])
-                data[field] = field_values
+                data[field] = [bbox[-label_fields_len + idx] for bbox in data[data_name]]
             if label_fields_len:
                 data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
         return data
