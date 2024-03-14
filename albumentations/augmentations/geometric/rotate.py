@@ -35,6 +35,8 @@ class RandomRotate90(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def apply(self, img: np.ndarray, factor: float = 0, **params: Any) -> np.ndarray:
         """Args:
         factor (int): number of times the input will be rotated by 90 degrees.
@@ -158,7 +160,7 @@ class Rotate(DualTransform):
     ) -> BBoxesInternalType:
         bboxes = F.bboxes_rotate(bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
         if self.crop_border:
-            bboxes = FCrops.bboxes_crop(
+            return FCrops.bboxes_crop(
                 bboxes,
                 x_min=x_min,
                 y_min=y_min,
@@ -183,7 +185,7 @@ class Rotate(DualTransform):
     ):
         keypoints_out = F.keypoints_rotate(keypoints, angle, rows, cols, **params)
         if self.crop_border:
-            keypoints_out = FCrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
+            return FCrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))
         return keypoints_out
 
     @staticmethod

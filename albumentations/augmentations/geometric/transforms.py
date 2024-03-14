@@ -423,11 +423,11 @@ class Perspective(DualTransform):
 
         # top left -- no changes needed, just use jitter
         # top right
-        points[1, 0] = 1.0 - points[1, 0]  # width = 1.0 - jitter
+        points[1, 0] = 1.0 - points[1, 0]  # w = 1.0 - jitter
         # bottom right
-        points[2] = 1.0 - points[2]  # width = 1.0 - jitt
+        points[2] = 1.0 - points[2]  # w = 1.0 - jitt
         # bottom left
-        points[3, 1] = 1.0 - points[3, 1]  # height = 1.0 - jitter
+        points[3, 1] = 1.0 - points[3, 1]  # h = 1.0 - jitter
 
         points[:, 0] *= width
         points[:, 1] *= height
@@ -738,7 +738,7 @@ class Affine(DualTransform):
         return F.warp_affine(
             img,
             matrix,
-            interpolation=self.interpolation,
+            interpolation=cast(int, self.interpolation),
             cval=self.cval,
             mode=self.mode,
             output_shape=output_shape,
@@ -775,10 +775,16 @@ class Affine(DualTransform):
         self,
         keypoints: KeypointsInternalType,
         matrix: Optional[skimage.transform.ProjectiveTransform] = None,
-        scale: Optional[dict] = None,
+        scale: Optional[Dict[str, Any]] = None,
         **params: Any,
     ) -> KeypointsInternalType:
-        assert scale is not None and matrix is not None
+        if scale is None:
+            msg = "Expected scale to be provided, but got None."
+            raise ValueError(msg)
+        if matrix is None:
+            msg = "Expected matrix to be provided, but got None."
+            raise ValueError(msg)
+
         return F.keypoints_affine(keypoints, matrix=matrix, scale=scale)
 
     @property
@@ -1091,6 +1097,7 @@ class PadIfNeeded(DualTransform):
 
     class PositionType(Enum):
         """Enumerates the types of positions for placing an object within a container.
+
         This Enum class is utilized to define specific anchor positions that an object can
         assume relative to a container. It's particularly useful in image processing, UI layout,
         and graphic design to specify the alignment and positioning of elements.
@@ -1102,6 +1109,7 @@ class PadIfNeeded(DualTransform):
             BOTTOM_LEFT (str): Specifies that the object should be placed at the bottom-left corner.
             BOTTOM_RIGHT (str): Specifies that the object should be placed at the bottom-right corner.
             RANDOM (str): Indicates that the object's position should be determined randomly.
+
         """
 
         CENTER = "center"
@@ -1191,7 +1199,7 @@ class PadIfNeeded(DualTransform):
         )
         return params
 
-    def apply(
+    def apply_to_mask(
         self,
         img: np.ndarray,
         pad_top: int = 0,
@@ -1571,6 +1579,7 @@ class GridDistortion(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
+
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation

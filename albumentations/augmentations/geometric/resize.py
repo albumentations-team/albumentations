@@ -165,6 +165,7 @@ class SmallestMaxSize(DualTransform):
     ) -> KeypointsInternalType:
         height = params["rows"]
         width = params["cols"]
+
         scale = max_size / min([height, width])
         return F.keypoints_scale(keypoints, scale, scale)
 

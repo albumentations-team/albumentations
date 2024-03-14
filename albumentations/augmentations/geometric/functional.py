@@ -70,7 +70,6 @@ __all__ = [
     "bboxes_transpose",
     "vflip",
     "hflip",
-    "vflip_cv2",
     "hflip_cv2",
     "transpose",
     "keypoints_flip",
@@ -99,7 +98,8 @@ def bboxes_rot90(bboxes: BoxesArray, factor: int, rows: int, cols: int) -> Boxes
 
     """
     if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
+        msg = "Parameter n must be in set {0, 1, 2, 3}"
+        raise ValueError(msg)
 
     if not factor or not len(bboxes):
         return bboxes
@@ -107,10 +107,10 @@ def bboxes_rot90(bboxes: BoxesArray, factor: int, rows: int, cols: int) -> Boxes
     if factor == 1:
         bboxes[:, [0, 2]] = 1 - bboxes[:, [0, 2]]
         bboxes = bboxes[:, [1, 2, 3, 0]]
-    elif factor == 2:
+    elif factor == TWO:
         bboxes = 1 - bboxes
         bboxes = bboxes[:, [2, 3, 0, 1]]
-    elif factor == 3:
+    elif factor == THREE:
         bboxes[:, [1, 3]] = 1 - bboxes[:, [1, 3]]
         bboxes = bboxes[:, [3, 0, 1, 2]]
     return bboxes
@@ -136,17 +136,18 @@ def keypoints_rot90(keypoints: KeypointsArray, factor: int, rows: int, cols: int
 
     """
     if factor not in {0, 1, 2, 3}:
-        raise ValueError("Parameter n must be in set {0, 1, 2, 3}")
+        msg = "Parameter n must be in set {0, 1, 2, 3}"
+        raise ValueError(msg)
 
     if factor == 1:
         keypoints[..., 2] -= math.pi / 2
         keypoints[..., 0] = cols - 1 - keypoints[..., 0]
         keypoints[..., [0, 1]] = keypoints[..., [1, 0]]
-    elif factor == 2:
+    elif factor == TWO:
         keypoints[..., 2] -= math.pi
         keypoints[..., 0] = cols - 1 - keypoints[..., 0]
         keypoints[..., 1] = rows - 1 - keypoints[..., 1]
-    elif factor == 3:
+    elif factor == THREE:
         keypoints[..., 2] += math.pi / 2
         keypoints[..., 1] = rows - 1 - keypoints[..., 1]
         keypoints[..., [0, 1]] = keypoints[..., [1, 0]]
@@ -300,6 +301,24 @@ def keypoints_shift_scale_rotate(
 def bboxes_shift_scale_rotate(
     bboxes: BoxesArray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
 ) -> BoxesArray:
+    """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
+       scaling is made by scale factor and shifting is made by dx and dy.
+
+    Args:
+        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
+        angle (int): Angle of rotation in degrees.
+        scale (int): Scale factor.
+        dx (int): Shift along x-axis in pixel units.
+        dy (int): Shift along y-axis in pixel units.
+        rotate_method(str): Rotation method used. Should be one of: "largest_box", "ellipse".
+            Default: "largest_box".
+        rows (int): Image rows.
+        cols (int): Image cols.
+
+    Returns:
+        A bounding box `(x_min, y_min, x_max, y_max)`.
+
+    """
     if not len(bboxes):
         return bboxes
     center = (cols / 2, rows / 2)
@@ -954,10 +973,6 @@ def hflip(img: np.ndarray) -> np.ndarray:
     return np.ascontiguousarray(img[:, ::-1, ...])
 
 
-def vflip_cv2(img: np.ndarray) -> np.ndarray:
-    return cv2.flip(img, 0)
-
-
 def hflip_cv2(img: np.ndarray) -> np.ndarray:
     return cv2.flip(img, 1)
 
@@ -1056,7 +1071,8 @@ def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs) -> BoxesArray:
     if not len(bboxes):
         return bboxes
     if axis not in {0, 1}:
-        raise ValueError(f"Invalid axis value {axis}. Axis must be either 0 or 1")
+        msg = "Axis must be either 0 or 1."
+        raise ValueError(msg)
 
     if axis == 0:
         bboxes = bboxes[:, [1, 0, 3, 2]]
