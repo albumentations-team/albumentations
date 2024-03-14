@@ -14,7 +14,7 @@ from ...core.bbox_utils import (
     use_bboxes_ndarray,
 )
 from ...core.keypoints_utils import use_keypoints_ndarray
-from ...core.transforms_interface import BBoxesInternalType, BoxesArray, KeypointsArray
+from ...core.types import BBoxesInternalType, BoxesArray, KeypointsArray
 from ...core.utils import ensure_internal_format
 from ..geometric import functional as FGeometric
 
@@ -38,7 +38,9 @@ __all__ = [
 ]
 
 
-def get_random_crop_coords(height: int, width: int, crop_height: int, crop_width: int, h_start: float, w_start: float):
+def get_random_crop_coords(
+    height: int, width: int, crop_height: int, crop_width: int, h_start: float, w_start: float
+) -> Tuple[int, int, int, int]:
     # h_start is [0, 1) and should map to [0, (height - crop_height)]  (note inclusive)
     # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
     # See: https://github.com/albumentations-team/albumentations/pull/1080
@@ -49,15 +51,14 @@ def get_random_crop_coords(height: int, width: int, crop_height: int, crop_width
     return x1, y1, x2, y2
 
 
-def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: float, w_start: float):
+def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: float, w_start: float) -> np.ndarray:
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
             f"Requested crop size ({crop_height}, {crop_width}) is " f"larger than the image size ({height}, {width})"
         )
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
-    img = img[y1:y2, x1:x2]
-    return img
+    return img[y1:y2, x1:x2]
 
 
 @use_bboxes_ndarray(return_array=True)
@@ -165,7 +166,7 @@ def keypoints_random_crop(
     return crop_keypoints_by_coords(keypoints, np.array(crop_coords))
 
 
-def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width: int):
+def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width: int) -> Tuple[int, int, int, int]:
     y1 = (height - crop_height) // 2
     y2 = y1 + crop_height
     x1 = (width - crop_width) // 2
@@ -173,15 +174,14 @@ def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width
     return x1, y1, x2, y2
 
 
-def center_crop(img: np.ndarray, crop_height: int, crop_width: int):
+def center_crop(img: np.ndarray, crop_height: int, crop_width: int) -> np.ndarray:
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
             f"Requested crop size ({crop_height}, {crop_width}) is " f"larger than the image size ({height}, {width})"
         )
     x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
-    img = img[y1:y2, x1:x2]
-    return img
+    return img[y1:y2, x1:x2]
 
 
 @use_bboxes_ndarray(return_array=True)
@@ -220,7 +220,7 @@ def keypoints_center_crop(
     return crop_keypoints_by_coords(keypoints, np.array(crop_coords))
 
 
-def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
+def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.ndarray:
     height, width = img.shape[:2]
     if x_max <= x_min or y_max <= y_min:
         raise ValueError(
@@ -284,7 +284,7 @@ def bboxes_crop(
     return crop_bboxes_by_coords(bboxes, crop_coords, crop_heights, crop_widths, rows=rows, cols=cols)
 
 
-def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int):
+def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.ndarray:
     h, w = img.shape[:2]
     if x_min < 0:
         x_min = 0
@@ -318,7 +318,7 @@ def crop_and_pad(
 
     if keep_size:
         resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
-        img = resize_fn(img)
+        return resize_fn(img)
 
     return img
 
