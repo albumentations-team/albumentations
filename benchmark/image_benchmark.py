@@ -486,9 +486,6 @@ class PadToSize(BenchmarkTest):
         padding = [pad_left, pad_right, pad_top, pad_bottom]
         return v2.Pad(padding, padding_mode="reflect")(img)
 
-    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return Kaug.PadTo(size=(self.target_width, self.target_height), pad_mode="reflect")(img)
-
     def tensorflow_transform(self, img: tf.Tensor) -> tf.Tensor:
         # Calculate padding sizes
         height_pad_needed = tf.maximum(self.target_height - tf.shape(img)[0], 0)
@@ -510,7 +507,7 @@ class Resize512(BenchmarkTest):
         self.augmentor_op = Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.resize(img, height=512, width=512)
+        return A.Resize(height=512, width=512, interpolation=cv2.INTER_LINEAR)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         return v2.Resize(size=(512, 512), interpolation=InterpolationMode.BILINEAR)(img)
@@ -519,7 +516,7 @@ class Resize512(BenchmarkTest):
         return tf.image.resize(img, [512, 512], method="bilinear")
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return K.geometry.resize(img, (512, 512), interpolation="bilinear")
+        return Kaug.Resize(size=(512, 512))(img)
 
     def augly_transform(self, img: Image.Image) -> Image.Image:
         return imaugs.Resize(width=512, height=512, resample=Image.BILINEAR, p=1)(img)
@@ -530,7 +527,7 @@ class RandomGamma(BenchmarkTest):
         self.imgaug_transform = iaa.GammaContrast(gamma=0.5)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.gamma_transform(img, gamma=0.5)
+        return A.RandomGamma(gamma_limit=(80, 120), p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         return v2.functional.adjust_gamma(img, gamma=0.5)
