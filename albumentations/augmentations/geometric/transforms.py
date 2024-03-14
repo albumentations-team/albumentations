@@ -1,7 +1,7 @@
 import math
 import random
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -10,14 +10,16 @@ import skimage.transform
 from albumentations.core.bbox_utils import denormalize_bboxes_np, normalize_bboxes_np
 
 from ... import random_utils
-from ...core.transforms_interface import (
+from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.types import (
     BBoxesInternalType,
     BoxInternalType,
-    DualTransform,
     ImageColorType,
     KeypointsInternalType,
     ScaleFloatType,
-    to_tuple,
+    ScaleIntType,
+    SizeType,
+    Targets,
 )
 from ..functional import bbox_from_mask
 from . import functional as F
@@ -36,6 +38,9 @@ __all__ = [
     "GridDistortion",
     "PadIfNeeded",
 ]
+
+TWO = 2
+THREE = 3
 
 
 class ShiftScaleRotate(DualTransform):
@@ -74,28 +79,31 @@ class ShiftScaleRotate(DualTransform):
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
-        image, mask, keypoints
+        image, mask, keypoints, bboxes
 
     Image types:
         uint8, float32
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     def __init__(
         self,
-        shift_limit=0.0625,
-        scale_limit=0.1,
-        rotate_limit=45,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        shift_limit_x=None,
-        shift_limit_y=None,
-        rotate_method="largest_box",
-        always_apply=False,
-        p=0.5,
+        shift_limit: ScaleFloatType = 0.0625,
+        scale_limit: ScaleFloatType = 0.1,
+        rotate_limit: int = 45,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: Optional[Tuple[int, ...]] = None,
+        mask_value: Optional[Tuple[int, ...]] = None,
+        shift_limit_x: Optional[ScaleFloatType] = None,
+        shift_limit_y: Optional[ScaleFloatType] = None,
+        rotate_method: str = "largest_box",
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
-        super(ShiftScaleRotate, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.shift_limit_x = to_tuple(shift_limit_x if shift_limit_x is not None else shift_limit)
         self.shift_limit_y = to_tuple(shift_limit_y if shift_limit_y is not None else shift_limit)
         self.scale_limit = to_tuple(scale_limit, bias=1.0)
@@ -109,18 +117,38 @@ class ShiftScaleRotate(DualTransform):
         if self.rotate_method not in ["largest_box", "ellipse"]:
             raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
-    def apply(self, img, angle=0, scale=0, dx=0, dy=0, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self,
+        img: np.ndarray,
+        angle: float = 0,
+        scale: float = 0,
+        dx: int = 0,
+        dy: int = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
+    ) -> np.ndarray:
         return F.shift_scale_rotate(img, angle, scale, dx, dy, interpolation, self.border_mode, self.value)
 
-    def apply_to_mask(self, img, angle=0, scale=0, dx=0, dy=0, **params):
-        return F.shift_scale_rotate(img, angle, scale, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+    def apply_to_mask(
+        self, mask: np.ndarray, angle: float = 0, scale: float = 0, dx: int = 0, dy: int = 0, **params: Any
+    ) -> np.ndarray:
+        return F.shift_scale_rotate(mask, angle, scale, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
     def apply_to_keypoints(
-        self, keypoints: KeypointsInternalType, angle=0, scale=0, dx=0, dy=0, rows=0, cols=0, **params
+        self,
+        keypoints: KeypointsInternalType,
+        angle: float = 0,
+        scale: float = 0,
+        dx: int = 0,
+        dy: int = 0,
+        rows: int = 0,
+        cols: int = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> KeypointsInternalType:
         return F.keypoints_shift_scale_rotate(keypoints, angle, scale, dx, dy, rows, cols)
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, Any]:
         return {
             "angle": random.uniform(self.rotate_limit[0], self.rotate_limit[1]),
             "scale": random.uniform(self.scale_limit[0], self.scale_limit[1]),
@@ -129,11 +157,18 @@ class ShiftScaleRotate(DualTransform):
         }
 
     def apply_to_bboxes(
-        self, bboxes: BBoxesInternalType, angle: int = 0, scale: int = 0, dx: int = 0, dy: int = 0, **params
+        self,
+        bboxes: BBoxesInternalType,
+        angle: float = 0,
+        scale: float = 0,
+        dx: int = 0,
+        dy: int = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> BBoxesInternalType:
         return F.bboxes_shift_scale_rotate(bboxes, angle, scale, dx, dy, self.rotate_method, **params)
 
-    def get_transform_init_args(self):
+    def get_transform_init_args(self) -> Dict[str, Any]:
         return {
             "shift_limit_x": self.shift_limit_x,
             "shift_limit_y": self.shift_limit_y,
@@ -176,27 +211,30 @@ class ElasticTransform(DualTransform):
                              Enabling this option gives ~2X speedup.
 
     Targets:
-        image, mask, bbox
+        image, mask, bboxes
 
     Image types:
         uint8, float32
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(
         self,
-        alpha=1,
-        sigma=50,
-        alpha_affine=50,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        always_apply=False,
-        approximate=False,
-        same_dxdy=False,
-        p=0.5,
+        alpha: float = 1,
+        sigma: float = 50,
+        alpha_affine: float = 50,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: Optional[Union[int, float, List[int], List[float]]] = None,
+        mask_value: Optional[Union[int, float, List[int], List[float]]] = None,
+        always_apply: bool = False,
+        approximate: bool = False,
+        same_dxdy: bool = False,
+        p: float = 0.5,
     ):
-        super(ElasticTransform, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
@@ -207,7 +245,9 @@ class ElasticTransform(DualTransform):
         self.approximate = approximate
         self.same_dxdy = same_dxdy
 
-    def apply(self, img, random_state=None, interpolation=cv2.INTER_LINEAR, **params):
+    def apply(
+        self, img: np.ndarray, random_state: Optional[int] = None, interpolation: int = cv2.INTER_LINEAR, **params: Any
+    ) -> np.ndarray:
         return F.elastic_transform(
             img,
             self.alpha,
@@ -221,9 +261,9 @@ class ElasticTransform(DualTransform):
             self.same_dxdy,
         )
 
-    def apply_to_mask(self, img, random_state=None, **params):
+    def apply_to_mask(self, mask: np.ndarray, random_state: Optional[int] = None, **params: Any) -> np.ndarray:
         return F.elastic_transform(
-            img,
+            mask,
             self.alpha,
             self.sigma,
             self.alpha_affine,
@@ -235,7 +275,9 @@ class ElasticTransform(DualTransform):
             self.same_dxdy,
         )
 
-    def apply_to_bbox(self, bbox: BoxInternalType, random_state=None, **params) -> BoxInternalType:
+    def apply_to_bbox(
+        self, bbox: BoxInternalType, random_state: Optional[int] = None, **params: Any
+    ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_array = np.array([bbox], dtype=float)
@@ -256,10 +298,10 @@ class ElasticTransform(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, int]:
         return {"random_state": random.randint(0, 10000)}
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "alpha",
             "sigma",
@@ -277,10 +319,10 @@ class Perspective(DualTransform):
     """Perform a random four point perspective transform of the input.
 
     Args:
-        scale (float or (float, float)): standard deviation of the normal distributions. These are used to sample
+        scale: standard deviation of the normal distributions. These are used to sample
             the random distances of the subimage's corners from the full image's corners.
             If scale is a single float value, the range will be (0, scale). Default: (0.05, 0.1).
-        keep_size (bool): Whether to resize image’s back to their original size after applying the perspective
+        keep_size: Whether to resize image’s back to their original size after applying the perspective
             transform. If set to False, the resulting images may end up having different shapes
             and will always be a list, never an array. Default: True
         pad_mode (OpenCV flag): OpenCV border mode.
@@ -300,19 +342,22 @@ class Perspective(DualTransform):
 
     Image types:
         uint8, float32
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     def __init__(
         self,
-        scale=(0.05, 0.1),
-        keep_size=True,
-        pad_mode=cv2.BORDER_CONSTANT,
-        pad_val=0,
-        mask_pad_val=0,
-        fit_output=False,
-        interpolation=cv2.INTER_LINEAR,
-        always_apply=False,
-        p=0.5,
+        scale: ScaleFloatType = (0.05, 0.1),
+        keep_size: bool = True,
+        pad_mode: int = cv2.BORDER_CONSTANT,
+        pad_val: Union[float, List[float]] = 0,
+        mask_pad_val: Union[float, List[float]] = 0,
+        fit_output: bool = False,
+        interpolation: int = cv2.INTER_LINEAR,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
         super().__init__(always_apply, p)
         self.scale = to_tuple(scale, 0)
@@ -323,13 +368,25 @@ class Perspective(DualTransform):
         self.fit_output = fit_output
         self.interpolation = interpolation
 
-    def apply(self, img, matrix=None, max_height=None, max_width=None, **params):
+    def apply(
+        self,
+        img: np.ndarray,
+        matrix: np.ndarray,
+        max_height: int,
+        max_width: int,
+        **params: Any,
+    ) -> np.ndarray:
         return F.perspective(
             img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, params["interpolation"]
         )
 
     def apply_to_bboxes(
-        self, bboxes: BBoxesInternalType, matrix=None, max_height=None, max_width=None, **params
+        self,
+        bboxes: BBoxesInternalType,
+        matrix: np.ndarray,
+        max_height: int,
+        max_width: int,
+        **params: Any,
     ) -> BBoxesInternalType:
         return F.perspective_bboxes(
             bboxes,
@@ -342,18 +399,23 @@ class Perspective(DualTransform):
         )
 
     def apply_to_keypoints(
-        self, keypoints: KeypointsInternalType, matrix=None, max_height=None, max_width=None, **params
+        self,
+        keypoints: KeypointsInternalType,
+        matrix: np.ndarray,
+        max_height: int,
+        max_width: int,
+        **params: Any,
     ) -> KeypointsInternalType:
         return F.perspective_keypoints(
             keypoints, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
         )
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params):
-        h, w = params["image"].shape[:2]
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        height, width = params["image"].shape[:2]
 
         scale = random_utils.uniform(*self.scale)
         points = random_utils.normal(0, scale, [4, 2])
@@ -361,14 +423,14 @@ class Perspective(DualTransform):
 
         # top left -- no changes needed, just use jitter
         # top right
-        points[1, 0] = 1.0 - points[1, 0]  # w = 1.0 - jitter
+        points[1, 0] = 1.0 - points[1, 0]  # width = 1.0 - jitter
         # bottom right
-        points[2] = 1.0 - points[2]  # w = 1.0 - jitt
+        points[2] = 1.0 - points[2]  # width = 1.0 - jitt
         # bottom left
-        points[3, 1] = 1.0 - points[3, 1]  # h = 1.0 - jitter
+        points[3, 1] = 1.0 - points[3, 1]  # height = 1.0 - jitter
 
-        points[:, 0] *= w
-        points[:, 1] *= h
+        points[:, 0] *= width
+        points[:, 1] *= height
 
         # Obtain a consistent order of the points and unpack them individually.
         # Warning: don't just do (tl, tr, br, bl) = _order_points(...)
@@ -381,12 +443,12 @@ class Perspective(DualTransform):
         # x-coordiates or the top-right and top-left x-coordinates
         min_width = None
         max_width = None
-        while min_width is None or min_width < 2:
+        while min_width is None or min_width < TWO:
             width_top = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
             width_bottom = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
             max_width = int(max(width_top, width_bottom))
             min_width = int(min(width_top, width_bottom))
-            if min_width < 2:
+            if min_width < TWO:
                 step_size = (2 - min_width) / 2
                 tl[0] -= step_size
                 tr[0] += step_size
@@ -397,12 +459,12 @@ class Perspective(DualTransform):
         # and bottom-right y-coordinates or the top-left and bottom-left y-coordinates
         min_height = None
         max_height = None
-        while min_height is None or min_height < 2:
+        while min_height is None or min_height < TWO:
             height_right = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
             height_left = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
             max_height = int(max(height_right, height_left))
             min_height = int(min(height_right, height_left))
-            if min_height < 2:
+            if min_height < TWO:
                 step_size = (2 - min_height) / 2
                 tl[1] -= step_size
                 tr[1] -= step_size
@@ -421,13 +483,13 @@ class Perspective(DualTransform):
         m = cv2.getPerspectiveTransform(points, dst)
 
         if self.fit_output:
-            m, max_width, max_height = self._expand_transform(m, (h, w))
+            m, max_width, max_height = self._expand_transform(m, (height, width))
 
         return {"matrix": m, "max_height": max_height, "max_width": max_width, "interpolation": self.interpolation}
 
     @classmethod
-    def _expand_transform(cls, matrix, shape):
-        height, width = shape
+    def _expand_transform(cls, matrix: np.ndarray, shape: SizeType) -> Tuple[np.ndarray, int, int]:
+        height, width = shape[:2]
         # do not use width-1 or height-1 here, as for e.g. width=3, height=2, max_height
         # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
         rect = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
@@ -460,7 +522,7 @@ class Perspective(DualTransform):
 
         return np.array([tl, tr, br, bl], dtype=np.float32)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "scale", "keep_size", "pad_mode", "pad_val", "mask_pad_val", "fit_output", "interpolation"
 
 
@@ -560,19 +622,22 @@ class Affine(DualTransform):
 
     Reference:
         [1] https://arxiv.org/abs/2109.13488
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
-        scale: Optional[Union[float, Sequence[float], dict]] = None,
-        translate_percent: Optional[Union[float, Sequence[float], dict]] = None,
-        translate_px: Optional[Union[int, Sequence[int], dict]] = None,
-        rotate: Optional[Union[float, Sequence[float]]] = None,
-        shear: Optional[Union[float, Sequence[float], dict]] = None,
+        scale: Optional[Union[ScaleFloatType, Dict[str, Any]]] = None,
+        translate_percent: Optional[Union[float, Tuple[float, float], Dict[str, Any]]] = None,
+        translate_px: Optional[Union[int, Tuple[int, int], Dict[str, Any]]] = None,
+        rotate: Optional[ScaleFloatType] = None,
+        shear: Optional[Union[ScaleFloatType, Dict[str, Any]]] = None,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
-        cval: Union[int, float, Sequence[int], Sequence[float]] = 0,
-        cval_mask: Union[int, float, Sequence[int], Sequence[float]] = 0,
+        cval: Union[float, Tuple[float, float]] = 0,
+        cval_mask: Union[float, Tuple[float, float]] = 0,
         mode: int = cv2.BORDER_CONSTANT,
         fit_output: bool = False,
         keep_ratio: bool = False,
@@ -583,7 +648,7 @@ class Affine(DualTransform):
         super().__init__(always_apply=always_apply, p=p)
 
         params = [scale, translate_percent, translate_px, rotate, shear]
-        if all([p is None for p in params]):
+        if all(p is None for p in params):
             scale = {"x": (0.9, 1.1), "y": (0.9, 1.1)}
             translate_percent = {"x": (-0.1, 0.1), "y": (-0.1, 0.1)}
             rotate = (-15, 15)
@@ -609,7 +674,7 @@ class Affine(DualTransform):
         if self.keep_ratio and self.scale["x"] != self.scale["y"]:
             raise ValueError(f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}")
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "interpolation",
             "mask_interpolation",
@@ -627,7 +692,9 @@ class Affine(DualTransform):
         )
 
     @staticmethod
-    def _handle_dict_arg(val: Union[float, Sequence[float], dict], name: str, default: float = 1.0):
+    def _handle_dict_arg(
+        val: Union[float, Tuple[float, float], Dict[str, Any]], name: str, default: float = 1.0
+    ) -> Dict[str, Any]:
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
@@ -641,23 +708,23 @@ class Affine(DualTransform):
     @classmethod
     def _handle_translate_arg(
         cls,
-        translate_px: Optional[Union[float, Sequence[float], dict]],
-        translate_percent: Optional[Union[float, Sequence[float], dict]],
-    ):
+        translate_px: Optional[Union[float, Tuple[float, float], Dict[str, Any]]],
+        translate_percent: Optional[Union[float, Tuple[float, float], Dict[str, Any]]],
+    ) -> Any:
         if translate_percent is None and translate_px is None:
             translate_px = 0
 
         if translate_percent is not None and translate_px is not None:
-            raise ValueError(
-                "Expected either translate_percent or translate_px to be " "provided, " "but neither of them was."
-            )
+            msg = "Expected either translate_percent or translate_px to be " "provided, " "but neither of them was."
+            raise ValueError(msg)
 
         if translate_percent is not None:
             # translate by percent
             return cls._handle_dict_arg(translate_percent, "translate_percent", default=0.0), translate_px
 
         if translate_px is None:
-            raise ValueError("translate_px is None.")
+            msg = "translate_px is None."
+            raise ValueError(msg)
         # translate by pixels
         return translate_percent, cls._handle_dict_arg(translate_px, "translate_px")
 
@@ -666,7 +733,7 @@ class Affine(DualTransform):
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
         output_shape: Sequence[int] = (),
-        **params,
+        **params: Any,
     ) -> np.ndarray:
         return F.warp_affine(
             img,
@@ -679,13 +746,13 @@ class Affine(DualTransform):
 
     def apply_to_mask(
         self,
-        img: np.ndarray,
+        mask: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform = None,
         output_shape: Sequence[int] = (),
-        **params,
+        **params: Any,
     ) -> np.ndarray:
         return F.warp_affine(
-            img,
+            mask,
             matrix,
             interpolation=self.mask_interpolation,
             cval=self.cval_mask,
@@ -700,7 +767,7 @@ class Affine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         output_shape: Sequence[int] = (),
-        **params,
+        **params: Any,
     ) -> BBoxesInternalType:
         return F.bboxes_affine(bboxes, matrix, self.rotate_method, rows, cols, output_shape)
 
@@ -709,25 +776,25 @@ class Affine(DualTransform):
         keypoints: KeypointsInternalType,
         matrix: Optional[skimage.transform.ProjectiveTransform] = None,
         scale: Optional[dict] = None,
-        **params,
+        **params: Any,
     ) -> KeypointsInternalType:
         assert scale is not None and matrix is not None
         return F.keypoints_affine(keypoints, matrix=matrix, scale=scale)
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: dict) -> dict:
-        h, w = params["image"].shape[:2]
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        height, width = params["image"].shape[:2]
 
         translate: Dict[str, Union[int, float]]
         if self.translate_px is not None:
             translate = {key: random.randint(*value) for key, value in self.translate_px.items()}
         elif self.translate_percent is not None:
             translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
-            translate["x"] = translate["x"] * w
-            translate["y"] = translate["y"] * h
+            translate["x"] = translate["x"] * width
+            translate["y"] = translate["y"] * height
         else:
             translate = {"x": 0, "y": 0}
 
@@ -742,8 +809,8 @@ class Affine(DualTransform):
 
         # for images we use additional shifts of (0.5, 0.5) as otherwise
         # we get an ugly black border for 90deg rotations
-        shift_x = w / 2 - 0.5
-        shift_y = h / 2 - 0.5
+        shift_x = width / 2 - 0.5
+        shift_y = height / 2 - 0.5
 
         matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
         matrix_shear_y_rot = skimage.transform.AffineTransform(rotation=-np.pi / 2)
@@ -794,7 +861,7 @@ class Affine(DualTransform):
         maxr = corners[:, 1].max()
         out_height = maxr - minr + 1
         out_width = maxc - minc + 1
-        if len(input_shape) == 3:
+        if len(input_shape) == THREE:
             output_shape = np.ceil((out_height, out_width, input_shape[2]))
         else:
             output_shape = np.ceil((out_height, out_width))
@@ -866,11 +933,13 @@ class PiecewiseAffine(DualTransform):
 
     """
 
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
     def __init__(
         self,
         scale: ScaleFloatType = (0.03, 0.05),
-        nb_rows: Union[int, Sequence[int]] = 4,
-        nb_cols: Union[int, Sequence[int]] = 4,
+        nb_rows: Union[ScaleIntType] = 4,
+        nb_cols: Union[ScaleIntType] = 4,
         interpolation: int = 1,
         mask_interpolation: int = 0,
         cval: int = 0,
@@ -881,7 +950,7 @@ class PiecewiseAffine(DualTransform):
         keypoints_threshold: float = 0.01,
         p: float = 0.5,
     ):
-        super(PiecewiseAffine, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
 
         self.scale = to_tuple(scale, scale)
         self.nb_rows = to_tuple(nb_rows, nb_rows)
@@ -894,7 +963,7 @@ class PiecewiseAffine(DualTransform):
         self.absolute_scale = absolute_scale
         self.keypoints_threshold = keypoints_threshold
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "scale",
             "nb_rows",
@@ -909,11 +978,11 @@ class PiecewiseAffine(DualTransform):
         )
 
     @property
-    def targets_as_params(self):
+    def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params) -> dict:
-        h, w = params["image"].shape[:2]
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        height, width = params["image"].shape[:2]
 
         nb_rows = np.clip(random.randint(*self.nb_rows), 2, None)
         nb_cols = np.clip(random.randint(*self.nb_cols), 2, None)
@@ -922,15 +991,15 @@ class PiecewiseAffine(DualTransform):
 
         jitter: np.ndarray = random_utils.normal(0, scale, (nb_cells, 2))
         if not np.any(jitter > 0):
-            for i in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
+            for _ in range(10):  # See: https://github.com/albumentations-team/albumentations/issues/1442
                 jitter = random_utils.normal(0, scale, (nb_cells, 2))
                 if np.any(jitter > 0):
                     break
             if not np.any(jitter > 0):
                 return {"matrix": None}
 
-        y = np.linspace(0, h, nb_rows)
-        x = np.linspace(0, w, nb_cols)
+        y = np.linspace(0, height, nb_rows)
+        x = np.linspace(0, width, nb_cols)
 
         # (H, W) and (H, W) for H=rows, W=cols
         xx_src, yy_src = np.meshgrid(x, y)
@@ -939,11 +1008,11 @@ class PiecewiseAffine(DualTransform):
         points_src = np.dstack([yy_src.flat, xx_src.flat])[0]
 
         if self.absolute_scale:
-            jitter[:, 0] = jitter[:, 0] / h if h > 0 else 0.0
-            jitter[:, 1] = jitter[:, 1] / w if w > 0 else 0.0
+            jitter[:, 0] = jitter[:, 0] / height if height > 0 else 0.0
+            jitter[:, 1] = jitter[:, 1] / width if width > 0 else 0.0
 
-        jitter[:, 0] = jitter[:, 0] * h
-        jitter[:, 1] = jitter[:, 1] * w
+        jitter[:, 0] = jitter[:, 0] * height
+        jitter[:, 1] = jitter[:, 1] * width
 
         points_dest = np.copy(points_src)
         points_dest[:, 0] = points_dest[:, 0] + jitter[:, 0]
@@ -953,8 +1022,8 @@ class PiecewiseAffine(DualTransform):
         # This is necessary, as otherwise keypoints could be augmented
         # outside of the image plane and these would be replaced by
         # (-1, -1), which would not conform with the behaviour of the other augmenters.
-        points_dest[:, 0] = np.clip(points_dest[:, 0], 0, h - 1)
-        points_dest[:, 1] = np.clip(points_dest[:, 1], 0, w - 1)
+        points_dest[:, 0] = np.clip(points_dest[:, 0], 0, height - 1)
+        points_dest[:, 1] = np.clip(points_dest[:, 1], 0, width - 1)
 
         matrix = skimage.transform.PiecewiseAffineTransform()
         matrix.estimate(points_src[:, ::-1], points_dest[:, ::-1])
@@ -964,14 +1033,14 @@ class PiecewiseAffine(DualTransform):
         }
 
     def apply(
-        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params
+        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params: Any
     ) -> np.ndarray:
-        return F.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
+        return F.piecewise_affine(img, matrix, cast(int, self.interpolation), self.mode, self.cval)
 
     def apply_to_mask(
-        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params
+        self, mask: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params: Any
     ) -> np.ndarray:
-        return F.piecewise_affine(img, matrix, self.mask_interpolation, self.mode, self.cval_mask)
+        return F.piecewise_affine(mask, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
     def apply_to_bboxes(
         self,
@@ -979,7 +1048,7 @@ class PiecewiseAffine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
-        **params,
+        **params: Any,
     ) -> BBoxesInternalType:
         return F.bboxes_piecewise_affine(bboxes, matrix, rows, cols, self.keypoints_threshold)
 
@@ -989,7 +1058,7 @@ class PiecewiseAffine(DualTransform):
         rows: int = 0,
         cols: int = 0,
         matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
-        **params,
+        **params: Any,
     ) -> KeypointsInternalType:
         return F.keypoints_piecewise_affine(keypoints, matrix, rows, cols, self.keypoints_threshold)
 
@@ -1013,19 +1082,36 @@ class PadIfNeeded(DualTransform):
         p (float): probability of applying the transform. Default: 1.0.
 
     Targets:
-        image, mask, bbox, keypoints
+        image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
     """
 
     class PositionType(Enum):
+        """Enumerates the types of positions for placing an object within a container.
+        This Enum class is utilized to define specific anchor positions that an object can
+        assume relative to a container. It's particularly useful in image processing, UI layout,
+        and graphic design to specify the alignment and positioning of elements.
+
+        Attributes:
+            CENTER (str): Specifies that the object should be placed at the center.
+            TOP_LEFT (str): Specifies that the object should be placed at the top-left corner.
+            TOP_RIGHT (str): Specifies that the object should be placed at the top-right corner.
+            BOTTOM_LEFT (str): Specifies that the object should be placed at the bottom-left corner.
+            BOTTOM_RIGHT (str): Specifies that the object should be placed at the bottom-right corner.
+            RANDOM (str): Indicates that the object's position should be determined randomly.
+        """
+
         CENTER = "center"
         TOP_LEFT = "top_left"
         TOP_RIGHT = "top_right"
         BOTTOM_LEFT = "bottom_left"
         BOTTOM_RIGHT = "bottom_right"
         RANDOM = "random"
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
@@ -1041,12 +1127,14 @@ class PadIfNeeded(DualTransform):
         p: float = 1.0,
     ):
         if (min_height is None) == (pad_height_divisor is None):
-            raise ValueError("Only one of 'min_height' and 'pad_height_divisor' parameters must be set")
+            msg = "Only one of 'min_height' and 'pad_height_divisor' parameters must be set"
+            raise ValueError(msg)
 
         if (min_width is None) == (pad_width_divisor is None):
-            raise ValueError("Only one of 'min_width' and 'pad_width_divisor' parameters must be set")
+            msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
+            raise ValueError(msg)
 
-        super(PadIfNeeded, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.min_height = min_height
         self.min_width = min_width
         self.pad_width_divisor = pad_width_divisor
@@ -1056,8 +1144,8 @@ class PadIfNeeded(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def update_params(self, params, **kwargs):
-        params = super(PadIfNeeded, self).update_params(params, **kwargs)
+    def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        params = super().update_params(params, **kwargs)
         rows = params["rows"]
         cols = params["cols"]
 
@@ -1104,7 +1192,13 @@ class PadIfNeeded(DualTransform):
         return params
 
     def apply(
-        self, img: np.ndarray, pad_top: int = 0, pad_bottom: int = 0, pad_left: int = 0, pad_right: int = 0, **params
+        self,
+        img: np.ndarray,
+        pad_top: int = 0,
+        pad_bottom: int = 0,
+        pad_left: int = 0,
+        pad_right: int = 0,
+        **params: Any,
     ) -> np.ndarray:
         return F.pad_with_params(
             img,
@@ -1116,11 +1210,17 @@ class PadIfNeeded(DualTransform):
             value=self.value,
         )
 
-    def apply_to_mask(
-        self, img: np.ndarray, pad_top: int = 0, pad_bottom: int = 0, pad_left: int = 0, pad_right: int = 0, **params
+    def apply(
+        self,
+        mask: np.ndarray,
+        pad_top: int = 0,
+        pad_bottom: int = 0,
+        pad_left: int = 0,
+        pad_right: int = 0,
+        **params: Any,
     ) -> np.ndarray:
         return F.pad_with_params(
-            img,
+            mask,
             pad_top,
             pad_bottom,
             pad_left,
@@ -1138,7 +1238,7 @@ class PadIfNeeded(DualTransform):
         pad_right: int = 0,
         rows: int = 0,
         cols: int = 0,
-        **params,
+        **params: Any,
     ) -> BBoxesInternalType:
         bboxes = denormalize_bboxes_np(bboxes, rows=rows, cols=cols)
         bboxes.array += np.array([pad_left, pad_top, pad_left, pad_top])
@@ -1151,17 +1251,18 @@ class PadIfNeeded(DualTransform):
         pad_bottom: int = 0,
         pad_left: int = 0,
         pad_right: int = 0,
-        **params,
+        **params: Any,
     ) -> KeypointsInternalType:
         keypoints.array[..., :2] += np.array([pad_left, pad_top])
         return keypoints
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "min_height",
             "min_width",
             "pad_height_divisor",
             "pad_width_divisor",
+            "position",
             "border_mode",
             "value",
             "mask_value",
@@ -1216,18 +1317,21 @@ class VerticalFlip(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
-    def apply(self, img: np.ndarray, **params) -> np.ndarray:
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.vflip(img)
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params: Any) -> BBoxesInternalType:
         return F.bboxes_vflip(bboxes)
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params: Any) -> KeypointsInternalType:
         return F.keypoints_vflip(keypoints, **params)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
 
 
@@ -1242,23 +1346,26 @@ class HorizontalFlip(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
-    def apply(self, img: np.ndarray, **params) -> np.ndarray:
-        if img.ndim == 3 and img.shape[2] > 1 and img.dtype == np.uint8:
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
+        if img.ndim == THREE and img.shape[2] > 1 and img.dtype == np.uint8:
             # Opencv is faster than numpy only in case of
             # non-gray scale 8bits images
             return F.hflip_cv2(img)
 
         return F.hflip(img)
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params: Any) -> BBoxesInternalType:
         return F.bboxes_hflip(bboxes)
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params: Any) -> KeypointsInternalType:
         return F.keypoints_hflip(keypoints, **params)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
 
 
@@ -1273,9 +1380,12 @@ class Flip(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
-    def apply(self, img: np.ndarray, d: int = 0, **params) -> np.ndarray:
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    def apply(self, img: np.ndarray, d: int = 0, **params: Any) -> np.ndarray:
         """Args:
         d (int): code that specifies how to flip the input. 0 for vertical flipping, 1 for horizontal flipping,
                 -1 for both vertical and horizontal flipping (which is also could be seen as rotating the input by
@@ -1283,17 +1393,17 @@ class Flip(DualTransform):
         """
         return F.random_flip(img, d)
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, int]:
         # Random int in the range [-1, 1]
         return {"d": random.randint(-1, 1)}
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params: Any) -> BBoxesInternalType:
         return F.bboxes_flip(bboxes, **params)
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params: Any) -> KeypointsInternalType:
         return F.keypoints_flip(keypoints, **params)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
 
 
@@ -1308,18 +1418,24 @@ class Transpose(DualTransform):
 
     Image types:
         uint8, float32
+
     """
 
-    def apply(self, img: np.ndarray, **params) -> np.ndarray:
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    def __init__(self, always_apply: bool = False, p: float = 0.5):
+        super().__init__(always_apply, p)
+
+    def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.transpose(img)
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params: Any) -> BBoxesInternalType:
         return F.bboxes_transpose(bboxes, 0, **params)
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params: Any) -> KeypointsInternalType:
         return F.keypoints_transpose(keypoints)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
 
 
@@ -1341,11 +1457,14 @@ class OpticalDistortion(DualTransform):
                     list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
 
     Targets:
-        image, mask, bbox
+        image, mask, bboxes
 
     Image types:
         uint8, float32
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(
         self,
@@ -1358,7 +1477,7 @@ class OpticalDistortion(DualTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(OpticalDistortion, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.shift_limit = to_tuple(shift_limit)
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -1367,14 +1486,22 @@ class OpticalDistortion(DualTransform):
         self.mask_value = mask_value
 
     def apply(
-        self, img: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, interpolation: int = cv2.INTER_LINEAR, **params
+        self,
+        img: np.ndarray,
+        k: int = 0,
+        dx: int = 0,
+        dy: int = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> np.ndarray:
         return F.optical_distortion(img, k, dx, dy, interpolation, self.border_mode, self.value)
 
-    def apply_to_mask(self, img: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, **params) -> np.ndarray:
-        return F.optical_distortion(img, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+    def apply_to_mask(self, mask: np.ndarray, k: int = 0, dx: int = 0, dy: int = 0, **params: Any) -> np.ndarray:
+        return F.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, k: int = 0, dx: int = 0, dy: int = 0, **params) -> BoxInternalType:
+    def apply_to_bbox(
+        self, bbox: BoxInternalType, k: int = 0, dx: int = 0, dy: int = 0, **params: Any
+    ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_array = np.array([bbox], dtype=float)
@@ -1385,14 +1512,14 @@ class OpticalDistortion(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, Any]:
         return {
             "k": random.uniform(self.distort_limit[0], self.distort_limit[1]),
             "dx": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
             "dy": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
         }
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "distort_limit",
             "shift_limit",
@@ -1422,11 +1549,14 @@ class GridDistortion(DualTransform):
             See for more information: https://github.com/albumentations-team/albumentations/pull/722
 
     Targets:
-        image, mask
+        image, mask, bboxes
 
     Image types:
         uint8, float32
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     def __init__(
         self,
@@ -1440,7 +1570,7 @@ class GridDistortion(DualTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(GridDistortion, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.num_steps = num_steps
         self.distort_limit = to_tuple(distort_limit)
         self.interpolation = interpolation
@@ -1450,16 +1580,25 @@ class GridDistortion(DualTransform):
         self.normalized = normalized
 
     def apply(
-        self, img: np.ndarray, stepsx: Tuple = (), stepsy: Tuple = (), interpolation: int = cv2.INTER_LINEAR, **params
+        self,
+        img: np.ndarray,
+        stepsx: Tuple[()] = (),
+        stepsy: Tuple[()] = (),
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> np.ndarray:
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode, self.value)
 
-    def apply_to_mask(self, img: np.ndarray, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> np.ndarray:
+    def apply_to_mask(
+        self, mask: np.ndarray, stepsx: Tuple[()] = (), stepsy: Tuple[()] = (), **params: Any
+    ) -> np.ndarray:
         return F.grid_distortion(
-            img, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+            mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
         )
 
-    def apply_to_bbox(self, bbox: BoxInternalType, stepsx: Tuple = (), stepsy: Tuple = (), **params) -> BoxInternalType:
+    def apply_to_bbox(
+        self, bbox: BoxInternalType, stepsx: Tuple[()] = (), stepsy: Tuple[()] = (), **params: Any
+    ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
         bbox_array = np.array([bbox], dtype=float)
@@ -1472,7 +1611,7 @@ class GridDistortion(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         return F.normalize_bboxes_np(np.array([bbox_returned]), rows, cols)[0]
 
-    def _normalize(self, h, w, xsteps, ysteps):
+    def _normalize(self, h: int, w: int, xsteps: List[float], ysteps: List[float]) -> Dict[str, Any]:
         # compensate for smaller last steps in source image.
         x_step = w // self.num_steps
         last_x_step = min(w, ((self.num_steps + 1) * x_step)) - (self.num_steps * x_step)
@@ -1494,14 +1633,14 @@ class GridDistortion(DualTransform):
     def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, float]:
-        h, w = params["image"].shape[:2]
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        height, width = params["image"].shape[:2]
 
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
         stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
 
         if self.normalized:
-            return self._normalize(h, w, stepsx, stepsy)
+            return self._normalize(height, width, stepsx, stepsy)
 
         return {"stepsx": stepsx, "stepsy": stepsy}
 

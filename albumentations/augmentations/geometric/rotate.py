@@ -1,53 +1,60 @@
 import math
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import (
+from ...core.transforms_interface import DualTransform, to_tuple
+from ...core.types import (
     BBoxesInternalType,
-    DualTransform,
-    FillValueType,
+    ColorType,
     KeypointsInternalType,
-    to_tuple,
+    ScaleIntType,
+    Targets,
 )
 from ..crops import functional as FCrops
 from . import functional as F
 
 __all__ = ["Rotate", "RandomRotate90", "SafeRotate"]
 
+SMALL_NUMBER = 1e-10
+
 
 class RandomRotate90(DualTransform):
     """Randomly rotate the input by 90 degrees zero or more times.
 
     Args:
-        p (float): probability of applying the transform. Default: 0.5.
+        p: probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
+
     """
 
-    def apply(self, img, factor=0, **params):
+    def apply(self, img: np.ndarray, factor: float = 0, **params: Any) -> np.ndarray:
         """Args:
         factor (int): number of times the input will be rotated by 90 degrees.
+
         """
         return np.ascontiguousarray(np.rot90(img, factor))
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, int]:
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, factor: int = 0, **params) -> BBoxesInternalType:
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, factor: int = 0, **params: Any) -> BBoxesInternalType:
         return F.bboxes_rot90(bboxes, factor=factor, **params)
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, factor=0, **params) -> KeypointsInternalType:
+    def apply_to_keypoints(
+        self, keypoints: KeypointsInternalType, factor: int = 0, **params: Any
+    ) -> KeypointsInternalType:
         return F.keypoints_rot90(keypoints, factor, **params)
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
 
 
@@ -55,7 +62,7 @@ class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
 
     Args:
-        limit ((int, int) or int): range from which a random angle is picked. If limit is a single int
+        limit: range from which a random angle is picked. If limit is a single int
             an angle is picked from (-limit, limit). Default: (-90, 90)
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
@@ -77,21 +84,24 @@ class Rotate(DualTransform):
 
     Image types:
         uint8, float32
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
-        limit=90,
-        interpolation=cv2.INTER_LINEAR,
-        border_mode=cv2.BORDER_REFLECT_101,
-        value=None,
-        mask_value=None,
-        rotate_method="largest_box",
-        crop_border=False,
-        always_apply=False,
-        p=0.5,
+        limit: ScaleIntType = 90,
+        interpolation: int = cv2.INTER_LINEAR,
+        border_mode: int = cv2.BORDER_REFLECT_101,
+        value: Optional[Union[int, float, Tuple[int, int], Tuple[float, float]]] = None,
+        mask_value: Optional[Union[int, float, Tuple[int, int], Tuple[float, float]]] = None,
+        rotate_method: str = "largest_box",
+        crop_border: bool = False,
+        always_apply: bool = False,
+        p: float = 0.5,
     ):
-        super(Rotate, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -104,17 +114,34 @@ class Rotate(DualTransform):
             raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
     def apply(
-        self, img, angle=0, interpolation=cv2.INTER_LINEAR, x_min=None, x_max=None, y_min=None, y_max=None, **params
-    ):
+        self,
+        img: np.ndarray,
+        angle: float = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        x_min: Optional[int] = None,
+        x_max: Optional[int] = None,
+        y_min: Optional[int] = None,
+        y_max: Optional[int] = None,
+        **params: Any,
+    ) -> np.ndarray:
         img_out = F.rotate(img, angle, interpolation, self.border_mode, self.value)
-        if self.crop_border:
-            img_out = FCrops.crop(img_out, x_min, y_min, x_max, y_max)
+        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
+            return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
-    def apply_to_mask(self, img, angle=0, x_min=None, x_max=None, y_min=None, y_max=None, **params):
-        img_out = F.rotate(img, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
-        if self.crop_border:
-            img_out = FCrops.crop(img_out, x_min, y_min, x_max, y_max)
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        angle: float,
+        x_min: Optional[int] = None,
+        x_max: Optional[int] = None,
+        y_min: Optional[int] = None,
+        y_max: Optional[int] = None,
+        **params: Any,
+    ) -> np.ndarray:
+        img_out = F.rotate(mask, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
+            return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
     def apply_to_bboxes(
@@ -127,7 +154,7 @@ class Rotate(DualTransform):
         y_max: int = 0,
         cols: int = 0,
         rows: int = 0,
-        **params,
+        **params: Any,
     ) -> BBoxesInternalType:
         bboxes = F.bboxes_rotate(bboxes, angle=angle, method=self.rotate_method, rows=rows, cols=cols)
         if self.crop_border:
@@ -145,14 +172,14 @@ class Rotate(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: KeypointsInternalType,
-        angle=0,
-        x_min=None,
-        x_max=None,
-        y_min=None,
-        y_max=None,
-        cols=0,
-        rows=0,
-        **params,
+        angle: int = 0,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        cols: int = 0,
+        rows: int = 0,
+        **params: Any,
     ):
         keypoints_out = F.keypoints_rotate(keypoints, angle, rows, cols, **params)
         if self.crop_border:
@@ -174,7 +201,7 @@ class Rotate(DualTransform):
         # since the solutions for angle, -angle and 180-angle are all the same,
         # it is sufficient to look at the first quadrant and the absolute values of sin,cos:
         sin_a, cos_a = abs(math.sin(angle)), abs(math.cos(angle))
-        if side_short <= 2.0 * sin_a * cos_a * side_long or abs(sin_a - cos_a) < 1e-10:
+        if side_short <= 2.0 * sin_a * cos_a * side_long or abs(sin_a - cos_a) < SMALL_NUMBER:
             # half constrained case: two crop corners touch the longer side,
             # the other two corners are on the mid-line parallel to the longer line
             x = 0.5 * side_short
@@ -184,12 +211,12 @@ class Rotate(DualTransform):
             cos_2a = cos_a * cos_a - sin_a * sin_a
             wr, hr = (w * cos_a - h * sin_a) / cos_2a, (h * cos_a - w * sin_a) / cos_2a
 
-        return dict(
-            x_min=max(0, int(w / 2 - wr / 2)),
-            x_max=min(w, int(w / 2 + wr / 2)),
-            y_min=max(0, int(h / 2 - hr / 2)),
-            y_max=min(h, int(h / 2 + hr / 2)),
-        )
+        return {
+            "x_min": max(0, int(w / 2 - wr / 2)),
+            "x_max": min(w, int(w / 2 + wr / 2)),
+            "y_min": max(0, int(h / 2 - hr / 2)),
+            "y_max": min(h, int(h / 2 + hr / 2)),
+        }
 
     @property
     def targets_as_params(self) -> List[str]:
@@ -233,30 +260,33 @@ class SafeRotate(DualTransform):
 
     Image types:
         uint8, float32
+
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def __init__(
         self,
         limit: Union[float, Tuple[float, float]] = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: FillValueType = None,
-        mask_value: Optional[Union[int, float, Sequence[int], Sequence[float]]] = None,
+        value: Optional[ColorType] = None,
+        mask_value: Optional[ColorType] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super(SafeRotate, self).__init__(always_apply, p)
+        super().__init__(always_apply, p)
         self.limit = to_tuple(limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
 
-    def apply(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
-        return F.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
+    def apply(self, img: np.ndarray, matrix: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+        return F.safe_rotate(img, matrix, cast(int, self.interpolation), self.value, self.border_mode)
 
-    def apply_to_mask(self, img: np.ndarray, matrix: np.ndarray = np.array(None), **params) -> np.ndarray:
-        return F.safe_rotate(img, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
+    def apply_to_mask(self, mask: np.ndarray, matrix: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+        return F.safe_rotate(mask, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
     def apply_to_bboxes(
         self, bboxes: BBoxesInternalType, rows: int = 0, cols: int = 0, **params: Any
@@ -283,10 +313,10 @@ class SafeRotate(DualTransform):
         angle = random.uniform(self.limit[0], self.limit[1])
 
         image = params["image"]
-        h, w = image.shape[:2]
+        height, width = image.shape[:2]
 
         # https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
-        image_center = (w / 2, h / 2)
+        image_center = (width / 2, height / 2)
 
         # Rotation Matrix
         rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
@@ -296,11 +326,11 @@ class SafeRotate(DualTransform):
         abs_sin = abs(rotation_mat[0, 1])
 
         # find the new width and height bounds
-        new_w = math.ceil(h * abs_sin + w * abs_cos)
-        new_h = math.ceil(h * abs_cos + w * abs_sin)
+        new_w = math.ceil(height * abs_sin + width * abs_cos)
+        new_h = math.ceil(height * abs_cos + width * abs_sin)
 
-        scale_x = w / new_w
-        scale_y = h / new_h
+        scale_x = width / new_w
+        scale_y = height / new_h
 
         # Shift the image to create padding
         rotation_mat[0, 2] += new_w / 2 - image_center[0]

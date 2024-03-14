@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -21,10 +21,10 @@ from ...core.bbox_utils import (
     use_bboxes_ndarray,
 )
 from ...core.keypoints_utils import use_keypoints_ndarray
-from ...core.transforms_interface import (
+from ...core.types import (
     BBoxesInternalType,
     BoxesArray,
-    FillValueType,
+    ColorType,
     ImageColorType,
     KeypointsArray,
 )
@@ -45,13 +45,12 @@ __all__ = [
     "elastic_transform",
     "resize",
     "scale",
-    "py3round",
     "_func_max_size",
     "longest_max_size",
     "smallest_max_size",
     "perspective",
     "perspective_bboxes",
-    "rotation2DMatrixToEulerAngles",
+    "rotation2d_matrix_to_euler_angles",
     "perspective_keypoints",
     "_is_identity_matrix",
     "warp_affine",
@@ -79,6 +78,9 @@ __all__ = [
     "keypoints_hflip",
     "keypoints_transpose",
 ]
+
+TWO = 2
+THREE = 3
 
 
 @ensure_internal_format
@@ -159,7 +161,7 @@ def rotate(
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
     value: Optional[ImageColorType] = None,
-):
+) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
     # we get an ugly black border for 90deg rotations
@@ -249,8 +251,15 @@ def keypoints_rotate(keypoints: KeypointsArray, angle: float, rows: int, cols: i
 
 @preserve_channel_dim
 def shift_scale_rotate(
-    img, angle, scale, dx, dy, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None
-):
+    img: np.ndarray,
+    angle: float,
+    scale: float,
+    dx: int,
+    dy: int,
+    interpolation: int = cv2.INTER_LINEAR,
+    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[Tuple[int, ...]] = None,
+) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
     # we get an ugly black border for 90deg rotations
@@ -340,7 +349,7 @@ def elastic_transform(
     random_state: Optional[np.random.RandomState] = None,
     approximate: bool = False,
     same_dxdy: bool = False,
-):
+) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
 
@@ -413,7 +422,7 @@ def elastic_transform(
 
 
 @preserve_channel_dim
-def resize(img, height, width, interpolation=cv2.INTER_LINEAR):
+def resize(img: np.ndarray, height: int, width: int, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
     img_height, img_width = img.shape[:2]
     if height == img_height and width == img_width:
         return img
@@ -447,22 +456,14 @@ def keypoints_scale(keypoints: KeypointsArray, scale_x: float, scale_y: float) -
     return keypoints * scales
 
 
-def py3round(number):
-    """Unified rounding in all python versions."""
-    if abs(round(number) - number) == 0.5:
-        return int(2.0 * round(number / 2.0))
-
-    return int(round(number))
-
-
-def _func_max_size(img, max_size, interpolation, func):
+def _func_max_size(img: np.ndarray, max_size: int, interpolation: int, func: Callable[..., Any]) -> np.ndarray:
     height, width = img.shape[:2]
 
     scale = max_size / float(func(width, height))
 
     if scale != 1.0:
-        new_height, new_width = tuple(py3round(dim * scale) for dim in (height, width))
-        img = resize(img, height=new_height, width=new_width, interpolation=interpolation)
+        new_height, new_width = tuple(round(dim * scale) for dim in (height, width))
+        return resize(img, height=new_height, width=new_width, interpolation=interpolation)
     return img
 
 
@@ -482,12 +483,12 @@ def perspective(
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
-    border_val: Union[int, float, List[int], List[float], np.ndarray],
+    border_val: Union[float, List[float], np.ndarray],
     border_mode: int,
     keep_size: bool,
     interpolation: int,
-):
-    h, w = img.shape[:2]
+) -> np.ndarray:
+    height, width = img.shape[:2]
     perspective_func = _maybe_process_in_chunks(
         cv2.warpPerspective,
         M=matrix,
@@ -499,7 +500,7 @@ def perspective(
     warped = perspective_func(img)
 
     if keep_size:
-        return resize(warped, h, w, interpolation=interpolation)
+        return resize(warped, height, width, interpolation=interpolation)
 
     return warped
 
@@ -550,10 +551,11 @@ def perspective_bboxes(
     return normalize_bboxes_np(bboxes, height if keep_size else max_height, width if keep_size else max_width)
 
 
-def rotation2DMatrixToEulerAngles(matrix: np.ndarray, y_up: bool = False) -> float:
+def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool = False) -> float:
     """Args:
     matrix (np.ndarray): Rotation matrix
     y_up (bool): is Y axis looks up or down
+
     """
     if y_up:
         return np.arctan2(matrix[1, 0], matrix[0, 0])
@@ -577,7 +579,7 @@ def perspective_keypoints(
     keypoints[..., [0, 1]] = cv2.perspectiveTransform(
         keypoints[..., [0, 1]].reshape(-1, 2)[np.newaxis, ...], matrix
     ).reshape(keypoints[..., [0, 1]].shape)
-    keypoints[..., 2] += rotation2DMatrixToEulerAngles(matrix[:2, :2], y_up=True)
+    keypoints[..., 2] += rotation2d_matrix_to_euler_angles(matrix[:2, :2], y_up=True)
 
     scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
     scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
@@ -601,7 +603,7 @@ def warp_affine(
     image: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
     interpolation: int,
-    cval: Union[int, float, Sequence[int], Sequence[float]],
+    cval: Union[float, Sequence[float]],
     mode: int,
     output_shape: Sequence[int],
 ) -> np.ndarray:
@@ -612,8 +614,7 @@ def warp_affine(
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
     )
-    tmp = warp_fn(image)
-    return tmp
+    return warp_fn(image)
 
 
 @ensure_internal_format
@@ -628,7 +629,7 @@ def keypoints_affine(
         return keypoints
 
     keypoints[..., [0, 1]] = cv2.transform(np.expand_dims(keypoints[..., [0, 1]], axis=0), matrix.params[:2]).squeeze()
-    keypoints[..., 2] += rotation2DMatrixToEulerAngles(matrix.params[:2])
+    keypoints[..., 2] += rotation2d_matrix_to_euler_angles(matrix.params[:2])
     keypoints[..., 3] *= np.max([scale["x"], scale["y"]])
     return keypoints
 
@@ -688,14 +689,14 @@ def safe_rotate(
     img: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    value: FillValueType = None,
+    value: Optional[ColorType] = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
-    h, w = img.shape[:2]
+    height, width = img.shape[:2]
     warp_fn = _maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
-        dsize=(w, h),
+        dsize=(width, height),
         flags=interpolation,
         borderMode=border_mode,
         borderValue=value,
@@ -820,7 +821,7 @@ def to_distance_maps(
 def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
-    if_not_found_coords: Optional[Union[Sequence[int], dict]],
+    if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
     threshold: Optional[float] = None,
 ) -> np.ndarray:
     """Convert outputs of ``to_distance_maps()`` to ``KeypointsOnImage``.
@@ -844,11 +845,9 @@ def from_distance_maps(
             Some keypoint augmenters require that information. If set to ``None``, the keypoint's shape will be set
             to ``(height, width)``, otherwise ``(height, width, nb_channels)``.
     """
-    if distance_maps.ndim != 3:
-        raise ValueError(
-            f"Expected three-dimensional input, "
-            f"got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
-        )
+    if distance_maps.ndim != THREE:
+        msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
+        raise ValueError(msg)
     height, width, nb_keypoints = distance_maps.shape
 
     drop_if_not_found = False
@@ -969,7 +968,7 @@ def random_flip(img: np.ndarray, code: int) -> np.ndarray:
 
 
 def transpose(img: np.ndarray) -> np.ndarray:
-    return img.transpose(1, 0, 2) if len(img.shape) > 2 else img.transpose(1, 0)
+    return img.transpose(1, 0, 2) if len(img.shape) > TWO else img.transpose(1, 0)
 
 
 def rot90(img: np.ndarray, factor: int) -> np.ndarray:
@@ -1248,14 +1247,7 @@ def optical_distortion(
     camera_matrix = np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float32)
 
     distortion = np.array([k, k, 0, 0, 0], dtype=np.float32)
-    map1, map2 = cv2.initUndistortRectifyMap(
-        camera_matrix,
-        distortion,
-        None,
-        None,
-        (width, height),
-        cv2.CV_32FC1,  # type: ignore[attr-defined]
-    )
+    map1, map2 = cv2.initUndistortRectifyMap(camera_matrix, distortion, None, None, (width, height), cv2.CV_32FC1)
     return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
 
 
@@ -1263,8 +1255,8 @@ def optical_distortion(
 def grid_distortion(
     img: np.ndarray,
     num_steps: int = 10,
-    xsteps: Tuple = (),
-    ysteps: Tuple = (),
+    xsteps: Tuple[()] = (),
+    ysteps: Tuple[()] = (),
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
     value: Optional[ImageColorType] = None,
