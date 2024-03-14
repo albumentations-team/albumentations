@@ -91,9 +91,6 @@ class DataProcessor(ABC):
     def ensure_data_valid(self, data: Dict[str, Any]) -> None:
         pass
 
-    def ensure_transforms_valid(self, transforms: Sequence[object]) -> None:
-        pass
-
     @abstractmethod
     def convert_to_internal_type(self, data: Any) -> InternalDtype:  # type: ignore[type-var]
         raise NotImplementedError
