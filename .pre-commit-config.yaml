@@ -66,6 +66,10 @@ repos:
     hooks:
       - id: codespell
         additional_dependencies: ["tomli"]
+  - repo: https://github.com/tox-dev/pyproject-fmt
+    rev: "1.7.0"
+    hooks:
+      - id: pyproject-fmt
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.9.0
     hooks:

@@ -6,7 +6,6 @@ import cv2
 import kornia as K
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch
 import torchvision
 from PIL import Image
@@ -81,11 +80,6 @@ def read_img_torch(filepath: Path) -> torch.Tensor:
     return img.unsqueeze(0)
 
 
-def read_img_tensorflow(filepath: Path) -> tf.Tensor:
-    img = read_img_cv2(filepath)
-    return tf.convert_to_tensor(img, dtype=tf.float32)
-
-
 def read_img_kornia(filepath: Path) -> torch.Tensor:
     return K.image_to_tensor(read_img_cv2(filepath), keepdim=False).float() / 255.0
 
@@ -97,3 +91,35 @@ def format_results(images_per_second_for_aug: Optional[List[float]], show_std: b
     if show_std:
         result += f" ± {math.ceil(np.std(images_per_second_for_aug))}"
     return result
+
+
+def get_markdown_table(data: dict[str, str]) -> str:
+    """Prints a dictionary as a nicely formatted Markdown table.
+
+    Parameters:
+        data dict[str, str]: The dictionary to print, with keys as columns and values as rows.
+
+    Returns:
+    None
+
+    Example input:
+        {'Python': '3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0]',
+        'albumentations': '1.4.0', 'imgaug': '0.4.0',
+        'torchvision': '0.17.1+rocm5.7',
+        'numpy': '1.26.4',
+        'opencv-python-headless': '4.9.0.80',
+        'scikit-image': '0.22.0',
+        'scipy': '1.12.0', 'pillow':
+        '10.2.0', 'augmentor': '0.2.12',
+        'kornia': '0.7.2',
+        'augly': '1.0.0'}
+    """
+    # Start with the table headers
+    markdown_table = "| Library | Version |\n"
+    markdown_table += "|---------|---------|\n"
+
+    # Add each dictionary item as a row in the table
+    for key, value in data.items():
+        markdown_table += f"| {key} | {value} |\n"
+
+    return markdown_table

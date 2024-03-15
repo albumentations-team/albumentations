@@ -4,27 +4,18 @@
 #
 #    pip-compile requirements.in
 #
+--extra-index-url https://pypi.ngc.nvidia.com
 --find-links https://download.pytorch.org/whl/torch_stable.html
+--trusted-host pypi.ngc.nvidia.com
 
-absl-py==2.1.0
-    # via
-    #   keras
-    #   tensorboard
-    #   tensorflow
 albumentations==1.4.1
     # via -r requirements.in
-astunparse==1.6.3
-    # via tensorflow
 augly==1.0.0
     # via -r requirements.in
 augmentor==0.2.12
     # via -r requirements.in
-certifi==2024.2.2
-    # via requests
 chardet==5.2.0
     # via mbstrdecoder
-charset-normalizer==3.3.2
-    # via requests
 contourpy==1.2.0
     # via matplotlib
 cycler==0.12.1
@@ -33,30 +24,14 @@ dataproperty==1.0.1
     # via
     #   pytablewriter
     #   tabledata
-dm-tree==0.1.8
-    # via keras
 filelock==3.13.1
-    # via torch
-flatbuffers==24.3.7
-    # via tensorflow
+    # via
+    #   pytorch-triton-rocm
+    #   torch
 fonttools==4.49.0
     # via matplotlib
 fsspec==2024.2.0
     # via torch
-gast==0.5.4
-    # via tensorflow
-google-pasta==0.2.0
-    # via tensorflow
-grpcio==1.62.1
-    # via
-    #   tensorboard
-    #   tensorflow
-h5py==3.10.0
-    # via
-    #   keras
-    #   tensorflow
-idna==3.6
-    # via requests
 imageio==2.34.0
     # via
     #   imgaug
@@ -69,24 +44,14 @@ jinja2==3.1.3
     # via torch
 joblib==1.3.2
     # via scikit-learn
-keras==3.0.5
-    # via tensorflow
 kiwisolver==1.4.5
     # via matplotlib
-kornia==0.7.1
+kornia==0.7.2
     # via -r requirements.in
 lazy-loader==0.3
     # via scikit-image
-libclang==16.0.6
-    # via tensorflow
-markdown==3.5.2
-    # via tensorboard
-markdown-it-py==3.0.0
-    # via rich
 markupsafe==2.1.5
-    # via
-    #   jinja2
-    #   werkzeug
+    # via jinja2
 matplotlib==3.8.3
     # via imgaug
 mbstrdecoder==1.1.3
@@ -94,16 +59,8 @@ mbstrdecoder==1.1.3
     #   dataproperty
     #   pytablewriter
     #   typepy
-mdurl==0.1.2
-    # via markdown-it-py
-ml-dtypes==0.3.2
-    # via
-    #   keras
-    #   tensorflow
 mpmath==1.3.0
     # via sympy
-namex==0.0.7
-    # via keras
 networkx==3.2.1
     # via
     #   scikit-image
@@ -114,22 +71,16 @@ numpy==1.26.4
     #   albumentations
     #   augmentor
     #   contourpy
-    #   h5py
     #   imageio
     #   imgaug
-    #   keras
     #   matplotlib
-    #   ml-dtypes
     #   opencv-python
     #   opencv-python-headless
-    #   opt-einsum
     #   pandas
     #   scikit-image
     #   scikit-learn
     #   scipy
     #   shapely
-    #   tensorboard
-    #   tensorflow
     #   tifffile
     #   torchvision
 opencv-python==4.9.0.80
@@ -138,14 +89,11 @@ opencv-python-headless==4.9.0.80
     # via
     #   -r requirements.in
     #   albumentations
-opt-einsum==3.3.0
-    # via tensorflow
 packaging==24.0
     # via
     #   kornia
     #   matplotlib
     #   scikit-image
-    #   tensorflow
     #   typepy
 pandas==2.2.1
     # via -r requirements.in
@@ -162,12 +110,6 @@ pillow==10.2.0
     #   torchvision
 portalocker==2.8.2
     # via iopath
-protobuf==4.25.3
-    # via
-    #   tensorboard
-    #   tensorflow
-pygments==2.17.2
-    # via rich
 pyparsing==3.1.2
     # via matplotlib
 pytablewriter==1.2.0
@@ -179,6 +121,8 @@ python-dateutil==2.9.0.post0
     #   typepy
 python-magic==0.4.27
     # via augly
+pytorch-triton-rocm==2.2.0
+    # via torch
 pytz==2024.1
     # via
     #   pandas
@@ -187,10 +131,6 @@ pyyaml==6.0.1
     # via albumentations
 regex==2023.12.25
     # via augly
-requests==2.31.0
-    # via tensorflow
-rich==13.7.1
-    # via keras
 scikit-image==0.22.0
     # via
     #   albumentations
@@ -207,38 +147,24 @@ shapely==2.0.3
     # via imgaug
 six==1.16.0
     # via
-    #   astunparse
-    #   google-pasta
     #   imgaug
     #   python-dateutil
-    #   tensorboard
-    #   tensorflow
 sympy==1.12
     # via torch
 tabledata==1.3.3
     # via pytablewriter
 tcolorpy==0.1.4
     # via pytablewriter
-tensorboard==2.16.2
-    # via tensorflow
-tensorboard-data-server==0.7.2
-    # via tensorboard
-tensorflow==2.16.1
-    # via -r requirements.in
-tensorflow-io-gcs-filesystem==0.36.0
-    # via tensorflow
-termcolor==2.4.0
-    # via tensorflow
 threadpoolctl==3.3.0
     # via scikit-learn
 tifffile==2024.2.12
     # via scikit-image
-torch==2.2.1
+torch==2.2.1+rocm5.7
     # via
     #   -r requirements.in
     #   kornia
     #   torchvision
-torchvision==0.17.1
+torchvision==0.17.1+rocm5.7
     # via -r requirements.in
 tqdm==4.66.2
     # via
@@ -254,18 +180,9 @@ typing-extensions==4.10.0
     # via
     #   albumentations
     #   iopath
-    #   tensorflow
     #   torch
 tzdata==2024.1
     # via pandas
-urllib3==2.2.1
-    # via requests
-werkzeug==3.0.1
-    # via tensorboard
-wheel==0.43.0
-    # via astunparse
-wrapt==1.16.0
-    # via tensorflow
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools

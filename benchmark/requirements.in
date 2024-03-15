@@ -8,7 +8,6 @@ opencv-python-headless
 pandas
 pillow
 pytablewriter
-tensorflow
 torchvision
 tqdm
 kornia
