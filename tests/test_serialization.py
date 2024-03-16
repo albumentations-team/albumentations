@@ -407,6 +407,15 @@ AUGMENTATION_CLS_PARAMS = [
             mode="mud",
         ),
     ],
+    [
+        A.ChromaticAberration,
+        dict(
+            primary_distortion_limit=0.02,
+            secondary_distortion_limit=0.05,
+            mode="green_purple",
+            interpolation=cv2.INTER_LINEAR,
+        ),
+    ],
     [A.Defocus, {"radius": (5, 7), "alias_blur": (0.2, 0.6)}],
     [A.ZoomBlur, {"max_factor": (1.56, 1.7), "step_factor": (0.02, 0.04)}],
     [

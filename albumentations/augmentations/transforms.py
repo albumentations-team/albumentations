@@ -29,6 +29,7 @@ from albumentations.core.types import (
     ScaleIntType,
     ScaleType,
     SpatterMode,
+    ChromaticAberrationMode,
     Targets,
     image_modes,
 )
@@ -77,6 +78,7 @@ __all__ = [
     "UnsharpMask",
     "PixelDropout",
     "Spatter",
+    "ChromaticAberration",
 ]
 
 HUNDRED = 100
@@ -2744,3 +2746,129 @@ class Spatter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
+
+
+class ChromaticAberration(ImageOnlyTransform):
+    """Add lateral chromatic aberration by distorting the red and blue channels of the input image.
+
+    Args:
+        primary_distortion_limit: range of the primary radial distortion coefficient.
+            If primary_distortion_limit is a single float value, the range will be
+            (-primary_distortion_limit, primary_distortion_limit).
+            Controls the distortion in the center of the image (positive values result in pincushion distortion,
+            negative values result in barrel distortion).
+            Default: 0.02.
+        secondary_distortion_limit: range of the secondary radial distortion coefficient.
+            If secondary_distortion_limit is a single float value, the range will be
+            (-secondary_distortion_limit, secondary_distortion_limit).
+            Controls the distortion in the corners of the image (positive values result in pincushion distortion,
+            negative values result in barrel distortion).
+            Default: 0.05.
+        mode: type of color fringing.
+            Supported modes are 'green_purple', 'red_blue' and 'random'.
+            'random' will choose one of the modes 'green_purple' or 'red_blue' randomly.
+            Default: 'green_purple'.
+        interpolation: flag that is used to specify the interpolation algorithm. Should be one of:
+            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
+            Default: cv2.INTER_LINEAR.
+        p: probability of applying the transform.
+            Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    """
+
+    def __init__(
+        self,
+        primary_distortion_limit: ScaleFloatType = 0.02,
+        secondary_distortion_limit: ScaleFloatType = 0.05,
+        mode: ChromaticAberrationMode = "green_purple",
+        interpolation: int = cv2.INTER_LINEAR,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.primary_distortion_limit = to_tuple(primary_distortion_limit)
+        self.secondary_distortion_limit = to_tuple(secondary_distortion_limit)
+        self.mode = self._validate_mode(mode)
+        self.interpolation = interpolation
+
+    @staticmethod
+    def _validate_mode(
+        mode: ChromaticAberrationMode,
+    ) -> ChromaticAberrationMode:
+        valid_modes = ["green_purple", "red_blue", "random"]
+        if mode not in valid_modes:
+            msg = f"Unsupported mode: {mode}. Supported modes are 'green_purple', 'red_blue', 'random'."
+            raise ValueError(msg)
+        return mode
+
+    def apply(
+        self,
+        img: np.ndarray,
+        primary_distortion_red: float = -0.02,
+        secondary_distortion_red: float = -0.05,
+        primary_distortion_blue: float = -0.02,
+        secondary_distortion_blue: float = -0.05,
+        **params: Any,
+    ) -> np.ndarray:
+        return F.chromatic_aberration(
+            img,
+            primary_distortion_red,
+            secondary_distortion_red,
+            primary_distortion_blue,
+            secondary_distortion_blue,
+            self.interpolation,
+        )
+
+    def get_params(self) -> Dict[str, float]:
+        primary_distortion_red = random.uniform(*self.primary_distortion_limit)
+        secondary_distortion_red = random.uniform(*self.secondary_distortion_limit)
+        primary_distortion_blue = random.uniform(*self.primary_distortion_limit)
+        secondary_distortion_blue = random.uniform(*self.secondary_distortion_limit)
+
+        secondary_distortion_red = self._match_sign(primary_distortion_red, secondary_distortion_red)
+        secondary_distortion_blue = self._match_sign(primary_distortion_blue, secondary_distortion_blue)
+
+        if self.mode == "green_purple":
+            # distortion coefficients of the red and blue channels have the same sign
+            primary_distortion_blue = self._match_sign(primary_distortion_red, primary_distortion_blue)
+            secondary_distortion_blue = self._match_sign(secondary_distortion_red, secondary_distortion_blue)
+        if self.mode == "red_blue":
+            # distortion coefficients of the red and blue channels have the opposite sign
+            primary_distortion_blue = self._unmatch_sign(primary_distortion_red, primary_distortion_blue)
+            secondary_distortion_blue = self._unmatch_sign(secondary_distortion_red, secondary_distortion_blue)
+
+        return {
+            "primary_distortion_red": primary_distortion_red,
+            "secondary_distortion_red": secondary_distortion_red,
+            "primary_distortion_blue": primary_distortion_blue,
+            "secondary_distortion_blue": secondary_distortion_blue,
+        }
+
+    @staticmethod
+    def _match_sign(
+        a: float,
+        b: float
+    ) -> float:
+        # Match the sign of b to a
+        if (a < 0 < b) or (a > 0 > b):
+            b = -b
+        return b
+
+    @staticmethod
+    def _unmatch_sign(
+        a: float,
+        b: float
+    ) -> float:
+        # Unmatch the sign of b to a
+        if (a < 0 and b < 0) or (a > 0 and b > 0):
+            b = -b
+        return b
+
+    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+        return "primary_distortion_limit", "secondary_distortion_limit", "mode", "interpolation"

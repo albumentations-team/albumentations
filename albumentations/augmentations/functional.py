@@ -18,7 +18,14 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-from albumentations.core.types import ColorType, ImageMode, ScalarType, SpatterMode, image_modes
+from albumentations.core.types import (
+    ColorType,
+    ImageMode,
+    ScalarType,
+    SpatterMode,
+    ChromaticAberrationMode,
+    image_modes,
+)
 
 __all__ = [
     "add_fog",
@@ -62,6 +69,7 @@ __all__ = [
     "unsharp_mask",
     "MAX_VALUES_BY_DTYPE",
     "split_uniform_grid",
+    "chromatic_aberration",
 ]
 
 TWO = 2
@@ -1422,3 +1430,72 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
     ]
 
     return np.array(tiles)
+
+
+def chromatic_aberration(
+    img: np.ndarray,
+    primary_distortion_red: float,
+    secondary_distortion_red: float,
+    primary_distortion_blue: float,
+    secondary_distortion_blue: float,
+    interpolation: int,
+) -> np.ndarray:
+    non_rgb_warning(img)
+
+    height, width = img.shape[:2]
+
+    # Build camera matrix
+    camera_mat = np.eye(3, dtype=np.float32)
+    camera_mat[0, 0] = width
+    camera_mat[1, 1] = height
+    camera_mat[0, 2] = width / 2.0
+    camera_mat[1, 2] = height / 2.0
+
+    # Build distortion coefficients
+    distortion_coeffs_red = np.array([primary_distortion_red, secondary_distortion_red, 0, 0], dtype=np.float32)
+    distortion_coeffs_blue = np.array([primary_distortion_blue, secondary_distortion_blue, 0, 0], dtype=np.float32)
+
+    # Distort the red and blue channels
+    red_distorted = _distort_channel(
+        img[..., 0],
+        camera_mat,
+        distortion_coeffs_red,
+        height,
+        width,
+        interpolation,
+    )
+    blue_distorted = _distort_channel(
+        img[..., 2],
+        camera_mat,
+        distortion_coeffs_blue,
+        height,
+        width,
+        interpolation,
+    )
+
+    return np.dstack([red_distorted, img[..., 1], blue_distorted])
+
+
+def _distort_channel(
+    channel: np.ndarray,
+    camera_mat: np.ndarray,
+    distortion_coeffs: np.ndarray,
+    height: int,
+    width: int,
+    interpolation: int,
+) -> np.ndarray:
+    map_x, map_y = cv2.initUndistortRectifyMap(
+        cameraMatrix=camera_mat,
+        distCoeffs=distortion_coeffs,
+        R=None,
+        newCameraMatrix=camera_mat,
+        size=(width, height),
+        m1type=cv2.CV_32FC1,
+    )
+    return cv2.remap(
+        channel,
+        map_x,
+        map_y,
+        interpolation=interpolation,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
