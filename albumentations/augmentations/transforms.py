@@ -23,13 +23,13 @@ from albumentations.augmentations.utils import (
 from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, Interpolation, NoOp, to_tuple
 from albumentations.core.types import (
     BoxInternalType,
+    ChromaticAberrationMode,
     ImageMode,
     KeypointInternalType,
     ScaleFloatType,
     ScaleIntType,
     ScaleType,
     SpatterMode,
-    ChromaticAberrationMode,
     Targets,
     image_modes,
 )
@@ -2822,7 +2822,7 @@ class ChromaticAberration(ImageOnlyTransform):
             secondary_distortion_red,
             primary_distortion_blue,
             secondary_distortion_blue,
-            self.interpolation,
+            cast(int, self.interpolation),
         )
 
     def get_params(self) -> Dict[str, float]:
@@ -2851,20 +2851,14 @@ class ChromaticAberration(ImageOnlyTransform):
         }
 
     @staticmethod
-    def _match_sign(
-        a: float,
-        b: float
-    ) -> float:
+    def _match_sign(a: float, b: float) -> float:
         # Match the sign of b to a
         if (a < 0 < b) or (a > 0 > b):
             b = -b
         return b
 
     @staticmethod
-    def _unmatch_sign(
-        a: float,
-        b: float
-    ) -> float:
+    def _unmatch_sign(a: float, b: float) -> float:
         # Unmatch the sign of b to a
         if (a < 0 and b < 0) or (a > 0 and b > 0):
             b = -b
