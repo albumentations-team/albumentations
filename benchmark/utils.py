@@ -19,16 +19,25 @@ class MarkdownGenerator:
         self._package_versions = package_versions
 
     def _highlight_best_result(self, results: List[str]) -> List[str]:
-        best_result = float("-inf")
+        processed_results = []
+
+        # Extract mean values and convert to float for comparison
         for result in results:
             try:
-                i_result = int(result)
-            except ValueError:
-                continue
+                mean_value = float(result.split("±")[0].strip())
+                processed_results.append((mean_value, result))
+            except (ValueError, IndexError):
+                # Handle cases where conversion fails or result doesn't follow expected format
+                processed_results.append((float("-inf"), result))
 
-            if i_result > best_result:
-                best_result = i_result
-        return [f"**{r}**" if r == str(best_result) else r for r in results]
+        # Determine the best result based on mean values
+        best_mean_value = max([mean for mean, _ in processed_results])
+
+        # Highlight the best result
+        return [
+            f"**{original_result}**" if mean_value == best_mean_value else original_result
+            for mean_value, original_result in processed_results
+        ]
 
     def _make_headers(self) -> list[str]:
         libraries = self._df.columns.to_list()
@@ -54,7 +63,7 @@ class MarkdownGenerator:
             "{library} {version}".format(library=library, version=self._package_versions[library].replace("\n", ""))
             for library in libraries
         ]
-        return "Python and library versions: {}.".format(", ".join(libraries_with_versions))
+        return f"Python and library versions: {', '.join(libraries_with_versions)}."
 
     def print(self) -> None:
         writer = MarkdownTableWriter()
@@ -109,8 +118,8 @@ def get_markdown_table(data: dict[str, str]) -> str:
         'numpy': '1.26.4',
         'opencv-python-headless': '4.9.0.80',
         'scikit-image': '0.22.0',
-        'scipy': '1.12.0', 'pillow':
-        '10.2.0', 'augmentor': '0.2.12',
+        'scipy': '1.12.0',
+        'pillow': '10.2.0',
         'kornia': '0.7.2',
         'augly': '1.0.0'}
     """

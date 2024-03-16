@@ -1,7 +1,6 @@
 -f https://download.pytorch.org/whl/torch_stable.html
 
 albumentations
-Augmentor
 imgaug
 numpy
 opencv-python-headless

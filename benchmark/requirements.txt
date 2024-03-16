@@ -12,8 +12,6 @@ albumentations==1.4.1
     # via -r requirements.in
 augly==1.0.0
     # via -r requirements.in
-augmentor==0.2.12
-    # via -r requirements.in
 chardet==5.2.0
     # via mbstrdecoder
 contourpy==1.2.0
@@ -48,6 +46,8 @@ kiwisolver==1.4.5
     # via matplotlib
 kornia==0.7.2
     # via -r requirements.in
+kornia-rs==0.1.1
+    # via kornia
 lazy-loader==0.3
     # via scikit-image
 markupsafe==2.1.5
@@ -69,7 +69,6 @@ numpy==1.26.4
     # via
     #   -r requirements.in
     #   albumentations
-    #   augmentor
     #   contourpy
     #   imageio
     #   imgaug
@@ -102,7 +101,6 @@ pathvalidate==3.2.0
 pillow==10.2.0
     # via
     #   -r requirements.in
-    #   augmentor
     #   imageio
     #   imgaug
     #   matplotlib
@@ -169,7 +167,6 @@ torchvision==0.17.1+rocm5.7
 tqdm==4.66.2
     # via
     #   -r requirements.in
-    #   augmentor
     #   iopath
 typepy[datetime]==1.3.2
     # via

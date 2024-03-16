@@ -1,4 +1,5 @@
 import argparse
+import copy
 import os
 import random
 import sys
@@ -16,7 +17,6 @@ import numpy as np
 import pandas as pd
 import pkg_resources
 import torch
-from Augmentor import Operations, Pipeline
 from imgaug import augmenters as iaa
 from PIL import Image
 from torchvision.transforms import InterpolationMode, v2
@@ -36,6 +36,8 @@ from benchmark.utils import (
 cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 
+torch.set_num_threads(1)
+
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
@@ -43,14 +45,7 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
 
-DEFAULT_BENCHMARKING_LIBRARIES = [
-    "albumentations",
-    "torchvision",
-    "kornia",
-    "augly",
-    "imgaug",
-    "augmentor",
-]
+DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "torchvision", "kornia", "augly", "imgaug"]
 
 
 def parse_args() -> argparse.Namespace:
@@ -85,7 +80,6 @@ def get_package_versions() -> Dict[str, str]:
         "scikit-image",
         "scipy",
         "pillow",
-        "augmentor",
         "kornia",
         "augly",
     ]
@@ -108,9 +102,6 @@ class BenchmarkTest:
         img = self.imgaug_transform.augment_image(img)
         return np.array(img, np.uint8, copy=False)
 
-    def augmentor(self, img: Image.Image) -> Image.Image:
-        return self.augmentor_op.perform_operation([img])[0]
-
     def torchvision(self, img: torch.Tensor) -> torch.Tensor:
         return self.torchvision_transform(img).contiguous()
 
@@ -123,7 +114,6 @@ class BenchmarkTest:
     def is_supported_by(self, library: str) -> bool:
         library_attr_map = {
             "imgaug": "imgaug_transform",
-            "augmentor": ["augmentor_op", "augmentor_pipeline"],
             "kornia": "kornia_transform",
             "torchvision": "torchvision_transform",
             "albumentations": "albumentations_transform",
@@ -151,7 +141,6 @@ class BenchmarkTest:
 class HorizontalFlip(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Fliplr(p=1)
-        self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="LEFT_RIGHT")
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.HorizontalFlip(p=1)(image=img)["image"]
@@ -169,7 +158,6 @@ class HorizontalFlip(BenchmarkTest):
 class VerticalFlip(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.Flipud(p=1)
-        self.augmentor_op = Operations.Flip(probability=1, top_bottom_left_right="TOP_BOTTOM")
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.VerticalFlip(p=1)(image=img)["image"]
@@ -188,7 +176,6 @@ class Rotate(BenchmarkTest):
     def __init__(self):
         self.angle = 45
         self.imgaug_transform = iaa.Affine(rotate=(self.angle, self.angle), order=1, mode="reflect")
-        self.augmentor_op = Operations.RotateStandard(probability=1, max_left_rotation=45, max_right_rotation=45)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.Rotate(limit=self.angle, p=1)(image=img)["image"]
@@ -207,11 +194,12 @@ class Rotate(BenchmarkTest):
         return imaugs.RandomRotation(min_degrees=self.angle, max_degrees=self.angle, p=1)(img)
 
 
-class ShiftScaleRotate(BenchmarkTest):
+class Affine(BenchmarkTest):
     def __init__(self):
         self.angle = 25.0
         self.shift = (50, 50)
         self.scale = 2.0
+        self.shear = [10.0, 15.0]
         self.imgaug_transform = iaa.Affine(
             scale=(self.scale, self.scale),
             rotate=(self.angle, self.angle),
@@ -221,9 +209,13 @@ class ShiftScaleRotate(BenchmarkTest):
         )
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.ShiftScaleRotate(rotate_limit=self.angle, scale_limit=self.scale, shift_limit=self.shift, p=1)(
-            image=img
-        )["image"]
+        height, width = img.shape[-2], img.shape[-1]
+        return A.Affine(
+            translate_percent=[self.shift[0] / width, self.shift[1] / height],
+            rotate=self.angle,
+            shear=self.shear,
+            interpolation=cv2.INTER_LINEAR,
+        )(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         height, width = img.shape[-2], img.shape[-1]
@@ -231,33 +223,23 @@ class ShiftScaleRotate(BenchmarkTest):
             degrees=self.angle,
             translate=[self.shift[0] / width, self.shift[1] / height],
             scale=(self.scale, self.scale),
-            shear=0,
+            shear=self.shear,
             interpolation=InterpolationMode.BILINEAR,
         )(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Rotate: 25 degrees, Scale: 2x (uniform scaling), Translate: 50 pixels in both x and y directions
-        angle = torch.tensor([self.angle])  # Rotation angle in degrees
-        scale = torch.tensor([[self.scale, self.scale]])  # Scaling factor
-        translation = torch.tensor([list(self.shift)])  # Translation in pixels
+        batch_size = img.shape[0]
+        scale = torch.tensor([[self.scale, self.scale]]).repeat(batch_size, 1)
+        angle = torch.tensor([self.angle]).float()
+        translation = torch.tensor([self.shift]).float()
+        shear = torch.tensor([self.shear]).float()
 
-        center = torch.tensor([img.shape[2] / 2, img.shape[1] / 2])[None, :]  # Add batch dimension with [None, :]
-
-        # Create the 2D affine matrix for rotation + scaling + translation
-        affine_matrix = K.geometry.transform.get_rotation_matrix2d(center, angle, scale)
-        affine_matrix[..., 2] += translation  # Apply translation
-
-        affine_matrix = affine_matrix.to(img.dtype)
-
-        return K.geometry.transform.warp_affine(
-            img, affine_matrix, dsize=(img.shape[3], img.shape[2]), mode="bilinear", padding_mode="zeros"
-        )
+        return K.geometry.transform.Affine(angle=angle, scale_factor=scale, translation=translation, shear=shear)(img)
 
 
 class Equalize(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.AllChannelsHistogramEqualization()
-        self.augmentor_op = Operations.HistogramEqualisation(probability=1)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.Equalize(p=1)(image=img)["image"]
@@ -272,7 +254,6 @@ class Equalize(BenchmarkTest):
 class RandomCrop64(BenchmarkTest):
     def __init__(self):
         self.imgaug_transform = iaa.CropToFixedSize(width=64, height=64)
-        self.augmentor_op = Operations.Crop(probability=1, width=64, height=64, centre=False)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.RandomCrop(height=64, width=64, p=1)(image=img)["image"]
@@ -291,91 +272,88 @@ class RandomCrop64(BenchmarkTest):
         return imaugs.Crop(x1=x1, y1=y1, x2=x2, y2=y2, p=1)(img)
 
 
-class RandomSizedCrop_64_512(BenchmarkTest):
-    def __init__(self):
-        self.augmentor_pipeline = Pipeline()
-        self.augmentor_pipeline.add_operation(Operations.Crop(probability=1, width=64, height=64, centre=False))
-        self.augmentor_pipeline.add_operation(
-            Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
-        )
-        self.imgaug_transform = iaa.Sequential(
-            [iaa.CropToFixedSize(width=64, height=64), iaa.Resize(size=512, interpolation="linear")]
-        )
+class RandomResizedCrop(BenchmarkTest):
+    def __init__(
+        self,
+        height: int = 512,
+        width: int = 512,
+        scale: tuple[float, float] = (0.08, 1.0),
+        ratio: tuple[float, float] = (0.75, 1.3333333333333333),
+    ):
+        self.height = height
+        self.width = width
+        self.ratio = ratio
+        self.scale = scale
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        img = A.random_crop(img, crop_height=64, crop_width=64, h_start=0, w_start=0)
-        return A.resize(img, height=512, width=512)
-
-    def augmentor(self, img: Image.Image) -> np.ndarray:
-        for operation in self.augmentor_pipeline.operations:
-            (img,) = operation.perform_operation([img])
-        return img
+        return A.RandomResizedCrop(
+            scale=self.scale, height=self.height, width=self.width, ratio=self.ratio, interpolation=cv2.INTER_LINEAR
+        )(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        transform = v2.Compose(
-            [v2.RandomCrop(size=(64, 64)), v2.Resize(size=(512, 512), interpolation=InterpolationMode.BILINEAR)]
-        )
-        return transform(img)
+        return v2.RandomResizedCrop(
+            scale=self.scale, size=[self.height, self.width], ratio=self.ratio, interpolation=InterpolationMode.BILINEAR
+        )(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return Kaug.RandomResizedCrop(size=(512, 512), scale=(0.08, 1.0), ratio=(0.75, 1.33))(img)
+        return Kaug.RandomResizedCrop(size=[self.height, self.width], scale=self.scale, ratio=self.ratio)(img)
 
 
 class ShiftRGB(BenchmarkTest):
-    def __init__(self):
-        self.imgaug_transform = iaa.Add((100, 100), per_channel=False)
+    def __init__(self, pixel_shift: int = 100):
+        self.pixel_shift = pixel_shift
+        self.imgaug_transform = iaa.Add((pixel_shift, pixel_shift), per_channel=True)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.RGBShift(r_shift_limit=100, g_shift_limit=100, b_shift_limit=100, p=1)(image=img)["image"]
+        return A.RGBShift(
+            r_shift_limit=self.pixel_shift, g_shift_limit=self.pixel_shift, b_shift_limit=self.pixel_shift, p=1
+        )(image=img)["image"]
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return Kaug.RandomRGBShift(0.5, 0.5, 0.5, p=1)(img)  # Define the shifts for R, G, B channels
+        return Kaug.RandomRGBShift(self.pixel_shift / 255, self.pixel_shift / 255, self.pixel_shift / 255, p=1)(img)
 
 
-class Resize512(BenchmarkTest):
-    def __init__(self):
-        self.imgaug_transform = iaa.Resize(size=512, interpolation="linear")
-        self.augmentor_op = Operations.Resize(probability=1, width=512, height=512, resample_filter="BILINEAR")
+class Resize(BenchmarkTest):
+    def __init__(self, target_size: int = 512):
+        self.target_size = target_size
+        self.imgaug_transform = iaa.Resize(size=target_size, interpolation="linear")
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.Resize(height=512, width=512, interpolation=cv2.INTER_LINEAR)(image=img)["image"]
+        return A.Resize(height=self.target_size, width=self.target_size, interpolation=cv2.INTER_LINEAR)(image=img)[
+            "image"
+        ]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return v2.Resize(size=(512, 512), interpolation=InterpolationMode.BILINEAR)(img)
+        return v2.Resize(size=(self.target_size, self.target_size), interpolation=InterpolationMode.BILINEAR)(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return Kaug.Resize(size=(512, 512))(img)
+        return Kaug.Resize(size=(self.target_size, self.target_size))(img)
 
     def augly_transform(self, img: Image.Image) -> Image.Image:
-        return imaugs.Resize(width=512, height=512, resample=Image.BILINEAR, p=1)(img)
+        return imaugs.Resize(width=self.target_size, height=self.target_size, resample=Image.BILINEAR, p=1)(img)
 
 
 class RandomGamma(BenchmarkTest):
-    def __init__(self):
-        self.imgaug_transform = iaa.GammaContrast(gamma=0.5)
+    def __init__(self, gamma: float = 120):
+        self.gamma = gamma
+        self.imgaug_transform = iaa.GammaContrast(gamma=gamma / 100)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        return A.RandomGamma(gamma_limit=(80, 120), p=1)(image=img)["image"]
+        return A.RandomGamma(gamma_limit=(self.gamma, self.gamma), p=1)(image=img)["image"]
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return v2.functional.adjust_gamma(img, gamma=0.5)
+        return v2.functional.adjust_gamma(img, gamma=self.gamma / 100)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return Kaug.RandomGamma(p=1.0, gamma=(0.5, 0.5))(img)
+        return Kaug.RandomGamma(p=1.0, gamma=(self.gamma / 100, self.gamma / 100))(img)
 
 
 class Grayscale(BenchmarkTest):
     def __init__(self):
-        self.augmentor_op = Operations.Greyscale(probability=1)
         self.imgaug_transform = iaa.Grayscale(alpha=1.0)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.to_gray(img)
-
-    def augmentor(self, img: Image.Image) -> np.ndarray:
-        img = self.augmentor_op.perform_operation([img])[0]
-        img = np.array(img, np.uint8, copy=False)
-        return np.dstack([img, img, img])
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.RandomGrayscale(p=1.0)(img)
@@ -399,10 +377,10 @@ class ColorJitter(BenchmarkTest):
             brightness=self.brightness, contrast=self.contrast, saturation=self.saturation, hue=self.hue, p=1
         )(image=img)["image"]
 
-    def torchvision(self, img: torch.Tensor) -> torch.Tensor:
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
         return v2.ColorJitter(
-            brightness=self.brightness, contrast=self.contrast, saturation=self.saturation, hue=self.hue, p=1
-        )
+            brightness=self.brightness, contrast=self.contrast, saturation=self.saturation, hue=self.hue
+        )(img)
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
         return Kaug.ColorJitter(
@@ -418,7 +396,6 @@ class ColorJitter(BenchmarkTest):
 class RandomPerspective(BenchmarkTest):
     def __init__(self):
         self.scale = (0.05, 0.1)
-
         self.imgaug_transform = iaa.PerspectiveTransform(scale=self.scale)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
@@ -455,7 +432,7 @@ class MedianBlur(BenchmarkTest):
     def __init__(self, blur_limit: int = 5):
         # blur_limit or kernel size for median blur, ensuring it's an odd number
         self.blur_limit = blur_limit if blur_limit % 2 != 0 else blur_limit + 1
-        self.imgaug_transform = iaa.MedianBlur(k=self.blur_limit)
+        self.imgaug_transform = iaa.MedianBlur(k=(self.blur_limit, self.blur_limit))
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         transform = A.MedianBlur(blur_limit=(self.blur_limit, self.blur_limit), p=1)
@@ -486,7 +463,7 @@ class Posterize(BenchmarkTest):
         self.imgaug_transform = iaa.Posterize(nb_bits=self.bits)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.Posterize(num_bits=self.bits, always_apply=True)
+        transform = A.Posterize(num_bits=self.bits, p=1)
         return transform(image=img)["image"]
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
@@ -498,12 +475,11 @@ class Posterize(BenchmarkTest):
 
 class JpegCompression(BenchmarkTest):
     def __init__(self, quality: int = 50):
-        # Quality: Value between 0 and 100 (higher means better). In imgaug, it's 0-100 scale.
         self.quality = quality
         self.imgaug_transform = iaa.JpegCompression(compression=self.quality)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.ImageCompression(quality_lower=self.quality, quality_upper=self.quality, always_apply=True)
+        transform = A.ImageCompression(quality_lower=self.quality, quality_upper=self.quality, p=1)
         return transform(image=img)["image"]
 
     def augly_transform(self, img: Image.Image) -> Image.Image:
@@ -511,23 +487,17 @@ class JpegCompression(BenchmarkTest):
 
 
 class GaussianNoise(BenchmarkTest):
-    def __init__(self, mean: float = 0, var: float = 0.010):
+    def __init__(self, mean: float = 127, var: float = 0.010):
         self.mean = mean
         self.var = var
-        self.imgaug_transform = iaa.AdditiveGaussianNoise(loc=self.mean, scale=(self.var**0.5, self.var**0.5))
+        self.imgaug_transform = iaa.AdditiveGaussianNoise(loc=self.mean, scale=(0, self.var * 255))
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.GaussNoise(var_limit=(20, 50), mean=self.mean, always_apply=True)
+        transform = A.GaussNoise(var_limit=self.var * 255, mean=self.mean, p=1)
         return transform(image=img)["image"]
 
-    def augly_transform(self, img: np.ndarray) -> np.ndarray:
-        return imaugs.RandomNoise(mean=self.mean, var=self.var)(img)
-
-    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        # Ensure img tensor is in float format; assume it is scaled between 0 and 1
-        noise = torch.randn(img.size()) * self.var**0.5 + self.mean
-        img_noisy = img + noise
-        return torch.clamp(img_noisy, 0.0, 1.0)
+    def augly_transform(self, img: Image.Image) -> Image.Image:
+        return imaugs.RandomNoise(mean=self.mean, var=self.var * 255)(img)
 
 
 class Elastic(BenchmarkTest):
@@ -538,11 +508,17 @@ class Elastic(BenchmarkTest):
         self.imgaug_transform = iaa.ElasticTransformation(alpha=self.alpha, sigma=self.sigma)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.ElasticTransform(alpha=self.alpha, sigma=self.sigma, always_apply=True)
+        transform = A.ElasticTransform(alpha=self.alpha, sigma=self.sigma, p=1, approximate=True)
         return transform(image=img)["image"]
 
-    def kornia(self, img: torch.Tensor) -> np.ndarray:
-        return Kaug.RandomElasticTransform(alpha=self.alpha, sigma=(self.sigma, self.sigma), p=1)(img)
+    def kornia_transform(self, img: torch.Tensor) -> np.ndarray:
+        sigma = torch.tensor((self.sigma, self.sigma)).float()
+        alpha = torch.tensor([self.alpha, self.alpha]).float()
+        return Kaug.RandomElasticTransform(alpha=alpha, sigma=sigma, p=1)(img)
+
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        ## Uses approximate Elastic by default
+        return v2.ElasticTransform(alpha=self.alpha, sigma=self.sigma, interpolation=InterpolationMode.BILINEAR)(img)
 
 
 def main() -> None:
@@ -556,21 +532,21 @@ def main() -> None:
     data_dir = Path(args.data_dir)
     paths = sorted(data_dir.glob("*.*"))
     paths = paths[: args.images]
-    imgs_cv2 = [read_img_cv2(path) for path in paths]
-    imgs_pillow = [read_img_pillow(path) for path in paths]
-    imgs_torch = [read_img_torch(path) for path in paths]
-    imgs_kornia = [read_img_kornia(path) for path in paths]
+    imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths)]
+    imgs_pillow = [read_img_pillow(path) for path in tqdm(paths)]
+    imgs_torch = [read_img_torch(path) for path in tqdm(paths)]
+    imgs_kornia = [read_img_kornia(path) for path in tqdm(paths)]
 
     benchmarks = [
         HorizontalFlip(),
         VerticalFlip(),
         Rotate(),
-        ShiftScaleRotate(),
+        Affine(),
         Equalize(),
         RandomCrop64(),
-        RandomSizedCrop_64_512(),
+        RandomResizedCrop(),
         ShiftRGB(),
-        Resize512(),
+        Resize(512),
         RandomGamma(),
         Grayscale(),
         ColorJitter(),
@@ -583,27 +559,37 @@ def main() -> None:
         GaussianNoise(),
         Elastic(),
     ]
-    for library in libraries:
-        if library in ("augmentor", "augly"):
-            imgs = imgs_pillow
-        elif library == "torchvision":
-            imgs = imgs_torch
-        elif library == "kornia":
-            imgs = imgs_kornia
-        else:
-            imgs = imgs_cv2
 
-        pbar = tqdm(total=len(benchmarks))
-        for benchmark in benchmarks:
-            pbar.set_description(f"Current benchmark: {library} | {benchmark}")
+    def get_imgs(library: str) -> list:
+        if library == "augly":
+            return imgs_pillow
+        if library == "torchvision":
+            return imgs_torch
+        if library == "kornia":
+            return imgs_kornia
+        return imgs_cv2
+
+    pbar = tqdm(total=len(benchmarks))
+
+    for benchmark in benchmarks:
+        shuffled_libraries = copy.deepcopy(libraries)  # Create a deep copy of the libraries list
+        random.shuffle(shuffled_libraries)  # Shuffle the copied list
+        pbar.set_description(f"Current benchmark: {benchmark}")
+
+        for library in shuffled_libraries:
+            imgs = get_imgs(library)
+
             benchmark_images_per_second = None
+
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs))
                 run_times = timer.repeat(number=1, repeat=args.runs)
                 benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
             images_per_second[library][str(benchmark)] = benchmark_images_per_second
-            pbar.update(1)
-        pbar.close()
+
+        pbar.update(1)
+    pbar.close()
+
     pd.set_option("display.width", 1000)
     df = pd.DataFrame.from_dict(images_per_second)
     df = df.map(lambda r: format_results(r, args.show_std))
