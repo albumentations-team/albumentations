@@ -2826,10 +2826,10 @@ class ChromaticAberration(ImageOnlyTransform):
         )
 
     def get_params(self) -> Dict[str, float]:
-        primary_distortion_red = random.uniform(*self.primary_distortion_limit)
-        secondary_distortion_red = random.uniform(*self.secondary_distortion_limit)
-        primary_distortion_blue = random.uniform(*self.primary_distortion_limit)
-        secondary_distortion_blue = random.uniform(*self.secondary_distortion_limit)
+        primary_distortion_red = random_utils.uniform(*self.primary_distortion_limit)
+        secondary_distortion_red = random_utils.uniform(*self.secondary_distortion_limit)
+        primary_distortion_blue = random_utils.uniform(*self.primary_distortion_limit)
+        secondary_distortion_blue = random_utils.uniform(*self.secondary_distortion_limit)
 
         secondary_distortion_red = self._match_sign(primary_distortion_red, secondary_distortion_red)
         secondary_distortion_blue = self._match_sign(primary_distortion_blue, secondary_distortion_blue)
