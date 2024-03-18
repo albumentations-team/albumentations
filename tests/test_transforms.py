@@ -1295,6 +1295,7 @@ def test_motion_blur_allow_shifted(seed):
         A.RandomSunFlare(),
         A.RandomShadow(),
         A.Spatter(),
+        A.ChromaticAberration(),
     ],
 )
 @pytest.mark.parametrize("img_channels", [1, 6])
@@ -1314,6 +1315,15 @@ def test_spatter_incorrect_mode(image):
         A.Spatter(mode=unsupported_mode)
 
     message = f"Unsupported color mode: {unsupported_mode}. Transform supports only `rain` and `mud` mods."
+    assert str(exc_info.value).startswith(message)
+
+
+def test_chromatic_aberration_incorrect_mode(image):
+    unsupported_mode = "unsupported"
+    with pytest.raises(ValueError) as exc_info:
+        A.ChromaticAberration(mode=unsupported_mode)
+
+    message = f"Unsupported mode: {unsupported_mode}. Supported modes are 'green_purple', 'red_blue', 'random'."
     assert str(exc_info.value).startswith(message)
 
 
