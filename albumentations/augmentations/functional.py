@@ -23,7 +23,6 @@ from albumentations.core.types import (
     ImageMode,
     ScalarType,
     SpatterMode,
-    ChromaticAberrationMode,
     image_modes,
 )
 
