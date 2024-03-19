@@ -1,8 +1,5 @@
 name: CI
 on:
-  push:
-    branches:
-      - main
   pull_request:
     branches:
       - main
@@ -15,7 +12,7 @@ jobs:
       matrix:
         operating-system: [ubuntu-latest, windows-latest, macos-latest]
         python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
-      fail-fast: false
+      fail-fast: true
     steps:
     - name: Checkout
       uses: actions/checkout@v4
