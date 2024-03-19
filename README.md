@@ -285,7 +285,7 @@ The table shows how many images per second can be processed on a single core; hi
 | Library | Version |
 |---------|---------|
 | Python | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
-| albumentations | 1.4.0 |
+| albumentations | 1.4.1 |
 | imgaug | 0.4.0 |
 | torchvision | 0.17.1+rocm5.7 |
 | numpy | 1.26.4 |
@@ -293,32 +293,31 @@ The table shows how many images per second can be processed on a single core; hi
 | scikit-image | 0.22.0 |
 | scipy | 1.12.0 |
 | pillow | 10.2.0 |
-| augmentor | 0.2.12 |
 | kornia | 0.7.2 |
 | augly | 1.0.0 |
 
-|                 |albumentations<br><small>1.4.0</small>|torchvision<br><small>0.17.1+rocm5.7</small>|kornia<br><small>0.7.2</small>|augly<br><small>1.0.0</small>|
-|-----------------|--------------------------------------|--------------------------------------------|------------------------------|-----------------------------|
-|HorizontalFlip   |**11992 ± 93**                        |2698 ± 30                                   |1129 ± 7                      |4473 ± 18                    |
-|VerticalFlip     |**10423 ± 53**                        |2842 ± 5                                    |1152 ± 6                      |6019 ± 18                    |
-|Rotate           |**633 ± 6**                           |178 ± 2                                     |229 ± 1                       |612 ± 4                      |
-|Affine           |**1895 ± 105**                        |187 ± 2                                     |222 ± 1                       |-                            |
-|Equalize         |**1162 ± 3**                          |379 ± 2                                     |86 ± 1                        |-                            |
-|RandomCrop64     |**206791 ± 7287**                     |16282 ± 211                                 |864 ± 2                       |26677 ± 909                  |
-|RandomResizedCrop|**3013 ± 25**                         |1110 ± 8                                    |192 ± 1                       |-                            |
-|ShiftRGB         |**1528 ± 6**                          |-                                           |482 ± 3                       |-                            |
-|Resize           |**2661 ± 3**                          |1271 ± 3                                    |199 ± 4                       |440 ± 1                      |
-|RandomGamma      |**4939 ± 10**                         |252 ± 1                                     |227 ± 1                       |-                            |
-|Grayscale        |**8011 ± 9**                          |1861 ± 5                                    |502 ± 2                       |3020 ± 4                     |
-|ColorJitter      |**582 ± 1**                           |59 ± 1                                      |58 ± 1                        |241 ± 1                      |
-|RandomPerspective|**499 ± 3**                           |138 ± 2                                     |130 ± 1                       |-                            |
-|GaussianBlur     |**2538 ± 3**                          |206 ± 6                                     |127 ± 30                      |177 ± 1                      |
-|MedianBlur       |**4046 ± 4**                          |-                                           |2 ± 1                         |-                            |
-|MotionBlur       |**2956 ± 16**                         |-                                           |166 ± 1                       |-                            |
-|Posterize        |**4645 ± 12**                         |2855 ± 3                                    |305 ± 5                       |-                            |
-|JpegCompression  |226 ± 1                               |-                                           |-                             |**741 ± 16**                 |
-|GaussianNoise    |**78 ± 1**                            |-                                           |-                             |72 ± 4                       |
-|Elastic          |**142 ± 1**                           |3 ± 1                                       |1 ± 1                         |-                            |
+|                 |albumentations<br><small>1.4.0</small>|torchvision<br><small>0.17.1+rocm5.7</small>|kornia<br><small>0.7.2</small>|augly<br><small>1.0.0</small>|imgaug<br><small>0.4.0</small>|
+|-----------------|--------------------------------------|--------------------------------------------|------------------------------|-----------------------------|------------------------------|
+|HorizontalFlip   |**9843 ± 2135**                       |2436 ± 29                                   |1014 ± 3                      |3663 ± 18                    |4884 ± 51                     |
+|VerticalFlip     |**9898 ± 18**                         |2570 ± 37                                   |1024 ± 4                      |5325 ± 13                    |8683 ± 5                      |
+|Rotate           |610 ± 4                               |153 ± 2                                     |204 ± 1                       |**626 ± 3**                  |499 ± 5                       |
+|Affine           |**1705 ± 67**                         |159 ± 1                                     |200 ± 1                       |-                            |663 ± 24                      |
+|Equalize         |**1061 ± 14**                         |337 ± 1                                     |77 ± 1                        |-                            |845 ± 33                      |
+|RandomCrop64     |**203197 ± 2105**                     |15931 ± 27                                  |837 ± 2                       |21858 ± 362                  |5681 ± 96                     |
+|RandomResizedCrop|**2998 ± 30**                         |1160 ± 4                                    |190 ± 1                       |-                            |-                             |
+|ShiftRGB         |1400 ± 3                              |-                                           |435 ± 1                       |-                            |**1528 ± 6**                  |
+|Resize           |**2581 ± 3**                          |1239 ± 1                                    |197 ± 1                       |431 ± 1                      |1728 ± 1                      |
+|RandomGamma      |**4556 ± 3**                          |230 ± 1                                     |205 ± 1                       |-                            |2282 ± 110                    |
+|Grayscale        |**7234 ± 4**                          |1539 ± 7                                    |444 ± 3                       |2606 ± 2                     |918 ± 42                      |
+|ColorJitter      |**452 ± 43**                          |51 ± 1                                      |50 ± 1                        |221 ± 1                      |-                             |
+|RandomPerspective|**465 ± 1**                           |121 ± 1                                     |115 ± 1                       |-                            |433 ± 16                      |
+|GaussianBlur     |**2315 ± 9**                          |106 ± 2                                     |72 ± 1                        |161 ± 1                      |1213 ± 3                      |
+|MedianBlur       |**3711 ± 2**                          |-                                           |2 ± 1                         |-                            |566 ± 3                       |
+|MotionBlur       |**2763 ± 25**                         |-                                           |101 ± 4                       |-                            |508 ± 2                       |
+|Posterize        |**4238 ± 51**                         |2581 ± 20                                   |284 ± 4                       |-                            |1893 ± 9                      |
+|JpegCompression  |208 ± 1                               |-                                           |-                             |**692 ± 4**                  |435 ± 1                       |
+|GaussianNoise    |64 ± 9                                |-                                           |-                             |67 ± 1                       |**212 ± 16**                  |
+|Elastic          |**129 ± 1**                           |3 ± 1                                       |1 ± 1                         |-                            |128 ± 1                       |
 
 
 ## Contributing
