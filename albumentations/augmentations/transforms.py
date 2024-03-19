@@ -81,7 +81,7 @@ __all__ = [
     "ChromaticAberration",
 ]
 
-HUNDRED = 100
+MAX_JPEG_QUALITY = 100
 TWENTY = 20
 FIVE = 5
 THREE = 3
@@ -259,9 +259,9 @@ class ImageCompression(ImageOnlyTransform):
         if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
             low_thresh_quality_assert = 1
 
-        if not low_thresh_quality_assert <= quality_lower <= HUNDRED:
+        if not low_thresh_quality_assert <= quality_lower <= MAX_JPEG_QUALITY:
             raise ValueError(f"Invalid quality_lower. Got: {quality_lower}")
-        if not low_thresh_quality_assert <= quality_upper <= HUNDRED:
+        if not low_thresh_quality_assert <= quality_upper <= MAX_JPEG_QUALITY:
             raise ValueError(f"Invalid quality_upper. Got: {quality_upper}")
 
         self.quality_lower = quality_lower
@@ -501,7 +501,7 @@ class RandomRain(ImageOnlyTransform):
             raise ValueError(f"Invalid combination of slant_lower and slant_upper. Got: {(slant_lower, slant_upper)}")
         if not 1 <= drop_width <= FIVE:
             raise ValueError(f"drop_width must be in range [1, 5]. Got: {drop_width}")
-        if not 0 <= drop_length <= HUNDRED:
+        if not 0 <= drop_length <= MAX_JPEG_QUALITY:
             raise ValueError(f"drop_length must be in range [0, 100]. Got: {drop_length}")
         if not 0 <= brightness_coefficient <= 1:
             raise ValueError(f"brightness_coefficient must be in range [0, 1]. Got: {brightness_coefficient}")

@@ -46,7 +46,7 @@ repos:
       types: [python]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.3.2
+    rev: v0.3.3
     hooks:
       # Run the linter.
       - id: ruff
@@ -66,11 +66,15 @@ repos:
     hooks:
       - id: codespell
         additional_dependencies: ["tomli"]
+  - repo: https://github.com/tox-dev/pyproject-fmt
+    rev: "1.7.0"
+    hooks:
+      - id: pyproject-fmt
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.9.0
     hooks:
       - id: mypy
         files: ^albumentations/
-        additional_dependencies: [ types-PyYAML]
+        additional_dependencies: [ types-PyYAML, types-setuptools]
         args:
           [ --config-file=pyproject.toml ]
