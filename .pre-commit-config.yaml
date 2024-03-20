@@ -31,8 +31,6 @@ repos:
       - id: destroyed-symlinks
       - id: fix-byte-order-marker
       - id: check-json
-      - id: check-yaml
-        args: [ --unsafe ]
       - id: debug-statements
       - id: end-of-file-fixer
       - id: trailing-whitespace
@@ -66,6 +64,10 @@ repos:
     hooks:
       - id: codespell
         additional_dependencies: ["tomli"]
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
   - repo: https://github.com/tox-dev/pyproject-fmt
     rev: "1.7.0"
     hooks:
