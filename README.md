@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-[Discord](https://discord.gg/AKPrrDYNAt) | [Twitter](https://twitter.com/albumentations) | [Docs](https://albumentations.ai/docs/)
+[Docs](https://albumentations.ai/docs/) | [Discord](https://discord.gg/AKPrrDYNAt) | [Twitter](https://twitter.com/albumentations) | [LinkedIn](https://www.linkedin.com/company/100504475/)
 
 Albumentations is a Python library for image augmentation. Image augmentation is used in deep learning and computer vision tasks to increase the quality of trained models. The purpose of image augmentation is to create new training samples from the existing data.
 
@@ -275,7 +275,6 @@ Transforms that mix several images into one
 
 <img src="https://habrastorage.org/webt/e-/6k/z-/e-6kz-fugp2heak3jzns3bc-r8o.jpeg" width=100%>
 
-
 ## Benchmarking results
 
 To run the benchmark yourself, follow the instructions in [benchmark/README.md](https://github.com/albumentations-team/albumentations/blob/master/benchmark/README.md)
@@ -319,7 +318,6 @@ The table shows how many images per second can be processed on a single core; hi
 |JpegCompression  |208 ± 1                               |-                                           |-                             |**692 ± 4**                  |435 ± 1                       |
 |GaussianNoise    |64 ± 9                                |-                                           |-                             |67 ± 1                       |**212 ± 16**                  |
 |Elastic          |**129 ± 1**                           |3 ± 1                                       |1 ± 1                         |-                            |128 ± 1                       |
-
 
 ## Contributing
 

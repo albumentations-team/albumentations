@@ -23,13 +23,13 @@ python benchmark.py --data-dir '/hdd/ILSVRC2012_img_val' --images 2000 --runs 5 
 
 ## Running the benchmark in a Docker container
 
-### Build the image, from the root project directory run:
+### Build the image, from the root project directory run
 
 ```bash
 docker build -t albumentations-benchmark -f ./benchmark/Dockerfile .
 ```
 
-### Run the benchmark:
+### Run the benchmark
 
 ```bash
 docker run -v <path to a directory with images on the host machine>:/images albumentations-benchmark <args>

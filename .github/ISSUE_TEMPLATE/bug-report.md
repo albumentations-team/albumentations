@@ -1,35 +1,36 @@
 ---
-name: "Bug Report"
-about: Submit a bug report to help us improve albumentations
+name: Bug Report
+about: Create a report to help us improve
+title: ''
+labels: 'bug'
+assignees: ''
 
 ---
 
-## 🐛 Bug
+## Describe the bug
 
-<!-- A clear and concise description of what the bug is. -->
+A clear and concise description of what the bug is.
 
-## To Reproduce
+### To Reproduce
 
 Steps to reproduce the behavior:
 
-1.
-1.
-1.
+1. Environment (e.g., OS, Python version, Albumentations version, etc.)
+2. Sample code that produces the bug.
+3. Any error messages or incorrect outputs.
 
-<!-- If you have a code sample, error messages, stack traces, please provide it here as well -->
+### Expected behavior
 
-## Expected behavior
+A clear and concise description of what you expected to happen.
 
-<!-- A clear and concise description of what you expected to happen. -->
+### Actual behavior
 
-## Environment
+Describe what actually happened, including how it differs from your expectations.
 
- - Albumentations version (e.g., 0.1.8):
- - Python version (e.g., 3.7):
- - OS (e.g., Linux):
- - How you installed albumentations (`conda`, `pip`, source):
- - Any other relevant information:
+### Screenshots
 
-## Additional context
+If applicable, add screenshots to help explain your problem.
 
-<!-- Add any other context about the problem here. -->
+### Additional context
+
+Add any other context about the problem here, like links to similar issues or possible solutions you've found.

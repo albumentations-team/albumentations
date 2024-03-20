@@ -27,16 +27,21 @@ cd albumentations
 We recommend using a virtual environment to isolate project dependencies. Ensure you have Python 3.8 or higher installed on your machine, as it is the minimum supported version for Albumentations. To create and activate a virtual environment, run the following commands:
 
 #### Linux / macOS
+
 ```bash
 python3 -m venv env
 source env/bin/activate
 ```
+
 #### Windows cmd.exe
+
 ```bash
 python -m venv env
 env\Scripts\activate.bat
 ```
+
 #### Windows PowerShell
+
 ```bash
 python -m venv env
 env\Scripts\activate.ps1
