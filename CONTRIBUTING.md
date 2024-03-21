@@ -1,6 +1,6 @@
 # Contributing to Albumentations
 
-Thank you for your interest in contributing to Albumentations! This guide is designed to make it easier for you to get involved and help us build a powerful, efficient, and easy-to-use image augmentation library.
+Thank you for your interest in contributing to [Albumentations](https://albumentations.ai/)! This guide is designed to make it easier for you to get involved and help us build a powerful, efficient, and easy-to-use image augmentation library.
 
 For small changes (e.g., bug fixes), feel free to submit a PR.
 
@@ -52,7 +52,7 @@ env\Scripts\activate.ps1
 Install the project's dependencies by running:
 
 ```bash
-pip install -e .[develop]
+pip install -e .
 ```
 
 Additionally, to ensure you have all the necessary tools for code formatting, linting, and additional development utilities, install the requirements from `requirements-dev.txt`:
@@ -65,7 +65,6 @@ pip install -r requirements-dev.txt
 
 * The main source code is located in the `albumentations/` directory.
 * Tests are located in the `tests/` directory. Every pull request should include tests for new features or bug fixes.
-* Documentation can be found in the docs/ directory. Contributions to improve or expand the documentation are always welcome.
 
 ## How to Contribute
 
@@ -80,7 +79,7 @@ pip install -r requirements-dev.txt
 1. **Find an issue to work on**: Look for open issues or propose a new one. For newcomers, look for issues labeled "good first issue."
 2. **Fork the repository** (if you haven't already).
 3. **Create a new branch for your changes**: `git checkout -b feature/my-new-feature`.
-4. **Implement your changes**: Write clean, readable, and well-documented code.
+4. **Implement your changes**: Write clean, readable, and well-documented code. Note that we do not use np.random module directly but call corresponding functions from the albumentations/random_utils.py module to ensure consistency and control over randomness.
 5. **Add or update tests** as necessary.
 6. **Ensure all tests pass** and your code adheres to the existing style guidelines.
 7. **Submit a Pull Request (PR):** Open a PR from your forked repository to the main Albumentations repository. Provide a clear description of the changes and any relevant issue numbers.
