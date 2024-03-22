@@ -272,3 +272,27 @@ class RandomBrightnessContrastConfig(BaseTransformConfig):
     @classmethod
     def validate_and_convert(cls, v: Any) -> Tuple[float, float]:
         return to_tuple(v)
+
+
+class GaussNoiseConfig(BaseTransformConfig):
+    var_limit: ScaleType = Field(default=(10.0, 50.0), description="Variance range for noise.")
+    mean: float = Field(default=0, description="Mean of the noise.")
+    per_channel: bool = Field(default=True, description="Apply noise per channel.")
+
+    # Custom validator to ensure var_limit is in the correct range and format
+    @field_validator("var_limit")
+    @classmethod
+    def validate_var_limit(cls, var_limit: ScaleType) -> Tuple[float, float]:
+        if isinstance(var_limit, (int, float)):
+            if var_limit < 0:
+                msg = "var_limit should be non negative."
+                raise ValueError(msg)
+            return (0, var_limit)
+        if isinstance(var_limit, (tuple, list)):
+            if var_limit[0] < 0 or var_limit[1] < 0:
+                msg = "var_limit values should be non negative."
+                raise ValueError(msg)
+            return cast(Tuple[float, float], tuple(var_limit))
+
+        msg = f"Expected var_limit type to be one of (int, float, tuple, list), got {type(var_limit)}"
+        raise TypeError(msg)
