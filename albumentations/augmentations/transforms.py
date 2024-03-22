@@ -20,6 +20,7 @@ from albumentations.augmentations.configs import (
     ImageCompressionConfig,
     NormalizeConfig,
     PosterizeConfig,
+    RandomBrightnessContrastConfig,
     RandomFogConfig,
     RandomGravelConfig,
     RandomGridShuffleConfig,
@@ -1223,10 +1224,18 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.brightness_limit = to_tuple(brightness_limit)
-        self.contrast_limit = to_tuple(contrast_limit)
-        self.brightness_by_max = brightness_by_max
+        config = RandomBrightnessContrastConfig(
+            brightness_limit=brightness_limit,
+            contrast_limit=contrast_limit,
+            brightness_by_max=brightness_by_max,
+            always_apply=always_apply,
+            p=p,
+        )
+
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.brightness_limit = cast(Tuple[float, float], config.brightness_limit)
+        self.contrast_limit = cast(Tuple[float, float], config.contrast_limit)
+        self.brightness_by_max = config.brightness_by_max
 
     def apply(self, img: np.ndarray, alpha: float = 1.0, beta: float = 0.0, **params: Any) -> np.ndarray:
         return F.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
