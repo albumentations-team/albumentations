@@ -24,6 +24,7 @@ from albumentations.augmentations.configs import (
     HueSaturationValueConfig,
     ImageCompressionConfig,
     ISONoiseConfig,
+    MultiplicativeNoiseConfig,
     NormalizeConfig,
     PosterizeConfig,
     RandomBrightnessContrastConfig,
@@ -1875,10 +1876,13 @@ class MultiplicativeNoise(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.multiplier = to_tuple(multiplier, multiplier)
-        self.per_channel = per_channel
-        self.elementwise = elementwise
+        config = MultiplicativeNoiseConfig(
+            multiplier=multiplier, per_channel=per_channel, elementwise=elementwise, always_apply=always_apply, p=p
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.multiplier = cast(Tuple[float, float], config.multiplier)
+        self.per_channel = config.per_channel
+        self.elementwise = config.elementwise
 
     def apply(self, img: np.ndarray, multiplier: float = np.array([1]), **kwargs: Any) -> np.ndarray:
         return F.multiply(img, multiplier)
