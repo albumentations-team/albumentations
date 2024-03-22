@@ -110,3 +110,45 @@ class RandomRainConfig(BaseTransformConfig):
                 f"rain_type must be one of ['drizzle', 'heavy', 'torrential', None]. Got: {self.rain_type}"
             )
         return self
+
+
+class RandomFogConfig(BaseTransformConfig):
+    fog_coef_lower: float = Field(default=0.3, description="Lower limit for fog intensity coefficient", ge=0, le=1)
+    fog_coef_upper: float = Field(default=1, description="Upper limit for fog intensity coefficient", ge=0, le=1)
+    alpha_coef: float = Field(default=0.08, description="Transparency of the fog circles", ge=0, le=1)
+
+    @model_validator(mode="after")
+    def validate_fog_coefficients(self) -> Self:
+        if self.fog_coef_lower > self.fog_coef_upper:
+            msg = "fog_coef_upper must be greater than or equal to fog_coef_lower."
+            raise ValueError(msg)
+        return self
+
+
+class RandomSunFlareConfig(BaseTransformConfig):
+    flare_roi: Tuple[float, float, float, float] = Field(
+        default=(0, 0, 1, 0.5), description="Region of the image where flare will appear"
+    )
+    angle_lower: float = Field(default=0, description="Lower bound for the angle", ge=0, le=1)
+    angle_upper: float = Field(default=1, description="Upper bound for the angle", ge=0, le=1)
+    num_flare_circles_lower: int = Field(default=6, description="Lower limit for the number of flare circles", ge=0)
+    num_flare_circles_upper: int = Field(default=10, description="Upper limit for the number of flare circles", gt=0)
+    src_radius: int = Field(default=400, description="Source radius for the flare")
+    src_color: Tuple[int, int, int] = Field(default=(255, 255, 255), description="Color of the flare")
+
+    @model_validator(mode="after")
+    def validate_parameters(self) -> Self:
+        flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y = self.flare_roi
+        if (
+            not 0 <= flare_center_lower_x < flare_center_upper_x <= 1
+            or not 0 <= flare_center_lower_y < flare_center_upper_y <= 1
+        ):
+            raise ValueError(f"Invalid flare_roi. Got: {self.flare_roi}")
+        if self.angle_lower >= self.angle_upper:
+            raise ValueError(
+                f"angle_upper must be greater than angle_lower. Got: {self.angle_lower}, {self.angle_upper}"
+            )
+        if self.num_flare_circles_lower >= self.num_flare_circles_upper:
+            msg = "num_flare_circles_upper must be greater than num_flare_circles_lower."
+            raise ValueError(msg)
+        return self
