@@ -1,10 +1,11 @@
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 
+import cv2
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
-from albumentations.core.transforms_interface import to_tuple
+from albumentations.core.transforms_interface import Interpolation, to_tuple
 from albumentations.core.types import ImageCompressionType, ImageMode, RainMode, ScaleFloatType, ScaleType, image_modes
 
 MAX_JPEG_QUALITY = 100
@@ -332,3 +333,36 @@ class FromFloatConfig(BaseTransformConfig):
         if value not in supported_dtypes:
             raise ValueError(f"Unsupported dtype. Supports: {supported_dtypes}. Got: {value}")
         return value
+
+
+class DownscaleConfig(BaseTransformConfig):
+    scale_min: float = Field(default=0.25, ge=0, le=1, description="Lower bound on the image scale.")
+    scale_max: float = Field(default=0.25, ge=0, lt=1, description="Upper bound on the image scale.")
+    interpolation: Optional[Union[int, Interpolation, Dict[str, int]]] = Field(
+        default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
+        description="CV2 interpolation method or a dictionary specifying downscale and upscale methods.",
+    )
+    always_apply: bool = Field(default=False, description="Always apply the transform.")
+    p: float = Field(default=0.5, ge=0, le=1, description="Probability of applying the transform.")
+
+    @model_validator(mode="after")
+    def validate_scale(self) -> Self:
+        if self.scale_min > self.scale_max:
+            msg = "scale_min must be less than or equal to scale_max"
+            raise ValueError(msg)
+        return self
+
+    @field_validator("interpolation")
+    @classmethod
+    def set_interpolation(cls, v: Any) -> Interpolation:
+        if isinstance(v, dict):
+            return Interpolation(**v)
+        if isinstance(v, int):
+            return Interpolation(downscale=v, upscale=v)
+        if isinstance(v, Interpolation):
+            return v
+        if v is None:
+            return Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
+
+        msg = "Interpolation must be an int, Interpolation instance, or dict specifying downscale and upscale methods."
+        raise ValueError(msg)
