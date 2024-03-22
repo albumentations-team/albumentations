@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 
 import cv2
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations.core.transforms_interface import Interpolation, to_tuple
@@ -383,3 +383,34 @@ class MultiplicativeNoiseConfig(BaseTransformConfig):
 
 class FancyPCAConfig(BaseTransformConfig):
     alpha: float = Field(default=0.1, description="Scale for perturbing the eigen vectors and values", ge=0)
+
+
+class ColorJitterConfig(BaseTransformConfig):
+    brightness: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering brightness.")]
+    contrast: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering contrast.")]
+    saturation: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering saturation.")]
+    hue: Annotated[ScaleFloatType, Field(default=0.2, description="Range for jittering hue.")]
+
+    @field_validator("brightness", "contrast", "saturation", "hue")
+    @classmethod
+    def check_ranges(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        if info.field_name == "hue":
+            lower_bound = -0.5
+            upper_bound = 0.5
+            bias = 1
+        else:
+            lower_bound = 0
+            upper_bound = 1
+            bias = 0
+        if isinstance(value, float):
+            if not (lower_bound <= value <= upper_bound):
+                raise ValueError(f"{info.field_name} must be within [{lower_bound}, {upper_bound}] for float inputs.")
+            return to_tuple(value, bias=bias)
+        if isinstance(value, (tuple, list)):
+            if not all(lower_bound <= x <= upper_bound for x in value):
+                raise ValueError(
+                    f"All values in {info.field_name} must be within [{lower_bound}, {upper_bound}] for tuple inputs."
+                )
+            return value
+
+        raise TypeError(f"{info.field_name} must be a float or a tuple of floats.")

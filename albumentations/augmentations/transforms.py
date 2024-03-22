@@ -1,5 +1,4 @@
 import math
-import numbers
 import random
 import warnings
 from types import LambdaType
@@ -17,6 +16,7 @@ from albumentations.augmentations.configs import (
     NUM_BITS_ARRAY_LENGTH,
     BaseTransformConfig,
     CLAHEConfig,
+    ColorJitterConfig,
     DownscaleConfig,
     EqualizeConfig,
     FancyPCAConfig,
@@ -1981,12 +1981,16 @@ class ColorJitter(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        config = ColorJitterConfig(
+            brightness=brightness, contrast=contrast, saturation=saturation, hue=hue, always_apply=always_apply, p=p
+        )
 
-        self.brightness = self.__check_values(brightness, "brightness")
-        self.contrast = self.__check_values(contrast, "contrast")
-        self.saturation = self.__check_values(saturation, "saturation")
-        self.hue = self.__check_values(hue, "hue", offset=0, bounds=(-0.5, 0.5), clip=False)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+
+        self.brightness = cast(Tuple[float, float], config.brightness)
+        self.contrast = cast(Tuple[float, float], config.contrast)
+        self.saturation = cast(Tuple[float, float], config.saturation)
+        self.hue = cast(Tuple[float, float], config.hue)
 
         self.transforms = [
             F.adjust_brightness_torchvision,
@@ -1994,28 +1998,6 @@ class ColorJitter(ImageOnlyTransform):
             F.adjust_saturation_torchvision,
             F.adjust_hue_torchvision,
         ]
-
-    @staticmethod
-    def __check_values(
-        value: ScaleFloatType,
-        name: str,
-        offset: float = 1,
-        bounds: Tuple[float, float] = (0, float("inf")),
-        clip: bool = True,
-    ) -> Tuple[float, float]:
-        if isinstance(value, numbers.Number):
-            if value < 0:
-                raise ValueError(f"If {name} is a single number, it must be non negative.")
-            value = [offset - value, offset + value]
-            if clip:
-                value[0] = max(value[0], 0)
-        elif isinstance(value, (tuple, list)) and len(value) == TWO:
-            if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-                raise ValueError(f"{name} values should be between {bounds}")
-        else:
-            raise TypeError(f"{name} should be a single number or a list/tuple with length 2.")
-
-        return value
 
     def get_params(self) -> Dict[str, Any]:
         brightness = random.uniform(self.brightness[0], self.brightness[1])
