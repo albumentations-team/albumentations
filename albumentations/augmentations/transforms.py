@@ -14,9 +14,11 @@ from scipy.ndimage import gaussian_filter
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
+    NUM_BITS_ARRAY_LENGTH,
     HueSaturationValueConfig,
     ImageCompressionConfig,
     NormalizeConfig,
+    PosterizeConfig,
     RandomFogConfig,
     RandomGravelConfig,
     RandomGridShuffleConfig,
@@ -1061,23 +1063,18 @@ class Posterize(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-
-        if isinstance(num_bits, int):
-            self.num_bits = to_tuple(num_bits, num_bits)
-        elif isinstance(num_bits, Sequence) and len(num_bits) == THREE:
-            self.num_bits = [to_tuple(i, 0) for i in num_bits]  # type: ignore[assignment]
-        else:
-            self.num_bits = to_tuple(num_bits, 0)  # type: ignore[arg-type]
+        config = PosterizeConfig(num_bits=num_bits, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.num_bits = cast(Union[Tuple[int, ...], List[Tuple[int, ...]]], config.num_bits)
 
     def apply(self, img: np.ndarray, num_bits: int = 1, **params: Any) -> np.ndarray:
         return F.posterize(img, num_bits)
 
     def get_params(self) -> Dict[str, Any]:
-        if len(self.num_bits) == THREE:
+        if len(self.num_bits) == NUM_BITS_ARRAY_LENGTH:
             return {"num_bits": [random.randint(int(i[0]), int(i[1])) for i in self.num_bits]}  # type: ignore[index]
         num_bits = self.num_bits
-        return {"num_bits": random.randint(int(num_bits[0]), int(num_bits[1]))}
+        return {"num_bits": random.randint(int(num_bits[0]), int(num_bits[1]))}  # type: ignore[arg-type]
 
     def get_transform_init_args_names(self) -> Tuple[str]:
         return ("num_bits",)
