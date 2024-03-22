@@ -19,6 +19,7 @@ from albumentations.augmentations.configs import (
     CLAHEConfig,
     DownscaleConfig,
     EqualizeConfig,
+    FancyPCAConfig,
     FromFloatConfig,
     GaussNoiseConfig,
     HueSaturationValueConfig,
@@ -1935,8 +1936,9 @@ class FancyPCA(ImageOnlyTransform):
     """
 
     def __init__(self, alpha: float = 0.1, always_apply: bool = False, p: float = 0.5):
-        super().__init__(always_apply=always_apply, p=p)
-        self.alpha = alpha
+        config = FancyPCAConfig(alpha=alpha, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.alpha = config.alpha
 
     def apply(self, img: np.ndarray, alpha: float = 0.1, **params: Any) -> np.ndarray:
         return F.fancy_pca(img, alpha)
