@@ -19,7 +19,8 @@ class RandomGridShuffleConfig(BaseTransformConfig):
     grid: Tuple[int, int] = Field(default=(3, 3), description="Size of grid for splitting image")
 
     @field_validator("grid")
-    def check_grid_dimensions(self, value: Tuple[int, int]) -> Tuple[int, int]:
+    @classmethod
+    def check_grid_dimensions(cls, value: Tuple[int, int]) -> Tuple[int, int]:
         if not all(isinstance(dim, int) and dim > 0 for dim in value):
             raise ValueError(f"Grid dimensions must be positive integers. Got {value}")
         return value
@@ -35,7 +36,8 @@ class NormalizeConfig(BaseTransformConfig):
     max_pixel_value: float = Field(default=255.0, description="Maximum possible pixel value")
 
     @field_validator("mean", "std")
-    def validate_sequences(self, v: Union[float, Tuple[float, ...]]) -> Union[float, Tuple[float, ...]]:
+    @classmethod
+    def validate_sequences(cls, v: Union[float, Tuple[float, ...]]) -> Union[float, Tuple[float, ...]]:
         if isinstance(v, float):
             return (v,)
         if not isinstance(v, Sequence) or not all(isinstance(x, (float, int)) for x in v):
