@@ -5,17 +5,28 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
+from albumentations.augmentations.utils import MAX_VALUES_BY_DTYPE
 from albumentations.core.transforms_interface import Interpolation, to_tuple
-from albumentations.core.types import ImageCompressionType, ImageMode, RainMode, ScaleFloatType, ScaleType, image_modes
+from albumentations.core.types import (
+    ImageCompressionType,
+    ImageMode,
+    RainMode,
+    ScaleFloatType,
+    ScaleIntType,
+    ScaleType,
+    image_modes,
+)
 
 MAX_JPEG_QUALITY = 100
 
 NUM_BITS_ARRAY_LENGTH = 3
 
+BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]
+
 
 def check_and_convert_range(
     value: ScaleType, lower_bound: float, upper_bound: float, name: str, bias: float = 0
-) -> Tuple[float, float]:
+) -> Union[Tuple[float, float], Tuple[int, int]]:
     """Checks if the given value is within the specified bounds and converts single values to tuples.
 
     Args:
@@ -466,3 +477,27 @@ class EmbossConfig(BaseTransformConfig):
             bounds = 0.0, float("inf")
 
         return check_and_convert_range(value, *bounds, str(info.field_name))
+
+
+class SuperpixelsConfig(BaseTransformConfig):
+    p_replace: ScaleFloatType = Field(
+        default=0.1,
+        description="Probability of replacing segment pixels with their average color.",
+    )
+    n_segments: Annotated[ScaleIntType, Field(default=100, description="Target number of superpixels to generate.")]
+    max_size: Optional[int] = Field(default=128, ge=1, description="Maximum image size for the transformation.")
+    interpolation: int = Field(default=cv2.INTER_LINEAR, description="Interpolation algorithm used during scaling.")
+
+    @field_validator("p_replace")
+    @classmethod
+    def check_p_replace(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        bounds = 0, 1
+        result = to_tuple(v, v)
+        return check_and_convert_range(result, *bounds, str(info.field_name))
+
+    @field_validator("n_segments")
+    @classmethod
+    def check_n_segments(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
+        bounds = 1, BIG_INTEGER
+        result = to_tuple(v, v)
+        return cast(Tuple[int, int], check_and_convert_range(result, *bounds, str(info.field_name)))

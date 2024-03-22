@@ -41,6 +41,7 @@ from albumentations.augmentations.configs import (
     RGBShiftConfig,
     SharpenConfig,
     SolarizeConfig,
+    SuperpixelsConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
@@ -2160,8 +2161,8 @@ class Superpixels(ImageOnlyTransform):
                 * A probability of ``1.0`` would mean, that all segments are
                   replaced by their average color (resulting in a voronoi
                   image).
-            Behaviour based on chosen data types for this parameter:
-                * If a ``float``, then that ``flat`` will always be used.
+            Behavior based on chosen data types for this parameter:
+                * If a ``float``, then that ``float`` will always be used.
                 * If ``tuple`` ``(a, b)``, then a random probability will be
                   sampled from the interval ``[a, b]`` per image.
         n_segments (int, or tuple of int): Rough target number of how many superpixels to generate (the algorithm
@@ -2197,14 +2198,19 @@ class Superpixels(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
-        self.p_replace = to_tuple(p_replace, p_replace)
-        self.n_segments = to_tuple(n_segments, n_segments)
-        self.max_size = max_size
-        self.interpolation = interpolation
-
-        if min(self.n_segments) < 1:
-            raise ValueError(f"n_segments must be >= 1. Got: {n_segments}")
+        config = SuperpixelsConfig(
+            p_replace=p_replace,
+            n_segments=n_segments,
+            max_size=max_size,
+            interpolation=interpolation,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.p_replace = cast(Tuple[float, float], config.p_replace)
+        self.n_segments = cast(Tuple[int, int], config.n_segments)
+        self.max_size = config.max_size
+        self.interpolation = config.interpolation
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
         return ("p_replace", "n_segments", "max_size", "interpolation")
