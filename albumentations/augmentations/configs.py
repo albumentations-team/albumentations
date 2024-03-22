@@ -1,9 +1,9 @@
-from typing import Sequence, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
-from albumentations.core.types import ImageCompressionType
+from albumentations.core.types import ImageCompressionType, RainMode
 
 MAX_JPEG_QUALITY = 100
 
@@ -85,4 +85,28 @@ class RandomGravelConfig(BaseTransformConfig):
         gravel_lower_x, gravel_lower_y, gravel_upper_x, gravel_upper_y = self.gravel_roi
         if not 0 <= gravel_lower_x < gravel_upper_x <= 1 or not 0 <= gravel_lower_y < gravel_upper_y <= 1:
             raise ValueError(f"Invalid gravel_roi. Got: {self.gravel_roi}.")
+        return self
+
+
+class RandomRainConfig(BaseTransformConfig):
+    slant_lower: int = Field(default=-10, description="Lower bound for rain slant angle", ge=-20, le=20)
+    slant_upper: int = Field(default=10, description="Upper bound for rain slant angle", ge=-20, le=20)
+    drop_length: int = Field(default=20, description="Length of raindrops", ge=0, le=100)
+    drop_width: int = Field(default=1, description="Width of raindrops", ge=1, le=5)
+    drop_color: Tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
+    blur_value: int = Field(default=7, description="Blur value for simulating rain effect", ge=0)
+    brightness_coefficient: float = Field(
+        default=0.7, description="Brightness coefficient for rainy effect", ge=0, le=1
+    )
+    rain_type: Optional[RainMode] = Field(default=None, description="Type of rain to simulate")
+
+    @model_validator(mode="after")
+    def validate_slant_range_and_rain_type(self) -> Self:
+        if self.slant_lower >= self.slant_upper:
+            msg = "slant_upper must be greater than or equal to slant_lower."
+            raise ValueError(msg)
+        if self.rain_type not in ["drizzle", "heavy", "torrential", None]:
+            raise ValueError(
+                f"rain_type must be one of ['drizzle', 'heavy', 'torrential', None]. Got: {self.rain_type}"
+            )
         return self
