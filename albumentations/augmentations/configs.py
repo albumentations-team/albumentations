@@ -1,9 +1,10 @@
-from typing import Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
-from albumentations.core.types import ImageCompressionType, RainMode
+from albumentations.core.transforms_interface import to_tuple
+from albumentations.core.types import ImageCompressionType, RainMode, ScaleFloatType, ScaleIntType
 
 MAX_JPEG_QUALITY = 100
 
@@ -171,3 +172,35 @@ class RandomShadowConfig(BaseTransformConfig):
             msg = "num_shadows_upper must be greater than or equal to num_shadows_lower."
             raise ValueError(msg)
         return self
+
+
+class RandomToneCurveConfig(BaseTransformConfig):
+    scale: float = Field(
+        default=0.1,
+        description="Standard deviation of the normal distribution used to sample random distances",
+        ge=0,
+        le=1,
+    )
+
+    @model_validator(mode="after")
+    def validate_scale(self) -> Self:
+        if not (0 <= self.scale <= 1):
+            raise ValueError(f"Scale must be in range [0, 1]. Got: {self.scale}")
+        return self
+
+
+class HueSaturationValueConfig(BaseTransformConfig):
+    hue_shift_limit: Union[ScaleFloatType, ScaleIntType] = Field(
+        default=(-20, 20), description="Range for changing hue."
+    )
+    sat_shift_limit: Union[ScaleFloatType, ScaleIntType] = Field(
+        default=(-30, 30), description="Range for changing saturation."
+    )
+    val_shift_limit: Union[ScaleFloatType, ScaleIntType] = Field(
+        default=(-20, 20), description="Range for changing value."
+    )
+
+    @field_validator("hue_shift_limit", "sat_shift_limit", "val_shift_limit")
+    @classmethod
+    def convert_to_tuple(cls, v: Any) -> Union[Tuple[int, int], Tuple[float, float]]:
+        return to_tuple(v)
