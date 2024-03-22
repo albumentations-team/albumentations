@@ -28,6 +28,7 @@ from albumentations.augmentations.configs import (
     RandomSnowConfig,
     RandomSunFlareConfig,
     RandomToneCurveConfig,
+    RGBShiftConfig,
     SolarizeConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
@@ -1105,7 +1106,7 @@ class Equalize(ImageOnlyTransform):
         mode: ImageMode = "cv",
         by_channels: bool = True,
         mask: Optional[Union[np.ndarray, Callable[..., Any]]] = None,
-        mask_params: Tuple[()] = (),
+        mask_params: Sequence[str] = (),
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -1158,16 +1159,24 @@ class RGBShift(ImageOnlyTransform):
 
     def __init__(
         self,
-        r_shift_limit: ScaleIntType = 20,
-        g_shift_limit: ScaleIntType = 20,
-        b_shift_limit: ScaleIntType = 20,
+        r_shift_limit: ScaleType = 20,
+        g_shift_limit: ScaleType = 20,
+        b_shift_limit: ScaleType = 20,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.r_shift_limit = to_tuple(r_shift_limit)
-        self.g_shift_limit = to_tuple(g_shift_limit)
-        self.b_shift_limit = to_tuple(b_shift_limit)
+        config = RGBShiftConfig(
+            r_shift_limit=r_shift_limit,
+            g_shift_limit=g_shift_limit,
+            b_shift_limit=b_shift_limit,
+            always_apply=always_apply,
+            p=p,
+        )
+
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.r_shift_limit = cast(Tuple[float, float], config.r_shift_limit)
+        self.g_shift_limit = cast(Tuple[float, float], config.g_shift_limit)
+        self.b_shift_limit = cast(Tuple[float, float], config.b_shift_limit)
 
     def apply(self, img: np.ndarray, r_shift: int = 0, g_shift: int = 0, b_shift: int = 0, **params: Any) -> np.ndarray:
         if not is_rgb_image(img):
