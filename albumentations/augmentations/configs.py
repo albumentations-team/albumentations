@@ -152,3 +152,22 @@ class RandomSunFlareConfig(BaseTransformConfig):
             msg = "num_flare_circles_upper must be greater than num_flare_circles_lower."
             raise ValueError(msg)
         return self
+
+
+class RandomShadowConfig(BaseTransformConfig):
+    shadow_roi: Tuple[float, float, float, float] = Field(
+        default=(0, 0.5, 1, 1), description="Region of the image where shadows will appear"
+    )
+    num_shadows_lower: int = Field(default=1, description="Lower limit for the possible number of shadows", ge=0)
+    num_shadows_upper: int = Field(default=2, description="Upper limit for the possible number of shadows", ge=0)
+    shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", gt=0)
+
+    @model_validator(mode="after")
+    def validate_shadows(self) -> Self:
+        shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y = self.shadow_roi
+        if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
+            raise ValueError(f"Invalid shadow_roi. Got: {self.shadow_roi}")
+        if self.num_shadows_lower > self.num_shadows_upper:
+            msg = "num_shadows_upper must be greater than or equal to num_shadows_lower."
+            raise ValueError(msg)
+        return self
