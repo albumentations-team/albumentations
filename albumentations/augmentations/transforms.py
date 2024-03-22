@@ -14,6 +14,7 @@ from scipy.ndimage import gaussian_filter
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
+    HueSaturationValueConfig,
     ImageCompressionConfig,
     NormalizeConfig,
     RandomFogConfig,
@@ -23,6 +24,7 @@ from albumentations.augmentations.configs import (
     RandomShadowConfig,
     RandomSnowConfig,
     RandomSunFlareConfig,
+    RandomToneCurveConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
@@ -926,8 +928,9 @@ class RandomToneCurve(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.scale = scale
+        config = RandomToneCurveConfig(scale=scale, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.scale = config.scale
 
     def apply(self, img: np.ndarray, low_y: float, high_y: float, **params: Any) -> np.ndarray:
         return F.move_tone_curve(img, low_y, high_y)
@@ -964,16 +967,23 @@ class HueSaturationValue(ImageOnlyTransform):
 
     def __init__(
         self,
-        hue_shift_limit: ScaleIntType = 20,
-        sat_shift_limit: ScaleIntType = 30,
-        val_shift_limit: ScaleIntType = 20,
+        hue_shift_limit: ScaleFloatType = 20,
+        sat_shift_limit: ScaleFloatType = 30,
+        val_shift_limit: ScaleFloatType = 20,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.hue_shift_limit = to_tuple(hue_shift_limit)
-        self.sat_shift_limit = to_tuple(sat_shift_limit)
-        self.val_shift_limit = to_tuple(val_shift_limit)
+        config = HueSaturationValueConfig(
+            hue_shift_limit=hue_shift_limit,
+            sat_shift_limit=sat_shift_limit,
+            val_shift_limit=val_shift_limit,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.hue_shift_limit = cast(Tuple[float, float], config.hue_shift_limit)
+        self.sat_shift_limit = cast(Tuple[float, float], config.sat_shift_limit)
+        self.val_shift_limit = cast(Tuple[float, float], config.val_shift_limit)
 
     def apply(
         self, img: np.ndarray, hue_shift: int = 0, sat_shift: int = 0, val_shift: int = 0, **params: Any
