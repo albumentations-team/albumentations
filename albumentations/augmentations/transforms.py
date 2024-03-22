@@ -15,6 +15,7 @@ from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
     NUM_BITS_ARRAY_LENGTH,
+    CLAHEConfig,
     EqualizeConfig,
     GaussNoiseConfig,
     HueSaturationValueConfig,
@@ -1388,9 +1389,10 @@ class CLAHE(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.clip_limit = to_tuple(clip_limit, 1)
-        self.tile_grid_size = cast(Tuple[int, int], tuple(tile_grid_size))
+        config = CLAHEConfig(clip_limit=clip_limit, tile_grid_size=tile_grid_size, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.clip_limit = cast(Tuple[float, float], config.clip_limit)
+        self.tile_grid_size = config.tile_grid_size
 
     def apply(self, img: np.ndarray, clip_limit: float = 2, **params: Any) -> np.ndarray:
         if not is_rgb_image(img) and not is_grayscale_image(img):

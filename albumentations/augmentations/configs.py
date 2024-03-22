@@ -308,3 +308,13 @@ class ISONoiseConfig(BaseTransformConfig):
     intensity: Tuple[float, float] = Field(
         default=(0.1, 0.5), description="Multiplicative factor that control strength of color and luminance noise."
     )
+
+
+class CLAHEConfig(BaseTransformConfig):
+    clip_limit: ScaleFloatType = Field(default=(1.0, 4.0), description="Upper threshold value for contrast limiting.")
+    tile_grid_size: Tuple[int, int] = Field(default=(8, 8), description="Size of grid for histogram equalization.")
+
+    @field_validator("clip_limit")
+    @classmethod
+    def validate_clip_limit(cls, v: Any) -> Tuple[float, float]:
+        return to_tuple(v, low=1)
