@@ -13,7 +13,9 @@ MAX_JPEG_QUALITY = 100
 NUM_BITS_ARRAY_LENGTH = 3
 
 
-def check_and_convert_range(value: ScaleType, lower_bound: float, upper_bound: float, name: str) -> Tuple[float, float]:
+def check_and_convert_range(
+    value: ScaleType, lower_bound: float, upper_bound: float, name: str, bias: float = 0
+) -> Tuple[float, float]:
     """Checks if the given value is within the specified bounds and converts single values to tuples.
 
     Args:
@@ -21,6 +23,7 @@ def check_and_convert_range(value: ScaleType, lower_bound: float, upper_bound: f
         lower_bound: The lower bound for the range check.
         upper_bound: The upper bound for the range check.
         name: The name of the parameter being checked. Used for error messages.
+        bias: The bias to use when converting single values to tuples.
 
     Returns:
         A tuple of two floats that is guaranteed to be within the specified bounds.
@@ -31,7 +34,7 @@ def check_and_convert_range(value: ScaleType, lower_bound: float, upper_bound: f
     if isinstance(value, (float, int)):
         if not (lower_bound <= value <= upper_bound):
             raise ValueError(f"{name} must be within [{lower_bound}, {upper_bound}] for single value inputs.")
-        return to_tuple(value)
+        return to_tuple(value, bias=bias)
     if isinstance(value, (tuple, list)):
         if not all(lower_bound <= x <= upper_bound for x in value):
             raise ValueError(f"All values in {name} must be within [{lower_bound}, {upper_bound}] for tuple inputs.")
@@ -424,31 +427,15 @@ class ColorJitterConfig(BaseTransformConfig):
     @classmethod
     def check_ranges(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
         if info.field_name == "hue":
-            lower_bound = -0.5
-            upper_bound = 0.5
+            bounds = -0.5, 0.5
             bias = 0
         elif info.field_name in ["brightness", "contrast", "saturation"]:
-            lower_bound = 0
-            upper_bound = float("inf")
+            bounds = 0, float("inf")
             bias = 1
         else:
             raise ValueError(f"Unsupported field name: {info.field_name}")
 
-        if isinstance(value, float):
-            if not (lower_bound <= value <= upper_bound):
-                raise ValueError(f"{info.field_name} must be within [{lower_bound}, {upper_bound}] for float inputs.")
-            pair = to_tuple(value, bias=bias)
-            return max(0, pair[0]), pair[1]
-
-        if isinstance(value, (tuple, list)):
-            if not all(lower_bound <= x <= upper_bound for x in value):
-                raise ValueError(
-                    f"All values in {info.field_name} must be within [{lower_bound}, {upper_bound}] for tuple inputs. "
-                    f"Got {value}."
-                )
-            return value
-
-        raise TypeError(f"{info.field_name} must be a float or a tuple of floats.")
+        return check_and_convert_range(value, *bounds, str(info.field_name), bias=bias)
 
 
 class SharpenConfig(BaseTransformConfig):
