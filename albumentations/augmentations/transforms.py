@@ -20,6 +20,7 @@ from albumentations.augmentations.configs import (
     RandomGravelConfig,
     RandomGridShuffleConfig,
     RandomRainConfig,
+    RandomShadowConfig,
     RandomSnowConfig,
     RandomSunFlareConfig,
 )
@@ -842,23 +843,20 @@ class RandomShadow(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        config = RandomShadowConfig(
+            shadow_roi=shadow_roi,
+            num_shadows_lower=num_shadows_lower,
+            num_shadows_upper=num_shadows_upper,
+            shadow_dimension=shadow_dimension,
+            always_apply=always_apply,
+            p=p,
+        )
 
-        (shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y) = shadow_roi
-
-        if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
-            raise ValueError(f"Invalid shadow_roi. Got: {shadow_roi}")
-        if not 0 <= num_shadows_lower <= num_shadows_upper:
-            msg = "Invalid combination of num_shadows_lower nad num_shadows_upper. "
-            f"Got: {(num_shadows_lower, num_shadows_upper)}"
-            raise ValueError(msg)
-
-        self.shadow_roi = shadow_roi
-
-        self.num_shadows_lower = num_shadows_lower
-        self.num_shadows_upper = num_shadows_upper
-
-        self.shadow_dimension = shadow_dimension
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.shadow_roi = config.shadow_roi
+        self.num_shadows_lower = config.num_shadows_lower
+        self.num_shadows_upper = config.num_shadows_upper
+        self.shadow_dimension = config.shadow_dimension
 
     def apply(
         self, img: np.ndarray, vertices_list: Optional[List[List[Tuple[int, int]]]] = None, **params: Any
