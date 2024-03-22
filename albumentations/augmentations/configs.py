@@ -59,3 +59,16 @@ class ImageCompressionConfig(BaseTransformConfig):
             msg = "quality_lower must be less than quality_upper"
             raise ValueError(msg)
         return self
+
+
+class RandomSnowConfig(BaseTransformConfig):
+    snow_point_lower: float = Field(default=0.1, description="Lower bound of the amount of snow", ge=0, le=1)
+    snow_point_upper: float = Field(default=0.3, description="Upper bound of the amount of snow", ge=0, le=1)
+    brightness_coeff: float = Field(default=2.5, description="Brightness coefficient, must be >= 0", ge=0)
+
+    @model_validator(mode="after")
+    def validate_snow_points(self) -> Self:
+        if self.snow_point_lower > self.snow_point_upper:
+            msg = "snow_point_lower must be less than or equal to snow_point_upper."
+            raise ValueError(msg)
+        return self

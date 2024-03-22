@@ -13,7 +13,12 @@ from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
-from albumentations.augmentations.configs import ImageCompressionConfig, NormalizeConfig, RandomGridShuffleConfig
+from albumentations.augmentations.configs import (
+    ImageCompressionConfig,
+    NormalizeConfig,
+    RandomGridShuffleConfig,
+    RandomSnowConfig,
+)
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
     get_num_channels,
@@ -300,20 +305,18 @@ class RandomSnow(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        config = RandomSnowConfig(
+            snow_point_lower=snow_point_lower,
+            snow_point_upper=snow_point_upper,
+            brightness_coeff=brightness_coeff,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(config.always_apply, config.p)
 
-        if not 0 <= snow_point_lower <= snow_point_upper <= 1:
-            msg = (
-                "Invalid combination of snow_point_lower and snow_point_upper. "
-                f"Got: {(snow_point_lower, snow_point_upper)}"
-            )
-            raise ValueError(msg)
-        if brightness_coeff < 0:
-            raise ValueError(f"brightness_coeff must be greater than 0. Got: {brightness_coeff}")
-
-        self.snow_point_lower = snow_point_lower
-        self.snow_point_upper = snow_point_upper
-        self.brightness_coeff = brightness_coeff
+        self.snow_point_lower = config.snow_point_lower
+        self.snow_point_upper = config.snow_point_upper
+        self.brightness_coeff = config.brightness_coeff
 
     def apply(self, img: np.ndarray, snow_point: float = 0.1, **params: Any) -> np.ndarray:
         return F.add_snow(img, snow_point, self.brightness_coeff)
