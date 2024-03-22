@@ -16,6 +16,7 @@ from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
     ImageCompressionConfig,
     NormalizeConfig,
+    RandomGravelConfig,
     RandomGridShuffleConfig,
     RandomSnowConfig,
 )
@@ -353,17 +354,13 @@ class RandomGravel(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        config = RandomGravelConfig(
+            gravel_roi=gravel_roi, number_of_patches=number_of_patches, always_apply=always_apply, p=p
+        )
+        super().__init__(config.always_apply, config.p)
 
-        (gravel_lower_x, gravel_lower_y, gravel_upper_x, gravel_upper_y) = gravel_roi
-
-        if not 0 <= gravel_lower_x < gravel_upper_x <= 1 or not 0 <= gravel_lower_y < gravel_upper_y <= 1:
-            raise ValueError(f"Invalid gravel_roi. Got: {gravel_roi}.")
-        if number_of_patches < 1:
-            raise ValueError(f"Invalid gravel number_of_patches. Got: {number_of_patches}.")
-
-        self.gravel_roi = gravel_roi
-        self.number_of_patches = number_of_patches
+        self.gravel_roi = config.gravel_roi
+        self.number_of_patches = config.number_of_patches
 
     def generate_gravel_patch(self, rectangular_roi: Tuple[int, int, int, int]) -> np.ndarray:
         x1, y1, x2, y2 = rectangular_roi

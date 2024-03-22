@@ -72,3 +72,17 @@ class RandomSnowConfig(BaseTransformConfig):
             msg = "snow_point_lower must be less than or equal to snow_point_upper."
             raise ValueError(msg)
         return self
+
+
+class RandomGravelConfig(BaseTransformConfig):
+    gravel_roi: Tuple[float, float, float, float] = Field(
+        default=(0.1, 0.4, 0.9, 0.9), description="Region of interest for gravel placement"
+    )
+    number_of_patches: int = Field(default=2, description="Number of gravel patches", ge=1)
+
+    @model_validator(mode="after")
+    def validate_gravel_roi(self) -> Self:
+        gravel_lower_x, gravel_lower_y, gravel_upper_x, gravel_upper_y = self.gravel_roi
+        if not 0 <= gravel_lower_x < gravel_upper_x <= 1 or not 0 <= gravel_lower_y < gravel_upper_y <= 1:
+            raise ValueError(f"Invalid gravel_roi. Got: {self.gravel_roi}.")
+        return self
