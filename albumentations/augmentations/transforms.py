@@ -2,7 +2,6 @@ import math
 import numbers
 import random
 import warnings
-from enum import IntEnum
 from types import LambdaType
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
@@ -14,7 +13,7 @@ from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
-from albumentations.augmentations.configs import NormalizeConfig, RandomGridShuffleConfig
+from albumentations.augmentations.configs import ImageCompressionConfig, NormalizeConfig, RandomGridShuffleConfig
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
     get_num_channels,
@@ -25,6 +24,7 @@ from albumentations.core.transforms_interface import DualTransform, ImageOnlyTra
 from albumentations.core.types import (
     BoxInternalType,
     ChromaticAberrationMode,
+    ImageCompressionType,
     ImageMode,
     KeypointInternalType,
     ScaleFloatType,
@@ -228,20 +228,6 @@ class ImageCompression(ImageOnlyTransform):
 
     """
 
-    class ImageCompressionType(IntEnum):
-        """Defines the types of image compression.
-
-        This Enum class is used to specify the image compression format.
-
-        Attributes:
-            JPEG (int): Represents the JPEG image compression format.
-            WEBP (int): Represents the WEBP image compression format.
-
-        """
-
-        JPEG = 0
-        WEBP = 1
-
     def __init__(
         self,
         quality_lower: int = 99,
@@ -250,21 +236,18 @@ class ImageCompression(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        config = ImageCompressionConfig(
+            quality_lower=quality_lower,
+            quality_upper=quality_upper,
+            compression_type=compression_type,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(config.always_apply, config.p)
 
-        self.compression_type = ImageCompression.ImageCompressionType(compression_type)
-        low_thresh_quality_assert = 0
-
-        if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
-            low_thresh_quality_assert = 1
-
-        if not low_thresh_quality_assert <= quality_lower <= MAX_JPEG_QUALITY:
-            raise ValueError(f"Invalid quality_lower. Got: {quality_lower}")
-        if not low_thresh_quality_assert <= quality_upper <= MAX_JPEG_QUALITY:
-            raise ValueError(f"Invalid quality_upper. Got: {quality_upper}")
-
-        self.quality_lower = quality_lower
-        self.quality_upper = quality_upper
+        self.quality_lower = config.quality_lower
+        self.quality_upper = config.quality_upper
+        self.compression_type = config.compression_type
 
     def apply(self, img: np.ndarray, quality: int = 100, image_type: str = ".jpg", **params: Any) -> np.ndarray:
         if img.ndim != TWO and img.shape[-1] not in (1, 3, 4):
@@ -275,7 +258,7 @@ class ImageCompression(ImageOnlyTransform):
     def get_params(self) -> Dict[str, Any]:
         image_type = ".jpg"
 
-        if self.compression_type == ImageCompression.ImageCompressionType.WEBP:
+        if self.compression_type == ImageCompressionType.WEBP:
             image_type = ".webp"
 
         return {

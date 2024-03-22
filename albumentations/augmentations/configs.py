@@ -1,7 +1,9 @@
-from typing import Sequence, Tuple, Union
+from typing import Dict, Sequence, Tuple, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing_extensions import Annotated
+
+from albumentations.core.types import ImageCompressionType
 
 MAX_JPEG_QUALITY = 100
 
@@ -40,3 +42,18 @@ class NormalizeConfig(BaseTransformConfig):
             msg = "Mean and std must be either a float or a sequence of floats."
             raise ValueError(msg)
         return v
+
+
+class ImageCompressionConfig(BaseTransformConfig):
+    quality_lower: int = Field(default=99, description="Lower bound on the image quality", ge=1, le=100)
+    quality_upper: int = Field(default=100, description="Upper bound on the image quality", ge=1, le=100)
+    compression_type: ImageCompressionType = Field(
+        default=ImageCompressionType.JPEG, description="Image compression format"
+    )
+
+    @field_validator("quality_lower", "quality_upper")
+    def validate_quality(cls, values: Dict[str, Union[int, float]]) -> Dict[str, Union[int, float]]:
+        if values["quality_lower"] >= values["quality_upper"]:
+            msg = "quality_lower must be less than quality_upper"
+            raise ValueError(msg)
+        return values
