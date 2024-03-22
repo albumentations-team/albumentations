@@ -8,6 +8,7 @@ import numpy as np
 import skimage.transform
 
 from albumentations import random_utils
+from albumentations.augmentations.configs import BaseTransformConfig
 from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.transforms_interface import DualTransform, to_tuple
@@ -1342,6 +1343,14 @@ class HorizontalFlip(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
+    def __init__(
+        self,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        config = BaseTransformConfig(always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if img.ndim == THREE and img.shape[2] > 1 and img.dtype == np.uint8:
             # Opencv is faster than numpy only in case of
@@ -1375,6 +1384,14 @@ class Flip(DualTransform):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    def __init__(
+        self,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        config = BaseTransformConfig(always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
 
     def apply(self, img: np.ndarray, d: int = 0, **params: Any) -> np.ndarray:
         """Args:
@@ -1414,8 +1431,13 @@ class Transpose(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
-    def __init__(self, always_apply: bool = False, p: float = 0.5):
-        super().__init__(always_apply, p)
+    def __init__(
+        self,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        config = BaseTransformConfig(always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.transpose(img)
