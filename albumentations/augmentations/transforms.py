@@ -16,10 +16,12 @@ from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
     ImageCompressionConfig,
     NormalizeConfig,
+    RandomFogConfig,
     RandomGravelConfig,
     RandomGridShuffleConfig,
     RandomRainConfig,
     RandomSnowConfig,
+    RandomSunFlareConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
@@ -596,18 +598,18 @@ class RandomFog(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        config = RandomFogConfig(
+            fog_coef_lower=fog_coef_lower,
+            fog_coef_upper=fog_coef_upper,
+            alpha_coef=alpha_coef,
+            always_apply=always_apply,
+            p=p,
+        )
 
-        if not 0 <= fog_coef_lower <= fog_coef_upper <= 1:
-            raise ValueError(
-                f"Invalid combination if fog_coef_lower and fog_coef_upper. Got: {(fog_coef_lower, fog_coef_upper)}"
-            )
-        if not 0 <= alpha_coef <= 1:
-            raise ValueError(f"alpha_coef must be in range [0, 1]. Got: {alpha_coef}")
-
-        self.fog_coef_lower = fog_coef_lower
-        self.fog_coef_upper = fog_coef_upper
-        self.alpha_coef = alpha_coef
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.fog_coef_lower = config.fog_coef_lower
+        self.fog_coef_upper = config.fog_coef_upper
+        self.alpha_coef = config.alpha_coef
 
     def apply(
         self,
@@ -690,42 +692,33 @@ class RandomSunFlare(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        config = RandomSunFlareConfig(
+            flare_roi=flare_roi,
+            angle_lower=angle_lower,
+            angle_upper=angle_upper,
+            num_flare_circles_lower=num_flare_circles_lower,
+            num_flare_circles_upper=num_flare_circles_upper,
+            src_radius=src_radius,
+            src_color=src_color,
+            always_apply=always_apply,
+            p=p,
+        )
+
+        super().__init__(always_apply=config.always_apply, p=config.p)
+
+        self.angle_lower = config.angle_lower
+        self.angle_upper = config.angle_upper
+        self.num_flare_circles_lower = config.num_flare_circles_lower
+        self.num_flare_circles_upper = config.num_flare_circles_upper
+        self.src_radius = config.src_radius
+        self.src_color = config.src_color
 
         (
-            flare_center_lower_x,
-            flare_center_lower_y,
-            flare_center_upper_x,
-            flare_center_upper_y,
-        ) = flare_roi
-
-        if (
-            not 0 <= flare_center_lower_x < flare_center_upper_x <= 1
-            or not 0 <= flare_center_lower_y < flare_center_upper_y <= 1
-        ):
-            raise ValueError(f"Invalid flare_roi. Got: {flare_roi}")
-        if not 0 <= angle_lower < angle_upper <= 1:
-            raise ValueError(f"Invalid combination of angle_lower nad angle_upper. Got: {(angle_lower, angle_upper)}")
-        if not 0 <= num_flare_circles_lower < num_flare_circles_upper:
-            msg = (
-                "Invalid combination of num_flare_circles_lower and num_flare_circles_upper. "
-                f"Got: {(num_flare_circles_lower, num_flare_circles_upper)}"
-            )
-            raise ValueError(msg)
-
-        self.flare_center_lower_x = flare_center_lower_x
-        self.flare_center_upper_x = flare_center_upper_x
-
-        self.flare_center_lower_y = flare_center_lower_y
-        self.flare_center_upper_y = flare_center_upper_y
-
-        self.angle_lower = angle_lower
-        self.angle_upper = angle_upper
-        self.num_flare_circles_lower = num_flare_circles_lower
-        self.num_flare_circles_upper = num_flare_circles_upper
-
-        self.src_radius = src_radius
-        self.src_color = src_color
+            self.flare_center_lower_x,
+            self.flare_center_lower_y,
+            self.flare_center_upper_x,
+            self.flare_center_upper_y,
+        ) = config.flare_roi
 
     def apply(
         self,
