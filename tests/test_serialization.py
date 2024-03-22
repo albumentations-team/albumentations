@@ -12,6 +12,7 @@ import albumentations as A
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
+from albumentations.core.types import ImageCompressionType
 
 from .utils import (
     OpenMock,
@@ -94,7 +95,7 @@ AUGMENTATION_CLS_PARAMS = [
         {
             "quality_lower": 10,
             "quality_upper": 80,
-            "compression_type": A.ImageCompression.ImageCompressionType.WEBP,
+            "compression_type": ImageCompressionType.WEBP,
         },
     ],
     [

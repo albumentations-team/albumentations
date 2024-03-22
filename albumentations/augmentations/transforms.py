@@ -14,6 +14,7 @@ from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
+from albumentations.augmentations.configs import NormalizeConfig, RandomGridShuffleConfig
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
     get_num_channels,
@@ -105,14 +106,11 @@ class RandomGridShuffle(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: bool = False, p: float = 0.5):
-        super().__init__(always_apply, p)
-
-        n, m = grid
-
-        if not all(isinstance(dim, int) and dim > 0 for dim in [n, m]):
-            raise ValueError(f"Grid dimensions must be positive integers. Current grid dimensions: [{n}, {m}]")
-
-        self.grid = grid
+        config = RandomGridShuffleConfig(grid=grid, always_apply=always_apply, p=p)
+        super().__init__(config.always_apply, config.p)
+        self.grid = config.grid
+        self.always_apply = config.always_apply
+        self.p = config.p
 
     def apply(self, img: np.ndarray, tiles: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         return F.swap_tiles_on_image(img, tiles)
@@ -200,10 +198,11 @@ class Normalize(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
-        self.mean = mean
-        self.std = std
-        self.max_pixel_value = max_pixel_value
+        config = NormalizeConfig(mean=mean, std=std, max_pixel_value=max_pixel_value, always_apply=always_apply, p=p)
+        super().__init__(config.always_apply, config.p)
+        self.mean = config.mean
+        self.std = config.std
+        self.max_pixel_value = config.max_pixel_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.normalize(img, self.mean, self.std, self.max_pixel_value)
