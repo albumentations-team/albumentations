@@ -318,3 +318,17 @@ class CLAHEConfig(BaseTransformConfig):
     @classmethod
     def validate_clip_limit(cls, v: Any) -> Tuple[float, float]:
         return to_tuple(v, low=1)
+
+
+class FromFloatConfig(BaseTransformConfig):
+    dtype: str = Field(default="uint16", description="Data type of the output.")
+    max_value: Optional[float] = Field(default=None, description="Maximum possible input value.")
+    p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+
+    @field_validator("dtype")
+    @classmethod
+    def validate_dtype(cls, value: str) -> str:
+        supported_dtypes = ["uint8", "uint16", "float32", "float64"]  # Add other supported dtypes as necessary
+        if value not in supported_dtypes:
+            raise ValueError(f"Unsupported dtype. Supports: {supported_dtypes}. Got: {value}")
+        return value
