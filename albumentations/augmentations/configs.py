@@ -1,4 +1,4 @@
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any, List, Optional, Sequence, Tuple, Union, cast
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
@@ -7,6 +7,8 @@ from albumentations.core.transforms_interface import to_tuple
 from albumentations.core.types import ImageCompressionType, RainMode, ScaleType
 
 MAX_JPEG_QUALITY = 100
+
+NUM_BITS_ARRAY_LENGTH = 3
 
 
 class BaseTransformConfig(BaseModel):
@@ -210,3 +212,18 @@ class SolarizeConfig(BaseTransformConfig):
             return to_tuple(threshold, low=threshold)
 
         return to_tuple(threshold, low=0)
+
+
+class PosterizeConfig(BaseTransformConfig):
+    num_bits: Annotated[
+        Union[int, Tuple[int, int], Tuple[int, int, int]], Field(default=4, description="Number of high bits")
+    ]
+
+    @field_validator("num_bits")
+    @classmethod
+    def validate_num_bits(cls, num_bits: Any) -> Union[Tuple[int, int], List[Tuple[int, int]]]:
+        if isinstance(num_bits, int):
+            return cast(Tuple[int, int], to_tuple(num_bits, num_bits))
+        if isinstance(num_bits, Sequence) and len(num_bits) == NUM_BITS_ARRAY_LENGTH:
+            return [cast(Tuple[int, int], to_tuple(i, 0)) for i in num_bits]
+        return cast(Tuple[int, int], to_tuple(num_bits, 0))
