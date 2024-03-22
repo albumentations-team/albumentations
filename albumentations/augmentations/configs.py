@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing_extensions import Annotated, Self
 
 from albumentations.core.transforms_interface import to_tuple
-from albumentations.core.types import ImageCompressionType, RainMode, ScaleFloatType, ScaleIntType
+from albumentations.core.types import ImageCompressionType, RainMode, ScaleType
 
 MAX_JPEG_QUALITY = 100
 
@@ -190,17 +190,23 @@ class RandomToneCurveConfig(BaseTransformConfig):
 
 
 class HueSaturationValueConfig(BaseTransformConfig):
-    hue_shift_limit: Union[ScaleFloatType, ScaleIntType] = Field(
-        default=(-20, 20), description="Range for changing hue."
-    )
-    sat_shift_limit: Union[ScaleFloatType, ScaleIntType] = Field(
-        default=(-30, 30), description="Range for changing saturation."
-    )
-    val_shift_limit: Union[ScaleFloatType, ScaleIntType] = Field(
-        default=(-20, 20), description="Range for changing value."
-    )
+    hue_shift_limit: ScaleType = Field(default=(-20, 20), description="Range for changing hue.")
+    sat_shift_limit: ScaleType = Field(default=(-30, 30), description="Range for changing saturation.")
+    val_shift_limit: ScaleType = Field(default=(-20, 20), description="Range for changing value.")
 
     @field_validator("hue_shift_limit", "sat_shift_limit", "val_shift_limit")
     @classmethod
     def convert_to_tuple(cls, v: Any) -> Union[Tuple[int, int], Tuple[float, float]]:
         return to_tuple(v)
+
+
+class SolarizeConfig(BaseTransformConfig):
+    threshold: Annotated[ScaleType, Field(default=(128, 128), description="Range for solarizing threshold.")]
+
+    @field_validator("threshold")
+    @classmethod
+    def convert_to_tuple(cls, threshold: Any) -> Union[Tuple[int, int], Tuple[float, float]]:
+        if isinstance(threshold, (int, float)):
+            return to_tuple(threshold, low=threshold)
+
+        return to_tuple(threshold, low=0)

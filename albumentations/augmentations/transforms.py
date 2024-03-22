@@ -25,6 +25,7 @@ from albumentations.augmentations.configs import (
     RandomSnowConfig,
     RandomSunFlareConfig,
     RandomToneCurveConfig,
+    SolarizeConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
@@ -1021,14 +1022,9 @@ class Solarize(ImageOnlyTransform):
     """
 
     def __init__(self, threshold: ScaleType = 128, always_apply: bool = False, p: float = 0.5):
-        super().__init__(always_apply, p)
-
-        if isinstance(threshold, (int, float)):
-            self.threshold = to_tuple(threshold, low=threshold)
-        else:
-            self.threshold = to_tuple(threshold, low=0)
-
-        self.threshold = self.threshold
+        config = SolarizeConfig(threshold=threshold, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.threshold = cast(Tuple[float, float], config.threshold)
 
     def apply(self, img: np.ndarray, threshold: int = 0, **params: Any) -> np.ndarray:
         return F.solarize(img, threshold)
