@@ -268,7 +268,6 @@ class RandomBrightnessContrastConfig(BaseTransformConfig):
     contrast_limit: ScaleFloatType = Field(default=0.2, description="Factor range for changing contrast.")
     brightness_by_max: bool = Field(default=True, description="Adjust brightness by image dtype maximum if True.")
 
-    # Validate and convert single floats to tuples
     @field_validator("brightness_limit", "contrast_limit")
     @classmethod
     def validate_and_convert(cls, v: Any) -> Tuple[float, float]:
@@ -280,7 +279,6 @@ class GaussNoiseConfig(BaseTransformConfig):
     mean: float = Field(default=0, description="Mean of the noise.")
     per_channel: bool = Field(default=True, description="Apply noise per channel.")
 
-    # Custom validator to ensure var_limit is in the correct range and format
     @field_validator("var_limit")
     @classmethod
     def validate_var_limit(cls, var_limit: ScaleType) -> Tuple[float, float]:
@@ -366,3 +364,18 @@ class DownscaleConfig(BaseTransformConfig):
 
         msg = "Interpolation must be an int, Interpolation instance, or dict specifying downscale and upscale methods."
         raise ValueError(msg)
+
+
+class MultiplicativeNoiseConfig(BaseTransformConfig):
+    multiplier: ScaleFloatType = Field(default=(0.9, 1.1), description="Multiplier for image values.")
+    per_channel: bool = Field(default=False, description="Apply multiplier per channel.")
+    elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
+
+    @model_validator(mode="after")
+    def check_validity(self) -> Self:
+        if isinstance(self.multiplier, (list, tuple)) and self.multiplier[0] >= self.multiplier[1]:
+            msg = "multiplier[0] should be less than multiplier[1]"
+            raise ValueError(msg)
+        if isinstance(self.multiplier, (float, int)):
+            self.multiplier = to_tuple(self.multiplier, self.multiplier)
+        return self
