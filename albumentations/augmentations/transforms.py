@@ -19,6 +19,7 @@ from albumentations.augmentations.configs import (
     GaussNoiseConfig,
     HueSaturationValueConfig,
     ImageCompressionConfig,
+    ISONoiseConfig,
     NormalizeConfig,
     PosterizeConfig,
     RandomBrightnessContrastConfig,
@@ -1337,9 +1338,10 @@ class ISONoise(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.intensity = intensity
-        self.color_shift = color_shift
+        config = ISONoiseConfig(color_shift=color_shift, intensity=intensity, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.intensity = config.intensity
+        self.color_shift = config.color_shift
 
     def apply(
         self,

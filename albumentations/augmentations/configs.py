@@ -296,3 +296,15 @@ class GaussNoiseConfig(BaseTransformConfig):
 
         msg = f"Expected var_limit type to be one of (int, float, tuple, list), got {type(var_limit)}"
         raise TypeError(msg)
+
+
+class ISONoiseConfig(BaseTransformConfig):
+    color_shift: Tuple[float, float] = Field(
+        default=(0.01, 0.05),
+        description=(
+            "Variance range for color hue change. " "Measured as a fraction of 360 degree Hue angle in HLS colorspace."
+        ),
+    )
+    intensity: Tuple[float, float] = Field(
+        default=(0.1, 0.5), description="Multiplicative factor that control strength of color and luminance noise."
+    )
