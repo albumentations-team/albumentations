@@ -18,6 +18,7 @@ from albumentations.augmentations.configs import (
     CLAHEConfig,
     ColorJitterConfig,
     DownscaleConfig,
+    EmbossConfig,
     EqualizeConfig,
     FancyPCAConfig,
     FromFloatConfig,
@@ -38,6 +39,7 @@ from albumentations.augmentations.configs import (
     RandomSunFlareConfig,
     RandomToneCurveConfig,
     RGBShiftConfig,
+    SharpenConfig,
     SolarizeConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
@@ -2061,17 +2063,10 @@ class Sharpen(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
-        self.lightness = self.__check_values(to_tuple(lightness, 0.0), name="lightness")
-
-    @staticmethod
-    def __check_values(
-        value: Tuple[float, float], name: str, bounds: Tuple[float, float] = (0, float("inf"))
-    ) -> Tuple[float, float]:
-        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError(f"{name} values should be between {bounds}")
-        return value
+        config = SharpenConfig(alpha=alpha, lightness=lightness, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.alpha = config.alpha
+        self.lightness = config.lightness
 
     @staticmethod
     def __generate_sharpening_matrix(alpha_sample: np.ndarray, lightness_sample: np.ndarray) -> np.ndarray:
@@ -2117,17 +2112,10 @@ class Emboss(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
-        self.strength = self.__check_values(to_tuple(strength, 0.0), name="strength")
-
-    @staticmethod
-    def __check_values(
-        value: Tuple[float, float], name: str, bounds: Tuple[float, float] = (0, float("inf"))
-    ) -> Tuple[float, float]:
-        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError(f"{name} values should be between {bounds}")
-        return value
+        config = EmbossConfig(alpha=alpha, strength=strength, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.alpha = config.alpha
+        self.strength = config.strength
 
     @staticmethod
     def __generate_emboss_matrix(alpha_sample: np.ndarray, strength_sample: np.ndarray) -> np.ndarray:
