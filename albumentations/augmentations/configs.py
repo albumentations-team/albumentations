@@ -13,6 +13,35 @@ MAX_JPEG_QUALITY = 100
 NUM_BITS_ARRAY_LENGTH = 3
 
 
+def check_and_convert_range(value: ScaleType, lower_bound: float, upper_bound: float, name: str) -> Tuple[float, float]:
+    """Checks if the given value is within the specified bounds and converts single values to tuples.
+
+    Args:
+        value: The value to check and convert. Can be a single float or a tuple of floats.
+        lower_bound: The lower bound for the range check.
+        upper_bound: The upper bound for the range check.
+        name: The name of the parameter being checked. Used for error messages.
+
+    Returns:
+        A tuple of two floats that is guaranteed to be within the specified bounds.
+
+    Raises:
+        ValueError: If the value is outside the bounds or if the tuple values are not ordered correctly.
+    """
+    if isinstance(value, (float, int)):
+        if not (lower_bound <= value <= upper_bound):
+            raise ValueError(f"{name} must be within [{lower_bound}, {upper_bound}] for single value inputs.")
+        return to_tuple(value)
+    if isinstance(value, (tuple, list)):
+        if not all(lower_bound <= x <= upper_bound for x in value):
+            raise ValueError(f"All values in {name} must be within [{lower_bound}, {upper_bound}] for tuple inputs.")
+        if value[0] > value[1]:
+            raise ValueError(f"{name} tuple values must be ordered as (min, max). Got: {value}")
+        return value
+
+    raise TypeError(f"{name} must be a float or a tuple of floats.")
+
+
 class BaseTransformConfig(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
@@ -428,19 +457,13 @@ class SharpenConfig(BaseTransformConfig):
 
     @field_validator("alpha", "lightness")
     @classmethod
-    def check_ranges_and_convert(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
+    def check_ranges(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
         if info.field_name == "alpha":
-            lower_bound = 0.0
-            upper_bound = 1.0
+            bounds = 0.0, 1.0
         elif info.field_name == "lightness":
-            lower_bound = 0.0
-            upper_bound = float("inf")
+            bounds = 0.0, float("inf")
 
-        # Ensure the tuple is within specified bounds
-        if not (lower_bound <= value[0] <= value[1] <= upper_bound):
-            raise ValueError(f"{info.field_name} must be within [{lower_bound}, {upper_bound}] range.")
-
-        return value
+        return check_and_convert_range(value, *bounds, str(info.field_name))
 
 
 class EmbossConfig(BaseTransformConfig):
@@ -449,13 +472,10 @@ class EmbossConfig(BaseTransformConfig):
 
     @field_validator("alpha", "strength")
     @classmethod
-    def check_ranges_and_convert(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
+    def check_ranges(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
         if info.field_name == "alpha":
-            lower_bound, upper_bound = 0.0, 1.0
+            bounds = 0.0, 1.0
         elif info.field_name == "strength":
-            lower_bound, upper_bound = 0.0, float("inf")
+            bounds = 0.0, float("inf")
 
-        if not (lower_bound <= value[0] <= value[1] <= upper_bound):
-            raise ValueError(f"{info.field_name} must be within [{lower_bound}, {upper_bound}] range.")
-
-        return value
+        return check_and_convert_range(value, *bounds, str(info.field_name))
