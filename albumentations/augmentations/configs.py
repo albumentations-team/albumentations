@@ -237,7 +237,7 @@ class EqualizeConfig(BaseTransformConfig):
         Optional[Union[np.ndarray, Callable[..., Any]]],
         Field(default=None, description="Mask to apply for equalization"),
     ]
-    mask_params: Annotated[Tuple[()], Field(default=[], description="Parameters for mask function")]
+    mask_params: Annotated[Sequence[str], Field(default=[], description="Parameters for mask function")]
 
     @field_validator("mode")
     @classmethod
@@ -245,3 +245,18 @@ class EqualizeConfig(BaseTransformConfig):
         if value not in image_modes:
             raise ValueError(f"Unsupported equalization mode. Supports: ['cv', 'pil']. Got: {value}")
         return value
+
+
+class RGBShiftConfig(BaseTransformConfig):
+    r_shift_limit: Annotated[ScaleType, Field(default=20, description="Range for changing values for the red channel.")]
+    g_shift_limit: Annotated[
+        ScaleType, Field(default=20, description="Range for changing values for the green channel.")
+    ]
+    b_shift_limit: Annotated[
+        ScaleType, Field(default=20, description="Range for changing values for the blue channel.")
+    ]
+
+    @field_validator("r_shift_limit", "g_shift_limit", "b_shift_limit")
+    @classmethod
+    def convert_to_tuple(cls, v: ScaleType) -> Tuple[float, float]:
+        return cast(Tuple[float, float], to_tuple(v))
