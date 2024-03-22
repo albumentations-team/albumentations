@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from typing_extensions import Annotated, Self
 
 from albumentations.core.transforms_interface import to_tuple
-from albumentations.core.types import ImageCompressionType, ImageMode, RainMode, ScaleType, image_modes
+from albumentations.core.types import ImageCompressionType, ImageMode, RainMode, ScaleFloatType, ScaleType, image_modes
 
 MAX_JPEG_QUALITY = 100
 
@@ -260,3 +260,15 @@ class RGBShiftConfig(BaseTransformConfig):
     @classmethod
     def convert_to_tuple(cls, v: ScaleType) -> Tuple[float, float]:
         return cast(Tuple[float, float], to_tuple(v))
+
+
+class RandomBrightnessContrastConfig(BaseTransformConfig):
+    brightness_limit: ScaleFloatType = Field(default=0.2, description="Factor range for changing brightness.")
+    contrast_limit: ScaleFloatType = Field(default=0.2, description="Factor range for changing contrast.")
+    brightness_by_max: bool = Field(default=True, description="Adjust brightness by image dtype maximum if True.")
+
+    # Validate and convert single floats to tuples
+    @field_validator("brightness_limit", "contrast_limit")
+    @classmethod
+    def validate_and_convert(cls, v: Any) -> Tuple[float, float]:
+        return to_tuple(v)
