@@ -15,6 +15,7 @@ from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
     NUM_BITS_ARRAY_LENGTH,
+    EqualizeConfig,
     HueSaturationValueConfig,
     ImageCompressionConfig,
     NormalizeConfig,
@@ -48,7 +49,6 @@ from albumentations.core.types import (
     ScaleType,
     SpatterMode,
     Targets,
-    image_modes,
 )
 from albumentations.core.utils import format_args
 
@@ -1104,19 +1104,20 @@ class Equalize(ImageOnlyTransform):
         self,
         mode: ImageMode = "cv",
         by_channels: bool = True,
-        mask: Optional[np.ndarray] = None,
+        mask: Optional[Union[np.ndarray, Callable[..., Any]]] = None,
         mask_params: Tuple[()] = (),
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        if mode not in image_modes:
-            raise ValueError(f"Unsupported equalization mode. Supports: {image_modes}. " f"Got: {mode}")
+        config = EqualizeConfig(
+            mode=mode, by_channels=by_channels, mask=mask, mask_params=mask_params, always_apply=always_apply, p=p
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
 
-        super().__init__(always_apply, p)
-        self.mode = mode
-        self.by_channels = by_channels
-        self.mask = mask
-        self.mask_params = mask_params
+        self.mode = config.mode
+        self.by_channels = config.by_channels
+        self.mask = config.mask
+        self.mask_params = config.mask_params
 
     def apply(self, img: np.ndarray, mask: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         return F.equalize(img, mode=self.mode, by_channels=self.by_channels, mask=mask)

@@ -1,10 +1,11 @@
-from typing import Any, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, List, Optional, Sequence, Tuple, Union, cast
 
+import numpy as np
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations.core.transforms_interface import to_tuple
-from albumentations.core.types import ImageCompressionType, RainMode, ScaleType
+from albumentations.core.types import ImageCompressionType, ImageMode, RainMode, ScaleType, image_modes
 
 MAX_JPEG_QUALITY = 100
 
@@ -227,3 +228,20 @@ class PosterizeConfig(BaseTransformConfig):
         if isinstance(num_bits, Sequence) and len(num_bits) == NUM_BITS_ARRAY_LENGTH:
             return [cast(Tuple[int, int], to_tuple(i, 0)) for i in num_bits]
         return cast(Tuple[int, int], to_tuple(num_bits, 0))
+
+
+class EqualizeConfig(BaseTransformConfig):
+    mode: Annotated[ImageMode, Field(default="cv", description="Equalization mode, 'cv' or 'pil'")]
+    by_channels: Annotated[bool, Field(default=True, description="Equalize channels separately if True")]
+    mask: Annotated[
+        Optional[Union[np.ndarray, Callable[..., Any]]],
+        Field(default=None, description="Mask to apply for equalization"),
+    ]
+    mask_params: Annotated[Tuple[()], Field(default=[], description="Parameters for mask function")]
+
+    @field_validator("mode")
+    @classmethod
+    def validate_mode(cls, value: str) -> str:
+        if value not in image_modes:
+            raise ValueError(f"Unsupported equalization mode. Supports: ['cv', 'pil']. Got: {value}")
+        return value
