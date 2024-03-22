@@ -39,6 +39,7 @@ from albumentations.augmentations.configs import (
     RandomSunFlareConfig,
     RandomToneCurveConfig,
     RGBShiftConfig,
+    RingingOvershootConfig,
     SharpenConfig,
     SolarizeConfig,
     SuperpixelsConfig,
@@ -2363,17 +2364,10 @@ class RingingOvershoot(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 3))
-        self.cutoff = self.__check_values(to_tuple(cutoff, np.pi / 2), name="cutoff", bounds=(0, np.pi))
-
-    @staticmethod
-    def __check_values(
-        value: Tuple[float, float], name: str, bounds: Tuple[float, float] = (0, float("inf"))
-    ) -> Tuple[float, float]:
-        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError(f"{name} values should be between {bounds}")
-        return value
+        config = RingingOvershootConfig(blur_limit=blur_limit, cutoff=cutoff, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.blur_limit = cast(Tuple[int, int], config.blur_limit)
+        self.cutoff = cast(Tuple[float, float], config.cutoff)
 
     def get_params(self) -> Dict[str, np.ndarray]:
         ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)

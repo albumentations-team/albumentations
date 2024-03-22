@@ -531,3 +531,20 @@ class TemplateTransformConfig(BaseTransformConfig):
             return v
         msg = "Templates must be a numpy array or a list of numpy arrays."
         raise TypeError(msg)
+
+
+class RingingOvershootConfig(BaseTransformConfig):
+    blur_limit: ScaleIntType = Field(default=(7, 15), description="Maximum kernel size for sinc filter.")
+    cutoff: ScaleFloatType = Field(default=(np.pi / 4, np.pi / 2), description="Cutoff frequency range in radians.")
+
+    @field_validator("blur_limit")
+    @classmethod
+    def check_blur_limit(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
+        bounds = 3, BIG_INTEGER
+        return cast(Tuple[int, int], check_and_convert_range(v, *bounds, str(info.field_name)))
+
+    @field_validator("cutoff")
+    @classmethod
+    def check_cutoff(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        bounds = 0, np.pi
+        return check_and_convert_range(v, *bounds, str(info.field_name))
