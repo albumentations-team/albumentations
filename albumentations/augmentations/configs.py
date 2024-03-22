@@ -1,7 +1,7 @@
-from typing import Dict, Sequence, Tuple, Union
+from typing import Sequence, Tuple, Union
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
-from typing_extensions import Annotated
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from typing_extensions import Annotated, Self
 
 from albumentations.core.types import ImageCompressionType
 
@@ -19,7 +19,7 @@ class RandomGridShuffleConfig(BaseTransformConfig):
     grid: Tuple[int, int] = Field(default=(3, 3), description="Size of grid for splitting image")
 
     @field_validator("grid")
-    def check_grid_dimensions(cls, value: Tuple[int, int]) -> Tuple[int, int]:
+    def check_grid_dimensions(self, value: Tuple[int, int]) -> Tuple[int, int]:
         if not all(isinstance(dim, int) and dim > 0 for dim in value):
             raise ValueError(f"Grid dimensions must be positive integers. Got {value}")
         return value
@@ -35,7 +35,7 @@ class NormalizeConfig(BaseTransformConfig):
     max_pixel_value: float = Field(default=255.0, description="Maximum possible pixel value")
 
     @field_validator("mean", "std")
-    def validate_sequences(cls, v: Union[float, Tuple[float, ...]]) -> Union[float, Tuple[float, ...]]:
+    def validate_sequences(self, v: Union[float, Tuple[float, ...]]) -> Union[float, Tuple[float, ...]]:
         if isinstance(v, float):
             return (v,)
         if not isinstance(v, Sequence) or not all(isinstance(x, (float, int)) for x in v):
@@ -51,9 +51,9 @@ class ImageCompressionConfig(BaseTransformConfig):
         default=ImageCompressionType.JPEG, description="Image compression format"
     )
 
-    @field_validator("quality_lower", "quality_upper")
-    def validate_quality(cls, values: Dict[str, Union[int, float]]) -> Dict[str, Union[int, float]]:
-        if values["quality_lower"] >= values["quality_upper"]:
+    @model_validator(mode="after")
+    def validate_quality(self) -> Self:
+        if self.quality_lower >= self.quality_upper:
             msg = "quality_lower must be less than quality_upper"
             raise ValueError(msg)
-        return values
+        return self
