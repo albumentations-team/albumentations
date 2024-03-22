@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, IntEnum
 from pathlib import Path
 from typing import Any, Literal, Sequence, Tuple, TypedDict, Union
 
@@ -32,9 +32,9 @@ FloatNumType = Union[np.floating, np.ndarray]
 image_modes = ["cv", "pil"]
 ImageMode = Literal["cv", "pil"]
 
-
 SpatterMode = Literal["rain", "mud"]
 ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
+RainMode = Literal["drizzle", "heavy", "torrential"]
 
 
 class ReferenceImage(TypedDict):
@@ -51,3 +51,18 @@ class Targets(Enum):
     BBOXES = "BBoxes"
     KEYPOINTS = "Keypoints"
     GLOBAL_LABEL = "Global Label"
+
+
+class ImageCompressionType(IntEnum):
+    """Defines the types of image compression.
+
+    This Enum class is used to specify the image compression format.
+
+    Attributes:
+        JPEG (int): Represents the JPEG image compression format.
+        WEBP (int): Represents the WEBP image compression format.
+
+    """
+
+    JPEG = 0
+    WEBP = 1
