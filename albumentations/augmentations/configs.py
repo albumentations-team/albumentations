@@ -580,3 +580,21 @@ class UnsharpMaskConfig(BaseTransformConfig):
         bounds = 0, 1
         result = to_tuple(v, 0)
         return check_and_convert_range(result, *bounds, str(info.field_name))
+
+
+class PixelDropoutConfig(BaseTransformConfig):
+    dropout_prob: float = Field(default=0.01, ge=0, le=1, description="Pixel dropout probability.")
+    per_channel: bool = Field(default=False, description="Sample drop mask per channel.")
+    drop_value: Optional[ScaleFloatType] = Field(
+        default=0, description="Value to set in dropped pixels. None for random sampling."
+    )
+    mask_drop_value: Optional[ScaleFloatType] = Field(
+        default=None, description="Value to set in dropped pixels in masks. None to leave masks unchanged."
+    )
+
+    @model_validator(mode="after")
+    def validate_mask_drop_value(self) -> Self:
+        if self.mask_drop_value is not None and self.per_channel:
+            msg = "PixelDropout supports mask only with per_channel=False."
+            raise ValueError(msg)
+        return self

@@ -28,6 +28,7 @@ from albumentations.augmentations.configs import (
     ISONoiseConfig,
     MultiplicativeNoiseConfig,
     NormalizeConfig,
+    PixelDropoutConfig,
     PosterizeConfig,
     RandomBrightnessContrastConfig,
     RandomFogConfig,
@@ -2500,15 +2501,19 @@ class PixelDropout(DualTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.dropout_prob = dropout_prob
-        self.per_channel = per_channel
-        self.drop_value = drop_value
-        self.mask_drop_value = mask_drop_value
-
-        if self.mask_drop_value is not None and self.per_channel:
-            msg = "PixelDropout supports mask only with per_channel=False"
-            raise ValueError(msg)
+        config = PixelDropoutConfig(
+            dropout_prob=dropout_prob,
+            per_channel=per_channel,
+            drop_value=drop_value,
+            mask_drop_value=mask_drop_value,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.dropout_prob = config.dropout_prob
+        self.per_channel = config.per_channel
+        self.drop_value = config.drop_value
+        self.mask_drop_value = config.mask_drop_value
 
     def apply(
         self,
