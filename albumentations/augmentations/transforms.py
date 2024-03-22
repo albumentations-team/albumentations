@@ -18,6 +18,7 @@ from albumentations.augmentations.configs import (
     NormalizeConfig,
     RandomGravelConfig,
     RandomGridShuffleConfig,
+    RandomRainConfig,
     RandomSnowConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
@@ -33,6 +34,7 @@ from albumentations.core.types import (
     ImageCompressionType,
     ImageMode,
     KeypointInternalType,
+    RainMode,
     ScaleFloatType,
     ScaleIntType,
     ScaleType,
@@ -470,33 +472,34 @@ class RandomRain(ImageOnlyTransform):
         drop_color: Tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
         brightness_coefficient: float = 0.7,
-        rain_type: Optional[str] = None,
+        rain_type: Optional[RainMode] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        # Initialize configuration model with parameters
+        config = RandomRainConfig(
+            slant_lower=slant_lower,
+            slant_upper=slant_upper,
+            drop_length=drop_length,
+            drop_width=drop_width,
+            drop_color=drop_color,
+            blur_value=blur_value,
+            brightness_coefficient=brightness_coefficient,
+            rain_type=rain_type,
+            always_apply=always_apply,
+            p=p,
+        )
 
-        if rain_type not in ["drizzle", "heavy", "torrential", None]:
-            msg = "raint_type must be one of ({}). Got: {}".format(["drizzle", "heavy", "torrential", None], rain_type)
-            raise ValueError(msg)
-        if not -TWENTY <= slant_lower <= slant_upper <= TWENTY:
-            raise ValueError(f"Invalid combination of slant_lower and slant_upper. Got: {(slant_lower, slant_upper)}")
-        if not 1 <= drop_width <= FIVE:
-            raise ValueError(f"drop_width must be in range [1, 5]. Got: {drop_width}")
-        if not 0 <= drop_length <= MAX_JPEG_QUALITY:
-            raise ValueError(f"drop_length must be in range [0, 100]. Got: {drop_length}")
-        if not 0 <= brightness_coefficient <= 1:
-            raise ValueError(f"brightness_coefficient must be in range [0, 1]. Got: {brightness_coefficient}")
-
-        self.slant_lower = slant_lower
-        self.slant_upper = slant_upper
-
-        self.drop_length = drop_length
-        self.drop_width = drop_width
-        self.drop_color = drop_color
-        self.blur_value = blur_value
-        self.brightness_coefficient = brightness_coefficient
-        self.rain_type = rain_type
+        # Use the validated parameters from the config model
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.slant_lower = config.slant_lower
+        self.slant_upper = config.slant_upper
+        self.drop_length = config.drop_length
+        self.drop_width = config.drop_width
+        self.drop_color = config.drop_color
+        self.blur_value = config.blur_value
+        self.brightness_coefficient = config.brightness_coefficient
+        self.rain_type = config.rain_type
 
     def apply(
         self,
