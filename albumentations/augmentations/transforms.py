@@ -42,6 +42,7 @@ from albumentations.augmentations.configs import (
     SharpenConfig,
     SolarizeConfig,
     SuperpixelsConfig,
+    TemplateTransformConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
@@ -2247,7 +2248,7 @@ class TemplateTransform(ImageOnlyTransform):
 
     def __init__(
         self,
-        templates: Union[np.ndarray, List[np.ndarray]],
+        templates: Union[np.ndarray, Sequence[np.ndarray]],
         img_weight: ScaleFloatType = 0.5,
         template_weight: ScaleFloatType = 0.5,
         template_transform: Optional[Callable[..., Any]] = None,
@@ -2255,13 +2256,21 @@ class TemplateTransform(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-
-        self.templates = templates if isinstance(templates, (list, tuple)) else [templates]
-        self.img_weight = to_tuple(img_weight, img_weight)
-        self.template_weight = to_tuple(template_weight, template_weight)
-        self.template_transform = template_transform
-        self.name = name
+        config = TemplateTransformConfig(
+            templates=templates,
+            img_weight=img_weight,
+            template_weight=template_weight,
+            template_transform=template_transform,
+            name=name,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.templates = config.templates
+        self.img_weight = cast(Tuple[float, float], config.img_weight)
+        self.template_weight = cast(Tuple[float, float], config.template_weight)
+        self.template_transform = config.template_transform
+        self.name = config.name
 
     def apply(
         self,

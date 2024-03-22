@@ -501,3 +501,33 @@ class SuperpixelsConfig(BaseTransformConfig):
         bounds = 1, BIG_INTEGER
         result = to_tuple(v, v)
         return cast(Tuple[int, int], check_and_convert_range(result, *bounds, str(info.field_name)))
+
+
+class TemplateTransformConfig(BaseTransformConfig):
+    templates: Union[np.ndarray, Sequence[np.ndarray]] = Field(..., description="Images as template for transform.")
+    img_weight: ScaleFloatType = Field(default=0.5, description="Weight for input image.")
+    template_weight: ScaleFloatType = Field(default=0.5, description="Weight for template.")
+    template_transform: Optional[Callable[..., Any]] = Field(
+        default=None, description="Transformation object applied to template."
+    )
+    name: Optional[str] = Field(default=None, description="Name of transform, used only for deserialization.")
+
+    @field_validator("img_weight", "template_weight")
+    @classmethod
+    def check_weight(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        bounds = 0, 1
+        result = to_tuple(v, v)
+        return check_and_convert_range(result, *bounds, str(info.field_name))
+
+    @field_validator("templates")
+    @classmethod
+    def validate_templates(cls, v: Union[np.ndarray, List[np.ndarray]]) -> List[np.ndarray]:
+        if isinstance(v, np.ndarray):
+            return [v]
+        if isinstance(v, list):
+            if not all(isinstance(item, np.ndarray) for item in v):
+                msg = "All templates must be numpy arrays."
+                raise ValueError(msg)
+            return v
+        msg = "Templates must be a numpy array or a list of numpy arrays."
+        raise TypeError(msg)
