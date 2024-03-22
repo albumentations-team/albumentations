@@ -16,6 +16,7 @@ from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
     NUM_BITS_ARRAY_LENGTH,
     EqualizeConfig,
+    GaussNoiseConfig,
     HueSaturationValueConfig,
     ImageCompressionConfig,
     NormalizeConfig,
@@ -1271,32 +1272,20 @@ class GaussNoise(ImageOnlyTransform):
 
     def __init__(
         self,
-        var_limit: ScaleFloatType = (10.0, 50.0),
+        var_limit: ScaleType = (10.0, 50.0),
         mean: float = 0,
         per_channel: bool = True,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        if isinstance(var_limit, (tuple, list)):
-            if var_limit[0] < 0:
-                msg = "Lower var_limit should be non negative."
-                raise ValueError(msg)
-            if var_limit[1] < 0:
-                msg = "Upper var_limit should be non negative."
-                raise ValueError(msg)
-            self.var_limit = var_limit
-        elif isinstance(var_limit, (int, float)):
-            if var_limit < 0:
-                msg = "var_limit should be non negative."
-                raise ValueError(msg)
+        config = GaussNoiseConfig(
+            var_limit=var_limit, mean=mean, per_channel=per_channel, always_apply=always_apply, p=p
+        )
 
-            self.var_limit = (0, var_limit)
-        else:
-            raise TypeError(f"Expected var_limit type to be one of (int, float, tuple, list), got {type(var_limit)}")
-
-        self.mean = mean
-        self.per_channel = per_channel
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.var_limit = cast(Tuple[float, float], config.var_limit)
+        self.mean = config.mean
+        self.per_channel = config.per_channel
 
     def apply(self, img: np.ndarray, gauss: Optional[float] = None, **params: Any) -> np.ndarray:
         return F.gauss_noise(img, gauss=gauss)
