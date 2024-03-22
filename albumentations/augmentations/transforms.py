@@ -17,6 +17,7 @@ from albumentations.augmentations.configs import (
     NUM_BITS_ARRAY_LENGTH,
     BaseTransformConfig,
     CLAHEConfig,
+    DownscaleConfig,
     EqualizeConfig,
     FromFloatConfig,
     GaussNoiseConfig,
@@ -1719,32 +1720,13 @@ class Downscale(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        if interpolation is None:
-            self.interpolation = Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
-            warnings.warn(
-                "Using default interpolation INTER_NEAREST, which is sub-optimal."
-                "Please specify interpolation mode for downscale and upscale explicitly."
-                "For additional information see this PR https://github.com/albumentations-team/albumentations/pull/584"
-            )
-        elif isinstance(interpolation, int):
-            self.interpolation = Interpolation(downscale=interpolation, upscale=interpolation)
-        elif isinstance(interpolation, Interpolation):
-            self.interpolation = interpolation
-        elif isinstance(interpolation, dict):
-            self.interpolation = Interpolation(**interpolation)
-        else:
-            raise ValueError(
-                "Wrong interpolation data type. Supported types: `Optional[Union[int, Interpolation, Dict[str, int]]]`."
-                f" Got: {type(interpolation)}"
-            )
-
-        if scale_min > scale_max:
-            raise ValueError(f"Expected scale_min be less or equal scale_max, got {scale_min} {scale_max}")
-        if scale_max >= 1:
-            raise ValueError(f"Expected scale_max to be less than 1, got {scale_max}")
-        self.scale_min = scale_min
-        self.scale_max = scale_max
+        config = DownscaleConfig(
+            scale_min=scale_min, scale_max=scale_max, interpolation=interpolation, always_apply=always_apply, p=p
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.scale_min = config.scale_min
+        self.scale_max = config.scale_max
+        self.interpolation = cast(Interpolation, config.interpolation)
 
     def apply(self, img: np.ndarray, scale: float, **params: Any) -> np.ndarray:
         if isinstance(self.interpolation, int):
