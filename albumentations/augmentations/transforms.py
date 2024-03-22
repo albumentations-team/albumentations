@@ -18,6 +18,7 @@ from albumentations.augmentations.configs import (
     BaseTransformConfig,
     CLAHEConfig,
     EqualizeConfig,
+    FromFloatConfig,
     GaussNoiseConfig,
     HueSaturationValueConfig,
     ImageCompressionConfig,
@@ -1504,7 +1505,7 @@ class RandomGamma(ImageOnlyTransform):
 
     def __init__(
         self,
-        gamma_limit: ScaleIntType = (80, 120),
+        gamma_limit: ScaleType = (80, 120),
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -1604,7 +1605,8 @@ class ToSepia(ImageOnlyTransform):
     """
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
-        super().__init__(always_apply, p)
+        config = BaseTransformConfig(always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
         self.sepia_transformation_matrix = np.array(
             [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
         )
@@ -1677,9 +1679,10 @@ class FromFloat(ImageOnlyTransform):
     def __init__(
         self, dtype: str = "uint16", max_value: Optional[float] = None, always_apply: bool = False, p: float = 1.0
     ):
-        super().__init__(always_apply, p)
-        self.dtype = np.dtype(dtype)
-        self.max_value = max_value
+        config = FromFloatConfig(dtype=dtype, max_value=max_value, always_apply=always_apply, p=p)
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.dtype = np.dtype(config.dtype)
+        self.max_value = config.max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.from_float(img, self.dtype, self.max_value)
