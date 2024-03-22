@@ -379,3 +379,7 @@ class MultiplicativeNoiseConfig(BaseTransformConfig):
         if isinstance(self.multiplier, (float, int)):
             self.multiplier = to_tuple(self.multiplier, self.multiplier)
         return self
+
+
+class FancyPCAConfig(BaseTransformConfig):
+    alpha: float = Field(default=0.1, description="Scale for perturbing the eigen vectors and values", ge=0)
