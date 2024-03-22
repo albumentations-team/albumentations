@@ -44,6 +44,7 @@ from albumentations.augmentations.configs import (
     SolarizeConfig,
     SuperpixelsConfig,
     TemplateTransformConfig,
+    UnsharpMaskConfig,
 )
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
@@ -2435,30 +2436,19 @@ class UnsharpMask(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 3))
-        self.sigma_limit = self.__check_values(to_tuple(sigma_limit, 0.0), name="sigma_limit")
-        self.alpha = self.__check_values(to_tuple(alpha, 0.0), name="alpha", bounds=(0.0, 1.0))
-        self.threshold = threshold
-
-        if self.blur_limit[0] == 0 and self.sigma_limit[0] == 0:
-            self.blur_limit = 3, max(3, self.blur_limit[1])
-            msg = "blur_limit and sigma_limit minimum value can not be both equal to 0."
-            raise ValueError(msg)
-
-        if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
-            self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
-        ):
-            msg = "UnsharpMask supports only odd blur limits."
-            raise ValueError(msg)
-
-    @staticmethod
-    def __check_values(
-        value: Union[Tuple[int, int], Tuple[float, float]], name: str, bounds: Tuple[float, float] = (0, float("inf"))
-    ) -> Tuple[float, float]:
-        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError(f"{name} values should be between {bounds}")
-        return value
+        config = UnsharpMaskConfig(
+            blur_limit=blur_limit,
+            sigma_limit=sigma_limit,
+            alpha=alpha,
+            threshold=threshold,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.blur_limit = cast(Tuple[int, int], config.blur_limit)
+        self.sigma_limit = cast(Tuple[float, float], config.sigma_limit)
+        self.alpha = cast(Tuple[float, float], config.alpha)
+        self.threshold = config.threshold
 
     def get_params(self) -> Dict[str, Any]:
         return {

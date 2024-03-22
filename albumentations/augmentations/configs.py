@@ -548,3 +548,35 @@ class RingingOvershootConfig(BaseTransformConfig):
     def check_cutoff(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
         bounds = 0, np.pi
         return check_and_convert_range(v, *bounds, str(info.field_name))
+
+
+class UnsharpMaskConfig(BaseTransformConfig):
+    blur_limit: ScaleIntType = Field(default=(3, 7), description="Maximum Gaussian kernel size for blurring.")
+    sigma_limit: ScaleFloatType = Field(description="Gaussian kernel standard deviation.")
+    alpha: ScaleFloatType = Field(default=(0.2, 0.5), description="Visibility of the sharpened image.")
+    threshold: int = Field(default=10, ge=0, le=255, description="Threshold for limiting sharpening.")
+
+    @field_validator("blur_limit")
+    @classmethod
+    def check_blur_limit(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
+        # Convert and check for odd values if not 0
+        bounds = 0, float("inf")
+        result = to_tuple(v, low=3)
+        if (result[0] != 0 and result[0] % 2 != 1) or (result[1] != 0 and result[1] % 2 != 1):
+            msg = "UnsharpMask supports only odd blur limits or 0."
+            raise ValueError(msg)
+        return cast(Tuple[int, int], check_and_convert_range(result, *bounds, str(info.field_name)))
+
+    @field_validator("sigma_limit")
+    @classmethod
+    def check_sigma_limit(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[float, float]:
+        bounds = 0, float("inf")
+        result = to_tuple(v, 0)
+        return check_and_convert_range(result, *bounds, str(info.field_name))
+
+    @field_validator("alpha")
+    @classmethod
+    def check_alpha(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[float, float]:
+        bounds = 0, 1
+        result = to_tuple(v, 0)
+        return check_and_convert_range(result, *bounds, str(info.field_name))
