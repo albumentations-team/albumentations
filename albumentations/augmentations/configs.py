@@ -14,12 +14,15 @@ from albumentations.core.types import (
     ScaleFloatType,
     ScaleIntType,
     ScaleType,
+    SpatterMode,
     image_modes,
 )
 
 MAX_JPEG_QUALITY = 100
 
 NUM_BITS_ARRAY_LENGTH = 3
+
+NUM_RGB_CHANNELS = 3
 
 BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]
 
@@ -596,5 +599,55 @@ class PixelDropoutConfig(BaseTransformConfig):
     def validate_mask_drop_value(self) -> Self:
         if self.mask_drop_value is not None and self.per_channel:
             msg = "PixelDropout supports mask only with per_channel=False."
+            raise ValueError(msg)
+        return self
+
+
+class SpatterConfig(BaseTransformConfig):
+    mean: ScaleFloatType = Field(default=0.65, description="Mean of normal distribution.")
+    std: ScaleFloatType = Field(default=0.3, description="Standard deviation of normal distribution.")
+    gauss_sigma: ScaleFloatType = Field(default=2, description="Sigma for gaussian filtering.")
+    cutout_threshold: ScaleFloatType = Field(default=0.68, description="Threshold for filtering.")
+    intensity: ScaleFloatType = Field(default=0.6, description="Intensity of corruption.")
+    mode: Union[SpatterMode, Sequence[SpatterMode]] = Field(
+        default="rain", description="Type of corruption ('rain', 'mud')."
+    )
+    color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None
+
+    @field_validator("mean", "std", "gauss_sigma", "cutout_threshold", "intensity")
+    @classmethod
+    def check_float_ranges(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        bounds = (0, float("inf")) if info.field_name == "gauss_sigma" else (0, 1)
+        result = to_tuple(v, v)
+        return check_and_convert_range(result, *bounds, str(info.field_name))
+
+    @field_validator("mode")
+    @classmethod
+    def check_mode(cls, mode: Union[SpatterMode, Sequence[SpatterMode]]) -> List[SpatterMode]:
+        if isinstance(mode, str):
+            return cast(List[SpatterMode], [mode])
+
+        return cast(List[SpatterMode], mode)
+
+    @model_validator(mode="after")
+    def check_color(self) -> Self:
+        if self.color is None:
+            self.color = {"rain": [238, 238, 175], "mud": [20, 42, 63]}
+
+        elif isinstance(self.color, (list, tuple)) and len(self.mode) == 1:
+            if len(self.color) != NUM_RGB_CHANNELS:
+                msg = "Color must be a list of three integers for RGB format."
+                raise ValueError(msg)
+            self.color = {self.mode[0]: self.color}
+        elif isinstance(self.color, dict):
+            result = {}
+            for mode in self.mode:
+                if mode not in self.color:
+                    raise ValueError(f"Color for mode {mode} is not specified.")
+                if len(self.color[mode]) != NUM_RGB_CHANNELS:
+                    raise ValueError(f"Color for mode {mode} must be in RGB format.")
+                result[mode] = self.color[mode]
+        else:
+            msg = "Color must be a list of RGB values or a dict mapping mode to RGB values."
             raise ValueError(msg)
         return self

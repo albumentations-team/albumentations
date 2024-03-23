@@ -43,6 +43,7 @@ from albumentations.augmentations.configs import (
     RingingOvershootConfig,
     SharpenConfig,
     SolarizeConfig,
+    SpatterConfig,
     SuperpixelsConfig,
     TemplateTransformConfig,
     UnsharpMaskConfig,
@@ -2624,41 +2625,25 @@ class Spatter(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
-
-        self.mean = to_tuple(mean, mean)
-        self.std = to_tuple(std, std)
-        self.gauss_sigma = to_tuple(gauss_sigma, gauss_sigma)
-        self.intensity = to_tuple(intensity, intensity)
-        self.cutout_threshold = to_tuple(cutout_threshold, cutout_threshold)
-        self.color = (
-            color
-            if color is not None
-            else {
-                "rain": [238, 238, 175],
-                "mud": [20, 42, 63],
-            }
+        config = SpatterConfig(
+            mean=mean,
+            std=std,
+            gauss_sigma=gauss_sigma,
+            cutout_threshold=cutout_threshold,
+            intensity=intensity,
+            mode=mode,
+            color=color,
+            always_apply=always_apply,
+            p=p,
         )
-        self.mode = mode if isinstance(mode, (list, tuple)) else [mode]
-
-        if len(set(self.mode)) > 1 and not isinstance(self.color, dict):
-            raise ValueError(f"Unsupported color: {self.color}. Please specify color for each mode (use dict for it).")
-
-        for i in self.mode:
-            if i not in ["rain", "mud"]:
-                raise ValueError(f"Unsupported color mode: {mode}. Transform supports only `rain` and `mud` mods.")
-            if isinstance(self.color, dict):
-                if i not in self.color:
-                    raise ValueError(f"Wrong color definition: {self.color}. Color for mode: {i} not specified.")
-                if len(self.color[i]) != THREE:
-                    raise ValueError(
-                        f"Unsupported color: {self.color[i]} for mode {i}. Color should be presented in RGB format."
-                    )
-
-        if isinstance(self.color, (list, tuple)):
-            if len(self.color) != THREE:
-                raise ValueError(f"Unsupported color: {self.color}. Color should be presented in RGB format.")
-            self.color = {self.mode[0]: self.color}
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.mean = cast(Tuple[float, float], config.mean)
+        self.std = cast(Tuple[float, float], config.std)
+        self.gauss_sigma = cast(Tuple[float, float], config.gauss_sigma)
+        self.cutout_threshold = cast(Tuple[float, float], config.cutout_threshold)
+        self.intensity = cast(Tuple[float, float], config.intensity)
+        self.mode = cast(List[SpatterMode], config.mode)
+        self.color = cast(Dict[str, List[float]], config.color)
 
     def apply(
         self,
