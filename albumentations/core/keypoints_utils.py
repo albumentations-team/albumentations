@@ -258,7 +258,7 @@ def filter_keypoints(
 
 @ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
-def convert_keypoints_to_albumentations(
+def convert_keypoints_to_albumentations(  # noqa: C901
     keypoints: KeypointsArray,
     source_format: str,
     rows: int,
@@ -313,7 +313,7 @@ def convert_keypoints_to_albumentations(
 
 @ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
-def convert_keypoints_from_albumentations(
+def convert_keypoints_from_albumentations(  # noqa: C901
     keypoints: KeypointsArray,
     target_format: str,
     rows: int,

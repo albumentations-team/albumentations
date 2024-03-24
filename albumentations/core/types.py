@@ -32,10 +32,7 @@ FloatNumType = Union[np.floating, np.ndarray]
 
 BoxesArray = np.ndarray
 KeypointsArray = np.ndarray
-InternalDtype = TypeVar("InternalDtype", bound=Union[BoxesArray, KeypointsArray])
-
-ScaleFloatType = Union[float, Tuple[float, float]]
-ScaleIntType = Union[int, Tuple[int, int]]
+InternalDtype = TypeVar("InternalDtype", bound=np.ndarray)
 
 FillValueType = Optional[Union[int, float, Sequence[int], Sequence[float]]]
 
@@ -72,7 +69,7 @@ class BatchInternalType:
     array: np.ndarray
     targets: np.ndarray = field(default_factory=lambda: np.empty((0, 0), dtype=object))
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if not isinstance(self.array, np.ndarray):
             self.array = np.array(self.array, dtype=float)
         elif isinstance(self.array, np.ndarray):
@@ -98,11 +95,11 @@ class BatchInternalType:
         return len(self.array)
 
     @abstractmethod
-    def __getitem__(self, item: Union[int, ...]) -> np.ndarray:
+    def __getitem__(self, item: Union[int, slice]) -> np.ndarray:
         raise NotImplementedError
 
     @abstractmethod
-    def __setitem__(self, key: Union[int, ...], value: Union[float, np.ndarray]) -> None:
+    def __setitem__(self, key: Union[int, slice], value: "BatchInternalType") -> None:
         raise NotImplementedError
 
     @abstractmethod
@@ -117,7 +114,7 @@ class BatchInternalType:
 
 @dataclass
 class Floats4Internal(BatchInternalType):
-    def __eq__(self, other: "Floats4Internal") -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             raise TypeError(
                 f"`{self.__class__}` is only comparable with another `{self.__class__}`, "
@@ -130,7 +127,7 @@ class Floats4Internal(BatchInternalType):
             return True
         return np.array_equal(self.array, other.array) and np.array_equal(self.targets, other.targets)
 
-    def __getitem__(self, item: Union[int, ...]) -> np.ndarray:
+    def __getitem__(self, item: Union[int, slice]) -> "Floats4Internal":
         _arr = self.array[item].astype(float)
         _target = self.targets[item]
         if isinstance(item, int):
@@ -138,14 +135,14 @@ class Floats4Internal(BatchInternalType):
             _target = _target[np.newaxis, :]
         return self.__class__(array=_arr, targets=_target)
 
-    def __setitem__(self, idx: Union[int, ...], value: "Floats4Internal") -> None:
+    def __setitem__(self, idx: Union[int, slice], value: BatchInternalType) -> None:
         self.array[idx] = value.array
         self.targets[idx] = value.targets
 
 
 @dataclass(eq=False)
 class BBoxesInternalType(Floats4Internal):
-    array: BoxesArray = field(default_factory=lambda: np.empty((0, 4)))
+    array: np.ndarray = field(default_factory=lambda: np.empty((0, 4)))
 
     @staticmethod
     def assert_array_format(bboxes: np.ndarray) -> None:
@@ -170,7 +167,7 @@ class BBoxesInternalType(Floats4Internal):
 
 @dataclass(eq=False)
 class KeypointsInternalType(Floats4Internal):
-    array: KeypointsArray = field(default_factory=lambda: np.empty((0, 4)))
+    array: np.ndarray = field(default_factory=lambda: np.empty((0, 4)))
 
     @staticmethod
     def assert_array_format(keypoints: np.ndarray) -> None:

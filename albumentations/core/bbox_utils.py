@@ -475,14 +475,14 @@ def union_of_bboxes(bboxes: BoxesArray, height: int, width: int, erosion_rate: f
     """Calculate union of bounding boxes.
 
     Args:
-        bboxes (BoxesArray): a batch of bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
-        height (int): Height of image or space.
-        width (int): Width of image or space.
-        erosion_rate (float): How much each bounding box can be shrinked, useful for erosive cropping.
+        height (float): Height of image or space.
+        width (float): Width of image or space.
+        bboxes (List[tuple]): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
+        erosion_rate (float): How much each bounding box can be shrunk, useful for erosive cropping.
             Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox to lose its volume.
 
     Returns:
-        BoxType: A bounding box `(x_min, y_min, x_max, y_max)`.
+        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
 
     """
     w, h = bboxes[:, 2] - bboxes[:, 0], bboxes[:, 3] - bboxes[:, 1]

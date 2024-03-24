@@ -1693,18 +1693,18 @@ class Downscale(ImageOnlyTransform):
     ):
         super().__init__(always_apply, p)
         if interpolation is None:
-            self.interpolation = self.Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
+            self.interpolation = Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
             warnings.warn(
                 "Using default interpolation INTER_NEAREST, which is sub-optimal."
                 "Please specify interpolation mode for downscale and upscale explicitly."
                 "For additional information see this PR https://github.com/albumentations-team/albumentations/pull/584"
             )
         elif isinstance(interpolation, int):
-            self.interpolation = self.Interpolation(downscale=interpolation, upscale=interpolation)
-        elif isinstance(interpolation, self.Interpolation):
+            self.interpolation = Interpolation(downscale=interpolation, upscale=interpolation)
+        elif isinstance(interpolation, Interpolation):
             self.interpolation = interpolation
         elif isinstance(interpolation, dict):
-            self.interpolation = self.Interpolation(**interpolation)
+            self.interpolation = Interpolation(**interpolation)
         else:
             raise ValueError(
                 "Wrong interpolation data type. Supported types: `Optional[Union[int, Interpolation, Dict[str, int]]]`."
@@ -1834,18 +1834,19 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """Multiply image to random number or array of numbers.
 
     Args:
-        multiplier (float or tuple of floats): If single float image will be multiplied to this number.
+        multiplier: If single float image will be multiplied to this number.
             If tuple of float multiplier will be in range `[multiplier[0], multiplier[1])`. Default: (0.9, 1.1).
-        per_channel (bool): If `False`, same values for all channels will be used.
+        per_channel: If `False`, same values for all channels will be used.
             If `True` use sample values for each channels. Default False.
-        elementwise (bool): If `False` multiply multiply all pixels in an image with a random value sampled once.
-            If `True` Multiply image pixels with values that are pixelwise randomly sampled. Defaule: False.
+        elementwise: If `False` multiply multiply all pixels in an image with a random value sampled once.
+            If `True` Multiply image pixels with values that are pixelwise randomly sampled. Default: False.
 
     Targets:
         image
 
     Image types:
         Any
+
     """
 
     def __init__(
@@ -2468,7 +2469,7 @@ class PixelDropout(DualTransform):
 
     Args:
         dropout_prob (float): pixel drop probability. Default: 0.01
-        per_channel (bool): if set to `True` drop mask will be sampled fo each channel,
+        per_channel (bool): if set to `True` drop mask will be sampled for each channel,
             otherwise the same mask will be sampled for all channels. Default: False
         drop_value (number or sequence of numbers or None): Value that will be set in dropped place.
             If set to None value will be sampled randomly, default ranges will be used:
@@ -2485,6 +2486,7 @@ class PixelDropout(DualTransform):
         image, mask
     Image types:
         any
+
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
