@@ -340,7 +340,7 @@ def main():
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs, keypoints=batch_keypoints, class_ids=class_ids))
                 run_times = timer.repeat(number=1, repeat=args.runs)
-                benchmark_second_per_image = [1 / (run_time / args.images) for run_time in run_times]
+                benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
             images_per_second[library][str(benchmark)] = benchmark_images_per_second
             pbar.update(1)
         pbar.close()
