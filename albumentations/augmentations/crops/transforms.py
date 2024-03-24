@@ -6,11 +6,11 @@ from warnings import warn
 import cv2
 import numpy as np
 
+from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.core.bbox_utils import union_of_bboxes
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import BBoxesInternalType, KeypointsInternalType, ScaleFloatType, Targets
 
-from ...core.transforms_interface import DualTransform, to_tuple
-from ...core.types import BBoxesInternalType, KeypointsInternalType, ScaleFloatType, Targets
-from ..geometric import functional as FGeometric
 from . import functional as F
 
 __all__ = [

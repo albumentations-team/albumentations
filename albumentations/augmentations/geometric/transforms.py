@@ -7,11 +7,11 @@ import cv2
 import numpy as np
 import skimage.transform
 
+from albumentations import random_utils
+from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.core.bbox_utils import denormalize_bboxes_np, normalize_bboxes_np
-
-from ... import random_utils
-from ...core.transforms_interface import DualTransform, to_tuple
-from ...core.types import (
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import (
     BBoxesInternalType,
     BoxInternalType,
     ImageColorType,
@@ -21,7 +21,7 @@ from ...core.types import (
     SizeType,
     Targets,
 )
-from ..functional import bbox_from_mask
+
 from . import functional as F
 
 __all__ = [
@@ -322,7 +322,7 @@ class Perspective(DualTransform):
         scale: standard deviation of the normal distributions. These are used to sample
             the random distances of the subimage's corners from the full image's corners.
             If scale is a single float value, the range will be (0, scale). Default: (0.05, 0.1).
-        keep_size: Whether to resize image’s back to their original size after applying the perspective
+        keep_size: Whether to resize images back to their original size after applying the perspective
             transform. If set to False, the resulting images may end up having different shapes
             and will always be a list, never an array. Default: True
         pad_mode (OpenCV flag): OpenCV border mode.

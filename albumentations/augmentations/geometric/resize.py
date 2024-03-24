@@ -4,13 +4,14 @@ from typing import Any, Dict, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import DualTransform, to_tuple
-from ...core.types import (
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import (
     BBoxesInternalType,
     KeypointsInternalType,
     ScaleFloatType,
     Targets,
 )
+
 from . import functional as F
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
@@ -62,7 +63,9 @@ class RandomScale(DualTransform):
         # Bounding boxes coordinates are scale invariant.
         return bboxes
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, scale: float = 0, **params) -> KeypointsInternalType:
+    def apply_to_keypoints(
+        self, keypoints: KeypointsInternalType, scale: float = 0, **params: Any
+    ) -> KeypointsInternalType:
         return F.keypoints_scale(keypoints, scale, scale)
 
     def get_transform_init_args(self) -> Dict[str, Any]:

@@ -6,6 +6,7 @@ import numpy as np
 import skimage.transform
 from scipy.ndimage import gaussian_filter
 
+from albumentations import random_utils
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     angles_2pi_range,
@@ -13,22 +14,20 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-
-from ... import random_utils
-from ...core.bbox_utils import (
+from albumentations.core.bbox_utils import (
     denormalize_bboxes_np,
     normalize_bboxes_np,
     use_bboxes_ndarray,
 )
-from ...core.keypoints_utils import use_keypoints_ndarray
-from ...core.types import (
+from albumentations.core.keypoints_utils import use_keypoints_ndarray
+from albumentations.core.types import (
     BBoxesInternalType,
     BoxesArray,
     ColorType,
     ImageColorType,
     KeypointsArray,
 )
-from ...core.utils import ensure_internal_format
+from albumentations.core.utils import ensure_internal_format
 
 __all__ = [
     "optical_distortion",
@@ -119,7 +118,7 @@ def bboxes_rot90(bboxes: BoxesArray, factor: int, rows: int, cols: int) -> Boxes
 @ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
-def keypoints_rot90(keypoints: KeypointsArray, factor: int, rows: int, cols: int, **params) -> KeypointsArray:
+def keypoints_rot90(keypoints: KeypointsArray, factor: int, rows: int, cols: int, **params: Any) -> KeypointsArray:
     """Rotates a batch of keypoints by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -214,7 +213,7 @@ def bboxes_rotate(bboxes: BoxesArray, angle: float, method: str, rows: int, cols
     x_t = (x * np.cos(angle) * scale_ + y * np.sin(angle)) / scale_ + 0.5
     y_t = (x * -np.sin(angle) * scale_ + y * np.cos(angle)) + 0.5
 
-    bboxes = np.concatenate(
+    return np.concatenate(
         [
             [np.min(x_t, axis=1)],
             [np.max(x_t, axis=1)],
@@ -224,13 +223,11 @@ def bboxes_rotate(bboxes: BoxesArray, angle: float, method: str, rows: int, cols
         axis=0,
     ).transpose()
 
-    return bboxes
-
 
 @ensure_internal_format
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
-def keypoints_rotate(keypoints: KeypointsArray, angle: float, rows: int, cols: int, **params) -> KeypointsArray:
+def keypoints_rotate(keypoints: KeypointsArray, angle: float, rows: int, cols: int, **params: Any) -> KeypointsArray:
     """Rotate a batch of keypoints by angle.
 
     Args:
@@ -279,7 +276,7 @@ def shift_scale_rotate(
 @use_keypoints_ndarray(return_array=True)
 @angles_2pi_range
 def keypoints_shift_scale_rotate(
-    keypoints: KeypointsArray, angle: int, scale: float, dx: int, dy: int, rows: int, cols: int, **params
+    keypoints: KeypointsArray, angle: int, scale: float, dx: int, dy: int, rows: int, cols: int, **params: Any
 ) -> KeypointsArray:
     if not len(keypoints):
         return keypoints
@@ -299,7 +296,15 @@ def keypoints_shift_scale_rotate(
 @ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
 def bboxes_shift_scale_rotate(
-    bboxes: BoxesArray, angle: int, scale_: int, dx: int, dy: int, rotate_method: str, rows: int, cols: int, **kwargs
+    bboxes: BoxesArray,
+    angle: int,
+    scale_: int,
+    dx: int,
+    dy: int,
+    rotate_method: str,
+    rows: int,
+    cols: int,
+    **kwargs: Any,
 ) -> BoxesArray:
     """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
        scaling is made by scale factor and shifting is made by dx and dy.
@@ -345,15 +350,13 @@ def bboxes_shift_scale_rotate(
     tr_points[..., 0] /= cols
     tr_points[..., 1] /= rows
 
-    bboxes = np.concatenate(
+    return np.concatenate(
         [
             np.min(tr_points[..., [0, 1]], axis=1),
             np.max(tr_points[..., [0, 1]], axis=1),
         ],
         axis=-1,
     )
-
-    return bboxes
 
 
 @preserve_shape
@@ -837,6 +840,33 @@ def to_distance_maps(
     return distance_maps
 
 
+def _from_distance_maps_get_flags(
+    if_not_found_coords: Optional[Union[Sequence[float], Dict[str, float]]],
+) -> Tuple[bool, int, int]:
+    drop_if_not_found = False
+    if if_not_found_coords is None:
+        drop_if_not_found = True
+        if_not_found_x = -1
+        if_not_found_y = -1
+    elif isinstance(if_not_found_coords, (tuple, list)):
+        if len(if_not_found_coords) != TWO:
+            raise ValueError(
+                f"Expected tuple/list 'if_not_found_coords' to contain exactly two entries, "
+                f"got {len(if_not_found_coords)}."
+            )
+        if_not_found_x = if_not_found_coords[0]
+        if_not_found_y = if_not_found_coords[1]
+    elif isinstance(if_not_found_coords, dict):
+        if_not_found_x = if_not_found_coords["x"]
+        if_not_found_y = if_not_found_coords["y"]
+    else:
+        raise ValueError(
+            f"Expected if_not_found_coords to be None or tuple or list or dict, got {type(if_not_found_coords)}."
+        )
+
+    return drop_if_not_found, if_not_found_x, if_not_found_y
+
+
 def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
@@ -869,33 +899,11 @@ def from_distance_maps(
         raise ValueError(msg)
     height, width, nb_keypoints = distance_maps.shape
 
-    drop_if_not_found = False
-    if if_not_found_coords is None:
-        drop_if_not_found = True
-        if_not_found_x = -1
-        if_not_found_y = -1
-    elif isinstance(if_not_found_coords, (tuple, list)):
-        if len(if_not_found_coords) != 2:
-            raise ValueError(
-                f"Expected tuple/list 'if_not_found_coords' to contain exactly two entries, "
-                f"got {len(if_not_found_coords)}."
-            )
-        if_not_found_x = if_not_found_coords[0]
-        if_not_found_y = if_not_found_coords[1]
-    elif isinstance(if_not_found_coords, dict):
-        if_not_found_x = if_not_found_coords["x"]
-        if_not_found_y = if_not_found_coords["y"]
-    else:
-        raise ValueError(
-            f"Expected if_not_found_coords to be None or tuple or list or dict, got {type(if_not_found_coords)}."
-        )
+    drop_if_not_found, if_not_found_x, if_not_found_y = _from_distance_maps_get_flags(if_not_found_coords)
 
     keypoints = []
     for i in range(nb_keypoints):
-        if inverted:
-            hitidx_flat = np.argmax(distance_maps[..., i])
-        else:
-            hitidx_flat = np.argmin(distance_maps[..., i])
+        hitidx_flat = np.argmax(distance_maps[..., i]) if inverted else np.argmin(distance_maps[..., i])
         hitidx_ndim = np.unravel_index(hitidx_flat, (height, width))
         if not inverted and threshold is not None:
             found = distance_maps[hitidx_ndim[0], hitidx_ndim[1], i] < threshold
@@ -993,7 +1001,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
 
 @ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
-def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
+def bboxes_vflip(bboxes: BoxesArray, **kwargs: Any) -> BoxesArray:
     """Flip a batch of bounding boxes vertically around the x-axis.
 
     Args:
@@ -1011,7 +1019,7 @@ def bboxes_vflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
 
 @ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
-def bboxes_hflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
+def bboxes_hflip(bboxes: BoxesArray, **kwargs: Any) -> BoxesArray:
     """Flip a batch of bounding boxes horizontally around the y-axis.
 
     Args:
@@ -1028,7 +1036,7 @@ def bboxes_hflip(bboxes: BoxesArray, **kwargs) -> BoxesArray:
 
 
 @ensure_internal_format
-def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs) -> BoxesArray:
+def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs: Any) -> BoxesArray:
     """Flip a batch of bounding boxes either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1045,18 +1053,18 @@ def bboxes_flip(bboxes: BBoxesInternalType, d: int, **kwargs) -> BoxesArray:
     """
     if d == 0:
         return bboxes_vflip(bboxes, **kwargs)
-    elif d == 1:
+    if d == 1:
         return bboxes_hflip(bboxes, **kwargs)
-    elif d == -1:
+    if d == -1:
         bboxes = bboxes_hflip(bboxes, **kwargs)
         return bboxes_vflip(bboxes, **kwargs)
-    else:
-        raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1.")
+
+    raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1.")
 
 
 @ensure_internal_format
 @use_bboxes_ndarray(return_array=True)
-def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs) -> BoxesArray:
+def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs: Any) -> BoxesArray:
     """Transpose bounding bboxes along a given axis in batch.
 
     Args:
@@ -1074,11 +1082,7 @@ def bboxes_transpose(bboxes: BoxesArray, axis: int, **kwargs) -> BoxesArray:
         msg = "Axis must be either 0 or 1."
         raise ValueError(msg)
 
-    if axis == 0:
-        bboxes = bboxes[:, [1, 0, 3, 2]]
-    else:
-        bboxes = 1 - bboxes[:, ::-1]
-    return bboxes
+    return bboxes[:, [1, 0, 3, 2]] if axis == 0 else 1 - bboxes[:, ::-1]
 
 
 @use_keypoints_ndarray(return_array=True)

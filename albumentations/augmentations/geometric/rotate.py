@@ -5,15 +5,17 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 import cv2
 import numpy as np
 
-from ...core.transforms_interface import DualTransform, to_tuple
-from ...core.types import (
+from albumentations.augmentations.crops import functional as FCrops
+from albumentations.core.transforms_interface import DualTransform, to_tuple
+from albumentations.core.types import (
     BBoxesInternalType,
     ColorType,
+    KeypointsArray,
     KeypointsInternalType,
     ScaleIntType,
     Targets,
 )
-from ..crops import functional as FCrops
+
 from . import functional as F
 
 __all__ = ["Rotate", "RandomRotate90", "SafeRotate"]
@@ -182,7 +184,7 @@ class Rotate(DualTransform):
         cols: int = 0,
         rows: int = 0,
         **params: Any,
-    ):
+    ) -> KeypointsArray:
         keypoints_out = F.keypoints_rotate(keypoints, angle, rows, cols, **params)
         if self.crop_border:
             return FCrops.crop_keypoints_by_coords(keypoints_out, (x_min, y_min, x_max, y_max))

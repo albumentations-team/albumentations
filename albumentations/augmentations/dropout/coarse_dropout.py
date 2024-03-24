@@ -3,8 +3,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 
-from ...core.transforms_interface import DualTransform
-from ...core.types import KeypointsInternalType, ScalarType, Targets
+from albumentations.core.transforms_interface import DualTransform
+from albumentations.core.types import KeypointsInternalType, ScalarType, Targets
+
 from .functional import cutout
 
 __all__ = ["CoarseDropout"]

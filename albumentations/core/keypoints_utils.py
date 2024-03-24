@@ -1,11 +1,11 @@
 import math
 from functools import wraps
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 
-from .types import KeypointsArray, KeypointsInternalType, KeypointType
-from .utils import DataProcessor, InternalDtype, Params, ensure_internal_format
+from .types import InternalDtype, KeypointsArray, KeypointsInternalType, KeypointType
+from .utils import DataProcessor, Params, ensure_internal_format
 
 __all__ = [
     "angle_to_2pi_range",
@@ -20,8 +20,12 @@ __all__ = [
 
 keypoint_formats = {"xy", "yx", "xya", "xys", "xyas", "xysa"}
 
+T = TypeVar("T", bound=Union[np.ndarray, float])
 
-def angle_to_2pi_range(angle: Union[np.ndarray, float]):
+FOUR = 4
+
+
+def angle_to_2pi_range(angle: T) -> T:
     two_pi = 2 * math.pi
     return angle % two_pi
 
@@ -50,7 +54,7 @@ def use_keypoints_ndarray(return_array: bool = True) -> Callable:
     def dec(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(
-            keypoints: Union[KeypointsInternalType, np.ndarray], *args, **kwargs
+            keypoints: Union[KeypointsInternalType, np.ndarray], *args: Any, **kwargs: Any
         ) -> Union[KeypointsInternalType, np.ndarray]:
             if isinstance(keypoints, KeypointsInternalType):
                 ret = func(keypoints.array, *args, **kwargs)
@@ -132,7 +136,7 @@ class KeypointsProcessor(DataProcessor):
     def __init__(self, params: KeypointParams, additional_targets: Optional[Dict[str, str]] = None):
         super().__init__(params, additional_targets)
 
-    def convert_to_internal_type(self, data):
+    def convert_to_internal_type(self, data: Sequence) -> KeypointsInternalType:
         if not len(data):
             return KeypointsInternalType(array=np.empty(0))
         kps_array = []
@@ -141,7 +145,7 @@ class KeypointsProcessor(DataProcessor):
         for _data in data:
             kps_array.append(_data[:ori_kp_len])
             targets.append(_data[ori_kp_len:])
-        if ori_kp_len != 4:
+        if ori_kp_len != FOUR:
             kps_array = np.pad(kps_array, [(0, 0), (0, 4 - ori_kp_len)], mode="constant").astype(float)
         else:
             kps_array = np.array(kps_array, dtype=float)
@@ -176,13 +180,12 @@ class KeypointsProcessor(DataProcessor):
             KeypointsArray, a sequence of KeypointType objects.
         """
         self.params: KeypointParams
-        data = filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
-        return data
+        return filter_keypoints(data, rows, cols, remove_invisible=self.params.remove_invisible)
 
     def check(self, data: KeypointsArray, rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
 
-    def convert_from_albumentations(self, data: KeypointsArray, rows: int, cols: int):
+    def convert_from_albumentations(self, data: KeypointsArray, rows: int, cols: int) -> KeypointsArray:
         params = self.params
         return convert_keypoints_from_albumentations(
             data,
@@ -193,7 +196,7 @@ class KeypointsProcessor(DataProcessor):
             angle_in_degrees=params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data: KeypointsArray, rows: int, cols: int):
+    def convert_to_albumentations(self, data: KeypointsArray, rows: int, cols: int) -> KeypointsArray:
         params = self.params
         return convert_keypoints_to_albumentations(
             data,

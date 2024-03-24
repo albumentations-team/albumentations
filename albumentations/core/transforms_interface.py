@@ -296,13 +296,13 @@ class DualTransform(BasicTransform):
         msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
-    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params) -> BBoxesInternalType:
-        for i, bbox in enumerate(bboxes.array):  # type: ignore[arg-type]
+    def apply_to_bboxes(self, bboxes: BBoxesInternalType, **params: Any) -> BBoxesInternalType:
+        for i, bbox in enumerate(bboxes.array):
             bboxes.array[i] = self.apply_to_bbox(bbox, **params)
         return bboxes
 
-    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params) -> KeypointsInternalType:
-        for i, kpt in enumerate(keypoints.array):  # type: ignore[arg-type]
+    def apply_to_keypoints(self, keypoints: KeypointsInternalType, **params: Any) -> KeypointsInternalType:
+        for i, kpt in enumerate(keypoints.array):
             keypoints.array[i] = self.apply_to_keypoint(kpt, **params)
         return keypoints
 

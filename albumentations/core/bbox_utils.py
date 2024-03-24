@@ -52,7 +52,7 @@ def use_bboxes_ndarray(return_array: bool = True) -> Callable:
     def dec(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(
-            bboxes: Union[BBoxesInternalType, np.ndarray], *args, **kwargs
+            bboxes: Union[BBoxesInternalType, np.ndarray], *args: Any, **kwargs: Any
         ) -> Union[BBoxesInternalType, np.ndarray]:
             if isinstance(bboxes, BBoxesInternalType):
                 ret = func(bboxes.array, *args, **kwargs)
@@ -200,7 +200,7 @@ class BboxProcessor(DataProcessor):
 
 
 @use_bboxes_ndarray(return_array=True)
-def normalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Union[int, float]) -> BoxesArray:
+def normalize_bboxes_np(bboxes: BoxesArray, rows: float, cols: float) -> BoxesArray:
     """Normalize a list of bounding boxes.
 
     Args:
@@ -232,7 +232,7 @@ def normalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Union
 
 
 @use_bboxes_ndarray(return_array=True)
-def denormalize_bboxes_np(bboxes: BoxesArray, rows: Union[int, float], cols: Union[int, float]) -> BoxesArray:
+def denormalize_bboxes_np(bboxes: BoxesArray, rows: float, cols: float) -> BoxesArray:
     """Denormalize coordinates of a bounding boxes. Multiply x-coordinates by image width and y-coordinates
        by image height.
        This is an inverse operation for :func:`~albumentations.augmentations.core.bbox_utils.normalize_bboxes_np`.
@@ -323,7 +323,8 @@ def convert_bboxes_to_albumentations(
         # https://github.com/pjreddie/darknet/blob/f6d861736038da22c9eb0739dca84003c5a5e275/scripts/voc_label.py#L12
 
         if check_validity and np.any((bboxes <= 0) | (bboxes > 1)):
-            raise ValueError("In YOLO format all coordinates must be float and in range (0, 1]")
+            msg = "In YOLO format all coordinates must be float and in range (0, 1]"
+            raise ValueError(msg)
 
         bboxes[:, :2] -= bboxes[:, 2:] / 2
         bboxes[:, 2:] += bboxes[:, :2]

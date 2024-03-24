@@ -1,19 +1,23 @@
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Concatenate, Dict, List, Optional, ParamSpec, Sequence, TypeVar, Union
 
 import numpy as np
 
 from .serialization import Serializable
-from .types import BatchInternalType, BoxOrKeypointType, SizeType
+from .types import BatchInternalType, BoxOrKeypointType, InternalDtype, SizeType
 
 if TYPE_CHECKING:
     import torch
 
-InternalDtype = TypeVar("InternalDtype")
+P = ParamSpec("P")
+InputTypeVar = TypeVar("InputTypeVar")
+ReturnTypeVar = TypeVar("ReturnTypeVar")
 
 
-def ensure_internal_format(func: Callable[[BatchInternalType], ...]) -> Callable[[BatchInternalType], ...]:
+def ensure_internal_format(
+    func: Callable[Concatenate[InputTypeVar, P], ReturnTypeVar],
+) -> Callable[Concatenate[InputTypeVar, P], ReturnTypeVar]:
     """Ensure data in inputs of the provided function is BatchInternalType,
     and ensure its data consistency.
 
@@ -25,7 +29,8 @@ def ensure_internal_format(func: Callable[[BatchInternalType], ...]) -> Callable
     """
 
     @wraps(func)
-    def wrapper(data: BatchInternalType, *args: Any, **kwargs: Any) -> ...:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> ReturnTypeVar:
+        data = kwargs["data"]
         data = func(data, *args, **kwargs)
         if isinstance(data, BatchInternalType):
             data.check_consistency()
@@ -132,9 +137,7 @@ class DataProcessor(ABC):
         raise ValueError(f"Invalid direction. Must be `to` or `from`. Got `{direction}`")
 
     @abstractmethod
-    def filter(
-        self, data: Union[Sequence[BoxOrKeypointType], InternalDtype], rows: int, cols: int, target_name: str
-    ) -> Union[Sequence[BoxOrKeypointType], InternalDtype]:
+    def filter(self, data: InternalDtype, rows: int, cols: int, target_name: str) -> InternalDtype:
         pass
 
     @abstractmethod

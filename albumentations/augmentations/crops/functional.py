@@ -3,20 +3,19 @@ from typing import Optional, Sequence, Tuple, Union
 import cv2
 import numpy as np
 
+from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     preserve_channel_dim,
 )
-
-from ...core.bbox_utils import (
+from albumentations.core.bbox_utils import (
     denormalize_bboxes_np,
     normalize_bboxes_np,
     use_bboxes_ndarray,
 )
-from ...core.keypoints_utils import use_keypoints_ndarray
-from ...core.types import BBoxesInternalType, BoxesArray, KeypointsArray
-from ...core.utils import ensure_internal_format
-from ..geometric import functional as FGeometric
+from albumentations.core.keypoints_utils import use_keypoints_ndarray
+from albumentations.core.types import BBoxesInternalType, BoxesArray, KeypointsArray
+from albumentations.core.utils import ensure_internal_format
 
 __all__ = [
     "get_random_crop_coords",
@@ -266,12 +265,18 @@ def bboxes_crop(
     if not len(bboxes):
         return bboxes
 
-    assert (
-        isinstance(x_min, np.ndarray)
-        and isinstance(y_min, np.ndarray)
-        and isinstance(x_max, np.ndarray)
-        and isinstance(y_max, np.ndarray)
-    ) or (isinstance(x_min, int) and isinstance(y_min, int) and isinstance(x_max, int) and isinstance(y_max, int))
+    if not (
+        (
+            isinstance(x_min, np.ndarray)
+            and isinstance(y_min, np.ndarray)
+            and isinstance(x_max, np.ndarray)
+            and isinstance(y_max, np.ndarray)
+        )
+        or (isinstance(x_min, int) and isinstance(y_min, int) and isinstance(x_max, int) and isinstance(y_max, int))
+    ):
+        types = [type(i) for i in [x_min, y_min, x_max, y_max]]
+        msg = f"Wrong input types. Must be int or np.ndarray. Got: {types}"
+        raise TypeError(msg)
     if isinstance(x_min, np.ndarray):
         crop_coords = np.stack([x_min, y_min, x_max, y_max], axis=1)
     else:
