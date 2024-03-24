@@ -1,31 +1,27 @@
-from __future__ import division, print_function
-
 import argparse
-from abc import ABC
 from collections import defaultdict
 from timeit import Timer
-from typing import List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import cv2
 import numpy as np
 import pandas as pd
+import torch
 from imgaug import augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
-from tqdm import tqdm
-import torch
+from torchvision.transforms import InterpolationMode, v2
 from torchvision.tv_tensors import BoundingBoxes as TorchBoundingBoxes
-from torchvision.transforms import v2, InterpolationMode
+from tqdm import tqdm
 
 import albumentations as A
 from albumentations.core.bbox_utils import convert_bboxes_from_albumentations
-
 from benchmark.utils import (
-    set_bench_env_vars,
-    get_package_versions,
     MarkdownGenerator,
-    get_image,
     format_results,
+    get_image,
     get_markdown_table,
+    get_package_versions,
+    set_bench_env_vars,
 )
 
 set_bench_env_vars()
@@ -39,7 +35,7 @@ DEFAULT_BENCHMARKING_LIBRARIES = [
 bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"], check_each_transform=True)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Augmentation libraries performance benchmark")
     parser.add_argument(
         "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
@@ -65,28 +61,28 @@ def parse_args():
     return parser.parse_args()
 
 
-def generate_random_bboxes(bbox_nums: int = 1):
-    return np.sort(np.random.random(size=(bbox_nums, 4)))
+def generate_random_bboxes(bbox_nums: int = 1) -> np.ndarray:
+    return np.sort(np.random.Generator.random(size=(bbox_nums, 4)))
 
 
-class BenchmarkTest(ABC):
+class BenchmarkTest:
     def __str__(self):
         return self.__class__.__name__
 
-    def imgaug(self, img, bboxes, class_id):
+    def imgaug(self, img: np.ndarray, bboxes: BoundingBoxesOnImage, class_id: np.ndarray) -> Any:
         return self.imgaug_transform(image=img, bounding_boxes=bboxes)
 
-    def torchvision(self, img: torch.Tensor, bboxes, class_id) -> torch.Tensor:
+    def torchvision(self, img: torch.Tensor, bboxes: TorchBoundingBoxes, class_id: np.ndarray) -> torch.Tensor:
         return self.torchvision_transform(img, bboxes)[0].contiguous()
 
-    def is_supported_by(self, library):
+    def is_supported_by(self, library: str) -> bool:
         if library == "imgaug":
             return hasattr(self, "imgaug_transform")
-        elif library == "torchvision":
+        if library == "torchvision":
             return hasattr(self, "torchvision_transform")
         return hasattr(self, library)
 
-    def run(self, library, imgs: List[np.ndarray], bboxes: List[np.ndarray], class_ids):
+    def run(self, library: str, imgs: List[np.ndarray], bboxes: List[np.ndarray], class_ids: List[np.ndarray]) -> None:
         transform = getattr(self, library)
         for img, bboxes_, class_id in zip(imgs, bboxes, class_ids):
             transform(img, bboxes_, class_id)
@@ -102,10 +98,10 @@ class HorizontalFlip(BenchmarkTest):
             bbox_params=bbox_params,
         )
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes) -> Dict[str, torch.Tensor]:
         return v2.RandomHorizontalFlip(p=1)(img, bboxes)
 
 
@@ -114,10 +110,10 @@ class VerticalFlip(BenchmarkTest):
         self.imgaug_transform = iaa.Flipud(p=1)
         self.alb_compose = A.Compose([A.VerticalFlip(p=1.0)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes) -> Dict[str, torch.Tensor]:
         return v2.RandomVerticalFlip(p=1)(img, bboxes)
 
 
@@ -127,10 +123,10 @@ class Rotate(BenchmarkTest):
         self.imgaug_transform = iaa.Rotate(rotate=(self.angle, self.angle), order=1, mode="reflect")
         self.alb_compose = A.Compose([A.Rotate(limit=self.angle, p=1)], bbox_params=bbox_params)
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes) -> Dict[str, torch.Tensor]:
         return v2.RandomRotation(degrees=self.angle, interpolation=InterpolationMode.BILINEAR)(img, bboxes)
 
 
@@ -139,7 +135,7 @@ class Pad(BenchmarkTest):
         self.alb_compose = A.Compose([A.PadIfNeeded(min_height=1024, min_width=1024, p=1.0)], bbox_params=bbox_params)
         self.imgaug_transform = iaa.CenterPadToFixedSize(width=1024, height=1024)
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
@@ -148,7 +144,7 @@ class RandomRotate90(BenchmarkTest):
         self.alb_compose = A.Compose([A.RandomRotate90(p=1.0)], bbox_params=bbox_params)
         self.imgaug_transform = iaa.Rot90()
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
@@ -160,13 +156,13 @@ class Perspective(BenchmarkTest):
             scale=self.scale,
         )
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
-        return v2.RandomPerspective(
-            distortion_scale=self.scale[1], interpolation=InterpolationMode.BILINEAR, p=1
-        )(img, bboxes)
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes) -> Dict[str, torch.Tensor]:
+        return v2.RandomPerspective(distortion_scale=self.scale[1], interpolation=InterpolationMode.BILINEAR, p=1)(
+            img, bboxes
+        )
 
 
 class Crop(BenchmarkTest):
@@ -174,7 +170,7 @@ class Crop(BenchmarkTest):
         self.alb_compose = A.Compose([A.Crop(x_max=100, y_max=100, p=1.0)], bbox_params=bbox_params)
         self.imgaug_transform = iaa.Crop()
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
@@ -193,7 +189,7 @@ class Affine(BenchmarkTest):
             mode="reflect",
         )
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         height, width = img.shape[-2], img.shape[-1]
         alb_compose = A.Compose(
             [
@@ -203,11 +199,12 @@ class Affine(BenchmarkTest):
                     shear=self.shear,
                     interpolation=cv2.INTER_LINEAR,
                 )
-            ], bbox_params=bbox_params
+            ],
+            bbox_params=bbox_params,
         )
         return alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes) -> Dict[str, torch.Tensor]:
         height, width = img.shape[-2], img.shape[-1]
         return v2.RandomAffine(
             degrees=self.angle,
@@ -220,7 +217,6 @@ class Affine(BenchmarkTest):
 
 class PiecewiseAffine(BenchmarkTest):
     def __init__(self):
-
         scale = (0.03, 0.05)
         nb_rows = 4
         nb_cols = 4
@@ -234,7 +230,7 @@ class PiecewiseAffine(BenchmarkTest):
 
         self.imgaug_transform = iaa.PiecewiseAffine(scale=scale, nb_rows=nb_rows, nb_cols=nb_cols)
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
@@ -266,11 +262,11 @@ class Sequence(BenchmarkTest):
             ]
         )
 
-    def albumentations(self, img, bboxes, class_id):
+    def albumentations(self, img: np.ndarray, bboxes: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
 
-def main():
+def main() -> None:  # noqa: C901
     args = parse_args()
     package_versions = get_package_versions()
     if args.print_package_versions:
@@ -316,10 +312,10 @@ def main():
         return imgs_cv2, bboxes_albu
 
     for library in libraries:
-        class_ids = [np.random.randint(low=0, high=1, size=args.bboxes) for _ in range(args.images)]
+        class_ids = [np.random.Generator.integers(low=0, high=1, size=args.bboxes) for _ in range(args.images)]
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
-            pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
+            pbar.set_description(f"Current benchmark: {library} | {benchmark}")
             benchmark_images_per_second = None
 
             imgs, bboxes = get_imgs_bboxes(library)

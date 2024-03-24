@@ -188,7 +188,7 @@ def filter_keypoints(
 
     result = KeypointsInternalType(keypoints.data[cond])
     for k, v in keypoints.labels.items():
-        val = np.array(v, dtype=object) if not isinstance(v, np.ndarray) else v
+        val = v if isinstance(v, np.ndarray) else np.array(v, dtype=object)
         result.labels[k] = val[cond]
     return result
 

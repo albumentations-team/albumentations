@@ -1,10 +1,7 @@
-from __future__ import division, print_function
-
 import argparse
-from abc import ABC
 from collections import defaultdict
 from timeit import Timer
-from typing import List
+from typing import Any, Dict, List, Tuple
 
 import cv2
 import numpy as np
@@ -14,8 +11,7 @@ from imgaug.augmentables.kps import Keypoint, KeypointsOnImage
 from tqdm import tqdm
 
 import albumentations as A
-
-from benchmark.utils import set_bench_env_vars, get_package_versions, MarkdownGenerator, get_image, format_results
+from benchmark.utils import MarkdownGenerator, format_results, get_image, get_package_versions, set_bench_env_vars
 
 set_bench_env_vars()
 
@@ -27,7 +23,7 @@ DEFAULT_BENCHMARKING_LIBRARIES = [
 kps_params = A.KeypointParams(format="xyas", label_fields=["class_id"], check_each_transform=True)
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Augmentation libraries performance benchmark")
     parser.add_argument(
         "-l", "--libraries", default=DEFAULT_BENCHMARKING_LIBRARIES, nargs="+", help="list of libraries to benchmark"
@@ -53,28 +49,30 @@ def parse_args():
     return parser.parse_args()
 
 
-def generate_random_keypoints(points_num: int = 1, w: int = 512, h: int = 512):
-    xs = np.random.randint(0, w - 1, points_num)
-    ys = np.random.randint(0, h - 1, points_num)
+def generate_random_keypoints(points_num: int = 1, w: int = 512, h: int = 512) -> np.ndarray:
+    xs = np.random.Generator.integers(low=0, high=w - 1, size=points_num)
+    ys = np.random.Generator.integers(low=0, high=h - 1, size=points_num)
     return np.pad(np.stack([xs, ys], axis=1), [(0, 0), (0, 2)])
 
 
-class BenchmarkTest(ABC):
+class BenchmarkTest:
     def __str__(self):
         return self.__class__.__name__
 
-    def imgaug(self, img, kps, class_id):
+    def imgaug(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         kps = KeypointsOnImage([Keypoint(*kp[:2]) for kp in kps], shape=img.shape)
         img_aug, bbox_aug = self.imgaug_transform(image=img, keypoints=kps)
         np_kps = np.array([(kp.x, kp.y) for kp in bbox_aug.keypoints], dtype=float)
         return np.ascontiguousarray(img_aug), np_kps
 
-    def is_supported_by(self, library):
+    def is_supported_by(self, library: str) -> bool:
         if library == "imgaug":
             return hasattr(self, "imgaug_transform")
         return hasattr(self, library)
 
-    def run(self, library, imgs: List[np.ndarray], keypoints: List[np.ndarray], class_ids):
+    def run(
+        self, library: str, imgs: List[np.ndarray], keypoints: List[np.ndarray], class_ids: List[np.ndarray]
+    ) -> None:
         transform = getattr(self, library)
         for img, kps_, class_id in zip(imgs, keypoints, class_ids):
             transform(img, kps_, class_id)
@@ -85,7 +83,7 @@ class HorizontalFlip(BenchmarkTest):
         self.imgaug_transform = iaa.Fliplr(p=1)
         self.alb_compose = A.Compose([A.HorizontalFlip(p=1.0)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -94,7 +92,7 @@ class VerticalFlip(BenchmarkTest):
         self.imgaug_transform = iaa.Flipud(p=1)
         self.alb_compose = A.Compose([A.VerticalFlip(p=1.0)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -108,17 +106,16 @@ class Flip(BenchmarkTest):
             ]
         )
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
 class Rotate(BenchmarkTest):
     def __init__(self):
-
         self.imgaug_transform = iaa.Rotate()
         self.alb_compose = A.Compose([A.Rotate(p=1)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -126,7 +123,7 @@ class SafeRotate(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.SafeRotate(p=1.0)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -139,7 +136,7 @@ class ShiftScaleRotate(BenchmarkTest):
             keypoint_params=kps_params,
         )
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -152,7 +149,7 @@ class Transpose(BenchmarkTest):
             keypoint_params=kps_params,
         )
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -163,7 +160,7 @@ class Pad(BenchmarkTest):
         )
         self.imgaug_transform = iaa.CenterPadToFixedSize(width=1024, height=1024)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -172,7 +169,7 @@ class RandomRotate90(BenchmarkTest):
         self.alb_compose = A.Compose([A.RandomRotate90(p=1.0)], keypoint_params=kps_params)
         self.imgaug_transform = iaa.Rot90()
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -181,7 +178,7 @@ class Perspective(BenchmarkTest):
         self.imgaug_transform = iaa.PerspectiveTransform(scale=(0.05, 1))
         self.alb_compose = A.Compose([A.Perspective(p=1.0)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -194,7 +191,7 @@ class RandomCropNearBBox(BenchmarkTest):
             keypoint_params=kps_params,
         )
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id, cropping_bbox=[0, 5, 10, 20])
 
 
@@ -202,7 +199,7 @@ class CenterCrop(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.CenterCrop(10, 10, p=1.0)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -212,7 +209,7 @@ class Crop(BenchmarkTest):
 
         self.imgaug_transform = iaa.Crop()
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -220,7 +217,7 @@ class CropAndPad(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.CropAndPad(percent=0.1, p=1.0)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -228,7 +225,7 @@ class RandomCropFromBorders(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.RandomCropFromBorders(p=1.0)], keypoint_params=kps_params)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -240,13 +237,12 @@ class Affine(BenchmarkTest):
 
         self.imgaug_transform = iaa.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
 class PiecewiseAffine(BenchmarkTest):
     def __init__(self):
-
         scale = (0.03, 0.05)
         nb_rows = 4
         nb_cols = 4
@@ -260,7 +256,7 @@ class PiecewiseAffine(BenchmarkTest):
 
         self.imgaug_transform = iaa.PiecewiseAffine(scale=scale, nb_rows=nb_rows, nb_cols=nb_cols)
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
@@ -292,11 +288,11 @@ class Sequence(BenchmarkTest):
             ]
         )
 
-    def albumentations(self, img, kps, class_id):
+    def albumentations(self, img: np.ndarray, kps: np.ndarray, class_id: np.ndarray) -> Dict[str, Any]:
         return self.alb_compose(image=img, keypoints=kps, class_id=class_id)
 
 
-def main():
+def main() -> None:
     args = parse_args()
     package_versions = get_package_versions()
     if args.print_package_versions:
@@ -331,11 +327,10 @@ def main():
     batch_keypoints = [generate_random_keypoints(args.keypoints, w=w, h=h) for _ in range(args.images)]
 
     for library in libraries:
-
-        class_ids = [np.random.randint(low=0, high=1, size=args.keypoints) for _ in range(args.images)]
+        class_ids = [np.random.Generator.integers(low=0, high=1, size=args.keypoints) for _ in range(args.images)]
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
-            pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
+            pbar.set_description(f"Current benchmark: {library} | {benchmark}")
             benchmark_images_per_second = None
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs, keypoints=batch_keypoints, class_ids=class_ids))

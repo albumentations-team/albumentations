@@ -514,7 +514,7 @@ def filter_bboxes(
 
     result = BBoxesInternalType(bboxes.data[cond])
     for k, v in bboxes.labels.items():
-        val = np.array(v, dtype=object) if not isinstance(v, np.ndarray) else v
+        val = v if isinstance(v, np.ndarray) else np.array(v, dtype=object)
         result.labels[k] = val[cond]
     return result
 
