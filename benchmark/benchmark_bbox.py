@@ -1,9 +1,6 @@
 from __future__ import division, print_function
 
 import argparse
-import math
-import os
-import sys
 from abc import ABC
 from collections import defaultdict
 from timeit import Timer
@@ -12,24 +9,15 @@ from typing import List
 import cv2
 import numpy as np
 import pandas as pd
-import importlib.metadata
 from imgaug import augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
-from pytablewriter import MarkdownTableWriter
-from pytablewriter.style import Style
 from tqdm import tqdm
 
 import albumentations as A
 
-cv2.setNumThreads(0)
-cv2.ocl.setUseOpenCL(False)
+from benchmark.utils import set_bench_env_vars, get_package_versions, MarkdownGenerator, get_image, format_results
 
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
-
+set_bench_env_vars()
 
 DEFAULT_BENCHMARKING_LIBRARIES = [
     "imgaug",
@@ -65,93 +53,8 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_package_versions():
-    packages = [
-        "albumentations",
-        "imgaug",
-        "numpy",
-        "opencv-python",
-    ]
-    package_versions = {"Python": sys.version}
-    for package in packages:
-        try:
-            package_versions[package] = importlib.metadata.distribution(package).version
-        except importlib.metadata.PackageNotFoundError:
-            pass
-    return package_versions
-
-
-class MarkdownGenerator:
-    def __init__(self, df, package_versions):
-        self._df = df
-        self._package_versions = package_versions
-        self._libraries_description = {"torchvision": "(Pillow-SIMD backend)"}
-
-    def _highlight_best_result(self, results):
-        best_result = float("-inf")
-        for result in results:
-            try:
-                result = int(result)
-            except ValueError:
-                continue
-            if result > best_result:
-                best_result = result
-        return ["**{}**".format(r) if r == str(best_result) else r for r in results]
-
-    def _make_headers(self):
-        libraries = self._df.columns.to_list()
-        columns = []
-        for library in libraries:
-            version = self._package_versions[library]
-            library_description = self._libraries_description.get(library)
-            if library_description:
-                library += " {}".format(library_description)
-
-            columns.append("{library}<br><small>{version}</small>".format(library=library, version=version))
-        return [""] + columns
-
-    def _make_value_matrix(self):
-        index = self._df.index.tolist()
-        values = self._df.values.tolist()
-        value_matrix = []
-        for transform, results in zip(index, values):
-            row = [transform] + self._highlight_best_result(results)
-            value_matrix.append(row)
-        return value_matrix
-
-    def _make_versions_text(self):
-        libraries = ["Python", "numpy", "opencv-python"]
-        libraries_with_versions = [
-            "{library} {version}".format(library=library, version=self._package_versions[library].replace("\n", ""))
-            for library in libraries
-        ]
-        return "Python and library versions: {}.".format(", ".join(libraries_with_versions))
-
-    def print(self):
-        writer = MarkdownTableWriter()
-        writer.headers = self._make_headers()
-        writer.value_matrix = self._make_value_matrix()
-        writer.styles = [Style(align="left")] + [Style(align="center") for _ in range(len(writer.headers) - 1)]
-        writer.write_table()
-        print("\n" + self._make_versions_text())
-
-
-def read_img_cv2(img_size=(512, 512, 3)):
-    img = np.zeros(shape=img_size, dtype=np.uint8)
-    return img
-
-
 def generate_random_bboxes(bbox_nums: int = 1):
     return np.sort(np.random.random(size=(bbox_nums, 4)))
-
-
-def format_results(seconds_per_image_for_aug, show_std=False):
-    if seconds_per_image_for_aug is None:
-        return "-"
-    result = str(np.round(np.mean(seconds_per_image_for_aug), 3))
-    if show_std:
-        result += " ± {}".format(math.ceil(np.std(seconds_per_image_for_aug)))
-    return result
 
 
 class BenchmarkTest(ABC):
@@ -410,7 +313,7 @@ def main():
     package_versions = get_package_versions()
     if args.print_package_versions:
         print(package_versions)
-    seconds_per_image = defaultdict(dict)
+    images_per_second = defaultdict(dict)
     libraries = args.libraries
 
     benchmarks = [
@@ -434,7 +337,7 @@ def main():
         PiecewiseAffine(),  # very slow
         Sequence(),
     ]
-    imgs = [read_img_cv2(img_size=(100, 100, 3)) for _ in range(args.images)]
+    imgs = [get_image(img_size=(100, 100, 3)) for _ in range(args.images)]
     bboxes = [generate_random_bboxes(args.bboxes) for _ in range(args.images)]
 
     for library in libraries:
@@ -443,16 +346,16 @@ def main():
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
-            benchmark_second_per_image = None
+            benchmark_images_per_second = None
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs, bboxes=bboxes, class_ids=class_ids))
                 run_times = timer.repeat(number=1, repeat=args.runs)
-                benchmark_second_per_image = [run_time * 1000 / args.images for run_time in run_times]
-            seconds_per_image[library][str(benchmark)] = benchmark_second_per_image
+                benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
+            images_per_second[library][str(benchmark)] = benchmark_images_per_second
             pbar.update(1)
         pbar.close()
     pd.set_option("display.width", 1000)
-    df = pd.DataFrame.from_dict(seconds_per_image)
+    df = pd.DataFrame.from_dict(images_per_second)
     df = df.applymap(lambda r: format_results(r, args.show_std))
     df = df[libraries]
     augmentations = [str(i) for i in benchmarks]

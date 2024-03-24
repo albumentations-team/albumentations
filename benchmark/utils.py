@@ -1,7 +1,11 @@
 import math
+import sys
+import pkg_resources
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Sequence
+from contextlib import suppress
 
+import os
 import cv2
 import kornia as K
 import numpy as np
@@ -132,3 +136,40 @@ def get_markdown_table(data: dict[str, str]) -> str:
         markdown_table += f"| {key} | {value} |\n"
 
     return markdown_table
+
+
+def set_bench_env_vars() -> None:
+    cv2.setNumThreads(0)
+    cv2.ocl.setUseOpenCL(False)
+
+    torch.set_num_threads(1)
+
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+    os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+
+def get_package_versions() -> Dict[str, str]:
+    packages = [
+        "albumentations",
+        "imgaug",
+        "torchvision",
+        "numpy",
+        "opencv-python-headless",
+        "scikit-image",
+        "scipy",
+        "pillow",
+        "kornia",
+        "augly",
+    ]
+    package_versions = {"Python": sys.version}
+    for package in packages:
+        with suppress(pkg_resources.DistributionNotFound):
+            package_versions[package] = pkg_resources.get_distribution(package).version
+    return package_versions
+
+
+def get_image(img_size: Sequence[int]) -> np.ndarray:
+    return np.empty([100, 100, 3], dtype=np.uint8)

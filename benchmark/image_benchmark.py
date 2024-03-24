@@ -2,9 +2,7 @@ import argparse
 import copy
 import os
 import random
-import sys
 from collections import defaultdict
-from contextlib import suppress
 from pathlib import Path
 from timeit import Timer
 from typing import Any, Dict, List, Union
@@ -15,7 +13,6 @@ import kornia as K
 import kornia.augmentation as Kaug
 import numpy as np
 import pandas as pd
-import pkg_resources
 import torch
 from imgaug import augmenters as iaa
 from PIL import Image
@@ -31,18 +28,11 @@ from benchmark.utils import (
     read_img_kornia,
     read_img_pillow,
     read_img_torch,
+    set_bench_env_vars,
+    get_package_versions,
 )
 
-cv2.setNumThreads(0)
-cv2.ocl.setUseOpenCL(False)
-
-torch.set_num_threads(1)
-
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
-os.environ["NUMEXPR_NUM_THREADS"] = "1"
+set_bench_env_vars()
 
 
 DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "torchvision", "kornia", "augly", "imgaug"]
@@ -68,26 +58,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-p", "--print-package-versions", action="store_true", help="print versions of packages")
     parser.add_argument("-m", "--markdown", action="store_true", help="print benchmarking results as a markdown table")
     return parser.parse_args()
-
-
-def get_package_versions() -> Dict[str, str]:
-    packages = [
-        "albumentations",
-        "imgaug",
-        "torchvision",
-        "numpy",
-        "opencv-python-headless",
-        "scikit-image",
-        "scipy",
-        "pillow",
-        "kornia",
-        "augly",
-    ]
-    package_versions = {"Python": sys.version}
-    for package in packages:
-        with suppress(pkg_resources.DistributionNotFound):
-            package_versions[package] = pkg_resources.get_distribution(package).version
-    return package_versions
 
 
 class BenchmarkTest:
