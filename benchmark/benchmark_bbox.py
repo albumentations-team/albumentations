@@ -4,7 +4,7 @@ import argparse
 from abc import ABC
 from collections import defaultdict
 from timeit import Timer
-from typing import List
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -12,16 +12,28 @@ import pandas as pd
 from imgaug import augmenters as iaa
 from imgaug.augmentables.bbs import BoundingBox, BoundingBoxesOnImage
 from tqdm import tqdm
+import torch
+from torchvision.tv_tensors import BoundingBoxes as TorchBoundingBoxes
+from torchvision.transforms import v2, InterpolationMode
 
 import albumentations as A
+from albumentations.core.bbox_utils import convert_bboxes_from_albumentations
 
-from benchmark.utils import set_bench_env_vars, get_package_versions, MarkdownGenerator, get_image, format_results
+from benchmark.utils import (
+    set_bench_env_vars,
+    get_package_versions,
+    MarkdownGenerator,
+    get_image,
+    format_results,
+    get_markdown_table,
+)
 
 set_bench_env_vars()
 
 DEFAULT_BENCHMARKING_LIBRARIES = [
     "imgaug",
     "albumentations",
+    "torchvision",
 ]
 
 bbox_params = A.BboxParams(format="albumentations", label_fields=["class_id"], check_each_transform=True)
@@ -62,14 +74,16 @@ class BenchmarkTest(ABC):
         return self.__class__.__name__
 
     def imgaug(self, img, bboxes, class_id):
-        bbs = BoundingBoxesOnImage([BoundingBox(*bbox) for bbox in bboxes], shape=img.shape)
-        img_aug, bbox_aug = self.imgaug_transform(image=img, bounding_boxes=bbs)
-        np_bboxes = np.array([(bbox.x1, bbox.y1, bbox.x2, bbox.y2) for bbox in bbox_aug.bounding_boxes])
-        return np.ascontiguousarray(img_aug), np_bboxes
+        return self.imgaug_transform(image=img, bounding_boxes=bboxes)
+
+    def torchvision(self, img: torch.Tensor, bboxes, class_id) -> torch.Tensor:
+        return self.torchvision_transform(img, bboxes)[0].contiguous()
 
     def is_supported_by(self, library):
         if library == "imgaug":
             return hasattr(self, "imgaug_transform")
+        elif library == "torchvision":
+            return hasattr(self, "torchvision_transform")
         return hasattr(self, library)
 
     def run(self, library, imgs: List[np.ndarray], bboxes: List[np.ndarray], class_ids):
@@ -91,6 +105,9 @@ class HorizontalFlip(BenchmarkTest):
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+        return v2.RandomHorizontalFlip(p=1)(img, bboxes)
+
 
 class VerticalFlip(BenchmarkTest):
     def __init__(self):
@@ -100,63 +117,21 @@ class VerticalFlip(BenchmarkTest):
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-
-class Flip(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose([A.Flip(p=1.0)], bbox_params=bbox_params)
-        self.imgaug_transform = iaa.Sequential(
-            [
-                iaa.Fliplr(p=1),
-                iaa.Flipud(p=1),
-            ]
-        )
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+        return v2.RandomVerticalFlip(p=1)(img, bboxes)
 
 
 class Rotate(BenchmarkTest):
     def __init__(self):
-
-        self.imgaug_transform = iaa.Rotate()
-        self.alb_compose = A.Compose([A.Rotate(p=1)], bbox_params=bbox_params)
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-
-class SafeRotate(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose([A.SafeRotate(p=1.0)], bbox_params=bbox_params)
+        self.angle = 45
+        self.imgaug_transform = iaa.Rotate(rotate=(self.angle, self.angle), order=1, mode="reflect")
+        self.alb_compose = A.Compose([A.Rotate(limit=self.angle, p=1)], bbox_params=bbox_params)
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-
-class ShiftScaleRotate(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose(
-            [
-                A.ShiftScaleRotate(p=1.0),
-            ],
-            bbox_params=bbox_params,
-        )
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-
-class Transpose(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose(
-            [
-                A.Transpose(p=1),
-            ],
-            bbox_params=bbox_params,
-        )
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+        return v2.RandomRotation(degrees=self.angle, interpolation=InterpolationMode.BILINEAR)(img, bboxes)
 
 
 class Pad(BenchmarkTest):
@@ -179,66 +154,25 @@ class RandomRotate90(BenchmarkTest):
 
 class Perspective(BenchmarkTest):
     def __init__(self):
-        self.imgaug_transform = iaa.PerspectiveTransform(scale=(0.05, 1))
-        self.alb_compose = A.Compose([A.Perspective(p=1.0)], bbox_params=bbox_params)
+        self.scale = (0.05, 0.1)
+        self.alb_compose = A.Compose([A.Perspective(scale=self.scale, p=1.0)], bbox_params=bbox_params)
         self.imgaug_transform = iaa.PerspectiveTransform(
-            scale=(0.05, 0.1),
+            scale=self.scale,
         )
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
 
-
-class RandomCropNearBBox(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose(
-            [
-                A.RandomCropNearBBox(p=1.0),
-            ],
-            bbox_params=bbox_params,
-        )
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id, cropping_bbox=[0, 5, 10, 20])
-
-
-class BBoxSafeRandomCrop(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose([A.BBoxSafeRandomCrop(p=1.0)], bbox_params=bbox_params)
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-
-class CenterCrop(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose([A.CenterCrop(10, 10, p=1.0)], bbox_params=bbox_params)
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+        return v2.RandomPerspective(
+            distortion_scale=self.scale[1], interpolation=InterpolationMode.BILINEAR, p=1
+        )(img, bboxes)
 
 
 class Crop(BenchmarkTest):
     def __init__(self):
         self.alb_compose = A.Compose([A.Crop(x_max=100, y_max=100, p=1.0)], bbox_params=bbox_params)
-
         self.imgaug_transform = iaa.Crop()
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-
-class CropAndPad(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose([A.CropAndPad(percent=0.1, p=1.0)], bbox_params=bbox_params)
-
-    def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
-
-
-class RandomCropFromBorders(BenchmarkTest):
-    def __init__(self):
-        self.alb_compose = A.Compose([A.RandomCropFromBorders(p=1.0)], bbox_params=bbox_params)
 
     def albumentations(self, img, bboxes, class_id):
         return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
@@ -246,14 +180,42 @@ class RandomCropFromBorders(BenchmarkTest):
 
 class Affine(BenchmarkTest):
     def __init__(self):
-        self.alb_compose = A.Compose(
-            [A.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2, p=1.0)], bbox_params=bbox_params
+        self.angle = 25.0
+        self.shift = (50, 50)
+        self.scale = 2.0
+        self.shear = [10.0, 15.0]
+
+        self.imgaug_transform = iaa.Affine(
+            scale=(self.scale, self.scale),
+            rotate=(self.angle, self.angle),
+            translate_px=self.shift,
+            order=1,
+            mode="reflect",
         )
 
-        self.imgaug_transform = iaa.Affine(scale=0.1, translate_percent=0.1, rotate=0.3, shear=0.2)
-
     def albumentations(self, img, bboxes, class_id):
-        return self.alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+        height, width = img.shape[-2], img.shape[-1]
+        alb_compose = A.Compose(
+            [
+                A.Affine(
+                    translate_percent=[self.shift[0] / width, self.shift[1] / height],
+                    rotate=self.angle,
+                    shear=self.shear,
+                    interpolation=cv2.INTER_LINEAR,
+                )
+            ], bbox_params=bbox_params
+        )
+        return alb_compose(image=img, bboxes=bboxes, class_id=class_id)
+
+    def torchvision_transform(self, img: torch.Tensor, bboxes: TorchBoundingBoxes):
+        height, width = img.shape[-2], img.shape[-1]
+        return v2.RandomAffine(
+            degrees=self.angle,
+            translate=[self.shift[0] / width, self.shift[1] / height],
+            scale=(self.scale, self.scale),
+            shear=self.shear,
+            interpolation=InterpolationMode.BILINEAR,
+        )(img, bboxes)
 
 
 class PiecewiseAffine(BenchmarkTest):
@@ -312,41 +274,56 @@ def main():
     args = parse_args()
     package_versions = get_package_versions()
     if args.print_package_versions:
-        print(package_versions)
+        print(get_markdown_table(package_versions))
+
     images_per_second = defaultdict(dict)
     libraries = args.libraries
 
     benchmarks = [
         HorizontalFlip(),
         VerticalFlip(),
-        Flip(),
         Rotate(),
-        SafeRotate(),
         RandomRotate90(),
-        ShiftScaleRotate(),
-        Transpose(),
         Pad(),
         Perspective(),
-        RandomCropNearBBox(),
-        BBoxSafeRandomCrop(),
-        CenterCrop(),
         Crop(),
-        CropAndPad(),
-        RandomCropFromBorders(),
         Affine(),
         PiecewiseAffine(),  # very slow
         Sequence(),
     ]
-    imgs = [get_image(img_size=(100, 100, 3)) for _ in range(args.images)]
-    bboxes = [generate_random_bboxes(args.bboxes) for _ in range(args.images)]
+
+    def get_imgaug_bboxes(img: np.ndarray, bboxes: np.ndarray) -> BoundingBoxesOnImage:
+        return BoundingBoxesOnImage([BoundingBox(*bbox) for bbox in bboxes], shape=img.shape)
+
+    def get_torch_bboxes(img: np.ndarray, bboxes: np.ndarray) -> TorchBoundingBoxes:
+        bboxes = convert_bboxes_from_albumentations(
+            bboxes, "pascal_voc", img.shape[0], img.shape[1], check_validity=True
+        )
+        bboxes = torch.tensor(bboxes)
+        return TorchBoundingBoxes(bboxes, format="XYXY", canvas_size=(img.shape[0], img.shape[1]))
+
+    imgs_cv2 = [get_image(img_size=(100, 100, 3)) for _ in range(args.images)]
+    imgs_torch = [torch.from_numpy(i.transpose(2, 0, 1)) for i in imgs_cv2]
+    bboxes_albu = [generate_random_bboxes(args.bboxes) for _ in range(args.images)]
+    bboxes_imgaug = [get_imgaug_bboxes(img, bboxes) for img, bboxes in zip(imgs_cv2, bboxes_albu)]
+    bboxes_torch = [get_torch_bboxes(img, bboxes) for img, bboxes in zip(imgs_cv2, bboxes_albu)]
+
+    def get_imgs_bboxes(library: str) -> Tuple[list, list]:
+        if library == "torchvision":
+            return imgs_torch, bboxes_torch
+        if library == "imgaug":
+            return imgs_cv2, bboxes_imgaug
+        return imgs_cv2, bboxes_albu
 
     for library in libraries:
-
         class_ids = [np.random.randint(low=0, high=1, size=args.bboxes) for _ in range(args.images)]
         pbar = tqdm(total=len(benchmarks))
         for benchmark in benchmarks:
             pbar.set_description("Current benchmark: {} | {}".format(library, benchmark))
             benchmark_images_per_second = None
+
+            imgs, bboxes = get_imgs_bboxes(library)
+
             if benchmark.is_supported_by(library):
                 timer = Timer(lambda: benchmark.run(library, imgs, bboxes=bboxes, class_ids=class_ids))
                 run_times = timer.repeat(number=1, repeat=args.runs)
