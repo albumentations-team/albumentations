@@ -13,4 +13,4 @@ RUN pip install -U --no-cache-dir -r ./benchmark/requirements.txt
 
 WORKDIR /albumentations/benchmark
 
-ENTRYPOINT ["python", "benchmark.py"]
+ENTRYPOINT ["python", "imread_benchmark.py"]

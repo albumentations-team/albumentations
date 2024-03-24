@@ -34,6 +34,7 @@ ImageMode = Literal["cv", "pil"]
 
 
 SpatterMode = Literal["rain", "mud"]
+ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
 
 
 class ReferenceImage(TypedDict):

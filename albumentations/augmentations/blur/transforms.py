@@ -333,8 +333,8 @@ class AdvancedBlur(ImageOnlyTransform):
         blur_limit: ScaleIntType = (3, 7),
         sigma_x_limit: ScaleFloatType = (0.2, 1.0),
         sigma_y_limit: ScaleFloatType = (0.2, 1.0),
-        sigmaX_limit: ScaleFloatType = (0.2, 1.0),  # noqa: N803
-        sigmaY_limit: ScaleFloatType = (0.2, 1.0),  # noqa: N803
+        sigmaX_limit: Optional[ScaleFloatType] = None,  # noqa: N803
+        sigmaY_limit: Optional[ScaleFloatType] = None,  # noqa: N803
         rotate_limit: ScaleIntType = 90,
         beta_limit: ScaleFloatType = (0.5, 8.0),
         noise_limit: ScaleFloatType = (0.9, 1.1),
@@ -347,11 +347,11 @@ class AdvancedBlur(ImageOnlyTransform):
         # Handle deprecation of sigmaX_limit and sigmaY_limit
         if sigmaX_limit is not None:
             warnings.warn("sigmaX_limit is deprecated; use sigma_x_limit instead.", DeprecationWarning)
-            sigma_x_limit = sigma_x_limit or sigmaX_limit
+            sigma_x_limit = sigmaX_limit
 
         if sigmaY_limit is not None:
             warnings.warn("sigmaY_limit is deprecated; use sigma_y_limit instead.", DeprecationWarning)
-            sigma_y_limit = sigma_y_limit or sigmaY_limit
+            sigma_y_limit = sigmaY_limit
 
         self.sigma_x_limit = self.__check_values(to_tuple(sigma_x_limit, 0.0), name="sigma_x_limit")
         self.sigma_y_limit = self.__check_values(to_tuple(sigma_y_limit, 0.0), name="sigma_y_limit")
