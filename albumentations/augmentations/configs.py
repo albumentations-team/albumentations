@@ -8,6 +8,7 @@ from typing_extensions import Annotated, Self
 from albumentations.augmentations.utils import MAX_VALUES_BY_DTYPE
 from albumentations.core.transforms_interface import Interpolation, to_tuple
 from albumentations.core.types import (
+    ChromaticAberrationMode,
     ImageCompressionType,
     ImageMode,
     RainMode,
@@ -15,6 +16,7 @@ from albumentations.core.types import (
     ScaleIntType,
     ScaleType,
     SpatterMode,
+    chromatic_aberration_modes,
     image_modes,
 )
 
@@ -651,3 +653,26 @@ class SpatterConfig(BaseTransformConfig):
             msg = "Color must be a list of RGB values or a dict mapping mode to RGB values."
             raise ValueError(msg)
         return self
+
+
+class ChromaticAberrationConfig(BaseTransformConfig):
+    primary_distortion_limit: Union[float, Tuple[float, float]] = Field(
+        default=0.02, description="Range for the primary radial distortion coefficient."
+    )
+    secondary_distortion_limit: Union[float, Tuple[float, float]] = Field(
+        default=0.05, description="Range for the secondary radial distortion coefficient."
+    )
+    mode: ChromaticAberrationMode = Field(default="green_purple", description="Type of color fringing.")
+    interpolation: int = Field(default=cv2.INTER_LINEAR, description="Interpolation algorithm used for distortion.")
+
+    @field_validator("primary_distortion_limit", "secondary_distortion_limit")
+    @classmethod
+    def check_float_ranges(cls, v: ScaleFloatType) -> Tuple[float, float]:
+        return cast(Tuple[float, float], tuple(v)) if isinstance(v, (tuple, list)) else (-abs(v), abs(v))
+
+    @field_validator("mode")
+    @classmethod
+    def check_mode(cls, mode: ChromaticAberrationMode) -> ChromaticAberrationMode:
+        if mode not in chromatic_aberration_modes:
+            raise ValueError(f"Mode {mode} is not supported. Valid modes are: {chromatic_aberration_modes}.")
+        return mode

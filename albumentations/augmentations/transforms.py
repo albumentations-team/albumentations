@@ -15,6 +15,7 @@ from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
     NUM_BITS_ARRAY_LENGTH,
     BaseTransformConfig,
+    ChromaticAberrationConfig,
     CLAHEConfig,
     ColorJitterConfig,
     DownscaleConfig,
@@ -2757,29 +2758,27 @@ class ChromaticAberration(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-        self.primary_distortion_limit = to_tuple(primary_distortion_limit)
-        self.secondary_distortion_limit = to_tuple(secondary_distortion_limit)
-        self.mode = self._validate_mode(mode)
-        self.interpolation = interpolation
-
-    @staticmethod
-    def _validate_mode(
-        mode: ChromaticAberrationMode,
-    ) -> ChromaticAberrationMode:
-        valid_modes = ["green_purple", "red_blue", "random"]
-        if mode not in valid_modes:
-            msg = f"Unsupported mode: {mode}. Supported modes are 'green_purple', 'red_blue', 'random'."
-            raise ValueError(msg)
-        return mode
+        config = ChromaticAberrationConfig(
+            primary_distortion_limit=primary_distortion_limit,
+            secondary_distortion_limit=secondary_distortion_limit,
+            mode=mode,
+            interpolation=interpolation,
+            always_apply=always_apply,
+            p=p,
+        )
+        super().__init__(always_apply=config.always_apply, p=config.p)
+        self.primary_distortion_limit = cast(Tuple[float, float], config.primary_distortion_limit)
+        self.secondary_distortion_limit = cast(Tuple[float, float], config.secondary_distortion_limit)
+        self.mode = config.mode
+        self.interpolation = config.interpolation
 
     def apply(
         self,
         img: np.ndarray,
-        primary_distortion_red: float = -0.02,
-        secondary_distortion_red: float = -0.05,
-        primary_distortion_blue: float = -0.02,
-        secondary_distortion_blue: float = -0.05,
+        primary_distortion_red: float,
+        secondary_distortion_red: float,
+        primary_distortion_blue: float,
+        secondary_distortion_blue: float,
         **params: Any,
     ) -> np.ndarray:
         return F.chromatic_aberration(
