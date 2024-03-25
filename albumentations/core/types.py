@@ -28,6 +28,7 @@ FloatNumType = Union[np.floating, np.ndarray]
 ImageMode = Literal["cv", "pil"]
 
 SpatterMode = Literal["rain", "mud"]
+chromatic_aberration_modes = ["green_purple", "red_blue", "random"]
 ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
 RainMode = Literal["drizzle", "heavy", "torrential"]
 
