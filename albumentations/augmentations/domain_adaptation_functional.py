@@ -15,6 +15,7 @@ from albumentations.augmentations.utils import (
     preserve_shape,
 )
 
+GRAYSCALE_IMAGE_SHAPE = 2
 NON_GRAY_IMAGE_SHAPE = 3
 RGB_NUM_CHANNELS = 3
 
@@ -100,59 +101,63 @@ def adapt_pixel_distribution(
     return (img.astype("float32") * (1 - weight) + result * weight).astype(initial_type)
 
 
+def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np.ndarray:
+    height, width = amp_src.shape[:2]
+    border = int(np.floor(min(height, width) * beta))
+    center_y, center_h = height // 2, width // 2
+    h1, h2 = max(0, center_y - border), min(center_y + border, height - 1)
+    w1, w2 = max(0, center_h - border), min(center_h + border, width - 1)
+    amp_src[h1:h2, w1:w2] = amp_trg[h1:h2, w1:w2]
+    return amp_src
+
+
 @clipped
 @preserve_shape
 def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
-    img = np.squeeze(img)
-    target_img = np.squeeze(target_img)
-    # Ensure input images have the same shape
-    if img.shape != target_img.shape:
-        raise ValueError(
-            f"The source and target images must have the same shape, but got {img.shape} and {target_img.shape} "
-            "respectively."
-        )
+    src_img = img.astype(np.float32)
+    trg_img = target_img.astype(np.float32)
 
-    # Convert images to float32 if not already to avoid unnecessary conversions
-    if img.dtype != np.float32:
-        img = img.astype(np.float32)
-    if target_img.dtype != np.float32:
-        target_img = target_img.astype(np.float32)
+    if len(src_img.shape) == GRAYSCALE_IMAGE_SHAPE:
+        src_img = np.expand_dims(src_img, axis=-1)
+    if len(trg_img.shape) == GRAYSCALE_IMAGE_SHAPE:
+        trg_img = np.expand_dims(trg_img, axis=-1)
 
-    # Compute FFT of both source and target images
-    fft_src = np.fft.fft2(img, axes=(0, 1))
-    fft_trg = np.fft.fft2(target_img, axes=(0, 1))
+    num_channels = src_img.shape[-1]
 
-    # Extract amplitude and phase
-    amplitude_src, phase_src = np.abs(fft_src), np.angle(fft_src)
-    amplitude_trg = np.abs(fft_trg)
+    # Prepare container for the output image
+    src_in_trg = np.zeros_like(src_img)
 
-    # Compute border for amplitude substitution
-    height, width = img.shape[:2]
-    border = int(np.floor(min(height, width) * beta))
-    center_y, center_x = height // 2, width // 2
+    for channel_id in range(num_channels):
+        # Perform FFT on each channel
+        fft_src = np.fft.fft2(src_img[:, :, channel_id])
+        fft_trg = np.fft.fft2(trg_img[:, :, channel_id])
 
-    # Define region for amplitude substitution
-    y1, y2 = center_y - border, center_y + border
-    x1, x2 = center_x - border, center_x + border
+        # Shift the zero frequency component to the center
+        fft_src_shifted = np.fft.fftshift(fft_src)
+        fft_trg_shifted = np.fft.fftshift(fft_trg)
 
-    # Directly mutate the amplitude part of the source with the target in the specified region
-    amplitude_src[y1:y2, x1:x2] = amplitude_trg[y1:y2, x1:x2]
+        # Extract amplitude and phase
+        amp_src, pha_src = np.abs(fft_src_shifted), np.angle(fft_src_shifted)
+        amp_trg = np.abs(fft_trg_shifted)
 
-    # Reconstruct the source image from its mutated amplitude and original phase
-    src_image_transformed = np.fft.ifft2(amplitude_src * np.exp(1j * phase_src), axes=(0, 1))
+        # Mutate the amplitude part of the source with the target
 
-    # Return the real part of the transformed image
-    return np.real(src_image_transformed)
+        mutated_amp = low_freq_mutate(amp_src.copy(), amp_trg, beta)
+
+        # Combine the mutated amplitude with the original phase
+        fft_src_mutated = np.fft.ifftshift(mutated_amp * np.exp(1j * pha_src))
+
+        # Perform inverse FFT
+        src_in_trg_channel = np.fft.ifft2(fft_src_mutated)
+
+        # Store the result in the corresponding channel of the output image
+        src_in_trg[:, :, channel_id] = np.real(src_in_trg_channel)
+
+    return src_in_trg
 
 
 @preserve_shape
 def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
-    # Ensure the data types match
-    if img.dtype != reference_image.dtype:
-        raise RuntimeError(
-            f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}."
-        )
-
     # Resize reference image only if necessary
     if img.shape[:2] != reference_image.shape[:2]:
         reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
