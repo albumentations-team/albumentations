@@ -168,8 +168,8 @@ class FDA(ImageOnlyTransform):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
-        if isinstance(beta_limit, float) and beta_limit >= MAX_BETA_LIMIT:
-            msg = "The beta_limit should be less than 0.5."
+        if isinstance(beta_limit, float) and not 0 <= beta_limit <= MAX_BETA_LIMIT:
+            msg = "The beta_limit should be within [0, 0.5]."
             raise ValueError(msg)
 
         self.beta_limit = to_tuple(beta_limit, low=0)
