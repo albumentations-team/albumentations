@@ -147,12 +147,6 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 
 @preserve_shape
 def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
-    # Ensure the data types match
-    if img.dtype != reference_image.dtype:
-        raise RuntimeError(
-            f"Dtype of image and reference image must be the same. Got {img.dtype} and {reference_image.dtype}."
-        )
-
     # Resize reference image only if necessary
     if img.shape[:2] != reference_image.shape[:2]:
         reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))

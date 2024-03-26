@@ -25,32 +25,40 @@ __all__ = [
 
 
 class HistogramMatching(ImageOnlyTransform):
-    """Apply histogram matching. It manipulates the pixels of an input image so that its histogram matches
-    the histogram of the reference image. If the images have multiple channels, the matching is done independently
-    for each channel, as long as the number of channels is equal in the input image and the reference.
+    """Implements histogram matching, a technique that adjusts the pixel values of an input image
+    to match the histogram of a reference image. This adjustment ensures that the output image
+    has a similar tone and contrast to the reference. The process is applied independently to
+    each channel of multi-channel images, provided both the input and reference images have the
+    same number of channels.
 
-    Histogram matching can be used as a lightweight normalization for image processing,
-    such as feature matching, especially in circumstances where the images have been taken from different
-    sources or in different conditions (i.e. lighting).
-
-    See:
-        https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
+    Histogram matching serves as an effective normalization method in image processing tasks such
+    as feature matching. It is particularly useful when images originate from varied sources or are
+    captured under different lighting conditions, helping to standardize the images' appearance
+    before further processing.
 
     Args:
-        reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
-        it expects a sequence of paths to images.
-        blend_ratio: Tuple of min and max blend ratio. Matched image will be blended with original
-            with random blend factor for increased diversity of generated images.
-        read_fn (Callable): Used-defined function to read image. Function should get an element of `reference_images`
-        and return numpy array of image pixels. Default: takes as input a path to an image and returns a numpy array.
-        p: probability of applying the transform. Default: 1.0.
+        reference_images (Sequence[Any]): A sequence of objects to be converted into images by `read_fn`.
+            Typically, this is a sequence of image paths.
+        blend_ratio (Tuple[float, float]): Specifies the minimum and maximum blend ratio for blending the matched
+            image with the original image. A random blend factor within this range is chosen for each image to
+            increase the diversity of the output images.
+        read_fn (Callable[[Any], np.ndarray]): A user-defined function for reading images, which accepts an
+            element from `reference_images` and returns a numpy array of image pixels. By default, this is expected
+            to take a file path and return an image as a numpy array.
+        p (float): The probability of applying the transform to any given image. Defaults to 0.5.
 
     Targets:
         image
 
     Image types:
-        uint8, uint16, float32
+        uint8, float32
 
+    Note:
+        This class cannot be serialized directly due to its dynamic nature and dependency on external image data.
+        An attempt to serialize it will raise a NotImplementedError.
+
+    Reference:
+        https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
     """
 
     def __init__(
