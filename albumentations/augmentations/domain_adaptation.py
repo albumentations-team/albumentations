@@ -136,7 +136,7 @@ class FDA(ImageOnlyTransform):
     Targets:
         image
 
-    Image types supported:
+    Image types:
         uint8, float32
 
     Reference:
@@ -233,7 +233,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     Targets:
         image
 
-    Image types supported:
+    Image types:
         uint8, float32
 
     Reference:
