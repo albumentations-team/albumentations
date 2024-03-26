@@ -134,10 +134,10 @@ class FDA(ImageOnlyTransform):
             numpy array.
 
     Targets:
-        image - Applies the transform to the image data only.
+        image
 
     Image types supported:
-        uint8, float32 - The transform can be applied to images of these data types.
+        uint8, float32
 
     Reference:
         - https://github.com/YanchaoYang/FDA
@@ -231,11 +231,10 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         p (float): The probability of applying the transform to any given image. Default is 1.0.
 
     Targets:
-        image: Indicates that the transform is applied to image data only.
+        image
 
     Image types supported:
-        uint8, float32: The transform supports these image data types, accommodating a broad range of
-        image processing applications.
+        uint8, float32
 
     Reference:
         For more information on the underlying approach, see: https://github.com/arsenyinfo/qudida
