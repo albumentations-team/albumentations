@@ -59,6 +59,14 @@ class HistogramMatching(ImageOnlyTransform):
 
     Reference:
         https://scikit-image.org/docs/dev/auto_examples/color_exposure/plot_histogram_matching.html
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> target_image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+        >>> aug = A.Compose([A.HistogramMatching([target_image], p=1, read_fn=lambda x: x)])
+        >>> result = aug(image=image)
     """
 
     def __init__(
@@ -98,25 +106,40 @@ class HistogramMatching(ImageOnlyTransform):
 
 
 class FDA(ImageOnlyTransform):
-    """Fourier Domain Adaptation from https://github.com/YanchaoYang/FDA
-    Simple "style transfer".
+    """Fourier Domain Adaptation (FDA) for simple "style transfer" in the context of unsupervised domain adaptation
+    (UDA). FDA manipulates the frequency components of images to reduce the domain gap between source
+    and target datasets, effectively adapting images from one domain to closely resemble those from another without
+    altering their semantic content.
+
+    This transform is particularly beneficial in scenarios where the training (source) and testing (target) images
+    come from different distributions, such as synthetic versus real images, or day versus night scenes.
+    Unlike traditional domain adaptation methods that may require complex adversarial training, FDA achieves domain
+    alignment by swapping low-frequency components of the Fourier transform between the source and target images.
+    This technique has shown to improve the performance of models on the target domain, particularly for tasks
+    like semantic segmentation, without additional training for domain invariance.
+
+    The 'beta_limit' parameter controls the extent of frequency component swapping, with lower values preserving more
+    of the original image's characteristics and higher values leading to more pronounced adaptation effects.
+    It is recommended to use beta values less than 0.3 to avoid introducing artifacts.
 
     Args:
-        reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
-        it expects a sequence of paths to images.
-        beta_limit (float or tuple of float): coefficient beta from paper. Recommended less 0.3.
-        read_fn (Callable): Used-defined function to read image. Function should get an element of `reference_images`
-        and return numpy array of image pixels. Default: takes as input a path to an image and returns a numpy array.
+        reference_images (Sequence[Any]): Sequence of objects to be converted into images by `read_fn`. This typically
+            involves paths to images that serve as target domain examples for adaptation.
+        beta_limit (float or tuple of float): Coefficient beta from the paper, controlling the swapping extent of
+            frequency components. Values should typically be less than 0.3 to avoid artifacts.
+        read_fn (Callable): User-defined function for reading images. It takes an element from `reference_images` and
+            returns a numpy array of image pixels. By default, it is expected to take a path to an image and return a
+            numpy array.
 
     Targets:
-        image
+        image - Applies the transform to the image data only.
 
-    Image types:
-        uint8, float32
+    Image types supported:
+        uint8, float32 - The transform can be applied to images of these data types.
 
     Reference:
-        https://github.com/YanchaoYang/FDA
-        https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
+        - https://github.com/YanchaoYang/FDA
+        - https://openaccess.thecvf.com/content_CVPR_2020/papers/Yang_FDA_Fourier_Domain_Adaptation_for_Semantic_Segmentation_CVPR_2020_paper.pdf
 
     Example:
         >>> import numpy as np
@@ -126,6 +149,10 @@ class FDA(ImageOnlyTransform):
         >>> aug = A.Compose([A.FDA([target_image], p=1, read_fn=lambda x: x)])
         >>> result = aug(image=image)
 
+    Note:
+        FDA is a powerful tool for domain adaptation, particularly in unsupervised settings where annotated target
+        domain samples are unavailable. It enables significant improvements in model generalization by aligning
+        the low-level statistics of source and target images through a simple yet effective Fourier-based method.
     """
 
     def __init__(
@@ -169,28 +196,48 @@ class FDA(ImageOnlyTransform):
 
 
 class PixelDistributionAdaptation(ImageOnlyTransform):
-    """Another naive and quick pixel-level domain adaptation. It fits a simple transform (such as PCA, StandardScaler
-    or MinMaxScaler) on both original and reference image, transforms original image with transform trained on this
-    image and then performs inverse transformation using transform fitted on reference image.
+    """Performs pixel-level domain adaptation by aligning the pixel value distribution of an input image
+    with that of a reference image. This process involves fitting a simple statistical transformation
+    (such as PCA, StandardScaler, or MinMaxScaler) to both the original and the reference images,
+    transforming the original image with the transformation trained on it, and then applying the inverse
+    transformation using the transform fitted on the reference image. The result is an adapted image
+    that retains the original content while mimicking the pixel value distribution of the reference domain.
+
+    The process can be visualized as two main steps:
+    1. Adjusting the original image to a standard distribution space using a selected transform.
+    2. Moving the adjusted image into the distribution space of the reference image by applying the inverse
+       of the transform fitted on the reference image.
+
+    This technique is especially useful in scenarios where images from different domains (e.g., synthetic
+    vs. real images, day vs. night scenes) need to be harmonized for better consistency or performance in
+    image processing tasks.
 
     Args:
-        reference_images (Sequence[Any]): Sequence of objects that will be converted to images by `read_fn`. By default,
-        it expects a sequence of paths to images.
-        blend_ratio (float, float): Tuple of min and max blend ratio. Matched image will be blended with original
-            with random blend factor for increased diversity of generated images.
-        read_fn (Callable): Used-defined function to read image. Function should get an element of `reference_images`
-        and return numpy array of image pixels. Default: takes as input a path to an image and returns a numpy array.
-        transform_type (str): type of transform; "pca", "standard", "minmax" are allowed.
-        p (float): probability of applying the transform. Default: 1.0.
+        reference_images (Sequence[Any]): A sequence of objects (typically image paths) that will be
+            converted into images by `read_fn`. These images serve as references for the domain adaptation.
+        blend_ratio (Tuple[float, float]): Specifies the minimum and maximum blend ratio for mixing
+            the adapted image with the original, enhancing the diversity of the output images.
+        read_fn (Callable): A user-defined function for reading and converting the objects in
+            `reference_images` into numpy arrays. By default, it assumes these objects are image paths.
+        transform_type (str): Specifies the type of statistical transformation to apply. Supported values
+            are "pca" for Principal Component Analysis, "standard" for StandardScaler, and "minmax" for
+            MinMaxScaler.
+        p (float): The probability of applying the transform to any given image. Default is 1.0.
 
     Targets:
-        image
+        image: Indicates that the transform is applied to image data only.
 
-    Image types:
-        uint8, float32
+    Image types supported:
+        uint8, float32: The transform supports these image data types, accommodating a broad range of
+        image processing applications.
 
-    See also: https://github.com/arsenyinfo/qudida
+    Reference:
+        For more information on the underlying approach, see: https://github.com/arsenyinfo/qudida
 
+    Note:
+        The PixelDistributionAdaptation transform is a novel way to perform domain adaptation at the pixel level,
+        suitable for adjusting images across different conditions without complex modeling. It is effective
+        for preparing images before more advanced processing or analysis.
     """
 
     def __init__(
