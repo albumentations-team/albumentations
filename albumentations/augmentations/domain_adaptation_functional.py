@@ -15,6 +15,7 @@ from albumentations.augmentations.utils import (
     preserve_shape,
 )
 
+GRAYSCALE_IMAGE_SHAPE = 2
 NON_GRAY_IMAGE_SHAPE = 3
 RGB_NUM_CHANNELS = 3
 
@@ -115,6 +116,11 @@ def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np
 def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
+
+    if len(src_img.shape) == GRAYSCALE_IMAGE_SHAPE:
+        src_img = np.expand_dims(src_img, axis=-1)
+    if len(trg_img.shape) == GRAYSCALE_IMAGE_SHAPE:
+        trg_img = np.expand_dims(trg_img, axis=-1)
 
     num_channels = src_img.shape[-1]
 
