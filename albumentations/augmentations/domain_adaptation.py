@@ -23,6 +23,8 @@ __all__ = [
     "PixelDistributionAdaptation",
 ]
 
+MAX_BETA_LIMIT = 0.5
+
 
 class HistogramMatching(ImageOnlyTransform):
     """Implements histogram matching, a technique that adjusts the pixel values of an input image
@@ -126,7 +128,7 @@ class FDA(ImageOnlyTransform):
         reference_images (Sequence[Any]): Sequence of objects to be converted into images by `read_fn`. This typically
             involves paths to images that serve as target domain examples for adaptation.
         beta_limit (float or tuple of float): Coefficient beta from the paper, controlling the swapping extent of
-            frequency components. Values should typically be less than 0.3 to avoid artifacts.
+            frequency components. Values should be less than 0.5.
         read_fn (Callable): User-defined function for reading images. It takes an element from `reference_images` and
             returns a numpy array of image pixels. By default, it is expected to take a path to an image and return a
             numpy array.
@@ -166,6 +168,10 @@ class FDA(ImageOnlyTransform):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
+        if isinstance(beta_limit, float) and beta_limit >= MAX_BETA_LIMIT:
+            msg = "The beta_limit should be less than 0.5."
+            raise ValueError(msg)
+
         self.beta_limit = to_tuple(beta_limit, low=0)
 
     def apply(
