@@ -14,7 +14,6 @@ from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.configs import (
     NUM_BITS_ARRAY_LENGTH,
-    BaseTransformConfig,
     ChromaticAberrationConfig,
     CLAHEConfig,
     ColorJitterConfig,
@@ -1436,14 +1435,6 @@ class ChannelShuffle(ImageOnlyTransform):
 
     """
 
-    def __init__(
-        self,
-        always_apply: bool = False,
-        p: float = 0.5,
-    ):
-        config = BaseTransformConfig(always_apply=always_apply, p=p)
-        super().__init__(always_apply=config.always_apply, p=config.p)
-
     @property
     def targets_as_params(self) -> List[str]:
         return ["image"]
@@ -1475,14 +1466,6 @@ class InvertImg(ImageOnlyTransform):
         uint8, float32
 
     """
-
-    def __init__(
-        self,
-        always_apply: bool = False,
-        p: float = 0.5,
-    ):
-        config = BaseTransformConfig(always_apply=always_apply, p=p)
-        super().__init__(always_apply=config.always_apply, p=config.p)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.invert(img)
@@ -1549,14 +1532,6 @@ class ToGray(ImageOnlyTransform):
 
     """
 
-    def __init__(
-        self,
-        always_apply: bool = False,
-        p: float = 0.5,
-    ):
-        config = BaseTransformConfig(always_apply=always_apply, p=p)
-        super().__init__(always_apply=config.always_apply, p=config.p)
-
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if is_grayscale_image(img):
             warnings.warn("The image is already gray.")
@@ -1617,8 +1592,7 @@ class ToSepia(ImageOnlyTransform):
     """
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
-        config = BaseTransformConfig(always_apply=always_apply, p=p)
-        super().__init__(always_apply=config.always_apply, p=config.p)
+        super().__init__(always_apply=always_apply, p=p)
         self.sepia_transformation_matrix = np.array(
             [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
         )

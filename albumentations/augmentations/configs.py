@@ -2,11 +2,11 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 
 import cv2
 import numpy as np
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations.augmentations.utils import MAX_VALUES_BY_DTYPE
-from albumentations.core.transforms_interface import Interpolation, to_tuple
+from albumentations.core.transforms_interface import BaseTransformConfig, Interpolation, to_tuple
 from albumentations.core.types import (
     ChromaticAberrationMode,
     ImageCompressionType,
@@ -59,13 +59,6 @@ def check_and_convert_range(
         return value
 
     raise TypeError(f"{name} must be a float or a tuple of floats.")
-
-
-class BaseTransformConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
-
-    always_apply: bool = Field(default=False, description="Always apply the transform")
-    p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
 
 
 class RandomGridShuffleConfig(BaseTransformConfig):

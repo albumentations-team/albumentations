@@ -5,6 +5,8 @@ from warnings import warn
 
 import cv2
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import Annotated
 
 from .serialization import Serializable, get_shortest_class_fullname
 from .types import (
@@ -74,6 +76,13 @@ class Interpolation:
         self.upscale = upscale
 
 
+class BaseTransformConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    always_apply: bool = Field(default=False, description="Always apply the transform")
+    p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
+
+
 class BasicTransform(Serializable):
     call_backup = None
     interpolation: Union[int, Interpolation]
@@ -81,8 +90,9 @@ class BasicTransform(Serializable):
     mask_fill_value: Optional[ColorType]
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
-        self.p = p
-        self.always_apply = always_apply
+        config = BaseTransformConfig(always_apply=always_apply, p=p)
+        self.p = config.p
+        self.always_apply = config.always_apply
         self._additional_targets: Dict[str, str] = {}
 
         # replay mode params
