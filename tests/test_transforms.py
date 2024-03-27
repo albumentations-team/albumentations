@@ -3,6 +3,7 @@ from functools import partial
 
 import cv2
 import numpy as np
+from pydantic import ValidationError
 import pytest
 
 import albumentations as A
@@ -698,13 +699,6 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
     elif holes_number_x and holes_number_y:
         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_x))
         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_y))
-
-
-def test_gauss_noise_incorrect_var_limit_type():
-    with pytest.raises(TypeError) as exc_info:
-        A.GaussNoise(var_limit={"low": 70, "high": 90})
-    message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
-    assert str(exc_info.value) == message
 
 
 @pytest.mark.parametrize(

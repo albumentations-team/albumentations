@@ -7,7 +7,8 @@ from setuptools import find_packages, setup
 
 INSTALL_REQUIRES = [
     "numpy>=1.24.4", "scipy>=1.10.0", "scikit-image>=0.21.0",
-    "PyYAML", "typing-extensions>=4.9.0", "scikit-learn>=1.3.2"
+    "PyYAML", "typing-extensions>=4.9.0", "scikit-learn>=1.3.2",
+    "pydantic>=2.6.4"
 ]
 
 CHOOSE_INSTALL_REQUIRES = [
