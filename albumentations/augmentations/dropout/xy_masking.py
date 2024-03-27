@@ -1,12 +1,12 @@
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
+from albumentations.core.types import ColorType, ScaleIntType, Targets, TBBoxesOrKeypoints
 
-from .functional import cutout, keypoint_in_hole
+from .functional import cutout, keypoints_not_in_holes
 
 __all__ = ["XYMasking"]
 
@@ -192,16 +192,13 @@ class XYMasking(DualTransform):
 
     def apply_to_keypoints(
         self,
-        keypoints: Sequence[KeypointType],
+        keypoints: TBBoxesOrKeypoints,
         masks_x: List[Tuple[int, int, int, int]],
         masks_y: List[Tuple[int, int, int, int]],
         **params: Any,
-    ) -> List[KeypointType]:
-        return [
-            keypoint
-            for keypoint in keypoints
-            if not any(keypoint_in_hole(keypoint, hole) for hole in masks_x + masks_y)
-        ]
+    ) -> TBBoxesOrKeypoints:
+        keypoints.data = keypoints.data[keypoints_not_in_holes(keypoints.data, masks_x + masks_y)]
+        return keypoints
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (

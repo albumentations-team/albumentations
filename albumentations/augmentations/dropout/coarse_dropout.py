@@ -4,9 +4,9 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 
 from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.types import KeypointType, ScalarType, Targets
+from albumentations.core.types import ScalarType, Targets, TBBoxesOrKeypoints
 
-from .functional import cutout, keypoint_in_hole
+from .functional import cutout, keypoints_not_in_holes
 
 __all__ = ["CoarseDropout"]
 
@@ -161,9 +161,10 @@ class CoarseDropout(DualTransform):
         return ["image"]
 
     def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any
-    ) -> List[KeypointType]:
-        return [keypoint for keypoint in keypoints if not any(keypoint_in_hole(keypoint, hole) for hole in holes)]
+        self, keypoints: TBBoxesOrKeypoints, holes: Sequence[Tuple[int, int, int, int]] = (), **params: Any
+    ) -> TBBoxesOrKeypoints:
+        keypoints.data = keypoints.data[keypoints_not_in_holes(keypoints.data, holes)]
+        return keypoints
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (

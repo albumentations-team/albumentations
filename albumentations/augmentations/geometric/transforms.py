@@ -19,6 +19,7 @@ from albumentations.core.types import (
     ScaleIntType,
     SizeType,
     Targets,
+    TBBoxesOrKeypoints,
 )
 
 from . import functional as F
@@ -371,27 +372,32 @@ class Perspective(DualTransform):
             img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, params["interpolation"]
         )
 
-    def apply_to_bbox(
-        self,
-        bbox: BoxInternalType,
-        matrix: np.ndarray,
-        max_height: int,
-        max_width: int,
-        **params: Any,
-    ) -> BoxInternalType:
-        return F.perspective_bbox(bbox, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size)
-
-    def apply_to_keypoint(
-        self,
-        keypoint: KeypointInternalType,
-        matrix: np.ndarray,
-        max_height: int,
-        max_width: int,
-        **params: Any,
-    ) -> np.ndarray:
-        return F.perspective_keypoint(
-            keypoint, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
+    def apply_to_bboxes(
+        self, bboxes: TBBoxesOrKeypoints, matrix: np.ndarray, max_height: int, max_width: int, **params: Any
+    ) -> TBBoxesOrKeypoints:
+        bboxes.data = F.perspective_bboxes(
+            bboxes.data,
+            height=params["rows"],
+            width=params["cols"],
+            matrix=matrix,
+            max_width=max_width,
+            max_height=max_height,
+            keep_size=self.keep_size,
         )
+        return bboxes
+
+    def apply_to_keypoints(
+        self,
+        keypoints: TBBoxesOrKeypoints,
+        matrix: np.ndarray,
+        max_height: int,
+        max_width: int,
+        **params: Any,
+    ) -> TBBoxesOrKeypoints:
+        keypoints.data = F.perspective_keypoints(
+            keypoints.data, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
+        )
+        return keypoints
 
     @property
     def targets_as_params(self) -> List[str]:

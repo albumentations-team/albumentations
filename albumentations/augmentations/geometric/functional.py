@@ -14,7 +14,7 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.bbox_utils import denormalize_bbox, denormalize_bboxes, normalize_bbox, normalize_bboxes
 from albumentations.core.types import BoxInternalType, ColorType, ImageColorType, KeypointInternalType
 
 __all__ = [
@@ -39,9 +39,9 @@ __all__ = [
     "longest_max_size",
     "smallest_max_size",
     "perspective",
-    "perspective_bbox",
+    "perspective_bboxes",
     "rotation2d_matrix_to_euler_angles",
-    "perspective_keypoint",
+    "perspective_keypoints",
     "_is_identity_matrix",
     "warp_affine",
     "keypoint_affine",
@@ -488,32 +488,48 @@ def perspective(
     return warped
 
 
-def perspective_bbox(
-    bbox: BoxInternalType,
+def perspective_bboxes(
+    bboxes: np.ndarray,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, height, width)[:4]
+) -> np.ndarray:
+    if not len(bboxes):
+        return bboxes
+    bboxes = denormalize_bboxes(bboxes, height, width)
 
-    points = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], dtype=np.float32)
-
-    x1, y1, x2, y2 = float("inf"), float("inf"), 0, 0
-    for pt in points:
-        point = perspective_keypoint((*pt.tolist(), 0, 0), height, width, matrix, max_width, max_height, keep_size)
-        x, y = point[:2]
-        x1 = min(x1, x)
-        x2 = max(x2, x)
-        y1 = min(y1, y)
-        y2 = max(y2, y)
-
-    return cast(
-        BoxInternalType,
-        normalize_bbox((x1, y1, x2, y2), height if keep_size else max_height, width if keep_size else max_width),
+    points = np.stack(
+        [
+            np.pad(bboxes[..., [0, 1]], ((0, 0), (0, 2))),
+            np.pad(bboxes[..., [2, 1]], ((0, 0), (0, 2))),
+            np.pad(bboxes[..., [2, 3]], ((0, 0), (0, 2))),
+            np.pad(bboxes[..., [0, 3]], ((0, 0), (0, 2))),
+        ],
+        axis=1,
     )
+
+    points = perspective_keypoints(
+        points.reshape((-1, 4)),
+        height=height,
+        width=width,
+        matrix=matrix,
+        max_width=max_width,
+        max_height=max_height,
+        keep_size=keep_size,
+    ).reshape(points.shape)
+
+    bboxes = np.concatenate(
+        [
+            np.min(points[..., [0, 1]], axis=1),
+            np.max(points[..., [0, 1]], axis=1),
+        ],
+        axis=-1,
+    )
+
+    return normalize_bboxes(bboxes, height if keep_size else max_height, width if keep_size else max_width)
 
 
 def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool = False) -> float:
@@ -527,33 +543,51 @@ def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool = False) ->
     return np.arctan2(-matrix[1, 0], matrix[0, 0])
 
 
-@angle_2pi_range
-def perspective_keypoint(
-    keypoint: KeypointInternalType,
+def keypoints_scale(keypoints: np.ndarray, scale_x: float, scale_y: float) -> np.ndarray:
+    """Scales a batch of keypoints by scale_x and scale_y.
+
+    Args:
+        keypoints (KeypointsArray): A batch of keypoints in `(x, y, angle, scale)` format.
+        scale_x: Scale coefficient x-axis.
+        scale_y: Scale coefficient y-axis.
+
+    Returns:
+        KeypointsArray, A batch of keypoints in `(x, y, angle, scale)` format.
+    """
+    if not len(keypoints):
+        return keypoints
+    scales = np.array([scale_x, scale_y, 1.0, max(scale_x, scale_y)])
+    return keypoints * scales
+
+
+def perspective_keypoints(
+    keypoints: np.ndarray,
     height: int,
     width: int,
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
     keep_size: bool,
-) -> KeypointInternalType:
-    x, y, angle, scale = keypoint
+) -> np.ndarray:
+    if not len(keypoints):
+        return keypoints
 
-    keypoint_vector = np.array([x, y], dtype=np.float32).reshape([1, 1, 2])
-
-    x, y = cv2.perspectiveTransform(keypoint_vector, matrix)[0, 0]
-    angle += rotation2d_matrix_to_euler_angles(matrix[:2, :2], y_up=True)
+    keypoints[..., [0, 1]] = cv2.perspectiveTransform(
+        keypoints[..., [0, 1]].reshape(-1, 2)[np.newaxis, ...], matrix
+    ).reshape(keypoints[..., [0, 1]].shape)
+    keypoints[..., 2] += rotation2d_matrix_to_euler_angles(matrix[:2, :2], y_up=True)
 
     scale_x = np.sign(matrix[0, 0]) * np.sqrt(matrix[0, 0] ** 2 + matrix[0, 1] ** 2)
     scale_y = np.sign(matrix[1, 1]) * np.sqrt(matrix[1, 0] ** 2 + matrix[1, 1] ** 2)
-    scale *= max(scale_x, scale_y)
+    keypoints[..., 3] *= max(scale_x, scale_y)
 
     if keep_size:
         scale_x = width / max_width
         scale_y = height / max_height
-        return keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
-    return x, y, angle, scale
+        return keypoints_scale(keypoints, scale_x, scale_y)
+
+    return keypoints
 
 
 def _is_identity_matrix(matrix: skimage.transform.ProjectiveTransform) -> bool:

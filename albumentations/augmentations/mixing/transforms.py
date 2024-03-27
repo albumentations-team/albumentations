@@ -7,7 +7,7 @@ import numpy as np
 
 from albumentations.augmentations.utils import is_grayscale_image
 from albumentations.core.transforms_interface import ReferenceBasedTransform
-from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
+from albumentations.core.types import ReferenceImage, Targets, TBBoxesOrKeypoints
 from albumentations.random_utils import beta
 
 from .functional import mix_arrays
@@ -161,13 +161,11 @@ class MixUp(ReferenceBasedTransform):
             return mix_coef * label + (1 - mix_coef) * mix_label
         return label
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
+    def apply_to_bboxes(self, bboxes: TBBoxesOrKeypoints, *args: Any, **params: Any) -> TBBoxesOrKeypoints:
         msg = "MixUp does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 
-    def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
-    ) -> Sequence[KeypointType]:
+    def apply_to_keypoints(self, keypoints: TBBoxesOrKeypoints, *args: Any, **params: Any) -> TBBoxesOrKeypoints:
         msg = "MixUp does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 

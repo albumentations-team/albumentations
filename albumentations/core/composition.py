@@ -216,19 +216,18 @@ class Compose(BaseCompose):
         )
 
         for p in self.processors.values():
-            p.preprocess(data)
+            data = p.preprocess(data)
 
         for t in transforms:
             data = t(**data)
 
             if check_each_transform:
                 data = self._check_data_post_transform(data)
-        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
         for p in self.processors.values():
-            p.postprocess(data)
+            data = p.postprocess(data)
 
-        return data
+        return Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
     def _check_data_post_transform(self, data: Any) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
