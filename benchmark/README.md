@@ -14,14 +14,14 @@ pip install -r requirements.txt
 
 Ideally you would like to run the benchmark on images as similar as possible to the images you are going to augment in your project.
 
-But for tesing purposes you can use the images from the ImageNet validation set.
+But for testing purposes you can use the images from the ImageNet validation set.
 
 ```bash
 wget https://image-net.org/data/ILSVRC/2012/ILSVRC2012_img_val.tar
 ```
 
 ```bash
-tar -xf ILSVRC2012_img_val.tar
+tar -xf ILSVRC2012_img_val.tar -C </path/to/your/target/directory>
 ```
 
 ```bash
