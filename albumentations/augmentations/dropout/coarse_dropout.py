@@ -1,10 +1,12 @@
 import random
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
+from pydantic import Field, model_validator
+from typing_extensions import Self
 
-from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.types import KeypointType, ScalarType, Targets
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.types import ColorType, KeypointType, ScalarType, Targets
 
 from .functional import cutout, keypoint_in_hole
 
@@ -48,45 +50,59 @@ class CoarseDropout(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
+    class InitSchema(BaseTransformInitSchema):
+        max_holes: int = Field(default=8, ge=0, description="Maximum number of regions to zero out.")
+        max_height: ScalarType = Field(default=8, ge=0, description="Maximum height of the hole.")
+        max_width: ScalarType = Field(default=8, ge=0, description="Maximum width of the hole.")
+        min_holes: Optional[int] = Field(default=None, ge=0, description="Minimum number of regions to zero out.")
+        min_height: Optional[ScalarType] = Field(default=None, ge=0, description="Minimum height of the hole.")
+        min_width: Optional[ScalarType] = Field(default=None, ge=0, description="Minimum width of the hole.")
+        fill_value: ColorType = Field(default=0, description="Value for dropped pixels.")
+        mask_fill_value: Optional[ColorType] = Field(default=None, description="Fill value for dropped pixels in mask.")
+
+        @model_validator(mode="after")
+        def check_holes_and_dimensions(self) -> Self:
+            self.min_holes = self.min_holes if self.min_holes is not None else self.max_holes
+
+            self.min_height = self.min_height if self.min_height is not None else self.max_height
+            self.min_width = self.min_width if self.min_width is not None else self.max_width
+
+            if not 0 < self.min_height <= self.max_height:
+                raise ValueError(
+                    f"Invalid combination of min_height and max_height. Got: {[self.min_height, self.max_height]}"
+                )
+            if not 0 < self.min_width <= self.max_width:
+                raise ValueError(
+                    f"Invalid combination of min_width and max_width. Got: {[self.min_width, self.max_width]}"
+                )
+            if not 0 < self.min_holes <= self.max_holes:
+                raise ValueError(
+                    f"Invalid combination of min_holes and max_holes. Got: {[self.min_holes, self.max_holes]}"
+                )
+            return self
+
     def __init__(
         self,
         max_holes: int = 8,
-        max_height: int = 8,
-        max_width: int = 8,
+        max_height: ScalarType = 8,
+        max_width: ScalarType = 8,
         min_holes: Optional[int] = None,
-        min_height: Optional[int] = None,
-        min_width: Optional[int] = None,
-        fill_value: int = 0,
-        mask_fill_value: Optional[int] = None,
+        min_height: Optional[ScalarType] = None,
+        min_width: Optional[ScalarType] = None,
+        fill_value: ColorType = 0,
+        mask_fill_value: Optional[ColorType] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
+        self.min_holes = cast(int, min_holes)
         self.max_holes = max_holes
+        self.min_height = cast(ScalarType, min_height)
         self.max_height = max_height
+        self.min_width = cast(ScalarType, min_width)
         self.max_width = max_width
-        self.min_holes = min_holes if min_holes is not None else max_holes
-        self.min_height = min_height if min_height is not None else max_height
-        self.min_width = min_width if min_width is not None else max_width
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
-        if not 0 < self.min_holes <= self.max_holes:
-            raise ValueError(f"Invalid combination of min_holes and max_holes. Got: {[min_holes, max_holes]}")
-
-        self.check_range(self.max_height)
-        self.check_range(self.min_height)
-        self.check_range(self.max_width)
-        self.check_range(self.min_width)
-
-        if not 0 < self.min_height <= self.max_height:
-            raise ValueError(f"Invalid combination of min_height and max_height. Got: {[min_height, max_height]}")
-        if not 0 < self.min_width <= self.max_width:
-            raise ValueError(f"Invalid combination of min_width and max_width. Got: {[min_width, max_width]}")
-
-    @staticmethod
-    def check_range(dimension: ScalarType) -> None:
-        if isinstance(dimension, float) and not 0 <= dimension < 1.0:
-            raise ValueError(f"Invalid value {dimension}. If using floats, the value should be in the range [0.0, 1.0)")
 
     def apply(
         self,
@@ -122,8 +138,8 @@ class CoarseDropout(DualTransform):
                     isinstance(self.max_width, int),
                 ]
             ):
-                hole_height = random.randint(self.min_height, self.max_height)
-                hole_width = random.randint(self.min_width, self.max_width)
+                hole_height = random.randint(int(self.min_height), int(self.max_height))
+                hole_width = random.randint(int(self.min_width), int(self.max_width))
             elif all(
                 [
                     isinstance(self.min_height, float),

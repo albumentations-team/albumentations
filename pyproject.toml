@@ -153,6 +153,8 @@ ignore = [
     "N801",
     "T201",
     "PERF203",
+    "D106",
+    "PYI041",
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.

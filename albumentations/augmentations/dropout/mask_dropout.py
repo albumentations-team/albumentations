@@ -1,12 +1,14 @@
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
+from pydantic import Field, ValidationInfo, field_validator
 from skimage.measure import label
 
-from albumentations.core.transforms_interface import DualTransform, to_tuple
-from albumentations.core.types import ScalarType, Targets
+from albumentations.augmentations.utils import BIG_INTEGER, check_range
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
+from albumentations.core.types import ScalarType, ScaleIntType, Targets
 
 __all__ = ["MaskDropout"]
 
@@ -35,6 +37,40 @@ class MaskDropout(DualTransform):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
+
+    class InitSchema(BaseTransformInitSchema):
+        max_objects: ScaleIntType = Field(
+            default=1,
+            description="Maximum number of labels that can be zeroed out. Can be a single value or a tuple (min, max).",
+        )
+        image_fill_value: Union[float, str] = Field(
+            default=0,
+            description=(
+                "Fill value to use when filling image. "
+                "Can be 'inpaint' to apply inpainting (works only for 3-channel images)."
+            ),
+        )
+        mask_fill_value: float = Field(default=0, description="Fill value to use when filling mask.")
+
+        @field_validator("max_objects")
+        @classmethod
+        def ensure_max_objects_valid(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
+            result = to_tuple(v, 1)
+            bounds = 1, BIG_INTEGER
+            check_range(result, *bounds, str(info.field_name))
+            return cast(Tuple[int, int], result)
+
+        @field_validator("image_fill_value")
+        @classmethod
+        def validate_image_fill_value(cls, v: Union[float, str]) -> Union[float, str]:
+            if isinstance(v, str) and v != "inpaint":
+                msg = "image_fill_value can be a number or 'inpaint'."
+                raise ValueError(msg)
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                return v
+
+            msg = "Invalid type for image_fill_value."
+            raise ValueError(msg)
 
     def __init__(
         self,

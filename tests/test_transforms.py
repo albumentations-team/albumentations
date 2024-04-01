@@ -659,7 +659,7 @@ def test_grid_dropout_mask(image):
         (0.00001, 10, 10, 100, 100, 50, 50),
         (0.9, 100, None, 200, None, 0, 0),
         (0.4556, 10, 20, None, 200, 0, 0),
-        (0.00004, None, None, 2, 100, None, None),
+        (0.00004, None, None, 2, 100, 0, 0),
     ],
 )
 def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y):
@@ -953,13 +953,13 @@ def test_smallest_max_size_list():
         (
             0.5,
             0.5,
-            A.Compose([A.Blur(), A.RandomSizedCrop((50, 200), 512, 512, always_apply=True), A.HorizontalFlip()]),
+            A.Compose([A.Blur(always_apply=True), A.RandomSizedCrop((50, 200), 512, 512, always_apply=True), A.HorizontalFlip(always_apply=True)]),
             (512, 512),
             (512, 512),
         ),
     ],
 )
-def test_template_transform(image, img_weight, template_weight, template_transform, image_size, template_size):
+def test_template_transform(img_weight, template_weight, template_transform, image_size, template_size):
     img = np.random.randint(0, 256, image_size, np.uint8)
     template = np.random.randint(0, 256, template_size, np.uint8)
 

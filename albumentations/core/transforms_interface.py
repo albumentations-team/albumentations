@@ -8,7 +8,9 @@ import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated
 
-from .serialization import Serializable, get_shortest_class_fullname
+from albumentations.core.validation import ValidatedTransformMeta
+
+from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
 from .types import (
     BoxInternalType,
     BoxType,
@@ -76,21 +78,27 @@ class Interpolation:
         self.upscale = upscale
 
 
-class BaseTransformConfig(BaseModel):
+class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-
     always_apply: bool = Field(default=False, description="Always apply the transform")
     p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
 
 
-class BasicTransform(Serializable):
+class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
+    pass
+
+
+class BasicTransform(Serializable, metaclass=CombinedMeta):
     call_backup = None
     interpolation: Union[int, Interpolation]
     fill_value: ColorType
     mask_fill_value: Optional[ColorType]
 
+    class InitSchema(BaseTransformInitSchema):
+        pass
+
     def __init__(self, always_apply: bool = False, p: float = 0.5):
-        config = BaseTransformConfig(always_apply=always_apply, p=p)
+        config = BaseTransformInitSchema(always_apply=always_apply, p=p)
         self.p = config.p
         self.always_apply = config.always_apply
         self._additional_targets: Dict[str, str] = {}
@@ -241,6 +249,7 @@ class BasicTransform(Serializable):
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
+
         return state
 
     def get_dict_with_id(self) -> Dict[str, Any]:

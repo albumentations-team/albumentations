@@ -15,7 +15,7 @@ from albumentations.augmentations.utils import (
     preserve_shape,
 )
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.types import BoxInternalType, ColorType, ImageColorType, KeypointInternalType
+from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType
 
 __all__ = [
     "optical_distortion",
@@ -141,7 +141,7 @@ def rotate(
     angle: float,
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ImageColorType] = None,
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
@@ -228,7 +228,7 @@ def shift_scale_rotate(
     dy: int,
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[Tuple[int, ...]] = None,
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
@@ -331,7 +331,7 @@ def elastic_transform(
     alpha_affine: float,
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ImageColorType] = None,
+    value: Optional[ColorType] = None,
     random_state: Optional[np.random.RandomState] = None,
     approximate: bool = False,
     same_dxdy: bool = False,
@@ -1072,7 +1072,7 @@ def pad(
     min_height: int,
     min_width: int,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ImageColorType] = None,
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1108,7 +1108,7 @@ def pad_with_params(
     w_pad_left: int,
     w_pad_right: int,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ImageColorType] = None,
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     pad_fn = _maybe_process_in_chunks(
         cv2.copyMakeBorder,
@@ -1130,7 +1130,7 @@ def optical_distortion(
     dy: int = 0,
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ImageColorType] = None,
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -1163,7 +1163,7 @@ def grid_distortion(
     ysteps: Tuple[()] = (),
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ImageColorType] = None,
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     """Perform a grid distortion of an input image.
 
@@ -1227,7 +1227,7 @@ def elastic_transform_approx(
     alpha_affine: float,
     interpolation: int = cv2.INTER_LINEAR,
     border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ImageColorType] = None,
+    value: Optional[ColorType] = None,
     random_state: Optional[np.random.RandomState] = None,
 ) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).

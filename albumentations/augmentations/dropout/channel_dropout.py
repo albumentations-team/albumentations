@@ -1,14 +1,19 @@
 import random
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Dict, List, Mapping, Tuple, Union, cast
 
 import numpy as np
+from pydantic import Field, ValidationInfo, field_validator
+from typing_extensions import Annotated
 
-from albumentations.core.transforms_interface import ImageOnlyTransform
+from albumentations.augmentations.utils import BIG_INTEGER, check_range, is_grayscale_image
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 
 from .functional import channel_dropout
 
 __all__ = ["ChannelDropout"]
 
+NUM_GRAYSCALE_LENGTH = 2
+MIN_DROPOUT_CHANNEL_LIST_LENGTH = 2
 TWO = 2
 
 
@@ -28,9 +33,31 @@ class ChannelDropout(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        channel_drop_range: Annotated[
+            Union[Tuple[int, int], List[int]],
+            Field(description="Range from which we choose the number of channels to drop."),
+        ]
+        fill_value: Annotated[Union[int, float], Field(description="Pixel value for the dropped channel.")]
+
+        @field_validator("channel_drop_range")
+        @classmethod
+        def check_channel_drop_range(
+            cls, v: Union[Tuple[int, int], List[int]], info: ValidationInfo
+        ) -> Tuple[int, int]:
+            if isinstance(v, list) and len(v) > MIN_DROPOUT_CHANNEL_LIST_LENGTH:
+                msg = "The length of the channel_drop_range list should be 2."
+                raise ValueError(msg)
+
+            bounds = 1, BIG_INTEGER
+
+            check_range(cast(Tuple[int, int], v), *bounds, info.field_name)
+
+            return cast(Tuple[int, int], v)
+
     def __init__(
         self,
-        channel_drop_range: Tuple[int, int] = (1, 1),
+        channel_drop_range: Union[Tuple[int, int], List[int]] = (1, 1),
         fill_value: float = 0,
         always_apply: bool = False,
         p: float = 0.5,
@@ -38,13 +65,6 @@ class ChannelDropout(ImageOnlyTransform):
         super().__init__(always_apply, p)
 
         self.channel_drop_range = channel_drop_range
-
-        self.min_channels = channel_drop_range[0]
-        self.max_channels = channel_drop_range[1]
-
-        if not 1 <= self.min_channels <= self.max_channels:
-            raise ValueError(f"Invalid channel_drop_range. Got: {channel_drop_range}")
-
         self.fill_value = fill_value
 
     def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params: Any) -> np.ndarray:
@@ -55,15 +75,15 @@ class ChannelDropout(ImageOnlyTransform):
 
         num_channels = img.shape[-1]
 
-        if len(img.shape) == TWO or num_channels == 1:
+        if is_grayscale_image(img):
             msg = "Images has one channel. ChannelDropout is not defined."
             raise NotImplementedError(msg)
 
-        if self.max_channels >= num_channels:
+        if self.channel_drop_range[1] >= num_channels:
             msg = "Can not drop all channels in ChannelDropout."
             raise ValueError(msg)
 
-        num_drop_channels = random.randint(self.min_channels, self.max_channels)
+        num_drop_channels = random.randint(self.channel_drop_range[0], self.channel_drop_range[1])
 
         channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
 

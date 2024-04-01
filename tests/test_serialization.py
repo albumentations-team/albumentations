@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 import cv2
 import numpy as np
+
 import pytest
 from deepdiff import DeepDiff
-import inspect
 
 import albumentations as A
 import albumentations.augmentations.geometric.functional as FGeometric
@@ -23,7 +23,6 @@ from .utils import (
 )
 
 TEST_SEEDS = (0, 1, 42)
-
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
@@ -1050,12 +1049,36 @@ def test_template_transform_serialization(image, template, seed, p):
 def test_augmentations_serialization(augmentation_cls, params):
     instance = augmentation_cls(**params)
 
-    # Retrieve the constructor's parameters, except 'self', "always_apply"\
-    init_params = inspect.signature(augmentation_cls.__init__).parameters
-    expected_args = set(init_params.keys()) - {'self', "always_apply"}
+    def get_all_init_schema_fields(model_cls):
+        """
+        Recursively collects fields from InitSchema classes defined in the given augmentation class
+        and its base classes.
 
-    # Retrieve the arguments reported by the instance's get_transform_init_args_names
-    reported_args = set(instance.to_dict()["transform"].keys()) - {'__class_fullname__', "always_apply"}
+        Args:
+            model_cls (Type): The augmentation class possibly containing an InitSchema class.
+
+        Returns:
+            Set[str]: A set of field names collected from all InitSchema classes.
+        """
+        fields = set()
+        if hasattr(model_cls, 'InitSchema'):
+            fields |= set(model_cls.InitSchema.__fields__.keys())
+
+        for base in model_cls.__bases__:
+            fields |= get_all_init_schema_fields(base)
+
+        return fields
+
+    model_fields = get_all_init_schema_fields(augmentation_cls)
+
+    # Note: You might want to adjust this based on how you handle default fields in your models
+    expected_args = model_fields - {'__class_fullname__'}
+
+    achieved_args = set(instance.to_dict()["transform"].keys())
+
+    # Retrieve the arguments reported by the instance's to_dict method
+    # Adjust this logic based on how your serialization excludes or includes certain fields
+    reported_args = achieved_args - {'__class_fullname__'}
 
     # Check if the reported arguments match the expected arguments
     assert expected_args == reported_args, f"Mismatch in {augmentation_cls.__name__}: Expected {expected_args}, got {reported_args}"

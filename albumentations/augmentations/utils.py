@@ -1,6 +1,6 @@
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 import cv2
 import numpy as np
@@ -60,6 +60,7 @@ TWO = 2
 THREE = 3
 RGB_NUM_CHANNELS = 3
 FOUR = 4
+BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]
 
 
 def read_bgr_image(path: Union[str, Path]) -> np.ndarray:
@@ -219,3 +220,21 @@ def _maybe_process_in_chunks(
         return process_fn(img, **kwargs)
 
     return __process_fn
+
+
+def check_range(value: Tuple[float, float], lower_bound: float, upper_bound: float, name: Optional[str]) -> None:
+    """Checks if the given value is within the specified bounds
+
+    Args:
+        value: The value to check and convert. Can be a single float or a tuple of floats.
+        lower_bound: The lower bound for the range check.
+        upper_bound: The upper bound for the range check.
+        name: The name of the parameter being checked. Used for error messages.
+
+    Raises:
+        ValueError: If the value is outside the bounds or if the tuple values are not ordered correctly.
+    """
+    if not all(lower_bound <= x <= upper_bound for x in value):
+        raise ValueError(f"All values in {name} must be within [{lower_bound}, {upper_bound}] for tuple inputs.")
+    if not value[0] <= value[1]:
+        raise ValueError(f"{name!s} tuple values must be ordered as (min, max). Got: {value}")

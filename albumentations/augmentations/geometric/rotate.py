@@ -1,13 +1,22 @@
 import math
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import cv2
 import numpy as np
+from pydantic import Field, field_validator
 
 from albumentations.augmentations.crops import functional as FCrops
-from albumentations.core.transforms_interface import DualTransform, to_tuple
-from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType, ScaleIntType, Targets
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.types import (
+    MAX_BORDER_MODE,
+    MAX_INTERPOLATION_MODE,
+    BoxInternalType,
+    ColorType,
+    KeypointInternalType,
+    ScaleFloatType,
+    Targets,
+)
 
 from . import functional as F
 
@@ -53,6 +62,41 @@ class RandomRotate90(DualTransform):
         return ()
 
 
+class RotateInitSchema(BaseTransformInitSchema):
+    limit: ScaleFloatType = Field(
+        default=90,
+        description=(
+            "Range from which a random angle is picked. "
+            "If limit is a single int, an angle is picked from (-limit, limit)."
+        ),
+    )
+    interpolation: int = Field(
+        default=cv2.INTER_LINEAR, description="Interpolation method used for resizing.", ge=0, le=MAX_INTERPOLATION_MODE
+    )
+
+    border_mode: int = Field(
+        default=cv2.BORDER_REFLECT_101, description="Pixel extrapolation method.", ge=0, le=MAX_BORDER_MODE
+    )
+    value: Optional[ColorType] = Field(default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT.")
+    mask_value: Optional[ColorType] = Field(
+        default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks."
+    )
+
+    @field_validator("limit")
+    @classmethod
+    def process_limit(cls, limit_value: ScaleFloatType) -> Tuple[float, float]:
+        if isinstance(limit_value, (int, float)):
+            return (-abs(limit_value), abs(limit_value))
+
+        if limit_value[0] > limit_value[1]:
+            msg = (
+                "If limit is a tuple of two numbers. The first number must be smaller or equal than the second number."
+            )
+            raise ValueError(msg)
+
+        return limit_value
+
+
 class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
 
@@ -84,29 +128,43 @@ class Rotate(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
+    class InitSchema(RotateInitSchema):
+        rotate_method: str = Field(
+            default="largest_box",
+            description="Rotation method used for the bounding boxes.",
+        )
+        crop_border: bool = Field(
+            default=False, description="If True, makes a largest possible crop within the rotated image."
+        )
+
+        @field_validator("rotate_method")
+        @classmethod
+        def check_rotate_method(cls, v: str) -> str:
+            if v not in ["largest_box", "ellipse"]:
+                msg = "rotate_method must be either 'largest_box' or 'ellipse'."
+                raise ValueError(msg)
+            return v
+
     def __init__(
         self,
-        limit: ScaleIntType = 90,
+        limit: ScaleFloatType = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[Union[int, float, Tuple[int, int], Tuple[float, float]]] = None,
-        mask_value: Optional[Union[int, float, Tuple[int, int], Tuple[float, float]]] = None,
+        value: Optional[ColorType] = None,
+        mask_value: Optional[ColorType] = None,
         rotate_method: str = "largest_box",
         crop_border: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.limit = to_tuple(limit)
+        self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
         self.rotate_method = rotate_method
         self.crop_border = crop_border
-
-        if rotate_method not in ["largest_box", "ellipse"]:
-            raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
     def apply(
         self,
@@ -212,8 +270,8 @@ class Rotate(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         out_params = {"angle": random.uniform(self.limit[0], self.limit[1])}
         if self.crop_border:
-            h, w = params["image"].shape[:2]
-            out_params.update(self._rotated_rect_with_max_area(h, w, out_params["angle"]))
+            height, width = params["image"].shape[:2]
+            out_params.update(self._rotated_rect_with_max_area(height, width, out_params["angle"]))
         return out_params
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
@@ -252,9 +310,12 @@ class SafeRotate(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
+    class InitSchema(RotateInitSchema):
+        pass
+
     def __init__(
         self,
-        limit: Union[float, Tuple[float, float]] = 90,
+        limit: ScaleFloatType = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,
@@ -263,7 +324,7 @@ class SafeRotate(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.limit = to_tuple(limit)
+        self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value

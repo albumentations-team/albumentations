@@ -6,7 +6,7 @@ import numpy as np
 from typing_extensions import NotRequired
 
 ScalarType = Union[int, float]
-ColorType = Union[int, float, Sequence[int], Sequence[float]]
+ColorType = Union[float, Sequence[float]]
 SizeType = Sequence[int]
 
 BoxInternalType = Tuple[float, float, float, float]
@@ -23,8 +23,6 @@ ScaleType = Union[ScaleFloatType, ScaleIntType]
 
 NumType = Union[int, float, np.ndarray]
 
-ImageColorType = Union[float, Sequence[float]]
-
 IntNumType = Union[np.integer, np.ndarray]
 FloatNumType = Union[np.floating, np.ndarray]
 
@@ -36,6 +34,9 @@ SpatterMode = Literal["rain", "mud"]
 chromatic_aberration_modes = ["green_purple", "red_blue", "random"]
 ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
 RainMode = Literal["drizzle", "heavy", "torrential"]
+
+MAX_BORDER_MODE = 5
+MAX_INTERPOLATION_MODE = 7
 
 
 class ReferenceImage(TypedDict):
