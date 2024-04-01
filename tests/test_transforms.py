@@ -4,6 +4,8 @@ from functools import partial
 import cv2
 import numpy as np
 import pytest
+import warnings
+from torchvision import transforms as torch_transforms
 
 import albumentations as A
 import albumentations.augmentations.functional as F
@@ -1353,3 +1355,62 @@ def test_spatter_incorrect_color(unsupported_color, mode, message):
         A.Spatter(mode=mode, color=unsupported_color)
 
     assert str(exc_info.value).startswith(message)
+
+@pytest.mark.parametrize("height, width", [(100, 200), (200, 100)])
+@pytest.mark.parametrize("scale", [(0.08, 1.0), (0.5, 1.0)])
+@pytest.mark.parametrize("ratio", [(0.75, 1.33), (1.0, 1.0)])
+def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
+    # NOTE: below will fail when height, width is no longer expected as first two positional arguments
+    transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
+    transform_albu_new = A.RandomResizedCrop(size=(height, width), scale=scale, ratio=ratio, p=1)
+
+    image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+    transformed_image_albu = transform_albu(image=image)['image']
+    transformed_image_albu_new = transform_albu_new(image=image)['image']
+
+    # PyTorch equivalent operation
+    transform_pt = torch_transforms.RandomResizedCrop(size=(height, width), scale=scale, ratio=ratio)
+    image_pil = torch_transforms.functional.to_pil_image(image)
+    transformed_image_pt = transform_pt(image_pil)
+
+    transformed_image_pt_np = np.array(transformed_image_pt)
+    assert transformed_image_albu.shape == transformed_image_pt_np.shape
+    assert transformed_image_albu_new.shape == transformed_image_pt_np.shape
+
+    # NOTE: below will fail when height, width is no longer expected as second and third positional arguments
+    transform_albu = A.RandomSizedCrop((128, 224), height, width, p=1.0)
+    transform_albu_new = A.RandomSizedCrop(min_max_height=(128, 224), size=(height, width), p=1.0)
+    transformed_image_albu = transform_albu(image=image)['image']
+    transformed_image_albu_new = transform_albu_new(image=image)['image']
+    assert transformed_image_albu.shape == transformed_image_pt_np.shape
+    assert transformed_image_albu_new.shape == transformed_image_pt_np.shape
+
+    # NOTE: below will fail when height, width is no longer expected as first two positional arguments
+    transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
+    transform_albu_height_is_size = A.RandomResizedCrop(size=height, width=width, scale=scale, ratio=ratio, p=1)
+
+    image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+    transformed_image_albu = transform_albu(image=image)['image']
+    transform_albu_height_is_size = transform_albu_new(image=image)['image']
+    assert transformed_image_albu.shape == transformed_image_pt_np.shape
+    assert transform_albu_height_is_size.shape == transformed_image_pt_np.shape
+
+@pytest.mark.parametrize("size, width, height, expected_warning", [
+    ((100, 200), None, None, None),
+    (None, 200, 100, DeprecationWarning),
+    (100, None, None, ValueError),
+])
+def test_deprecation_warnings(size, width, height, expected_warning):
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        if expected_warning == ValueError:
+            with pytest.raises(ValueError):
+                A.RandomResizedCrop(size=size, width=width, height=height)
+        else:
+            A.RandomResizedCrop(size=size, width=width, height=height)
+        if expected_warning is DeprecationWarning:
+            assert len(w) == 1
+            assert issubclass(w[-1].category, expected_warning)
+        else:
+            assert not w
+    warnings.resetwarnings()
