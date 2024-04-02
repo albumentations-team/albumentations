@@ -2873,9 +2873,11 @@ class Erosion(ImageOnlyTransform):
     """Apply erosion operation to an image.
 
     Erosion is a morphological operation that shrinks the white regions in a binary image,
-    or the foreground objects in case of a grayscale image.
-    It is particularly useful in removing small white noise, detach objects,
-    and emphasize the structure of larger objects.
+    or the foreground objects in case of a grayscale image. It is particularly useful in removing
+    small white noise, detaching objects, and emphasizing the structure of larger objects. This operation
+    is especially beneficial when working with scans of texts, as it can help clean up the background and
+    make the text more legible by reducing the size of the white spaces around the letters.
+
 
     Args:
         scale (int or tuple/list of int): Defines the size of the structuring element (kernel) used for erosion.
