@@ -14,7 +14,6 @@ from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
-from albumentations.augmentations.functional import erode, split_uniform_grid
 from albumentations.augmentations.utils import (
     get_num_channels,
     is_grayscale_image,
@@ -26,6 +25,7 @@ from albumentations.core.types import (
     ChromaticAberrationMode,
     ImageMode,
     KeypointInternalType,
+    MorphologyMode,
     ScaleFloatType,
     ScaleIntType,
     ScaleType,
@@ -79,8 +79,7 @@ __all__ = [
     "PixelDropout",
     "Spatter",
     "ChromaticAberration",
-    "Erosion",
-    "Dilation",
+    "MorphologicalTransform",
 ]
 
 MAX_JPEG_QUALITY = 100
@@ -154,7 +153,7 @@ class RandomGridShuffle(DualTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         # Generate the original grid
-        original_tiles = split_uniform_grid(params["image"].shape[:2], self.grid)
+        original_tiles = F.split_uniform_grid(params["image"].shape[:2], self.grid)
 
         # Copy the original grid to keep track of the initial positions
         indexed_tiles = np.array(list(enumerate(original_tiles)), dtype=object)
@@ -2870,81 +2869,30 @@ class ChromaticAberration(ImageOnlyTransform):
         return "primary_distortion_limit", "secondary_distortion_limit", "mode", "interpolation"
 
 
-class Erosion(ImageOnlyTransform):
-    """Apply erosion operation to an image.
+class MorphologicalTransform(DualTransform):
+    """Apply a morphological operation (dilation or erosion) to an image,
+    with particular value for enhancing document scans.
 
-    Erosion is a morphological operation that shrinks the white regions in a binary image,
-    or the foreground objects in case of a grayscale image. It is particularly useful in removing
-    small white noise, detaching objects, and emphasizing the structure of larger objects. This operation
-    is especially beneficial when working with scans of texts, as it can help clean up the background and
-    make the text more legible by reducing the size of the white spaces around the letters.
-
-
-    Args:
-        scale (int or tuple/list of int): Defines the size of the structuring element (kernel) used for erosion.
-            If an integer is provided, a square kernel of that size will be used.
-            If a tuple or list is provided, it should specify the range of sizes from which the kernel size
-            will be randomly selected for each application.
-        always_apply (bool, optional): Whether to always apply this transformation or not. Default is False.
-        p (float, optional): The probability with which the erosion operation will be applied. Default is 0.5.
-
-    Targets:
-        image
-
-    Image types:
-        uint8, float32
-
-    Reference:
-        https://github.com/facebookresearch/nougat
-
-    Example:
-        >>> import albumentations as A
-        >>> transform = A.Compose([A.Erosion(scale=(2, 3), p=0.5)])
-        >>> image = transform(image=image)["image"]
-    """
-
-    def __init__(
-        self,
-        scale: ScaleIntType = (2, 3),
-        always_apply: bool = False,
-        p: float = 0.5,
-    ):
-        super().__init__(always_apply, p)
-        self.scale = to_tuple(scale, scale)
-
-    def apply(self, img: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
-        return erode(img, kernel)
-
-    def get_params(self) -> Dict[str, float]:
-        kernel = cv2.getStructuringElement(
-            cv2.MORPH_ELLIPSE, tuple(random_utils.randint(self.scale[0], self.scale[1], 2))
-        )
-        return {
-            "kernel": kernel,
-        }
-
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("scale",)
-
-
-class Dilation(ImageOnlyTransform):
-    """Apply dilation operation to an image, particularly useful for enhancing document scans.
-    Dilation is a morphological operation that expands the white (foreground) regions in a binary or grayscale image.
-    This operation can be especially beneficial in document processing, as it helps in closing up gaps within
-    text or making thin lines thicker. This results in enhanced legibility of scanned texts,
-    making it a valuable tool in preparing documents for
-    OCR (Optical Character Recognition) and other forms of text analysis.
+    Morphological operations modify the structure of the image.
+    Dilation expands the white (foreground) regions in a binary or grayscale image, while erosion shrinks them.
+    These operations are beneficial in document processing, for example:
+    - Dilation helps in closing up gaps within text or making thin lines thicker,
+        enhancing legibility for OCR (Optical Character Recognition).
+    - Erosion can remove small white noise and detach connected objects,
+        making the structure of larger objects more pronounced.
 
     Args:
-        scale (int or tuple/list of int): The scale or range for the size of the dilation kernel.
-            If an integer is provided, a square kernel of that size will be used.
-            If a tuple or list is provided, it should contain two integers representing the minimum
-            and maximum sizes for the dilation kernel.
+        scale (int or tuple/list of int): Specifies the size of the structuring element (kernel) used for the operation.
+            - If an integer is provided, a square kernel of that size will be used.
+            - If a tuple or list is provided, it should contain two integers representing the minimum
+                and maximum sizes for the dilation kernel.
+        operation (str, optional): The morphological operation to apply. Options are 'dilation' or 'erosion'.
+            Default is 'dilation'.
         always_apply (bool, optional): Whether to always apply this transformation. Default is False.
         p (float, optional): The probability of applying this transformation. Default is 0.5.
 
     Targets:
-        image
+        image, mask
 
     Image types:
         uint8, float32
@@ -2954,21 +2902,30 @@ class Dilation(ImageOnlyTransform):
 
     Example:
         >>> import albumentations as A
-        >>> transform = A.Compose([A.Dilation(scale=(2, 3), p=0.5)])
+        >>> transform = A.Compose([
+        >>>     A.MorphologicalTransform(scale=(2, 3), operation='dilation', p=0.5)
+        >>> ])
         >>> image = transform(image=image)["image"]
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
 
     def __init__(
         self,
         scale: ScaleIntType = (2, 3),
+        operation: MorphologyMode = "dilation",
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
         self.scale = to_tuple(scale, scale)
+        self.operation = operation
 
     def apply(self, img: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
-        return erode(img, kernel)
+        return F.morphology(img, kernel, self.operation)
+
+    def apply_to_mask(self, mask: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
+        return F.morphology(mask, kernel, self.operation)
 
     def get_params(self) -> Dict[str, float]:
         kernel = cv2.getStructuringElement(
@@ -2979,4 +2936,4 @@ class Dilation(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("scale",)
+        return ("scale", "operation")

@@ -1510,3 +1510,12 @@ def erode(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 @preserve_shape
 def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return cv2.dilate(img, kernel, iterations=1)
+
+
+def morphology(img: np.ndarray, kernel: np.ndarray, operation: str) -> np.ndarray:
+    if operation == "dilation":
+        return dilate(img, kernel)
+    if operation == "erosion":
+        return erode(img, kernel)
+
+    raise ValueError(f"Unsupported operation: {operation}")

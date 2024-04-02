@@ -36,6 +36,8 @@ ImageMode = Literal["cv", "pil"]
 SpatterMode = Literal["rain", "mud"]
 ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
 
+MorphologyMode = Literal["erosion", "dilation"]
+
 
 class ReferenceImage(TypedDict):
     image: Union[str, Path]
