@@ -69,6 +69,7 @@ __all__ = [
     "MAX_VALUES_BY_DTYPE",
     "split_uniform_grid",
     "chromatic_aberration",
+    "erode",
 ]
 
 TWO = 2
@@ -1498,3 +1499,8 @@ def _distort_channel(
         interpolation=interpolation,
         borderMode=cv2.BORDER_REPLICATE,
     )
+
+
+@preserve_shape
+def erode(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    return cv2.erode(img, kernel, iterations=1)
