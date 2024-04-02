@@ -80,6 +80,7 @@ __all__ = [
     "Spatter",
     "ChromaticAberration",
     "Erosion",
+    "Dilation",
 ]
 
 MAX_JPEG_QUALITY = 100
@@ -2899,6 +2900,61 @@ class Erosion(ImageOnlyTransform):
     Example:
         >>> import albumentations as A
         >>> transform = A.Compose([A.Erosion(scale=(2, 3), p=0.5)])
+        >>> image = transform(image=image)["image"]
+    """
+
+    def __init__(
+        self,
+        scale: ScaleIntType = (2, 3),
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.scale = to_tuple(scale, scale)
+
+    def apply(self, img: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
+        return erode(img, kernel)
+
+    def get_params(self) -> Dict[str, float]:
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, tuple(random_utils.randint(self.scale[0], self.scale[1], 2))
+        )
+        return {
+            "kernel": kernel,
+        }
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("scale",)
+
+
+class Dilation(ImageOnlyTransform):
+    """Apply dilation operation to an image, particularly useful for enhancing document scans.
+    Dilation is a morphological operation that expands the white (foreground) regions in a binary or grayscale image.
+    This operation can be especially beneficial in document processing, as it helps in closing up gaps within
+    text or making thin lines thicker. This results in enhanced legibility of scanned texts,
+    making it a valuable tool in preparing documents for
+    OCR (Optical Character Recognition) and other forms of text analysis.
+
+    Args:
+        scale (int or tuple/list of int): The scale or range for the size of the dilation kernel.
+            If an integer is provided, a square kernel of that size will be used.
+            If a tuple or list is provided, it should contain two integers representing the minimum
+            and maximum sizes for the dilation kernel.
+        always_apply (bool, optional): Whether to always apply this transformation. Default is False.
+        p (float, optional): The probability of applying this transformation. Default is 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Reference:
+        https://github.com/facebookresearch/nougat
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([A.Dilation(scale=(2, 3), p=0.5)])
         >>> image = transform(image=image)["image"]
     """
 

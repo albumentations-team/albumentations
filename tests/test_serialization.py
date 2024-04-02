@@ -450,7 +450,8 @@ AUGMENTATION_CLS_PARAMS = [
             mask_fill_value=20,
         )
     ],
-    [A.Erosion, {}]
+    [A.Erosion, {}],
+    [A.Dilation, {}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {

@@ -70,6 +70,7 @@ __all__ = [
     "split_uniform_grid",
     "chromatic_aberration",
     "erode",
+    "dilate",
 ]
 
 TWO = 2
@@ -1504,3 +1505,8 @@ def _distort_channel(
 @preserve_shape
 def erode(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return cv2.erode(img, kernel, iterations=1)
+
+
+@preserve_shape
+def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    return cv2.dilate(img, kernel, iterations=1)
