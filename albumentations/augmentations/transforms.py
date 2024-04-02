@@ -14,7 +14,7 @@ from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
-from albumentations.augmentations.functional import split_uniform_grid
+from albumentations.augmentations.functional import erode, split_uniform_grid
 from albumentations.augmentations.utils import (
     get_num_channels,
     is_grayscale_image,
@@ -79,6 +79,7 @@ __all__ = [
     "PixelDropout",
     "Spatter",
     "ChromaticAberration",
+    "Erosion",
 ]
 
 MAX_JPEG_QUALITY = 100
@@ -2866,3 +2867,58 @@ class ChromaticAberration(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
         return "primary_distortion_limit", "secondary_distortion_limit", "mode", "interpolation"
+
+
+class Erosion(ImageOnlyTransform):
+    """Apply erosion operation to an image.
+
+    Erosion is a morphological operation that shrinks the white regions in a binary image,
+    or the foreground objects in case of a grayscale image.
+    It is particularly useful in removing small white noise, detach objects,
+    and emphasize the structure of larger objects.
+
+    Args:
+        scale (int or tuple/list of int): Defines the size of the structuring element (kernel) used for erosion.
+            If an integer is provided, a square kernel of that size will be used.
+            If a tuple or list is provided, it should specify the range of sizes from which the kernel size
+            will be randomly selected for each application.
+        always_apply (bool, optional): Whether to always apply this transformation or not. Default is False.
+        p (float, optional): The probability with which the erosion operation will be applied. Default is 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Reference:
+        https://github.com/facebookresearch/nougat
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([A.Erosion(scale=(2, 3), p=0.5)])
+        >>> image = transform(image=image)["image"]
+    """
+
+    def __init__(
+        self,
+        scale: ScaleIntType = (2, 3),
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.scale = to_tuple(scale, scale)
+
+    def apply(self, img: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
+        return erode(img, kernel)
+
+    def get_params(self) -> Dict[str, float]:
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, tuple(random_utils.randint(self.scale[0], self.scale[1], 2))
+        )
+        return {
+            "kernel": kernel,
+        }
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("scale",)
