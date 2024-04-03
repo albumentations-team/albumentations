@@ -450,7 +450,7 @@ AUGMENTATION_CLS_PARAMS = [
             mask_fill_value=20,
         )
     ],
-    [A.Erosion, {}]
+    [A.Morphological, {}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -545,7 +545,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.XYMasking,
             A.MixUp,
             A.CropNonEmptyMaskIfExists,
-            A.GridDropout
+            A.GridDropout,
+            A.Morphological
         },
     ),
 )
@@ -608,7 +609,8 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
-            A.MixUp
+            A.MixUp,
+            A.Morphological
         },
     ),
 )
