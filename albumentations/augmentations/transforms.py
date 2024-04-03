@@ -79,7 +79,7 @@ __all__ = [
     "PixelDropout",
     "Spatter",
     "ChromaticAberration",
-    "MorphologicalTransform",
+    "Morphological",
 ]
 
 MAX_JPEG_QUALITY = 100
@@ -2869,7 +2869,7 @@ class ChromaticAberration(ImageOnlyTransform):
         return "primary_distortion_limit", "secondary_distortion_limit", "mode", "interpolation"
 
 
-class MorphologicalTransform(DualTransform):
+class Morphological(DualTransform):
     """Apply a morphological operation (dilation or erosion) to an image,
     with particular value for enhancing document scans.
 
@@ -2903,7 +2903,7 @@ class MorphologicalTransform(DualTransform):
     Example:
         >>> import albumentations as A
         >>> transform = A.Compose([
-        >>>     A.MorphologicalTransform(scale=(2, 3), operation='dilation', p=0.5)
+        >>>     A.Morphological(scale=(2, 3), operation='dilation', p=0.5)
         >>> ])
         >>> image = transform(image=image)["image"]
     """
