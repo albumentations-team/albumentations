@@ -107,9 +107,9 @@ class MotionBlur(Blur):
             self.blur_limit = cast(Tuple[int, int], to_tuple(self.blur_limit, 3))
 
             if (
-                isinstance(self.blur_limit, tuple)
-                and all(x % 2 == 1 for x in self.blur_limit)
-                and not self.allow_shifted
+                self.allow_shifted
+                and isinstance(self.blur_limit, tuple)
+                and not all(x % 2 == 1 for x in self.blur_limit)
             ):
                 raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
 
@@ -473,12 +473,11 @@ class AdvancedBlur(ImageOnlyTransform):
             sigma_y_limit = sigmaY_limit
 
         self.blur_limit = cast(Tuple[int, int], blur_limit)
-
         self.sigma_x_limit = cast(Tuple[float, float], sigma_x_limit)
         self.sigma_y_limit = cast(Tuple[float, float], sigma_y_limit)
         self.rotate_limit = cast(Tuple[int, int], rotate_limit)
         self.beta_limit = cast(Tuple[float, float], beta_limit)
-        self.noise_limit = (Tuple[float, float], noise_limit)
+        self.noise_limit = cast(Tuple[float, float], noise_limit)
 
     def apply(self, img: np.ndarray, kernel: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         return FMain.convolve(img, kernel=kernel)
