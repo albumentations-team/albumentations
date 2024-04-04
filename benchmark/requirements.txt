@@ -4,9 +4,7 @@
 #
 #    pip-compile requirements.in
 #
---extra-index-url https://pypi.ngc.nvidia.com
 --find-links https://download.pytorch.org/whl/torch_stable.html
---trusted-host pypi.ngc.nvidia.com
 
 albumentations==1.4.1
     # via -r requirements.in
@@ -98,7 +96,7 @@ pandas==2.2.1
     # via -r requirements.in
 pathvalidate==3.2.0
     # via pytablewriter
-pillow==10.2.0
+pillow==10.3.0
     # via
     #   -r requirements.in
     #   imageio
