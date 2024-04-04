@@ -4,6 +4,7 @@ from typing import Any, Callable, Union
 
 import cv2
 import numpy as np
+from torchvision import io
 from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
@@ -12,7 +13,9 @@ from albumentations.core.types import KeypointInternalType
 __all__ = [
     "read_bgr_image",
     "read_rgb_image",
+    "read_rgb_image_tv",
     "read_grayscale",
+    "read_grayscale_tv",
     "MAX_VALUES_BY_DTYPE",
     "NPDTYPE_TO_OPENCV_DTYPE",
     "clipped",
@@ -73,6 +76,22 @@ def read_rgb_image(path: Union[str, Path]) -> np.ndarray:
 
 def read_grayscale(path: Union[str, Path]) -> np.ndarray:
     return cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
+
+
+def read_rgb_image_tv(path: Union[str, Path]) -> np.ndarray:
+    """Read RGB image with torchvision.io, returns numpy array with shape (width, height, channels).
+
+    Returns: np.ndarray: numpy array with shape (width, height, channels)
+    """
+    return np.transpose(io.read_image(str(path), mode=io.ImageReadMode.RGB).numpy(), (1, 2, 0))
+
+
+def read_grayscale_tv(path: Union[str, Path]) -> np.ndarray:
+    """Read grayscale image with torchvision.io, returns numpy array with shape (width, height).
+
+    Returns: np.ndarray: numpy array with shape (width, height)
+    """
+    return io.read_image(str(path), mode=io.ImageReadMode.GRAY)[0].numpy()
 
 
 def clipped(func: Callable[Concatenate[np.ndarray, P], np.ndarray]) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
