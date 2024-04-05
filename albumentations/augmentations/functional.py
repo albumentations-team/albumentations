@@ -995,25 +995,28 @@ def noop(input_obj: Any, **params: Any) -> Any:
     return input_obj
 
 
-def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray) -> np.ndarray:
+def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: Optional[List[int]] = None) -> np.ndarray:
     """Swap tiles on the image according to the new format.
 
     Args:
         image: Input image.
         tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
+        mapping: List of new tile indices.
 
     Returns:
         np.ndarray: Output image with tiles swapped according to the random shuffle.
     """
     # If no tiles are provided, return a copy of the original image
-    if tiles.size == 0:
+    if tiles.size == 0 or mapping is None:
         return image.copy()
 
     # Create a copy of the image to retain original for reference
     new_image = np.empty_like(image)
-    for start_y, start_x, end_y, end_x in tiles:
+    for num, new_index in enumerate(mapping):
+        start_y, start_x, end_y, end_x = tiles[new_index]
+        start_y_orig, start_x_orig, end_y_orig, end_x_orig = tiles[num]
         # Assign the corresponding tile from the original image to the new image
-        new_image[start_y:end_y, start_x:end_x] = image[start_y:end_y, start_x:end_x]
+        new_image[start_y:end_y, start_x:end_x] = image[start_y_orig:end_y_orig, start_x_orig:end_x_orig]
 
     return new_image
 

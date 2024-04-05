@@ -842,12 +842,21 @@ def test_brightness_contrast():
 
 
 @pytest.mark.parametrize(
-    "img, tiles, expected",
+    "img, tiles, mapping, expected",
     [
         # Test with empty tiles - image should remain unchanged
         (
             np.array([[1, 1], [2, 2]], dtype=np.uint8),
             np.empty((0, 4), dtype=np.int32),
+            [0],
+            np.array([[1, 1], [2, 2]], dtype=np.uint8)
+        ),
+
+        # Test with empty mapping - image should remain unchanged
+        (
+            np.array([[1, 1], [2, 2]], dtype=np.uint8),
+            np.array([[0, 0, 2, 2]]),
+            None,
             np.array([[1, 1], [2, 2]], dtype=np.uint8)
         ),
 
@@ -855,28 +864,33 @@ def test_brightness_contrast():
         (
             np.array([[1, 1], [2, 2]], dtype=np.uint8),
             np.array([[0, 0, 2, 2]]),
+            [0],
             np.array([[1, 1], [2, 2]], dtype=np.uint8)
         ),
 
-        # Test with splitting tiles horizontally - since we're not actually swapping, the expected result should match the original
+        # Test with splitting tiles horizontally
         (
             np.array([[1, 2], [3, 4]], dtype=np.uint8),
             np.array([[0, 0, 2, 1], [0, 1, 2, 2]]),
-            np.array([[1, 2], [3, 4]], dtype=np.uint8)  # Corrected expectation
+            [1, 0],
+            np.array([[2, 1], [4, 3]], dtype=np.uint8)  # Corrected expectation
         ),
 
-        # Test with splitting tiles vertically - similarly, expect original image as output
+        # Test with splitting tiles vertically
         (
             np.array([[1, 2], [3, 4]], dtype=np.uint8),
             np.array([[0, 0, 1, 2], [1, 0, 2, 2]]),
-            np.array([[1, 2], [3, 4]], dtype=np.uint8)  # Corrected expectation
+            [1, 0],
+            np.array([[3, 4], [1, 2]], dtype=np.uint8)  # Corrected expectation
         ),
+
+        # Test with splitting tiles diag
 
         # Other tests remain the same if they correctly represent what your function does
     ]
 )
-def test_swap_tiles_on_image(img, tiles, expected):
-    result_img = F.swap_tiles_on_image(img, tiles)
+def test_swap_tiles_on_image(img, tiles, mapping, expected):
+    result_img = F.swap_tiles_on_image(img, tiles, mapping)
     assert np.array_equal(result_img, expected)
 
 

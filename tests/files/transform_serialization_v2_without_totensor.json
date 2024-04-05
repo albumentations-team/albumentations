@@ -319,8 +319,8 @@
                 "always_apply": false,
                 "p": 0.5,
                 "grid": [
-                    3,
-                    3
+                    2,
+                    2
                 ]
             },
             {
