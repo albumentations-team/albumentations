@@ -47,7 +47,7 @@ class RandomScale(DualTransform):
             default=0.1,
             description="Scaling factor range. If a single float value, the range will be (-scale_limit, scale_limit).",
         )
-        interpolation: InterpolationType
+        interpolation: InterpolationType = cv2.INTER_LINEAR
 
         @field_validator("scale_limit")
         @classmethod
@@ -90,7 +90,7 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
     max_size: Union[int, List[int]] = Field(
         default=1024, description="Maximum size of the smallest side of the image after the transformation."
     )
-    interpolation: InterpolationType
+    interpolation: InterpolationType = cv2.INTER_LINEAR
     p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
 
     @field_validator("max_size")
@@ -243,7 +243,7 @@ class Resize(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         height: int = Field(ge=1, description="Desired height of the output.")
         width: int = Field(ge=1, description="Desired width of the output.")
-        interpolation: InterpolationType
+        interpolation: InterpolationType = cv2.INTER_LINEAR
         p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
 
     def __init__(

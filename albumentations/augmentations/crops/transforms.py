@@ -11,10 +11,9 @@ from typing_extensions import Annotated, Self
 from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import union_of_bboxes
-from albumentations.core.pydantic import InterpolationType
+from albumentations.core.pydantic import BorderModeType, InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
-    MAX_BORDER_MODE,
     BoxInternalType,
     ColorType,
     KeypointInternalType,
@@ -321,7 +320,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
 
 class BaseRandomSizedCropInitSchema(CropInitSchema):
-    interpolation: InterpolationType
+    interpolation: InterpolationType = cv2.INTER_LINEAR
 
 
 class _BaseRandomSizedCrop(DualTransform):
@@ -765,7 +764,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         erosion_rate: float = Field(
             default=0.0, ge=0.0, le=1.0, description="Erosion rate applied on input image height before crop."
         )
-        interpolation: InterpolationType
+        interpolation: InterpolationType = cv2.INTER_LINEAR
 
     def __init__(
         self,
@@ -895,9 +894,7 @@ class CropAndPad(DualTransform):
         percent: Optional[Union[float, Tuple[float, float], Tuple[float, float, float, float]]] = Field(
             default=None, description="Fraction of image size to crop (negative) or pad (positive)."
         )
-        pad_mode: int = Field(
-            default=cv2.BORDER_CONSTANT, description="OpenCV border mode for padding.", ge=0, le=MAX_BORDER_MODE
-        )
+        pad_mode: BorderModeType
         pad_cval: ColorType = Field(default=0, description="Padding value if pad_mode is BORDER_CONSTANT.")
         pad_cval_mask: ColorType = Field(
             default=0, description="Padding value for masks if pad_mode is BORDER_CONSTANT."
@@ -909,7 +906,7 @@ class CropAndPad(DualTransform):
         sample_independently: bool = Field(
             default=True, description="Whether to sample the crop/pad size independently for each side."
         )
-        interpolation: InterpolationType
+        interpolation: InterpolationType = cv2.INTER_LINEAR
 
         p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
 

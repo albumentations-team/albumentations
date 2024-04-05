@@ -14,11 +14,9 @@ from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.augmentations.utils import BIG_INTEGER, check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.pydantic import InterpolationType
+from albumentations.core.pydantic import BorderModeType, InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
-    MAX_BORDER_MODE,
-    MAX_INTERPOLATION_MODE,
     BoxInternalType,
     ColorType,
     KeypointInternalType,
@@ -98,8 +96,8 @@ class ShiftScaleRotate(DualTransform):
         shift_limit: Annotated[ScaleFloatType, Field(default=(-0.0625, 0.0625))]
         scale_limit: Annotated[ScaleFloatType, Field(default=(-0.1, 0.1))]
         rotate_limit: Annotated[ScaleIntType, Field(default=(-45, 45))]
-        interpolation: InterpolationType
-        border_mode: Annotated[int, Field(default=cv2.BORDER_REFLECT_101)]
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(default=None)
         mask_value: Optional[ColorType] = Field(default=None)
         shift_limit_x: Optional[ScaleFloatType] = Field(default=None)
@@ -263,8 +261,8 @@ class ElasticTransform(DualTransform):
         alpha: Annotated[float, Field(default=1, description="Alpha parameter.", ge=0)]
         sigma: Annotated[float, Field(default=50, description="Sigma parameter for Gaussian filter.", ge=0)]
         alpha_affine: Annotated[float, Field(default=50, description="Alpha affine parameter.", ge=0)]
-        interpolation: InterpolationType
-        border_mode: Annotated[int, Field(default=cv2.BORDER_REFLECT_101, description="Pixel extrapolation method.")]
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[Union[int, float, List[int], List[float]]] = Field(
             default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
         )
@@ -404,9 +402,7 @@ class Perspective(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         scale: Annotated[ScaleFloatType, Field(default=(0.05, 0.1), description="Scale of perspective transform.")]
         keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
-        pad_mode: Annotated[
-            int, Field(default=cv2.BORDER_CONSTANT, description="Padding mode.", ge=0, le=MAX_BORDER_MODE)
-        ]
+        pad_mode: BorderModeType = cv2.BORDER_CONSTANT
         pad_val: Optional[Union[int, float, List[int], List[float]]] = Field(
             default=0,
             description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
@@ -712,15 +708,12 @@ class Affine(DualTransform):
         shear: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
             default=None, description="Shear angle in degrees."
         )
-        interpolation: InterpolationType
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        mask_interpolation: InterpolationType = cv2.INTER_NEAREST
 
-        mask_interpolation: Annotated[
-            int,
-            Field(default=cv2.INTER_NEAREST, description="Mask interpolation method.", ge=0, le=MAX_INTERPOLATION_MODE),
-        ]
         cval: ColorType = Field(default=0, description="Value used for constant padding.")
         cval_mask: ColorType = Field(default=0, description="Value used for mask constant padding.")
-        mode: Annotated[int, Field(default=cv2.BORDER_CONSTANT, description="Border mode.", ge=0, le=MAX_BORDER_MODE)]
+        mode: BorderModeType = cv2.BORDER_CONSTANT
         fit_output: Annotated[bool, Field(default=False, description="Adjust output to capture whole image.")]
         keep_ratio: Annotated[bool, Field(default=False, description="Maintain aspect ratio when scaling.")]
         rotate_method: Annotated[str, Field(default="largest_box", description="Rotation method for bounding boxes.")]
@@ -1043,18 +1036,8 @@ class PiecewiseAffine(DualTransform):
         scale: ScaleFloatType = Field(default=(0.03, 0.05), description="Scale factor for point jittering.")
         nb_rows: ScaleIntType = Field(default=4, description="Number of rows in the regular grid.")
         nb_cols: ScaleIntType = Field(default=4, description="Number of columns in the regular grid.")
-        interpolation: Annotated[
-            int, Field(default=cv2.INTER_LINEAR, description="Order of interpolation.", ge=0, le=MAX_INTERPOLATION_MODE)
-        ]
-        mask_interpolation: Annotated[
-            int,
-            Field(
-                default=cv2.INTER_NEAREST,
-                description="Order of interpolation for mask.",
-                ge=0,
-                le=MAX_INTERPOLATION_MODE,
-            ),
-        ]
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        mask_interpolation: InterpolationType = cv2.INTER_NEAREST
         cval: int = Field(default=0, description="Constant value used for newly created pixels.")
         cval_mask: int = Field(default=0, description="Constant value used for newly created mask pixels.")
         mode: str = Field(default="constant", description="Boundary mode for points outside the input boundaries.")
@@ -1281,9 +1264,7 @@ class PadIfNeeded(DualTransform):
             default=None, ge=1, description="Ensures image width is divisible by this value."
         )
         position: str = Field(default="center", description="Position of the padded image.")
-        border_mode: int = Field(
-            default=cv2.BORDER_REFLECT_101, description="OpenCV border mode.", ge=0, le=MAX_BORDER_MODE
-        )
+        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(default=None, description="Value for border if BORDER_CONSTANT is used.")
         mask_value: Optional[ColorType] = Field(
             default=None, description="Value for mask border if BORDER_CONSTANT is used."
@@ -1645,11 +1626,8 @@ class OpticalDistortion(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         distort_limit: Annotated[ScaleFloatType, Field(default=(-0.05, 0.05), description="Range for distortion.")]
         shift_limit: Annotated[ScaleFloatType, Field(default=(-0.05, 0.05), description="Range for shift.")]
-        interpolation: InterpolationType
-        border_mode: Annotated[
-            int,
-            Field(default=cv2.BORDER_REFLECT_101, description="Pixel extrapolation method", ge=0, le=MAX_BORDER_MODE),
-        ]
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(
             default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
         )
@@ -1758,15 +1736,7 @@ class GridDistortion(DualTransform):
         num_steps: Annotated[int, Field(ge=1, description="Count of grid cells on each side.")]
         distort_limit: Annotated[ScaleFloatType, Field(default=(-0.03, 0.03), description="Range for distortion.")]
         interpolation: InterpolationType
-        border_mode: Annotated[
-            int,
-            Field(
-                default=cv2.BORDER_REFLECT_101,
-                description="Pixel extrapolation method",
-                ge=0,
-                le=MAX_BORDER_MODE,
-            ),
-        ]
+        border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(
             default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
         )
