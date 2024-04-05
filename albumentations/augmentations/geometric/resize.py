@@ -5,9 +5,9 @@ import cv2
 import numpy as np
 from pydantic import Field, ValidationInfo, field_validator
 
+from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
-    MAX_INTERPOLATION_MODE,
     BoxInternalType,
     KeypointInternalType,
     ScaleFloatType,
@@ -47,12 +47,7 @@ class RandomScale(DualTransform):
             default=0.1,
             description="Scaling factor range. If a single float value, the range will be (-scale_limit, scale_limit).",
         )
-        interpolation: int = Field(
-            default=cv2.INTER_LINEAR,
-            description="Interpolation algorithm used for scaling.",
-            ge=0,
-            le=MAX_INTERPOLATION_MODE,
-        )
+        interpolation: InterpolationType
 
         @field_validator("scale_limit")
         @classmethod
@@ -95,9 +90,7 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
     max_size: Union[int, List[int]] = Field(
         default=1024, description="Maximum size of the smallest side of the image after the transformation."
     )
-    interpolation: int = Field(
-        default=cv2.INTER_LINEAR, description="Interpolation method used for resizing.", ge=0, le=MAX_INTERPOLATION_MODE
-    )
+    interpolation: InterpolationType
     p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
 
     @field_validator("max_size")
@@ -250,12 +243,7 @@ class Resize(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         height: int = Field(ge=1, description="Desired height of the output.")
         width: int = Field(ge=1, description="Desired width of the output.")
-        interpolation: int = Field(
-            default=cv2.INTER_LINEAR,
-            description="Interpolation method used for resizing.",
-            ge=0,
-            le=MAX_INTERPOLATION_MODE,
-        )
+        interpolation: InterpolationType
         p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
 
     def __init__(

@@ -25,7 +25,7 @@ TWO = 2
 def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: float = 0) -> Tuple[int, int]:
     bounds = 0, float("inf")
     result = to_tuple(value, min_value)
-    check_range(result, *bounds, str(info.field_name))
+    check_range(result, *bounds, info.field_name)
 
     for v in result:
         if v != 0 and v % 2 != 1:

@@ -26,7 +26,6 @@ NumType = Union[int, float, np.ndarray]
 IntNumType = Union[np.integer, np.ndarray]
 FloatNumType = Union[np.floating, np.ndarray]
 
-
 image_modes = ["cv", "pil"]
 ImageMode = Literal["cv", "pil"]
 

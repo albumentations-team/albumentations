@@ -7,10 +7,10 @@ import numpy as np
 from pydantic import Field, field_validator
 
 from albumentations.augmentations.crops import functional as FCrops
+from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     MAX_BORDER_MODE,
-    MAX_INTERPOLATION_MODE,
     BoxInternalType,
     ColorType,
     KeypointInternalType,
@@ -70,9 +70,7 @@ class RotateInitSchema(BaseTransformInitSchema):
             "If limit is a single int, an angle is picked from (-limit, limit)."
         ),
     )
-    interpolation: int = Field(
-        default=cv2.INTER_LINEAR, description="Interpolation method used for resizing.", ge=0, le=MAX_INTERPOLATION_MODE
-    )
+    interpolation: InterpolationType
 
     border_mode: int = Field(
         default=cv2.BORDER_REFLECT_101, description="Pixel extrapolation method.", ge=0, le=MAX_BORDER_MODE

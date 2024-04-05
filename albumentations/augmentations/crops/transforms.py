@@ -11,10 +11,10 @@ from typing_extensions import Annotated, Self
 from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import union_of_bboxes
+from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
     MAX_BORDER_MODE,
-    MAX_INTERPOLATION_MODE,
     BoxInternalType,
     ColorType,
     KeypointInternalType,
@@ -321,9 +321,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
 
 class BaseRandomSizedCropInitSchema(CropInitSchema):
-    interpolation: Annotated[
-        int, Field(default=cv2.INTER_LINEAR, description="Interpolation method.", ge=0, le=MAX_INTERPOLATION_MODE)
-    ]
+    interpolation: InterpolationType
 
 
 class _BaseRandomSizedCrop(DualTransform):
@@ -767,12 +765,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         erosion_rate: float = Field(
             default=0.0, ge=0.0, le=1.0, description="Erosion rate applied on input image height before crop."
         )
-        interpolation: int = Field(
-            default=cv2.INTER_LINEAR,
-            description="Interpolation algorithm for resizing.",
-            ge=0,
-            le=MAX_INTERPOLATION_MODE,
-        )
+        interpolation: InterpolationType
 
     def __init__(
         self,
@@ -916,12 +909,8 @@ class CropAndPad(DualTransform):
         sample_independently: bool = Field(
             default=True, description="Whether to sample the crop/pad size independently for each side."
         )
-        interpolation: int = Field(
-            default=cv2.INTER_LINEAR,
-            description="Interpolation method for resizing if keep_size is True.",
-            ge=0,
-            le=MAX_INTERPOLATION_MODE,
-        )
+        interpolation: InterpolationType
+
         p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
 
         @model_validator(mode="after")

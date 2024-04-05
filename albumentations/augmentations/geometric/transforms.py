@@ -14,6 +14,7 @@ from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.augmentations.utils import BIG_INTEGER, check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
     MAX_BORDER_MODE,
@@ -97,7 +98,7 @@ class ShiftScaleRotate(DualTransform):
         shift_limit: Annotated[ScaleFloatType, Field(default=(-0.0625, 0.0625))]
         scale_limit: Annotated[ScaleFloatType, Field(default=(-0.1, 0.1))]
         rotate_limit: Annotated[ScaleIntType, Field(default=(-45, 45))]
-        interpolation: Annotated[int, Field(default=cv2.INTER_LINEAR)]
+        interpolation: InterpolationType
         border_mode: Annotated[int, Field(default=cv2.BORDER_REFLECT_101)]
         value: Optional[ColorType] = Field(default=None)
         mask_value: Optional[ColorType] = Field(default=None)
@@ -262,7 +263,7 @@ class ElasticTransform(DualTransform):
         alpha: Annotated[float, Field(default=1, description="Alpha parameter.", ge=0)]
         sigma: Annotated[float, Field(default=50, description="Sigma parameter for Gaussian filter.", ge=0)]
         alpha_affine: Annotated[float, Field(default=50, description="Alpha affine parameter.", ge=0)]
-        interpolation: Annotated[int, Field(default=cv2.INTER_LINEAR, description="Interpolation method for resizing.")]
+        interpolation: InterpolationType
         border_mode: Annotated[int, Field(default=cv2.BORDER_REFLECT_101, description="Pixel extrapolation method.")]
         value: Optional[Union[int, float, List[int], List[float]]] = Field(
             default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
@@ -415,9 +416,7 @@ class Perspective(DualTransform):
             description="Mask padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
         fit_output: Annotated[bool, Field(default=False, description="Adjust image plane to capture whole image.")]
-        interpolation: Annotated[
-            int, Field(default=cv2.INTER_LINEAR, description="Interpolation method.", ge=0, le=MAX_INTERPOLATION_MODE)
-        ]
+        interpolation: InterpolationType
 
         @field_validator("scale")
         @classmethod
@@ -713,9 +712,8 @@ class Affine(DualTransform):
         shear: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
             default=None, description="Shear angle in degrees."
         )
-        interpolation: Annotated[
-            int, Field(default=cv2.INTER_LINEAR, description="Interpolation method.", ge=0, le=MAX_INTERPOLATION_MODE)
-        ]
+        interpolation: InterpolationType
+
         mask_interpolation: Annotated[
             int,
             Field(default=cv2.INTER_NEAREST, description="Mask interpolation method.", ge=0, le=MAX_INTERPOLATION_MODE),
@@ -1647,9 +1645,7 @@ class OpticalDistortion(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         distort_limit: Annotated[ScaleFloatType, Field(default=(-0.05, 0.05), description="Range for distortion.")]
         shift_limit: Annotated[ScaleFloatType, Field(default=(-0.05, 0.05), description="Range for shift.")]
-        interpolation: Annotated[
-            int, Field(default=cv2.INTER_LINEAR, description="Interpolation method.", ge=0, le=MAX_INTERPOLATION_MODE)
-        ]
+        interpolation: InterpolationType
         border_mode: Annotated[
             int,
             Field(default=cv2.BORDER_REFLECT_101, description="Pixel extrapolation method", ge=0, le=MAX_BORDER_MODE),
@@ -1761,15 +1757,7 @@ class GridDistortion(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         num_steps: Annotated[int, Field(ge=1, description="Count of grid cells on each side.")]
         distort_limit: Annotated[ScaleFloatType, Field(default=(-0.03, 0.03), description="Range for distortion.")]
-        interpolation: Annotated[
-            int,
-            Field(
-                default=cv2.INTER_LINEAR,
-                description="Interpolation method for resizing",
-                ge=0,
-                le=MAX_INTERPOLATION_MODE,
-            ),
-        ]
+        interpolation: InterpolationType
         border_mode: Annotated[
             int,
             Field(

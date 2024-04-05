@@ -24,6 +24,7 @@ from albumentations.augmentations.utils import (
     is_grayscale_image,
     is_rgb_image,
 )
+from albumentations.core.pydantic import InterpolationType
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
     DualTransform,
@@ -2447,7 +2448,7 @@ class Superpixels(ImageOnlyTransform):
         )
         n_segments: Annotated[ScaleIntType, Field(default=100, description="Target number of superpixels to generate.")]
         max_size: Optional[int] = Field(default=128, ge=1, description="Maximum image size for the transformation.")
-        interpolation: int = Field(default=cv2.INTER_LINEAR, description="Interpolation algorithm used during scaling.")
+        interpolation: InterpolationType
 
         @field_validator("p_replace")
         @classmethod
@@ -3120,7 +3121,7 @@ class ChromaticAberration(ImageOnlyTransform):
             default=0.05, description="Range for the secondary radial distortion coefficient."
         )
         mode: ChromaticAberrationMode = Field(default="green_purple", description="Type of color fringing.")
-        interpolation: int = Field(default=cv2.INTER_LINEAR, description="Interpolation algorithm used for distortion.")
+        interpolation: InterpolationType
 
         @field_validator("primary_distortion_limit", "secondary_distortion_limit")
         @classmethod
