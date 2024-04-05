@@ -156,14 +156,14 @@ class RandomGridShuffle(DualTransform):
         return keypoint
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        image_shape = params["image"].shape[:2]
+        height, weight = params["image"].shape[:2]
         # check if image size is divisible by grid
         # if not, warn and return empty dict -> no changes will be applied
-        if image_shape[0] % self.grid[0] != 0 or image_shape[1] % self.grid[1] != 0:
+        if height % self.grid[0] != 0 or weight % self.grid[1] != 0:
             warn("Image size must be divisible by grid size")
             return {"tiles": np.array([])}
         # Generate the original grid
-        original_tiles = F.split_uniform_grid(image_shape, self.grid)
+        original_tiles = F.split_uniform_grid((height, weight), self.grid)
         # Shuffle order of tiles
         mapping = random_utils.shuffle(list(range(len(original_tiles))))
         return {"tiles": original_tiles, "mapping": mapping}
