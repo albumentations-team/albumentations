@@ -115,26 +115,30 @@ class RandomGridShuffle(DualTransform):
 
         self.grid = grid
 
-    def apply(self, img: np.ndarray, tiles: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
-        return F.swap_tiles_on_image(img, tiles)
+    def apply(
+        self, img: np.ndarray, tiles: Optional[np.ndarray] = None, mapping: Optional[List[int]] = None, **params: Any
+    ) -> np.ndarray:
+        return F.swap_tiles_on_image(img, tiles, mapping)
 
-    def apply_to_mask(self, mask: np.ndarray, tiles: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
-        return F.swap_tiles_on_image(mask, tiles)
+    def apply_to_mask(
+        self, mask: np.ndarray, tiles: Optional[np.ndarray] = None, mapping: Optional[List[int]] = None, **params: Any
+    ) -> np.ndarray:
+        return F.swap_tiles_on_image(mask, tiles, mapping)
 
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
         tiles: np.ndarray,
-        mapping: Dict[int, int],
+        mapping: List[int],
         **params: Any,
     ) -> KeypointInternalType:
         x, y = keypoint[:2]
 
         # Find which original tile the keypoint belongs to
-        for original_index, (start_y, start_x, end_y, end_x) in enumerate(tiles):
+        for original_index, new_index in enumerate(mapping):
+            start_y, start_x, end_y, end_x = tiles[original_index]
+            # check if the keypoint is in this tile
             if start_y <= y < end_y and start_x <= x < end_x:
-                # Find this tile's new index after shuffling
-                new_index = mapping[original_index]
                 # Get the new tile's coordinates
                 new_start_y, new_start_x = tiles[new_index][:2]
 
@@ -154,20 +158,9 @@ class RandomGridShuffle(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         # Generate the original grid
         original_tiles = F.split_uniform_grid(params["image"].shape[:2], self.grid)
-
-        # Copy the original grid to keep track of the initial positions
-        indexed_tiles = np.array(list(enumerate(original_tiles)), dtype=object)
-
-        # Shuffle the tiles while keeping track of original indices
-        random_utils.shuffle(indexed_tiles)
-
-        # Create a mapping from original positions to new positions
-        mapping = {original_index: i for i, (original_index, tile) in enumerate(indexed_tiles)}
-
-        # Extract the shuffled tiles without indices
-        shuffled_tiles = np.array([tile for _, tile in indexed_tiles])
-
-        return {"tiles": shuffled_tiles, "mapping": mapping}
+        # Shuffle order of tiles
+        mapping = random_utils.shuffle(list(range(len(original_tiles))))
+        return {"tiles": original_tiles, "mapping": mapping}
 
     @property
     def targets_as_params(self) -> List[str]:
