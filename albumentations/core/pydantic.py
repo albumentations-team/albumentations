@@ -1,7 +1,12 @@
+from typing import Tuple
+
 import cv2
 from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 from typing_extensions import Annotated
+
+from albumentations.core.transforms_interface import to_tuple
+from albumentations.core.types import ScaleType
 
 valid_interpolations = [
     cv2.INTER_NEAREST,
@@ -41,3 +46,14 @@ def check_valid_border_modes(value: int) -> int:
 BorderModeType = Annotated[int, Field(description="Border Mode"), AfterValidator(check_valid_border_modes)]
 
 ProbabilityType = Annotated[float, Field(description="Probability of applying the transform", ge=0, le=1)]
+
+
+def process_non_negative_range(value: ScaleType) -> Tuple[float, float]:
+    result = to_tuple(value if value is not None else 0, 0)
+    if not all(x >= 0 for x in result):
+        msg = "All values in the non negative range should be non negative"
+        raise ValueError(msg)
+    return result
+
+
+RangeNonNegativeType = Annotated[ScaleType, AfterValidator(process_non_negative_range)]

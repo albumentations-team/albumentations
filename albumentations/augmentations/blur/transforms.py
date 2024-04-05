@@ -10,6 +10,7 @@ from typing_extensions import Self
 from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
 from albumentations.augmentations.utils import check_range
+from albumentations.core.pydantic import RangeNonNegativeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform, to_tuple
 from albumentations.core.types import ScaleFloatType, ScaleIntType
 
@@ -217,22 +218,12 @@ class GaussianBlur(ImageOnlyTransform):
     """
 
     class InitSchema(BlurInitSchema):
-        sigma_limit: ScaleFloatType = Field(
-            default=0, description="Gaussian kernel standard deviation. Must be in range [0, inf)."
-        )
+        sigma_limit: RangeNonNegativeType = 0
 
         @field_validator("blur_limit")
         @classmethod
         def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
             return process_blur_limit(value, info, min_value=0)
-
-        @field_validator("sigma_limit")
-        @classmethod
-        def check_sigma_limit(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
-            result = to_tuple(value if value is not None else 0, 0)
-            bounds = 0, float("inf")
-            check_range(result, *bounds, str(info.field_name))
-            return result
 
         @model_validator(mode="after")
         def validate_limits(self) -> Self:

@@ -2,11 +2,11 @@ import random
 from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, model_validator
 from typing_extensions import Self
 
-from albumentations.augmentations.utils import BIG_INTEGER, check_range
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
+from albumentations.core.pydantic import RangeNonNegativeType
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
 
 from .functional import cutout, keypoint_in_hole
@@ -54,32 +54,13 @@ class XYMasking(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        num_masks_x: ScaleIntType = Field(
-            default=0,
-            description="Number or range of horizontal regions to mask.",
-        )
-        num_masks_y: ScaleIntType = Field(
-            default=0,
-            description="Number or range of vertical regions to mask.",
-        )
-        mask_x_length: ScaleIntType = Field(
-            default=0,
-            description="Length of the masks along the X (horizontal) axis.",
-        )
-        mask_y_length: ScaleIntType = Field(
-            default=0,
-            description="Height of the masks along the Y (vertical) axis.",
-        )
+        num_masks_x: RangeNonNegativeType = 0
+        num_masks_y: RangeNonNegativeType = 0
+        mask_x_length: RangeNonNegativeType = 0
+        mask_y_length: RangeNonNegativeType = 0
+
         fill_value: ColorType = Field(default=0, description="Value to fill image masks.")
         mask_fill_value: ColorType = Field(default=0, description="Value to fill masks in the mask.")
-
-        @field_validator("num_masks_x", "num_masks_y", "mask_x_length", "mask_y_length")
-        @classmethod
-        def check_positive_convert_to_tuple(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
-            result = to_tuple(v, 0)
-            bounds = (0, BIG_INTEGER)
-            check_range(result, *bounds, str(info.field_name))
-            return cast(Tuple[int, int], result)
 
         @model_validator(mode="after")
         def check_mask_length(self) -> Self:
