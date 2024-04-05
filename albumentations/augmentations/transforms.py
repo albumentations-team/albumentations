@@ -327,8 +327,6 @@ class ImageCompression(ImageOnlyTransform):
 class RandomSnow(ImageOnlyTransform):
     """Bleach out some pixel values simulating snow.
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         snow_point_lower: lower_bond of the amount of snow. Should be in [0, 1] range
         snow_point_upper: upper_bond of the amount of snow. Should be in [0, 1] range
@@ -340,6 +338,8 @@ class RandomSnow(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -381,8 +381,6 @@ class RandomSnow(ImageOnlyTransform):
 class RandomGravel(ImageOnlyTransform):
     """Add gravels.
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         gravel_roi: (top-left x, top-left y,
             bottom-right x, bottom right y). Should be in [0, 1] range
@@ -394,6 +392,8 @@ class RandomGravel(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -499,8 +499,6 @@ class RandomGravel(ImageOnlyTransform):
 class RandomRain(ImageOnlyTransform):
     """Adds rain effects.
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         slant_lower: should be in range [-20, 20].
         slant_upper: should be in range [-20, 20].
@@ -516,6 +514,9 @@ class RandomRain(ImageOnlyTransform):
 
     Image types:
         uint8, float32
+
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     """
 
@@ -637,8 +638,6 @@ class RandomRain(ImageOnlyTransform):
 class RandomFog(ImageOnlyTransform):
     """Simulates fog for the image
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         fog_coef_lower: lower limit for fog intensity coefficient. Should be in [0, 1] range.
         fog_coef_upper: upper limit for fog intensity coefficient. Should be in [0, 1] range.
@@ -649,6 +648,9 @@ class RandomFog(ImageOnlyTransform):
 
     Image types:
         uint8, float32
+
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     """
 
@@ -889,8 +891,6 @@ class RandomSunFlare(ImageOnlyTransform):
 class RandomShadow(ImageOnlyTransform):
     """Simulates shadows for the image
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         shadow_roi: region of the image where shadows
             will appear. All values should be in range [0, 1].
@@ -906,6 +906,8 @@ class RandomShadow(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1009,12 +1011,6 @@ class RandomToneCurve(ImageOnlyTransform):
             ge=0,
             le=1,
         )
-
-        @model_validator(mode="after")
-        def validate_scale(self) -> Self:
-            if not (0 <= self.scale <= 1):
-                raise ValueError(f"Scale must be in range [0, 1]. Got: {self.scale}")
-            return self
 
     def __init__(
         self,

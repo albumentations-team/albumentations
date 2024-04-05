@@ -395,27 +395,22 @@ class AdvancedBlur(ImageOnlyTransform):
     """
 
     class InitSchema(BlurInitSchema):
-        sigma_x_limit: ScaleFloatType = Field(
-            default=(0.2, 1.0), description="Gaussian kernel standard deviation for the X dimension."
-        )
-        sigma_y_limit: ScaleFloatType = Field(
-            default=(0.2, 1.0), description="Gaussian kernel standard deviation for the Y dimension."
-        )
+        sigma_x_limit: RangeNonNegativeType = (0.2, 1.0)
+        sigma_y_limit: RangeNonNegativeType = (0.2, 1.0)
+        beta_limit: RangeNonNegativeType = (0.5, 8.0)
+        noise_limit: RangeNonNegativeType = (0.75, 1.25)
+
         rotate_limit: ScaleIntType = Field(
             default=(-90, 90),
             description="Range from which a random angle used to rotate the Gaussian kernel is picked.",
         )
-        beta_limit: ScaleFloatType = Field(default=(0.5, 8.0), description="Distribution shape parameter.")
-        noise_limit: ScaleFloatType = Field(
-            default=(0.75, 1.25), description="Multiplicative factor that controls the strength of kernel noise."
-        )
 
-        @field_validator("sigma_x_limit", "sigma_y_limit", "rotate_limit", "beta_limit", "noise_limit")
+        @field_validator("rotate_limit")
         @classmethod
         def check_limits(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = (0, float("inf"))
+            bounds = -360, 360
+            result = to_tuple(value)
 
-            result = to_tuple(value, low=bounds[0])
             check_range(result, *bounds, str(info.field_name))
             return result
 
@@ -542,13 +537,7 @@ class Defocus(ImageOnlyTransform):
             default=(3, 10),
             description="Range for radius of defocusing. If limit is a single int, the range will be [1, limit].",
         )
-        alias_blur: ScaleFloatType = Field(
-            default=(0.1, 0.5),
-            description=(
-                "Range for alias_blur of defocusing (sigma of gaussian blur). If limit is a single float,"
-                " the range will be (0, limit)."
-            ),
-        )
+        alias_blur: RangeNonNegativeType = (0.1, 0.5)
 
         @field_validator("radius")
         @classmethod
@@ -557,14 +546,6 @@ class Defocus(ImageOnlyTransform):
             result = to_tuple(value, low=bounds[0])
             check_range(result, *bounds, str(info.field_name))
             return cast(Tuple[int, int], result)
-
-        @field_validator("alias_blur")
-        @classmethod
-        def check_alias_blur(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, float("inf")
-            result = to_tuple(value, low=bounds[0])
-            check_range(result, *bounds, str(info.field_name))
-            return result
 
     def __init__(
         self,
@@ -591,7 +572,7 @@ class Defocus(ImageOnlyTransform):
 
 
 class ZoomBlur(ImageOnlyTransform):
-    """Apply zoom blur transform. See https://arxiv.org/abs/1903.12261.
+    """Apply zoom blur transform.
 
     Args:
         max_factor ((float, float) or float): range for max factor for blurring.
@@ -606,8 +587,10 @@ class ZoomBlur(ImageOnlyTransform):
         image
 
     Image types:
-        Any
+        unit8, float32
 
+    Reference:
+        https://arxiv.org/abs/1903.12261
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -619,28 +602,13 @@ class ZoomBlur(ImageOnlyTransform):
                 " All max_factor values should be larger than 1."
             ),
         )
-        step_factor: ScaleFloatType = Field(
-            default=(0.01, 0.03),
-            description=(
-                "If single float will be used as step parameter for np.arange."
-                " If tuple of float, step_factor will be in range `[step_factor[0], step_factor[1])`."
-                " All step_factor values should be positive."
-            ),
-        )
+        step_factor: RangeNonNegativeType = (0.01, 0.03)
 
         @field_validator("max_factor")
         @classmethod
         def check_max_factor(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
             bounds = 1, float("inf")
             result = to_tuple(value, low=bounds[0])
-            check_range(result, *bounds, str(info.field_name))
-            return result
-
-        @field_validator("step_factor")
-        @classmethod
-        def check_step_factor(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, float("inf")
-            result = to_tuple(value)
             check_range(result, *bounds, str(info.field_name))
             return result
 
