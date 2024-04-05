@@ -1414,3 +1414,17 @@ def test_deprecation_warnings(size, width, height, expected_warning):
         else:
             assert not w
     warnings.resetwarnings()
+
+
+def test_randomgridshuffle():
+    # RandomGridShuffle with grid=(3, 3)
+    # image size not divisible by grid size
+    # image unchanged, should get warning
+    with warnings.catch_warnings(record=True) as w:
+        image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+        transform_albu = A.RandomGridShuffle(grid=(3, 3), p=1)
+        transformed_image_albu = transform_albu(image=image)['image']
+        assert np.equal(image, transformed_image_albu).all()
+        assert len(w) == 1
+        assert w[0].category is UserWarning
+    warnings.resetwarnings()
