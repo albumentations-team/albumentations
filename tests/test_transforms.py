@@ -545,7 +545,7 @@ def test_resize_keypoints():
 )
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
-    aug = A.MultiplicativeNoise(m, p=1)
+    aug = A.MultiplicativeNoise((m, m), p=1)
     result = aug(image=image)["image"]
     image = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.allclose(image, result)
@@ -568,7 +568,7 @@ def test_multiplicative_noise_rgb(image):
     dtype = image.dtype
 
     m = 0.5
-    aug = A.MultiplicativeNoise(m, p=1)
+    aug = A.MultiplicativeNoise((m, m), p=1)
     result = aug(image=image)["image"]
     image = F.clip(image * m, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
     assert np.allclose(image, result)

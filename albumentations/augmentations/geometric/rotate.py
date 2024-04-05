@@ -7,7 +7,7 @@ import numpy as np
 from pydantic import Field, field_validator
 
 from albumentations.augmentations.crops import functional as FCrops
-from albumentations.core.pydantic import BorderModeType, InterpolationType
+from albumentations.core.pydantic import BorderModeType, InterpolationType, RangeSymmetricType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
@@ -62,13 +62,8 @@ class RandomRotate90(DualTransform):
 
 
 class RotateInitSchema(BaseTransformInitSchema):
-    limit: ScaleFloatType = Field(
-        default=90,
-        description=(
-            "Range from which a random angle is picked. "
-            "If limit is a single int, an angle is picked from (-limit, limit)."
-        ),
-    )
+    limit: RangeSymmetricType = (-90, 90)
+
     interpolation: InterpolationType = cv2.INTER_LINEAR
     border_mode: BorderModeType = cv2.BORDER_CONSTANT
 
@@ -76,20 +71,6 @@ class RotateInitSchema(BaseTransformInitSchema):
     mask_value: Optional[ColorType] = Field(
         default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks."
     )
-
-    @field_validator("limit")
-    @classmethod
-    def process_limit(cls, limit_value: ScaleFloatType) -> Tuple[float, float]:
-        if isinstance(limit_value, (int, float)):
-            return (-abs(limit_value), abs(limit_value))
-
-        if limit_value[0] > limit_value[1]:
-            msg = (
-                "If limit is a tuple of two numbers. The first number must be smaller or equal than the second number."
-            )
-            raise ValueError(msg)
-
-        return limit_value
 
 
 class Rotate(DualTransform):

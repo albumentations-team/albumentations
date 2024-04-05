@@ -11,7 +11,7 @@ from typing_extensions import Annotated, Self
 from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import union_of_bboxes
-from albumentations.core.pydantic import BorderModeType, InterpolationType, ProbabilityType
+from albumentations.core.pydantic import BorderModeType, InterpolationType, ProbabilityType, RangeNonNegativeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
     BoxInternalType,
@@ -461,26 +461,13 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         scale: Annotated[
             Tuple[float, float], Field(default=(0.08, 1.0), description="Range of size of the origin size cropped.")
         ]
-        ratio: Annotated[
-            Tuple[float, float],
-            Field(
-                default=(0.75, 1.3333333333333333),
-                description="Range of aspect ratio of the origin aspect ratio cropped.",
-            ),
-        ]
+        ratio: RangeNonNegativeType = (0.75, 1.3333333333333333)
 
         @field_validator("scale")
         @classmethod
         def check_scale(cls, v: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
             bounds = 0, 1
-            check_range(v, *bounds, str(info.field_name))
-            return v
-
-        @field_validator("ratio")
-        @classmethod
-        def check_ratio(cls, v: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, float("inf")
-            check_range(v, *bounds, str(info.field_name))
+            check_range(v, *bounds, info.field_name)
             return v
 
     def __init__(

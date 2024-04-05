@@ -20,8 +20,6 @@ class MaskDropout(DualTransform):
     Mask must be single-channel image, zero values treated as background.
     Image can be any number of channels.
 
-    Inspired by https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
-
     Args:
         max_objects: Maximum number of labels that can be zeroed out. Can be tuple, in this case it's [min, max]
         image_fill_value: Fill value to use when filling image.
@@ -33,6 +31,9 @@ class MaskDropout(DualTransform):
 
     Image types:
         uint8, float32
+
+    Reference:
+        https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/114254
 
     """
 

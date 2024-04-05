@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Optional, Tuple
 
 import cv2
 from pydantic import Field
@@ -48,7 +48,7 @@ BorderModeType = Annotated[int, Field(description="Border Mode"), AfterValidator
 ProbabilityType = Annotated[float, Field(description="Probability of applying the transform", ge=0, le=1)]
 
 
-def process_non_negative_range(value: ScaleType) -> Tuple[float, float]:
+def process_non_negative_range(value: Optional[ScaleType]) -> Tuple[float, float]:
     result = to_tuple(value if value is not None else 0, 0)
     if not all(x >= 0 for x in result):
         msg = "All values in the non negative range should be non negative"
@@ -57,3 +57,10 @@ def process_non_negative_range(value: ScaleType) -> Tuple[float, float]:
 
 
 RangeNonNegativeType = Annotated[ScaleType, AfterValidator(process_non_negative_range)]
+
+
+def create_symmetric_range(value: ScaleType) -> Tuple[float, float]:
+    return to_tuple(value)
+
+
+RangeSymmetricType = Annotated[ScaleType, AfterValidator(create_symmetric_range)]

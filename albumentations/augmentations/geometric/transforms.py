@@ -251,7 +251,7 @@ class ElasticTransform(DualTransform):
         uint8, float32
 
     Reference:
-        - https://gist.github.com/ernestum/601cdf56d2b424757de5
+        https://gist.github.com/ernestum/601cdf56d2b424757de5
 
     """
 

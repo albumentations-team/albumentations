@@ -10,7 +10,7 @@ from typing_extensions import Self
 from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
 from albumentations.augmentations.utils import check_range
-from albumentations.core.pydantic import RangeNonNegativeType
+from albumentations.core.pydantic import RangeNonNegativeType, RangeSymmetricType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform, to_tuple
 from albumentations.core.types import ScaleFloatType, ScaleIntType
 
@@ -399,20 +399,7 @@ class AdvancedBlur(ImageOnlyTransform):
         sigma_y_limit: RangeNonNegativeType = (0.2, 1.0)
         beta_limit: RangeNonNegativeType = (0.5, 8.0)
         noise_limit: RangeNonNegativeType = (0.75, 1.25)
-
-        rotate_limit: ScaleIntType = Field(
-            default=(-90, 90),
-            description="Range from which a random angle used to rotate the Gaussian kernel is picked.",
-        )
-
-        @field_validator("rotate_limit")
-        @classmethod
-        def check_limits(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = -360, 360
-            result = to_tuple(value)
-
-            check_range(result, *bounds, str(info.field_name))
-            return result
+        rotate_limit: RangeSymmetricType = (-90, 90)
 
         @field_validator("beta_limit")
         @classmethod
@@ -533,7 +520,7 @@ class Defocus(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        radius: ScaleFloatType = Field(
+        radius: ScaleIntType = Field(
             default=(3, 10),
             description="Range for radius of defocusing. If limit is a single int, the range will be [1, limit].",
         )
@@ -541,7 +528,7 @@ class Defocus(ImageOnlyTransform):
 
         @field_validator("radius")
         @classmethod
-        def check_radius(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[int, int]:
+        def check_radius(cls, value: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
             bounds = 1, float("inf")
             result = to_tuple(value, low=bounds[0])
             check_range(result, *bounds, str(info.field_name))
