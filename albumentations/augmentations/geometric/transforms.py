@@ -412,7 +412,7 @@ class Perspective(DualTransform):
             description="Mask padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
         fit_output: Annotated[bool, Field(default=False, description="Adjust image plane to capture whole image.")]
-        interpolation: InterpolationType
+        interpolation: InterpolationType = cv2.INTER_LINEAR
 
         @field_validator("scale")
         @classmethod

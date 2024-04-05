@@ -11,7 +11,7 @@ from typing_extensions import Annotated, Self
 from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import union_of_bboxes
-from albumentations.core.pydantic import BorderModeType, InterpolationType
+from albumentations.core.pydantic import BorderModeType, InterpolationType, ProbabilityType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
     BoxInternalType,
@@ -44,7 +44,7 @@ THREE = 3
 class CropInitSchema(BaseTransformInitSchema):
     height: int = Field(description="Height of the crop", ge=1)
     width: int = Field(description="Width of the crop", ge=1)
-    p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+    p: ProbabilityType = 1
 
 
 class RandomCrop(DualTransform):
@@ -157,7 +157,7 @@ class Crop(DualTransform):
         y_min: Annotated[int, Field(ge=0, description="Minimum upper left y coordinate")]
         x_max: Annotated[int, Field(gt=0, description="Maximum lower right x coordinate")]
         y_max: Annotated[int, Field(gt=0, description="Maximum lower right y coordinate")]
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
         @model_validator(mode="after")
         def validate_coordinates(self) -> Self:
@@ -582,7 +582,7 @@ class RandomCropNearBBox(DualTransform):
             description="Max shift in height and width dimensions relative to cropping_bbox dimension."
         )
         cropping_bbox_key: str = Field(default="cropping_bbox", description="Additional target key for cropping box.")
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
         @field_validator("max_part_shift")
         @classmethod
@@ -677,7 +677,7 @@ class BBoxSafeRandomCrop(DualTransform):
         erosion_rate: float = Field(
             default=0.0, ge=0.0, le=1.0, description="Erosion rate applied on input image height before crop."
         )
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
     def __init__(self, erosion_rate: float = 0.0, always_apply: bool = False, p: float = 1.0):
         super().__init__(always_apply, p)
@@ -908,7 +908,7 @@ class CropAndPad(DualTransform):
         )
         interpolation: InterpolationType = cv2.INTER_LINEAR
 
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
@@ -1191,7 +1191,7 @@ class RandomCropFromBorders(DualTransform):
         crop_bottom: float = Field(
             default=0.1, ge=0.0, le=1.0, description="Fraction of height to randomly crop from the bottom side."
         )
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
         @model_validator(mode="after")
         def validate_crop_values(self) -> Self:

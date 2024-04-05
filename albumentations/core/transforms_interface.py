@@ -6,8 +6,8 @@ from warnings import warn
 import cv2
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import Annotated
 
+from albumentations.core.pydantic import ProbabilityType
 from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
@@ -81,7 +81,7 @@ class Interpolation:
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     always_apply: bool = Field(default=False, description="Always apply the transform")
-    p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
+    p: ProbabilityType = 0.5
 
 
 class CombinedMeta(SerializableMeta, ValidatedTransformMeta):

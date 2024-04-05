@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from pydantic import Field, ValidationInfo, field_validator
 
-from albumentations.core.pydantic import InterpolationType
+from albumentations.core.pydantic import InterpolationType, ProbabilityType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
     BoxInternalType,
@@ -91,7 +91,7 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
         default=1024, description="Maximum size of the smallest side of the image after the transformation."
     )
     interpolation: InterpolationType = cv2.INTER_LINEAR
-    p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+    p: ProbabilityType = 1
 
     @field_validator("max_size")
     @classmethod
@@ -244,7 +244,7 @@ class Resize(DualTransform):
         height: int = Field(ge=1, description="Desired height of the output.")
         width: int = Field(ge=1, description="Desired width of the output.")
         interpolation: InterpolationType = cv2.INTER_LINEAR
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
     def __init__(
         self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1

@@ -24,7 +24,7 @@ from albumentations.augmentations.utils import (
     is_grayscale_image,
     is_rgb_image,
 )
-from albumentations.core.pydantic import InterpolationType
+from albumentations.core.pydantic import InterpolationType, ProbabilityType
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
     DualTransform,
@@ -222,7 +222,7 @@ class Normalize(ImageOnlyTransform):
             default=(0.229, 0.224, 0.225), description="Standard deviation values for normalization"
         )
         max_pixel_value: float = Field(default=255.0, description="Maximum possible pixel value")
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
         @field_validator("mean", "std")
         @classmethod
@@ -1789,7 +1789,7 @@ class ToFloat(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         max_value: Optional[float] = Field(default=None, description="Maximum possible input value.")
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
     def __init__(self, max_value: Optional[float] = None, always_apply: bool = False, p: float = 1.0):
         super().__init__(always_apply, p)
@@ -1829,7 +1829,7 @@ class FromFloat(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         dtype: str = Field(default="uint16", description="Data type of the output.")
         max_value: Optional[float] = Field(default=None, description="Maximum possible input value.")
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
         @field_validator("dtype")
         @classmethod
