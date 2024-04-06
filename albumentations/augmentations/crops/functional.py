@@ -224,16 +224,13 @@ def bbox_crop(
 
 
 def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.ndarray:
-    h, w = img.shape[:2]
-    if x_min < 0:
-        x_min = 0
-    if y_min < 0:
-        y_min = 0
-    if y_max >= h:
-        y_max = h - 1
-    if x_max >= w:
-        x_max = w - 1
-    return img[int(y_min) : int(y_max), int(x_min) : int(x_max)]
+    height, width = img.shape[:2]
+    x_min = max(0, x_min)
+    y_min = max(0, y_min)
+    x_max = min(width, x_max + 1)  # +1 because slice indices are non-inclusive at the top
+    y_max = min(height, y_max + 1)  # +1 for the same reason
+
+    return img[y_min:y_max, x_min:x_max]
 
 
 @preserve_channel_dim
