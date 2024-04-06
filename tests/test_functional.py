@@ -921,10 +921,6 @@ def test_posterize_checks():
 def test_equalize_checks():
     img = np.random.randint(0, 255, [256, 256], dtype=np.uint8)
 
-    with pytest.raises(ValueError) as exc_info:
-        F.equalize(img, mode="other")
-    assert str(exc_info.value) == "Unsupported equalization mode. Supports: ['cv', 'pil']. Got: other"
-
     mask = np.random.randint(0, 1, [256, 256, 3], dtype=bool)
     with pytest.raises(ValueError) as exc_info:
         F.equalize(img, mask=mask)

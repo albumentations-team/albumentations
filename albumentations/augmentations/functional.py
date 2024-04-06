@@ -23,7 +23,6 @@ from albumentations.core.types import (
     ImageMode,
     ScalarType,
     SpatterMode,
-    image_modes,
 )
 
 __all__ = [
@@ -318,13 +317,10 @@ def _equalize_cv(img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarr
     return cv2.LUT(img, lut)
 
 
-def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], mode: str, by_channels: bool) -> None:
+def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], by_channels: bool) -> None:
     if img.dtype != np.uint8:
         msg = "Image must have uint8 channel type"
         raise TypeError(msg)
-
-    if mode not in image_modes:
-        raise ValueError(f"Unsupported equalization mode. Supports: {image_modes}. Got: {mode}")
 
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
@@ -350,7 +346,7 @@ def _handle_mask(
 def equalize(
     img: np.ndarray, mask: Optional[np.ndarray] = None, mode: ImageMode = "cv", by_channels: bool = True
 ) -> np.ndarray:
-    _check_preconditions(img, mask, mode, by_channels)
+    _check_preconditions(img, mask, by_channels)
 
     function = _equalize_pil if mode == "pil" else _equalize_cv
 

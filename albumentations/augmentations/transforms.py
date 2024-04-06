@@ -44,8 +44,6 @@ from albumentations.core.types import (
     ScaleType,
     SpatterMode,
     Targets,
-    chromatic_aberration_modes,
-    image_modes,
 )
 from albumentations.core.utils import format_args, to_tuple
 
@@ -1207,20 +1205,13 @@ class Equalize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mode: Annotated[ImageMode, Field(default="cv", description="Equalization mode, 'cv' or 'pil'")]
+        mode: ImageMode = "cv"
         by_channels: Annotated[bool, Field(default=True, description="Equalize channels separately if True")]
         mask: Annotated[
             Optional[Union[np.ndarray, Callable[..., Any]]],
             Field(default=None, description="Mask to apply for equalization"),
         ]
         mask_params: Annotated[Sequence[str], Field(default=[], description="Parameters for mask function")]
-
-        @field_validator("mode")
-        @classmethod
-        def validate_mode(cls, value: str) -> str:
-            if value not in image_modes:
-                raise ValueError(f"Unsupported equalization mode. Supports: ['cv', 'pil']. Got: {value}")
-            return value
 
     def __init__(
         self,
@@ -2893,9 +2884,7 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: RangeNonNegativeType = (2, 2)
         cutout_threshold: ScaleFloatType = Field(default=0.68, description="Threshold for filtering.")
         intensity: ScaleFloatType = Field(default=0.6, description="Intensity of corruption.")
-        mode: Union[SpatterMode, Sequence[SpatterMode]] = Field(
-            default="rain", description="Type of corruption ('rain', 'mud')."
-        )
+        mode: Union[SpatterMode, Sequence[SpatterMode]] = "rain"
         color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None
 
         @field_validator("mean", "std", "gauss_sigma", "cutout_threshold", "intensity")
@@ -3063,15 +3052,8 @@ class ChromaticAberration(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         primary_distortion_limit: RangeSymmetricType = (-0.02, 0.02)
         secondary_distortion_limit: RangeSymmetricType = (-0.05, 0.05)
-        mode: ChromaticAberrationMode = Field(default="green_purple", description="Type of color fringing.")
+        mode: ChromaticAberrationMode = "green_purple"
         interpolation: InterpolationType = cv2.INTER_LINEAR
-
-        @field_validator("mode")
-        @classmethod
-        def check_mode(cls, mode: ChromaticAberrationMode) -> ChromaticAberrationMode:
-            if mode not in chromatic_aberration_modes:
-                raise ValueError(f"Mode {mode} is not supported. Valid modes are: {chromatic_aberration_modes}.")
-            return mode
 
     def __init__(
         self,
