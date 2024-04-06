@@ -11,7 +11,13 @@ from typing_extensions import Annotated, Self
 from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import union_of_bboxes
-from albumentations.core.pydantic import BorderModeType, InterpolationType, ProbabilityType, RangeNonNegativeType
+from albumentations.core.pydantic import (
+    BorderModeType,
+    InterpolationType,
+    ProbabilityType,
+    RangeNonNegativeType,
+    ZeroOneRangeType,
+)
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
 from albumentations.core.types import (
     BoxInternalType,
@@ -102,11 +108,6 @@ class CenterCrop(DualTransform):
 
     Image types:
         uint8, float32
-
-    Note:
-        It is recommended to use uint8 images as input.
-        Otherwise the operation will require internal conversion
-        float32 -> uint8 -> float32 that causes worse performance.
 
     """
 
@@ -458,17 +459,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseRandomSizedCropInitSchema):
-        scale: Annotated[
-            Tuple[float, float], Field(default=(0.08, 1.0), description="Range of size of the origin size cropped.")
-        ]
+        scale: ZeroOneRangeType = (0.08, 1.0)
         ratio: RangeNonNegativeType = (0.75, 1.3333333333333333)
-
-        @field_validator("scale")
-        @classmethod
-        def check_scale(cls, v: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, 1
-            check_range(v, *bounds, info.field_name)
-            return v
 
     def __init__(
         self,
@@ -543,8 +535,8 @@ class RandomCropNearBBox(DualTransform):
     Args:
         max_part_shift (float, (float, float)): Max shift in `height` and `width` dimensions relative
             to `cropping_bbox` dimension.
-            If max_part_shift is a single float, the range will be (max_part_shift, max_part_shift).
-            Default (0.3, 0.3).
+            If max_part_shift is a single float, the range will be (0, max_part_shift).
+            Default (0, 0.3).
         cropping_bbox_key (str): Additional target key for cropping box. Default `cropping_bbox`.
         cropping_box_key (str): [Deprecated] Use `cropping_bbox_key` instead.
         p (float): probability of applying the transform. Default: 1.
@@ -565,9 +557,8 @@ class RandomCropNearBBox(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        max_part_shift: ScaleFloatType = Field(
-            description="Max shift in height and width dimensions relative to cropping_bbox dimension."
-        )
+        max_part_shift: ZeroOneRangeType = (0, 0.3)
+
         cropping_bbox_key: str = Field(default="cropping_bbox", description="Additional target key for cropping box.")
         p: ProbabilityType = 1
 
@@ -581,7 +572,7 @@ class RandomCropNearBBox(DualTransform):
 
     def __init__(
         self,
-        max_part_shift: ScaleFloatType = (0.3, 0.3),
+        max_part_shift: ScaleFloatType = (0, 0.3),
         cropping_bbox_key: str = "cropping_bbox",
         cropping_box_key: Optional[str] = None,  # Deprecated
         always_apply: bool = False,
@@ -881,7 +872,7 @@ class CropAndPad(DualTransform):
         percent: Optional[Union[float, Tuple[float, float], Tuple[float, float, float, float]]] = Field(
             default=None, description="Fraction of image size to crop (negative) or pad (positive)."
         )
-        pad_mode: BorderModeType
+        pad_mode: BorderModeType = cv2.BORDER_CONSTANT
         pad_cval: ColorType = Field(default=0, description="Padding value if pad_mode is BORDER_CONSTANT.")
         pad_cval_mask: ColorType = Field(
             default=0, description="Padding value for masks if pad_mode is BORDER_CONSTANT."

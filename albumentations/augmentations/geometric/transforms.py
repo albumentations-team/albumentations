@@ -116,7 +116,7 @@ class ShiftScaleRotate(DualTransform):
         @field_validator("rotate_method")
         @classmethod
         def check_rotate_method(cls, value: str) -> str:
-            if value not in ["largest_box", "ellipse"]:
+            if value not in {"largest_box", "ellipse"}:
                 raise ValueError(f"Rotation method {value} is not valid.")
             return value
 

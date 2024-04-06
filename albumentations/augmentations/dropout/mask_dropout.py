@@ -1,14 +1,14 @@
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-from pydantic import Field, ValidationInfo, field_validator
+from pydantic import Field, field_validator
 from skimage.measure import label
 
-from albumentations.augmentations.utils import BIG_INTEGER, check_range
+from albumentations.core.pydantic import OnePlusRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
-from albumentations.core.types import ScalarType, ScaleIntType, Targets
+from albumentations.core.types import ScalarType, Targets
 
 __all__ = ["MaskDropout"]
 
@@ -40,10 +40,8 @@ class MaskDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(BaseTransformInitSchema):
-        max_objects: ScaleIntType = Field(
-            default=1,
-            description="Maximum number of labels that can be zeroed out. Can be a single value or a tuple (min, max).",
-        )
+        max_objects: OnePlusRangeType = (1, 1)
+
         image_fill_value: Union[float, str] = Field(
             default=0,
             description=(
@@ -52,14 +50,6 @@ class MaskDropout(DualTransform):
             ),
         )
         mask_fill_value: float = Field(default=0, description="Fill value to use when filling mask.")
-
-        @field_validator("max_objects")
-        @classmethod
-        def ensure_max_objects_valid(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
-            result = to_tuple(v, 1)
-            bounds = 1, BIG_INTEGER
-            check_range(result, *bounds, str(info.field_name))
-            return cast(Tuple[int, int], result)
 
         @field_validator("image_fill_value")
         @classmethod

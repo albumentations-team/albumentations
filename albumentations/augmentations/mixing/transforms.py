@@ -4,9 +4,11 @@ from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Opt
 from warnings import warn
 
 import numpy as np
+from pydantic import Field
+from typing_extensions import Annotated
 
 from albumentations.augmentations.utils import is_grayscale_image
-from albumentations.core.transforms_interface import ReferenceBasedTransform
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
 from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
 from albumentations.random_utils import beta
 
@@ -107,9 +109,15 @@ class MixUp(ReferenceBasedTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.GLOBAL_LABEL)
 
+    class InitSchema(BaseTransformInitSchema):
+        reference_data: Optional[Union[Generator[Any, None, None], Sequence[Any]]] = None
+        read_fn: Callable[[ReferenceImage], Any]
+        alpha: Annotated[float, Field(default=0.4, ge=0, le=1)]
+        mix_coef_return_name: str = "mix_coef"
+
     def __init__(
         self,
-        reference_data: Optional[Union[Generator[ReferenceImage, None, None], Sequence[Any]]] = None,
+        reference_data: Optional[Union[Generator[Any, None, None], Sequence[Any]]] = None,
         read_fn: Callable[[ReferenceImage], Any] = lambda x: {"image": x, "mask": None, "class_label": None},
         alpha: float = 0.4,
         mix_coef_return_name: str = "mix_coef",
@@ -118,10 +126,6 @@ class MixUp(ReferenceBasedTransform):
     ):
         super().__init__(always_apply, p)
         self.mix_coef_return_name = mix_coef_return_name
-
-        if alpha < 0:
-            msg = "Alpha must be >= 0."
-            raise ValueError(msg)
 
         self.read_fn = read_fn
         self.alpha = alpha
@@ -141,9 +145,12 @@ class MixUp(ReferenceBasedTransform):
             raise TypeError(msg)
 
     def apply(self, img: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
-        mix_img = mix_data.get("image")
+        if not mix_data:
+            return img
 
-        if not is_grayscale_image(img) and img.shape != img.shape:
+        mix_img = mix_data["image"]
+
+        if not is_grayscale_image(img) and img.shape != mix_img.shape:
             msg = "The shape of the reference image should be the same as the input image."
             raise ValueError(msg)
 

@@ -116,7 +116,7 @@ class Rotate(DualTransform):
         @field_validator("rotate_method")
         @classmethod
         def check_rotate_method(cls, v: str) -> str:
-            if v not in ["largest_box", "ellipse"]:
+            if v not in {"largest_box", "ellipse"}:
                 msg = "rotate_method must be either 'largest_box' or 'ellipse'."
                 raise ValueError(msg)
             return v

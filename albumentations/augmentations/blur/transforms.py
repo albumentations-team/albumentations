@@ -10,7 +10,7 @@ from typing_extensions import Self
 from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
 from albumentations.augmentations.utils import check_range
-from albumentations.core.pydantic import RangeNonNegativeType, RangeSymmetricType
+from albumentations.core.pydantic import OnePlusRangeType, RangeNonNegativeType, RangeSymmetricType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform, to_tuple
 from albumentations.core.types import ScaleFloatType, ScaleIntType
 
@@ -289,8 +289,8 @@ class GlassBlur(ImageOnlyTransform):
         uint8, float32
 
     Reference:
-    |  https://arxiv.org/abs/1903.12261
-    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+        https://arxiv.org/abs/1903.12261
+        https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
 
     """
 
@@ -303,7 +303,7 @@ class GlassBlur(ImageOnlyTransform):
         @field_validator("mode")
         @classmethod
         def validate_mode(cls, value: str) -> str:
-            if value not in ["fast", "exact"]:
+            if value not in {"fast", "exact"}:
                 raise ValueError(f"Mode should be 'fast' or 'exact', got {value}.")
             return value
 
@@ -332,9 +332,11 @@ class GlassBlur(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
         img = params["image"]
 
+        height, width = img.shape[:2]
+
         # generate array containing all necessary values for transformations
-        width_pixels = img.shape[0] - self.max_delta * 2
-        height_pixels = img.shape[1] - self.max_delta * 2
+        width_pixels = height - self.max_delta * 2
+        height_pixels = width - self.max_delta * 2
         total_pixels = int(width_pixels * height_pixels)
         dxy = random_utils.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
 
@@ -581,27 +583,12 @@ class ZoomBlur(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        max_factor: ScaleFloatType = Field(
-            default=(1, 1.31),
-            description=(
-                "Range for max factor for blurring."
-                " If max_factor is a single float, the range will be (1, limit)."
-                " All max_factor values should be larger than 1."
-            ),
-        )
+        max_factor: OnePlusRangeType = (1, 1.31)
         step_factor: RangeNonNegativeType = (0.01, 0.03)
-
-        @field_validator("max_factor")
-        @classmethod
-        def check_max_factor(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 1, float("inf")
-            result = to_tuple(value, low=bounds[0])
-            check_range(result, *bounds, str(info.field_name))
-            return result
 
     def __init__(
         self,
-        max_factor: ScaleFloatType = 1.31,
+        max_factor: ScaleFloatType = (1, 1.31),
         step_factor: ScaleFloatType = (0.01, 0.03),
         always_apply: bool = False,
         p: float = 0.5,

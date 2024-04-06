@@ -1,9 +1,8 @@
 from enum import Enum, IntEnum
-from pathlib import Path
-from typing import Any, Literal, Sequence, Tuple, TypedDict, Union
+from typing import Any, Literal, Sequence, Tuple, Union
 
 import numpy as np
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypedDict
 
 ScalarType = Union[int, float]
 ColorType = Union[float, Sequence[float]]
@@ -39,7 +38,7 @@ MAX_INTERPOLATION_MODE = 7
 
 
 class ReferenceImage(TypedDict):
-    image: Union[str, Path]
+    image: np.ndarray
     mask: NotRequired[np.ndarray]
     global_label: NotRequired[np.ndarray]
     bbox: NotRequired[BoxType]
