@@ -33,9 +33,9 @@ from albumentations.core.composition import (
 )
 from albumentations.core.transforms_interface import (
     DualTransform,
-    ImageOnlyTransform,
-    to_tuple,
+    ImageOnlyTransform
 )
+from albumentations.core.utils import to_tuple
 
 from .utils import get_filtered_transforms
 

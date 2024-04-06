@@ -31,7 +31,6 @@ from albumentations.core.transforms_interface import (
     ImageOnlyTransform,
     Interpolation,
     NoOp,
-    to_tuple,
 )
 from albumentations.core.types import (
     BoxInternalType,
@@ -48,7 +47,7 @@ from albumentations.core.types import (
     chromatic_aberration_modes,
     image_modes,
 )
-from albumentations.core.utils import format_args
+from albumentations.core.utils import format_args, to_tuple
 
 from . import functional as F
 

@@ -5,8 +5,8 @@ from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 from typing_extensions import Annotated
 
-from albumentations.core.transforms_interface import to_tuple
 from albumentations.core.types import ScaleType
+from albumentations.core.utils import to_tuple
 
 valid_interpolations = [
     cv2.INTER_NEAREST,

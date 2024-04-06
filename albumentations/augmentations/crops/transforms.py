@@ -18,7 +18,7 @@ from albumentations.core.pydantic import (
     RangeNonNegativeType,
     ZeroOneRangeType,
 )
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
     ColorType,
@@ -26,6 +26,7 @@ from albumentations.core.types import (
     ScaleFloatType,
     Targets,
 )
+from albumentations.core.utils import to_tuple
 
 from . import functional as F
 

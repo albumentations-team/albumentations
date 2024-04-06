@@ -7,8 +7,9 @@ from pydantic import Field, field_validator
 from skimage.measure import label
 
 from albumentations.core.pydantic import OnePlusRangeType
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ScalarType, Targets
+from albumentations.core.utils import to_tuple
 
 __all__ = ["MaskDropout"]
 

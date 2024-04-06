@@ -18,8 +18,9 @@ from albumentations.augmentations.utils import (
     read_rgb_image,
 )
 from albumentations.core.pydantic import ZeroOneRangeType
-from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform, to_tuple
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType
+from albumentations.core.utils import to_tuple
 
 __all__ = [
     "HistogramMatching",

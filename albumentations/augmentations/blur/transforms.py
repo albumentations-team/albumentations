@@ -11,8 +11,9 @@ from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
 from albumentations.augmentations.utils import check_range
 from albumentations.core.pydantic import OnePlusRangeType, RangeNonNegativeType, RangeSymmetricType
-from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform, to_tuple
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType, ScaleIntType
+from albumentations.core.utils import to_tuple
 
 from . import functional as F
 

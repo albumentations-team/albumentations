@@ -15,7 +15,7 @@ from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.augmentations.utils import BIG_INTEGER, check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.pydantic import BorderModeType, InterpolationType
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, to_tuple
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
     ColorType,
@@ -25,6 +25,7 @@ from albumentations.core.types import (
     SizeType,
     Targets,
 )
+from albumentations.core.utils import to_tuple
 
 from . import functional as F
 
