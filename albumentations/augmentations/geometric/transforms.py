@@ -1,7 +1,7 @@
 import math
 import random
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -14,7 +14,7 @@ from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.augmentations.utils import BIG_INTEGER, check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.pydantic import BorderModeType, InterpolationType
+from albumentations.core.pydantic import BorderModeType, InterpolationType, RangeNonNegativeType, RangeSymmetricType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
@@ -103,7 +103,7 @@ class ShiftScaleRotate(DualTransform):
         mask_value: Optional[ColorType] = Field(default=None)
         shift_limit_x: Optional[ScaleFloatType] = Field(default=None)
         shift_limit_y: Optional[ScaleFloatType] = Field(default=None)
-        rotate_method: Annotated[str, Field(default="largest_box")]
+        rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
 
         @model_validator(mode="after")
         def check_shift_limit(self) -> Self:
@@ -113,13 +113,6 @@ class ShiftScaleRotate(DualTransform):
             self.shift_limit_y = to_tuple(self.shift_limit_y if self.shift_limit_y is not None else self.shift_limit)
             check_range(self.shift_limit_y, *bounds, "shift_limit_y")
             return self
-
-        @field_validator("rotate_method")
-        @classmethod
-        def check_rotate_method(cls, value: str) -> str:
-            if value not in {"largest_box", "ellipse"}:
-                raise ValueError(f"Rotation method {value} is not valid.")
-            return value
 
         @field_validator("scale_limit")
         @classmethod
@@ -145,7 +138,7 @@ class ShiftScaleRotate(DualTransform):
         mask_value: Optional[ColorType] = None,
         shift_limit_x: Optional[ScaleFloatType] = None,
         shift_limit_y: Optional[ScaleFloatType] = None,
-        rotate_method: str = "largest_box",
+        rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -401,35 +394,27 @@ class Perspective(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: Annotated[ScaleFloatType, Field(default=(0.05, 0.1), description="Scale of perspective transform.")]
+        scale: RangeNonNegativeType = (0.05, 0.1)
         keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
         pad_mode: BorderModeType = cv2.BORDER_CONSTANT
-        pad_val: Optional[Union[int, float, List[int], List[float]]] = Field(
+        pad_val: Optional[ColorType] = Field(
             default=0,
             description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
-        mask_pad_val: Optional[Union[int, float, List[int], List[float]]] = Field(
+        mask_pad_val: Optional[ColorType] = Field(
             default=0,
             description="Mask padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
         fit_output: Annotated[bool, Field(default=False, description="Adjust image plane to capture whole image.")]
         interpolation: InterpolationType = cv2.INTER_LINEAR
 
-        @field_validator("scale")
-        @classmethod
-        def check_scale(cls, v: ScaleFloatType, info: ValidationInfo) -> ScaleFloatType:
-            bounds = 0, float("inf")
-            result = to_tuple(v, bounds[0])
-            check_range(result, *bounds, info.field_name)
-            return result
-
     def __init__(
         self,
         scale: ScaleFloatType = (0.05, 0.1),
         keep_size: bool = True,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_val: Union[float, List[float]] = 0,
-        mask_pad_val: Union[float, List[float]] = 0,
+        pad_val: Union[ColorType] = 0,
+        mask_pad_val: Union[ColorType] = 0,
         fit_output: bool = False,
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
@@ -1034,14 +1019,14 @@ class PiecewiseAffine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: ScaleFloatType = Field(default=(0.03, 0.05), description="Scale factor for point jittering.")
+        scale: RangeNonNegativeType = (0.03, 0.05)
         nb_rows: ScaleIntType = Field(default=4, description="Number of rows in the regular grid.")
         nb_cols: ScaleIntType = Field(default=4, description="Number of columns in the regular grid.")
         interpolation: InterpolationType = cv2.INTER_LINEAR
         mask_interpolation: InterpolationType = cv2.INTER_NEAREST
         cval: int = Field(default=0, description="Constant value used for newly created pixels.")
         cval_mask: int = Field(default=0, description="Constant value used for newly created mask pixels.")
-        mode: str = Field(default="constant", description="Boundary mode for points outside the input boundaries.")
+        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant"
         absolute_scale: bool = Field(
             default=False, description="Whether scale is an absolute value rather than relative."
         )
@@ -1049,26 +1034,10 @@ class PiecewiseAffine(DualTransform):
             default=0.01, description="Threshold for conversion from distance maps to keypoints."
         )
 
-        @field_validator("mode")
-        @classmethod
-        def check_mode(cls, value: str, info: ValidationInfo) -> str:
-            valid_modes = {"constant", "edge", "symmetric", "reflect", "wrap"}
-            if value not in valid_modes:
-                raise ValueError(f"{info.field_name} received an invalid mode: {value}. Must be one of {valid_modes}.")
-            return value
-
         @field_validator("nb_rows", "nb_cols")
         @classmethod
         def process_range(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
             bounds = 2, BIG_INTEGER
-            result = to_tuple(value, value)
-            check_range(result, *bounds, info.field_name)
-            return result
-
-        @field_validator("scale")
-        @classmethod
-        def process_scale(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, BIG_INTEGER
             result = to_tuple(value, value)
             check_range(result, *bounds, info.field_name)
             return result
@@ -1082,7 +1051,7 @@ class PiecewiseAffine(DualTransform):
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: int = 0,
         cval_mask: int = 0,
-        mode: str = "constant",
+        mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant",
         absolute_scale: bool = False,
         always_apply: bool = False,
         keypoints_threshold: float = 0.01,
@@ -1625,8 +1594,8 @@ class OpticalDistortion(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        distort_limit: Annotated[ScaleFloatType, Field(default=(-0.05, 0.05), description="Range for distortion.")]
-        shift_limit: Annotated[ScaleFloatType, Field(default=(-0.05, 0.05), description="Range for shift.")]
+        distort_limit: RangeSymmetricType = (-0.05, 0.05)
+        shift_limit: RangeSymmetricType = (-0.05, 0.05)
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(
@@ -1636,15 +1605,10 @@ class OpticalDistortion(DualTransform):
             default=None, description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT."
         )
 
-        @field_validator("distort_limit", "shift_limit")
-        @classmethod
-        def prepare_limits(cls, values: ScaleFloatType) -> Tuple[float, float]:
-            return cast(Tuple[float, float], to_tuple(values))
-
     def __init__(
         self,
-        distort_limit: ScaleFloatType = 0.05,
-        shift_limit: ScaleFloatType = 0.05,
+        distort_limit: ScaleFloatType = (-0.05, 0.05),
+        shift_limit: ScaleFloatType = (-0.05, 0.05),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,

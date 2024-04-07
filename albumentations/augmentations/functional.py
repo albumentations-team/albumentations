@@ -460,9 +460,9 @@ def clahe(img: np.ndarray, clip_limit: float = 2.0, tile_grid_size: Tuple[int, i
         msg = "clahe supports only uint8 inputs"
         raise TypeError(msg)
 
-    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=[int(x) for x in tile_grid_size])
 
-    if len(img.shape) == TWO or img.shape[2] == 1:
+    if is_grayscale_image(img):
         return clahe_mat.apply(img)
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
@@ -1411,7 +1411,7 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
         np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
     """
     height, width = image_shape
-    n_rows, n_cols = grid
+    n_rows, n_cols = (int(x) for x in grid)
 
     # Compute split points for the grid
     height_splits = np.linspace(0, height, n_rows + 1, dtype=int)

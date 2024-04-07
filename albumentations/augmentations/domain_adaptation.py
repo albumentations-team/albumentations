@@ -3,8 +3,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
-from pydantic import Field, ValidationInfo, field_validator
-from typing_extensions import Annotated
+from pydantic import field_validator
 
 from albumentations.augmentations.domain_adaptation_functional import (
     adapt_pixel_distribution,
@@ -12,15 +11,13 @@ from albumentations.augmentations.domain_adaptation_functional import (
     fourier_domain_adaptation,
 )
 from albumentations.augmentations.utils import (
-    check_range,
     is_grayscale_image,
     is_multispectral_image,
     read_rgb_image,
 )
-from albumentations.core.pydantic import ZeroOneRangeType
+from albumentations.core.pydantic import RangeNonNegativeType, ZeroOneRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType
-from albumentations.core.utils import to_tuple
 
 __all__ = [
     "HistogramMatching",
@@ -170,15 +167,15 @@ class FDA(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
         read_fn: Callable[[Any], np.ndarray]
-        beta_limit: Annotated[ScaleFloatType, Field(default=0.1)]
+        beta_limit: RangeNonNegativeType = (0, 0.1)
 
         @field_validator("beta_limit")
         @classmethod
-        def check_ranges(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        def check_ranges(cls, value: Tuple[float, float]) -> Tuple[float, float]:
             bounds = 0, MAX_BETA_LIMIT
-            result = to_tuple(value, low=0)
-            check_range(result, *bounds, info.field_name)
-            return cast(Tuple[float, float], value)
+            if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+                raise ValueError(f"Values should be in the range {bounds} got {value} ")
+            return value
 
     def __init__(
         self,

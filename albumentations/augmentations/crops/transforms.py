@@ -5,11 +5,10 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import Field, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations.augmentations.geometric import functional as FGeometric
-from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (
     BorderModeType,
@@ -26,7 +25,6 @@ from albumentations.core.types import (
     ScaleFloatType,
     Targets,
 )
-from albumentations.core.utils import to_tuple
 
 from . import functional as F
 
@@ -559,17 +557,8 @@ class RandomCropNearBBox(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         max_part_shift: ZeroOneRangeType = (0, 0.3)
-
         cropping_bbox_key: str = Field(default="cropping_bbox", description="Additional target key for cropping box.")
         p: ProbabilityType = 1
-
-        @field_validator("max_part_shift")
-        @classmethod
-        def check_ranges(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, 1
-            values = to_tuple(value, low=bounds[0])
-            check_range(values, *bounds, str(info.field_name))
-            return values
 
     def __init__(
         self,
@@ -886,7 +875,6 @@ class CropAndPad(DualTransform):
             default=True, description="Whether to sample the crop/pad size independently for each side."
         )
         interpolation: InterpolationType = cv2.INTER_LINEAR
-
         p: ProbabilityType = 1
 
         @model_validator(mode="after")
@@ -904,8 +892,8 @@ class CropAndPad(DualTransform):
         px: Optional[Union[int, List[int]]] = None,
         percent: Optional[Union[float, List[float]]] = None,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: Union[float, Sequence[float]] = 0,
-        pad_cval_mask: Union[float, Sequence[float]] = 0,
+        pad_cval: ColorType = 0,
+        pad_cval_mask: ColorType = 0,
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,

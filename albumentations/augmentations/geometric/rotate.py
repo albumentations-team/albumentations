@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Optional, Tuple, cast
 
 import cv2
 import numpy as np
-from pydantic import Field, field_validator
+from pydantic import Field
+from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as FCrops
 from albumentations.core.pydantic import BorderModeType, InterpolationType, RangeSymmetricType
@@ -105,21 +106,10 @@ class Rotate(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(RotateInitSchema):
-        rotate_method: str = Field(
-            default="largest_box",
-            description="Rotation method used for the bounding boxes.",
-        )
+        rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
         crop_border: bool = Field(
             default=False, description="If True, makes a largest possible crop within the rotated image."
         )
-
-        @field_validator("rotate_method")
-        @classmethod
-        def check_rotate_method(cls, v: str) -> str:
-            if v not in {"largest_box", "ellipse"}:
-                msg = "rotate_method must be either 'largest_box' or 'ellipse'."
-                raise ValueError(msg)
-            return v
 
     def __init__(
         self,
@@ -128,7 +118,7 @@ class Rotate(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,
         mask_value: Optional[ColorType] = None,
-        rotate_method: str = "largest_box",
+        rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
@@ -291,7 +281,7 @@ class SafeRotate(DualTransform):
 
     def __init__(
         self,
-        limit: ScaleFloatType = 90,
+        limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,

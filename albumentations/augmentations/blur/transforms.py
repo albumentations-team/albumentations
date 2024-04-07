@@ -1,6 +1,6 @@
 import random
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 import cv2
 import numpy as np
@@ -299,21 +299,14 @@ class GlassBlur(ImageOnlyTransform):
         sigma: float = Field(default=0.7, ge=0, description="Standard deviation for the Gaussian kernel.")
         max_delta: int = Field(default=4, ge=1, description="Maximum distance between pixels that are swapped.")
         iterations: int = Field(default=2, ge=1, description="Number of times the glass noise effect is applied.")
-        mode: str = Field(default="fast", description="Mode of computation, either 'fast' or 'exact'.")
-
-        @field_validator("mode")
-        @classmethod
-        def validate_mode(cls, value: str) -> str:
-            if value not in {"fast", "exact"}:
-                raise ValueError(f"Mode should be 'fast' or 'exact', got {value}.")
-            return value
+        mode: Literal["fast", "exact"] = "fast"
 
     def __init__(
         self,
         sigma: float = 0.7,
         max_delta: int = 4,
         iterations: int = 2,
-        mode: str = "fast",
+        mode: Literal["fast", "exact"] = "fast",
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -519,23 +512,12 @@ class Defocus(ImageOnlyTransform):
         unit8, float32
 
     Reference:
-        https://arxiv.org/abs/1903.12261.
+        https://arxiv.org/abs/1903.12261
     """
 
     class InitSchema(BaseTransformInitSchema):
-        radius: ScaleIntType = Field(
-            default=(3, 10),
-            description="Range for radius of defocusing. If limit is a single int, the range will be [1, limit].",
-        )
+        radius: OnePlusRangeType = (3, 10)
         alias_blur: RangeNonNegativeType = (0.1, 0.5)
-
-        @field_validator("radius")
-        @classmethod
-        def check_radius(cls, value: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
-            bounds = 1, float("inf")
-            result = to_tuple(value, low=bounds[0])
-            check_range(result, *bounds, str(info.field_name))
-            return cast(Tuple[int, int], result)
 
     def __init__(
         self,

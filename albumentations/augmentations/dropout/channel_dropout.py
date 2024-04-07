@@ -1,12 +1,14 @@
 import random
-from typing import Any, Dict, List, Mapping, Tuple, Union, cast
+from typing import Any, Dict, List, Mapping, Tuple
 
 import numpy as np
-from pydantic import Field, ValidationInfo, field_validator
+from pydantic import Field
 from typing_extensions import Annotated
 
-from albumentations.augmentations.utils import BIG_INTEGER, check_range, is_grayscale_image
+from albumentations.augmentations.utils import is_grayscale_image
+from albumentations.core.pydantic import OnePlusRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
+from albumentations.core.types import ColorType
 
 from .functional import channel_dropout
 
@@ -34,30 +36,12 @@ class ChannelDropout(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        channel_drop_range: Annotated[
-            Union[Tuple[int, int], List[int]],
-            Field(description="Range from which we choose the number of channels to drop."),
-        ]
-        fill_value: Annotated[Union[int, float], Field(description="Pixel value for the dropped channel.")]
-
-        @field_validator("channel_drop_range")
-        @classmethod
-        def check_channel_drop_range(
-            cls, v: Union[Tuple[int, int], List[int]], info: ValidationInfo
-        ) -> Tuple[int, int]:
-            if isinstance(v, list) and len(v) > MIN_DROPOUT_CHANNEL_LIST_LENGTH:
-                msg = "The length of the channel_drop_range list should be 2."
-                raise ValueError(msg)
-
-            bounds = 1, BIG_INTEGER
-
-            check_range(cast(Tuple[int, int], v), *bounds, info.field_name)
-
-            return cast(Tuple[int, int], v)
+        channel_drop_range: OnePlusRangeType = (1, 1)
+        fill_value: Annotated[ColorType, Field(description="Pixel value for the dropped channel.")]
 
     def __init__(
         self,
-        channel_drop_range: Union[Tuple[int, int], List[int]] = (1, 1),
+        channel_drop_range: Tuple[int, int] = (1, 1),
         fill_value: float = 0,
         always_apply: bool = False,
         p: float = 0.5,
@@ -72,7 +56,6 @@ class ChannelDropout(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params: Mapping[str, Any]) -> Dict[str, Any]:
         img = params["image"]
-
         num_channels = img.shape[-1]
 
         if is_grayscale_image(img):
