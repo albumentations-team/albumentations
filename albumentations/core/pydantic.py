@@ -67,7 +67,7 @@ RangeSymmetricType = Annotated[ScaleType, AfterValidator(create_symmetric_range)
 
 
 def check_1plus_range(value: ScaleType) -> Tuple[float, float]:
-    result = to_tuple(value, 1)
+    result = to_tuple(value, low=1)
 
     if not all(x >= 1 for x in result):
         raise ValueError(f"All values should be >= 1, got {value} instead")

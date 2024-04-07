@@ -25,7 +25,7 @@ class ValidatedTransformMeta(type):
                 # No try-except block needed as we want the exception to propagate naturally
                 config = dct["InitSchema"](**full_kwargs)
 
-                validated_kwargs = config.dict()
+                validated_kwargs = config.model_dump()
                 original_init(self, **validated_kwargs)
 
             # Rename __init__ to custom_init to avoid the N807 warning

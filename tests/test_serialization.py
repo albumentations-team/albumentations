@@ -1062,7 +1062,7 @@ def test_augmentations_serialization(augmentation_cls, params):
         """
         fields = set()
         if hasattr(model_cls, 'InitSchema'):
-            fields |= set(model_cls.InitSchema.__fields__.keys())
+            fields |= set(model_cls.InitSchema.model_fields.keys())
 
         for base in model_cls.__bases__:
             fields |= get_all_init_schema_fields(base)
