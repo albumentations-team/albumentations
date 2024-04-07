@@ -3,6 +3,7 @@ import pytest
 import cv2
 
 from pydantic import BaseModel
+import albumentations as A
 
 from albumentations.core.pydantic import (
     BorderModeType,
@@ -191,3 +192,14 @@ def test_one_plus_range_invalid(one_plus_range):
 def test_zero_one_range_invalid(zero_one_range):
     with pytest.raises(ValueError):
         ValidationModel(zero_one_range=zero_one_range)
+
+@pytest.mark.parametrize("kwargs", [{"interpolation": 999, "height": 1, "width": 1},
+                                    {"interpolation": -1, "height": 1, "width": 1},
+                                    {"scale": -4, "height": 1, "width": 1},
+                                    {"ratio": (-1, 2), "height": 1, "width": 1},
+                                    {"height": -1, "width": 1},
+                                    {"width": 0, "height": 1},])
+
+def test_RandomResizedCrop(kwargs):
+    with pytest.raises(ValueError):
+        A.RandomResizedCrop(**kwargs)

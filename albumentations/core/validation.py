@@ -26,6 +26,7 @@ class ValidatedTransformMeta(type):
                 config = dct["InitSchema"](**full_kwargs)
 
                 validated_kwargs = config.model_dump()
+
                 original_init(self, **validated_kwargs)
 
             # Rename __init__ to custom_init to avoid the N807 warning
