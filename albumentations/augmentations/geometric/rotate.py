@@ -198,16 +198,17 @@ class Rotate(DualTransform):
         return keypoint_out
 
     @staticmethod
-    def _rotated_rect_with_max_area(h: int, w: int, angle: float) -> Dict[str, int]:
+    def _rotated_rect_with_max_area(height: int, width: int, angle: float) -> Dict[str, int]:
         """Given a rectangle of size wxh that has been rotated by 'angle' (in
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
 
-        Code from: https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
+        Reference:
+            https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
         """
         angle = math.radians(angle)
-        width_is_longer = w >= h
-        side_long, side_short = (w, h) if width_is_longer else (h, w)
+        width_is_longer = width >= height
+        side_long, side_short = (width, height) if width_is_longer else (height, width)
 
         # since the solutions for angle, -angle and 180-angle are all the same,
         # it is sufficient to look at the first quadrant and the absolute values of sin,cos:
@@ -220,13 +221,13 @@ class Rotate(DualTransform):
         else:
             # fully constrained case: crop touches all 4 sides
             cos_2a = cos_a * cos_a - sin_a * sin_a
-            wr, hr = (w * cos_a - h * sin_a) / cos_2a, (h * cos_a - w * sin_a) / cos_2a
+            wr, hr = (width * cos_a - height * sin_a) / cos_2a, (height * cos_a - width * sin_a) / cos_2a
 
         return {
-            "x_min": max(0, int(w / 2 - wr / 2)),
-            "x_max": min(w, int(w / 2 + wr / 2)),
-            "y_min": max(0, int(h / 2 - hr / 2)),
-            "y_max": min(h, int(h / 2 + hr / 2)),
+            "x_min": max(0, int(width / 2 - wr / 2)),
+            "x_max": min(width, int(width / 2 + wr / 2)),
+            "y_min": max(0, int(height / 2 - hr / 2)),
+            "y_max": min(height, int(height / 2 + hr / 2)),
         }
 
     @property

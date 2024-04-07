@@ -108,11 +108,7 @@ class MotionBlur(Blur):
         def process_blur(self) -> Self:
             self.blur_limit = cast(Tuple[int, int], to_tuple(self.blur_limit, 3))
 
-            if (
-                self.allow_shifted
-                and isinstance(self.blur_limit, tuple)
-                and not all(x % 2 == 1 for x in self.blur_limit)
-            ):
+            if self.allow_shifted and isinstance(self.blur_limit, tuple) and any(x % 2 != 1 for x in self.blur_limit):
                 raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
 
             return self
