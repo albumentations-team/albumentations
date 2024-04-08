@@ -1,5 +1,6 @@
 import random
 from functools import partial
+from typing import Optional, Tuple, Type
 
 import cv2
 import numpy as np
@@ -1416,7 +1417,7 @@ def test_deprecation_warnings(size, width, height, expected_warning):
     warnings.resetwarnings()
 
 
-def test_randomgridshuffle():
+def test_randomgridshuffle() -> None:
     # RandomGridShuffle with grid=(3, 3)
     # image size not divisible by grid size
     # image unchanged, should get warning
@@ -1427,4 +1428,38 @@ def test_randomgridshuffle():
         assert np.equal(image, transformed_image_albu).all()
         assert len(w) == 1
         assert w[0].category is UserWarning
+    warnings.resetwarnings()
+
+
+@pytest.mark.parametrize("num_shadows_limit, num_shadows_lower, num_shadows_upper, expected_warning", [
+    ((1, 2), None, None, None),
+    ((2, 3), None, None, None),
+    ((1, 2), 1, None, DeprecationWarning),
+    ((1, 2), None, 2, DeprecationWarning),
+    ((1, 2), 1, 2, DeprecationWarning),
+    ((2, 1), None, None, ValueError),
+])
+def test_deprecation_warnings_random_shadow(
+    num_shadows_limit: Tuple[int, int],
+    num_shadows_lower: Optional[int],
+    num_shadows_upper: Optional[int],
+    expected_warning: Optional[Type[Warning]],
+) -> None:
+    """
+    Test deprecation warnings for RandomShadow
+    """
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        if expected_warning == ValueError:
+            with pytest.raises(ValueError):
+                A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
+                               num_shadows_upper=num_shadows_upper)
+        else:
+            A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
+                           num_shadows_upper=num_shadows_upper)
+        if expected_warning is DeprecationWarning:
+            assert len(w) == 1
+            assert issubclass(w[-1].category, expected_warning)
+        else:
+            assert not w
     warnings.resetwarnings()
