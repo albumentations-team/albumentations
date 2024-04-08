@@ -938,9 +938,7 @@ class RandomShadow(ImageOnlyTransform):
         self.shadow_dimension = shadow_dimension
         self.num_shadows_limit = num_shadows_limit
 
-    def apply(
-        self, img: np.ndarray, vertices_list: Optional[List[List[Tuple[int, int]]]] = None, **params: Any
-    ) -> np.ndarray:
+    def apply(self, img: np.ndarray, vertices_list: Optional[List[np.ndarray]] = None, **params: Any) -> np.ndarray:
         if vertices_list is None:
             vertices_list = []
         return F.add_shadow(img, vertices_list)
@@ -953,7 +951,7 @@ class RandomShadow(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        num_shadows = random.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
+        num_shadows = random_utils.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -962,15 +960,16 @@ class RandomShadow(ImageOnlyTransform):
         y_min = int(y_min * height)
         y_max = int(y_max * height)
 
-        vertices_list = []
-
-        for _ in range(num_shadows):
-            vertex = [
-                (random.randint(x_min, x_max), random.randint(y_min, y_max)) for _ in range(self.shadow_dimension)
-            ]
-
-            vertices = np.array([vertex], dtype=np.int32)
-            vertices_list.append(vertices)
+        vertices_list = [
+            np.stack(
+                [
+                    random_utils.randint(x_min, x_max, size=5),
+                    random_utils.randint(y_min, y_max, size=5),
+                ],
+                axis=1,
+            )
+            for _ in range(num_shadows)
+        ]
 
         return {"vertices_list": vertices_list}
 
