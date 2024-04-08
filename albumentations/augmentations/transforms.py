@@ -9,22 +9,31 @@ from warnings import warn
 
 import cv2
 import numpy as np
+from pydantic import Field, field_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
+from typing_extensions import Annotated
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
-from albumentations.augmentations.configs import NormalizeConfig, RandomGridShuffleConfig
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
 )
-from albumentations.core.transforms_interface import DualTransform, ImageOnlyTransform, Interpolation, NoOp, to_tuple
+from albumentations.core.pydantic import OnePlusRangeType, ProbabilityType
+from albumentations.core.transforms_interface import (
+    BaseTransformInitSchema,
+    DualTransform,
+    ImageOnlyTransform,
+    Interpolation,
+    NoOp,
+)
 from albumentations.core.types import (
     BoxInternalType,
     ChromaticAberrationMode,
+    ColorType,
     ImageMode,
     KeypointInternalType,
     ScaleFloatType,
@@ -32,9 +41,8 @@ from albumentations.core.types import (
     ScaleType,
     SpatterMode,
     Targets,
-    image_modes,
 )
-from albumentations.core.utils import format_args
+from albumentations.core.utils import format_args, to_tuple
 
 from . import functional as F
 
@@ -82,6 +90,7 @@ __all__ = [
     "ChromaticAberration",
 ]
 
+NUM_BITS_ARRAY_LENGTH = 3
 MAX_JPEG_QUALITY = 100
 TWENTY = 20
 FIVE = 5
@@ -103,14 +112,14 @@ class RandomGridShuffle(DualTransform):
 
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        grid: OnePlusRangeType = (3, 3)
+
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: bool = False, p: float = 0.5):
-        config = RandomGridShuffleConfig(grid=grid, always_apply=always_apply, p=p)
-        super().__init__(config.always_apply, config.p)
-        self.grid = config.grid
-        self.always_apply = config.always_apply
-        self.p = config.p
+        super().__init__(always_apply=always_apply, p=p)
+        self.grid = grid
 
     def apply(self, img: np.ndarray, tiles: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         return F.swap_tiles_on_image(img, tiles)
@@ -190,19 +199,24 @@ class Normalize(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        mean: ColorType = Field(default=(0.485, 0.456, 0.406), description="Mean values for normalization")
+        std: ColorType = Field(default=(0.229, 0.224, 0.225), description="Standard deviation values for normalization")
+        max_pixel_value: float = Field(default=255.0, description="Maximum possible pixel value")
+        p: ProbabilityType = 1
+
     def __init__(
         self,
-        mean: Union[float, Sequence[float]] = (0.485, 0.456, 0.406),
-        std: Union[float, Sequence[float]] = (0.229, 0.224, 0.225),
+        mean: ColorType = (0.485, 0.456, 0.406),
+        std: ColorType = (0.229, 0.224, 0.225),
         max_pixel_value: float = 255.0,
         always_apply: bool = False,
         p: float = 1.0,
     ):
-        config = NormalizeConfig(mean=mean, std=std, max_pixel_value=max_pixel_value, always_apply=always_apply, p=p)
-        super().__init__(config.always_apply, config.p)
-        self.mean = config.mean
-        self.std = config.std
-        self.max_pixel_value = config.max_pixel_value
+        super().__init__(always_apply=always_apply, p=p)
+        self.mean = mean
+        self.std = std
+        self.max_pixel_value = max_pixel_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return F.normalize(img, self.mean, self.std, self.max_pixel_value)
@@ -1072,20 +1086,28 @@ class Posterize(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        num_bits: Annotated[
+            Union[int, Tuple[int, int], Tuple[int, int, int]], Field(default=4, description="Number of high bits")
+        ]
+
+        @field_validator("num_bits")
+        @classmethod
+        def validate_num_bits(cls, num_bits: Any) -> Union[Tuple[int, int], List[Tuple[int, int]]]:
+            if isinstance(num_bits, int):
+                return cast(Tuple[int, int], to_tuple(num_bits, num_bits))
+            if isinstance(num_bits, Sequence) and len(num_bits) == NUM_BITS_ARRAY_LENGTH:
+                return [cast(Tuple[int, int], to_tuple(i, 0)) for i in num_bits]
+            return cast(Tuple[int, int], to_tuple(num_bits, 0))
+
     def __init__(
         self,
         num_bits: Union[int, Tuple[int, int], Tuple[int, int, int]] = 4,
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
-
-        if isinstance(num_bits, int):
-            self.num_bits = to_tuple(num_bits, num_bits)
-        elif isinstance(num_bits, Sequence) and len(num_bits) == THREE:
-            self.num_bits = [to_tuple(i, 0) for i in num_bits]  # type: ignore[assignment]
-        else:
-            self.num_bits = to_tuple(num_bits, 0)  # type: ignore[arg-type]
+        super().__init__(always_apply=always_apply, p=p)
+        self.num_bits = cast(Union[Tuple[int, ...], List[Tuple[int, ...]]], num_bits)
 
     def apply(self, img: np.ndarray, num_bits: int = 1, **params: Any) -> np.ndarray:
         return F.posterize(img, num_bits)
@@ -1094,7 +1116,7 @@ class Posterize(ImageOnlyTransform):
         if len(self.num_bits) == THREE:
             return {"num_bits": [random.randint(int(i[0]), int(i[1])) for i in self.num_bits]}  # type: ignore[index]
         num_bits = self.num_bits
-        return {"num_bits": random.randint(int(num_bits[0]), int(num_bits[1]))}
+        return {"num_bits": random.randint(int(num_bits[0]), int(num_bits[1]))}  # type: ignore[arg-type]
 
     def get_transform_init_args_names(self) -> Tuple[str]:
         return ("num_bits",)
@@ -1120,19 +1142,26 @@ class Equalize(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        mode: ImageMode = "cv"
+        by_channels: Annotated[bool, Field(default=True, description="Equalize channels separately if True")]
+        mask: Annotated[
+            Optional[Union[np.ndarray, Callable[..., Any]]],
+            Field(default=None, description="Mask to apply for equalization"),
+        ]
+        mask_params: Annotated[Sequence[str], Field(default=[], description="Parameters for mask function")]
+
     def __init__(
         self,
         mode: ImageMode = "cv",
         by_channels: bool = True,
-        mask: Optional[np.ndarray] = None,
-        mask_params: Tuple[()] = (),
+        mask: Optional[Union[np.ndarray, Callable[..., Any]]] = None,
+        mask_params: Sequence[str] = (),
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        if mode not in image_modes:
-            raise ValueError(f"Unsupported equalization mode. Supports: {image_modes}. " f"Got: {mode}")
+        super().__init__(always_apply=always_apply, p=p)
 
-        super().__init__(always_apply, p)
         self.mode = mode
         self.by_channels = by_channels
         self.mask = mask
