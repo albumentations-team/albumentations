@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
-from albumentations.augmentations.mixing.functional import mix_arrays
+
+from albumentations.augmentations.functional import add_weighted
+
 
 def find_mix_coef(r: np.ndarray, array1: np.ndarray, array2: np.ndarray) -> float:
     """
@@ -45,8 +47,8 @@ def find_mix_coef(r: np.ndarray, array1: np.ndarray, array2: np.ndarray) -> floa
         # Additional test cases can be added here.
     ]
 )
-def test_mix_arrays_shapes(array1, array2, mix_coef, expected_shape):
-    result = mix_arrays(array1, array2, mix_coef)
+def test_add_weighted_shapes(array1, array2, mix_coef, expected_shape):
+    result = add_weighted(array1, mix_coef, array2, 1 - mix_coef)
     assert result.shape == expected_shape, f"Expected shape {expected_shape}, got {result.shape}"
 
     # Additionally, you can check if the result type matches the first array type

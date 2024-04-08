@@ -18,13 +18,7 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-from albumentations.core.types import (
-    ColorType,
-    ImageMode,
-    ScalarType,
-    SpatterMode,
-    image_modes,
-)
+from albumentations.core.types import ColorType, ImageMode, ScalarType, SpatterMode, image_modes
 
 __all__ = [
     "add_fog",
@@ -1332,8 +1326,10 @@ def superpixels(
 
 
 @clipped
+@preserve_shape
 def add_weighted(img1: np.ndarray, alpha: float, img2: np.ndarray, beta: float) -> np.ndarray:
-    return img1.astype(float) * alpha + img2.astype(float) * beta
+    img2 = img2.reshape(img1.shape).astype(img1.dtype)
+    return cv2.addWeighted(img1, alpha, img2, beta, 0)
 
 
 @clipped
