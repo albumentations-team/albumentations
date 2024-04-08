@@ -841,9 +841,10 @@ class RandomShadow(ImageOnlyTransform):
     Args:
         shadow_roi: region of the image where shadows
             will appear. All values should be in range [0, 1].
-        num_shadows_lower: Lower limit for the possible number of shadows.
+        num_shadows_limit: Lower and upper limits for the possible number of shadows.
+        num_shadows_lower: Deprecated: Lower limit for the possible number of shadows.
             Should be in range [0, `num_shadows_upper`].
-        num_shadows_upper: Lower limit for the possible number of shadows.
+        num_shadows_upper: Deprecated: Lower limit for the possible number of shadows.
             Should be in range [`num_shadows_lower`, inf].
         shadow_dimension: number of edges in the shadow polygons
 
@@ -858,8 +859,9 @@ class RandomShadow(ImageOnlyTransform):
     def __init__(
         self,
         shadow_roi: Tuple[float, float, float, float] = (0, 0.5, 1, 1),
-        num_shadows_lower: int = 1,
-        num_shadows_upper: int = 2,
+        num_shadows_limit: Tuple[int, int] = (1, 2),
+        num_shadows_lower: Optional[int] = None,
+        num_shadows_upper: Optional[int] = None,
         shadow_dimension: int = 5,
         always_apply: bool = False,
         p: float = 0.5,
@@ -870,6 +872,17 @@ class RandomShadow(ImageOnlyTransform):
 
         if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
             raise ValueError(f"Invalid shadow_roi. Got: {shadow_roi}")
+
+        if num_shadows_lower is not None or num_shadows_upper is not None:
+            warn(
+                "`num_shadows_lower` and `num_shadows_upper` are deprecated. "
+                "Use `num_shadows_limit` as tuple (num_shadows_lower, num_shadows_upper) instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        num_shadows_lower = num_shadows_lower or num_shadows_limit[0]
+        num_shadows_upper = num_shadows_upper or num_shadows_limit[1]
+
         if not 0 <= num_shadows_lower <= num_shadows_upper:
             msg = "Invalid combination of num_shadows_lower nad num_shadows_upper. "
             f"Got: {(num_shadows_lower, num_shadows_upper)}"
@@ -897,7 +910,7 @@ class RandomShadow(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
+        num_shadows = random_utils.randint(self.num_shadows_lower, self.num_shadows_upper)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -906,15 +919,16 @@ class RandomShadow(ImageOnlyTransform):
         y_min = int(y_min * height)
         y_max = int(y_max * height)
 
-        vertices_list = []
-
-        for _ in range(num_shadows):
-            vertex = [
-                (random.randint(x_min, x_max), random.randint(y_min, y_max)) for _ in range(self.shadow_dimension)
-            ]
-
-            vertices = np.array([vertex], dtype=np.int32)
-            vertices_list.append(vertices)
+        vertices_list = [
+            np.stack(
+                [
+                    random_utils.randint(x_min, x_max, size=5),
+                    random_utils.randint(y_min, y_max, size=5),
+                ],
+                axis=1,
+            )
+            for _ in range(num_shadows)
+        ]
 
         return {"vertices_list": vertices_list}
 
