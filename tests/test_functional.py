@@ -7,7 +7,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
-from albumentations.core.bbox_utils import filter_bboxes
+from albumentations.core.bbox_utils import filter_bboxes, BBoxesInternalType
 from tests.utils import convert_2d_to_target_format
 
 
@@ -675,12 +675,12 @@ def test_bbox_center_crop():
 
 def test_bbox_crop():
     cropped_bbox = A.bbox_crop((0.5, 0.2, 0.9, 0.7), 24, 24, 64, 64, 100, 100)
-    assert cropped_bbox == (0.65, -0.1, 1.65, 1.15)
+    assert np.allclose(cropped_bbox, (0.65, -0.1, 1.65, 1.15))
 
 
 def test_bbox_random_crop():
     cropped_bbox = A.bbox_random_crop((0.5, 0.2, 0.9, 0.7), 80, 80, 0.2, 0.1, 100, 100)
-    assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
+    assert np.allclose(cropped_bbox, (0.6, 0.2, 1.1, 0.825))
 
 
 def test_bbox_rot90():
@@ -710,8 +710,8 @@ def test_bbox_transpose():
     ],
 )
 def test_filter_bboxes(bboxes, min_area, min_visibility, target):
-    filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
-    assert filtered_bboxes == target
+    filtered_bboxes = filter_bboxes(BBoxesInternalType(np.array(bboxes)), min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
+    assert np.allclose(filtered_bboxes, target)
 
 
 @pytest.mark.parametrize(
@@ -744,8 +744,8 @@ def test_filter_bboxes(bboxes, min_area, min_visibility, target):
     ],
 )
 def test_filter_bboxes_by_min_width_height(bboxes, img_width, img_height, min_width, min_height, target):
-    filtered_bboxes = filter_bboxes(bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height)
-    assert filtered_bboxes == target
+    filtered_bboxes = filter_bboxes(BBoxesInternalType(np.array(bboxes)), cols=img_width, rows=img_height, min_width=min_width, min_height=min_height)
+    assert np.allclose(filtered_bboxes, target)
 
 
 def test_fun_max_size():

@@ -162,21 +162,21 @@ def test_check_bboxes_with_correct_values():
 def test_check_bboxes_with_values_less_than_zero():
     with pytest.raises(ValueError) as exc_info:
         check_bboxes([[0.2, 0.5, 0.5, 0.6, 99], [-0.1, 0.5, 0.8, 1.0]])
-    message = "Expected x_min for bbox [-0.1, 0.5, 0.8, 1.0] to be in the range [0.0, 1.0], got -0.1."
+    message = "Expected x_min for bboxes to be in the range [0.0, 1.0]. Wrong bboxes: [[-0.1  0.5  0.8  1. ]]"
     assert str(exc_info.value) == message
 
 
 def test_check_bboxes_with_values_greater_than_one():
     with pytest.raises(ValueError) as exc_info:
         check_bboxes([[0.2, 0.5, 1.5, 0.6, 99], [0.1, 0.5, 0.8, 1.0]])
-    message = "Expected x_max for bbox [0.2, 0.5, 1.5, 0.6, 99] to be in the range [0.0, 1.0], got 1.5."
+    message = "Expected x_max for bboxes to be in the range [0.0, 1.0]. Wrong bboxes: [[0.2 0.5 1.5 0.6]]"
     assert str(exc_info.value) == message
 
 
 def test_check_bboxes_with_end_greater_that_start():
     with pytest.raises(ValueError) as exc_info:
         check_bboxes([[0.8, 0.5, 0.7, 0.6, 99], [0.1, 0.5, 0.8, 1.0]])
-    message = "x_max is less than or equal to x_min for bbox [0.8, 0.5, 0.7, 0.6, 99]."
+    message = "x_max is less than or equal to x_min for bboxes [[0.8 0.5 0.7 0.6]]."
     assert str(exc_info.value) == message
 
 
