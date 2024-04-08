@@ -24,7 +24,7 @@ from albumentations.augmentations.utils import (
     is_grayscale_image,
     is_rgb_image,
 )
-from albumentations.core.pydantic import OnePlusRangeType, ProbabilityType
+from albumentations.core.pydantic import OnePlusRangeType, ProbabilityType, RangeNonNegativeType
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
     DualTransform,
@@ -2033,18 +2033,9 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: ScaleFloatType = Field(default=(0.9, 1.1), description="Multiplier for image values.")
+        multiplier: RangeNonNegativeType = (0.9, 1.1)
         per_channel: bool = Field(default=False, description="Apply multiplier per channel.")
         elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
-
-        @model_validator(mode="after")
-        def check_validity(self) -> Self:
-            if isinstance(self.multiplier, (list, tuple)) and self.multiplier[0] >= self.multiplier[1]:
-                msg = "multiplier[0] should be less than multiplier[1]"
-                raise ValueError(msg)
-            if isinstance(self.multiplier, (float, int)):
-                self.multiplier = to_tuple(self.multiplier, self.multiplier)
-            return self
 
     def __init__(
         self,
