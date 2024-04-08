@@ -365,8 +365,10 @@
                     1,
                     1
                 ],
-                "num_shadows_lower": 1,
-                "num_shadows_upper": 2,
+                "num_shadows_limit": [
+                    1,
+                    2
+                ],
                 "shadow_dimension": 5
             },
             {

@@ -152,8 +152,7 @@ AUGMENTATION_CLS_PARAMS = [
         A.RandomShadow,
         {
             "shadow_roi": (0.1, 0.4, 0.9, 0.9),
-            "num_shadows_lower": 2,
-            "num_shadows_upper": 4,
+            "num_shadows_limit": (2, 4),
             "shadow_dimension": 8,
         },
     ],
