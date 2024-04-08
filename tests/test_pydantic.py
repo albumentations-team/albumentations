@@ -2,7 +2,7 @@ from typing import Optional
 import pytest
 import cv2
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 import albumentations as A
 
 from albumentations.core.pydantic import (
@@ -22,6 +22,7 @@ from albumentations.core.pydantic import (
     valid_interpolations,
     valid_border_modes
 )
+from albumentations.core.validation import ValidatedTransformMeta
 
 # Interpolation Tests
 @pytest.mark.parametrize("interpolation, exception", [
@@ -203,3 +204,65 @@ def test_zero_one_range_invalid(zero_one_range):
 def test_RandomResizedCrop(kwargs):
     with pytest.raises(ValueError):
         A.RandomResizedCrop(**kwargs)
+
+class MyTransformInitSchema(BaseModel):
+    param_a: int
+    param_b: float = 1.0
+
+class MyTransform(metaclass=ValidatedTransformMeta):
+    class InitSchema(MyTransformInitSchema):
+        pass
+
+    def __init__(self, param_a: int, param_b: float = 1.0):
+        self.param_a = param_a
+        self.param_b = param_b
+
+# Test successful initialization with valid parameters
+def test_my_transform_valid_initialization():
+    # This should not raise an exception
+    transform = MyTransform(param_a=10, param_b=2.0)
+    assert transform.param_a == 10
+    assert transform.param_b == 2.0
+
+    # Test with defaults
+    transform = MyTransform(param_a=5)
+    assert transform.param_a == 5
+    assert transform.param_b == 1.0  # Default value
+
+# Test initialization with missing required parameters
+def test_my_transform_missing_required_param():
+    with pytest.raises(ValidationError):
+        MyTransform()
+
+# Test initialization with invalid types
+@pytest.mark.parametrize("invalid_a, invalid_b", [
+    ("not an int", 2.0),  # invalid param_a
+    (10, "not a float"),  # invalid param_b
+])
+def test_my_transform_invalid_types(invalid_a, invalid_b):
+    with pytest.raises(ValidationError):
+        MyTransform(param_a=invalid_a, param_b=invalid_b)
+
+
+class SimpleTransform(metaclass=ValidatedTransformMeta):
+    def __init__(self, param_a: int, param_b: str = "default"):
+        self.param_a = param_a
+        self.param_b = param_b
+
+def test_transform_without_schema():
+    # Test instantiation with only the required parameter
+    transform = SimpleTransform(param_a=10)
+    assert transform.param_a == 10
+    assert transform.param_b == "default", "Default parameter should be unchanged"
+
+    # Test instantiation with both parameters
+    transform = SimpleTransform(param_a=20, param_b="custom")
+    assert transform.param_a == 20
+    assert transform.param_b == "custom", "Custom parameter should be correctly assigned"
+
+    # Test instantiation with an incorrect type for param_a, acknowledging no validation is performed
+    # This demonstrates the class's behavior without InitSchema validation,
+    # but since Python does not enforce type annotations at runtime, this won't raise a TypeError.
+    transform = SimpleTransform(param_a="should not fail due to type annotations not enforcing type checks at runtime")
+    assert transform.param_a == "should not fail due to type annotations not enforcing type checks at runtime", \
+        "Parameter accepted without type validation"

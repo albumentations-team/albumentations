@@ -46,7 +46,7 @@ class RandomScale(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         scale_limit: ScaleFloatType = Field(
             default=0.1,
-            description="Scaling factor range. If a single float value, the range will be (-scale_limit, scale_limit).",
+            description="Scaling factor range. If a single float value => (1-scale_limit, 1 + scale_limit).",
         )
         interpolation: InterpolationType = cv2.INTER_LINEAR
 

@@ -472,7 +472,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         p: float = 1.0,
     ):
         super().__init__(height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p)
-        print("RandomResizedCrop.__init__", scale, ratio, interpolation, height, width)
         self.scale = scale
         self.ratio = ratio
 
