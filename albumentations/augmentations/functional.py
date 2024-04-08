@@ -734,18 +734,18 @@ def add_sun_flare(
 
 @ensure_contiguous
 @preserve_shape
-def add_shadow(img: np.ndarray, vertices_list: List[List[Tuple[int, int]]]) -> np.ndarray:
+def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     """Add shadows to the image.
-
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
         img (numpy.ndarray):
-        vertices_list (list):
+        vertices_list (list[numpy.ndarray]):
 
     Returns:
         numpy.ndarray:
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     non_rgb_warning(img)
     input_dtype = img.dtype
@@ -761,8 +761,7 @@ def add_shadow(img: np.ndarray, vertices_list: List[List[Tuple[int, int]]]) -> n
     mask = np.zeros_like(img)
 
     # adding all shadow polygons on empty mask, single 255 denotes only red channel
-    for vertices in vertices_list:
-        cv2.fillPoly(mask, vertices, 255)
+    cv2.fillPoly(mask, vertices_list, 255)
 
     # if red channel is hot, image's "Lightness" channel's brightness is lowered
     red_max_value_ind = mask[:, :, 0] == MAX_VALUES_BY_DTYPE[np.dtype("uint8")]
@@ -1323,8 +1322,10 @@ def superpixels(
 
 
 @clipped
+@preserve_shape
 def add_weighted(img1: np.ndarray, alpha: float, img2: np.ndarray, beta: float) -> np.ndarray:
-    return img1.astype(float) * alpha + img2.astype(float) * beta
+    img2 = img2.reshape(img1.shape).astype(img1.dtype)
+    return cv2.addWeighted(img1, alpha, img2, beta, 0)
 
 
 @clipped

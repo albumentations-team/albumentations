@@ -870,14 +870,13 @@ class RandomSunFlare(ImageOnlyTransform):
 class RandomShadow(ImageOnlyTransform):
     """Simulates shadows for the image
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         shadow_roi: region of the image where shadows
             will appear. All values should be in range [0, 1].
-        num_shadows_lower: Lower limit for the possible number of shadows.
+        num_shadows_limit: Lower and upper limits for the possible number of shadows.
+        num_shadows_lower: Deprecated: Lower limit for the possible number of shadows.
             Should be in range [0, `num_shadows_upper`].
-        num_shadows_upper: Lower limit for the possible number of shadows.
+        num_shadows_upper: Deprecated: Lower limit for the possible number of shadows.
             Should be in range [`num_shadows_lower`, inf].
         shadow_dimension: number of edges in the shadow polygons
 
@@ -887,40 +886,57 @@ class RandomShadow(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
 
     class InitSchema(BaseTransformInitSchema):
         shadow_roi: Tuple[float, float, float, float] = Field(
             default=(0, 0.5, 1, 1), description="Region of the image where shadows will appear"
         )
-        num_shadows_lower: int = Field(default=1, description="Lower limit for the possible number of shadows", ge=0)
-        num_shadows_upper: int = Field(default=2, description="Upper limit for the possible number of shadows", ge=0)
+        num_shadows_limit: OnePlusRangeType = Field(default=(1, 2))
+        num_shadows_lower: Optional[int] = Field(
+            default=None, description="Lower limit for the possible number of shadows"
+        )
+        num_shadows_upper: Optional[int] = Field(
+            default=None, description="Upper limit for the possible number of shadows"
+        )
         shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", gt=0)
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
             shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y = self.shadow_roi
+
             if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
                 raise ValueError(f"Invalid shadow_roi. Got: {self.shadow_roi}")
-            if self.num_shadows_lower > self.num_shadows_upper:
-                msg = "num_shadows_upper must be greater than or equal to num_shadows_lower."
-                raise ValueError(msg)
+
+            if self.num_shadows_lower is not None or self.num_shadows_upper is not None:
+                warn(
+                    "`num_shadows_lower` and `num_shadows_upper` are deprecated. "
+                    "Use `num_shadows_limit` as tuple (num_shadows_lower, num_shadows_upper) instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self.num_shadows_limit = cast(Tuple[int, int], (self.num_shadows_lower, self.num_shadows_upper))
+                self.num_shadows_lower = None
+                self.num_shadows_upper = None
+
             return self
 
     def __init__(
         self,
         shadow_roi: Tuple[float, float, float, float] = (0, 0.5, 1, 1),
-        num_shadows_lower: int = 1,
-        num_shadows_upper: int = 2,
+        num_shadows_limit: Tuple[int, int] = (1, 2),
+        num_shadows_lower: Optional[int] = None,
+        num_shadows_upper: Optional[int] = None,
         shadow_dimension: int = 5,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.shadow_roi = shadow_roi
-        self.num_shadows_lower = num_shadows_lower
-        self.num_shadows_upper = num_shadows_upper
         self.shadow_dimension = shadow_dimension
+        self.num_shadows_limit = num_shadows_limit
 
     def apply(
         self, img: np.ndarray, vertices_list: Optional[List[List[Tuple[int, int]]]] = None, **params: Any
@@ -937,7 +953,7 @@ class RandomShadow(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
+        num_shadows = random.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -958,11 +974,10 @@ class RandomShadow(ImageOnlyTransform):
 
         return {"vertices_list": vertices_list}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "shadow_roi",
-            "num_shadows_lower",
-            "num_shadows_upper",
+            "num_shadows_limit",
             "shadow_dimension",
         )
 
