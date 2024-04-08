@@ -910,7 +910,7 @@ class RandomShadow(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        num_shadows = random.randint(self.num_shadows_lower, self.num_shadows_upper)
+        num_shadows = random_utils.randint(self.num_shadows_lower, self.num_shadows_upper)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -919,15 +919,16 @@ class RandomShadow(ImageOnlyTransform):
         y_min = int(y_min * height)
         y_max = int(y_max * height)
 
-        vertices_list = []
-
-        for _ in range(num_shadows):
-            vertex = [
-                (random.randint(x_min, x_max), random.randint(y_min, y_max)) for _ in range(self.shadow_dimension)
-            ]
-
-            vertices = np.array([vertex], dtype=np.int32)
-            vertices_list.append(vertices)
+        vertices_list = [
+            np.stack(
+                [
+                    random_utils.randint(x_min, x_max, size=5),
+                    random_utils.randint(y_min, y_max, size=5),
+                ],
+                axis=1,
+            )
+            for _ in range(num_shadows)
+        ]
 
         return {"vertices_list": vertices_list}
 
