@@ -5,12 +5,11 @@ from warnings import warn
 
 import numpy as np
 
+from albumentations.augmentations.functional import add_weighted
 from albumentations.augmentations.utils import is_grayscale_image
 from albumentations.core.transforms_interface import ReferenceBasedTransform
 from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
 from albumentations.random_utils import beta
-
-from .functional import mix_arrays
 
 __all__ = ["MixUp"]
 
@@ -147,11 +146,11 @@ class MixUp(ReferenceBasedTransform):
             msg = "The shape of the reference image should be the same as the input image."
             raise ValueError(msg)
 
-        return mix_arrays(img, mix_img, mix_coef) if mix_img is not None else img
+        return add_weighted(img, mix_coef, mix_img, 1 - mix_coef) if mix_img is not None else img
 
     def apply_to_mask(self, mask: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_mask = mix_data.get("mask")
-        return mix_arrays(mask, mix_mask, mix_coef) if mix_mask is not None else mask
+        return add_weighted(mask, mix_coef, mix_mask, 1 - mix_coef) if mix_mask is not None else mask
 
     def apply_to_global_label(
         self, label: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any
