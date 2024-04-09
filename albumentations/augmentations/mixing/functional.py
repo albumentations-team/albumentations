@@ -1,7 +1,5 @@
 from warnings import warn
 
-import cv2
-
 import numpy as np
 
 from albumentations.augmentations.functional import add_weighted

@@ -18,7 +18,6 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-
 from albumentations.core.types import (
     ColorType,
     ImageMode,
