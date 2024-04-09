@@ -63,7 +63,7 @@ class BaseCompose(Serializable):
 
         self.replay_mode = False
         self.applied_in_replay = False
-        self.additional_targets: Dict[str, str] = {}
+        self._additional_targets: Dict[str, str] = {}
         self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
 
     def __iter__(self) -> Iterator[TransformType]:
@@ -80,6 +80,10 @@ class BaseCompose(Serializable):
 
     def __repr__(self) -> str:
         return self.indented_repr()
+
+    @property
+    def additional_targets(self) -> Dict[str, str]:
+        return self._additional_targets
 
     def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
         args = {k: v for k, v in self.to_dict_private().items() if not (k.startswith("__") or k == "transforms")}
@@ -116,7 +120,7 @@ class BaseCompose(Serializable):
 
     def add_targets(self, additional_targets: Optional[Dict[str, str]]) -> None:
         if additional_targets:
-            self.additional_targets = {**self.additional_targets, **additional_targets}
+            self._additional_targets = {**self._additional_targets, **additional_targets}
             for t in self.transforms:
                 t.add_targets(additional_targets)
             for proc in self.processors.values():
@@ -275,7 +279,7 @@ class Compose(BaseCompose):
         check_bbox_param = ["bboxes"]
         shapes = []
         for data_name, data in kwargs.items():
-            internal_data_name = self.additional_targets.get(data_name, data_name)
+            internal_data_name = self._additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
                     raise TypeError(f"{data_name} must be numpy array type")
