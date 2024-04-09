@@ -197,7 +197,7 @@ class BasicTransform(Serializable):
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
 
         """
-        self._additional_targets = additional_targets
+        self._additional_targets = {**self._additional_targets, **additional_targets}
 
     @property
     def targets_as_params(self) -> List[str]:

@@ -329,6 +329,15 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         aug2 = res["image2"]
         assert np.array_equal(aug1, aug2)
 
+    aug = A.Compose([augmentation_cls(always_apply=True, **params)])
+    aug.add_targets(additional_targets={"image2": "image"})
+    for _i in range(10):
+        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image2 = image1.copy()
+        res = aug(image=image1, image2=image2)
+        aug1 = res["image"]
+        aug2 = res["image2"]
+        assert np.array_equal(aug1, aug2)
 
 def test_image_invert():
     for _ in range(10):

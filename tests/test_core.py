@@ -264,6 +264,12 @@ def test_targets_type_check(targets, additional_targets, err_message):
         aug(**targets)
     assert str(exc_info.value) == err_message
 
+    aug = Compose([])
+    aug.add_targets(additional_targets)
+    with pytest.raises(TypeError) as exc_info:
+        aug(**targets)
+    assert str(exc_info.value) == err_message
+
 
 @pytest.mark.parametrize(
     ["targets", "bbox_params", "keypoint_params", "expected"],

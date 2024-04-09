@@ -63,6 +63,8 @@ class BaseCompose(Serializable):
 
         self.replay_mode = False
         self.applied_in_replay = False
+        self.additional_targets: Dict[str, str] = {}
+        self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
 
     def __iter__(self) -> Iterator[TransformType]:
         return iter(self.transforms)
@@ -114,8 +116,11 @@ class BaseCompose(Serializable):
 
     def add_targets(self, additional_targets: Optional[Dict[str, str]]) -> None:
         if additional_targets:
+            self.additional_targets = {**self.additional_targets, **additional_targets}
             for t in self.transforms:
                 t.add_targets(additional_targets)
+            for proc in self.processors.values():
+                proc.add_targets(additional_targets)
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> None:
         for t in self.transforms:
@@ -147,7 +152,6 @@ class Compose(BaseCompose):
     ):
         super().__init__(transforms, p)
 
-        self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
         if bbox_params:
             if isinstance(bbox_params, dict):
                 b_params = BboxParams(**bbox_params)
@@ -156,7 +160,7 @@ class Compose(BaseCompose):
             else:
                 msg = "unknown format of bbox_params, please use `dict` or `BboxParams`"
                 raise ValueError(msg)
-            self.processors["bboxes"] = BboxProcessor(b_params, additional_targets)
+            self.processors["bboxes"] = BboxProcessor(b_params)
 
         if keypoint_params:
             if isinstance(keypoint_params, dict):
@@ -166,12 +170,7 @@ class Compose(BaseCompose):
             else:
                 msg = "unknown format of keypoint_params, please use `dict` or `KeypointParams`"
                 raise ValueError(msg)
-            self.processors["keypoints"] = KeypointsProcessor(k_params, additional_targets)
-
-        if additional_targets is None:
-            additional_targets = {}
-
-        self.additional_targets = additional_targets
+            self.processors["keypoints"] = KeypointsProcessor(k_params)
 
         for proc in self.processors.values():
             proc.ensure_transforms_valid(self.transforms)

@@ -80,6 +80,32 @@ def test_additional_targets_for_totensorv2():
         assert np.array_equal(res["image"], res["image2"])
         assert np.array_equal(res["mask"], res["mask2"])
 
+    aug = A.Compose([ToTensorV2()])
+    aug.add_targets(additional_targets={"image2": "image", "mask2": "mask"})
+    for _i in range(10):
+        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image2 = image1.copy()
+        mask1 = np.random.randint(low=0, high=256, size=(100, 100, 4), dtype=np.uint8)
+        mask2 = mask1.copy()
+        res = aug(image=image1, image2=image2, mask=mask1, mask2=mask2)
+
+        image1_height, image1_width, image1_num_channels = image1.shape
+        image2_height, image2_width, image2_num_channels = image2.shape
+        assert isinstance(res["image"], torch.Tensor) and res["image"].shape == (
+            image1_num_channels,
+            image1_height,
+            image1_width,
+        )
+        assert isinstance(res["image2"], torch.Tensor) and res["image2"].shape == (
+            image2_num_channels,
+            image2_height,
+            image2_width,
+        )
+        assert isinstance(res["mask"], torch.Tensor) and res["mask"].shape == mask1.shape
+        assert isinstance(res["mask2"], torch.Tensor) and res["mask2"].shape == mask2.shape
+        assert np.array_equal(res["image"], res["image2"])
+        assert np.array_equal(res["mask"], res["mask2"])
+
 
 def test_torch_to_tensor_v2_on_gray_scale_images():
     aug = ToTensorV2()
