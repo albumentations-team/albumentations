@@ -133,14 +133,10 @@ class RandomGridShuffle(DualTransform):
         super().__init__(always_apply=always_apply, p=p)
         self.grid = grid
 
-    def apply(
-        self, img: np.ndarray, tiles: Optional[np.ndarray] = None, mapping: Optional[List[int]] = None, **params: Any
-    ) -> np.ndarray:
+    def apply(self, img: np.ndarray, tiles: np.ndarray, mapping: List[int], **params: Any) -> np.ndarray:
         return F.swap_tiles_on_image(img, tiles, mapping)
 
-    def apply_to_mask(
-        self, mask: np.ndarray, tiles: Optional[np.ndarray] = None, mapping: Optional[List[int]] = None, **params: Any
-    ) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, tiles: np.ndarray, mapping: List[int], **params: Any) -> np.ndarray:
         return F.swap_tiles_on_image(mask, tiles, mapping)
 
     def apply_to_keypoint(
@@ -179,7 +175,7 @@ class RandomGridShuffle(DualTransform):
         # if not, warn and return empty dict -> no changes will be applied
         if height % self.grid[0] != 0 or weight % self.grid[1] != 0:
             warn("Image size must be divisible by grid size")
-            return {"tiles": np.array([])}
+            return {"tiles": np.array([]), "mapping": []}
         # Generate the original grid
         original_tiles = F.split_uniform_grid((height, weight), self.grid)
         # Shuffle order of tiles
@@ -873,10 +869,6 @@ class RandomShadow(ImageOnlyTransform):
         shadow_roi: region of the image where shadows
             will appear. All values should be in range [0, 1].
         num_shadows_limit: Lower and upper limits for the possible number of shadows.
-        num_shadows_lower: Deprecated: Lower limit for the possible number of shadows.
-            Should be in range [0, `num_shadows_upper`].
-        num_shadows_upper: Deprecated: Lower limit for the possible number of shadows.
-            Should be in range [`num_shadows_lower`, inf].
         shadow_dimension: number of edges in the shadow polygons
 
     Targets:
@@ -893,7 +885,7 @@ class RandomShadow(ImageOnlyTransform):
         shadow_roi: Tuple[float, float, float, float] = Field(
             default=(0, 0.5, 1, 1), description="Region of the image where shadows will appear"
         )
-        num_shadows_limit: OnePlusRangeType = Field(default=(1, 2))
+        num_shadows_limit: Tuple[int, int] = Field(default=(1, 2))
         num_shadows_lower: Optional[int] = Field(
             default=None, description="Lower limit for the possible number of shadows"
         )
@@ -904,6 +896,10 @@ class RandomShadow(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
+            if self.num_shadows_limit[0] > self.num_shadows_limit[1]:
+                msg = "num_shadows_limit[0] must be less than or equal to num_shadows_limit[1]."
+                raise ValueError(msg)
+
             shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y = self.shadow_roi
 
             if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:

@@ -5,7 +5,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations.augmentations.geometric import functional as FGeometric
@@ -14,7 +14,6 @@ from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
     NonNegativeRangeType,
-    OnePlusRangeType,
     ProbabilityType,
     ZeroOneRangeType,
 )
@@ -24,6 +23,7 @@ from albumentations.core.types import (
     ColorType,
     KeypointInternalType,
     ScaleFloatType,
+    ScaleIntType,
     Targets,
 )
 
@@ -320,17 +320,22 @@ class CropNonEmptyMaskIfExists(DualTransform):
         return ("height", "width", "ignore_values", "ignore_channels")
 
 
-class BaseRandomSizedCropInitSchema(CropInitSchema):
-    interpolation: InterpolationType = cv2.INTER_LINEAR
+class BaseRandomSizedCropInitSchema(BaseTransformInitSchema):
+    size: Tuple[int, int]
+
+    @field_validator("size")
+    @classmethod
+    def check_size(cls, value: Tuple[int, int]) -> Tuple[int, int]:
+        if any(x <= 0 for x in value):
+            raise ValueError("All elements of 'size' must be positive integers.")
+        return value
 
 
 class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
 
-    class InitSchema(BaseTransformInitSchema):
-        size: Tuple[int, int]
-        interpolation: InterpolationType = cv2.INTER_LINEAR
-        p: ProbabilityType = 1
+    class InitSchema(BaseRandomSizedCropInitSchema):
+        pass
 
     def __init__(
         self, size: Tuple[int, int], interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1.0
@@ -405,14 +410,29 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        p: ProbabilityType = 1
         min_max_height: NonNegativeRangeType
-        size: Optional[OnePlusRangeType]
+        w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
         width: Optional[int] = None
         height: Optional[int] = None
-        w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
+        size: Optional[ScaleIntType] = None
 
         @model_validator(mode="after")
         def process(self) -> Self:
+            if isinstance(self.size, int):
+                if isinstance(self.width, int):
+                    self.size = (self.size, self.width)
+                    warn(
+                        "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
+                        "Please use a tuple (height, width) for the 'size' argument.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                else:
+                    msg = "If size is an integer, width as integer must be specified."
+                    raise TypeError(msg)
+
             if self.size is None:
                 if self.height is None or self.width is None:
                     message = "If 'size' is not provided, both 'height' and 'width' must be specified."
@@ -424,23 +444,14 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
                     DeprecationWarning,
                     stacklevel=2,
                 )
-            else:
-                if self.width is None:
-                    message = "When 'size' is an integer, 'width' must be provided."
-                    raise ValueError(message)
-                warn(
-                    "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
-                    "Please use a tuple (height, width) for the 'size' argument.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
+
             return self
 
     def __init__(
         self,
-        min_max_height: Tuple[int, int],
+        min_max_height: NonNegativeRangeType,
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: Optional[Tuple[int, int]] = None,
+        size: Optional[ScaleIntType] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
         *,
@@ -450,7 +461,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         p: float = 1.0,
     ):
         super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, always_apply=always_apply, p=p)
-        self.min_max_height = min_max_height
+        self.min_max_height = cast(Tuple[int, int], min_max_height)
         self.w2h_ratio = w2h_ratio
 
     def get_params(self) -> Dict[str, Union[int, float]]:
@@ -491,12 +502,27 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     class InitSchema(BaseTransformInitSchema):
         scale: ZeroOneRangeType = (0.08, 1.0)
         ratio: NonNegativeRangeType = (0.75, 1.3333333333333333)
-        size: Optional[OnePlusRangeType]
         width: Optional[int] = None
         height: Optional[int] = None
+        size: Optional[ScaleIntType] = None
+        p: ProbabilityType = 1
+        interpolation: InterpolationType = cv2.INTER_LINEAR
 
         @model_validator(mode="after")
         def process(self) -> Self:
+            if isinstance(self.size, int):
+                if isinstance(self.width, int):
+                    self.size = (self.size, self.width)
+                    warn(
+                        "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
+                        "Please use a tuple (height, width) for the 'size' argument.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                else:
+                    msg = "If size is an integer, width as integer must be specified."
+                    raise TypeError(msg)
+
             if self.size is None:
                 if self.height is None or self.width is None:
                     message = "If 'size' is not provided, both 'height' and 'width' must be specified."
@@ -508,22 +534,13 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
                     DeprecationWarning,
                     stacklevel=2,
                 )
-            else:
-                if self.width is None:
-                    message = "When 'size' is an integer, 'width' must be provided."
-                    raise ValueError(message)
-                warn(
-                    "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
-                    "Please use a tuple (height, width) for the 'size' argument.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
+
             return self
 
     def __init__(
         self,
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: Optional[Tuple[int, int]] = None,
+        size: Optional[ScaleIntType] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
         *,

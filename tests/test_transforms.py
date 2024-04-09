@@ -1347,13 +1347,13 @@ def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
 @pytest.mark.parametrize("size, width, height, expected_warning", [
     ((100, 200), None, None, None),
     (None, 200, 100, DeprecationWarning),
-    (100, None, None, ValueError),
+    (100, None, None, TypeError),
 ])
 def test_deprecation_warnings(size, width, height, expected_warning):
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        if expected_warning == ValueError:
-            with pytest.raises(ValueError):
+        if expected_warning == TypeError:
+            with pytest.raises(TypeError):
                 A.RandomResizedCrop(size=size, width=width, height=height)
         else:
             A.RandomResizedCrop(size=size, width=width, height=height)
