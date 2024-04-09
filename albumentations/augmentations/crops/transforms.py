@@ -24,7 +24,6 @@ from albumentations.core.types import (
     ColorType,
     KeypointInternalType,
     ScaleFloatType,
-    ScaleIntType,
     Targets,
 )
 
@@ -328,15 +327,16 @@ class BaseRandomSizedCropInitSchema(CropInitSchema):
 class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
 
-    class InitSchema(BaseRandomSizedCropInitSchema):
-        pass
+    class InitSchema(BaseTransformInitSchema):
+        size: Tuple[int, int]
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        p: ProbabilityType = 1
 
     def __init__(
-        self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1.0
+        self, size: Tuple[int, int], interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1.0
     ):
         super().__init__(always_apply, p)
-        self.height = height
-        self.width = width
+        self.size = size
         self.interpolation = interpolation
 
     def apply(
@@ -350,7 +350,7 @@ class _BaseRandomSizedCrop(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
-        return FGeometric.resize(crop, self.height, self.width, interpolation)
+        return FGeometric.resize(crop, self.size[0], self.size[1], interpolation)
 
     def apply_to_bbox(
         self,
@@ -377,8 +377,8 @@ class _BaseRandomSizedCrop(DualTransform):
         **params: Any,
     ) -> KeypointInternalType:
         keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
-        scale_x = self.width / crop_width
-        scale_y = self.height / crop_height
+        scale_y = self.size[0] / crop_height
+        scale_x = self.size[1] / crop_width
         return FGeometric.keypoint_scale(keypoint, scale_x, scale_y)
 
 
@@ -387,7 +387,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
 
     Args:
         min_max_height ((int, int)): crop size limits.
-        size (tuple[int]): target size for the output image, i.e. (height, width) after crop and resize
+        size ((int, int)): target size for the output image, i.e. (height, width) after crop and resize
         w2h_ratio (float): aspect ratio of crop.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
@@ -403,18 +403,44 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-    _size_len = 2
 
-    class InitSchema(BaseRandomSizedCropInitSchema):
+    class InitSchema(BaseTransformInitSchema):
         min_max_height: NonNegativeRangeType
-        size: OnePlusRangeType
+        size: Optional[OnePlusRangeType]
+        width: Optional[int] = None
+        height: Optional[int] = None
         w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
+
+        @model_validator(mode="after")
+        def process(self) -> Self:
+            if self.size is None:
+                if self.height is None or self.width is None:
+                    message = "If 'size' is not provided, both 'height' and 'width' must be specified."
+                    raise ValueError(message)
+                self.size = (self.height, self.width)
+                warn(
+                    "Initializing with 'height' and 'width' is deprecated. "
+                    "Please use a tuple (height, width) for the 'size' argument.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                if self.width is None:
+                    message = "When 'size' is an integer, 'width' must be provided."
+                    raise ValueError(message)
+                warn(
+                    "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
+                    "Please use a tuple (height, width) for the 'size' argument.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            return self
 
     def __init__(
         self,
         min_max_height: Tuple[int, int],
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: Optional[ScaleIntType] = None,
+        size: Optional[Tuple[int, int]] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
         *,
@@ -423,35 +449,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         always_apply: bool = False,
         p: float = 1.0,
     ):
-        if isinstance(size, tuple):
-            if len(size) != self._size_len:
-                message = "Size must be a tuple of two integers (height, width)."
-                raise ValueError(message)
-            height, width = size
-        elif size is None:
-            if height is None or width is None:
-                message = "If 'size' is not provided, both 'height' and 'width' must be specified."
-                raise ValueError(message)
-            size = (height, width)
-            warn(
-                "Initializing with 'height' and 'width' is deprecated. "
-                "Please use a tuple (height, width) for the 'size' argument.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            if width is None:
-                message = "When 'size' is an integer, 'width' must be provided."
-                raise ValueError(message)
-            height = size
-            warn(
-                "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
-                "Please use a tuple (height, width) for the 'size' argument.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        super().__init__(height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p)
+        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, always_apply=always_apply, p=p)
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
@@ -464,8 +462,8 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             "crop_width": int(crop_height * self.w2h_ratio),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str]:
-        return "min_max_height", "height", "width", "w2h_ratio", "interpolation"
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return "min_max_height", "size", "w2h_ratio", "interpolation"
 
 
 class RandomResizedCrop(_BaseRandomSizedCrop):
@@ -489,17 +487,43 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
-    _size_len = 2
 
-    class InitSchema(BaseRandomSizedCropInitSchema):
+    class InitSchema(BaseTransformInitSchema):
         scale: ZeroOneRangeType = (0.08, 1.0)
         ratio: NonNegativeRangeType = (0.75, 1.3333333333333333)
         size: Optional[OnePlusRangeType]
+        width: Optional[int] = None
+        height: Optional[int] = None
+
+        @model_validator(mode="after")
+        def process(self) -> Self:
+            if self.size is None:
+                if self.height is None or self.width is None:
+                    message = "If 'size' is not provided, both 'height' and 'width' must be specified."
+                    raise ValueError(message)
+                self.size = (self.height, self.width)
+                warn(
+                    "Initializing with 'height' and 'width' is deprecated. "
+                    "Please use a tuple (height, width) for the 'size' argument.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            else:
+                if self.width is None:
+                    message = "When 'size' is an integer, 'width' must be provided."
+                    raise ValueError(message)
+                warn(
+                    "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
+                    "Please use a tuple (height, width) for the 'size' argument.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            return self
 
     def __init__(
         self,
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: Optional[ScaleIntType] = None,
+        size: Optional[Tuple[int, int]] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
         *,
@@ -509,35 +533,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         always_apply: bool = False,
         p: float = 1.0,
     ):
-        if isinstance(size, tuple):
-            if len(size) != self._size_len:
-                message = "Size must be a tuple of two integers (height, width)."
-                raise ValueError(message)
-            height, width = size
-        elif size is None:
-            if height is None or width is None:
-                message = "If 'size' is not provided, both 'height' and 'width' must be specified."
-                raise ValueError(message)
-            size = (height, width)
-            warn(
-                "Initializing with 'height' and 'width' is deprecated. "
-                "Please use a tuple (height, width) for the 'size' argument.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            if width is None:
-                message = "When 'size' is an integer, 'width' must be provided."
-                raise ValueError(message)
-            height = size
-            warn(
-                "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
-                "Please use a tuple (height, width) for the 'size' argument.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-
-        super().__init__(height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p)
+        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, always_apply=always_apply, p=p)
         self.scale = scale
         self.ratio = ratio
 

@@ -32,8 +32,8 @@ TEST_SEEDS = (0, 1, 42)
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.RandomResizedCrop: {"size": (10, 10)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {

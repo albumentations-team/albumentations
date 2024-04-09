@@ -194,12 +194,12 @@ def test_zero_one_range_invalid(zero_one_range):
     with pytest.raises(ValueError):
         ValidationModel(zero_one_range=zero_one_range)
 
-@pytest.mark.parametrize("kwargs", [{"interpolation": 999, "height": 1, "width": 1},
-                                    {"interpolation": -1, "height": 1, "width": 1},
-                                    {"scale": -4, "height": 1, "width": 1},
-                                    {"ratio": (-1, 2), "height": 1, "width": 1},
-                                    {"height": -1, "width": 1},
-                                    {"width": 0, "height": 1},])
+@pytest.mark.parametrize("kwargs", [{"interpolation": 999, "size": (1, 1)},
+                                    {"interpolation": -1, "size": (1, 1)},
+                                    {"scale": -4, "size": (1, 1)},
+                                    {"ratio": (-1, 2), "size": (1, 1)},
+                                    {"size": (-1, 1)},
+                                    {"size": (0, 1)},])
 
 def test_RandomResizedCrop(kwargs):
     with pytest.raises(ValueError):
