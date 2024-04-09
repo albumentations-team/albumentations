@@ -11,20 +11,26 @@ import numpy as np
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
-from typing_extensions import Annotated, Self
+from typing_extensions import Annotated, Literal, Self
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.functional import split_uniform_grid
 from albumentations.augmentations.utils import (
-    BIG_INTEGER,
     check_range,
     get_num_channels,
     is_grayscale_image,
     is_rgb_image,
 )
-from albumentations.core.pydantic import OnePlusRangeType, ProbabilityType, RangeNonNegativeType
+from albumentations.core.pydantic import (
+    InterpolationType,
+    NonNegativeRangeType,
+    OnePlusRangeType,
+    ProbabilityType,
+    SymmetricRangeType,
+    ZeroOneRangeType,
+)
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
     DualTransform,
@@ -45,7 +51,6 @@ from albumentations.core.types import (
     ScaleType,
     SpatterMode,
     Targets,
-    chromatic_aberration_modes,
 )
 from albumentations.core.utils import format_args, to_tuple
 
@@ -219,10 +224,6 @@ class Normalize(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 1.0,
     ):
-        super().__init__(always_apply=always_apply, p=p)
-        self.mean = mean
-        self.std = std
-        self.max_pixel_value = max_pixel_value
         super().__init__(always_apply=always_apply, p=p)
         self.mean = mean
         self.std = std
@@ -517,10 +518,6 @@ class RandomRain(ImageOnlyTransform):
             if self.slant_lower >= self.slant_upper:
                 msg = "slant_upper must be greater than or equal to slant_lower."
                 raise ValueError(msg)
-            if self.rain_type not in ["drizzle", "heavy", "torrential", None]:
-                raise ValueError(
-                    f"rain_type must be one of ['drizzle', 'heavy', 'torrential', None]. Got: {self.rain_type}"
-                )
             return self
 
     def __init__(
@@ -532,7 +529,7 @@ class RandomRain(ImageOnlyTransform):
         drop_color: Tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
         brightness_coefficient: float = 0.7,
-        rain_type: Optional[str] = None,
+        rain_type: Optional[RainMode] = None,
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -618,8 +615,6 @@ class RandomRain(ImageOnlyTransform):
 class RandomFog(ImageOnlyTransform):
     """Simulates fog for the image
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         fog_coef_lower: lower limit for fog intensity coefficient. Should be in [0, 1] range.
         fog_coef_upper: upper limit for fog intensity coefficient. Should be in [0, 1] range.
@@ -630,6 +625,10 @@ class RandomFog(ImageOnlyTransform):
 
     Image types:
         uint8, float32
+
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
 
     """
 
@@ -1005,12 +1004,6 @@ class RandomToneCurve(ImageOnlyTransform):
             le=1,
         )
 
-        @model_validator(mode="after")
-        def validate_scale(self) -> Self:
-            if not (0 <= self.scale <= 1):
-                raise ValueError(f"Scale must be in range [0, 1]. Got: {self.scale}")
-            return self
-
     def __init__(
         self,
         scale: float = 0.1,
@@ -1054,14 +1047,9 @@ class HueSaturationValue(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        hue_shift_limit: ScaleType = Field(default=(-20, 20), description="Range for changing hue.")
-        sat_shift_limit: ScaleType = Field(default=(-30, 30), description="Range for changing saturation.")
-        val_shift_limit: ScaleType = Field(default=(-20, 20), description="Range for changing value.")
-
-        @field_validator("hue_shift_limit", "sat_shift_limit", "val_shift_limit")
-        @classmethod
-        def convert_to_tuple(cls, v: Any) -> Union[Tuple[int, int], Tuple[float, float]]:
-            return to_tuple(v)
+        hue_shift_limit: SymmetricRangeType = (-20, 20)
+        sat_shift_limit: SymmetricRangeType = (-30, 30)
+        val_shift_limit: SymmetricRangeType = (-20, 20)
 
     def __init__(
         self,
@@ -1100,7 +1088,7 @@ class Solarize(ImageOnlyTransform):
 
     Args:
         threshold: range for solarizing threshold.
-            If threshold is a single value, the range will be [threshold, threshold]. Default: 128.
+            If threshold is a single value, the range will be [1, threshold]. Default: 128.
         p: probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1112,17 +1100,9 @@ class Solarize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        threshold: Annotated[ScaleType, Field(default=(128, 128), description="Range for solarizing threshold.")]
+        threshold: OnePlusRangeType = (128, 128)
 
-        @field_validator("threshold")
-        @classmethod
-        def convert_to_tuple(cls, threshold: Any) -> Union[Tuple[int, int], Tuple[float, float]]:
-            if isinstance(threshold, (int, float)):
-                return to_tuple(threshold, low=threshold)
-
-            return to_tuple(threshold, low=0)
-
-    def __init__(self, threshold: ScaleType = 128, always_apply: bool = False, p: float = 0.5):
+    def __init__(self, threshold: ScaleType = (128, 128), always_apply: bool = False, p: float = 0.5):
         super().__init__(always_apply=always_apply, p=p)
         self.threshold = cast(Tuple[float, float], threshold)
 
@@ -1274,26 +1254,15 @@ class RGBShift(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        r_shift_limit: Annotated[
-            ScaleType, Field(default=20, description="Range for changing values for the red channel.")
-        ]
-        g_shift_limit: Annotated[
-            ScaleType, Field(default=20, description="Range for changing values for the green channel.")
-        ]
-        b_shift_limit: Annotated[
-            ScaleType, Field(default=20, description="Range for changing values for the blue channel.")
-        ]
-
-        @field_validator("r_shift_limit", "g_shift_limit", "b_shift_limit")
-        @classmethod
-        def convert_to_tuple(cls, v: ScaleType) -> Tuple[float, float]:
-            return cast(Tuple[float, float], to_tuple(v))
+        r_shift_limit: SymmetricRangeType = (-20, 20)
+        g_shift_limit: SymmetricRangeType = (-20, 20)
+        b_shift_limit: SymmetricRangeType = (-20, 20)
 
     def __init__(
         self,
-        r_shift_limit: ScaleIntType = 20,
-        g_shift_limit: ScaleIntType = 20,
-        b_shift_limit: ScaleIntType = 20,
+        r_shift_limit: ScaleIntType = (-20, 20),
+        g_shift_limit: ScaleIntType = (-20, 20),
+        b_shift_limit: ScaleIntType = (-20, 20),
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -1340,19 +1309,14 @@ class RandomBrightnessContrast(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        brightness_limit: ScaleFloatType = Field(default=0.2, description="Factor range for changing brightness.")
-        contrast_limit: ScaleFloatType = Field(default=0.2, description="Factor range for changing contrast.")
+        brightness_limit: SymmetricRangeType = (-0.2, 0.2)
+        contrast_limit: SymmetricRangeType = (-0.2, 0.2)
         brightness_by_max: bool = Field(default=True, description="Adjust brightness by image dtype maximum if True.")
-
-        @field_validator("brightness_limit", "contrast_limit")
-        @classmethod
-        def validate_and_convert(cls, v: Any) -> Tuple[float, float]:
-            return to_tuple(v)
 
     def __init__(
         self,
-        brightness_limit: ScaleFloatType = 0.2,
-        contrast_limit: ScaleFloatType = 0.2,
+        brightness_limit: ScaleFloatType = (-0.2, 0.2),
+        contrast_limit: ScaleFloatType = (-0.2, 0.2),
         brightness_by_max: bool = True,
         always_apply: bool = False,
         p: float = 0.5,
@@ -1395,17 +1359,9 @@ class GaussNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        var_limit: ScaleType = Field(default=(10.0, 50.0), description="Variance range for noise.")
+        var_limit: NonNegativeRangeType = Field(default=(10.0, 50.0), description="Variance range for noise.")
         mean: float = Field(default=0, description="Mean of the noise.")
         per_channel: bool = Field(default=True, description="Apply noise per channel.")
-
-        @field_validator("var_limit")
-        @classmethod
-        def validate_var_limit(cls, var_limit: ScaleType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, float("inf")
-            result = to_tuple(var_limit, low=bounds[0])
-            check_range(result, *bounds, info.field_name)
-            return result
 
     def __init__(
         self,
@@ -1524,15 +1480,8 @@ class CLAHE(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        clip_limit: ScaleFloatType = Field(
-            default=(1.0, 4.0), description="Upper threshold value for contrast limiting."
-        )
-        tile_grid_size: Tuple[int, int] = Field(default=(8, 8), description="Size of grid for histogram equalization.")
-
-        @field_validator("clip_limit")
-        @classmethod
-        def validate_clip_limit(cls, v: Any) -> Tuple[float, float]:
-            return to_tuple(v, low=1)
+        clip_limit: OnePlusRangeType = (1.0, 4.0)
+        tile_grid_size: OnePlusRangeType = (8, 8)
 
     def __init__(
         self,
@@ -1639,12 +1588,7 @@ class RandomGamma(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        gamma_limit: ScaleType = Field(default=(80, 120), description="The range for gamma adjustment.")
-
-        @field_validator("gamma_limit")
-        @classmethod
-        def validate_gamma_limit(cls, v: Any) -> Tuple[float, float]:
-            return to_tuple(v)
+        gamma_limit: OnePlusRangeType = (80, 120)
 
     def __init__(
         self,
@@ -1777,7 +1721,7 @@ class ToFloat(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         max_value: Optional[float] = Field(default=None, description="Maximum possible input value.")
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
+        p: ProbabilityType = 1
 
     def __init__(self, max_value: Optional[float] = None, always_apply: bool = False, p: float = 1.0):
         super().__init__(always_apply, p)
@@ -1815,20 +1759,16 @@ class FromFloat(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        dtype: str = Field(default="uint16", description="Data type of the output.")
+        dtype: Literal["uint8", "uint16", "float32", "float64"]
         max_value: Optional[float] = Field(default=None, description="Maximum possible input value.")
-        p: float = Field(default=1.0, description="Probability of applying the transform", ge=0, le=1)
-
-        @field_validator("dtype")
-        @classmethod
-        def validate_dtype(cls, value: str) -> str:
-            supported_dtypes = ["uint8", "uint16", "float32", "float64"]  # Add other supported dtypes as necessary
-            if value not in supported_dtypes:
-                raise ValueError(f"Unsupported dtype. Supports: {supported_dtypes}. Got: {value}")
-            return value
+        p: ProbabilityType = 1
 
     def __init__(
-        self, dtype: str = "uint16", max_value: Optional[float] = None, always_apply: bool = False, p: float = 1.0
+        self,
+        dtype: Literal["uint8", "uint16", "float32", "float64"] = "uint16",
+        max_value: Optional[float] = None,
+        always_apply: bool = False,
+        p: float = 1.0,
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.dtype = np.dtype(dtype)
@@ -2047,7 +1987,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: RangeNonNegativeType = (0.9, 1.1)
+        multiplier: NonNegativeRangeType = (0.9, 1.1)
         per_channel: bool = Field(default=False, description="Apply multiplier per channel.")
         elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
 
@@ -2139,17 +2079,21 @@ class ColorJitter(ImageOnlyTransform):
 
     Args:
         brightness (float or tuple of float (min, max)): How much to jitter brightness.
-            brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            or the given [min, max]. Should be non negative numbers.
+            If float:
+                brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
+            If Tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
         contrast (float or tuple of float (min, max)): How much to jitter contrast.
-            contrast_factor is chosen uniformly from [max(0, 1 - contrast), 1 + contrast]
-            or the given [min, max]. Should be non negative numbers.
+            If float:
+                contrast_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
+            If Tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
         saturation (float or tuple of float (min, max)): How much to jitter saturation.
-            saturation_factor is chosen uniformly from [max(0, 1 - saturation), 1 + saturation]
-            or the given [min, max]. Should be non negative numbers.
+            If float:
+               saturation_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
+            If Tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
         hue (float or tuple of float (min, max)): How much to jitter hue.
-            hue_factor is chosen uniformly from [-hue, hue] or the given [min, max].
-            Should have 0 <= hue <= 0.5 or -0.5 <= min <= max <= 0.5.
+            If float:
+               saturation_factor is chosen uniformly from [-hue, hue]. Should have 0 <= hue <= 0.5.
+            If Tuple[float, float]] will be sampled from that range. Both values should be in range [-0.5, 0.5].
 
     """
 
@@ -2184,14 +2128,13 @@ class ColorJitter(ImageOnlyTransform):
 
     def __init__(
         self,
-        brightness: ScaleFloatType = 0.2,
-        contrast: ScaleFloatType = 0.2,
-        saturation: ScaleFloatType = 0.2,
-        hue: ScaleFloatType = 0.2,
+        brightness: ScaleFloatType = (0.8, 1),
+        contrast: ScaleFloatType = (0.8, 1),
+        saturation: ScaleFloatType = (0.8, 1),
+        hue: ScaleFloatType = (-0.5, 0.5),
         always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
         super().__init__(always_apply=always_apply, p=p)
 
         self.brightness = cast(Tuple[float, float], brightness)
@@ -2213,7 +2156,7 @@ class ColorJitter(ImageOnlyTransform):
         hue = random.uniform(self.hue[0], self.hue[1])
 
         order = [0, 1, 2, 3]
-        random.shuffle(order)
+        random_utils.shuffle(order)
 
         return {
             "brightness": brightness,
@@ -2262,19 +2205,8 @@ class Sharpen(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: Tuple[float, float] = Field(default=(0.2, 0.5), description="Visibility of the sharpened image.")
-        lightness: Tuple[float, float] = Field(default=(0.5, 1.0), description="Lightness of the sharpened image.")
-
-        @field_validator("alpha", "lightness")
-        @classmethod
-        def check_ranges(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
-            if info.field_name == "alpha":
-                bounds = 0.0, 1.0
-            elif info.field_name == "lightness":
-                bounds = 0.0, float("inf")
-
-            check_range(value, *bounds, info.field_name)
-            return value
+        alpha: ZeroOneRangeType = (0.2, 0.5)
+        lightness: NonNegativeRangeType = (0.5, 1.0)
 
     def __init__(
         self,
@@ -2325,19 +2257,8 @@ class Emboss(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: Tuple[float, float] = Field(default=(0.2, 0.5), description="Visibility of the embossed image.")
-        strength: Tuple[float, float] = Field(default=(0.2, 0.7), description="Strength of the embossing.")
-
-        @field_validator("alpha", "strength")
-        @classmethod
-        def check_ranges(cls, value: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
-            if info.field_name == "alpha":
-                bounds = 0.0, 1.0
-            elif info.field_name == "strength":
-                bounds = 0.0, float("inf")
-
-            check_range(value, *bounds, str(info.field_name))
-            return value
+        alpha: ZeroOneRangeType = (0.2, 0.5)
+        strength: NonNegativeRangeType = (0.2, 0.7)
 
     def __init__(
         self,
@@ -2397,13 +2318,12 @@ class Superpixels(ImageOnlyTransform):
                 * If a ``float``, then that ``flat`` will always be used.
                 * If ``tuple`` ``(a, b)``, then a random probability will be
                   sampled from the interval ``[a, b]`` per image.
-        n_segments (int, or tuple of int): Rough target number of how many superpixels to generate (the algorithm
+        n_segments (tuple of int): Rough target number of how many superpixels to generate (the algorithm
             may deviate from this number). Lower value will lead to coarser superpixels.
             Higher values are computationally more intensive and will hence lead to a slowdown
-            * If a single ``int``, then that value will always be used as the
-              number of segments.
-            * If a ``tuple`` ``(a, b)``, then a value from the discrete
-              interval ``[a..b]`` will be sampled per image.
+            Then a value from the discrete interval ``[a..b]`` will be sampled per image.
+            If input is a single integer, the range will be ``(1, n_segments)``.
+            If interested in a fixed number of segments, use ``(n_segments, n_segments)``.
         max_size (int or None): Maximum image size at which the augmentation is performed.
             If the width or height of an image exceeds this value, it will be
             downscaled before the augmentation so that the longest side matches `max_size`.
@@ -2422,34 +2342,15 @@ class Superpixels(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        p_replace: ScaleFloatType = Field(
-            default=0.1,
-            description="Probability of replacing segment pixels with their average color.",
-        )
-        n_segments: Annotated[ScaleIntType, Field(default=100, description="Target number of superpixels to generate.")]
+        p_replace: ZeroOneRangeType = (0, 0.1)
+        n_segments: OnePlusRangeType = (100, 100)
         max_size: Optional[int] = Field(default=128, ge=1, description="Maximum image size for the transformation.")
-        interpolation: int = Field(default=cv2.INTER_LINEAR, description="Interpolation algorithm used during scaling.")
-
-        @field_validator("p_replace")
-        @classmethod
-        def check_p_replace(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, 1
-            result = to_tuple(v, v)
-            check_range(result, *bounds, str(info.field_name))
-            return result
-
-        @field_validator("n_segments")
-        @classmethod
-        def check_n_segments(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
-            bounds = 1, BIG_INTEGER
-            result = to_tuple(v, v)
-            check_range(result, *bounds, str(info.field_name))
-            return cast(Tuple[int, int], result)
+        interpolation: InterpolationType = cv2.INTER_LINEAR
 
     def __init__(
         self,
-        p_replace: ScaleFloatType = 0.1,
-        n_segments: ScaleIntType = 100,
+        p_replace: ScaleFloatType = (0, 0.1),
+        n_segments: ScaleIntType = (100, 100),
         max_size: Optional[int] = 128,
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
@@ -2479,11 +2380,14 @@ class TemplateTransform(ImageOnlyTransform):
     """Apply blending of input image with specified templates
     Args:
         templates (numpy array or list of numpy arrays): Images as template for transform.
-        img_weight: If single float will be used as weight for input image.
-            If tuple of float img_weight will be in range `[img_weight[0], img_weight[1])`. Default: 0.5.
-        template_weight: If single float will be used as weight for template.
+        img_weight: If single float weight will be sampled from (0, img_weight).
+            If tuple of float img_weight will be in range `[img_weight[0], img_weight[1])`.
+            If you want fixed weight, use (img_weight, img_weight)
+            Default: (0.5, 0.5).
+        template_weight: If single float weight will be sampled from (0, template_weight).
             If tuple of float template_weight will be in range `[template_weight[0], template_weight[1])`.
-            Default: 0.5.
+            If you want fixed weight, use (template_weight, template_weight)
+            Default: (0.5, 0.5).
         template_transform: transformation object which could be applied to template,
             must produce template the same size as input image.
         name: (Optional) Name of transform, used only for deserialization.
@@ -2496,20 +2400,12 @@ class TemplateTransform(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         templates: Union[np.ndarray, Sequence[np.ndarray]] = Field(..., description="Images as template for transform.")
-        img_weight: ScaleFloatType = Field(default=0.5, description="Weight for input image.")
-        template_weight: ScaleFloatType = Field(default=0.5, description="Weight for template.")
+        img_weight: ZeroOneRangeType = (0.5, 0.5)
+        template_weight: ZeroOneRangeType = (0.5, 0.5)
         template_transform: Optional[Callable[..., Any]] = Field(
             default=None, description="Transformation object applied to template."
         )
         name: Optional[str] = Field(default=None, description="Name of transform, used only for deserialization.")
-
-        @field_validator("img_weight", "template_weight")
-        @classmethod
-        def check_weight(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, 1
-            result = to_tuple(v, v)
-            check_range(result, *bounds, str(info.field_name))
-            return result
 
         @field_validator("templates")
         @classmethod
@@ -2527,8 +2423,8 @@ class TemplateTransform(ImageOnlyTransform):
     def __init__(
         self,
         templates: Union[np.ndarray, List[np.ndarray]],
-        img_weight: ScaleFloatType = 0.5,
-        template_weight: ScaleFloatType = 0.5,
+        img_weight: ScaleFloatType = (0.5, 0.5),
+        template_weight: ScaleFloatType = (0.5, 0.5),
         template_transform: Optional[Callable[..., Any]] = None,
         name: Optional[str] = None,
         always_apply: bool = False,
@@ -2706,8 +2602,8 @@ class UnsharpMask(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        sigma_limit: ScaleFloatType = Field(default=0, description="Gaussian kernel standard deviation.")
-        alpha: ScaleFloatType = Field(default=(0.2, 0.5), description="Visibility of the sharpened image.")
+        sigma_limit: NonNegativeRangeType = 0
+        alpha: ZeroOneRangeType = (0.2, 0.5)
         threshold: int = Field(default=10, ge=0, le=255, description="Threshold for limiting sharpening.")
 
         blur_limit: ScaleIntType = Field(
@@ -2718,22 +2614,6 @@ class UnsharpMask(ImageOnlyTransform):
         @classmethod
         def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
             return process_blur_limit(value, info, min_value=3)
-
-        @field_validator("sigma_limit")
-        @classmethod
-        def check_sigma_limit(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, float("inf")
-            result = to_tuple(v, bounds[0])
-            check_range(result, *bounds, str(info.field_name))
-            return result
-
-        @field_validator("alpha")
-        @classmethod
-        def check_alpha(cls, v: ScaleIntType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = 0, 1
-            result = to_tuple(v, bounds[0])
-            check_range(result, *bounds, str(info.field_name))
-            return result
 
     def __init__(
         self,
@@ -2790,7 +2670,7 @@ class PixelDropout(DualTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        dropout_prob: float = Field(default=0.01, ge=0, le=1, description="Pixel dropout probability.")
+        dropout_prob: ProbabilityType = 0.01
         per_channel: bool = Field(default=False, description="Sample drop mask per channel.")
         drop_value: Optional[ScaleFloatType] = Field(
             default=0, description="Value to set in dropped pixels. None for random sampling."
@@ -2885,21 +2765,31 @@ class Spatter(ImageOnlyTransform):
 
     Args:
         mean (float, or tuple of floats): Mean value of normal distribution for generating liquid layer.
-            If single float it will be used as mean.
-            If tuple of float mean will be sampled from range `[mean[0], mean[1])`. Default: (0.65).
+            If single float mean will be sampled from `(0, mean)`
+            If tuple of float mean will be sampled from range `(mean[0], mean[1])`.
+            If you want constant value use (mean, mean).
+            Default (0.65, 0.65)
         std (float, or tuple of floats): Standard deviation value of normal distribution for generating liquid layer.
-            If single float it will be used as std.
-            If tuple of float std will be sampled from range `[std[0], std[1])`. Default: (0.3).
+            If single float the number will be sampled from `(0, std)`.
+            If tuple of float std will be sampled from range `(std[0], std[1])`.
+            If you want constant value use (std, std).
+            Default: (0.3, 0.3).
         gauss_sigma (float, or tuple of floats): Sigma value for gaussian filtering of liquid layer.
-            If single float it will be used as gauss_sigma.
-            If tuple of float gauss_sigma will be sampled from range `[sigma[0], sigma[1])`. Default: (2).
+            If single float the number will be sampled from `(0, gauss_sigma)`.
+            If tuple of float gauss_sigma will be sampled from range `(gauss_sigma[0], gauss_sigma[1])`.
+            If you want constant value use (gauss_sigma, gauss_sigma).
+            Default: (2, 3).
         cutout_threshold (float, or tuple of floats): Threshold for filtering liqued layer
             (determines number of drops). If single float it will used as cutout_threshold.
-            If tuple of float cutout_threshold will be sampled from range `[cutout_threshold[0], cutout_threshold[1])`.
-            Default: (0.68).
+            If single float the number will be sampled from `(0, cutout_threshold)`.
+            If tuple of float cutout_threshold will be sampled from range `(cutout_threshold[0], cutout_threshold[1])`.
+            If you want constant value use `(cutout_threshold, cutout_threshold)`.
+            Default: (0.68, 0.68).
         intensity (float, or tuple of floats): Intensity of corruption.
-            If single float it will be used as intensity.
-            If tuple of float intensity will be sampled from range `[intensity[0], intensity[1])`. Default: (0.6).
+            If single float the number will be sampled from `(0, intensity)`.
+            If tuple of float intensity will be sampled from range `(intensity[0], intensity[1])`.
+            If you want constant value use `(intensity, intensity)`.
+            Default: (0.6, 0.6).
         mode (string, or list of strings): Type of corruption. Currently, supported options are 'rain' and 'mud'.
              If list is provided type of corruption will be sampled list. Default: ("rain").
         color (list of (r, g, b) or dict or None): Corruption elements color.
@@ -2915,29 +2805,21 @@ class Spatter(ImageOnlyTransform):
         uint8, float32
 
     Reference:
-    |  https://arxiv.org/pdf/1903.12261.pdf
-    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+        https://arxiv.org/abs/1903.12261
+        https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
 
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: ScaleFloatType = Field(default=0.65, description="Mean of normal distribution.")
-        std: ScaleFloatType = Field(default=0.3, description="Standard deviation of normal distribution.")
-        gauss_sigma: ScaleFloatType = Field(default=2, description="Sigma for gaussian filtering.")
-        cutout_threshold: ScaleFloatType = Field(default=0.68, description="Threshold for filtering.")
-        intensity: ScaleFloatType = Field(default=0.6, description="Intensity of corruption.")
+        mean: ZeroOneRangeType = (0.65, 0.65)
+        std: ZeroOneRangeType = (0.3, 0.3)
+        gauss_sigma: NonNegativeRangeType = (2, 2)
+        cutout_threshold: ZeroOneRangeType = (0.68, 0.68)
+        intensity: ZeroOneRangeType = (0.6, 0.6)
         mode: Union[SpatterMode, Sequence[SpatterMode]] = Field(
             default="rain", description="Type of corruption ('rain', 'mud')."
         )
         color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None
-
-        @field_validator("mean", "std", "gauss_sigma", "cutout_threshold", "intensity")
-        @classmethod
-        def check_float_ranges(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
-            bounds = (0, float("inf")) if info.field_name == "gauss_sigma" else (0, 1)
-            result = to_tuple(v, v)
-            check_range(result, *bounds, str(info.field_name))
-            return result
 
         @field_validator("mode")
         @classmethod
@@ -2971,11 +2853,11 @@ class Spatter(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean: ScaleFloatType = 0.65,
-        std: ScaleFloatType = 0.3,
-        gauss_sigma: ScaleFloatType = 2,
-        cutout_threshold: ScaleFloatType = 0.68,
-        intensity: ScaleFloatType = 0.6,
+        mean: ScaleFloatType = (0.65, 0.65),
+        std: ScaleFloatType = (0.3, 0.3),
+        gauss_sigma: ScaleFloatType = (2, 2),
+        cutout_threshold: ScaleFloatType = (0.68, 0.68),
+        intensity: ScaleFloatType = (0.6, 0.6),
         mode: Union[SpatterMode, Sequence[SpatterMode]] = "rain",
         color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None,
         always_apply: bool = False,
@@ -3094,31 +2976,15 @@ class ChromaticAberration(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        primary_distortion_limit: ScaleFloatType = Field(
-            default=0.02, description="Range for the primary radial distortion coefficient."
-        )
-        secondary_distortion_limit: ScaleFloatType = Field(
-            default=0.05, description="Range for the secondary radial distortion coefficient."
-        )
+        primary_distortion_limit: SymmetricRangeType = (-0.02, 0.02)
+        secondary_distortion_limit: SymmetricRangeType = (-0.05, 0.05)
         mode: ChromaticAberrationMode = Field(default="green_purple", description="Type of color fringing.")
-        interpolation: int = Field(default=cv2.INTER_LINEAR, description="Interpolation algorithm used for distortion.")
-
-        @field_validator("primary_distortion_limit", "secondary_distortion_limit")
-        @classmethod
-        def check_float_ranges(cls, v: ScaleFloatType) -> Tuple[float, float]:
-            return cast(Tuple[float, float], tuple(v)) if isinstance(v, (tuple, list)) else (-abs(v), abs(v))
-
-        @field_validator("mode")
-        @classmethod
-        def check_mode(cls, mode: ChromaticAberrationMode) -> ChromaticAberrationMode:
-            if mode not in chromatic_aberration_modes:
-                raise ValueError(f"Mode {mode} is not supported. Valid modes are: {chromatic_aberration_modes}.")
-            return mode
+        interpolation: InterpolationType = cv2.INTER_LINEAR
 
     def __init__(
         self,
-        primary_distortion_limit: ScaleFloatType = 0.02,
-        secondary_distortion_limit: ScaleFloatType = 0.05,
+        primary_distortion_limit: ScaleFloatType = (-0.02, 0.02),
+        secondary_distortion_limit: ScaleFloatType = (-0.05, 0.05),
         mode: ChromaticAberrationMode = "green_purple",
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,

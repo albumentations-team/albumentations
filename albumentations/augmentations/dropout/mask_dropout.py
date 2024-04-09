@@ -3,8 +3,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
-from pydantic import Field, field_validator
+from pydantic import Field
 from skimage.measure import label
+from typing_extensions import Literal
 
 from albumentations.core.pydantic import OnePlusRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
@@ -43,7 +44,7 @@ class MaskDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         max_objects: OnePlusRangeType = (1, 1)
 
-        image_fill_value: Union[float, str] = Field(
+        image_fill_value: Union[float, Literal["inpaint"]] = Field(
             default=0,
             description=(
                 "Fill value to use when filling image. "
@@ -52,22 +53,10 @@ class MaskDropout(DualTransform):
         )
         mask_fill_value: float = Field(default=0, description="Fill value to use when filling mask.")
 
-        @field_validator("image_fill_value")
-        @classmethod
-        def validate_image_fill_value(cls, v: Union[float, str]) -> Union[float, str]:
-            if isinstance(v, str) and v != "inpaint":
-                msg = "image_fill_value can be a number or 'inpaint'."
-                raise ValueError(msg)
-            if isinstance(v, (int, float)) and not isinstance(v, bool):
-                return v
-
-            msg = "Invalid type for image_fill_value."
-            raise ValueError(msg)
-
     def __init__(
         self,
         max_objects: int = 1,
-        image_fill_value: Union[float, str] = 0,
+        image_fill_value: Union[float, Literal["inpaint"]] = 0,
         mask_fill_value: ScalarType = 0,
         always_apply: bool = False,
         p: float = 0.5,

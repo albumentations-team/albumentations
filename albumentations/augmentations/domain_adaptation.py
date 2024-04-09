@@ -15,7 +15,7 @@ from albumentations.augmentations.utils import (
     is_multispectral_image,
     read_rgb_image,
 )
-from albumentations.core.pydantic import RangeNonNegativeType, ZeroOneRangeType
+from albumentations.core.pydantic import NonNegativeRangeType, ZeroOneRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType
 
@@ -167,7 +167,7 @@ class FDA(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
         read_fn: Callable[[Any], np.ndarray]
-        beta_limit: RangeNonNegativeType = (0, 0.1)
+        beta_limit: NonNegativeRangeType = (0, 0.1)
 
         @field_validator("beta_limit")
         @classmethod

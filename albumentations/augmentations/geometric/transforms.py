@@ -14,7 +14,13 @@ from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask
 from albumentations.augmentations.utils import BIG_INTEGER, check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.pydantic import BorderModeType, InterpolationType, RangeNonNegativeType, RangeSymmetricType
+from albumentations.core.pydantic import (
+    BorderModeType,
+    InterpolationType,
+    NonNegativeRangeType,
+    ProbabilityType,
+    SymmetricRangeType,
+)
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
@@ -96,7 +102,7 @@ class ShiftScaleRotate(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         shift_limit: Annotated[ScaleFloatType, Field(default=(-0.0625, 0.0625))]
         scale_limit: Annotated[ScaleFloatType, Field(default=(-0.1, 0.1))]
-        rotate_limit: Annotated[ScaleIntType, Field(default=(-45, 45))]
+        rotate_limit: SymmetricRangeType = (-45, 45)
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(default=None)
@@ -121,11 +127,6 @@ class ShiftScaleRotate(DualTransform):
             result = to_tuple(value, bias=1.0)
             check_range(result, *bounds, str(info.field_name))
             return result
-
-        @field_validator("rotate_limit")
-        @classmethod
-        def check_rotate_limit(cls, value: ScaleIntType) -> Tuple[int, int]:
-            return cast(Tuple[int, int], to_tuple(value))
 
     def __init__(
         self,
@@ -394,7 +395,7 @@ class Perspective(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: RangeNonNegativeType = (0.05, 0.1)
+        scale: NonNegativeRangeType = (0.05, 0.1)
         keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
         pad_mode: BorderModeType = cv2.BORDER_CONSTANT
         pad_val: Optional[ColorType] = Field(
@@ -1019,7 +1020,7 @@ class PiecewiseAffine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: RangeNonNegativeType = (0.03, 0.05)
+        scale: NonNegativeRangeType = (0.03, 0.05)
         nb_rows: ScaleIntType = Field(default=4, description="Number of rows in the regular grid.")
         nb_cols: ScaleIntType = Field(default=4, description="Number of columns in the regular grid.")
         interpolation: InterpolationType = cv2.INTER_LINEAR
@@ -1239,7 +1240,7 @@ class PadIfNeeded(DualTransform):
         mask_value: Optional[ColorType] = Field(
             default=None, description="Value for mask border if BORDER_CONSTANT is used."
         )
-        p: float = Field(default=1, ge=0, le=1, description="Probability of applying the transform.")
+        p: ProbabilityType = 1.0
 
         @model_validator(mode="after")
         def validate_divisibility(self) -> Self:
@@ -1594,8 +1595,8 @@ class OpticalDistortion(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        distort_limit: RangeSymmetricType = (-0.05, 0.05)
-        shift_limit: RangeSymmetricType = (-0.05, 0.05)
+        distort_limit: SymmetricRangeType = (-0.05, 0.05)
+        shift_limit: SymmetricRangeType = (-0.05, 0.05)
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(
@@ -1699,8 +1700,8 @@ class GridDistortion(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         num_steps: Annotated[int, Field(ge=1, description="Count of grid cells on each side.")]
-        distort_limit: Annotated[ScaleFloatType, Field(default=(-0.03, 0.03), description="Range for distortion.")]
-        interpolation: InterpolationType
+        distort_limit: SymmetricRangeType = (-0.03, 0.03)
+        interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(
             default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
@@ -1723,7 +1724,7 @@ class GridDistortion(DualTransform):
     def __init__(
         self,
         num_steps: int = 5,
-        distort_limit: ScaleFloatType = 0.3,
+        distort_limit: ScaleFloatType = (-0.3, 0.3),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,

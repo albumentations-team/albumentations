@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Mapping, Tuple, Union
+from typing import Any, Dict, List, Mapping, Tuple
 
 import numpy as np
 from pydantic import Field
@@ -41,7 +41,7 @@ class ChannelDropout(ImageOnlyTransform):
 
     def __init__(
         self,
-        channel_drop_range: Union[Tuple[int, int], List[int]] = (1, 1),
+        channel_drop_range: Tuple[int, int] = (1, 1),
         fill_value: float = 0,
         always_apply: bool = False,
         p: float = 0.5,

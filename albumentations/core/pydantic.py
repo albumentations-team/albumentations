@@ -56,14 +56,14 @@ def process_non_negative_range(value: Optional[ScaleType]) -> Tuple[float, float
     return result
 
 
-RangeNonNegativeType = Annotated[ScaleType, AfterValidator(process_non_negative_range)]
+NonNegativeRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range)]
 
 
 def create_symmetric_range(value: ScaleType) -> Tuple[float, float]:
     return to_tuple(value)
 
 
-RangeSymmetricType = Annotated[ScaleType, AfterValidator(create_symmetric_range)]
+SymmetricRangeType = Annotated[ScaleType, AfterValidator(create_symmetric_range)]
 
 
 def check_1plus_range(value: ScaleType) -> Tuple[float, float]:

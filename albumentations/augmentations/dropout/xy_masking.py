@@ -5,7 +5,7 @@ import numpy as np
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
-from albumentations.core.pydantic import RangeNonNegativeType
+from albumentations.core.pydantic import NonNegativeRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
 
@@ -54,10 +54,10 @@ class XYMasking(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        num_masks_x: RangeNonNegativeType = 0
-        num_masks_y: RangeNonNegativeType = 0
-        mask_x_length: RangeNonNegativeType = 0
-        mask_y_length: RangeNonNegativeType = 0
+        num_masks_x: NonNegativeRangeType = 0
+        num_masks_y: NonNegativeRangeType = 0
+        mask_x_length: NonNegativeRangeType = 0
+        mask_y_length: NonNegativeRangeType = 0
 
         fill_value: ColorType = Field(default=0, description="Value to fill image masks.")
         mask_fill_value: ColorType = Field(default=0, description="Value to fill masks in the mask.")

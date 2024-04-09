@@ -8,7 +8,7 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as FCrops
-from albumentations.core.pydantic import BorderModeType, InterpolationType, RangeSymmetricType
+from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
@@ -63,7 +63,7 @@ class RandomRotate90(DualTransform):
 
 
 class RotateInitSchema(BaseTransformInitSchema):
-    limit: RangeSymmetricType = (-90, 90)
+    limit: SymmetricRangeType = (-90, 90)
 
     interpolation: InterpolationType = cv2.INTER_LINEAR
     border_mode: BorderModeType = cv2.BORDER_CONSTANT

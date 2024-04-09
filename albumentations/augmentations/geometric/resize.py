@@ -99,8 +99,8 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
     def check_scale_limit(cls, v: ScaleFloatType, info: ValidationInfo) -> Union[int, List[int]]:
         result = v if isinstance(v, (list, tuple)) else [v]
         for value in result:
-            if value < 0:
-                raise ValueError(f"{info.field_name} must be non-negative.")
+            if not value >= 1:
+                raise ValueError(f"{info.field_name} must be bigger or equal to 1.")
 
         return cast(Union[int, List[int]], result)
 

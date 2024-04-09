@@ -13,8 +13,8 @@ from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
+    NonNegativeRangeType,
     ProbabilityType,
-    RangeNonNegativeType,
     ZeroOneRangeType,
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
@@ -404,7 +404,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseRandomSizedCropInitSchema):
-        min_max_height: Annotated[Tuple[int, int], Field(description="Crop size limits.")]
+        min_max_height: NonNegativeRangeType
         w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
 
     def __init__(
@@ -459,7 +459,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
     class InitSchema(BaseRandomSizedCropInitSchema):
         scale: ZeroOneRangeType = (0.08, 1.0)
-        ratio: RangeNonNegativeType = (0.75, 1.3333333333333333)
+        ratio: NonNegativeRangeType = (0.75, 1.3333333333333333)
 
     def __init__(
         self,

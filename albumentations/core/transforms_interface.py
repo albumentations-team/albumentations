@@ -52,9 +52,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         pass
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
-        config = BaseTransformInitSchema(always_apply=always_apply, p=p)
-        self.p = config.p
-        self.always_apply = config.always_apply
+        self.p = p
+        self.always_apply = always_apply
         self._additional_targets: Dict[str, str] = {}
 
         # replay mode params

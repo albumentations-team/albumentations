@@ -10,8 +10,8 @@ from albumentations.core.pydantic import (
     InterpolationType,
     OnePlusRangeType,
     ProbabilityType,
-    RangeNonNegativeType,
-    RangeSymmetricType,
+    NonNegativeRangeType,
+    SymmetricRangeType,
     ZeroOneRangeType,
     check_valid_interpolation,
     check_valid_border_modes,
@@ -128,8 +128,8 @@ class ValidationModel(BaseModel):
     interpolation: Optional[InterpolationType] = None
     border_mode: Optional[BorderModeType] = None
     probability: Optional[ProbabilityType] = None
-    non_negative_range: Optional[RangeNonNegativeType] = None
-    symmetric_range: Optional[RangeSymmetricType] = None
+    non_negative_range: Optional[NonNegativeRangeType] = None
+    symmetric_range: Optional[SymmetricRangeType] = None
     one_plus_range: Optional[OnePlusRangeType] = None
     zero_one_range: Optional[ZeroOneRangeType] = None
 

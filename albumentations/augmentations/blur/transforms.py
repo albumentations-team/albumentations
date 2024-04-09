@@ -10,7 +10,7 @@ from typing_extensions import Self
 from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
 from albumentations.augmentations.utils import check_range
-from albumentations.core.pydantic import OnePlusRangeType, RangeNonNegativeType, RangeSymmetricType
+from albumentations.core.pydantic import NonNegativeRangeType, OnePlusRangeType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType, ScaleIntType
 from albumentations.core.utils import to_tuple
@@ -215,7 +215,7 @@ class GaussianBlur(ImageOnlyTransform):
     """
 
     class InitSchema(BlurInitSchema):
-        sigma_limit: RangeNonNegativeType = 0
+        sigma_limit: NonNegativeRangeType = 0
 
         @field_validator("blur_limit")
         @classmethod
@@ -387,11 +387,11 @@ class AdvancedBlur(ImageOnlyTransform):
     """
 
     class InitSchema(BlurInitSchema):
-        sigma_x_limit: RangeNonNegativeType = (0.2, 1.0)
-        sigma_y_limit: RangeNonNegativeType = (0.2, 1.0)
-        beta_limit: RangeNonNegativeType = (0.5, 8.0)
-        noise_limit: RangeNonNegativeType = (0.75, 1.25)
-        rotate_limit: RangeSymmetricType = (-90, 90)
+        sigma_x_limit: NonNegativeRangeType = (0.2, 1.0)
+        sigma_y_limit: NonNegativeRangeType = (0.2, 1.0)
+        beta_limit: NonNegativeRangeType = (0.5, 8.0)
+        noise_limit: NonNegativeRangeType = (0.75, 1.25)
+        rotate_limit: SymmetricRangeType = (-90, 90)
 
         @field_validator("beta_limit")
         @classmethod
@@ -513,7 +513,7 @@ class Defocus(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         radius: OnePlusRangeType = (3, 10)
-        alias_blur: RangeNonNegativeType = (0.1, 0.5)
+        alias_blur: NonNegativeRangeType = (0.1, 0.5)
 
     def __init__(
         self,
@@ -563,7 +563,7 @@ class ZoomBlur(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         max_factor: OnePlusRangeType = (1, 1.31)
-        step_factor: RangeNonNegativeType = (0.01, 0.03)
+        step_factor: NonNegativeRangeType = (0.01, 0.03)
 
     def __init__(
         self,
