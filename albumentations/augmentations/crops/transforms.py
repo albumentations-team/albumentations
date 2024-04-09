@@ -14,6 +14,7 @@ from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
     NonNegativeRangeType,
+    OnePlusRangeType,
     ProbabilityType,
     ZeroOneRangeType,
 )
@@ -23,6 +24,7 @@ from albumentations.core.types import (
     ColorType,
     KeypointInternalType,
     ScaleFloatType,
+    ScaleIntType,
     Targets,
 )
 
@@ -47,8 +49,8 @@ THREE = 3
 
 
 class CropInitSchema(BaseTransformInitSchema):
-    height: int = Field(description="Height of the crop", ge=1)
-    width: int = Field(description="Width of the crop", ge=1)
+    height: Optional[int] = Field(description="Height of the crop", ge=1)
+    width: Optional[int] = Field(description="Width of the crop", ge=1)
     p: ProbabilityType = 1
 
 
@@ -405,13 +407,14 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
 
     class InitSchema(BaseRandomSizedCropInitSchema):
         min_max_height: NonNegativeRangeType
+        size: OnePlusRangeType
         w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
 
     def __init__(
         self,
         min_max_height: Tuple[int, int],
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: Optional[Union[int, Tuple[int, int]]] = None,
+        size: Optional[ScaleIntType] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
         *,
@@ -469,7 +472,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     """Torchvision's variant of crop a random part of the input and rescale it to some size.
 
     Args:
-        size (tuple[int]): target size for the output image, i.e. (height, width) after crop and resize
+        size (int, int): target size for the output image, i.e. (height, width) after crop and resize
         scale ((float, float)): range of size of the origin size cropped
         ratio ((float, float)): range of aspect ratio of the origin aspect ratio cropped
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -491,11 +494,12 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     class InitSchema(BaseRandomSizedCropInitSchema):
         scale: ZeroOneRangeType = (0.08, 1.0)
         ratio: NonNegativeRangeType = (0.75, 1.3333333333333333)
+        size: Optional[OnePlusRangeType]
 
     def __init__(
         self,
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
-        size: Optional[Union[int, Tuple[int, int]]] = None,
+        size: Optional[ScaleIntType] = None,
         width: Optional[int] = None,
         height: Optional[int] = None,
         *,
@@ -539,7 +543,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Union[int, float]]:
         img = params["image"]
-        area = img.shape[0] * img.shape[1]
+        img_height, img_width = img.shape[:2]
+        area = img_height * img_width
 
         for _ in range(10):
             target_area = random.uniform(*self.scale) * area
@@ -549,34 +554,34 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             width = int(round(math.sqrt(target_area * aspect_ratio)))
             height = int(round(math.sqrt(target_area / aspect_ratio)))
 
-            if 0 < width <= img.shape[1] and 0 < height <= img.shape[0]:
-                i = random.randint(0, img.shape[0] - height)
-                j = random.randint(0, img.shape[1] - width)
+            if 0 < width <= img_width and 0 < height <= img_height:
+                i = random.randint(0, img_height - height)
+                j = random.randint(0, img_width - width)
                 return {
                     "crop_height": height,
                     "crop_width": width,
-                    "h_start": i * 1.0 / (img.shape[0] - height + 1e-10),
-                    "w_start": j * 1.0 / (img.shape[1] - width + 1e-10),
+                    "h_start": i * 1.0 / (img_height - height + 1e-10),
+                    "w_start": j * 1.0 / (img_width - width + 1e-10),
                 }
 
         # Fallback to central crop
-        in_ratio = img.shape[1] / img.shape[0]
+        in_ratio = img_width / img_height
         if in_ratio < min(self.ratio):
-            width = img.shape[1]
-            height = int(round(width / min(self.ratio)))
+            width = img_width
+            height = int(round(img_width / min(self.ratio)))
         elif in_ratio > max(self.ratio):
-            height = img.shape[0]
+            height = img_height
             width = int(round(height * max(self.ratio)))
         else:  # whole image
-            width = img.shape[1]
-            height = img.shape[0]
-        i = (img.shape[0] - height) // 2
-        j = (img.shape[1] - width) // 2
+            width = img_width
+            height = img_height
+        i = (img_height - height) // 2
+        j = (img_width - width) // 2
         return {
             "crop_height": height,
             "crop_width": width,
-            "h_start": i * 1.0 / (img.shape[0] - height + 1e-10),
-            "w_start": j * 1.0 / (img.shape[1] - width + 1e-10),
+            "h_start": i * 1.0 / (img_height - height + 1e-10),
+            "w_start": j * 1.0 / (img_width - width + 1e-10),
         }
 
     def get_params(self) -> Dict[str, Any]:
@@ -586,8 +591,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str]:
-        return "height", "width", "scale", "ratio", "interpolation"
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return "size", "scale", "ratio", "interpolation"
 
 
 class RandomCropNearBBox(DualTransform):

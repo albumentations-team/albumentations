@@ -15,10 +15,7 @@ from typing_extensions import Annotated, Literal, Self
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
-
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
-from albumentations.augmentations.functional import split_uniform_grid
-
 from albumentations.augmentations.utils import (
     check_range,
     get_num_channels,
@@ -47,8 +44,8 @@ from albumentations.core.types import (
     ImageCompressionType,
     ImageMode,
     KeypointInternalType,
-    RainMode,
     MorphologyMode,
+    RainMode,
     ScaleFloatType,
     ScaleIntType,
     ScaleType,
@@ -935,7 +932,6 @@ class RandomShadow(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
-
         super().__init__(always_apply=always_apply, p=p)
 
         self.shadow_roi = shadow_roi
@@ -3103,6 +3099,10 @@ class Morphological(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK)
 
+    class InitSchema(BaseTransformInitSchema):
+        scale: OnePlusRangeType = (2, 3)
+        operation: MorphologyMode = "dilation"
+
     def __init__(
         self,
         scale: ScaleIntType = (2, 3),
@@ -3111,7 +3111,7 @@ class Morphological(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.scale = to_tuple(scale, scale)
+        self.scale = cast(Tuple[int, int], scale)
         self.operation = operation
 
     def apply(self, img: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:

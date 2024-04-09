@@ -672,19 +672,17 @@ def test_transform_pipeline_serialization(seed, image, mask):
                 A.Compose(
                     [
                         A.Resize(1024, 1024),
-                        A.RandomSizedCrop(min_max_height=(256, 1024), height=512, width=512, p=1),
+                        A.RandomSizedCrop(min_max_height=(256, 1024), size=(512, 512), p=1),
                         A.OneOf(
                             [
                                 A.RandomSizedCrop(
                                     min_max_height=(256, 512),
-                                    height=384,
-                                    width=384,
+                                    size= (384, 384),
                                     p=0.5,
                                 ),
                                 A.RandomSizedCrop(
                                     min_max_height=(256, 512),
-                                    height=512,
-                                    width=512,
+                                    size=(512, 512),
                                     p=0.5,
                                 ),
                             ]
@@ -694,7 +692,7 @@ def test_transform_pipeline_serialization(seed, image, mask):
                 A.Compose(
                     [
                         A.Resize(1024, 1024),
-                        A.RandomSizedCrop(min_max_height=(256, 1025), height=256, width=256, p=1),
+                        A.RandomSizedCrop(min_max_height=(256, 1025), size=(256, 256), p=1),
                         A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1),
                     ]
                 ),
@@ -1019,8 +1017,8 @@ def test_template_transform_serialization(image, template, seed, p):
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.RandomResizedCrop: {"size": (10, 10)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size" : (10, 10)},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {

@@ -945,8 +945,8 @@ def test_smallest_max_size_list():
 @pytest.mark.parametrize(
     ["img_weight", "template_weight", "template_transform", "image_size", "template_size"],
     [
-        (0.5, 0.5, A.RandomSizedCrop((50, 200), 513, 450, always_apply=True), (513, 450), (224, 224)),
-        (0.3, 0.5, A.RandomResizedCrop(513, 450, always_apply=True), (513, 450), (224, 224)),
+        (0.5, 0.5, A.RandomSizedCrop((50, 200), size=(513, 450), always_apply=True), (513, 450), (224, 224)),
+        (0.3, 0.5, A.RandomResizedCrop(size=(513, 450), always_apply=True), (513, 450), (224, 224)),
         (1.0, 0.5, A.CenterCrop(500, 450, always_apply=True), (500, 450, 3), (512, 512, 3)),
         (0.5, 0.8, A.Resize(513, 450, always_apply=True), (513, 450), (512, 512)),
         (0.5, 0.2, A.NoOp(), (224, 224), (224, 224)),
@@ -956,7 +956,7 @@ def test_smallest_max_size_list():
         (
             0.5,
             0.5,
-            A.Compose([A.Blur(always_apply=True), A.RandomSizedCrop((50, 200), 512, 512, always_apply=True), A.HorizontalFlip(always_apply=True)]),
+            A.Compose([A.Blur(always_apply=True), A.RandomSizedCrop((50, 200), size=(512, 512), always_apply=True), A.HorizontalFlip(always_apply=True)]),
             (512, 512),
             (512, 512),
         ),
@@ -1411,4 +1411,3 @@ def test_deprecation_warnings_random_shadow(
         else:
             assert not w
     warnings.resetwarnings()
-
