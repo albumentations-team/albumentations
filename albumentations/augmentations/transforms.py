@@ -15,8 +15,10 @@ from typing_extensions import Annotated, Literal, Self
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
+
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.functional import split_uniform_grid
+
 from albumentations.augmentations.utils import (
     check_range,
     get_num_channels,
@@ -46,6 +48,7 @@ from albumentations.core.types import (
     ImageMode,
     KeypointInternalType,
     RainMode,
+    MorphologyMode,
     ScaleFloatType,
     ScaleIntType,
     ScaleType,
@@ -98,6 +101,7 @@ __all__ = [
     "PixelDropout",
     "Spatter",
     "ChromaticAberration",
+    "Morphological",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -132,26 +136,30 @@ class RandomGridShuffle(DualTransform):
         super().__init__(always_apply=always_apply, p=p)
         self.grid = grid
 
-    def apply(self, img: np.ndarray, tiles: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
-        return F.swap_tiles_on_image(img, tiles)
+    def apply(
+        self, img: np.ndarray, tiles: Optional[np.ndarray] = None, mapping: Optional[List[int]] = None, **params: Any
+    ) -> np.ndarray:
+        return F.swap_tiles_on_image(img, tiles, mapping)
 
-    def apply_to_mask(self, mask: np.ndarray, tiles: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
-        return F.swap_tiles_on_image(mask, tiles)
+    def apply_to_mask(
+        self, mask: np.ndarray, tiles: Optional[np.ndarray] = None, mapping: Optional[List[int]] = None, **params: Any
+    ) -> np.ndarray:
+        return F.swap_tiles_on_image(mask, tiles, mapping)
 
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
         tiles: np.ndarray,
-        mapping: Dict[int, int],
+        mapping: List[int],
         **params: Any,
     ) -> KeypointInternalType:
         x, y = keypoint[:2]
 
         # Find which original tile the keypoint belongs to
-        for original_index, (start_y, start_x, end_y, end_x) in enumerate(tiles):
+        for original_index, new_index in enumerate(mapping):
+            start_y, start_x, end_y, end_x = tiles[original_index]
+            # check if the keypoint is in this tile
             if start_y <= y < end_y and start_x <= x < end_x:
-                # Find this tile's new index after shuffling
-                new_index = mapping[original_index]
                 # Get the new tile's coordinates
                 new_start_y, new_start_x = tiles[new_index][:2]
 
@@ -169,22 +177,17 @@ class RandomGridShuffle(DualTransform):
         return keypoint
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        height, weight = params["image"].shape[:2]
+        # check if image size is divisible by grid
+        # if not, warn and return empty dict -> no changes will be applied
+        if height % self.grid[0] != 0 or weight % self.grid[1] != 0:
+            warn("Image size must be divisible by grid size")
+            return {"tiles": np.array([])}
         # Generate the original grid
-        original_tiles = split_uniform_grid(params["image"].shape[:2], self.grid)
-
-        # Copy the original grid to keep track of the initial positions
-        indexed_tiles = np.array(list(enumerate(original_tiles)), dtype=object)
-
-        # Shuffle the tiles while keeping track of original indices
-        random_utils.shuffle(indexed_tiles)
-
-        # Create a mapping from original positions to new positions
-        mapping = {original_index: i for i, (original_index, tile) in enumerate(indexed_tiles)}
-
-        # Extract the shuffled tiles without indices
-        shuffled_tiles = np.array([tile for _, tile in indexed_tiles])
-
-        return {"tiles": shuffled_tiles, "mapping": mapping}
+        original_tiles = F.split_uniform_grid((height, weight), self.grid)
+        # Shuffle order of tiles
+        mapping = random_utils.shuffle(list(range(len(original_tiles))))
+        return {"tiles": original_tiles, "mapping": mapping}
 
     @property
     def targets_as_params(self) -> List[str]:
@@ -932,7 +935,9 @@ class RandomShadow(ImageOnlyTransform):
         always_apply: bool = False,
         p: float = 0.5,
     ):
+
         super().__init__(always_apply=always_apply, p=p)
+
         self.shadow_roi = shadow_roi
         self.shadow_dimension = shadow_dimension
         self.num_shadows_limit = num_shadows_limit
@@ -3055,3 +3060,73 @@ class ChromaticAberration(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
         return "primary_distortion_limit", "secondary_distortion_limit", "mode", "interpolation"
+
+
+class Morphological(DualTransform):
+    """Apply a morphological operation (dilation or erosion) to an image,
+    with particular value for enhancing document scans.
+
+    Morphological operations modify the structure of the image.
+    Dilation expands the white (foreground) regions in a binary or grayscale image, while erosion shrinks them.
+    These operations are beneficial in document processing, for example:
+    - Dilation helps in closing up gaps within text or making thin lines thicker,
+        enhancing legibility for OCR (Optical Character Recognition).
+    - Erosion can remove small white noise and detach connected objects,
+        making the structure of larger objects more pronounced.
+
+    Args:
+        scale (int or tuple/list of int): Specifies the size of the structuring element (kernel) used for the operation.
+            - If an integer is provided, a square kernel of that size will be used.
+            - If a tuple or list is provided, it should contain two integers representing the minimum
+                and maximum sizes for the dilation kernel.
+        operation (str, optional): The morphological operation to apply. Options are 'dilation' or 'erosion'.
+            Default is 'dilation'.
+        always_apply (bool, optional): Whether to always apply this transformation. Default is False.
+        p (float, optional): The probability of applying this transformation. Default is 0.5.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    Reference:
+        https://github.com/facebookresearch/nougat
+
+    Example:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+        >>>     A.Morphological(scale=(2, 3), operation='dilation', p=0.5)
+        >>> ])
+        >>> image = transform(image=image)["image"]
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
+
+    def __init__(
+        self,
+        scale: ScaleIntType = (2, 3),
+        operation: MorphologyMode = "dilation",
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.scale = to_tuple(scale, scale)
+        self.operation = operation
+
+    def apply(self, img: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
+        return F.morphology(img, kernel, self.operation)
+
+    def apply_to_mask(self, mask: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
+        return F.morphology(mask, kernel, self.operation)
+
+    def get_params(self) -> Dict[str, float]:
+        kernel = cv2.getStructuringElement(
+            cv2.MORPH_ELLIPSE, tuple(random_utils.randint(self.scale[0], self.scale[1], 2))
+        )
+        return {
+            "kernel": kernel,
+        }
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("scale", "operation")

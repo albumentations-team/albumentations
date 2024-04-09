@@ -63,7 +63,6 @@ DUAL_TARGETS = {
     A.CoarseDropout: (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS),
     A.Crop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.CropAndPad: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.CropNonEmptyMaskIfExists: (Targets.IMAGE, Targets.MASK),
     A.Flip: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.VerticalFlip: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.HorizontalFlip: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
@@ -74,13 +73,10 @@ DUAL_TARGETS = {
     A.Resize: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Rotate: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomRotate90: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.MaskDropout: (Targets.IMAGE, Targets.MASK),
-    A.PixelDropout: (Targets.IMAGE, Targets.MASK),
     A.Transpose: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.SmallestMaxSize: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.ShiftScaleRotate: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.ElasticTransform: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
-    A.GridDropout: (Targets.IMAGE, Targets.MASK),
     A.GridDistortion: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
     A.LongestMaxSize: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.PiecewiseAffine: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
@@ -162,7 +158,7 @@ def test_image_only(augmentation_cls, params):
 )
 def test_dual(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
-    assert set(aug._targets) == set(DUAL_TARGETS[augmentation_cls])
+    assert set(aug._targets) == set(DUAL_TARGETS.get(augmentation_cls, {Targets.IMAGE, Targets.MASK}))
     assert set(aug._targets) <= get_targets_from_methods(augmentation_cls)
 
     targets_from_docstring = {str2target[target] for target in  extract_targets_from_docstring(augmentation_cls)}

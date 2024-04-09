@@ -18,6 +18,7 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
+
 from albumentations.core.types import (
     ColorType,
     ImageMode,
@@ -68,6 +69,8 @@ __all__ = [
     "MAX_VALUES_BY_DTYPE",
     "split_uniform_grid",
     "chromatic_aberration",
+    "erode",
+    "dilate",
 ]
 
 TWO = 2
@@ -988,25 +991,28 @@ def noop(input_obj: Any, **params: Any) -> Any:
     return input_obj
 
 
-def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray) -> np.ndarray:
+def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: Optional[List[int]] = None) -> np.ndarray:
     """Swap tiles on the image according to the new format.
 
     Args:
         image: Input image.
         tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
+        mapping: List of new tile indices.
 
     Returns:
         np.ndarray: Output image with tiles swapped according to the random shuffle.
     """
     # If no tiles are provided, return a copy of the original image
-    if tiles.size == 0:
+    if tiles.size == 0 or mapping is None:
         return image.copy()
 
     # Create a copy of the image to retain original for reference
     new_image = np.empty_like(image)
-    for start_y, start_x, end_y, end_x in tiles:
+    for num, new_index in enumerate(mapping):
+        start_y, start_x, end_y, end_x = tiles[new_index]
+        start_y_orig, start_x_orig, end_y_orig, end_x_orig = tiles[num]
         # Assign the corresponding tile from the original image to the new image
-        new_image[start_y:end_y, start_x:end_x] = image[start_y:end_y, start_x:end_x]
+        new_image[start_y:end_y, start_x:end_x] = image[start_y_orig:end_y_orig, start_x_orig:end_x_orig]
 
     return new_image
 
@@ -1495,3 +1501,22 @@ def _distort_channel(
         interpolation=interpolation,
         borderMode=cv2.BORDER_REPLICATE,
     )
+
+
+@preserve_shape
+def erode(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    return cv2.erode(img, kernel, iterations=1)
+
+
+@preserve_shape
+def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
+    return cv2.dilate(img, kernel, iterations=1)
+
+
+def morphology(img: np.ndarray, kernel: np.ndarray, operation: str) -> np.ndarray:
+    if operation == "dilation":
+        return dilate(img, kernel)
+    if operation == "erosion":
+        return erode(img, kernel)
+
+    raise ValueError(f"Unsupported operation: {operation}")

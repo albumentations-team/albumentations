@@ -152,8 +152,7 @@ AUGMENTATION_CLS_PARAMS = [
         A.RandomShadow,
         {
             "shadow_roi": (0.1, 0.4, 0.9, 0.9),
-            "num_shadows_lower": 2,
-            "num_shadows_upper": 4,
+            "num_shadows_limit": (2, 4),
             "shadow_dimension": 8,
         },
     ],
@@ -257,7 +256,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.Resize, {"height": 64, "width": 64}],
     [A.SmallestMaxSize, {"max_size": 64, "interpolation": cv2.INTER_CUBIC}],
     [A.LongestMaxSize, {"max_size": 128, "interpolation": cv2.INTER_CUBIC}],
-    [A.RandomGridShuffle, {"grid": (5, 5)}],
+    [A.RandomGridShuffle, {"grid": (4, 4)}],
     [A.Solarize, {"threshold": 32}],
     [A.Posterize, {"num_bits": 1}],
     [A.Equalize, {"mode": "pil", "by_channels": False}],
@@ -450,6 +449,7 @@ AUGMENTATION_CLS_PARAMS = [
             mask_fill_value=20,
         )
     ],
+    [A.Morphological, {}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -544,7 +544,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.XYMasking,
             A.MixUp,
             A.CropNonEmptyMaskIfExists,
-            A.GridDropout
+            A.GridDropout,
+            A.Morphological
         },
     ),
 )
@@ -607,7 +608,8 @@ def test_augmentations_for_bboxes_serialization(
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
-            A.MixUp
+            A.MixUp,
+            A.Morphological
         },
     ),
 )

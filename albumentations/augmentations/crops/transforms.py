@@ -381,12 +381,11 @@ class _BaseRandomSizedCrop(DualTransform):
 
 
 class RandomSizedCrop(_BaseRandomSizedCrop):
-    """Crop a random part of the input and rescale it to some size.
+    """Crop a random portion of the input and rescale it to a specific size.
 
     Args:
         min_max_height ((int, int)): crop size limits.
-        height (int): height after crop and resize.
-        width (int): width after crop and resize.
+        size (tuple[int]): target size for the output image, i.e. (height, width) after crop and resize
         w2h_ratio (float): aspect ratio of crop.
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
@@ -402,6 +401,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _size_len = 2
 
     class InitSchema(BaseRandomSizedCropInitSchema):
         min_max_height: NonNegativeRangeType
@@ -410,13 +410,44 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     def __init__(
         self,
         min_max_height: Tuple[int, int],
-        height: int,
-        width: int,
+        # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
+        size: Optional[Union[int, Tuple[int, int]]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        *,
         w2h_ratio: float = 1.0,
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
         p: float = 1.0,
     ):
+        if isinstance(size, tuple):
+            if len(size) != self._size_len:
+                message = "Size must be a tuple of two integers (height, width)."
+                raise ValueError(message)
+            height, width = size
+        elif size is None:
+            if height is None or width is None:
+                message = "If 'size' is not provided, both 'height' and 'width' must be specified."
+                raise ValueError(message)
+            size = (height, width)
+            warn(
+                "Initializing with 'height' and 'width' is deprecated. "
+                "Please use a tuple (height, width) for the 'size' argument.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            if width is None:
+                message = "When 'size' is an integer, 'width' must be provided."
+                raise ValueError(message)
+            height = size
+            warn(
+                "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
+                "Please use a tuple (height, width) for the 'size' argument.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         super().__init__(height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p)
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
@@ -438,8 +469,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     """Torchvision's variant of crop a random part of the input and rescale it to some size.
 
     Args:
-        height (int): height after crop and resize.
-        width (int): width after crop and resize.
+        size (tuple[int]): target size for the output image, i.e. (height, width) after crop and resize
         scale ((float, float)): range of size of the origin size cropped
         ratio ((float, float)): range of aspect ratio of the origin aspect ratio cropped
         interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
@@ -456,6 +486,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+    _size_len = 2
 
     class InitSchema(BaseRandomSizedCropInitSchema):
         scale: ZeroOneRangeType = (0.08, 1.0)
@@ -463,14 +494,45 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
     def __init__(
         self,
-        height: int,
-        width: int,
+        # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
+        size: Optional[Union[int, Tuple[int, int]]] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        *,
         scale: Tuple[float, float] = (0.08, 1.0),
         ratio: Tuple[float, float] = (0.75, 1.3333333333333333),
         interpolation: int = cv2.INTER_LINEAR,
         always_apply: bool = False,
         p: float = 1.0,
     ):
+        if isinstance(size, tuple):
+            if len(size) != self._size_len:
+                message = "Size must be a tuple of two integers (height, width)."
+                raise ValueError(message)
+            height, width = size
+        elif size is None:
+            if height is None or width is None:
+                message = "If 'size' is not provided, both 'height' and 'width' must be specified."
+                raise ValueError(message)
+            size = (height, width)
+            warn(
+                "Initializing with 'height' and 'width' is deprecated. "
+                "Please use a tuple (height, width) for the 'size' argument.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            if width is None:
+                message = "When 'size' is an integer, 'width' must be provided."
+                raise ValueError(message)
+            height = size
+            warn(
+                "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
+                "Please use a tuple (height, width) for the 'size' argument.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         super().__init__(height=height, width=width, interpolation=interpolation, always_apply=always_apply, p=p)
         self.scale = scale
         self.ratio = ratio

@@ -1,10 +1,13 @@
 import random
 from functools import partial
+from typing import Optional, Tuple, Type
 
 import cv2
 import numpy as np
 from pydantic import ValidationError
 import pytest
+import warnings
+from torchvision import transforms as torch_transforms
 
 import albumentations as A
 import albumentations.augmentations.functional as F
@@ -1301,3 +1304,111 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
 
     message = "This transformation expects 3-channel images"
     assert str(exc_info.value).startswith(message)
+
+@pytest.mark.parametrize("height, width", [(100, 200), (200, 100)])
+@pytest.mark.parametrize("scale", [(0.08, 1.0), (0.5, 1.0)])
+@pytest.mark.parametrize("ratio", [(0.75, 1.33), (1.0, 1.0)])
+def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
+    # NOTE: below will fail when height, width is no longer expected as first two positional arguments
+    transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
+    transform_albu_new = A.RandomResizedCrop(size=(height, width), scale=scale, ratio=ratio, p=1)
+
+    image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+    transformed_image_albu = transform_albu(image=image)['image']
+    transformed_image_albu_new = transform_albu_new(image=image)['image']
+
+    # PyTorch equivalent operation
+    transform_pt = torch_transforms.RandomResizedCrop(size=(height, width), scale=scale, ratio=ratio)
+    image_pil = torch_transforms.functional.to_pil_image(image)
+    transformed_image_pt = transform_pt(image_pil)
+
+    transformed_image_pt_np = np.array(transformed_image_pt)
+    assert transformed_image_albu.shape == transformed_image_pt_np.shape
+    assert transformed_image_albu_new.shape == transformed_image_pt_np.shape
+
+    # NOTE: below will fail when height, width is no longer expected as second and third positional arguments
+    transform_albu = A.RandomSizedCrop((128, 224), height, width, p=1.0)
+    transform_albu_new = A.RandomSizedCrop(min_max_height=(128, 224), size=(height, width), p=1.0)
+    transformed_image_albu = transform_albu(image=image)['image']
+    transformed_image_albu_new = transform_albu_new(image=image)['image']
+    assert transformed_image_albu.shape == transformed_image_pt_np.shape
+    assert transformed_image_albu_new.shape == transformed_image_pt_np.shape
+
+    # NOTE: below will fail when height, width is no longer expected as first two positional arguments
+    transform_albu = A.RandomResizedCrop(height, width, scale=scale, ratio=ratio, p=1)
+    transform_albu_height_is_size = A.RandomResizedCrop(size=height, width=width, scale=scale, ratio=ratio, p=1)
+
+    image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+    transformed_image_albu = transform_albu(image=image)['image']
+    transform_albu_height_is_size = transform_albu_new(image=image)['image']
+    assert transformed_image_albu.shape == transformed_image_pt_np.shape
+    assert transform_albu_height_is_size.shape == transformed_image_pt_np.shape
+
+@pytest.mark.parametrize("size, width, height, expected_warning", [
+    ((100, 200), None, None, None),
+    (None, 200, 100, DeprecationWarning),
+    (100, None, None, ValueError),
+])
+def test_deprecation_warnings(size, width, height, expected_warning):
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        if expected_warning == ValueError:
+            with pytest.raises(ValueError):
+                A.RandomResizedCrop(size=size, width=width, height=height)
+        else:
+            A.RandomResizedCrop(size=size, width=width, height=height)
+        if expected_warning is DeprecationWarning:
+            assert len(w) == 1
+            assert issubclass(w[-1].category, expected_warning)
+        else:
+            assert not w
+    warnings.resetwarnings()
+
+
+def test_randomgridshuffle() -> None:
+    # RandomGridShuffle with grid=(3, 3)
+    # image size not divisible by grid size
+    # image unchanged, should get warning
+    with warnings.catch_warnings(record=True) as w:
+        image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
+        transform_albu = A.RandomGridShuffle(grid=(3, 3), p=1)
+        transformed_image_albu = transform_albu(image=image)['image']
+        assert np.equal(image, transformed_image_albu).all()
+        assert len(w) == 1
+        assert w[0].category is UserWarning
+    warnings.resetwarnings()
+
+
+@pytest.mark.parametrize("num_shadows_limit, num_shadows_lower, num_shadows_upper, expected_warning", [
+    ((1, 2), None, None, None),
+    ((2, 3), None, None, None),
+    ((1, 2), 1, None, DeprecationWarning),
+    ((1, 2), None, 2, DeprecationWarning),
+    ((1, 2), 1, 2, DeprecationWarning),
+    ((2, 1), None, None, ValueError),
+])
+def test_deprecation_warnings_random_shadow(
+    num_shadows_limit: Tuple[int, int],
+    num_shadows_lower: Optional[int],
+    num_shadows_upper: Optional[int],
+    expected_warning: Optional[Type[Warning]],
+) -> None:
+    """
+    Test deprecation warnings for RandomShadow
+    """
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        if expected_warning == ValueError:
+            with pytest.raises(ValueError):
+                A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
+                               num_shadows_upper=num_shadows_upper)
+        else:
+            A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
+                           num_shadows_upper=num_shadows_upper)
+        if expected_warning is DeprecationWarning:
+            assert len(w) == 1
+            assert issubclass(w[-1].category, expected_warning)
+        else:
+            assert not w
+    warnings.resetwarnings()
+

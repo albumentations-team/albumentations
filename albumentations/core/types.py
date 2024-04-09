@@ -30,6 +30,8 @@ SpatterMode = Literal["rain", "mud"]
 ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
 RainMode = Literal["drizzle", "heavy", "torrential"]
 
+MorphologyMode = Literal["erosion", "dilation"]
+
 
 class ReferenceImage(TypedDict):
     image: np.ndarray
