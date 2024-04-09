@@ -194,10 +194,22 @@ class Compose(BaseCompose):
     def disable_check_args_private(self) -> None:
         self.is_check_args = False
 
-    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def get_supported_keys(self) -> List[str]:
+        keys = ["image", "mask"]
+        keys.extend(self.processors.keys())
+        keys.extend(self.additional_targets.keys())
+        for proc in self.processors.values():
+            proc_keys = proc.params.label_fields
+            if proc_keys is not None:
+                keys.extend(proc_keys)
+        return keys
+
+    def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Dict[str, Any]:
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
+        supported_keys = self.get_supported_keys()
+        data = {k: v for k, v in kwargs.items() if k in supported_keys}
         if self.is_check_args:
             self._check_args(**data)
 
@@ -228,7 +240,7 @@ class Compose(BaseCompose):
         for p in self.processors.values():
             p.postprocess(data)
 
-        return data
+        return {**kwargs, **data}
 
     def _check_data_post_transform(self, data: Any) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
