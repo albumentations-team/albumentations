@@ -1,11 +1,19 @@
 import random
-from typing import Any, Dict, Sequence, Tuple, Union
+from typing import Any, Dict, List, Sequence, Tuple, Union, cast
 
 import cv2
 import numpy as np
+from pydantic import Field, ValidationInfo, field_validator
 
-from albumentations.core.transforms_interface import DualTransform, to_tuple
-from albumentations.core.types import BoxInternalType, KeypointInternalType, ScaleFloatType, Targets
+from albumentations.core.pydantic import InterpolationType, ProbabilityType
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.types import (
+    BoxInternalType,
+    KeypointInternalType,
+    ScaleFloatType,
+    Targets,
+)
+from albumentations.core.utils import to_tuple
 
 from . import functional as F
 
@@ -35,6 +43,18 @@ class RandomScale(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
+    class InitSchema(BaseTransformInitSchema):
+        scale_limit: ScaleFloatType = Field(
+            default=0.1,
+            description="Scaling factor range. If a single float value => (1-scale_limit, 1 + scale_limit).",
+        )
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+
+        @field_validator("scale_limit")
+        @classmethod
+        def check_scale_limit(cls, v: ScaleFloatType) -> Tuple[float, float]:
+            return to_tuple(v, bias=1.0)
+
     def __init__(
         self,
         scale_limit: ScaleFloatType = 0.1,
@@ -43,7 +63,7 @@ class RandomScale(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.scale_limit = to_tuple(scale_limit, bias=1.0)
+        self.scale_limit = cast(Tuple[float, float], scale_limit)
         self.interpolation = interpolation
 
     def get_params(self) -> Dict[str, float]:
@@ -67,6 +87,24 @@ class RandomScale(DualTransform):
         return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
 
 
+class MaxSizeInitSchema(BaseTransformInitSchema):
+    max_size: Union[int, List[int]] = Field(
+        default=1024, description="Maximum size of the smallest side of the image after the transformation."
+    )
+    interpolation: InterpolationType = cv2.INTER_LINEAR
+    p: ProbabilityType = 1
+
+    @field_validator("max_size")
+    @classmethod
+    def check_scale_limit(cls, v: ScaleFloatType, info: ValidationInfo) -> Union[int, List[int]]:
+        result = v if isinstance(v, (list, tuple)) else [v]
+        for value in result:
+            if not value >= 1:
+                raise ValueError(f"{info.field_name} must be bigger or equal to 1.")
+
+        return cast(Union[int, List[int]], result)
+
+
 class LongestMaxSize(DualTransform):
     """Rescale an image so that maximum side is equal to max_size, keeping the aspect ratio of the initial image.
 
@@ -85,6 +123,9 @@ class LongestMaxSize(DualTransform):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(MaxSizeInitSchema):
+        pass
 
     def __init__(
         self,
@@ -141,6 +182,9 @@ class SmallestMaxSize(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
+    class InitSchema(MaxSizeInitSchema):
+        pass
+
     def __init__(
         self,
         max_size: Union[int, Sequence[int]] = 1024,
@@ -196,6 +240,12 @@ class Resize(DualTransform):
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
+
+    class InitSchema(BaseTransformInitSchema):
+        height: int = Field(ge=1, description="Desired height of the output.")
+        width: int = Field(ge=1, description="Desired width of the output.")
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        p: ProbabilityType = 1
 
     def __init__(
         self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1

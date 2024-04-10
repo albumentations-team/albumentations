@@ -230,7 +230,7 @@ def test_compose_with_bbox_noop_label_outside(bboxes, bbox_format, labels):
 def test_random_sized_crop_size():
     image = np.ones((100, 100, 3))
     bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
-    aug = RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.0)
+    aug = RandomSizedCrop(min_max_height=(70, 90), size= (50, 50), p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
     assert len(bboxes) == len(transformed["bboxes"])
@@ -239,7 +239,7 @@ def test_random_sized_crop_size():
 def test_random_resized_crop_size():
     image = np.ones((100, 100, 3))
     bboxes = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
-    aug = RandomResizedCrop(height=50, width=50, p=1.0)
+    aug = RandomResizedCrop(size=(50, 50), p=1.0)
     transformed = aug(image=image, bboxes=bboxes)
     assert transformed["image"].shape == (50, 50, 3)
     assert len(bboxes) == len(transformed["bboxes"])

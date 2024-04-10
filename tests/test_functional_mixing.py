@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-
 from albumentations.augmentations.functional import add_weighted
 
 

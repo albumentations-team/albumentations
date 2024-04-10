@@ -18,7 +18,12 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-from albumentations.core.types import ColorType, ImageMode, ScalarType, SpatterMode, image_modes
+from albumentations.core.types import (
+    ColorType,
+    ImageMode,
+    ScalarType,
+    SpatterMode,
+)
 
 __all__ = [
     "add_fog",
@@ -314,13 +319,10 @@ def _equalize_cv(img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarr
     return cv2.LUT(img, lut)
 
 
-def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], mode: str, by_channels: bool) -> None:
+def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], by_channels: bool) -> None:
     if img.dtype != np.uint8:
         msg = "Image must have uint8 channel type"
         raise TypeError(msg)
-
-    if mode not in image_modes:
-        raise ValueError(f"Unsupported equalization mode. Supports: {image_modes}. Got: {mode}")
 
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
@@ -346,7 +348,7 @@ def _handle_mask(
 def equalize(
     img: np.ndarray, mask: Optional[np.ndarray] = None, mode: ImageMode = "cv", by_channels: bool = True
 ) -> np.ndarray:
-    _check_preconditions(img, mask, mode, by_channels)
+    _check_preconditions(img, mask, by_channels)
 
     function = _equalize_pil if mode == "pil" else _equalize_cv
 
@@ -460,9 +462,9 @@ def clahe(img: np.ndarray, clip_limit: float = 2.0, tile_grid_size: Tuple[int, i
         msg = "clahe supports only uint8 inputs"
         raise TypeError(msg)
 
-    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=[int(x) for x in tile_grid_size])
 
-    if len(img.shape) == TWO or img.shape[2] == 1:
+    if is_grayscale_image(img):
         return clahe_mat.apply(img)
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
@@ -737,8 +739,6 @@ def add_sun_flare(
 def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     """Add shadows to the image.
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         img (numpy.ndarray):
         vertices_list (list[numpy.ndarray]):
@@ -746,6 +746,8 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     Returns:
         numpy.ndarray:
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     non_rgb_warning(img)
     input_dtype = img.dtype
@@ -1415,7 +1417,7 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
         np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
     """
     height, width = image_shape
-    n_rows, n_cols = grid
+    n_rows, n_cols = (int(x) for x in grid)
 
     # Compute split points for the grid
     height_splits = np.linspace(0, height, n_rows + 1, dtype=int)

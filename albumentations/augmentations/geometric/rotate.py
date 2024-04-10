@@ -1,13 +1,22 @@
 import math
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import cv2
 import numpy as np
+from pydantic import Field
+from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as FCrops
-from albumentations.core.transforms_interface import DualTransform, to_tuple
-from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType, ScaleIntType, Targets
+from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.types import (
+    BoxInternalType,
+    ColorType,
+    KeypointInternalType,
+    ScaleFloatType,
+    Targets,
+)
 
 from . import functional as F
 
@@ -53,6 +62,18 @@ class RandomRotate90(DualTransform):
         return ()
 
 
+class RotateInitSchema(BaseTransformInitSchema):
+    limit: SymmetricRangeType = (-90, 90)
+
+    interpolation: InterpolationType = cv2.INTER_LINEAR
+    border_mode: BorderModeType = cv2.BORDER_CONSTANT
+
+    value: Optional[ColorType] = Field(default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT.")
+    mask_value: Optional[ColorType] = Field(
+        default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks."
+    )
+
+
 class Rotate(DualTransform):
     """Rotate the input by an angle selected randomly from the uniform distribution.
 
@@ -84,29 +105,32 @@ class Rotate(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
+    class InitSchema(RotateInitSchema):
+        rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
+        crop_border: bool = Field(
+            default=False, description="If True, makes a largest possible crop within the rotated image."
+        )
+
     def __init__(
         self,
-        limit: ScaleIntType = 90,
+        limit: ScaleFloatType = 90,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[Union[int, float, Tuple[int, int], Tuple[float, float]]] = None,
-        mask_value: Optional[Union[int, float, Tuple[int, int], Tuple[float, float]]] = None,
-        rotate_method: str = "largest_box",
+        value: Optional[ColorType] = None,
+        mask_value: Optional[ColorType] = None,
+        rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.limit = to_tuple(limit)
+        self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value
         self.mask_value = mask_value
         self.rotate_method = rotate_method
         self.crop_border = crop_border
-
-        if rotate_method not in ["largest_box", "ellipse"]:
-            raise ValueError(f"Rotation method {self.rotate_method} is not valid.")
 
     def apply(
         self,
@@ -174,16 +198,17 @@ class Rotate(DualTransform):
         return keypoint_out
 
     @staticmethod
-    def _rotated_rect_with_max_area(h: int, w: int, angle: float) -> Dict[str, int]:
+    def _rotated_rect_with_max_area(height: int, width: int, angle: float) -> Dict[str, int]:
         """Given a rectangle of size wxh that has been rotated by 'angle' (in
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
 
-        Code from: https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
+        Reference:
+            https://stackoverflow.com/questions/16702966/rotate-image-and-crop-out-black-borders
         """
         angle = math.radians(angle)
-        width_is_longer = w >= h
-        side_long, side_short = (w, h) if width_is_longer else (h, w)
+        width_is_longer = width >= height
+        side_long, side_short = (width, height) if width_is_longer else (height, width)
 
         # since the solutions for angle, -angle and 180-angle are all the same,
         # it is sufficient to look at the first quadrant and the absolute values of sin,cos:
@@ -196,13 +221,13 @@ class Rotate(DualTransform):
         else:
             # fully constrained case: crop touches all 4 sides
             cos_2a = cos_a * cos_a - sin_a * sin_a
-            wr, hr = (w * cos_a - h * sin_a) / cos_2a, (h * cos_a - w * sin_a) / cos_2a
+            wr, hr = (width * cos_a - height * sin_a) / cos_2a, (height * cos_a - width * sin_a) / cos_2a
 
         return {
-            "x_min": max(0, int(w / 2 - wr / 2)),
-            "x_max": min(w, int(w / 2 + wr / 2)),
-            "y_min": max(0, int(h / 2 - hr / 2)),
-            "y_max": min(h, int(h / 2 + hr / 2)),
+            "x_min": max(0, int(width / 2 - wr / 2)),
+            "x_max": min(width, int(width / 2 + wr / 2)),
+            "y_min": max(0, int(height / 2 - hr / 2)),
+            "y_max": min(height, int(height / 2 + hr / 2)),
         }
 
     @property
@@ -212,8 +237,8 @@ class Rotate(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         out_params = {"angle": random.uniform(self.limit[0], self.limit[1])}
         if self.crop_border:
-            h, w = params["image"].shape[:2]
-            out_params.update(self._rotated_rect_with_max_area(h, w, out_params["angle"]))
+            height, width = params["image"].shape[:2]
+            out_params.update(self._rotated_rect_with_max_area(height, width, out_params["angle"]))
         return out_params
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
@@ -252,9 +277,12 @@ class SafeRotate(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
+    class InitSchema(RotateInitSchema):
+        pass
+
     def __init__(
         self,
-        limit: Union[float, Tuple[float, float]] = 90,
+        limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,
@@ -263,7 +291,7 @@ class SafeRotate(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.limit = to_tuple(limit)
+        self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value

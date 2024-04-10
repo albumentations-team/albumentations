@@ -1,22 +1,52 @@
 import random
 import warnings
-from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
+from typing import Any, Dict, List, Literal, Optional, Tuple, cast
 
 import cv2
 import numpy as np
+from pydantic import Field, ValidationInfo, field_validator, model_validator
+from typing_extensions import Self
 
 from albumentations import random_utils
 from albumentations.augmentations import functional as FMain
-from albumentations.core.transforms_interface import ImageOnlyTransform, to_tuple
+from albumentations.augmentations.utils import check_range
+from albumentations.core.pydantic import (
+    NonNegativeFloatRangeType,
+    OnePlusFloatRangeType,
+    OnePlusIntRangeType,
+    SymmetricRangeType,
+)
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType, ScaleIntType
+from albumentations.core.utils import to_tuple
 
 from . import functional as F
 
 __all__ = ["Blur", "MotionBlur", "GaussianBlur", "GlassBlur", "AdvancedBlur", "MedianBlur", "Defocus", "ZoomBlur"]
 
 
-HALF = 0
+HALF = 0.5
 TWO = 2
+
+
+def process_blur_limit(value: ScaleIntType, info: ValidationInfo, min_value: float = 0) -> Tuple[int, int]:
+    bounds = 0, float("inf")
+    result = to_tuple(value, min_value)
+    check_range(result, *bounds, info.field_name)
+
+    for v in result:
+        if v != 0 and v % 2 != 1:
+            raise ValueError(f"Blur limit must be 0 or odd. Got: {result}")
+    return cast(Tuple[int, int], result)
+
+
+class BlurInitSchema(BaseTransformInitSchema):
+    blur_limit: ScaleIntType = Field(default=(3, 7), description="Maximum kernel size for blurring the input image.")
+
+    @field_validator("blur_limit")
+    @classmethod
+    def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
+        return process_blur_limit(value, info, min_value=3)
 
 
 class Blur(ImageOnlyTransform):
@@ -35,9 +65,12 @@ class Blur(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BlurInitSchema):
+        pass
+
     def __init__(self, blur_limit: ScaleIntType = 7, always_apply: bool = False, p: float = 0.5):
         super().__init__(always_apply, p)
-        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 3))
+        self.blur_limit = cast(Tuple[int, int], blur_limit)
 
     def apply(self, img: np.ndarray, kernel: int = 3, **params: Any) -> np.ndarray:
         return F.blur(img, kernel)
@@ -67,6 +100,24 @@ class MotionBlur(Blur):
 
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        allow_shifted: bool = Field(
+            default=True,
+            description="If set to true creates non-shifted kernels only, otherwise creates randomly shifted kernels.",
+        )
+        blur_limit: ScaleIntType = Field(
+            default=(3, 7), description="Maximum kernel size for blurring the input image."
+        )
+
+        @model_validator(mode="after")
+        def process_blur(self) -> Self:
+            self.blur_limit = cast(Tuple[int, int], to_tuple(self.blur_limit, 3))
+
+            if self.allow_shifted and isinstance(self.blur_limit, tuple) and any(x % 2 != 1 for x in self.blur_limit):
+                raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
+
+            return self
+
     def __init__(
         self,
         blur_limit: ScaleIntType = 7,
@@ -76,9 +127,7 @@ class MotionBlur(Blur):
     ):
         super().__init__(blur_limit=blur_limit, always_apply=always_apply, p=p)
         self.allow_shifted = allow_shifted
-
-        if not allow_shifted and self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
-            raise ValueError(f"Blur limit must be odd when centered=True. Got: {self.blur_limit}")
+        self.blur_limit = cast(Tuple[int, int], blur_limit)
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (*super().get_transform_init_args_names(), "allow_shifted")
@@ -144,10 +193,6 @@ class MedianBlur(Blur):
     def __init__(self, blur_limit: ScaleIntType = 7, always_apply: bool = False, p: float = 0.5):
         super().__init__(blur_limit, always_apply, p)
 
-        if self.blur_limit[0] % 2 != 1 or self.blur_limit[1] % 2 != 1:
-            msg = "MedianBlur supports only odd blur limits."
-            raise ValueError(msg)
-
     def apply(self, img: np.ndarray, kernel: int = 3, **params: Any) -> np.ndarray:
         return F.median_blur(img, kernel)
 
@@ -174,6 +219,35 @@ class GaussianBlur(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BlurInitSchema):
+        sigma_limit: NonNegativeFloatRangeType = 0
+
+        @field_validator("blur_limit")
+        @classmethod
+        def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
+            return process_blur_limit(value, info, min_value=0)
+
+        @model_validator(mode="after")
+        def validate_limits(self) -> Self:
+            if (
+                isinstance(self.blur_limit, (tuple, list))
+                and self.blur_limit[0] == 0
+                and isinstance(self.sigma_limit, (tuple, list))
+                and self.sigma_limit[0] == 0
+            ):
+                self.blur_limit = 3, max(3, self.blur_limit[1])
+                warnings.warn(
+                    "blur_limit and sigma_limit minimum value can not be both equal to 0. "
+                    "blur_limit minimum value changed to 3."
+                )
+
+            if isinstance(self.blur_limit, tuple):
+                for v in self.blur_limit:
+                    if v != 0 and v % 2 != 1:
+                        raise ValueError(f"Blur limit must be 0 or odd. Got: {self.blur_limit}")
+
+            return self
+
     def __init__(
         self,
         blur_limit: ScaleIntType = (3, 7),
@@ -182,21 +256,8 @@ class GaussianBlur(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 0))
-        self.sigma_limit = to_tuple(sigma_limit if sigma_limit is not None else 0, 0)
-
-        if self.blur_limit[0] == 0 and self.sigma_limit[0] == 0:
-            self.blur_limit = 3, max(3, self.blur_limit[1])
-            warnings.warn(
-                "blur_limit and sigma_limit minimum value can not be both equal to 0. "
-                "blur_limit minimum value changed to 3."
-            )
-
-        if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
-            self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
-        ):
-            msg = "GaussianBlur supports only odd blur limits."
-            raise ValueError(msg)
+        self.blur_limit = cast(Tuple[int, int], blur_limit)
+        self.sigma_limit = cast(Tuple[float, float], sigma_limit)
 
     def apply(self, img: np.ndarray, ksize: int = 3, sigma: float = 0, **params: Any) -> np.ndarray:
         return F.gaussian_blur(img, ksize, sigma=sigma)
@@ -212,7 +273,7 @@ class GaussianBlur(ImageOnlyTransform):
         return ("blur_limit", "sigma_limit")
 
 
-class GlassBlur(Blur):
+class GlassBlur(ImageOnlyTransform):
     """Apply glass noise to the input image.
 
     Args:
@@ -230,27 +291,27 @@ class GlassBlur(Blur):
         uint8, float32
 
     Reference:
-    |  https://arxiv.org/abs/1903.12261
-    |  https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
+        https://arxiv.org/abs/1903.12261
+        https://github.com/hendrycks/robustness/blob/master/ImageNet-C/create_c/make_imagenet_c.py
 
     """
+
+    class InitSchema(BaseTransformInitSchema):
+        sigma: float = Field(default=0.7, ge=0, description="Standard deviation for the Gaussian kernel.")
+        max_delta: int = Field(default=4, ge=1, description="Maximum distance between pixels that are swapped.")
+        iterations: int = Field(default=2, ge=1, description="Number of times the glass noise effect is applied.")
+        mode: Literal["fast", "exact"] = "fast"
 
     def __init__(
         self,
         sigma: float = 0.7,
         max_delta: int = 4,
         iterations: int = 2,
+        mode: Literal["fast", "exact"] = "fast",
         always_apply: bool = False,
-        mode: str = "fast",
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
-        if iterations < 1:
-            raise ValueError(f"Iterations should be more or equal to 1, but we got {iterations}")
-
-        if mode not in ["fast", "exact"]:
-            raise ValueError(f"Mode should be 'fast' or 'exact', but we got {mode}")
-
         self.sigma = sigma
         self.max_delta = max_delta
         self.iterations = iterations
@@ -266,9 +327,11 @@ class GlassBlur(Blur):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
         img = params["image"]
 
+        height, width = img.shape[:2]
+
         # generate array containing all necessary values for transformations
-        width_pixels = img.shape[0] - self.max_delta * 2
-        height_pixels = img.shape[1] - self.max_delta * 2
+        width_pixels = height - self.max_delta * 2
+        height_pixels = width - self.max_delta * 2
         total_pixels = int(width_pixels * height_pixels)
         dxy = random_utils.randint(-self.max_delta, self.max_delta, size=(total_pixels, self.iterations, 2))
 
@@ -328,6 +391,34 @@ class AdvancedBlur(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BlurInitSchema):
+        sigma_x_limit: NonNegativeFloatRangeType = (0.2, 1.0)
+        sigma_y_limit: NonNegativeFloatRangeType = (0.2, 1.0)
+        beta_limit: NonNegativeFloatRangeType = (0.5, 8.0)
+        noise_limit: NonNegativeFloatRangeType = (0.75, 1.25)
+        rotate_limit: SymmetricRangeType = (-90, 90)
+
+        @field_validator("beta_limit")
+        @classmethod
+        def check_beta_limit(cls, value: ScaleFloatType) -> Tuple[float, float]:
+            result = to_tuple(value, low=0)
+            if not (result[0] < 1.0 < result[1]):
+                msg = "beta_limit is expected to include 1.0."
+                raise ValueError(msg)
+            return result
+
+        @model_validator(mode="after")
+        def validate_limits(self) -> Self:
+            if (
+                isinstance(self.sigma_x_limit, (tuple, list))
+                and self.sigma_x_limit[0] == 0
+                and isinstance(self.sigma_y_limit, (tuple, list))
+                and self.sigma_y_limit[0] == 0
+            ):
+                msg = "sigma_x_limit and sigma_y_limit minimum value cannot be both equal to 0."
+                raise ValueError(msg)
+            return self
+
     def __init__(
         self,
         blur_limit: ScaleIntType = (3, 7),
@@ -342,9 +433,7 @@ class AdvancedBlur(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.blur_limit = cast(Tuple[int, int], to_tuple(blur_limit, 3))
 
-        # Handle deprecation of sigmaX_limit and sigmaY_limit
         if sigmaX_limit is not None:
             warnings.warn("sigmaX_limit is deprecated; use sigma_x_limit instead.", DeprecationWarning)
             sigma_x_limit = sigmaX_limit
@@ -353,41 +442,20 @@ class AdvancedBlur(ImageOnlyTransform):
             warnings.warn("sigmaY_limit is deprecated; use sigma_y_limit instead.", DeprecationWarning)
             sigma_y_limit = sigmaY_limit
 
-        self.sigma_x_limit = self.__check_values(to_tuple(sigma_x_limit, 0.0), name="sigma_x_limit")
-        self.sigma_y_limit = self.__check_values(to_tuple(sigma_y_limit, 0.0), name="sigma_y_limit")
-        self.rotate_limit = to_tuple(rotate_limit)
-        self.beta_limit = to_tuple(beta_limit, low=0.0)
-        self.noise_limit = self.__check_values(to_tuple(noise_limit, 0.0), name="noise_limit")
-
-        if (self.blur_limit[0] != 0 and self.blur_limit[0] % 2 != 1) or (
-            self.blur_limit[1] != 0 and self.blur_limit[1] % 2 != 1
-        ):
-            msg = "AdvancedBlur supports only odd blur limits."
-            raise ValueError(msg)
-
-        if self.sigma_x_limit[0] == 0 and self.sigma_y_limit[0] == 0:
-            msg = "sigma_x_limit and sigma_y_limit minimum value cannot be both equal to 0."
-            raise ValueError(msg)
-
-        if not (self.beta_limit[0] < 1.0 < self.beta_limit[1]):
-            msg = "Beta limit is expected to include 1.0."
-            raise ValueError(msg)
-
-    @staticmethod
-    def __check_values(
-        value: Sequence[float], name: str, bounds: Tuple[float, float] = (0, float("inf"))
-    ) -> Sequence[float]:
-        if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
-            raise ValueError(f"{name} values should be between {bounds}")
-        return value
+        self.blur_limit = cast(Tuple[int, int], blur_limit)
+        self.sigma_x_limit = cast(Tuple[float, float], sigma_x_limit)
+        self.sigma_y_limit = cast(Tuple[float, float], sigma_y_limit)
+        self.rotate_limit = cast(Tuple[int, int], rotate_limit)
+        self.beta_limit = cast(Tuple[float, float], beta_limit)
+        self.noise_limit = cast(Tuple[float, float], noise_limit)
 
     def apply(self, img: np.ndarray, kernel: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         return FMain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, np.ndarray]:
         ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
-        sigma_x = random.uniform(*self.sigma_x_limit)
-        sigma_y = random.uniform(*self.sigma_y_limit)
+        sigma_x = random_utils.uniform(*self.sigma_x_limit)
+        sigma_y = random_utils.uniform(*self.sigma_y_limit)
         angle = np.deg2rad(random.uniform(*self.rotate_limit))
 
         # Split into 2 cases to avoid selection of narrow kernels (beta > 1) too often.
@@ -429,7 +497,7 @@ class AdvancedBlur(ImageOnlyTransform):
 
 
 class Defocus(ImageOnlyTransform):
-    """Apply defocus transform. See https://arxiv.org/abs/1903.12261.
+    """Apply defocus transform.
 
     Args:
         radius ((int, int) or int): range for radius of defocusing.
@@ -442,9 +510,15 @@ class Defocus(ImageOnlyTransform):
         image
 
     Image types:
-        Any
+        unit8, float32
 
+    Reference:
+        https://arxiv.org/abs/1903.12261
     """
+
+    class InitSchema(BaseTransformInitSchema):
+        radius: OnePlusIntRangeType = (3, 10)
+        alias_blur: NonNegativeFloatRangeType = (0.1, 0.5)
 
     def __init__(
         self,
@@ -454,16 +528,8 @@ class Defocus(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.radius = to_tuple(radius, low=1)
-        self.alias_blur = to_tuple(alias_blur, low=0)
-
-        if self.radius[0] <= 0:
-            msg = "Parameter radius must be positive"
-            raise ValueError(msg)
-
-        if self.alias_blur[0] < 0:
-            msg = "Parameter alias_blur must be non-negative"
-            raise ValueError(msg)
+        self.radius = cast(Tuple[int, int], radius)
+        self.alias_blur = cast(Tuple[float, float], alias_blur)
 
     def apply(self, img: np.ndarray, radius: int = 3, alias_blur: float = 0.5, **params: Any) -> np.ndarray:
         return F.defocus(img, radius, alias_blur)
@@ -479,7 +545,7 @@ class Defocus(ImageOnlyTransform):
 
 
 class ZoomBlur(ImageOnlyTransform):
-    """Apply zoom blur transform. See https://arxiv.org/abs/1903.12261.
+    """Apply zoom blur transform.
 
     Args:
         max_factor ((float, float) or float): range for max factor for blurring.
@@ -494,27 +560,26 @@ class ZoomBlur(ImageOnlyTransform):
         image
 
     Image types:
-        Any
+        unit8, float32
 
+    Reference:
+        https://arxiv.org/abs/1903.12261
     """
+
+    class InitSchema(BaseTransformInitSchema):
+        max_factor: OnePlusFloatRangeType = (1, 1.31)
+        step_factor: NonNegativeFloatRangeType = (0.01, 0.03)
 
     def __init__(
         self,
-        max_factor: ScaleFloatType = 1.31,
+        max_factor: ScaleFloatType = (1, 1.31),
         step_factor: ScaleFloatType = (0.01, 0.03),
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.max_factor = to_tuple(max_factor, low=1.0)
-        self.step_factor = to_tuple(step_factor, step_factor)
-
-        if self.max_factor[0] < 1:
-            msg = "Max factor must be larger or equal 1"
-            raise ValueError(msg)
-        if self.step_factor[0] <= 0:
-            msg = "Step factor must be positive"
-            raise ValueError(msg)
+        self.max_factor = cast(Tuple[float, float], max_factor)
+        self.step_factor = cast(Tuple[float, float], step_factor)
 
     def apply(self, img: np.ndarray, zoom_factors: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
         if zoom_factors is None:

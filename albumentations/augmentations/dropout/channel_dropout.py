@@ -2,14 +2,21 @@ import random
 from typing import Any, Dict, List, Mapping, Tuple
 
 import numpy as np
+from pydantic import Field
+from typing_extensions import Annotated
 
-from albumentations.core.transforms_interface import ImageOnlyTransform
+from albumentations import random_utils
+from albumentations.augmentations.utils import is_grayscale_image
+from albumentations.core.pydantic import OnePlusIntRangeType
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
+from albumentations.core.types import ColorType
 
 from .functional import channel_dropout
 
 __all__ = ["ChannelDropout"]
 
-TWO = 2
+NUM_GRAYSCALE_LENGTH = 2
+MIN_DROPOUT_CHANNEL_LIST_LENGTH = 2
 
 
 class ChannelDropout(ImageOnlyTransform):
@@ -28,6 +35,10 @@ class ChannelDropout(ImageOnlyTransform):
 
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        channel_drop_range: OnePlusIntRangeType = (1, 1)
+        fill_value: Annotated[ColorType, Field(description="Pixel value for the dropped channel.")]
+
     def __init__(
         self,
         channel_drop_range: Tuple[int, int] = (1, 1),
@@ -38,13 +49,6 @@ class ChannelDropout(ImageOnlyTransform):
         super().__init__(always_apply, p)
 
         self.channel_drop_range = channel_drop_range
-
-        self.min_channels = channel_drop_range[0]
-        self.max_channels = channel_drop_range[1]
-
-        if not 1 <= self.min_channels <= self.max_channels:
-            raise ValueError(f"Invalid channel_drop_range. Got: {channel_drop_range}")
-
         self.fill_value = fill_value
 
     def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...] = (0,), **params: Any) -> np.ndarray:
@@ -52,18 +56,17 @@ class ChannelDropout(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params: Mapping[str, Any]) -> Dict[str, Any]:
         img = params["image"]
-
         num_channels = img.shape[-1]
 
-        if len(img.shape) == TWO or num_channels == 1:
+        if is_grayscale_image(img):
             msg = "Images has one channel. ChannelDropout is not defined."
             raise NotImplementedError(msg)
 
-        if self.max_channels >= num_channels:
+        if self.channel_drop_range[1] >= num_channels:
             msg = "Can not drop all channels in ChannelDropout."
             raise ValueError(msg)
 
-        num_drop_channels = random.randint(self.min_channels, self.max_channels)
+        num_drop_channels = random_utils.randint(self.channel_drop_range[0], self.channel_drop_range[1] + 1)
 
         channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
 
