@@ -107,6 +107,58 @@ def test_normalize():
     expected = (np.ones((100, 100, 3), dtype=np.float32) * 127 / 255 - 50) / 3
     assert_array_almost_equal_nulp(normalized, expected)
 
+# Parameterize tests for all combinations
+@pytest.mark.parametrize("shape", [
+    (100, 100),  # height, width
+    (100, 100, 1),  # height, width, 1 channel
+    (100, 100, 3),  # height, width, 3 channels
+    (100, 100, 7),  # height, width, 7 channels
+])
+@pytest.mark.parametrize("normalization", [
+    "image",
+    "image_per_channel",
+    "min_max",
+    "min_max_per_channel",
+])
+@pytest.mark.parametrize("dtype", [
+    np.uint8,
+    np.float32,
+])
+def test_normalize_per_image(shape, normalization, dtype):
+    # Generate a random image of the specified shape and dtype
+    if dtype is np.uint8:
+        img = np.random.randint(0, 256, size=shape, dtype=dtype)
+    else:  # float32
+        img = np.random.random(size=shape).astype(dtype) * 255
+
+    # Normalize the image
+    normalized_img = F.normalize_per_image(img, normalization)
+
+    # Assert the output shape matches the input shape
+    assert normalized_img.shape == img.shape, "Output shape should match input shape"
+    assert normalized_img.dtype == np.float32, "Output dtype should be float32"
+
+    # Additional checks based on normalization type
+    if normalization in ["min_max", "min_max_per_channel"]:
+        # For min-max normalization, values should be in [0, 1]
+        assert normalized_img.min() >= 0, "Min value should be >= 0"
+        assert normalized_img.max() <= 1, "Max value should be <= 1"
+    elif normalization in ["image", "image_per_channel"]:
+        # For other normalizations, just ensure output dtype is float32
+        # and check for expected normalization effects
+        assert normalized_img.dtype == np.float32, "Output dtype should be float32"
+        if normalization == "image":
+            assert np.isclose(normalized_img.mean(), 0, atol=1e-3), "Mean should be close to 0 for 'image' normalization"
+            assert np.isclose(normalized_img.std(), 1, atol=1e-3), "STD should be close to 1 for 'image' normalization"
+        elif normalization == "image_per_channel":
+            # Check channel-wise normalization for multi-channel images
+            if len(shape) == 3 and shape[2] > 1:
+                for c in range(shape[2]):
+                    channel_mean = normalized_img[:, :, c].mean()
+                    channel_std = normalized_img[:, :, c].std()
+                    assert np.isclose(channel_mean, 0, atol=1e-3), f"Mean for channel {c} should be close to 0"
+                    assert np.isclose(channel_std, 1, atol=1e-3), f"STD for channel {c} should be close to 1"
+
 
 def test_normalize_float():
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4

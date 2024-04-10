@@ -192,12 +192,37 @@ class RandomGridShuffle(DualTransform):
 
 
 class Normalize(ImageOnlyTransform):
-    """Normalization is applied by the formula: `img = (img - mean * max_pixel_value) / (std * max_pixel_value)`
+    """Applies various normalization techniques to an image. The specific normalization technique can be selected
+        with the `normalization` parameter.
+
+    Standard normalization is applied using the formula:
+        `img = (img - mean * max_pixel_value) / (std * max_pixel_value)`.
+        Other normalization techniques adjust the image based on global or per-channel statistics,
+        or scale pixel values to a specified range.
 
     Args:
-        mean: mean values
-        std: std values
-        max_pixel_value: maximum possible pixel value
+        mean (Optional[ColorType]): Mean values for standard normalization.
+            For "standard" normalization, the default values are ImageNet mean values: (0.485, 0.456, 0.406).
+            For "inception" normalization, use mean values of (0.5, 0.5, 0.5).
+        std (Optional[ColorType]): Standard deviation values for standard normalization.
+            For "standard" normalization, the default values are ImageNet standard deviation :(0.229, 0.224, 0.225).
+            For "inception" normalization, use standard deviation values of (0.5, 0.5, 0.5).
+        max_pixel_value (Optional[float]): Maximum possible pixel value, used for scaling in standard normalization.
+            Defaults to 255.0.
+        normalization (Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel", "inception"])
+            Specifies the normalization technique to apply. Defaults to "standard".
+            - "standard": Applies the formula `(img - mean * max_pixel_value) / (std * max_pixel_value)`.
+                The default mean and std are based on ImageNet.
+            - "image": Normalizes the whole image based on its global mean and standard deviation.
+            - "image_per_channel": Normalizes the image per channel based on each channel's mean and standard deviation.
+            - "min_max": Scales the image pixel values to a [0, 1] range based on the global
+                minimum and maximum pixel values.
+            - "min_max_per_channel": Scales each channel of the image pixel values to a [0, 1]
+                range based on the per-channel minimum and maximum pixel values.
+            - "inception": Applies normalization suitable for Inception models
+                with mean and std values of (0.5, 0.5, 0.5) respectively.
+
+        p (float): Probability of applying the transform. Defaults to 1.0.
 
     Targets:
         image
@@ -205,19 +230,44 @@ class Normalize(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Note:
+        For "standard" normalization, `mean`, `std`, and `max_pixel_value` must be provided.
+        For "inception" normalization, the specific mean and std values should be used.
+        For other normalization types, these parameters are ignored.
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: ColorType = Field(default=(0.485, 0.456, 0.406), description="Mean values for normalization")
-        std: ColorType = Field(default=(0.229, 0.224, 0.225), description="Standard deviation values for normalization")
-        max_pixel_value: float = Field(default=255.0, description="Maximum possible pixel value")
+        mean: Optional[ColorType] = Field(
+            default=(0.485, 0.456, 0.406),
+            description="Mean values for normalization, defaulting to ImageNet mean values.",
+        )
+        std: Optional[ColorType] = Field(
+            default=(0.229, 0.224, 0.225),
+            description="Standard deviation values for normalization, defaulting to ImageNet std values.",
+        )
+        max_pixel_value: Optional[float] = Field(default=255.0, description="Maximum possible pixel value.")
+        normalization: Literal[
+            "standard", "image", "image_per_channel", "min_max", "min_max_per_channel", "inception"
+        ] = "standard"
         p: ProbabilityType = 1
+
+        @model_validator(mode="after")
+        def validate_normalization(self) -> Self:
+            if (
+                self.mean is None
+                or self.std is None
+                or self.max_pixel_value is None
+                and self.normalization == "standard"
+            ):
+                raise ValueError("mean, std, and max_pixel_value must be provided for standard normalization.")
+            return self
 
     def __init__(
         self,
-        mean: ColorType = (0.485, 0.456, 0.406),
-        std: ColorType = (0.229, 0.224, 0.225),
-        max_pixel_value: float = 255.0,
+        mean: Optional[ColorType] = (0.485, 0.456, 0.406),
+        std: Optional[ColorType] = (0.229, 0.224, 0.225),
+        max_pixel_value: Optional[float] = 255.0,
+        normalization: Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"] = "standard",
         always_apply: bool = False,
         p: float = 1.0,
     ):
@@ -225,12 +275,19 @@ class Normalize(ImageOnlyTransform):
         self.mean = mean
         self.std = std
         self.max_pixel_value = max_pixel_value
+        self.normalization = normalization
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        return F.normalize(img, self.mean, self.std, self.max_pixel_value)
+        if self.normalization == "standard":
+            return F.normalize(
+                img, cast(ColorType, self.mean), cast(ColorType, self.std), cast(float, self.max_pixel_value)
+            )
+        if self.normalization in {"image", "image_per_channel", "min_max", "min_max_per_channel"}:
+            return F.normalize_per_image(img, self.normalization)
+        raise ValueError(f"Unknown normalization type: {self.normalization}")
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str]:
-        return ("mean", "std", "max_pixel_value")
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("mean", "std", "max_pixel_value", "normalization")
 
 
 class ImageCompression(ImageOnlyTransform):
