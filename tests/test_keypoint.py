@@ -272,11 +272,17 @@ def test_compose_with_additional_targets():
     image = np.ones((100, 100, 3))
     keypoints = [(10, 10), (50, 50)]
     kp1 = [(15, 15), (55, 55)]
+
     aug = A.Compose([A.CenterCrop(50, 50)], keypoint_params={"format": "xy"}, additional_targets={"kp1": "keypoints"})
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
     assert transformed["keypoints"] == [(25, 25)]
     assert transformed["kp1"] == [(30, 30)]
 
+    aug = A.Compose([A.CenterCrop(50, 50)], keypoint_params={"format": "xy"})
+    aug.add_targets( additional_targets={"kp1": "keypoints"})
+    transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
+    assert transformed["keypoints"] == [(25, 25)]
+    assert transformed["kp1"] == [(30, 30)]
 
 @pytest.mark.parametrize(
     ["angle", "expected"],
