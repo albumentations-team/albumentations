@@ -1,8 +1,9 @@
 import random
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
+from pydantic import field_validator
 
 from albumentations.augmentations.domain_adaptation_functional import (
     adapt_pixel_distribution,
@@ -14,7 +15,8 @@ from albumentations.augmentations.utils import (
     is_multispectral_image,
     read_rgb_image,
 )
-from albumentations.core.transforms_interface import ImageOnlyTransform, to_tuple
+from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType
 
 __all__ = [
@@ -70,6 +72,11 @@ class HistogramMatching(ImageOnlyTransform):
         >>> aug = A.Compose([A.HistogramMatching([target_image], p=1, read_fn=lambda x: x)])
         >>> result = aug(image=image)
     """
+
+    class InitSchema(BaseTransformInitSchema):
+        reference_images: Sequence[Any]
+        blend_ratio: ZeroOneRangeType = (0.5, 1.0)
+        read_fn: Callable[[Any], np.ndarray]
 
     def __init__(
         self,
@@ -157,10 +164,23 @@ class FDA(ImageOnlyTransform):
         the low-level statistics of source and target images through a simple yet effective Fourier-based method.
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        reference_images: Sequence[Any]
+        read_fn: Callable[[Any], np.ndarray]
+        beta_limit: NonNegativeFloatRangeType = (0, 0.1)
+
+        @field_validator("beta_limit")
+        @classmethod
+        def check_ranges(cls, value: Tuple[float, float]) -> Tuple[float, float]:
+            bounds = 0, MAX_BETA_LIMIT
+            if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
+                raise ValueError(f"Values should be in the range {bounds} got {value} ")
+            return value
+
     def __init__(
         self,
-        reference_images: Sequence[np.ndarray],
-        beta_limit: ScaleFloatType = 0.1,
+        reference_images: Sequence[Any],
+        beta_limit: ScaleFloatType = (0, 0.1),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         always_apply: bool = False,
         p: float = 0.5,
@@ -168,11 +188,7 @@ class FDA(ImageOnlyTransform):
         super().__init__(always_apply=always_apply, p=p)
         self.reference_images = reference_images
         self.read_fn = read_fn
-        if isinstance(beta_limit, float) and not 0 <= beta_limit <= MAX_BETA_LIMIT:
-            msg = "The beta_limit should be within [0, 0.5]."
-            raise ValueError(msg)
-
-        self.beta_limit = to_tuple(beta_limit, low=0)
+        self.beta_limit = cast(Tuple[float, float], beta_limit)
 
     def apply(
         self, img: np.ndarray, target_image: Optional[np.ndarray] = None, beta: float = 0.1, **params: Any
@@ -245,6 +261,12 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         for preparing images before more advanced processing or analysis.
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        reference_images: Sequence[Any]
+        blend_ratio: ZeroOneRangeType = (0.25, 1.0)
+        read_fn: Callable[[Any], np.ndarray]
+        transform_type: Literal["pca", "standard", "minmax"]
+
     def __init__(
         self,
         reference_images: Sequence[Any],
@@ -258,9 +280,6 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
-        expected_transformers = ("pca", "standard", "minmax")
-        if transform_type not in expected_transformers:
-            raise ValueError(f"Got unexpected transform_type {transform_type}. Expected one of {expected_transformers}")
         self.transform_type = transform_type
 
     @staticmethod

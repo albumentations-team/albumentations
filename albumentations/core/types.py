@@ -1,12 +1,11 @@
-from enum import Enum
-from pathlib import Path
-from typing import Any, Literal, Sequence, Tuple, TypedDict, Union
+from enum import Enum, IntEnum
+from typing import Any, Literal, Sequence, Tuple, Union
 
 import numpy as np
-from typing_extensions import NotRequired
+from typing_extensions import NotRequired, TypedDict
 
 ScalarType = Union[int, float]
-ColorType = Union[int, float, Sequence[int], Sequence[float]]
+ColorType = Union[float, Sequence[float]]
 SizeType = Sequence[int]
 
 BoxInternalType = Tuple[float, float, float, float]
@@ -23,24 +22,19 @@ ScaleType = Union[ScaleFloatType, ScaleIntType]
 
 NumType = Union[int, float, np.ndarray]
 
-ImageColorType = Union[float, Sequence[float]]
-
 IntNumType = Union[np.integer, np.ndarray]
 FloatNumType = Union[np.floating, np.ndarray]
 
-
-image_modes = ["cv", "pil"]
 ImageMode = Literal["cv", "pil"]
-
-
 SpatterMode = Literal["rain", "mud"]
 ChromaticAberrationMode = Literal["green_purple", "red_blue", "random"]
+RainMode = Literal["drizzle", "heavy", "torrential"]
 
 MorphologyMode = Literal["erosion", "dilation"]
 
 
 class ReferenceImage(TypedDict):
-    image: Union[str, Path]
+    image: np.ndarray
     mask: NotRequired[np.ndarray]
     global_label: NotRequired[np.ndarray]
     bbox: NotRequired[BoxType]
@@ -53,3 +47,18 @@ class Targets(Enum):
     BBOXES = "BBoxes"
     KEYPOINTS = "Keypoints"
     GLOBAL_LABEL = "Global Label"
+
+
+class ImageCompressionType(IntEnum):
+    """Defines the types of image compression.
+
+    This Enum class is used to specify the image compression format.
+
+    Attributes:
+        JPEG (int): Represents the JPEG image compression format.
+        WEBP (int): Represents the WEBP image compression format.
+
+    """
+
+    JPEG = 0
+    WEBP = 1

@@ -4,14 +4,15 @@ from unittest.mock import patch
 
 import cv2
 import numpy as np
+
 import pytest
 from deepdiff import DeepDiff
-import inspect
 
 import albumentations as A
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
+from albumentations.core.types import ImageCompressionType
 
 from .utils import (
     OpenMock,
@@ -23,7 +24,6 @@ from .utils import (
 
 TEST_SEEDS = (0, 1, 42)
 
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_transforms(
@@ -32,8 +32,8 @@ TEST_SEEDS = (0, 1, 42)
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.RandomResizedCrop: {"size": (10, 10)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size": (10, 10)},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {
@@ -94,7 +94,7 @@ AUGMENTATION_CLS_PARAMS = [
         {
             "quality_lower": 10,
             "quality_upper": 80,
-            "compression_type": A.ImageCompression.ImageCompressionType.WEBP,
+            "compression_type": ImageCompressionType.WEBP,
         },
     ],
     [
@@ -672,19 +672,17 @@ def test_transform_pipeline_serialization(seed, image, mask):
                 A.Compose(
                     [
                         A.Resize(1024, 1024),
-                        A.RandomSizedCrop(min_max_height=(256, 1024), height=512, width=512, p=1),
+                        A.RandomSizedCrop(min_max_height=(256, 1024), size=(512, 512), p=1),
                         A.OneOf(
                             [
                                 A.RandomSizedCrop(
                                     min_max_height=(256, 512),
-                                    height=384,
-                                    width=384,
+                                    size= (384, 384),
                                     p=0.5,
                                 ),
                                 A.RandomSizedCrop(
                                     min_max_height=(256, 512),
-                                    height=512,
-                                    width=512,
+                                    size=(512, 512),
                                     p=0.5,
                                 ),
                             ]
@@ -694,7 +692,7 @@ def test_transform_pipeline_serialization(seed, image, mask):
                 A.Compose(
                     [
                         A.Resize(1024, 1024),
-                        A.RandomSizedCrop(min_max_height=(256, 1025), height=256, width=256, p=1),
+                        A.RandomSizedCrop(min_max_height=(256, 1025), size=(256, 256), p=1),
                         A.OneOf([A.HueSaturationValue(p=0.5), A.RGBShift(p=0.7)], p=1),
                     ]
                 ),
@@ -1019,8 +1017,8 @@ def test_template_transform_serialization(image, template, seed, p):
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
-            A.RandomResizedCrop: {"height": 10, "width": 10},
-            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.RandomResizedCrop: {"size": (10, 10)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size" : (10, 10)},
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.XYMasking: {
@@ -1051,12 +1049,36 @@ def test_template_transform_serialization(image, template, seed, p):
 def test_augmentations_serialization(augmentation_cls, params):
     instance = augmentation_cls(**params)
 
-    # Retrieve the constructor's parameters, except 'self', "always_apply"\
-    init_params = inspect.signature(augmentation_cls.__init__).parameters
-    expected_args = set(init_params.keys()) - {'self', "always_apply"}
+    def get_all_init_schema_fields(model_cls):
+        """
+        Recursively collects fields from InitSchema classes defined in the given augmentation class
+        and its base classes.
 
-    # Retrieve the arguments reported by the instance's get_transform_init_args_names
-    reported_args = set(instance.to_dict()["transform"].keys()) - {'__class_fullname__', "always_apply"}
+        Args:
+            model_cls (Type): The augmentation class possibly containing an InitSchema class.
+
+        Returns:
+            Set[str]: A set of field names collected from all InitSchema classes.
+        """
+        fields = set()
+        if hasattr(model_cls, 'InitSchema'):
+            fields |= set(model_cls.InitSchema.model_fields.keys())
+
+        for base in model_cls.__bases__:
+            fields |= get_all_init_schema_fields(base)
+
+        return fields
+
+    model_fields = get_all_init_schema_fields(augmentation_cls)
+
+    # Note: You might want to adjust this based on how you handle default fields in your models
+    expected_args = model_fields - {'__class_fullname__'}
+
+    achieved_args = set(instance.to_dict()["transform"].keys())
+
+    # Retrieve the arguments reported by the instance's to_dict method
+    # Adjust this logic based on how your serialization excludes or includes certain fields
+    reported_args = achieved_args - {'__class_fullname__'}
 
     # Check if the reported arguments match the expected arguments
     assert expected_args == reported_args, f"Mismatch in {augmentation_cls.__name__}: Expected {expected_args}, got {reported_args}"

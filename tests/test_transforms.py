@@ -4,6 +4,7 @@ from typing import Optional, Tuple, Type
 
 import cv2
 import numpy as np
+from pydantic import ValidationError
 import pytest
 import warnings
 from torchvision import transforms as torch_transforms
@@ -556,7 +557,7 @@ def test_resize_keypoints():
 )
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
-    aug = A.MultiplicativeNoise(m, p=1)
+    aug = A.MultiplicativeNoise((m, m), p=1)
     result = aug(image=image)["image"]
     image = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
     assert np.allclose(image, result)
@@ -579,7 +580,7 @@ def test_multiplicative_noise_rgb(image):
     dtype = image.dtype
 
     m = 0.5
-    aug = A.MultiplicativeNoise(m, p=1)
+    aug = A.MultiplicativeNoise((m, m), p=1)
     result = aug(image=image)["image"]
     image = F.clip(image * m, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
     assert np.allclose(image, result)
@@ -670,7 +671,7 @@ def test_grid_dropout_mask(image):
         (0.00001, 10, 10, 100, 100, 50, 50),
         (0.9, 100, None, 200, None, 0, 0),
         (0.4556, 10, 20, None, 200, 0, 0),
-        (0.00004, None, None, 2, 100, None, None),
+        (0.00004, None, None, 2, 100, 0, 0),
     ],
 )
 def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_min, unit_size_max, shift_x, shift_y):
@@ -710,13 +711,6 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
     elif holes_number_x and holes_number_y:
         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_x))
         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_y))
-
-
-def test_gauss_noise_incorrect_var_limit_type():
-    with pytest.raises(TypeError) as exc_info:
-        A.GaussNoise(var_limit={"low": 70, "high": 90})
-    message = "Expected var_limit type to be one of (int, float, tuple, list), got <class 'dict'>"
-    assert str(exc_info.value) == message
 
 
 @pytest.mark.parametrize(
@@ -960,8 +954,8 @@ def test_smallest_max_size_list():
 @pytest.mark.parametrize(
     ["img_weight", "template_weight", "template_transform", "image_size", "template_size"],
     [
-        (0.5, 0.5, A.RandomSizedCrop((50, 200), 513, 450, always_apply=True), (513, 450), (224, 224)),
-        (0.3, 0.5, A.RandomResizedCrop(513, 450, always_apply=True), (513, 450), (224, 224)),
+        (0.5, 0.5, A.RandomSizedCrop((50, 200), size=(513, 450), always_apply=True), (513, 450), (224, 224)),
+        (0.3, 0.5, A.RandomResizedCrop(size=(513, 450), always_apply=True), (513, 450), (224, 224)),
         (1.0, 0.5, A.CenterCrop(500, 450, always_apply=True), (500, 450, 3), (512, 512, 3)),
         (0.5, 0.8, A.Resize(513, 450, always_apply=True), (513, 450), (512, 512)),
         (0.5, 0.2, A.NoOp(), (224, 224), (224, 224)),
@@ -971,13 +965,13 @@ def test_smallest_max_size_list():
         (
             0.5,
             0.5,
-            A.Compose([A.Blur(), A.RandomSizedCrop((50, 200), 512, 512, always_apply=True), A.HorizontalFlip()]),
+            A.Compose([A.Blur(always_apply=True), A.RandomSizedCrop((50, 200), size=(512, 512), always_apply=True), A.HorizontalFlip(always_apply=True)]),
             (512, 512),
             (512, 512),
         ),
     ],
 )
-def test_template_transform(image, img_weight, template_weight, template_transform, image_size, template_size):
+def test_template_transform(img_weight, template_weight, template_transform, image_size, template_size):
     img = np.random.randint(0, 256, image_size, np.uint8)
     template = np.random.randint(0, 256, template_size, np.uint8)
 
@@ -1320,52 +1314,6 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
     message = "This transformation expects 3-channel images"
     assert str(exc_info.value).startswith(message)
 
-
-def test_spatter_incorrect_mode(image):
-    unsupported_mode = "unsupported"
-    with pytest.raises(ValueError) as exc_info:
-        A.Spatter(mode=unsupported_mode)
-
-    message = f"Unsupported color mode: {unsupported_mode}. Transform supports only `rain` and `mud` mods."
-    assert str(exc_info.value).startswith(message)
-
-
-def test_chromatic_aberration_incorrect_mode(image):
-    unsupported_mode = "unsupported"
-    with pytest.raises(ValueError) as exc_info:
-        A.ChromaticAberration(mode=unsupported_mode)
-
-    message = f"Unsupported mode: {unsupported_mode}. Supported modes are 'green_purple', 'red_blue', 'random'."
-    assert str(exc_info.value).startswith(message)
-
-
-@pytest.mark.parametrize(
-    "unsupported_color,mode,message",
-    [
-        ([255, 255], "rain", "Unsupported color: [255, 255]. Color should be presented in RGB format."),
-        (
-            {"rain": [255, 255, 255]},
-            "mud",
-            "Wrong color definition: {'rain': [255, 255, 255]}. Color for mode: mud not specified.",
-        ),
-        (
-            {"rain": [255, 255]},
-            "rain",
-            "Unsupported color: [255, 255] for mode rain. Color should be presented in RGB format.",
-        ),
-        (
-            [255, 255, 255],
-            ["rain", "mud"],
-            "Unsupported color: [255, 255, 255]. Please specify color for each mode (use dict for it).",
-        ),
-    ],
-)
-def test_spatter_incorrect_color(unsupported_color, mode, message):
-    with pytest.raises(ValueError) as exc_info:
-        A.Spatter(mode=mode, color=unsupported_color)
-
-    assert str(exc_info.value).startswith(message)
-
 @pytest.mark.parametrize("height, width", [(100, 200), (200, 100)])
 @pytest.mark.parametrize("scale", [(0.08, 1.0), (0.5, 1.0)])
 @pytest.mark.parametrize("ratio", [(0.75, 1.33), (1.0, 1.0)])
@@ -1408,13 +1356,13 @@ def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
 @pytest.mark.parametrize("size, width, height, expected_warning", [
     ((100, 200), None, None, None),
     (None, 200, 100, DeprecationWarning),
-    (100, None, None, ValueError),
+    (100, None, None, TypeError),
 ])
 def test_deprecation_warnings(size, width, height, expected_warning):
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        if expected_warning == ValueError:
-            with pytest.raises(ValueError):
+        if expected_warning == TypeError:
+            with pytest.raises(TypeError):
                 A.RandomResizedCrop(size=size, width=width, height=height)
         else:
             A.RandomResizedCrop(size=size, width=width, height=height)

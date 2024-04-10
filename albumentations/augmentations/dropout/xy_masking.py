@@ -1,9 +1,13 @@
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
+from pydantic import Field, model_validator
+from typing_extensions import Self
 
-from albumentations.core.transforms_interface import DualTransform
+from albumentations import random_utils
+from albumentations.core.pydantic import NonNegativeIntRangeType
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
 
 from .functional import cutout, keypoint_in_hole
@@ -50,6 +54,27 @@ class XYMasking(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
+    class InitSchema(BaseTransformInitSchema):
+        num_masks_x: NonNegativeIntRangeType = 0
+        num_masks_y: NonNegativeIntRangeType = 0
+        mask_x_length: NonNegativeIntRangeType = 0
+        mask_y_length: NonNegativeIntRangeType = 0
+
+        fill_value: ColorType = Field(default=0, description="Value to fill image masks.")
+        mask_fill_value: ColorType = Field(default=0, description="Value to fill masks in the mask.")
+
+        @model_validator(mode="after")
+        def check_mask_length(self) -> Self:
+            if (
+                isinstance(self.mask_x_length, int)
+                and self.mask_x_length <= 0
+                and isinstance(self.mask_y_length, int)
+                and self.mask_y_length <= 0
+            ):
+                msg = "At least one of `mask_x_length` or `mask_y_length` Should be a positive number."
+                raise ValueError(msg)
+            return self
+
     def __init__(
         self,
         num_masks_x: ScaleIntType = 0,
@@ -62,36 +87,11 @@ class XYMasking(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
+        self.num_masks_x = cast(Tuple[int, int], num_masks_x)
+        self.num_masks_y = cast(Tuple[int, int], num_masks_y)
 
-        if (
-            isinstance(mask_x_length, (int, float))
-            and mask_x_length <= 0
-            and isinstance(mask_y_length, (int, float))
-            and mask_y_length <= 0
-        ):
-            msg = "At least one of `mask_x_length` or `mask_y_length` Should be a positive number."
-            raise ValueError(msg)
-
-        if isinstance(num_masks_x, int) and num_masks_x <= 0 and isinstance(num_masks_y, int) and num_masks_y <= 0:
-            msg = (
-                "At least one of `num_masks_x` or `num_masks_y` "
-                "should be a positive number or tuple of two positive numbers."
-            )
-            raise ValueError(msg)
-
-        if isinstance(num_masks_x, (tuple, list)) and min(num_masks_x) <= 0:
-            msg = "All values in `num_masks_x` should be non negative integers."
-            raise ValueError(msg)
-
-        if isinstance(num_masks_y, (tuple, list)) and min(num_masks_y) <= 0:
-            msg = "All values in `num_masks_y` should be non negative integers."
-            raise ValueError(msg)
-
-        self.num_masks_x = num_masks_x
-        self.num_masks_y = num_masks_y
-
-        self.mask_x_length = mask_x_length
-        self.mask_y_length = mask_y_length
+        self.mask_x_length = cast(Tuple[int, int], mask_x_length)
+        self.mask_y_length = cast(Tuple[int, int], mask_y_length)
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
 
@@ -116,12 +116,12 @@ class XYMasking(DualTransform):
         return cutout(mask, masks_x + masks_y, self.mask_fill_value)
 
     def validate_mask_length(
-        self, mask_length: Optional[ScaleIntType], dimension_size: int, dimension_name: str
+        self, mask_length: Optional[Tuple[int, int]], dimension_size: int, dimension_name: str
     ) -> None:
         """Validate the mask length against the corresponding image dimension size.
 
         Args:
-            mask_length (Optional[Union[int, Tuple[int, int]]]): The length of the mask to be validated.
+            mask_length (Optional[Tuple[int, int]]): The length of the mask to be validated.
             dimension_size (int): The size of the image dimension (width or height)
                 against which to validate the mask length.
             dimension_name (str): The name of the dimension ('width' or 'height') for error messaging.
@@ -150,18 +150,15 @@ class XYMasking(DualTransform):
         return {"masks_x": masks_x, "masks_y": masks_y}
 
     @staticmethod
-    def generate_mask_size(mask_length: Union[ScaleIntType]) -> int:
-        if isinstance(mask_length, int):
-            return mask_length  # Use fixed size or adjust to dimension size
-
-        return random.randint(min(mask_length), max(mask_length))
+    def generate_mask_size(mask_length: Tuple[int, int]) -> int:
+        return random.randint(mask_length[0], mask_length[1])
 
     def generate_masks(
         self,
-        num_masks: ScaleIntType,
+        num_masks: Tuple[int, int],
         width: int,
         height: int,
-        max_length: Optional[ScaleIntType],
+        max_length: Optional[Tuple[int, int]],
         axis: str,
     ) -> List[Tuple[int, int, int, int]]:
         if max_length is None or max_length == 0 or isinstance(num_masks, (int, float)) and num_masks == 0:
@@ -169,7 +166,9 @@ class XYMasking(DualTransform):
 
         masks = []
 
-        num_masks_integer = num_masks if isinstance(num_masks, int) else random.randint(num_masks[0], num_masks[1])
+        num_masks_integer = (
+            num_masks if isinstance(num_masks, int) else random_utils.randint(num_masks[0], num_masks[1])
+        )
 
         for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)

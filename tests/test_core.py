@@ -33,9 +33,9 @@ from albumentations.core.composition import (
 )
 from albumentations.core.transforms_interface import (
     DualTransform,
-    ImageOnlyTransform,
-    to_tuple,
+    ImageOnlyTransform
 )
+from albumentations.core.utils import to_tuple
 
 from .utils import get_filtered_transforms
 
@@ -104,14 +104,18 @@ def test_sequential():
     assert len([transform for transform in transforms if transform.called]) == len(transforms)
 
 
-def test_to_tuple():
-    assert to_tuple(10) == (-10, 10)
-    assert to_tuple(0.5) == (-0.5, 0.5)
-    assert to_tuple((-20, 20)) == (-20, 20)
-    assert to_tuple([-20, 20]) == (-20, 20)
-    assert to_tuple(100, low=30) == (30, 100)
-    assert to_tuple(10, bias=1) == (-9, 11)
-    assert to_tuple(100, bias=2) == (-98, 102)
+@pytest.mark.parametrize("input,kwargs,expected", [
+    (10, {}, (-10, 10)),
+    (0.5, {}, (-0.5, 0.5)),
+    ((-20, 20), {}, (-20, 20)),
+    ([-20, 20], {}, (-20, 20)),
+    ((1, 2), {"low": 1}, (1, 2)),
+    (100, {"low": 30}, (30, 100)),
+    (10, {"bias": 1}, (-9, 11)),
+    (100, {"bias": 2}, (-98, 102)),
+])
+def test_to_tuple(input, kwargs, expected):
+    assert to_tuple(input, **kwargs) == expected
 
 
 def test_image_only_transform(image, mask):

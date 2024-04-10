@@ -153,6 +153,9 @@ ignore = [
     "N801",
     "T201",
     "PERF203",
+    "D106",
+    "PYI041",
+    "EM101",
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
@@ -179,6 +182,8 @@ line-ending = "auto"
 convention = "google"
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
+
 python_version = "3.8"
 ignore_missing_imports = true
 follow_imports = "silent"
@@ -190,3 +195,8 @@ no_implicit_reexport = true
 
 # for strict mypy: (this is the tricky one :-))
 disallow_untyped_defs = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true

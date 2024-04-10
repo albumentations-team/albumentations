@@ -154,7 +154,7 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, la
 def test_random_sized_crop_size():
     image = np.ones((100, 100, 3))
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
-    aug = A.RandomSizedCrop(min_max_height=(70, 90), height=50, width=50, p=1.0)
+    aug = A.RandomSizedCrop(min_max_height=(70, 90), size=(50, 50), p=1.0)
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed["image"].shape == (50, 50, 3)
     assert len(keypoints) == len(transformed["keypoints"])
@@ -163,7 +163,7 @@ def test_random_sized_crop_size():
 def test_random_resized_crop_size():
     image = np.ones((100, 100, 3))
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
-    aug = A.RandomResizedCrop(height=50, width=50, p=1.0)
+    aug = A.RandomResizedCrop(size=(50, 50), p=1.0)
     transformed = aug(image=image, keypoints=keypoints)
     assert transformed["image"].shape == (50, 50, 3)
     assert len(keypoints) == len(transformed["keypoints"])

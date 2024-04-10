@@ -4,6 +4,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
+from typing_extensions import Literal
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import (
@@ -18,7 +19,12 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
     preserve_shape,
 )
-from albumentations.core.types import ColorType, ImageMode, ScalarType, SpatterMode, image_modes
+from albumentations.core.types import (
+    ColorType,
+    ImageMode,
+    ScalarType,
+    SpatterMode,
+)
 
 __all__ = [
     "add_fog",
@@ -69,6 +75,8 @@ __all__ = [
 
 TWO = 2
 THREE = 3
+NUM_RGB_CHANNELS = 3
+GRAYSCALE_SHAPE_LENGTH = 2
 FOUR = 4
 EIGHT = 8
 THREE_SIXTY = 360
@@ -95,18 +103,74 @@ def normalize_numpy(img: np.ndarray, mean: np.ndarray, denominator: np.ndarray) 
     return img
 
 
-def normalize(img: np.ndarray, mean: np.ndarray, std: np.ndarray, max_pixel_value: float = 255.0) -> np.ndarray:
-    mean = np.array(mean, dtype=np.float32)
-    mean *= max_pixel_value
+@preserve_shape
+def normalize(img: np.ndarray, mean: ColorType, std: ColorType, max_pixel_value: float = 255.0) -> np.ndarray:
+    mean_np = np.array(mean, dtype=np.float32)
+    mean_np *= max_pixel_value
 
-    std = np.array(std, dtype=np.float32)
-    std *= max_pixel_value
+    std_np = np.array(std, dtype=np.float32)
+    std_np *= max_pixel_value
 
-    denominator = np.reciprocal(std, dtype=np.float32)
+    denominator = np.reciprocal(std_np, dtype=np.float32)
 
-    if img.ndim == THREE and img.shape[-1] == THREE:
-        return normalize_cv2(img, mean, denominator)
-    return normalize_numpy(img, mean, denominator)
+    if is_rgb_image(img):
+        return normalize_cv2(img, mean_np, denominator)
+
+    return normalize_numpy(img, mean_np, denominator)
+
+
+@preserve_shape
+def normalize_per_image(
+    img: np.ndarray, normalization: Literal["image", "image_per_channel", "min_max", "min_max_per_channel"]
+) -> np.ndarray:
+    """Apply per-image normalization based on the specified strategy.
+
+    Args:
+        img (np.ndarray): The image to be normalized, expected to be in HWC format.
+        normalization (str): The normalization strategy to apply. Options include:
+                             "image", "image_per_channel", "min_max", "min_max_per_channel".
+
+    Returns:
+        np.ndarray: The normalized image.
+
+    Reference:
+        https://github.com/ChristofHenkel/kaggle-landmark-2021-1st-place/blob/main/data/ch_ds_1.py
+    """
+    img = img.astype(np.float32)
+
+    if img.ndim == GRAYSCALE_SHAPE_LENGTH:
+        img = np.expand_dims(img, axis=-1)  # Ensure the image is at least 3D
+
+    if normalization == "image":
+        # Normalize the whole image based on its global mean and std
+        mean = img.mean()
+        std = img.std() + 1e-4  # Adding a small epsilon to avoid division by zero
+        normalized_img = (img - mean) / std
+        normalized_img = normalized_img.clip(-20, 20)  # Clipping outliers
+
+    elif normalization == "image_per_channel":
+        # Normalize the image per channel based on each channel's mean and std
+        pixel_mean = img.mean(axis=(0, 1))
+        pixel_std = img.std(axis=(0, 1)) + 1e-4
+        normalized_img = (img - pixel_mean[None, None, :]) / pixel_std[None, None, :]
+        normalized_img = normalized_img.clip(-20, 20)
+
+    elif normalization == "min_max":
+        # Apply min-max normalization to the whole image
+        img_min = img.min()
+        img_max = img.max()
+        normalized_img = (img - img_min) / (img_max - img_min)
+
+    elif normalization == "min_max_per_channel":
+        # Apply min-max normalization per channel
+        img_min = img.min(axis=(0, 1), keepdims=True)
+        img_max = img.max(axis=(0, 1), keepdims=True)
+        normalized_img = (img - img_min) / (img_max - img_min)
+
+    else:
+        raise ValueError(f"Unknown normalization method: {normalization}")
+
+    return normalized_img
 
 
 def _shift_hsv_uint8(
@@ -314,13 +378,10 @@ def _equalize_cv(img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarr
     return cv2.LUT(img, lut)
 
 
-def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], mode: str, by_channels: bool) -> None:
+def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], by_channels: bool) -> None:
     if img.dtype != np.uint8:
         msg = "Image must have uint8 channel type"
         raise TypeError(msg)
-
-    if mode not in image_modes:
-        raise ValueError(f"Unsupported equalization mode. Supports: {image_modes}. Got: {mode}")
 
     if mask is not None:
         if is_rgb_image(mask) and is_grayscale_image(img):
@@ -346,7 +407,7 @@ def _handle_mask(
 def equalize(
     img: np.ndarray, mask: Optional[np.ndarray] = None, mode: ImageMode = "cv", by_channels: bool = True
 ) -> np.ndarray:
-    _check_preconditions(img, mask, mode, by_channels)
+    _check_preconditions(img, mask, by_channels)
 
     function = _equalize_pil if mode == "pil" else _equalize_cv
 
@@ -460,9 +521,9 @@ def clahe(img: np.ndarray, clip_limit: float = 2.0, tile_grid_size: Tuple[int, i
         msg = "clahe supports only uint8 inputs"
         raise TypeError(msg)
 
-    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    clahe_mat = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=[int(x) for x in tile_grid_size])
 
-    if len(img.shape) == TWO or img.shape[2] == 1:
+    if is_grayscale_image(img):
         return clahe_mat.apply(img)
 
     img = cv2.cvtColor(img, cv2.COLOR_RGB2LAB)
@@ -737,8 +798,6 @@ def add_sun_flare(
 def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     """Add shadows to the image.
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         img (numpy.ndarray):
         vertices_list (list[numpy.ndarray]):
@@ -746,6 +805,8 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     Returns:
         numpy.ndarray:
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     non_rgb_warning(img)
     input_dtype = img.dtype
@@ -1415,7 +1476,7 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
         np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
     """
     height, width = image_shape
-    n_rows, n_cols = grid
+    n_rows, n_cols = (int(x) for x in grid)
 
     # Compute split points for the grid
     height_splits = np.linspace(0, height, n_rows + 1, dtype=int)

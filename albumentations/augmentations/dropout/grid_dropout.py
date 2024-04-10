@@ -2,9 +2,10 @@ import random
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
+from pydantic import Field
 
-from albumentations.core.transforms_interface import DualTransform
-from albumentations.core.types import ScalarType, Targets
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.types import ColorType, ScalarType, Targets
 
 from . import functional as F
 
@@ -43,12 +44,24 @@ class GridDropout(DualTransform):
     Image types:
         uint8, float32
 
-    References:
+    Reference:
         https://arxiv.org/abs/2001.04086
 
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
+
+    class InitSchema(BaseTransformInitSchema):
+        ratio: float = Field(description="The ratio of the mask holes to the unit_size.", ge=0, le=1)
+        unit_size_min: Optional[int] = Field(None, description="Minimum size of the grid unit.", ge=2)
+        unit_size_max: Optional[int] = Field(None, description="Maximum size of the grid unit.", ge=2)
+        holes_number_x: Optional[int] = Field(None, description="The number of grid units in x direction.", ge=1)
+        holes_number_y: Optional[int] = Field(None, description="The number of grid units in y direction.", ge=1)
+        shift_x: int = Field(0, description="Offsets of the grid start in x direction.", ge=0)
+        shift_y: int = Field(0, description="Offsets of the grid start in y direction.", ge=0)
+        random_offset: bool = Field(False, description="Whether to offset the grid randomly.")
+        fill_value: Optional[ColorType] = Field(0, description="Value for the dropped pixels.")
+        mask_fill_value: Optional[ColorType] = Field(None, description="Value for the dropped pixels in mask.")
 
     def __init__(
         self,
@@ -60,7 +73,7 @@ class GridDropout(DualTransform):
         shift_x: int = 0,
         shift_y: int = 0,
         random_offset: bool = False,
-        fill_value: int = 0,
+        fill_value: float = 0,
         mask_fill_value: Optional[ScalarType] = None,
         always_apply: bool = False,
         p: float = 0.5,
@@ -76,9 +89,6 @@ class GridDropout(DualTransform):
         self.random_offset = random_offset
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
-        if not 0 < self.ratio <= 1:
-            msg = "ratio must be between 0 and 1."
-            raise ValueError(msg)
 
     def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any) -> np.ndarray:
         return F.cutout(img, holes, self.fill_value)

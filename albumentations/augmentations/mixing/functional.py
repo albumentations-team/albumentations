@@ -1,8 +1,8 @@
 from warnings import warn
 
-import cv2
 import numpy as np
 
+from albumentations.augmentations.functional import add_weighted
 from albumentations.augmentations.utils import clipped, preserve_shape
 
 
@@ -15,5 +15,5 @@ def mix_arrays(array1: np.ndarray, array2: np.ndarray, mix_coef: float) -> np.nd
         DeprecationWarning,
         stacklevel=2,
     )
-    array2 = array2.reshape(array1.shape).astype(array1.dtype)
-    return cv2.addWeighted(array1, mix_coef, array2, 1 - mix_coef, 0)
+
+    return add_weighted(array1, mix_coef, array2, 1 - mix_coef)

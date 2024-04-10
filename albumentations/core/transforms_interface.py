@@ -5,67 +5,25 @@ from warnings import warn
 
 import cv2
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
+from typing_extensions import Annotated
 
-from .serialization import Serializable, get_shortest_class_fullname
+from albumentations.core.validation import ValidatedTransformMeta
+
+from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
 from .types import (
     BoxInternalType,
     BoxType,
     ColorType,
     KeypointInternalType,
     KeypointType,
-    ScalarType,
-    ScaleType,
     Targets,
 )
 from .utils import format_args
 
-__all__ = ["to_tuple", "BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
+__all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 
 PAIR = 2
-
-
-def to_tuple(
-    param: ScaleType,
-    low: Optional[ScaleType] = None,
-    bias: Optional[ScalarType] = None,
-) -> Union[Tuple[int, int], Tuple[float, float]]:
-    """Convert input argument to a min-max tuple.
-
-    Args:
-        param: Input value which could be a scalar or a sequence of exactly 2 scalars.
-        low: Second element of the tuple, provided as an optional argument for when `param` is a scalar.
-        bias: An offset added to both elements of the tuple.
-
-    Returns:
-        A tuple of two scalars, optionally adjusted by `bias`.
-        Raises ValueError for invalid combinations or types of arguments.
-
-    """
-    # Validate mutually exclusive arguments
-    if low is not None and bias is not None:
-        msg = "Arguments 'low' and 'bias' cannot be used together."
-        raise ValueError(msg)
-
-    if isinstance(param, Sequence) and len(param) == PAIR:
-        min_val, max_val = min(param), max(param)
-
-    # Handle scalar input
-    elif isinstance(param, (int, float)):
-        if isinstance(low, (int, float)):
-            # Use low and param to create a tuple
-            min_val, max_val = (low, param) if low < param else (param, low)
-        else:
-            # Create a symmetric tuple around 0
-            min_val, max_val = -param, param
-    else:
-        msg = "Argument 'param' must be either a scalar or a sequence of 2 elements."
-        raise ValueError(msg)
-
-    # Apply bias if provided
-    if bias is not None:
-        return (bias + min_val, bias + max_val)
-
-    return min_val, max_val
 
 
 class Interpolation:
@@ -74,11 +32,24 @@ class Interpolation:
         self.upscale = upscale
 
 
-class BasicTransform(Serializable):
+class BaseTransformInitSchema(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    always_apply: bool = Field(default=False, description="Always apply the transform")
+    p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
+
+
+class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
+    pass
+
+
+class BasicTransform(Serializable, metaclass=CombinedMeta):
     call_backup = None
     interpolation: Union[int, Interpolation]
     fill_value: ColorType
     mask_fill_value: Optional[ColorType]
+
+    class InitSchema(BaseTransformInitSchema):
+        pass
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
         self.p = p
@@ -231,6 +202,7 @@ class BasicTransform(Serializable):
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
+
         return state
 
     def get_dict_with_id(self) -> Dict[str, Any]:
