@@ -291,7 +291,7 @@ class ImageCompression(ImageOnlyTransform):
             image_type = ".webp"
 
         return {
-            "quality": random.randint(self.quality_lower, self.quality_upper),
+            "quality": random_utils.randint(self.quality_lower, self.quality_upper + 1),
             "image_type": image_type,
         }
 
@@ -588,9 +588,9 @@ class RandomRain(ImageOnlyTransform):
         rain_drops = []
 
         for _ in range(num_drops):  # If You want heavy rain, try increasing this
-            x = random.randint(slant, width) if slant < 0 else random.randint(0, width - slant)
+            x = random_utils.randint(slant, width + 1) if slant < 0 else random_utils.randint(0, width - slant + 1)
 
-            y = random.randint(0, height - drop_length)
+            y = random_utils.randint(0, height - drop_length + 1)
 
             rain_drops.append((x, y))
 
@@ -684,8 +684,8 @@ class RandomFog(ImageOnlyTransform):
 
         while midx > -hw or midy > -hw:
             for _ in range(hw // 10 * index):
-                x = random.randint(midx, width - midx - hw)
-                y = random.randint(midy, height - midy - hw)
+                x = random_utils.randint(midx, width - midx - hw + 1)
+                y = random_utils.randint(midy, height - midy - hw + 1)
                 haze_list.append((x, y))
 
             midx -= 3 * hw * width // sum(imshape)
@@ -812,7 +812,7 @@ class RandomSunFlare(ImageOnlyTransform):
         flare_center_x = int(width * flare_center_x)
         flare_center_y = int(height * flare_center_y)
 
-        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
+        num_circles = random_utils.randint(self.num_flare_circles_lower, self.num_flare_circles_upper + 1)
 
         circles = []
 
@@ -828,8 +828,8 @@ class RandomSunFlare(ImageOnlyTransform):
             y.append(rand_y)
 
         for _ in range(num_circles):
-            alpha = random.uniform(0.05, 0.2)
-            r = random.randint(0, len(x) - 1)
+            alpha = random_utils.uniform(0.05, 0.2)
+            r = random_utils.randint(0, len(x))
             rad = random.randint(1, max(height // 100 - 2, 2))
 
             r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
@@ -948,7 +948,7 @@ class RandomShadow(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        num_shadows = random_utils.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
+        num_shadows = random_utils.randint(self.num_shadows_limit[0], self.num_shadows_limit[1] + 1)
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -2364,7 +2364,7 @@ class Superpixels(ImageOnlyTransform):
         return ("p_replace", "n_segments", "max_size", "interpolation")
 
     def get_params(self) -> Dict[str, Any]:
-        n_segments = random_utils.randint(*self.n_segments)
+        n_segments = random_utils.randint(self.n_segments[0], self.n_segments[1] + 1)
         p = random.uniform(*self.p_replace)
         return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
 
@@ -3118,11 +3118,8 @@ class Morphological(DualTransform):
         return F.morphology(mask, kernel, self.operation)
 
     def get_params(self) -> Dict[str, float]:
-        kernel = cv2.getStructuringElement(
-            cv2.MORPH_ELLIPSE, tuple(random_utils.randint(self.scale[0], self.scale[1], 2))
-        )
         return {
-            "kernel": kernel,
+            "kernel": cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.scale),
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:

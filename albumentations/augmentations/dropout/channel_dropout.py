@@ -66,7 +66,7 @@ class ChannelDropout(ImageOnlyTransform):
             msg = "Can not drop all channels in ChannelDropout."
             raise ValueError(msg)
 
-        num_drop_channels = random_utils.randint(self.channel_drop_range[0], self.channel_drop_range[1])
+        num_drop_channels = random_utils.randint(self.channel_drop_range[0], self.channel_drop_range[1] + 1)
 
         channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
 
