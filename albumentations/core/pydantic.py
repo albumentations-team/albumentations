@@ -56,7 +56,12 @@ def process_non_negative_range(value: Optional[ScaleType]) -> Tuple[float, float
     return result
 
 
-NonNegativeRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range)]
+def float2int(value: Tuple[float, float]) -> Tuple[int, int]:
+    return int(value[0]), int(value[1])
+
+
+NonNegativeFloatRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range)]
+NonNegativeIntRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range), AfterValidator(float2int)]
 
 
 def create_symmetric_range(value: ScaleType) -> Tuple[float, float]:
@@ -74,7 +79,8 @@ def check_1plus_range(value: ScaleType) -> Tuple[float, float]:
     return result
 
 
-OnePlusRangeType = Annotated[ScaleType, AfterValidator(check_1plus_range)]
+OnePlusFloatRangeType = Annotated[ScaleType, AfterValidator(check_1plus_range)]
+OnePlusIntRangeType = Annotated[ScaleType, AfterValidator(check_1plus_range), AfterValidator(float2int)]
 
 
 def check_01_range(value: ScaleType) -> Tuple[float, float]:

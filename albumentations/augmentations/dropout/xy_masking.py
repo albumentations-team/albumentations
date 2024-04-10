@@ -5,7 +5,8 @@ import numpy as np
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
-from albumentations.core.pydantic import NonNegativeRangeType
+from albumentations import random_utils
+from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
 
@@ -54,10 +55,10 @@ class XYMasking(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        num_masks_x: NonNegativeRangeType = 0
-        num_masks_y: NonNegativeRangeType = 0
-        mask_x_length: NonNegativeRangeType = 0
-        mask_y_length: NonNegativeRangeType = 0
+        num_masks_x: NonNegativeIntRangeType = 0
+        num_masks_y: NonNegativeIntRangeType = 0
+        mask_x_length: NonNegativeIntRangeType = 0
+        mask_y_length: NonNegativeIntRangeType = 0
 
         fill_value: ColorType = Field(default=0, description="Value to fill image masks.")
         mask_fill_value: ColorType = Field(default=0, description="Value to fill masks in the mask.")
@@ -165,7 +166,9 @@ class XYMasking(DualTransform):
 
         masks = []
 
-        num_masks_integer = num_masks if isinstance(num_masks, int) else random.randint(num_masks[0], num_masks[1])
+        num_masks_integer = (
+            num_masks if isinstance(num_masks, int) else random_utils.randint(num_masks[0], num_masks[1])
+        )
 
         for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)

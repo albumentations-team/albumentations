@@ -17,7 +17,7 @@ from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
-    NonNegativeRangeType,
+    NonNegativeFloatRangeType,
     ProbabilityType,
     SymmetricRangeType,
 )
@@ -395,7 +395,7 @@ class Perspective(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: NonNegativeRangeType = (0.05, 0.1)
+        scale: NonNegativeFloatRangeType = (0.05, 0.1)
         keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
         pad_mode: BorderModeType = cv2.BORDER_CONSTANT
         pad_val: Optional[ColorType] = Field(
@@ -1020,7 +1020,7 @@ class PiecewiseAffine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: NonNegativeRangeType = (0.03, 0.05)
+        scale: NonNegativeFloatRangeType = (0.03, 0.05)
         nb_rows: ScaleIntType = Field(default=4, description="Number of rows in the regular grid.")
         nb_cols: ScaleIntType = Field(default=4, description="Number of columns in the regular grid.")
         interpolation: InterpolationType = cv2.INTER_LINEAR

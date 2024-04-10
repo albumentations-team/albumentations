@@ -8,12 +8,14 @@ import numpy as np
 from pydantic import Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
+from albumentations import random_utils
 from albumentations.augmentations.geometric import functional as FGeometric
 from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
-    NonNegativeRangeType,
+    NonNegativeFloatRangeType,
+    OnePlusIntRangeType,
     ProbabilityType,
     ZeroOneRangeType,
 )
@@ -412,7 +414,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
     class InitSchema(BaseTransformInitSchema):
         interpolation: InterpolationType = cv2.INTER_LINEAR
         p: ProbabilityType = 1
-        min_max_height: NonNegativeRangeType
+        min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
         width: Optional[int] = None
         height: Optional[int] = None
@@ -449,7 +451,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
 
     def __init__(
         self,
-        min_max_height: NonNegativeRangeType,
+        min_max_height: Tuple[int, int],
         # NOTE @zetyquickly: when (width, height) are deprecated, make 'size' non optional
         size: Optional[ScaleIntType] = None,
         width: Optional[int] = None,
@@ -461,11 +463,11 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         p: float = 1.0,
     ):
         super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, always_apply=always_apply, p=p)
-        self.min_max_height = cast(Tuple[int, int], min_max_height)
+        self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
     def get_params(self) -> Dict[str, Union[int, float]]:
-        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
+        crop_height = random_utils.randint(self.min_max_height[0], self.min_max_height[1])
         return {
             "h_start": random.random(),
             "w_start": random.random(),
@@ -501,7 +503,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
 
     class InitSchema(BaseTransformInitSchema):
         scale: ZeroOneRangeType = (0.08, 1.0)
-        ratio: NonNegativeRangeType = (0.75, 1.3333333333333333)
+        ratio: NonNegativeFloatRangeType = (0.75, 1.3333333333333333)
         width: Optional[int] = None
         height: Optional[int] = None
         size: Optional[ScaleIntType] = None
@@ -560,9 +562,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         area = img_height * img_width
 
         for _ in range(10):
-            target_area = random.uniform(*self.scale) * area
+            target_area = random_utils.uniform(*self.scale) * area
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
-            aspect_ratio = math.exp(random.uniform(*log_ratio))
+            aspect_ratio = math.exp(random_utils.uniform(*log_ratio))
 
             width = int(round(math.sqrt(target_area * aspect_ratio)))
             height = int(round(math.sqrt(target_area / aspect_ratio)))
@@ -1267,10 +1269,10 @@ class RandomCropFromBorders(DualTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, int]:
         img = params["image"]
-        x_min = random.randint(0, int(self.crop_left * img.shape[1]))
-        x_max = random.randint(max(x_min + 1, int((1 - self.crop_right) * img.shape[1])), img.shape[1])
-        y_min = random.randint(0, int(self.crop_top * img.shape[0]))
-        y_max = random.randint(max(y_min + 1, int((1 - self.crop_bottom) * img.shape[0])), img.shape[0])
+        x_min = random_utils.randint(0, int(self.crop_left * img.shape[1]))
+        x_max = random_utils.randint(max(x_min + 1, int((1 - self.crop_right) * img.shape[1])), img.shape[1])
+        y_min = random_utils.randint(0, int(self.crop_top * img.shape[0]))
+        y_max = random_utils.randint(max(y_min + 1, int((1 - self.crop_bottom) * img.shape[0])), img.shape[0])
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
     def apply(

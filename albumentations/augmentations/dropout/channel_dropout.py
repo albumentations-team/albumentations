@@ -5,8 +5,9 @@ import numpy as np
 from pydantic import Field
 from typing_extensions import Annotated
 
+from albumentations import random_utils
 from albumentations.augmentations.utils import is_grayscale_image
-from albumentations.core.pydantic import OnePlusRangeType
+from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ColorType
 
@@ -16,7 +17,6 @@ __all__ = ["ChannelDropout"]
 
 NUM_GRAYSCALE_LENGTH = 2
 MIN_DROPOUT_CHANNEL_LIST_LENGTH = 2
-TWO = 2
 
 
 class ChannelDropout(ImageOnlyTransform):
@@ -36,7 +36,7 @@ class ChannelDropout(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        channel_drop_range: OnePlusRangeType = (1, 1)
+        channel_drop_range: OnePlusIntRangeType = (1, 1)
         fill_value: Annotated[ColorType, Field(description="Pixel value for the dropped channel.")]
 
     def __init__(
@@ -66,7 +66,7 @@ class ChannelDropout(ImageOnlyTransform):
             msg = "Can not drop all channels in ChannelDropout."
             raise ValueError(msg)
 
-        num_drop_channels = random.randint(self.channel_drop_range[0], self.channel_drop_range[1])
+        num_drop_channels = random_utils.randint(self.channel_drop_range[0], self.channel_drop_range[1])
 
         channels_to_drop = random.sample(range(num_channels), k=num_drop_channels)
 

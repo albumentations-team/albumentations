@@ -8,9 +8,11 @@ import albumentations as A
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
-    OnePlusRangeType,
+    NonNegativeFloatRangeType,
+    NonNegativeIntRangeType,
+    OnePlusFloatRangeType,
+    OnePlusIntRangeType,
     ProbabilityType,
-    NonNegativeRangeType,
     SymmetricRangeType,
     ZeroOneRangeType,
     check_valid_interpolation,
@@ -128,9 +130,11 @@ class ValidationModel(BaseModel):
     interpolation: Optional[InterpolationType] = None
     border_mode: Optional[BorderModeType] = None
     probability: Optional[ProbabilityType] = None
-    non_negative_range: Optional[NonNegativeRangeType] = None
+    non_negative_range_float: Optional[NonNegativeFloatRangeType] = None
+    non_negative_range_int: Optional[NonNegativeIntRangeType] = None
     symmetric_range: Optional[SymmetricRangeType] = None
-    one_plus_range: Optional[OnePlusRangeType] = None
+    one_plus_range_float: Optional[OnePlusFloatRangeType] = None
+    one_plus_range_int: Optional[OnePlusIntRangeType] = None
     zero_one_range: Optional[ZeroOneRangeType] = None
 
 # Valid Cases
@@ -148,20 +152,12 @@ def test_probability_valid(probability):
 
 @pytest.mark.parametrize("non_negative_range", [(0, 5), 10, None])
 def test_non_negative_range_valid(non_negative_range):
-    assert ValidationModel(non_negative_range=non_negative_range)
+    assert ValidationModel(non_negative_range_float=non_negative_range)
+    assert ValidationModel(non_negative_range_int=non_negative_range)
 
 @pytest.mark.parametrize("symmetric_range", [(-10, 10), 5])
 def test_symmetric_range_valid(symmetric_range):
     assert ValidationModel(symmetric_range=symmetric_range)
-
-@pytest.mark.parametrize("one_plus_range", [(1, 5), 2])
-def test_one_plus_range_valid(one_plus_range):
-    assert ValidationModel(one_plus_range=one_plus_range)
-
-@pytest.mark.parametrize("zero_one_range", [(0, 1), 0.5])
-def test_zero_one_range_valid(zero_one_range):
-    assert ValidationModel(zero_one_range=zero_one_range)
-
 
 # Invalid Cases
 @pytest.mark.parametrize("interpolation", [999, -1])  # Invalid interpolation values
@@ -182,12 +178,19 @@ def test_probability_invalid(probability):
 @pytest.mark.parametrize("non_negative_range", [(-1, 5), -10])  # Invalid non-negative ranges
 def test_non_negative_range_invalid(non_negative_range):
     with pytest.raises(ValueError):
-        ValidationModel(non_negative_range=non_negative_range)
+        ValidationModel(non_negative_range_float=non_negative_range)
+
+    with pytest.raises(ValueError):
+        ValidationModel(non_negative_range_int=non_negative_range)
 
 @pytest.mark.parametrize("one_plus_range", [(0, 5), 0.5])  # Invalid 1+ ranges
 def test_one_plus_range_invalid(one_plus_range):
     with pytest.raises(ValueError):
-        ValidationModel(one_plus_range=one_plus_range)
+        ValidationModel(one_plus_range_float=one_plus_range)
+
+    with pytest.raises(ValueError):
+        ValidationModel(one_plus_range_int=one_plus_range)
+
 
 @pytest.mark.parametrize("zero_one_range", [(-0.1, 0.5), 1.1])  # Invalid 0-1 ranges
 def test_zero_one_range_invalid(zero_one_range):

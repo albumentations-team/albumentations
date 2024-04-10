@@ -24,8 +24,9 @@ from albumentations.augmentations.utils import (
 )
 from albumentations.core.pydantic import (
     InterpolationType,
-    NonNegativeRangeType,
-    OnePlusRangeType,
+    NonNegativeFloatRangeType,
+    OnePlusFloatRangeType,
+    OnePlusIntRangeType,
     ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
@@ -125,7 +126,7 @@ class RandomGridShuffle(DualTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        grid: OnePlusRangeType = (3, 3)
+        grid: OnePlusIntRangeType = (3, 3)
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
@@ -1097,7 +1098,7 @@ class Solarize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        threshold: OnePlusRangeType = (128, 128)
+        threshold: OnePlusFloatRangeType = (128, 128)
 
     def __init__(self, threshold: ScaleType = (128, 128), always_apply: bool = False, p: float = 0.5):
         super().__init__(always_apply=always_apply, p=p)
@@ -1356,7 +1357,7 @@ class GaussNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        var_limit: NonNegativeRangeType = Field(default=(10.0, 50.0), description="Variance range for noise.")
+        var_limit: NonNegativeFloatRangeType = Field(default=(10.0, 50.0), description="Variance range for noise.")
         mean: float = Field(default=0, description="Mean of the noise.")
         per_channel: bool = Field(default=True, description="Apply noise per channel.")
 
@@ -1450,9 +1451,9 @@ class ISONoise(ImageOnlyTransform):
 
     def get_params(self) -> Dict[str, Any]:
         return {
-            "color_shift": random.uniform(self.color_shift[0], self.color_shift[1]),
-            "intensity": random.uniform(self.intensity[0], self.intensity[1]),
-            "random_state": random.randint(0, 65536),
+            "color_shift": random_utils.uniform(self.color_shift[0], self.color_shift[1]),
+            "intensity": random_utils.uniform(self.intensity[0], self.intensity[1]),
+            "random_state": random_utils.randint(0, 65536),
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
@@ -1477,8 +1478,8 @@ class CLAHE(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        clip_limit: OnePlusRangeType = (1.0, 4.0)
-        tile_grid_size: OnePlusRangeType = (8, 8)
+        clip_limit: OnePlusFloatRangeType = (1.0, 4.0)
+        tile_grid_size: OnePlusIntRangeType = (8, 8)
 
     def __init__(
         self,
@@ -1585,7 +1586,7 @@ class RandomGamma(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        gamma_limit: OnePlusRangeType = (80, 120)
+        gamma_limit: OnePlusFloatRangeType = (80, 120)
 
     def __init__(
         self,
@@ -1984,7 +1985,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: NonNegativeRangeType = (0.9, 1.1)
+        multiplier: NonNegativeFloatRangeType = (0.9, 1.1)
         per_channel: bool = Field(default=False, description="Apply multiplier per channel.")
         elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
 
@@ -2203,7 +2204,7 @@ class Sharpen(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         alpha: ZeroOneRangeType = (0.2, 0.5)
-        lightness: NonNegativeRangeType = (0.5, 1.0)
+        lightness: NonNegativeFloatRangeType = (0.5, 1.0)
 
     def __init__(
         self,
@@ -2255,7 +2256,7 @@ class Emboss(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         alpha: ZeroOneRangeType = (0.2, 0.5)
-        strength: NonNegativeRangeType = (0.2, 0.7)
+        strength: NonNegativeFloatRangeType = (0.2, 0.7)
 
     def __init__(
         self,
@@ -2340,7 +2341,7 @@ class Superpixels(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         p_replace: ZeroOneRangeType = (0, 0.1)
-        n_segments: OnePlusRangeType = (100, 100)
+        n_segments: OnePlusIntRangeType = (100, 100)
         max_size: Optional[int] = Field(default=128, ge=1, description="Maximum image size for the transformation.")
         interpolation: InterpolationType = cv2.INTER_LINEAR
 
@@ -2363,7 +2364,7 @@ class Superpixels(ImageOnlyTransform):
         return ("p_replace", "n_segments", "max_size", "interpolation")
 
     def get_params(self) -> Dict[str, Any]:
-        n_segments = random.randint(*self.n_segments)
+        n_segments = random_utils.randint(*self.n_segments)
         p = random.uniform(*self.p_replace)
         return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
 
@@ -2599,7 +2600,7 @@ class UnsharpMask(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        sigma_limit: NonNegativeRangeType = 0
+        sigma_limit: NonNegativeFloatRangeType = 0
         alpha: ZeroOneRangeType = (0.2, 0.5)
         threshold: int = Field(default=10, ge=0, le=255, description="Threshold for limiting sharpening.")
 
@@ -2810,7 +2811,7 @@ class Spatter(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         mean: ZeroOneRangeType = (0.65, 0.65)
         std: ZeroOneRangeType = (0.3, 0.3)
-        gauss_sigma: NonNegativeRangeType = (2, 2)
+        gauss_sigma: NonNegativeFloatRangeType = (2, 2)
         cutout_threshold: ZeroOneRangeType = (0.68, 0.68)
         intensity: ZeroOneRangeType = (0.6, 0.6)
         mode: Union[SpatterMode, Sequence[SpatterMode]] = Field(
@@ -3096,7 +3097,7 @@ class Morphological(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: OnePlusRangeType = (2, 3)
+        scale: OnePlusIntRangeType = (2, 3)
         operation: MorphologyMode = "dilation"
 
     def __init__(

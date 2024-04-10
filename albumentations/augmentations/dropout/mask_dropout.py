@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -7,10 +7,9 @@ from pydantic import Field
 from skimage.measure import label
 from typing_extensions import Literal
 
-from albumentations.core.pydantic import OnePlusRangeType
+from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ScalarType, Targets
-from albumentations.core.utils import to_tuple
+from albumentations.core.types import ScalarType, ScaleIntType, Targets
 
 __all__ = ["MaskDropout"]
 
@@ -42,7 +41,7 @@ class MaskDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(BaseTransformInitSchema):
-        max_objects: OnePlusRangeType = (1, 1)
+        max_objects: OnePlusIntRangeType = (1, 1)
 
         image_fill_value: Union[float, Literal["inpaint"]] = Field(
             default=0,
@@ -55,14 +54,14 @@ class MaskDropout(DualTransform):
 
     def __init__(
         self,
-        max_objects: int = 1,
+        max_objects: ScaleIntType = (1, 1),
         image_fill_value: Union[float, Literal["inpaint"]] = 0,
         mask_fill_value: ScalarType = 0,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.max_objects = to_tuple(max_objects, 1)
+        self.max_objects = cast(Tuple[int, int], max_objects)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
 
@@ -78,7 +77,7 @@ class MaskDropout(DualTransform):
         if num_labels == 0:
             dropout_mask = None
         else:
-            objects_to_drop = random.randint(int(self.max_objects[0]), int(self.max_objects[1]))
+            objects_to_drop = random.randint(self.max_objects[0], self.max_objects[1])
             objects_to_drop = min(num_labels, objects_to_drop)
 
             if objects_to_drop == num_labels:
