@@ -104,21 +104,19 @@ def normalize_numpy(img: np.ndarray, mean: np.ndarray, denominator: np.ndarray) 
 
 
 @preserve_shape
-def normalize(
-    img: np.ndarray, mean_input: ColorType, std_input: ColorType, max_pixel_value: float = 255.0
-) -> np.ndarray:
-    mean = np.array(mean_input, dtype=np.float32)
-    mean *= max_pixel_value
+def normalize(img: np.ndarray, mean: ColorType, std: ColorType, max_pixel_value: float = 255.0) -> np.ndarray:
+    mean_np = np.array(mean, dtype=np.float32)
+    mean_np *= max_pixel_value
 
-    std = np.array(std_input, dtype=np.float32)
-    std *= max_pixel_value
+    std_np = np.array(std, dtype=np.float32)
+    std_np *= max_pixel_value
 
-    denominator = np.reciprocal(std, dtype=np.float32)
+    denominator = np.reciprocal(std_np, dtype=np.float32)
 
     if is_rgb_image(img):
-        return normalize_cv2(img, mean, denominator)
+        return normalize_cv2(img, mean_np, denominator)
 
-    return normalize_numpy(img, mean, denominator)
+    return normalize_numpy(img, mean_np, denominator)
 
 
 @preserve_shape
