@@ -1,4 +1,5 @@
 import random
+import warnings
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
@@ -31,9 +32,26 @@ class CoarseDropout(DualTransform):
             set to `max_width`. Default: `None`.
             If float, it is calculated as a fraction of the image width.
 
+        num_holes_range (Tuple[int, int]): Range of regions to zero out.
+        Where num_holes_range[0] is minimum number of holes and num_holes_range[1] is minimum number of holes.
+
+        hole_width_range (Tuple[(int, float), (int, float)]): Width range of the hole.
+            Hole width range, where `hole_width_range[0]` is the minimum width of the hole and
+            `hole_width_range[1]` is the maximum width of the hole.
+            If values is float, it is calculated as a fraction of the image width.
+
+        hole_height_range (Tuple[(int, float), (int, float)]): Height range of the hole.
+            Hole height range, where `hole_height_range[0]` is the minimum height of the hole and
+            `hole_height_range[1]` is the maximum height of the hole.
+            If values float, it is calculated as a fraction of the image height.
+
         fill_value (int, float, list of int, list of float): value for dropped pixels.
         mask_fill_value (int, float, list of int, list of float): fill value for dropped pixels
             in mask. If `None` - mask is not affected. Default: `None`.
+
+    Deprecated:
+        min_holes, max_holes, min_height, max_height, min_width, max_width:
+        These will be replaced by num_holes_range, hole_height_range, and hole_width_range.
 
     Targets:
         image, mask, keypoints
@@ -57,6 +75,11 @@ class CoarseDropout(DualTransform):
         min_holes: Optional[int] = Field(default=None, ge=0, description="Minimum number of regions to zero out.")
         min_height: Optional[ScalarType] = Field(default=None, ge=0, description="Minimum height of the hole.")
         min_width: Optional[ScalarType] = Field(default=None, ge=0, description="Minimum width of the hole.")
+        num_holes_range: Optional[Tuple[int, int]] = Field(description="Range of regions to zero out.")
+        hole_height_range: Optional[Tuple[ScalarType, ScalarType]] = Field(
+            description="Height range of the hole.", validate_default=True
+        )
+        hole_width_range: Optional[Tuple[ScalarType, ScalarType]] = Field(description="Width range of the hole.")
         fill_value: ColorType = Field(default=0, description="Value for dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(default=None, description="Fill value for dropped pixels in mask.")
 
@@ -79,6 +102,30 @@ class CoarseDropout(DualTransform):
                 raise ValueError(
                     f"Invalid combination of min_holes and max_holes. Got: {[self.min_holes, self.max_holes]}"
                 )
+
+            self.num_holes_range = self.num_holes_range if self.num_holes_range else (self.min_holes, self.max_holes)
+
+            self.hole_width_range = self.hole_width_range if self.hole_width_range else (self.min_width, self.max_width)
+
+            self.hole_height_range = (
+                self.hole_height_range if self.hole_height_range else (self.min_height, self.max_height)
+            )
+
+            if 0 > self.num_holes_range[0] > self.num_holes_range[1]:
+                raise ValueError(
+                    "Invalid range for num_holes_range. "
+                    "Range must satisfy this condition: num_holes_range[0] <= num_holes_range[1]"
+                )
+            if 0 > self.hole_width_range[0] > self.hole_width_range[1]:
+                raise ValueError(
+                    "Invalid range for hole_width_range. "
+                    "Range must satisfy this condition: hole_width_range[0] <= hole_width_range[1]"
+                )
+            if 0 > self.hole_height_range[0] > self.hole_height_range[1]:
+                raise ValueError(
+                    "Invalid range for hole_height_range. "
+                    "Range must satisfy this condition: hole_height_range[0] <= hole_height_range[1]"
+                )
             return self
 
     def __init__(
@@ -93,6 +140,9 @@ class CoarseDropout(DualTransform):
         mask_fill_value: Optional[ColorType] = None,
         always_apply: bool = False,
         p: float = 0.5,
+        num_holes_range: Optional[Tuple[int, int]] = None,
+        hole_width_range: Optional[Tuple[ScalarType, ScalarType]] = None,
+        hole_height_range: Optional[Tuple[ScalarType, ScalarType]] = None,
     ):
         super().__init__(always_apply, p)
         self.min_holes = cast(int, min_holes)
@@ -103,6 +153,13 @@ class CoarseDropout(DualTransform):
         self.max_width = max_width
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
+        self.num_holes_range = num_holes_range
+        self.hole_width_range = hole_width_range
+        self.hole_height_range = hole_height_range
+
+        warnings.warn("min_holes, max_holes will be deprecated; use num_holes_range instead.", DeprecationWarning)
+        warnings.warn("min_height, max_height will be deprecated; use hole_height_range instead.", DeprecationWarning)
+        warnings.warn("min_width, max_width will be deprecated; use hole_width_range instead.", DeprecationWarning)
 
     def apply(
         self,
@@ -129,39 +186,26 @@ class CoarseDropout(DualTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for _ in range(random.randint(self.min_holes, self.max_holes)):
-            if all(
-                [
-                    isinstance(self.min_height, int),
-                    isinstance(self.min_width, int),
-                    isinstance(self.max_height, int),
-                    isinstance(self.max_width, int),
-                ]
-            ):
-                hole_height = random.randint(int(self.min_height), int(self.max_height))
-                hole_width = random.randint(int(self.min_width), int(self.max_width))
-            elif all(
-                [
-                    isinstance(self.min_height, float),
-                    isinstance(self.min_width, float),
-                    isinstance(self.max_height, float),
-                    isinstance(self.max_width, float),
-                ]
-            ):
-                hole_height = int(height * random.uniform(self.min_height, self.max_height))
-                hole_width = int(width * random.uniform(self.min_width, self.max_width))
+        num_holes_range: Tuple[int, int] = (
+            self.num_holes_range if self.num_holes_range else (self.min_holes, self.max_holes)
+        )
+        hole_width_range: Tuple[ScalarType, ScalarType] = (
+            self.hole_width_range if self.hole_width_range else (self.min_width, self.max_width)
+        )
+        hole_height_range: Tuple[ScalarType, ScalarType] = (
+            self.hole_height_range if self.hole_height_range else (self.min_height, self.max_height)
+        )
+        for _ in range(random.randint(*num_holes_range)):
+            if all(isinstance(x, int) for x in hole_height_range + hole_width_range):
+                hole_height = random.randint(cast(int, hole_height_range[0]), cast(int, hole_height_range[1]))
+                hole_width = random.randint(cast(int, hole_width_range[0]), cast(int, hole_width_range[1]))
+            elif all(isinstance(x, float) for x in hole_height_range + hole_width_range):
+                hole_height = int(height * random.uniform(*hole_height_range))
+                hole_width = int(width * random.uniform(*hole_width_range))
             else:
-                msg = "Min width, max width, \
-                    min height and max height \
-                    should all either be ints or floats. \
-                    Got: {} respectively".format(
-                    [
-                        type(self.min_width),
-                        type(self.max_width),
-                        type(self.min_height),
-                        type(self.max_height),
-                    ]
-                )
+                msg = f"Hole width range and hole height range \
+                    values should all either be ints or floats. \
+                    Got: {[type(x) for x in hole_height_range + hole_width_range]} respectively"
                 raise ValueError(msg)
 
             y1 = random.randint(0, height - hole_height)
@@ -191,4 +235,7 @@ class CoarseDropout(DualTransform):
             "min_width",
             "fill_value",
             "mask_fill_value",
+            "hole_width_range",
+            "num_holes_range",
+            "hole_height_range",
         )

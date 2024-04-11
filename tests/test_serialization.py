@@ -111,6 +111,8 @@ AUGMENTATION_CLS_PARAMS = [
     [A.CLAHE, {"clip_limit": 2, "tile_grid_size": (12, 12)}],
     [A.RandomGamma, {"gamma_limit": (10, 90)}],
     [A.CoarseDropout, {"max_holes": 4, "max_height": 4, "max_width": 4}],
+    [A.CoarseDropout, {"num_holes_range": (4, 4), "hole_height_range": (4, 4), "hole_width_range": (4, 4)}],
+    [A.CoarseDropout, {"num_holes_range": (4, 4), "max_height": 4, "max_width": 4}],
     [
         A.RandomSnow,
         {"snow_point_lower": 0.2, "snow_point_upper": 0.4, "brightness_coeff": 4},
