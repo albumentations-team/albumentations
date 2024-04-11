@@ -182,7 +182,8 @@ def non_rgb_warning(image: np.ndarray) -> None:
 
 
 def _maybe_process_in_chunks(
-    process_fn: Callable[Concatenate[np.ndarray, P], np.ndarray], **kwargs: Any
+    process_fn: Callable[Concatenate[np.ndarray, P], np.ndarray],
+    **kwargs: Any,
 ) -> Callable[[np.ndarray], np.ndarray]:
     """Wrap OpenCV function to enable processing images with more than 4 channels.
 

@@ -156,7 +156,29 @@ This will execute all the tests and display the results, indicating whether each
 * Review your changes one last time, ensuring they meet the project's coding guidelines and documentation standards.
 * If your changes affect how users interact with Albumentations, update the documentation accordingly.
 
-By following these guidelines, you help ensure that Albumentations remains a high-quality, reliable library. We appreciate your contributions and look forward to your pull request!
+### Adding or Modifying Transforms
+
+#### Validation with InitSchema
+
+Each transform includes an `InitSchema` class responsible for validating and modifying input parameters before the execution of the `__init__` method. This step ensures that all parameter manipulations, such as converting a single value into a range, are handled consistently and appropriately.
+
+#### Simplifying Parameter Types
+
+Historically, our transforms have used `Union` types to allow flexibility in parameter input—accepting either a single value or a tuple. While flexible, this approach can lead to confusion about how parameters are interpreted and used within the transform. For example, when a single value is provided, it is unclear whether and how it will be expanded into a tuple, which can lead to unpredictable behavior and difficult-to-understand code.
+
+To improve clarity and predictability:
+
+**Explicit Definitions**: Parameters should be explicitly defined as either a single value or a tuple. This change avoids ambiguity and ensures that the intent and behavior of the transform are clear to all users.
+
+#### Serialization Considerations
+
+Even if a parameter defined as `Tuple`, the transform should work correctly with a `List` that have similar values. This is required as `JSON` and `YAML` serialization formats do not distinguish between lists and tuples and if you serialize and then deserialize it back, you will get a list instead of a tuple. If it is not the case test will fail, but, just in case, keep this in mind while creating or modifying the transform.
+
+**List Compatibility**: Because these formats do not distinguish between lists and tuples, using List in type definitions ensures that transforms work correctly post-serialization, which treats tuples as lists.
+
+#### Probability Handling
+
+To maintain determinism and reproducibility, handle all probability calculations within the `get_params` or `get_params_dependent_on_targets` methods. These calculations should not occur in the `apply_xxx` or `__init__` methods, as it is crucial to separate configuration from execution in our codebase.
 
 ## Additional Resources
 

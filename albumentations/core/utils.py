@@ -26,7 +26,7 @@ def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
         pass
 
     raise RuntimeError(
-        f"Albumentations supports only numpy.ndarray and torch.Tensor data type for image. Got: {type(img)}"
+        f"Albumentations supports only numpy.ndarray and torch.Tensor data type for image. Got: {type(img)}",
     )
 
 
@@ -88,7 +88,11 @@ class DataProcessor(ABC):
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
     def check_and_convert(
-        self, data: List[BoxOrKeypointType], rows: int, cols: int, direction: str = "to"
+        self,
+        data: List[BoxOrKeypointType],
+        rows: int,
+        cols: int,
+        direction: str = "to",
     ) -> List[BoxOrKeypointType]:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
@@ -115,7 +119,10 @@ class DataProcessor(ABC):
 
     @abstractmethod
     def convert_from_albumentations(
-        self, data: List[BoxOrKeypointType], rows: int, cols: int
+        self,
+        data: List[BoxOrKeypointType],
+        rows: int,
+        cols: int,
     ) -> List[BoxOrKeypointType]:
         pass
 

@@ -32,7 +32,12 @@ __all__ = [
 
 
 def get_random_crop_coords(
-    height: int, width: int, crop_height: int, crop_width: int, h_start: float, w_start: float
+    height: int,
+    width: int,
+    crop_height: int,
+    crop_width: int,
+    h_start: float,
+    w_start: float,
 ) -> Tuple[int, int, int, int]:
     # h_start is [0, 1) and should map to [0, (height - crop_height)]  (note inclusive)
     # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
@@ -48,7 +53,7 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
-            f"Requested crop size ({crop_height}, {crop_width}) is " f"larger than the image size ({height}, {width})"
+            f"Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})",
         )
     x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
     return img[y1:y2, x1:x2]
@@ -85,14 +90,21 @@ def crop_bbox_by_coords(
 
 
 def bbox_random_crop(
-    bbox: BoxInternalType, crop_height: int, crop_width: int, h_start: float, w_start: float, rows: int, cols: int
+    bbox: BoxInternalType,
+    crop_height: int,
+    crop_width: int,
+    h_start: float,
+    w_start: float,
+    rows: int,
+    cols: int,
 ) -> BoxInternalType:
     crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
     return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
 def crop_keypoint_by_coords(
-    keypoint: KeypointInternalType, crop_coords: Tuple[int, int, int, int]
+    keypoint: KeypointInternalType,
+    crop_coords: Tuple[int, int, int, int],
 ) -> KeypointInternalType:
     """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
@@ -150,7 +162,7 @@ def center_crop(img: np.ndarray, crop_height: int, crop_width: int) -> np.ndarra
     height, width = img.shape[:2]
     if height < crop_height or width < crop_width:
         raise ValueError(
-            f"Requested crop size ({crop_height}, {crop_width}) is " f"larger than the image size ({height}, {width})"
+            f"Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})",
         )
     x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
     return img[y1:y2, x1:x2]
@@ -162,7 +174,11 @@ def bbox_center_crop(bbox: BoxInternalType, crop_height: int, crop_width: int, r
 
 
 def keypoint_center_crop(
-    keypoint: KeypointInternalType, crop_height: int, crop_width: int, rows: int, cols: int
+    keypoint: KeypointInternalType,
+    crop_height: int,
+    crop_width: int,
+    rows: int,
+    cols: int,
 ) -> KeypointInternalType:
     """Keypoint center crop.
 
@@ -186,21 +202,27 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.
     if x_max <= x_min or y_max <= y_min:
         raise ValueError(
             "We should have x_min < x_max and y_min < y_max. But we got"
-            f" (x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max})"
+            f" (x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max})",
         )
 
     if x_min < 0 or x_max > width or y_min < 0 or y_max > height:
         raise ValueError(
             "Values for crop should be non negative and equal or smaller than image sizes"
             f"(x_min = {x_min}, y_min = {y_min}, x_max = {x_max}, y_max = {y_max}, "
-            f"height = {height}, width = {width})"
+            f"height = {height}, width = {width})",
         )
 
     return img[y_min:y_max, x_min:x_max]
 
 
 def bbox_crop(
-    bbox: BoxInternalType, x_min: int, y_min: int, x_max: int, y_max: int, rows: int, cols: int
+    bbox: BoxInternalType,
+    x_min: int,
+    y_min: int,
+    x_max: int,
+    y_max: int,
+    rows: int,
+    cols: int,
 ) -> BoxInternalType:
     """Crop a bounding box.
 
@@ -252,7 +274,13 @@ def crop_and_pad(
         img = crop(img, *crop_params)
     if pad_params is not None and any(i != 0 for i in pad_params):
         img = FGeometric.pad_with_params(
-            img, pad_params[0], pad_params[1], pad_params[2], pad_params[3], border_mode=pad_mode, value=pad_value
+            img,
+            pad_params[0],
+            pad_params[1],
+            pad_params[2],
+            pad_params[3],
+            border_mode=pad_mode,
+            value=pad_value,
         )
 
     if keep_size:

@@ -121,7 +121,8 @@ def normalize(img: np.ndarray, mean: ColorType, std: ColorType, max_pixel_value:
 
 @preserve_shape
 def normalize_per_image(
-    img: np.ndarray, normalization: Literal["image", "image_per_channel", "min_max", "min_max_per_channel"]
+    img: np.ndarray,
+    normalization: Literal["image", "image_per_channel", "min_max", "min_max_per_channel"],
 ) -> np.ndarray:
     """Apply per-image normalization based on the specified strategy.
 
@@ -174,7 +175,10 @@ def normalize_per_image(
 
 
 def _shift_hsv_uint8(
-    img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val_shift: np.ndarray
+    img: np.ndarray,
+    hue_shift: np.ndarray,
+    sat_shift: np.ndarray,
+    val_shift: np.ndarray,
 ) -> np.ndarray:
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
@@ -200,7 +204,10 @@ def _shift_hsv_uint8(
 
 
 def _shift_hsv_non_uint8(
-    img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val_shift: np.ndarray
+    img: np.ndarray,
+    hue_shift: np.ndarray,
+    sat_shift: np.ndarray,
+    val_shift: np.ndarray,
 ) -> np.ndarray:
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
@@ -232,7 +239,7 @@ def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val
             sat_shift = 0
             warn(
                 "HueSaturationValue: hue_shift and sat_shift are not applicable to grayscale image. "
-                "Set them to 0 or use RGB image"
+                "Set them to 0 or use RGB image",
             )
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
@@ -392,7 +399,10 @@ def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], by_channel
 
 
 def _handle_mask(
-    mask: Optional[np.ndarray], img: np.ndarray, by_channels: bool, i: Optional[int] = None
+    mask: Optional[np.ndarray],
+    img: np.ndarray,
+    by_channels: bool,
+    i: Optional[int] = None,
 ) -> Optional[np.ndarray]:
     if mask is None:
         return None
@@ -405,7 +415,10 @@ def _handle_mask(
 
 @preserve_channel_dim
 def equalize(
-    img: np.ndarray, mask: Optional[np.ndarray] = None, mode: ImageMode = "cv", by_channels: bool = True
+    img: np.ndarray,
+    mask: Optional[np.ndarray] = None,
+    mode: ImageMode = "cv",
+    by_channels: bool = True,
 ) -> np.ndarray:
     _check_preconditions(img, mask, by_channels)
 
@@ -902,7 +915,10 @@ def gauss_noise(image: np.ndarray, gauss: np.ndarray) -> np.ndarray:
 
 @clipped
 def _brightness_contrast_adjust_non_uint(
-    img: np.ndarray, alpha: float = 1, beta: float = 0, beta_by_max: bool = False
+    img: np.ndarray,
+    alpha: float = 1,
+    beta: float = 0,
+    beta_by_max: bool = False,
 ) -> np.ndarray:
     dtype = img.dtype
     img = img.astype("float32")
@@ -920,7 +936,10 @@ def _brightness_contrast_adjust_non_uint(
 
 @preserve_shape
 def _brightness_contrast_adjust_uint(
-    img: np.ndarray, alpha: float = 1, beta: float = 0, beta_by_max: bool = False
+    img: np.ndarray,
+    alpha: float = 1,
+    beta: float = 0,
+    beta_by_max: bool = False,
 ) -> np.ndarray:
     dtype = np.dtype("uint8")
 
@@ -941,7 +960,10 @@ def _brightness_contrast_adjust_uint(
 
 
 def brightness_contrast_adjust(
-    img: np.ndarray, alpha: float = 1, beta: float = 0, beta_by_max: bool = False
+    img: np.ndarray,
+    alpha: float = 1,
+    beta: float = 0,
+    beta_by_max: bool = False,
 ) -> np.ndarray:
     if img.dtype == np.uint8:
         return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
@@ -1008,7 +1030,10 @@ def gray_to_rgb(img: np.ndarray) -> np.ndarray:
 
 @preserve_shape
 def downscale(
-    img: np.ndarray, scale: float, down_interpolation: int = cv2.INTER_AREA, up_interpolation: int = cv2.INTER_LINEAR
+    img: np.ndarray,
+    scale: float,
+    down_interpolation: int = cv2.INTER_AREA,
+    up_interpolation: int = cv2.INTER_LINEAR,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1329,7 +1354,11 @@ def adjust_hue_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
 
 @preserve_shape
 def superpixels(
-    image: np.ndarray, n_segments: int, replace_samples: Sequence[bool], max_size: Optional[int], interpolation: int
+    image: np.ndarray,
+    n_segments: int,
+    replace_samples: Sequence[bool],
+    max_size: Optional[int],
+    interpolation: int,
 ) -> np.ndarray:
     if not np.any(replace_samples):
         return image
@@ -1345,7 +1374,10 @@ def superpixels(
             image = resize_fn(image)
 
     segments = skimage.segmentation.slic(
-        image, n_segments=n_segments, compactness=10, channel_axis=-1 if image.ndim > TWO else None
+        image,
+        n_segments=n_segments,
+        compactness=10,
+        channel_axis=-1 if image.ndim > TWO else None,
     )
 
     min_value = 0
@@ -1378,7 +1410,9 @@ def superpixels(
 
     if orig_shape != image.shape:
         resize_fn = _maybe_process_in_chunks(
-            cv2.resize, dsize=(orig_shape[1], orig_shape[0]), interpolation=interpolation
+            cv2.resize,
+            dsize=(orig_shape[1], orig_shape[0]),
+            interpolation=interpolation,
         )
         return resize_fn(image)
 
@@ -1395,7 +1429,11 @@ def add_weighted(img1: np.ndarray, alpha: float, img2: np.ndarray, beta: float) 
 @clipped
 @preserve_shape
 def unsharp_mask(
-    image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float = 0.2, threshold: int = 10
+    image: np.ndarray,
+    ksize: int,
+    sigma: float = 0.0,
+    alpha: float = 0.2,
+    threshold: int = 10,
 ) -> np.ndarray:
     blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
 

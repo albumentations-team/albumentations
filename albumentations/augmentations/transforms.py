@@ -247,7 +247,12 @@ class Normalize(ImageOnlyTransform):
         )
         max_pixel_value: Optional[float] = Field(default=255.0, description="Maximum possible pixel value.")
         normalization: Literal[
-            "standard", "image", "image_per_channel", "min_max", "min_max_per_channel", "inception"
+            "standard",
+            "image",
+            "image_per_channel",
+            "min_max",
+            "min_max_per_channel",
+            "inception",
         ] = "standard"
         p: ProbabilityType = 1
 
@@ -280,7 +285,10 @@ class Normalize(ImageOnlyTransform):
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if self.normalization == "standard":
             return F.normalize(
-                img, cast(ColorType, self.mean), cast(ColorType, self.std), cast(float, self.max_pixel_value)
+                img,
+                cast(ColorType, self.mean),
+                cast(ColorType, self.std),
+                cast(float, self.max_pixel_value),
             )
         if self.normalization in {"image", "image_per_channel", "min_max", "min_max_per_channel"}:
             return F.normalize_per_image(img, self.normalization)
@@ -311,7 +319,8 @@ class ImageCompression(ImageOnlyTransform):
         quality_lower: int = Field(default=99, description="Lower bound on the image quality", ge=1, le=100)
         quality_upper: int = Field(default=100, description="Upper bound on the image quality", ge=1, le=100)
         compression_type: ImageCompressionType = Field(
-            default=ImageCompressionType.JPEG, description="Image compression format"
+            default=ImageCompressionType.JPEG,
+            description="Image compression format",
         )
 
         @model_validator(mode="after")
@@ -434,7 +443,8 @@ class RandomGravel(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         gravel_roi: Tuple[float, float, float, float] = Field(
-            default=(0.1, 0.4, 0.9, 0.9), description="Region of interest for gravel placement"
+            default=(0.1, 0.4, 0.9, 0.9),
+            description="Region of interest for gravel placement",
         )
         number_of_patches: int = Field(default=2, description="Number of gravel patches", ge=1)
 
@@ -525,7 +535,7 @@ class RandomGravel(ImageOnlyTransform):
                     np.concatenate(val),
                 ],
                 1,
-            )
+            ),
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
@@ -563,7 +573,10 @@ class RandomRain(ImageOnlyTransform):
         drop_color: Tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
         blur_value: int = Field(default=7, description="Blur value for simulating rain effect", ge=0)
         brightness_coefficient: float = Field(
-            default=0.7, description="Brightness coefficient for rainy effect", ge=0, le=1
+            default=0.7,
+            description="Brightness coefficient for rainy effect",
+            ge=0,
+            le=1,
         )
         rain_type: Optional[RainMode] = Field(default=None, description="Type of rain to simulate")
 
@@ -782,13 +795,16 @@ class RandomSunFlare(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         flare_roi: Tuple[float, float, float, float] = Field(
-            default=(0, 0, 1, 0.5), description="Region of the image where flare will appear"
+            default=(0, 0, 1, 0.5),
+            description="Region of the image where flare will appear",
         )
         angle_lower: float = Field(default=0, description="Lower bound for the angle", ge=0, le=1)
         angle_upper: float = Field(default=1, description="Upper bound for the angle", ge=0, le=1)
         num_flare_circles_lower: int = Field(default=6, description="Lower limit for the number of flare circles", ge=0)
         num_flare_circles_upper: int = Field(
-            default=10, description="Upper limit for the number of flare circles", gt=0
+            default=10,
+            description="Upper limit for the number of flare circles",
+            gt=0,
         )
         src_radius: int = Field(default=400, description="Source radius for the flare")
         src_color: Tuple[int, int, int] = Field(default=(255, 255, 255), description="Color of the flare")
@@ -803,7 +819,7 @@ class RandomSunFlare(ImageOnlyTransform):
                 raise ValueError(f"Invalid flare_roi. Got: {self.flare_roi}")
             if self.angle_lower >= self.angle_upper:
                 raise ValueError(
-                    f"angle_upper must be greater than angle_lower. Got: {self.angle_lower}, {self.angle_upper}"
+                    f"angle_upper must be greater than angle_lower. Got: {self.angle_lower}, {self.angle_upper}",
                 )
             if self.num_flare_circles_lower >= self.num_flare_circles_upper:
                 msg = "num_flare_circles_upper must be greater than num_flare_circles_lower."
@@ -899,7 +915,7 @@ class RandomSunFlare(ImageOnlyTransform):
                     (int(x[r]), int(y[r])),
                     pow(rad, 3),
                     (r_color, g_color, b_color),
-                )
+                ),
             ]
 
         return {
@@ -941,14 +957,17 @@ class RandomShadow(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         shadow_roi: Tuple[float, float, float, float] = Field(
-            default=(0, 0.5, 1, 1), description="Region of the image where shadows will appear"
+            default=(0, 0.5, 1, 1),
+            description="Region of the image where shadows will appear",
         )
         num_shadows_limit: Tuple[int, int] = Field(default=(1, 2))
         num_shadows_lower: Optional[int] = Field(
-            default=None, description="Lower limit for the possible number of shadows"
+            default=None,
+            description="Lower limit for the possible number of shadows",
         )
         num_shadows_upper: Optional[int] = Field(
-            default=None, description="Upper limit for the possible number of shadows"
+            default=None,
+            description="Upper limit for the possible number of shadows",
         )
         shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", gt=0)
 
@@ -1120,7 +1139,12 @@ class HueSaturationValue(ImageOnlyTransform):
         self.val_shift_limit = cast(Tuple[float, float], val_shift_limit)
 
     def apply(
-        self, img: np.ndarray, hue_shift: int = 0, sat_shift: int = 0, val_shift: int = 0, **params: Any
+        self,
+        img: np.ndarray,
+        hue_shift: int = 0,
+        sat_shift: int = 0,
+        val_shift: int = 0,
+        **params: Any,
     ) -> np.ndarray:
         if not is_rgb_image(img) and not is_grayscale_image(img):
             msg = "HueSaturationValue transformation expects 1-channel or 3-channel images."
@@ -1192,7 +1216,8 @@ class Posterize(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         num_bits: Annotated[
-            Union[int, Tuple[int, int], Tuple[int, int, int]], Field(default=4, description="Number of high bits")
+            Union[int, Tuple[int, int], Tuple[int, int, int]],
+            Field(default=4, description="Number of high bits"),
         ]
 
         @field_validator("num_bits")
@@ -1482,7 +1507,8 @@ class ISONoise(ImageOnlyTransform):
             ),
         )
         intensity: Tuple[float, float] = Field(
-            default=(0.1, 0.5), description="Multiplicative factor that control strength of color and luminance noise."
+            default=(0.1, 0.5),
+            description="Multiplicative factor that control strength of color and luminance noise.",
         )
 
     def __init__(
@@ -1741,7 +1767,7 @@ class ToSepia(ImageOnlyTransform):
     def __init__(self, always_apply: bool = False, p: float = 0.5):
         super().__init__(always_apply, p)
         self.sepia_transformation_matrix = np.array(
-            [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]]
+            [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]],
         )
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -1977,7 +2003,7 @@ class Lambda(NoOp):
                 if isinstance(custom_apply_fn, LambdaType) and custom_apply_fn.__name__ == "<lambda>":
                     warnings.warn(
                         "Using lambda is incompatible with multiprocessing. "
-                        "Consider using regular functions or partial()."
+                        "Consider using regular functions or partial().",
                     )
 
                 self.custom_apply_fns[target_name] = custom_apply_fn
@@ -2426,7 +2452,11 @@ class Superpixels(ImageOnlyTransform):
         return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
 
     def apply(
-        self, img: np.ndarray, replace_samples: Sequence[bool] = (False,), n_segments: int = 1, **kwargs: Any
+        self,
+        img: np.ndarray,
+        replace_samples: Sequence[bool] = (False,),
+        n_segments: int = 1,
+        **kwargs: Any,
     ) -> np.ndarray:
         return F.superpixels(img, n_segments, replace_samples, self.max_size, cast(int, self.interpolation))
 
@@ -2458,7 +2488,8 @@ class TemplateTransform(ImageOnlyTransform):
         img_weight: ZeroOneRangeType = (0.5, 0.5)
         template_weight: ZeroOneRangeType = (0.5, 0.5)
         template_transform: Optional[Callable[..., Any]] = Field(
-            default=None, description="Transformation object applied to template."
+            default=None,
+            description="Transformation object applied to template.",
         )
         name: Optional[str] = Field(default=None, description="Name of transform, used only for deserialization.")
 
@@ -2662,7 +2693,8 @@ class UnsharpMask(ImageOnlyTransform):
         threshold: int = Field(default=10, ge=0, le=255, description="Threshold for limiting sharpening.")
 
         blur_limit: ScaleIntType = Field(
-            default=(3, 7), description="Maximum kernel size for blurring the input image."
+            default=(3, 7),
+            description="Maximum kernel size for blurring the input image.",
         )
 
         @field_validator("blur_limit")
@@ -2728,10 +2760,12 @@ class PixelDropout(DualTransform):
         dropout_prob: ProbabilityType = 0.01
         per_channel: bool = Field(default=False, description="Sample drop mask per channel.")
         drop_value: Optional[ScaleFloatType] = Field(
-            default=0, description="Value to set in dropped pixels. None for random sampling."
+            default=0,
+            description="Value to set in dropped pixels. None for random sampling.",
         )
         mask_drop_value: Optional[ScaleFloatType] = Field(
-            default=None, description="Value to set in dropped pixels in masks. None to leave masks unchanged."
+            default=None,
+            description="Value to set in dropped pixels in masks. None to leave masks unchanged.",
         )
 
         @model_validator(mode="after")
@@ -2872,7 +2906,8 @@ class Spatter(ImageOnlyTransform):
         cutout_threshold: ZeroOneRangeType = (0.68, 0.68)
         intensity: ZeroOneRangeType = (0.6, 0.6)
         mode: Union[SpatterMode, Sequence[SpatterMode]] = Field(
-            default="rain", description="Type of corruption ('rain', 'mud')."
+            default="rain",
+            description="Type of corruption ('rain', 'mud').",
         )
         color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None
 
