@@ -187,9 +187,9 @@ AUGMENTATION_CLS_PARAMS = [
     [
         A.ShiftScaleRotate,
         {
-            "shift_limit": 0.2,
-            "scale_limit": 0.2,
-            "rotate_limit": 70,
+            "shift_limit": (-0.2, 0.2),
+            "scale_limit": (-0.2, 0.2),
+            "rotate_limit": (-70, 70),
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
             "value": (10, 10, 10),
@@ -198,10 +198,10 @@ AUGMENTATION_CLS_PARAMS = [
     [
         A.ShiftScaleRotate,
         {
-            "shift_limit_x": 0.3,
-            "shift_limit_y": 0.4,
-            "scale_limit": 0.2,
-            "rotate_limit": 70,
+            "shift_limit_x": (-0.3, 0.3),
+            "shift_limit_y": (-0.4, 0.4),
+            "scale_limit": (-0.2, 0.2),
+            "rotate_limit": (-70, 70),
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
             "value": (10, 10, 10),
@@ -845,6 +845,7 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
     aug_data = aug(image=image, image2=image2)
     set_seed(seed)
     deserialized_aug_data = deserialized_aug(image=image, image2=image2)
+
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["image2"], deserialized_aug_data["image2"])
 

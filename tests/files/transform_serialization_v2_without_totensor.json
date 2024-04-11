@@ -435,8 +435,8 @@
                 ],
                 "interpolation": 1,
                 "border_mode": 4,
-                "value": null,
-                "mask_value": null
+                "value": 0,
+                "mask_value": 0
             },
             {
                 "__class_fullname__": "SmallestMaxSize",
