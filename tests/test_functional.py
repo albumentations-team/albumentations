@@ -1105,5 +1105,33 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     ]
 )
 def test_split_uniform_grid(image_shape, grid, expected):
-    result = F.split_uniform_grid(image_shape, grid, np.random.RandomState(1))
+    result = F.split_uniform_grid(image_shape, grid, 0)
     np.testing.assert_array_equal(result, expected)
+
+
+@pytest.mark.parametrize("size, divisions, random_state, expected", [
+    (10, 2, None, [0, 5, 10]),
+    (10, 2, 42, [0, 5, 10]),  # Consistent shuffling with seed
+    (9, 3, None, [0, 3, 6, 9]),
+    (9, 3, 42, [0, 3, 6, 9]),  # Expected shuffle result with a specific seed
+    (20, 5, 42, [0, 4, 8, 12, 16, 20]),  # Regular intervals
+    (7, 3, 42, [0, 3, 5, 7]),  # Irregular intervals, specific seed
+    (7, 3, 41, [0, 2, 4, 7]),  # Irregular intervals, specific seed
+])
+def test_generate_shuffled_splits(size, divisions, random_state, expected):
+    result = F.generate_shuffled_splits(size, divisions, random_state)
+    assert len(result) == divisions + 1
+    assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
+
+@pytest.mark.parametrize("size, divisions, random_state", [
+    (10, 2, 42),
+    (9, 3, 99),
+    (20, 5, 101),
+    (7, 3, 42),
+])
+def test_consistent_shuffling(size, divisions, random_state):
+    result1 = F.generate_shuffled_splits(size, divisions, random_state)
+    assert len(result1) == divisions + 1
+    result2 = F.generate_shuffled_splits(size, divisions, random_state)
+    assert len(result2) == divisions + 1
+    assert np.array_equal(result1, result2), "Shuffling is not consistent with the given random state"

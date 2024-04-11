@@ -1543,7 +1543,7 @@ def generate_shuffled_splits(size: int, divisions: int, random_state: Optional[i
         np.ndarray: Cumulative edges of the shuffled intervals.
     """
     intervals = almost_equal_intervals(size, divisions)
-    random_utils.shuffle(intervals, random_state=random_state)
+    random_utils.shuffle(intervals, random_state=np.random.RandomState(random_state))
     return np.insert(np.cumsum(intervals), 0, 0)
 
 
