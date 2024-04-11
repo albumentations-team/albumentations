@@ -63,6 +63,8 @@ class BaseCompose(Serializable):
 
         self.replay_mode = False
         self.applied_in_replay = False
+        self._additional_targets: Dict[str, str] = {}
+        self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
 
     def __iter__(self) -> Iterator[TransformType]:
         return iter(self.transforms)
@@ -78,6 +80,10 @@ class BaseCompose(Serializable):
 
     def __repr__(self) -> str:
         return self.indented_repr()
+
+    @property
+    def additional_targets(self) -> Dict[str, str]:
+        return self._additional_targets
 
     def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
         args = {k: v for k, v in self.to_dict_private().items() if not (k.startswith("__") or k == "transforms")}
@@ -114,8 +120,17 @@ class BaseCompose(Serializable):
 
     def add_targets(self, additional_targets: Optional[Dict[str, str]]) -> None:
         if additional_targets:
+            for k, v in additional_targets.items():
+                if k in self._additional_targets and v != self._additional_targets[k]:
+                    raise ValueError(
+                        f"Trying to overwrite existed additional targets. "
+                        f"Key={k} Exists={self._additional_targets[k]} New value: {v}"
+                    )
+                self._additional_targets.update(additional_targets)
             for t in self.transforms:
                 t.add_targets(additional_targets)
+            for proc in self.processors.values():
+                proc.add_targets(additional_targets)
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> None:
         for t in self.transforms:
@@ -147,7 +162,6 @@ class Compose(BaseCompose):
     ):
         super().__init__(transforms, p)
 
-        self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
         if bbox_params:
             if isinstance(bbox_params, dict):
                 b_params = BboxParams(**bbox_params)
@@ -156,7 +170,7 @@ class Compose(BaseCompose):
             else:
                 msg = "unknown format of bbox_params, please use `dict` or `BboxParams`"
                 raise ValueError(msg)
-            self.processors["bboxes"] = BboxProcessor(b_params, additional_targets)
+            self.processors["bboxes"] = BboxProcessor(b_params)
 
         if keypoint_params:
             if isinstance(keypoint_params, dict):
@@ -166,12 +180,7 @@ class Compose(BaseCompose):
             else:
                 msg = "unknown format of keypoint_params, please use `dict` or `KeypointParams`"
                 raise ValueError(msg)
-            self.processors["keypoints"] = KeypointsProcessor(k_params, additional_targets)
-
-        if additional_targets is None:
-            additional_targets = {}
-
-        self.additional_targets = additional_targets
+            self.processors["keypoints"] = KeypointsProcessor(k_params)
 
         for proc in self.processors.values():
             proc.ensure_transforms_valid(self.transforms)
@@ -276,7 +285,7 @@ class Compose(BaseCompose):
         check_bbox_param = ["bboxes"]
         shapes = []
         for data_name, data in kwargs.items():
-            internal_data_name = self.additional_targets.get(data_name, data_name)
+            internal_data_name = self._additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
                     raise TypeError(f"{data_name} must be numpy array type")

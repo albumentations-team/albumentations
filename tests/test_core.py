@@ -268,6 +268,12 @@ def test_targets_type_check(targets, additional_targets, err_message):
         aug(**targets)
     assert str(exc_info.value) == err_message
 
+    aug = Compose([])
+    aug.add_targets(additional_targets)
+    with pytest.raises(TypeError) as exc_info:
+        aug(**targets)
+    assert str(exc_info.value) == err_message
+
 
 @pytest.mark.parametrize(
     ["targets", "bbox_params", "keypoint_params", "expected"],
@@ -436,3 +442,13 @@ def test_compose_image_mask_equal_size(targets):
     # test after disabling shapes check
     transforms = Compose([], is_check_shapes=False)
     transforms(**targets)
+
+
+def test_additional_targets():
+    """Check add_target rises error if trying add existing target."""
+    transforms = Compose([], additional_targets={"image2": "image"})
+    # add same name, same target, OK
+    transforms.add_targets({"image2": "image"})
+    with pytest.raises(ValueError) as exc_info:
+        transforms.add_targets({"image2": "mask"})
+    assert str(exc_info.value) == "Trying to overwrite existed additional targets. Key=image2 Exists=image New value: mask"
