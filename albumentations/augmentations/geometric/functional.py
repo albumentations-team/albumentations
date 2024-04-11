@@ -28,9 +28,6 @@ __all__ = [
     "rotate",
     "bbox_rotate",
     "keypoint_rotate",
-    "shift_scale_rotate",
-    "keypoint_shift_scale_rotate",
-    "bbox_shift_scale_rotate",
     "elastic_transform",
     "resize",
     "scale",
@@ -217,110 +214,6 @@ def keypoint_rotate(
     x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     return x, y, a + math.radians(angle), s
-
-
-@preserve_channel_dim
-def shift_scale_rotate(
-    img: np.ndarray,
-    angle: float,
-    scale: float,
-    dx: int,
-    dy: int,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
-) -> np.ndarray:
-    height, width = img.shape[:2]
-    # for images we use additional shifts of (0.5, 0.5) as otherwise
-    # we get an ugly black border for 90deg rotations
-    center = (width / 2 - 0.5, height / 2 - 0.5)
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-
-    warp_affine_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
-    )
-    return warp_affine_fn(img)
-
-
-@angle_2pi_range
-def keypoint_shift_scale_rotate(
-    keypoint: KeypointInternalType, angle: float, scale: float, dx: int, dy: int, rows: int, cols: int, **params: Any
-) -> KeypointInternalType:
-    (
-        x,
-        y,
-        a,
-        s,
-    ) = keypoint[:4]
-    height, width = rows, cols
-    center = (cols - 1) * 0.5, (rows - 1) * 0.5
-    matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-
-    x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
-    angle = a + math.radians(angle)
-    scale *= s
-
-    return x, y, angle, scale
-
-
-def bbox_shift_scale_rotate(
-    bbox: BoxInternalType,
-    angle: float,
-    scale: float,
-    dx: int,
-    dy: int,
-    rotate_method: str,
-    rows: int,
-    cols: int,
-    **kwargs: Any,
-) -> BoxInternalType:
-    """Rotates, shifts and scales a bounding box. Rotation is made by angle degrees,
-    scaling is made by scale factor and shifting is made by dx and dy.
-
-
-    Args:
-        bbox (tuple): A bounding box `(x_min, y_min, x_max, y_max)`.
-        angle (int): Angle of rotation in degrees.
-        scale (int): Scale factor.
-        dx (int): Shift along x-axis in pixel units.
-        dy (int): Shift along y-axis in pixel units.
-        rotate_method(str): Rotation method used. Should be one of: "largest_box", "ellipse".
-            Default: "largest_box".
-        rows (int): Image rows.
-        cols (int): Image cols.
-
-    Returns:
-        A bounding box `(x_min, y_min, x_max, y_max)`.
-
-    """
-    height, width = rows, cols
-    center = (width / 2, height / 2)
-    if rotate_method == "ellipse":
-        x_min, y_min, x_max, y_max = bbox_rotate(bbox, angle, rotate_method, rows, cols)
-        matrix = cv2.getRotationMatrix2D(center, 0, scale)
-    else:
-        x_min, y_min, x_max, y_max = bbox[:4]
-        matrix = cv2.getRotationMatrix2D(center, angle, scale)
-    matrix[0, 2] += dx * width
-    matrix[1, 2] += dy * height
-    x = np.array([x_min, x_max, x_max, x_min])
-    y = np.array([y_min, y_min, y_max, y_max])
-    ones = np.ones(shape=(len(x)))
-    points_ones = np.vstack([x, y, ones]).transpose()
-    points_ones[:, 0] *= width
-    points_ones[:, 1] *= height
-    tr_points = matrix.dot(points_ones.T).T
-    tr_points[:, 0] /= width
-    tr_points[:, 1] /= height
-
-    x_min, x_max = min(tr_points[:, 0]), max(tr_points[:, 0])
-    y_min, y_max = min(tr_points[:, 1]), max(tr_points[:, 1])
-
-    return x_min, y_min, x_max, y_max
 
 
 @preserve_shape
