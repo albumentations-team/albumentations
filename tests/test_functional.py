@@ -9,7 +9,7 @@ import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
 from albumentations.core.bbox_utils import filter_bboxes
-from tests.utils import convert_2d_to_target_format
+from tests.utils import convert_2d_to_target_format, set_seed
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -1105,5 +1105,5 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     ]
 )
 def test_split_uniform_grid(image_shape, grid, expected):
-    result = F.split_uniform_grid(image_shape, grid)
+    result = F.split_uniform_grid(image_shape, grid, np.random.RandomState(1))
     np.testing.assert_array_equal(result, expected)

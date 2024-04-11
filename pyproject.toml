@@ -43,6 +43,8 @@ exclude = [
     "tests",
     "setup.py",
     "tools",
+    "benchmark",
+    "site",
 ]
 
 line-length = 120
