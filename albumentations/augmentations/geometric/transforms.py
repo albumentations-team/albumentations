@@ -635,7 +635,7 @@ class Affine(DualTransform):
             translate_px = 0
 
         if translate_percent is not None and translate_px is not None:
-            msg = "Expected either translate_percent or translate_px to be " "provided, " "but neither of them was."
+            msg = "Expected either translate_percent or translate_px to be " "provided, " "but both were provided."
             raise ValueError(msg)
 
         if translate_percent is not None:
