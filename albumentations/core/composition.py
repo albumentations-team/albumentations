@@ -558,6 +558,7 @@ class Sequential(BaseCompose):
         super().__init__(transforms, p)
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
-        for t in self.transforms:
-            data = t(**data)
+        if self.replay_mode or force_apply or random.random() < self.p:
+            for t in self.transforms:
+                data = t(**data)
         return data
