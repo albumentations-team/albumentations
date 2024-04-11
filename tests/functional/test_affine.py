@@ -152,7 +152,7 @@ def test_inverse_angle_scale(image_shape, angle, shape, scale):
     restored_img = FGeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Adjust the assertion threshold based on expected discrepancies from complex transformations
-    assert np.mean(np.abs(image - restored_img)) < 10, "Inverse transformation failed: The restored image is not close enough to the original."
+    assert np.mean(np.abs(image - restored_img)) < 7, "Inverse transformation failed: The restored image is not close enough to the original."
 
 @pytest.mark.parametrize("img,expected", [ (np.array( [[0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08], [0.09, 0.10, 0.11, 0.12], [0.13, 0.14, 0.15, 0.16]], dtype=np.float32, ), np.array( [[0.04, 0.08, 0.12, 0.16], [0.03, 0.07, 0.11, 0.15], [0.02, 0.06, 0.10, 0.14], [0.01, 0.05, 0.09, 0.13]], dtype=np.float32, ) ), ( np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8), np.array([[6, 6, 7, 7], [6, 6, 7, 7], [10, 10, 11, 11], [10, 10, 11, 11]], dtype=np.uint8) )])  # Scale factors
 def test_scale_with_warp_affine(img, expected):
@@ -259,7 +259,7 @@ def test_inverse_shear(image_shape, shear, shape):
     restored_img = FGeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Adjust the assertion threshold based on expected discrepancies from complex transformations
-    assert np.mean(np.abs(image - restored_img)) < 10, "Inverse transformation failed: The restored image is not close enough to the original."
+    assert np.array_equal(image - restored_img), "Inverse transformation failed: The restored image is not close enough to the original."
 
 
 @pytest.mark.parametrize("image_shape", [
@@ -291,7 +291,7 @@ def test_inverse_shear(image_shape, translate, shape):
     restored_img = FGeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Adjust the assertion threshold based on expected discrepancies from complex transformations
-    assert np.mean(np.abs(image - restored_img)) < 10, "Inverse transformation failed: The restored image is not close enough to the original."
+    assert np.array_equal(image, restored_img), "Inverse transformation failed: The restored image is not close enough to the original."
 
 
 @pytest.mark.parametrize(
