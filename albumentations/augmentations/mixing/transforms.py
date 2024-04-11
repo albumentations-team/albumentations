@@ -160,7 +160,11 @@ class MixUp(ReferenceBasedTransform):
         return add_weighted(mask, mix_coef, mix_mask, 1 - mix_coef) if mix_mask is not None else mask
 
     def apply_to_global_label(
-        self, label: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any
+        self,
+        label: np.ndarray,
+        mix_data: ReferenceImage,
+        mix_coef: float,
+        **params: Any,
     ) -> np.ndarray:
         mix_label = mix_data.get("global_label")
         if mix_label is not None and label is not None:
@@ -172,7 +176,10 @@ class MixUp(ReferenceBasedTransform):
         raise NotImplementedError(msg)
 
     def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
+        self,
+        keypoints: Sequence[KeypointType],
+        *args: Any,
+        **params: Any,
     ) -> Sequence[KeypointType]:
         msg = "MixUp does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)

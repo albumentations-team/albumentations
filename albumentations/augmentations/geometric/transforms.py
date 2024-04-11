@@ -101,10 +101,12 @@ class ElasticTransform(DualTransform):
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[Union[int, float, List[int], List[float]]] = Field(
-            default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
+            default=None,
+            description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
         mask_value: Optional[Union[float, List[int], List[float]]] = Field(
-            default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks."
+            default=None,
+            description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.",
         )
         approximate: Annotated[bool, Field(default=False, description="Approximate displacement map smoothing.")]
         same_dxdy: Annotated[bool, Field(default=False, description="Use same shift for x and y.")]
@@ -135,7 +137,11 @@ class ElasticTransform(DualTransform):
         self.same_dxdy = same_dxdy
 
     def apply(
-        self, img: np.ndarray, random_state: Optional[int] = None, interpolation: int = cv2.INTER_LINEAR, **params: Any
+        self,
+        img: np.ndarray,
+        random_state: Optional[int] = None,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> np.ndarray:
         return F.elastic_transform(
             img,
@@ -165,7 +171,10 @@ class ElasticTransform(DualTransform):
         )
 
     def apply_to_bbox(
-        self, bbox: BoxInternalType, random_state: Optional[int] = None, **params: Any
+        self,
+        bbox: BoxInternalType,
+        random_state: Optional[int] = None,
+        **params: Any,
     ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
@@ -281,7 +290,14 @@ class Perspective(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         return F.perspective(
-            img, matrix, max_width, max_height, self.pad_val, self.pad_mode, self.keep_size, params["interpolation"]
+            img,
+            matrix,
+            max_width,
+            max_height,
+            self.pad_val,
+            self.pad_mode,
+            self.keep_size,
+            params["interpolation"],
         )
 
     def apply_to_bbox(
@@ -303,7 +319,13 @@ class Perspective(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         return F.perspective_keypoint(
-            keypoint, params["rows"], params["cols"], matrix, max_width, max_height, self.keep_size
+            keypoint,
+            params["rows"],
+            params["cols"],
+            matrix,
+            max_width,
+            max_height,
+            self.keep_size,
         )
 
     @property
@@ -525,17 +547,21 @@ class Affine(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         scale: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
-            default=None, description="Scaling factor or dictionary for independent axis scaling."
+            default=None,
+            description="Scaling factor or dictionary for independent axis scaling.",
         )
         translate_percent: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
-            default=None, description="Translation as a fraction of the image dimension."
+            default=None,
+            description="Translation as a fraction of the image dimension.",
         )
         translate_px: Optional[Union[ScaleIntType, Dict[str, Any]]] = Field(
-            default=None, description="Translation in pixels."
+            default=None,
+            description="Translation in pixels.",
         )
         rotate: Optional[ScaleFloatType] = Field(default=None, description="Rotation angle in degrees.")
         shear: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
-            default=None, description="Shear angle in degrees."
+            default=None,
+            description="Shear angle in degrees.",
         )
         interpolation: InterpolationType = cv2.INTER_LINEAR
         mask_interpolation: InterpolationType = cv2.INTER_NEAREST
@@ -613,12 +639,14 @@ class Affine(DualTransform):
 
     @staticmethod
     def _handle_dict_arg(
-        val: Union[float, Tuple[float, float], Dict[str, Any]], name: str, default: float = 1.0
+        val: Union[float, Tuple[float, float], Dict[str, Any]],
+        name: str,
+        default: float = 1.0,
     ) -> Dict[str, Any]:
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
-                    f'Expected {name} dictionary to contain at least key "x" or ' 'key "y". Found neither of them.'
+                    f'Expected {name} dictionary to contain at least key "x" or key "y". Found neither of them.',
                 )
             x = val.get("x", default)
             y = val.get("y", default)
@@ -635,7 +663,7 @@ class Affine(DualTransform):
             translate_px = 0
 
         if translate_percent is not None and translate_px is not None:
-            msg = "Expected either translate_percent or translate_px to be " "provided, " "but both were provided."
+            msg = "Expected either translate_percent or translate_px to be provided, but both were provided."
             raise ValueError(msg)
 
         if translate_percent is not None:
@@ -771,7 +799,8 @@ class Affine(DualTransform):
 
     @staticmethod
     def _compute_affine_warp_output_shape(
-        matrix: skimage.transform.ProjectiveTransform, input_shape: Sequence[int]
+        matrix: skimage.transform.ProjectiveTransform,
+        input_shape: Sequence[int],
     ) -> Tuple[skimage.transform.ProjectiveTransform, Sequence[int]]:
         height, width = input_shape[:2]
 
@@ -1003,10 +1032,12 @@ class PiecewiseAffine(DualTransform):
         cval_mask: int = Field(default=0, description="Constant value used for newly created mask pixels.")
         mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant"
         absolute_scale: bool = Field(
-            default=False, description="Whether scale is an absolute value rather than relative."
+            default=False,
+            description="Whether scale is an absolute value rather than relative.",
         )
         keypoints_threshold: float = Field(
-            default=0.01, description="Threshold for conversion from distance maps to keypoints."
+            default=0.01,
+            description="Threshold for conversion from distance maps to keypoints.",
         )
 
         @field_validator("nb_rows", "nb_cols")
@@ -1117,12 +1148,18 @@ class PiecewiseAffine(DualTransform):
         }
 
     def apply(
-        self, img: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params: Any
+        self,
+        img: np.ndarray,
+        matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
+        **params: Any,
     ) -> np.ndarray:
         return F.piecewise_affine(img, matrix, cast(int, self.interpolation), self.mode, self.cval)
 
     def apply_to_mask(
-        self, mask: np.ndarray, matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None, **params: Any
+        self,
+        mask: np.ndarray,
+        matrix: Optional[skimage.transform.PiecewiseAffineTransform] = None,
+        **params: Any,
     ) -> np.ndarray:
         return F.piecewise_affine(mask, matrix, self.mask_interpolation, self.mode, self.cval_mask)
 
@@ -1203,16 +1240,21 @@ class PadIfNeeded(DualTransform):
         min_height: Optional[int] = Field(default=None, ge=1, description="Minimal result image height.")
         min_width: Optional[int] = Field(default=None, ge=1, description="Minimal result image width.")
         pad_height_divisor: Optional[int] = Field(
-            default=None, ge=1, description="Ensures image height is divisible by this value."
+            default=None,
+            ge=1,
+            description="Ensures image height is divisible by this value.",
         )
         pad_width_divisor: Optional[int] = Field(
-            default=None, ge=1, description="Ensures image width is divisible by this value."
+            default=None,
+            ge=1,
+            description="Ensures image width is divisible by this value.",
         )
         position: str = Field(default="center", description="Position of the padded image.")
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(default=None, description="Value for border if BORDER_CONSTANT is used.")
         mask_value: Optional[ColorType] = Field(
-            default=None, description="Value for mask border if BORDER_CONSTANT is used."
+            default=None,
+            description="Value for mask border if BORDER_CONSTANT is used.",
         )
         p: ProbabilityType = 1.0
 
@@ -1283,7 +1325,10 @@ class PadIfNeeded(DualTransform):
             w_pad_right = pad_cols - w_pad_left
 
         h_pad_top, h_pad_bottom, w_pad_left, w_pad_right = self.__update_position_params(
-            h_top=h_pad_top, h_bottom=h_pad_bottom, w_left=w_pad_left, w_right=w_pad_right
+            h_top=h_pad_top,
+            h_bottom=h_pad_bottom,
+            w_left=w_pad_left,
+            w_right=w_pad_right,
         )
 
         params.update(
@@ -1292,7 +1337,7 @@ class PadIfNeeded(DualTransform):
                 "pad_bottom": h_pad_bottom,
                 "pad_left": w_pad_left,
                 "pad_right": w_pad_right,
-            }
+            },
         )
         return params
 
@@ -1374,7 +1419,11 @@ class PadIfNeeded(DualTransform):
         )
 
     def __update_position_params(
-        self, h_top: int, h_bottom: int, w_left: int, w_right: int
+        self,
+        h_top: int,
+        h_bottom: int,
+        w_left: int,
+        w_right: int,
     ) -> Tuple[int, int, int, int]:
         if self.position == PadIfNeeded.PositionType.TOP_LEFT:
             h_bottom += h_top
@@ -1574,10 +1623,12 @@ class OpticalDistortion(DualTransform):
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(
-            default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
+            default=None,
+            description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
         mask_value: Optional[ColorType] = Field(
-            default=None, description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT."
+            default=None,
+            description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT.",
         )
 
     def __init__(
@@ -1614,7 +1665,12 @@ class OpticalDistortion(DualTransform):
         return F.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
 
     def apply_to_bbox(
-        self, bbox: BoxInternalType, k: int = 0, dx: int = 0, dy: int = 0, **params: Any
+        self,
+        bbox: BoxInternalType,
+        k: int = 0,
+        dx: int = 0,
+        dy: int = 0,
+        **params: Any,
     ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
@@ -1678,13 +1734,16 @@ class GridDistortion(DualTransform):
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: Optional[ColorType] = Field(
-            default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT."
+            default=None,
+            description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
         mask_value: Optional[ColorType] = Field(
-            default=None, description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT."
+            default=None,
+            description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT.",
         )
         normalized: bool = Field(
-            default=False, description="If true, distortion will be normalized to not go outside the image."
+            default=False,
+            description="If true, distortion will be normalized to not go outside the image.",
         )
 
         @field_validator("distort_limit")
@@ -1728,14 +1787,28 @@ class GridDistortion(DualTransform):
         return F.grid_distortion(img, self.num_steps, stepsx, stepsy, interpolation, self.border_mode, self.value)
 
     def apply_to_mask(
-        self, mask: np.ndarray, stepsx: Tuple[()] = (), stepsy: Tuple[()] = (), **params: Any
+        self,
+        mask: np.ndarray,
+        stepsx: Tuple[()] = (),
+        stepsy: Tuple[()] = (),
+        **params: Any,
     ) -> np.ndarray:
         return F.grid_distortion(
-            mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+            mask,
+            self.num_steps,
+            stepsx,
+            stepsy,
+            cv2.INTER_NEAREST,
+            self.border_mode,
+            self.mask_value,
         )
 
     def apply_to_bbox(
-        self, bbox: BoxInternalType, stepsx: Tuple[()] = (), stepsy: Tuple[()] = (), **params: Any
+        self,
+        bbox: BoxInternalType,
+        stepsx: Tuple[()] = (),
+        stepsy: Tuple[()] = (),
+        **params: Any,
     ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         mask = np.zeros((rows, cols), dtype=np.uint8)
@@ -1744,7 +1817,13 @@ class GridDistortion(DualTransform):
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
         mask = F.grid_distortion(
-            mask, self.num_steps, stepsx, stepsy, cv2.INTER_NEAREST, self.border_mode, self.mask_value
+            mask,
+            self.num_steps,
+            stepsx,
+            stepsy,
+            cv2.INTER_NEAREST,
+            self.border_mode,
+            self.mask_value,
         )
         bbox_returned = bbox_from_mask(mask)
         return cast(BoxInternalType, F.normalize_bbox(bbox_returned, rows, cols))

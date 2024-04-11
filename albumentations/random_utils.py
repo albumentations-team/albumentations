@@ -33,7 +33,11 @@ def beta(
 
 
 def rand(
-    d0: NumType, d1: NumType, *more: Any, random_state: Optional[np.random.RandomState] = None, **kwargs: Any
+    d0: NumType,
+    d1: NumType,
+    *more: Any,
+    random_state: Optional[np.random.RandomState] = None,
+    **kwargs: Any,
 ) -> np.ndarray:
     if random_state is None:
         random_state = get_random_state()
@@ -41,7 +45,11 @@ def rand(
 
 
 def randn(
-    d0: NumType, d1: NumType, *more: Any, random_state: Optional[np.random.RandomState] = None, **kwargs: Any
+    d0: NumType,
+    d1: NumType,
+    *more: Any,
+    random_state: Optional[np.random.RandomState] = None,
+    **kwargs: Any,
 ) -> np.ndarray:
     if random_state is None:
         random_state = get_random_state()
@@ -60,7 +68,9 @@ def normal(
 
 
 def poisson(
-    lam: NumType = 1.0, size: Optional[SizeType] = None, random_state: Optional[np.random.RandomState] = None
+    lam: NumType = 1.0,
+    size: Optional[SizeType] = None,
+    random_state: Optional[np.random.RandomState] = None,
 ) -> IntNumType:
     if random_state is None:
         random_state = get_random_state()
@@ -68,7 +78,8 @@ def poisson(
 
 
 def permutation(
-    x: Union[int, Sequence[float], np.ndarray], random_state: Optional[np.random.RandomState] = None
+    x: Union[int, Sequence[float], np.ndarray],
+    random_state: Optional[np.random.RandomState] = None,
 ) -> np.ndarray:
     if random_state is None:
         random_state = get_random_state()

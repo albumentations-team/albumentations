@@ -69,15 +69,15 @@ class CoarseDropout(DualTransform):
 
             if not 0 < self.min_height <= self.max_height:
                 raise ValueError(
-                    f"Invalid combination of min_height and max_height. Got: {[self.min_height, self.max_height]}"
+                    f"Invalid combination of min_height and max_height. Got: {[self.min_height, self.max_height]}",
                 )
             if not 0 < self.min_width <= self.max_width:
                 raise ValueError(
-                    f"Invalid combination of min_width and max_width. Got: {[self.min_width, self.max_width]}"
+                    f"Invalid combination of min_width and max_width. Got: {[self.min_width, self.max_width]}",
                 )
             if not 0 < self.min_holes <= self.max_holes:
                 raise ValueError(
-                    f"Invalid combination of min_holes and max_holes. Got: {[self.min_holes, self.max_holes]}"
+                    f"Invalid combination of min_holes and max_holes. Got: {[self.min_holes, self.max_holes]}",
                 )
             return self
 
@@ -136,7 +136,7 @@ class CoarseDropout(DualTransform):
                     isinstance(self.min_width, int),
                     isinstance(self.max_height, int),
                     isinstance(self.max_width, int),
-                ]
+                ],
             ):
                 hole_height = random.randint(int(self.min_height), int(self.max_height))
                 hole_width = random.randint(int(self.min_width), int(self.max_width))
@@ -146,7 +146,7 @@ class CoarseDropout(DualTransform):
                     isinstance(self.min_width, float),
                     isinstance(self.max_height, float),
                     isinstance(self.max_width, float),
-                ]
+                ],
             ):
                 hole_height = int(height * random.uniform(self.min_height, self.max_height))
                 hole_width = int(width * random.uniform(self.min_width, self.max_width))
@@ -160,7 +160,7 @@ class CoarseDropout(DualTransform):
                         type(self.max_width),
                         type(self.min_height),
                         type(self.max_height),
-                    ]
+                    ],
                 )
                 raise ValueError(msg)
 
@@ -177,7 +177,10 @@ class CoarseDropout(DualTransform):
         return ["image"]
 
     def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any
+        self,
+        keypoints: Sequence[KeypointType],
+        holes: Iterable[Tuple[int, int, int, int]] = (),
+        **params: Any,
     ) -> List[KeypointType]:
         return [keypoint for keypoint in keypoints if not any(keypoint_in_hole(keypoint, hole) for hole in holes)]
 

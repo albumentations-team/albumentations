@@ -54,7 +54,7 @@ class BaseCompose(Serializable):
     def __init__(self, transforms: TransformsSeqType, p: float):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
-                "transforms is single transform, but a sequence is expected! Transform will be wrapped into list."
+                "transforms is single transform, but a sequence is expected! Transform will be wrapped into list.",
             )
             transforms = [transforms]
 
@@ -124,7 +124,7 @@ class BaseCompose(Serializable):
                 if k in self._additional_targets and v != self._additional_targets[k]:
                     raise ValueError(
                         f"Trying to overwrite existed additional targets. "
-                        f"Key={k} Exists={self._additional_targets[k]} New value: {v}"
+                        f"Key={k} Exists={self._additional_targets[k]} New value: {v}",
                     )
                 self._additional_targets.update(additional_targets)
             for t in self.transforms:
@@ -260,7 +260,7 @@ class Compose(BaseCompose):
                 "keypoint_params": (keypoints_processor.params.to_dict_private() if keypoints_processor else None),
                 "additional_targets": self.additional_targets,
                 "is_check_shapes": self.is_check_shapes,
-            }
+            },
         )
         return dictionary
 
@@ -275,7 +275,7 @@ class Compose(BaseCompose):
                 "additional_targets": self.additional_targets,
                 "params": None,
                 "is_check_shapes": self.is_check_shapes,
-            }
+            },
         )
         return dictionary
 
@@ -483,7 +483,8 @@ class ReplayCompose(Compose):
 
     @staticmethod
     def _restore_for_replay(
-        transform_dict: Dict[str, Any], lambda_transforms: Optional[Dict[str, Any]] = None
+        transform_dict: Dict[str, Any],
+        lambda_transforms: Optional[Dict[str, Any]] = None,
     ) -> TransformType:
         """Args:
         lambda_transforms (dict): A dictionary that contains lambda transforms, that

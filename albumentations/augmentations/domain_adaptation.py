@@ -191,7 +191,11 @@ class FDA(ImageOnlyTransform):
         self.beta_limit = cast(Tuple[float, float], beta_limit)
 
     def apply(
-        self, img: np.ndarray, target_image: Optional[np.ndarray] = None, beta: float = 0.1, **params: Any
+        self,
+        img: np.ndarray,
+        target_image: Optional[np.ndarray] = None,
+        beta: float = 0.1,
+        **params: Any,
     ) -> np.ndarray:
         return fourier_domain_adaptation(img, target_image, beta)
 
@@ -287,7 +291,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         if is_grayscale_image(img) or is_multispectral_image(img):
             raise ValueError(
                 f"Unexpected image shape: expected 3 dimensions, got {len(img.shape)}."
-                f"Is it a grayscale or multispectral image? It's not supported for now."
+                f"Is it a grayscale or multispectral image? It's not supported for now.",
             )
 
     def ensure_uint8(self, img: np.ndarray) -> Tuple[np.ndarray, bool]:

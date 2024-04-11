@@ -106,7 +106,8 @@ class MotionBlur(Blur):
             description="If set to true creates non-shifted kernels only, otherwise creates randomly shifted kernels.",
         )
         blur_limit: ScaleIntType = Field(
-            default=(3, 7), description="Maximum kernel size for blurring the input image."
+            default=(3, 7),
+            description="Maximum kernel size for blurring the input image.",
         )
 
         @model_validator(mode="after")
@@ -238,7 +239,7 @@ class GaussianBlur(ImageOnlyTransform):
                 self.blur_limit = 3, max(3, self.blur_limit[1])
                 warnings.warn(
                     "blur_limit and sigma_limit minimum value can not be both equal to 0. "
-                    "blur_limit minimum value changed to 3."
+                    "blur_limit minimum value changed to 3.",
                 )
 
             if isinstance(self.blur_limit, tuple):

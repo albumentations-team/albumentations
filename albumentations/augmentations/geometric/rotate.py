@@ -70,7 +70,8 @@ class RotateInitSchema(BaseTransformInitSchema):
 
     value: Optional[ColorType] = Field(default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT.")
     mask_value: Optional[ColorType] = Field(
-        default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks."
+        default=None,
+        description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.",
     )
 
 
@@ -108,7 +109,8 @@ class Rotate(DualTransform):
     class InitSchema(RotateInitSchema):
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
         crop_border: bool = Field(
-            default=False, description="If True, makes a largest possible crop within the rotated image."
+            default=False,
+            description="If True, makes a largest possible crop within the rotated image.",
         )
 
     def __init__(

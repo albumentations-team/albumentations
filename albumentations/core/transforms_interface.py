@@ -88,7 +88,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 if self.targets_as_params:
                     warn(
                         self.get_class_fullname() + " could work incorrectly in ReplayMode for other input data"
-                        " because its' params depend on targets."
+                        " because its' params depend on targets.",
                     )
                 kwargs[self.save_key][id(self)] = deepcopy(params)
             return self.apply_with_params(params, **kwargs)
@@ -176,7 +176,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         raise NotImplementedError(
-            "Method get_params_dependent_on_targets is not implemented in class " + self.__class__.__name__
+            "Method get_params_dependent_on_targets is not implemented in class " + self.__class__.__name__,
         )
 
     @classmethod
@@ -276,7 +276,10 @@ class DualTransform(BasicTransform):
         ]
 
     def apply_to_keypoints(
-        self, keypoints: Sequence[KeypointType], *args: Any, **params: Any
+        self,
+        keypoints: Sequence[KeypointType],
+        *args: Any,
+        **params: Any,
     ) -> Sequence[KeypointType]:
         return [
             self.apply_to_keypoint(cast(KeypointInternalType, tuple(keypoint[:4])), **params) + tuple(keypoint[4:])
