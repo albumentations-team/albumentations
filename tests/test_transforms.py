@@ -4,7 +4,7 @@ from typing import Optional, Tuple, Type
 
 import cv2
 import numpy as np
-from pydantic import ValidationError
+
 import pytest
 import warnings
 from torchvision import transforms as torch_transforms
@@ -47,24 +47,6 @@ def test_rotate_crop_border():
     expected_size = int(np.round(100 / np.sqrt(2)))
     assert aug_img.shape[0] == expected_size
     assert (aug_img == border_value).sum() == 0
-
-
-@pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
-def test_shift_scale_rotate_interpolation(interpolation):
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-    mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    aug = A.ShiftScaleRotate(
-        shift_limit=(0.2, 0.2), scale_limit=(1.1, 1.1), rotate_limit=(45, 45), interpolation=interpolation, p=1
-    )
-    data = aug(image=image, mask=mask)
-    expected_image = FGeometric.shift_scale_rotate(
-        image, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=interpolation, border_mode=cv2.BORDER_REFLECT_101
-    )
-    expected_mask = FGeometric.shift_scale_rotate(
-        mask, angle=45, scale=2.1, dx=0.2, dy=0.2, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
-    )
-    assert np.array_equal(data["image"], expected_image)
-    assert np.array_equal(data["mask"], expected_mask)
 
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
@@ -860,19 +842,6 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
 
             _max = np.abs(res1.astype(np.int32) - res2).max()
             assert _max <= 10, f"Max value: {_max}"
-
-
-def test_shift_scale_separate_shift_x_shift_y(image, mask):
-    aug = A.ShiftScaleRotate(shift_limit=(0.3, 0.3), shift_limit_y=(0.4, 0.4), scale_limit=0, rotate_limit=0, p=1)
-    data = aug(image=image, mask=mask)
-    expected_image = FGeometric.shift_scale_rotate(
-        image, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101
-    )
-    expected_mask = FGeometric.shift_scale_rotate(
-        mask, angle=0, scale=1, dx=0.3, dy=0.4, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_REFLECT_101
-    )
-    assert np.array_equal(data["image"], expected_image)
-    assert np.array_equal(data["mask"], expected_mask)
 
 
 @pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])

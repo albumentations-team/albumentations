@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import pytest
 from numpy.testing import assert_array_almost_equal_nulp, assert_almost_equal
+import skimage
 
 import albumentations as A
 import albumentations.augmentations.functional as F
@@ -167,17 +168,39 @@ def test_normalize_float():
     assert_array_almost_equal_nulp(normalized, expected)
 
 
-def test_compare_rotate_and_shift_scale_rotate(image):
-    rotated_img_1 = FGeometric.rotate(image, angle=60)
-    rotated_img_2 = FGeometric.shift_scale_rotate(image, angle=60, scale=1, dx=0, dy=0)
-    assert np.array_equal(rotated_img_1, rotated_img_2)
+def generate_rotation_matrix(image: np.ndarray, angle: float) -> np.ndarray:
+    """
+    Generates a rotation matrix for the given angle with rotation around the center of the image.
+    """
+    height, width = image.shape[:2]
+    center = (width / 2 - 0.5, height / 2 - 0.5)
+    return cv2.getRotationMatrix2D(center, angle, 1.0)
 
+@pytest.mark.parametrize("image_type", ['image', 'float_image'])
+def test_compare_rotate_and_affine_with_fixtures(request, image_type):
+    test_image = request.getfixturevalue(image_type)
+    # Generate the rotation matrix for a 60-degree rotation around the image center
+    rotation_matrix = generate_rotation_matrix(test_image, 60)
 
-def test_compare_rotate_float_and_shift_scale_rotate_float(float_image):
-    rotated_img_1 = FGeometric.rotate(float_image, angle=60)
-    rotated_img_2 = FGeometric.shift_scale_rotate(float_image, angle=60, scale=1, dx=0, dy=0)
-    assert np.array_equal(rotated_img_1, rotated_img_2)
+    # Apply rotation using FGeometric.rotate
+    rotated_img_1 = FGeometric.rotate(test_image, angle=60, border_mode = cv2.BORDER_CONSTANT, value = 0)
 
+    # Convert 2x3 cv2 matrix to 3x3 for skimage's ProjectiveTransform
+    full_matrix = np.vstack([rotation_matrix, [0, 0, 1]])
+    projective_transform = skimage.transform.ProjectiveTransform(matrix=full_matrix)
+
+    # Apply rotation using warp_affine
+    rotated_img_2 = FGeometric.warp_affine(
+        img=test_image,
+        matrix=projective_transform,
+        interpolation=cv2.INTER_LINEAR,
+        cval=0,
+        mode=cv2.BORDER_CONSTANT,
+        output_shape=test_image.shape[:2]
+    )
+
+    # Assert that the two rotated images are equal
+    assert np.array_equal(rotated_img_1, rotated_img_2), "Rotated images should be identical."
 
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_center_crop(target):
@@ -276,119 +299,6 @@ def test_pad_float(target):
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     padded_img = FGeometric.pad(img, min_height=4, min_width=4)
     assert_array_almost_equal_nulp(padded_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_rotate_from_shift_scale_rotate(target):
-    img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[4, 8, 12, 16], [3, 7, 11, 15], [2, 6, 10, 14], [1, 5, 9, 13]], dtype=np.uint8)
-
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    rotated_img = FGeometric.shift_scale_rotate(
-        img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert np.array_equal(rotated_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_rotate_float_from_shift_scale_rotate(target):
-    img = np.array(
-        [[0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08], [0.09, 0.10, 0.11, 0.12], [0.13, 0.14, 0.15, 0.16]],
-        dtype=np.float32,
-    )
-    expected = np.array(
-        [[0.04, 0.08, 0.12, 0.16], [0.03, 0.07, 0.11, 0.15], [0.02, 0.06, 0.10, 0.14], [0.01, 0.05, 0.09, 0.13]],
-        dtype=np.float32,
-    )
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    rotated_img = FGeometric.shift_scale_rotate(
-        img, angle=90, scale=1, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert_array_almost_equal_nulp(rotated_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_scale_from_shift_scale_rotate(target):
-    img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[6, 6, 7, 7], [6, 6, 7, 7], [10, 10, 11, 11], [10, 10, 11, 11]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled_img = FGeometric.shift_scale_rotate(
-        img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert np.array_equal(scaled_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_scale_float_from_shift_scale_rotate(target):
-    img = np.array(
-        [[0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08], [0.09, 0.10, 0.11, 0.12], [0.13, 0.14, 0.15, 0.16]],
-        dtype=np.float32,
-    )
-    expected = np.array(
-        [[0.06, 0.06, 0.07, 0.07], [0.06, 0.06, 0.07, 0.07], [0.10, 0.10, 0.11, 0.11], [0.10, 0.10, 0.11, 0.11]],
-        dtype=np.float32,
-    )
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled_img = FGeometric.shift_scale_rotate(
-        img, angle=0, scale=2, dx=0, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert_array_almost_equal_nulp(scaled_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_shift_x_from_shift_scale_rotate(target):
-    img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[0, 0, 1, 2], [0, 0, 5, 6], [0, 0, 9, 10], [0, 0, 13, 14]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_x_img = FGeometric.shift_scale_rotate(
-        img, angle=0, scale=1, dx=0.5, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert np.array_equal(shifted_along_x_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_shift_x_float_from_shift_scale_rotate(target):
-    img = np.array(
-        [[0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08], [0.09, 0.10, 0.11, 0.12], [0.13, 0.14, 0.15, 0.16]],
-        dtype=np.float32,
-    )
-    expected = np.array(
-        [[0.00, 0.00, 0.01, 0.02], [0.00, 0.00, 0.05, 0.06], [0.00, 0.00, 0.09, 0.10], [0.00, 0.00, 0.13, 0.14]],
-        dtype=np.float32,
-    )
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_x_img = FGeometric.shift_scale_rotate(
-        img, angle=0, scale=1, dx=0.5, dy=0, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert_array_almost_equal_nulp(shifted_along_x_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_shift_y_from_shift_scale_rotate(target):
-    img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[0, 0, 0, 0], [0, 0, 0, 0], [1, 2, 3, 4], [5, 6, 7, 8]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_y_img = FGeometric.shift_scale_rotate(
-        img, angle=0, scale=1, dx=0, dy=0.5, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert np.array_equal(shifted_along_y_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_shift_y_float_from_shift_scale_rotate(target):
-    img = np.array(
-        [[0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08], [0.09, 0.10, 0.11, 0.12], [0.13, 0.14, 0.15, 0.16]],
-        dtype=np.float32,
-    )
-    expected = np.array(
-        [[0.00, 0.00, 0.00, 0.00], [0.00, 0.00, 0.00, 0.00], [0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08]],
-        dtype=np.float32,
-    )
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    shifted_along_y_img = FGeometric.shift_scale_rotate(
-        img, angle=0, scale=1, dx=0, dy=0.5, interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT
-    )
-    assert_array_almost_equal_nulp(shifted_along_y_img, expected)
 
 
 @pytest.mark.parametrize(
