@@ -4,6 +4,8 @@ import cv2
 
 from pydantic import BaseModel, ValidationError
 import albumentations as A
+from inspect import signature, Parameter
+from albumentations.core.transforms_interface import ImageOnlyTransform
 
 from albumentations.core.pydantic import (
     BorderModeType,
@@ -234,7 +236,7 @@ def test_my_transform_valid_initialization():
 
 # Test initialization with missing required parameters
 def test_my_transform_missing_required_param():
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         MyTransform()
 
 # Test initialization with invalid types
@@ -243,7 +245,7 @@ def test_my_transform_missing_required_param():
     (10, "not a float"),  # invalid param_b
 ])
 def test_my_transform_invalid_types(invalid_a, invalid_b):
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         MyTransform(param_a=invalid_a, param_b=invalid_b)
 
 
@@ -269,3 +271,36 @@ def test_transform_without_schema():
     transform = SimpleTransform(param_a="should not fail due to type annotations not enforcing type checks at runtime")
     assert transform.param_a == "should not fail due to type annotations not enforcing type checks at runtime", \
         "Parameter accepted without type validation"
+
+@pytest.mark.parametrize("invalid_a, invalid_b", [
+    ("not an int", 2.0),  # invalid param_a
+    (10, "not a float"),  # invalid param_b
+])
+def test_my_transform_invalid_types(invalid_a, invalid_b):
+    with pytest.raises(ValidationError):
+        MyTransform(param_a=invalid_a, param_b=invalid_b)
+
+
+class CustomImageTransform(ImageOnlyTransform):
+    def __init__(self, custom_param: int, always_apply: bool = False, p: float = 0.5):
+        super().__init__(always_apply=always_apply, p=p)
+        self.custom_param = custom_param
+
+
+def test_custom_image_transform_signature():
+    expected_signature = signature(CustomImageTransform)
+    expected_params = expected_signature.parameters
+
+    assert 'custom_param' in expected_params
+    assert expected_params['custom_param'] == Parameter('custom_param', kind=Parameter.POSITIONAL_OR_KEYWORD, default=Parameter.empty, annotation=int)
+
+    assert 'always_apply' in expected_params
+    assert expected_params['always_apply'] == Parameter('always_apply', kind=Parameter.POSITIONAL_OR_KEYWORD, default=False, annotation=bool)
+
+    assert 'p' in expected_params
+    assert expected_params['p'] == Parameter('p', kind=Parameter.POSITIONAL_OR_KEYWORD, default=0.5, annotation=float)
+
+    # Ensure the correct defaults and types
+    assert expected_params['always_apply'].default is False
+    assert expected_params['p'].default == 0.5
+    assert expected_params['custom_param'].annotation is int

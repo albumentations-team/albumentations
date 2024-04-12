@@ -12,6 +12,8 @@ class ValidatedTransformMeta(type):
                 msg = "__init__ not found in class definition"
                 raise ValueError(msg)
 
+            original_sig = signature(original_init)
+
             def custom_init(self: Any, *args: Any, **kwargs: Any) -> None:
                 init_params = signature(original_init).parameters
                 param_names = list(init_params.keys())[1:]  # Exclude 'self'
@@ -28,6 +30,10 @@ class ValidatedTransformMeta(type):
                 validated_kwargs = config.model_dump()
 
                 original_init(self, **validated_kwargs)
+
+            # Preserve the original signature and docstring
+            custom_init.__signature__ = original_sig  # type: ignore[attr-defined]
+            custom_init.__doc__ = original_init.__doc__
 
             # Rename __init__ to custom_init to avoid the N807 warning
             dct["__init__"] = custom_init
