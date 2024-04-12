@@ -1139,7 +1139,10 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
     (20, 5, 101),
     (7, 3, 42),
 ])
-def test_consistent_shuffling(size, divisions, random_state):
+def test_different_seeds_produce_different_shuffles(size, divisions):
+    result1 = F.generate_shuffled_splits(size, divisions, 1)
+    result2 = F.generate_shuffled_splits(size, divisions, 2)
+    assert not np.array_equal(result1, result2), "Different seeds should produce different shuffles"
     result1 = F.generate_shuffled_splits(size, divisions, random_state)
     assert len(result1) == divisions + 1
     result2 = F.generate_shuffled_splits(size, divisions, random_state)
