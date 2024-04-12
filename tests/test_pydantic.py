@@ -245,7 +245,7 @@ def test_my_transform_missing_required_param():
     (10, "not a float"),  # invalid param_b
 ])
 def test_my_transform_invalid_types(invalid_a, invalid_b):
-    with pytest.raises(ValidationError):
+    with pytest.raises(ValueError):
         MyTransform(param_a=invalid_a, param_b=invalid_b)
 
 
