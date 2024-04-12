@@ -1524,9 +1524,7 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
         >>> almost_equal_intervals(16, 4)
         array([4, 4, 4, 4])  # Splits 16 into four equal parts
     """
-    part_size = n // parts
-    remainder = n % parts
-
+    part_size, remainder = divmod(n, parts)
     # Create an array with the base part size and adjust the first `remainder` parts by adding 1
     return np.array([part_size + 1 if i < remainder else part_size for i in range(parts)])
 
