@@ -192,14 +192,14 @@ class RandomGridShuffle(DualTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
         height, weight = params["image"].shape[:2]
-        random_state = random_utils.randint(0, 65536)
-        original_tiles = F.split_uniform_grid(
-            (height, weight),
-            self.grid,
-            random_state=random_state,
-        )
-        shape_groups = F.create_shape_groups(original_tiles)
-        mapping = F.shuffle_tiles_within_shape_groups(shape_groups, random_state=random_state)
+random_state = random_utils.get_random_state()
+original_tiles = F.split_uniform_grid(
+    (height, weight),
+    self.grid,
+    random_state=random_state,
+)
+shape_groups = F.create_shape_groups(original_tiles)
+mapping = F.shuffle_tiles_within_shape_groups(shape_groups, random_state=random_state)
 
         return {"tiles": original_tiles, "mapping": mapping}
 
