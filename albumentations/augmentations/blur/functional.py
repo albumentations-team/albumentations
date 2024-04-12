@@ -43,7 +43,12 @@ def gaussian_blur(img: np.ndarray, ksize: int, sigma: float = 0) -> np.ndarray:
 
 @preserve_shape
 def glass_blur(
-    img: np.ndarray, sigma: float, max_delta: int, iterations: int, dxy: np.ndarray, mode: str
+    img: np.ndarray,
+    sigma: float,
+    max_delta: int,
+    iterations: int,
+    dxy: np.ndarray,
+    mode: str,
 ) -> np.ndarray:
     x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
@@ -64,7 +69,7 @@ def glass_blur(
                 range(iterations),
                 range(img.shape[0] - max_delta, max_delta, -1),
                 range(img.shape[1] - max_delta, max_delta, -1),
-            )
+            ),
         ):
             idx = ind if ind < len(dxy) else ind % len(dxy)
             dy = dxy[idx, i, 0]

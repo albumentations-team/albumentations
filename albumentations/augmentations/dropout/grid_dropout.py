@@ -94,7 +94,10 @@ class GridDropout(DualTransform):
         return F.cutout(img, holes, self.fill_value)
 
     def apply_to_mask(
-        self, mask: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any
+        self,
+        mask: np.ndarray,
+        holes: Iterable[Tuple[int, int, int, int]] = (),
+        **params: Any,
     ) -> np.ndarray:
         if self.mask_fill_value is None:
             return mask
@@ -156,7 +159,11 @@ class GridDropout(DualTransform):
         return hole_width, hole_height
 
     def _calculate_shifts(
-        self, unit_width: int, unit_height: int, hole_width: int, hole_height: int
+        self,
+        unit_width: int,
+        unit_height: int,
+        hole_width: int,
+        hole_height: int,
     ) -> Tuple[int, int]:
         """Calculates the shifts for the grid start."""
         if self.random_offset:

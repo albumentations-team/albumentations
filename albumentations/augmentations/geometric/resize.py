@@ -70,7 +70,11 @@ class RandomScale(DualTransform):
         return {"scale": random.uniform(self.scale_limit[0], self.scale_limit[1])}
 
     def apply(
-        self, img: np.ndarray, scale: float = 0, interpolation: int = cv2.INTER_LINEAR, **params: Any
+        self,
+        img: np.ndarray,
+        scale: float = 0,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> np.ndarray:
         return F.scale(img, scale, interpolation)
 
@@ -79,7 +83,10 @@ class RandomScale(DualTransform):
         return bbox
 
     def apply_to_keypoint(
-        self, keypoint: KeypointInternalType, scale: float = 0, **params: Any
+        self,
+        keypoint: KeypointInternalType,
+        scale: float = 0,
+        **params: Any,
     ) -> KeypointInternalType:
         return F.keypoint_scale(keypoint, scale, scale)
 
@@ -89,7 +96,8 @@ class RandomScale(DualTransform):
 
 class MaxSizeInitSchema(BaseTransformInitSchema):
     max_size: Union[int, List[int]] = Field(
-        default=1024, description="Maximum size of the smallest side of the image after the transformation."
+        default=1024,
+        description="Maximum size of the smallest side of the image after the transformation.",
     )
     interpolation: InterpolationType = cv2.INTER_LINEAR
     p: ProbabilityType = 1
@@ -139,7 +147,11 @@ class LongestMaxSize(DualTransform):
         self.max_size = max_size
 
     def apply(
-        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params: Any
+        self,
+        img: np.ndarray,
+        max_size: int = 1024,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> np.ndarray:
         return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
@@ -148,7 +160,10 @@ class LongestMaxSize(DualTransform):
         return bbox
 
     def apply_to_keypoint(
-        self, keypoint: KeypointInternalType, max_size: int = 1024, **params: Any
+        self,
+        keypoint: KeypointInternalType,
+        max_size: int = 1024,
+        **params: Any,
     ) -> KeypointInternalType:
         height = params["rows"]
         width = params["cols"]
@@ -197,7 +212,11 @@ class SmallestMaxSize(DualTransform):
         self.max_size = max_size
 
     def apply(
-        self, img: np.ndarray, max_size: int = 1024, interpolation: int = cv2.INTER_LINEAR, **params: Any
+        self,
+        img: np.ndarray,
+        max_size: int = 1024,
+        interpolation: int = cv2.INTER_LINEAR,
+        **params: Any,
     ) -> np.ndarray:
         return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
@@ -205,7 +224,10 @@ class SmallestMaxSize(DualTransform):
         return bbox
 
     def apply_to_keypoint(
-        self, keypoint: KeypointInternalType, max_size: int = 1024, **params: Any
+        self,
+        keypoint: KeypointInternalType,
+        max_size: int = 1024,
+        **params: Any,
     ) -> KeypointInternalType:
         height = params["rows"]
         width = params["cols"]
@@ -248,7 +270,12 @@ class Resize(DualTransform):
         p: ProbabilityType = 1
 
     def __init__(
-        self, height: int, width: int, interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1
+        self,
+        height: int,
+        width: int,
+        interpolation: int = cv2.INTER_LINEAR,
+        always_apply: bool = False,
+        p: float = 1,
     ):
         super().__init__(always_apply, p)
         self.height = height

@@ -84,7 +84,7 @@ class BboxParams(Params):
                 "min_width": self.min_width,
                 "min_height": self.min_height,
                 "check_each_transform": self.check_each_transform,
-            }
+            },
         )
         return data
 
@@ -293,7 +293,11 @@ def filter_bboxes_by_visibility(
 
 
 def convert_bbox_to_albumentations(
-    bbox: BoxType, source_format: str, rows: int, cols: int, check_validity: bool = False
+    bbox: BoxType,
+    source_format: str,
+    rows: int,
+    cols: int,
+    check_validity: bool = False,
 ) -> BoxType:
     """Convert a bounding box from a format specified in `source_format` to the format used by albumentations:
     normalized coordinates of top-left and bottom-right corners of the bounding box in a form of
@@ -322,7 +326,7 @@ def convert_bbox_to_albumentations(
     """
     if source_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
-            f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
+            f"Unknown source_format {source_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'",
         )
 
     if source_format == "coco":
@@ -356,7 +360,11 @@ def convert_bbox_to_albumentations(
 
 
 def convert_bbox_from_albumentations(
-    bbox: BoxType, target_format: str, rows: int, cols: int, check_validity: bool = False
+    bbox: BoxType,
+    target_format: str,
+    rows: int,
+    cols: int,
+    check_validity: bool = False,
 ) -> BoxType:
     """Convert a bounding box from the format used by albumentations to a format, specified in `target_format`.
 
@@ -381,7 +389,7 @@ def convert_bbox_from_albumentations(
     """
     if target_format not in {"coco", "pascal_voc", "yolo"}:
         raise ValueError(
-            f"Unknown target_format {target_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'"
+            f"Unknown target_format {target_format}. Supported formats are: 'coco', 'pascal_voc' and 'yolo'",
         )
     if check_validity:
         check_bbox(bbox)
@@ -404,14 +412,22 @@ def convert_bbox_from_albumentations(
 
 
 def convert_bboxes_to_albumentations(
-    bboxes: Sequence[BoxType], source_format: str, rows: int, cols: int, check_validity: bool = False
+    bboxes: Sequence[BoxType],
+    source_format: str,
+    rows: int,
+    cols: int,
+    check_validity: bool = False,
 ) -> List[BoxType]:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     return [convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity) for bbox in bboxes]
 
 
 def convert_bboxes_from_albumentations(
-    bboxes: Sequence[BoxType], target_format: str, rows: int, cols: int, check_validity: bool = False
+    bboxes: Sequence[BoxType],
+    target_format: str,
+    rows: int,
+    cols: int,
+    check_validity: bool = False,
 ) -> List[BoxType]:
     """Convert a list of bounding boxes from the format used by albumentations to a format, specified
     in `target_format`.

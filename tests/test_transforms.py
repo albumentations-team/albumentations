@@ -312,6 +312,15 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
         aug2 = res["image2"]
         assert np.array_equal(aug1, aug2)
 
+    aug = A.Compose([augmentation_cls(always_apply=True, **params)])
+    aug.add_targets(additional_targets={"image2": "image"})
+    for _i in range(10):
+        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image2 = image1.copy()
+        res = aug(image=image1, image2=image2)
+        aug1 = res["image"]
+        aug2 = res["image2"]
+        assert np.array_equal(aug1, aug2)
 
 def test_image_invert():
     for _ in range(10):
@@ -1334,20 +1343,6 @@ def test_deprecation_warnings(size, width, height, expected_warning):
     warnings.resetwarnings()
 
 
-def test_randomgridshuffle() -> None:
-    # RandomGridShuffle with grid=(3, 3)
-    # image size not divisible by grid size
-    # image unchanged, should get warning
-    with warnings.catch_warnings(record=True) as w:
-        image = np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8)
-        transform_albu = A.RandomGridShuffle(grid=(3, 3), p=1)
-        transformed_image_albu = transform_albu(image=image)['image']
-        assert np.equal(image, transformed_image_albu).all()
-        assert len(w) == 1
-        assert w[0].category is UserWarning
-    warnings.resetwarnings()
-
-
 @pytest.mark.parametrize("num_shadows_limit, num_shadows_lower, num_shadows_upper, expected_warning", [
     ((1, 2), None, None, None),
     ((2, 3), None, None, None),
@@ -1370,13 +1365,34 @@ def test_deprecation_warnings_random_shadow(
         if expected_warning == ValueError:
             with pytest.raises(ValueError):
                 A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
-                               num_shadows_upper=num_shadows_upper)
+                               num_shadows_upper=num_shadows_upper, p=1)
         else:
             A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
-                           num_shadows_upper=num_shadows_upper)
+                           num_shadows_upper=num_shadows_upper, p=1)
         if expected_warning is DeprecationWarning:
             assert len(w) == 1
             assert issubclass(w[-1].category, expected_warning)
         else:
             assert not w
     warnings.resetwarnings()
+
+
+@pytest.mark.parametrize("grid", [
+    (2, 2), (3, 3), (4, 4), (5, 7)
+])
+def test_grid_shuffle(image, mask, grid):
+    set_seed(4)
+    aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)])
+
+    res = aug(image=image, mask=mask)
+    assert res["image"].shape == image.shape
+    assert res["mask"].shape == mask.shape
+
+    assert not np.array_equal(res["image"], image)
+    assert not np.array_equal(res["mask"], mask)
+
+    assert np.array_equal(res["image"].mean(axis=(0, 1)), image.mean(axis=(0, 1)))
+    assert np.array_equal(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)))
+
+    assert np.array_equal(res["mask"].mean(axis=(0, 1)), mask.mean(axis=(0, 1)))
+    assert np.array_equal(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)))

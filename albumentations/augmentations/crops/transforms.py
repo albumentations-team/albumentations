@@ -224,7 +224,8 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
     class InitSchema(CropInitSchema):
         ignore_values: Optional[List[int]] = Field(
-            default=None, description="Values to ignore in mask, `0` values are always ignored"
+            default=None,
+            description="Values to ignore in mask, `0` values are always ignored",
         )
         ignore_channels: Optional[List[int]] = Field(default=None, description="Channels to ignore in mask")
 
@@ -245,15 +246,33 @@ class CropNonEmptyMaskIfExists(DualTransform):
         self.ignore_channels = ignore_channels
 
     def apply(
-        self, img: np.ndarray, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params: Any
+        self,
+        img: np.ndarray,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        **params: Any,
     ) -> np.ndarray:
         return F.crop(img, x_min, y_min, x_max, y_max)
 
     def apply_to_bbox(
-        self, bbox: BoxInternalType, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params: Any
+        self,
+        bbox: BoxInternalType,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        **params: Any,
     ) -> BoxInternalType:
         return F.bbox_crop(
-            bbox, x_min=x_min, x_max=x_max, y_min=y_min, y_max=y_max, rows=params["rows"], cols=params["cols"]
+            bbox,
+            x_min=x_min,
+            x_max=x_max,
+            y_min=y_min,
+            y_max=y_max,
+            rows=params["rows"],
+            cols=params["cols"],
         )
 
     def apply_to_keypoint(
@@ -280,7 +299,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
 
         if self.height > mask_height or self.width > mask_width:
             raise ValueError(
-                f"Crop size ({self.height},{self.width}) is larger than image ({mask_height},{mask_width})"
+                f"Crop size ({self.height},{self.width}) is larger than image ({mask_height},{mask_width})",
             )
 
         return mask
@@ -340,7 +359,11 @@ class _BaseRandomSizedCrop(DualTransform):
         pass
 
     def __init__(
-        self, size: Tuple[int, int], interpolation: int = cv2.INTER_LINEAR, always_apply: bool = False, p: float = 1.0
+        self,
+        size: Tuple[int, int],
+        interpolation: int = cv2.INTER_LINEAR,
+        always_apply: bool = False,
+        p: float = 1.0,
     ):
         super().__init__(always_apply, p)
         self.size = size
@@ -666,7 +689,13 @@ class RandomCropNearBBox(DualTransform):
         self.cropping_bbox_key = cropping_bbox_key
 
     def apply(
-        self, img: np.ndarray, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params: Any
+        self,
+        img: np.ndarray,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        **params: Any,
     ) -> np.ndarray:
         return F.clamping_crop(img, x_min, y_min, x_max, y_max)
 
@@ -725,7 +754,10 @@ class BBoxSafeRandomCrop(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         erosion_rate: float = Field(
-            default=0.0, ge=0.0, le=1.0, description="Erosion rate applied on input image height before crop."
+            default=0.0,
+            ge=0.0,
+            le=1.0,
+            description="Erosion rate applied on input image height before crop.",
         )
         p: ProbabilityType = 1
 
@@ -757,7 +789,10 @@ class BBoxSafeRandomCrop(DualTransform):
             }
         # get union of all bboxes
         x, y, x2, y2 = union_of_bboxes(
-            width=img_w, height=img_h, bboxes=params["bboxes"], erosion_rate=self.erosion_rate
+            width=img_w,
+            height=img_h,
+            bboxes=params["bboxes"],
+            erosion_rate=self.erosion_rate,
         )
         # find bigger region
         bx, by = x * random.random(), y * random.random()
@@ -812,7 +847,10 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
 
     class InitSchema(CropInitSchema):
         erosion_rate: float = Field(
-            default=0.0, ge=0.0, le=1.0, description="Erosion rate applied on input image height before crop."
+            default=0.0,
+            ge=0.0,
+            le=1.0,
+            description="Erosion rate applied on input image height before crop.",
         )
         interpolation: InterpolationType = cv2.INTER_LINEAR
 
@@ -939,22 +977,26 @@ class CropAndPad(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         px: Optional[Union[int, Tuple[int, int], Tuple[int, int, int, int]]] = Field(
-            default=None, description="Number of pixels to crop (negative) or pad (positive)."
+            default=None,
+            description="Number of pixels to crop (negative) or pad (positive).",
         )
         percent: Optional[Union[float, Tuple[float, float], Tuple[float, float, float, float]]] = Field(
-            default=None, description="Fraction of image size to crop (negative) or pad (positive)."
+            default=None,
+            description="Fraction of image size to crop (negative) or pad (positive).",
         )
         pad_mode: BorderModeType = cv2.BORDER_CONSTANT
         pad_cval: ColorType = Field(default=0, description="Padding value if pad_mode is BORDER_CONSTANT.")
         pad_cval_mask: ColorType = Field(
-            default=0, description="Padding value for masks if pad_mode is BORDER_CONSTANT."
+            default=0,
+            description="Padding value for masks if pad_mode is BORDER_CONSTANT.",
         )
         keep_size: bool = Field(
             default=True,
             description="Whether to resize the image back to the original size after cropping and padding.",
         )
         sample_independently: bool = Field(
-            default=True, description="Whether to sample the crop/pad size independently for each side."
+            default=True,
+            description="Whether to sample the crop/pad size independently for each side.",
         )
         interpolation: InterpolationType = cv2.INTER_LINEAR
         p: ProbabilityType = 1
@@ -1008,7 +1050,15 @@ class CropAndPad(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         return F.crop_and_pad(
-            img, crop_params, pad_params, pad_value, rows, cols, interpolation, self.pad_mode, self.keep_size
+            img,
+            crop_params,
+            pad_params,
+            pad_value,
+            rows,
+            cols,
+            interpolation,
+            self.pad_mode,
+            self.keep_size,
         )
 
     def apply_to_mask(
@@ -1023,7 +1073,15 @@ class CropAndPad(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         return F.crop_and_pad(
-            mask, crop_params, pad_params, pad_value_mask, rows, cols, interpolation, self.pad_mode, self.keep_size
+            mask,
+            crop_params,
+            pad_params,
+            pad_value_mask,
+            rows,
+            cols,
+            interpolation,
+            self.pad_mode,
+            self.keep_size,
         )
 
     def apply_to_bbox(
@@ -1051,7 +1109,14 @@ class CropAndPad(DualTransform):
         **params: Any,
     ) -> KeypointInternalType:
         return F.crop_and_pad_keypoint(
-            keypoint, crop_params, pad_params, rows, cols, result_rows, result_cols, self.keep_size
+            keypoint,
+            crop_params,
+            pad_params,
+            rows,
+            cols,
+            result_rows,
+            result_cols,
+            self.keep_size,
         )
 
     @property
@@ -1229,16 +1294,28 @@ class RandomCropFromBorders(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         crop_left: float = Field(
-            default=0.1, ge=0.0, le=1.0, description="Fraction of width to randomly crop from the left side."
+            default=0.1,
+            ge=0.0,
+            le=1.0,
+            description="Fraction of width to randomly crop from the left side.",
         )
         crop_right: float = Field(
-            default=0.1, ge=0.0, le=1.0, description="Fraction of width to randomly crop from the right side."
+            default=0.1,
+            ge=0.0,
+            le=1.0,
+            description="Fraction of width to randomly crop from the right side.",
         )
         crop_top: float = Field(
-            default=0.1, ge=0.0, le=1.0, description="Fraction of height to randomly crop from the top side."
+            default=0.1,
+            ge=0.0,
+            le=1.0,
+            description="Fraction of height to randomly crop from the top side.",
         )
         crop_bottom: float = Field(
-            default=0.1, ge=0.0, le=1.0, description="Fraction of height to randomly crop from the bottom side."
+            default=0.1,
+            ge=0.0,
+            le=1.0,
+            description="Fraction of height to randomly crop from the bottom side.",
         )
         p: ProbabilityType = 1
 
@@ -1276,17 +1353,35 @@ class RandomCropFromBorders(DualTransform):
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
     def apply(
-        self, img: np.ndarray, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params: Any
+        self,
+        img: np.ndarray,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        **params: Any,
     ) -> np.ndarray:
         return F.clamping_crop(img, x_min, y_min, x_max, y_max)
 
     def apply_to_mask(
-        self, mask: np.ndarray, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params: Any
+        self,
+        mask: np.ndarray,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        **params: Any,
     ) -> np.ndarray:
         return F.clamping_crop(mask, x_min, y_min, x_max, y_max)
 
     def apply_to_bbox(
-        self, bbox: BoxInternalType, x_min: int = 0, x_max: int = 0, y_min: int = 0, y_max: int = 0, **params: Any
+        self,
+        bbox: BoxInternalType,
+        x_min: int = 0,
+        x_max: int = 0,
+        y_min: int = 0,
+        y_max: int = 0,
+        **params: Any,
     ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
         return F.bbox_crop(bbox, x_min, y_min, x_max, y_max, rows, cols)

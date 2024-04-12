@@ -64,7 +64,7 @@ class KeypointParams(Params):
                 "remove_invisible": self.remove_invisible,
                 "angle_in_degrees": self.angle_in_degrees,
                 "check_each_transform": self.check_each_transform,
-            }
+            },
         )
         return data
 
@@ -87,7 +87,7 @@ class KeypointsProcessor(DataProcessor):
 
     def ensure_data_valid(self, data: Dict[str, Any]) -> None:
         if self.params.label_fields and not all(i in data for i in self.params.label_fields):
-            msg = "Your 'label_fields' are not valid - them must have same names as params in " "'keypoint_params' dict"
+            msg = "Your 'label_fields' are not valid - them must have same names as params in 'keypoint_params' dict"
             raise ValueError(msg)
 
     def filter(self, data: Sequence[KeypointType], rows: int, cols: int) -> Sequence[KeypointType]:
@@ -138,7 +138,7 @@ def check_keypoint(kp: KeypointType, rows: int, cols: int) -> None:
     """Check if keypoint coordinates are less than image shapes"""
     for name, value, size in zip(["x", "y"], kp[:2], [cols, rows]):
         if not 0 <= value < size:
-            raise ValueError(f"Expected {name} for keypoint {kp} " f"to be in the range [0.0, {size}], got {value}.")
+            raise ValueError(f"Expected {name} for keypoint {kp} to be in the range [0.0, {size}], got {value}.")
 
     angle = kp[2]
     if not (0 <= angle < 2 * math.pi):
@@ -152,7 +152,10 @@ def check_keypoints(keypoints: Sequence[KeypointType], rows: int, cols: int) -> 
 
 
 def filter_keypoints(
-    keypoints: Sequence[KeypointType], rows: int, cols: int, remove_invisible: bool
+    keypoints: Sequence[KeypointType],
+    rows: int,
+    cols: int,
+    remove_invisible: bool,
 ) -> Sequence[KeypointType]:
     if not remove_invisible:
         return keypoints

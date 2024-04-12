@@ -12,7 +12,9 @@ __all__ = ["cutout", "channel_dropout", "keypoint_in_hole"]
 
 @preserve_shape
 def channel_dropout(
-    img: np.ndarray, channels_to_drop: Union[int, Tuple[int, ...], np.ndarray], fill_value: ColorType = 0
+    img: np.ndarray,
+    channels_to_drop: Union[int, Tuple[int, ...], np.ndarray],
+    fill_value: ColorType = 0,
 ) -> np.ndarray:
     if len(img.shape) == TWO or img.shape[2] == 1:
         msg = "Only one channel. ChannelDropout is not defined."

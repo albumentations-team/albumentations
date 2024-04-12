@@ -116,7 +116,10 @@ class XYMasking(DualTransform):
         return cutout(mask, masks_x + masks_y, self.mask_fill_value)
 
     def validate_mask_length(
-        self, mask_length: Optional[Tuple[int, int]], dimension_size: int, dimension_name: str
+        self,
+        mask_length: Optional[Tuple[int, int]],
+        dimension_size: int,
+        dimension_name: str,
     ) -> None:
         """Validate the mask length against the corresponding image dimension size.
 
@@ -131,7 +134,7 @@ class XYMasking(DualTransform):
             if isinstance(mask_length, (tuple, list)):
                 if mask_length[0] < 0 or mask_length[1] > dimension_size:
                     raise ValueError(
-                        f"{dimension_name} range {mask_length} is out of valid range [0, {dimension_size}]"
+                        f"{dimension_name} range {mask_length} is out of valid range [0, {dimension_size}]",
                     )
             elif mask_length < 0 or mask_length > dimension_size:
                 raise ValueError(f"{dimension_name} {mask_length} exceeds image {dimension_name} {dimension_size}")

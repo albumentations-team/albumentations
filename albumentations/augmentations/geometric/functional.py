@@ -99,7 +99,11 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxI
 
 @angle_2pi_range
 def keypoint_rot90(
-    keypoint: KeypointInternalType, factor: int, rows: int, cols: int, **params: Any
+    keypoint: KeypointInternalType,
+    factor: int,
+    rows: int,
+    cols: int,
+    **params: Any,
 ) -> KeypointInternalType:
     """Rotates a keypoint by 90 degrees CCW (see np.rot90)
 
@@ -146,7 +150,12 @@ def rotate(
     matrix = cv2.getRotationMatrix2D((width / 2 - 0.5, height / 2 - 0.5), angle, 1.0)
 
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return warp_fn(img)
 
@@ -195,7 +204,11 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
 
 @angle_2pi_range
 def keypoint_rotate(
-    keypoint: KeypointInternalType, angle: float, rows: int, cols: int, **params: Any
+    keypoint: KeypointInternalType,
+    angle: float,
+    rows: int,
+    cols: int,
+    **params: Any,
 ) -> KeypointInternalType:
     """Rotate a keypoint by angle.
 
@@ -255,12 +268,17 @@ def elastic_transform(
         dtype=np.float32,
     )
     pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
-        np.float32
+        np.float32,
     )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix, dsize=(width, height), flags=interpolation, borderMode=border_mode, borderValue=value
+        cv2.warpAffine,
+        M=matrix,
+        dsize=(width, height),
+        flags=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     img = warp_fn(img)
 
@@ -279,14 +297,14 @@ def elastic_transform(
             dy *= alpha
     else:
         dx = np.float32(
-            gaussian_filter((random_utils.rand(height, width, random_state=random_state) * 2 - 1), sigma) * alpha
+            gaussian_filter((random_utils.rand(height, width, random_state=random_state) * 2 - 1), sigma) * alpha,
         )
         if same_dxdy:
             # Speed up
             dy = dx
         else:
             dy = np.float32(
-                gaussian_filter((random_utils.rand(height, width, random_state=random_state) * 2 - 1), sigma) * alpha
+                gaussian_filter((random_utils.rand(height, width, random_state=random_state) * 2 - 1), sigma) * alpha,
             )
 
     x, y = np.meshgrid(np.arange(width), np.arange(height))
@@ -295,7 +313,12 @@ def elastic_transform(
     map_y = np.float32(y + dy)
 
     remap_fn = _maybe_process_in_chunks(
-        cv2.remap, map1=map_x, map2=map_y, interpolation=interpolation, borderMode=border_mode, borderValue=value
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
     )
     return remap_fn(img)
 
@@ -467,7 +490,12 @@ def warp_affine(
 
     dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
     warp_fn = _maybe_process_in_chunks(
-        cv2.warpAffine, M=matrix.params[:2], dsize=dsize, flags=interpolation, borderMode=mode, borderValue=cval
+        cv2.warpAffine,
+        M=matrix.params[:2],
+        dsize=dsize,
+        flags=interpolation,
+        borderMode=mode,
+        borderValue=cval,
     )
     return warp_fn(image)
 
@@ -506,7 +534,7 @@ def bbox_affine(
                 [x_max, y_min],
                 [x_max, y_max],
                 [x_min, y_max],
-            ]
+            ],
         )
     elif rotate_method == "ellipse":
         w = (x_max - x_min) / 2
@@ -554,7 +582,7 @@ def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows:
             [x2, y1, 1],
             [x2, y2, 1],
             [x1, y2, 1],
-        ]
+        ],
     )
     points = points @ matrix.T
     x1 = points[:, 0].min()
@@ -609,12 +637,21 @@ def piecewise_affine(
     if matrix is None:
         return img
     return skimage.transform.warp(
-        img, matrix, order=interpolation, mode=mode, cval=cval, preserve_range=True, output_shape=img.shape
+        img,
+        matrix,
+        order=interpolation,
+        mode=mode,
+        cval=cval,
+        preserve_range=True,
+        output_shape=img.shape,
     )
 
 
 def to_distance_maps(
-    keypoints: Sequence[Tuple[float, float]], height: int, width: int, inverted: bool = False
+    keypoints: Sequence[Tuple[float, float]],
+    height: int,
+    width: int,
+    inverted: bool = False,
 ) -> np.ndarray:
     """Generate a ``(H,W,N)`` array of distance maps for ``N`` keypoints.
 
@@ -677,7 +714,10 @@ def validate_if_not_found_coords(
 
 
 def find_keypoint(
-    position: Tuple[int, int], distance_map: np.ndarray, threshold: Optional[float], inverted: bool
+    position: Tuple[int, int],
+    distance_map: np.ndarray,
+    threshold: Optional[float],
+    inverted: bool,
 ) -> Optional[Tuple[float, float]]:
     """Determine if a valid keypoint can be found at the given position."""
     y, x = position
@@ -987,7 +1027,7 @@ def pad(
 
     if img.shape[:2] != (max(min_height, height), max(min_width, width)):
         raise RuntimeError(
-            f"Invalid result shape. Got: {img.shape[:2]}. Expected: {(max(min_height, height), max(min_width, width))}"
+            f"Invalid result shape. Got: {img.shape[:2]}. Expected: {(max(min_height, height), max(min_width, width))}",
         )
 
     return img
@@ -1149,7 +1189,7 @@ def elastic_transform_approx(
         dtype=np.float32,
     )
     pts2 = pts1 + random_utils.uniform(-alpha_affine, alpha_affine, size=pts1.shape, random_state=random_state).astype(
-        np.float32
+        np.float32,
     )
     matrix = cv2.getAffineTransform(pts1, pts2)
 

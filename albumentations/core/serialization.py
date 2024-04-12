@@ -103,7 +103,7 @@ class Serializable(metaclass=SerializableMeta):
                 f"Got NotImplementedError while trying to serialize {self}. Object arguments are not preserved. "
                 f"Implement either '{self.__class__.__name__}.get_transform_init_args_names' "
                 f"or '{self.__class__.__name__}.get_transform_init_args' "
-                "method to make the transform serializable"
+                "method to make the transform serializable",
             )
         return {"__version__": __version__, "transform": transform_dict}
 
@@ -124,7 +124,8 @@ def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") ->
 
 
 def instantiate_nonserializable(
-    transform: Dict[str, Any], nonserializable: Optional[Dict[str, Any]] = None
+    transform: Dict[str, Any],
+    nonserializable: Optional[Dict[str, Any]] = None,
 ) -> Optional[Serializable]:
     if transform.get("__class_fullname__") in NON_SERIALIZABLE_REGISTRY:
         name = transform["__name__"]
@@ -140,7 +141,8 @@ def instantiate_nonserializable(
 
 
 def from_dict(
-    transform_dict: Dict[str, Any], nonserializable: Optional[Dict[str, Any]] = None
+    transform_dict: Dict[str, Any],
+    nonserializable: Optional[Dict[str, Any]] = None,
 ) -> Optional[Serializable]:
     """Args:
     transform_dict: A dictionary with serialized transform pipeline.

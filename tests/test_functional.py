@@ -9,7 +9,7 @@ import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
 from albumentations.core.bbox_utils import filter_bboxes
-from tests.utils import convert_2d_to_target_format
+from tests.utils import convert_2d_to_target_format, set_seed
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -1105,5 +1105,75 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     ]
 )
 def test_split_uniform_grid(image_shape, grid, expected):
-    result = F.split_uniform_grid(image_shape, grid)
+    random_seed = 42
+    result = F.split_uniform_grid(image_shape, grid, random_state=np.random.RandomState(random_seed))
     np.testing.assert_array_equal(result, expected)
+
+
+@pytest.mark.parametrize("size, divisions, random_state, expected", [
+    (10, 2, None, [0, 5, 10]),
+    (10, 2, 42, [0, 5, 10]),  # Consistent shuffling with seed
+    (9, 3, None, [0, 3, 6, 9]),
+    (9, 3, 42, [0, 3, 6, 9]),  # Expected shuffle result with a specific seed
+    (20, 5, 42, [0, 4, 8, 12, 16, 20]),  # Regular intervals
+    (7, 3, 42, [0, 3, 5, 7]),  # Irregular intervals, specific seed
+    (7, 3, 41, [0, 2, 4, 7]),  # Irregular intervals, specific seed
+])
+def test_generate_shuffled_splits(size, divisions, random_state, expected):
+    result = F.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state) if random_state else None)
+    assert len(result) == divisions + 1
+    assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
+
+@pytest.mark.parametrize("size, divisions, random_state", [
+    (10, 2, 42),
+    (9, 3, 99),
+    (20, 5, 101),
+    (7, 3, 42),
+])
+def test_consistent_shuffling(size, divisions, random_state):
+    set_seed(random_state)
+    result1 = F.generate_shuffled_splits(size, divisions, random_state = np.random.RandomState(random_state))
+    assert len(result1) == divisions + 1
+    set_seed(random_state)
+    result2 = F.generate_shuffled_splits(size, divisions, random_state = np.random.RandomState(random_state))
+    assert len(result2) == divisions + 1
+    assert np.array_equal(result1, result2), "Shuffling is not consistent with the given random state"
+
+
+@pytest.mark.parametrize("tiles, expected", [
+    # Simple case with two different shapes
+    (np.array([[0, 0, 2, 2], [0, 2, 2, 4], [2, 0, 4, 2], [2, 2, 4, 4]]),
+     {(2, 2): [0, 1, 2, 3]}),
+    # Tiles with three different shapes
+    (np.array([[0, 0, 1, 3], [0, 3, 1, 6], [1, 0, 4, 3], [1, 3, 4, 6]]),
+     {(1, 3): [0, 1], (3, 3): [2, 3]}),
+    # Single tile
+    (np.array([[0, 0, 1, 1]]),
+     {(1, 1): [0]}),
+    # No tiles
+    (np.array([]).reshape(0, 4),
+     {}),
+    # All tiles having the same shape
+    (np.array([[0, 0, 2, 2], [2, 2, 4, 4], [4, 4, 6, 6]]),
+     {(2, 2): [0, 1, 2]}),
+])
+def test_create_shape_groups(tiles, expected):
+    result = F.create_shape_groups(tiles)
+    assert len(result) == len(expected), "Incorrect number of shape groups"
+    for shape in expected:
+        assert shape in result, f"Shape {shape} is not in the result"
+        assert sorted(result[shape]) == sorted(expected[shape]), f"Incorrect indices for shape {shape}"
+
+
+@pytest.mark.parametrize("shape_groups, random_state, expected_output", [
+    # Test with a simple case of one group
+    ({(2, 2): [0, 1, 2, 3]}, 42, [1, 3, 0, 2]),
+    # Test with multiple groups and ensure that random state affects the shuffle consistently
+    ({(2, 2): [0, 1, 2, 3], (1, 1): [4]}, 42, [1, 3, 0, 2, 4]),
+    # All tiles having the same shape should be shuffled within themselves
+    ({(2, 2): [0, 1, 2]}, 2, [2, 1, 0])
+])
+def test_shuffle_tiles_within_shape_groups(shape_groups, random_state, expected_output):
+    random_state = np.random.RandomState(random_state)
+    actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, random_state)
+    assert actual_output == expected_output, "Output did not match expected mapping"

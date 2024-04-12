@@ -1,4 +1,5 @@
-from typing import Any, List, Optional, Sequence, Tuple, Union
+from collections import defaultdict
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
 import cv2
@@ -121,7 +122,8 @@ def normalize(img: np.ndarray, mean: ColorType, std: ColorType, max_pixel_value:
 
 @preserve_shape
 def normalize_per_image(
-    img: np.ndarray, normalization: Literal["image", "image_per_channel", "min_max", "min_max_per_channel"]
+    img: np.ndarray,
+    normalization: Literal["image", "image_per_channel", "min_max", "min_max_per_channel"],
 ) -> np.ndarray:
     """Apply per-image normalization based on the specified strategy.
 
@@ -174,7 +176,10 @@ def normalize_per_image(
 
 
 def _shift_hsv_uint8(
-    img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val_shift: np.ndarray
+    img: np.ndarray,
+    hue_shift: np.ndarray,
+    sat_shift: np.ndarray,
+    val_shift: np.ndarray,
 ) -> np.ndarray:
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
@@ -200,7 +205,10 @@ def _shift_hsv_uint8(
 
 
 def _shift_hsv_non_uint8(
-    img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val_shift: np.ndarray
+    img: np.ndarray,
+    hue_shift: np.ndarray,
+    sat_shift: np.ndarray,
+    val_shift: np.ndarray,
 ) -> np.ndarray:
     dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
@@ -232,7 +240,7 @@ def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val
             sat_shift = 0
             warn(
                 "HueSaturationValue: hue_shift and sat_shift are not applicable to grayscale image. "
-                "Set them to 0 or use RGB image"
+                "Set them to 0 or use RGB image",
             )
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
@@ -392,7 +400,10 @@ def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], by_channel
 
 
 def _handle_mask(
-    mask: Optional[np.ndarray], img: np.ndarray, by_channels: bool, i: Optional[int] = None
+    mask: Optional[np.ndarray],
+    img: np.ndarray,
+    by_channels: bool,
+    i: Optional[int] = None,
 ) -> Optional[np.ndarray]:
     if mask is None:
         return None
@@ -405,7 +416,10 @@ def _handle_mask(
 
 @preserve_channel_dim
 def equalize(
-    img: np.ndarray, mask: Optional[np.ndarray] = None, mode: ImageMode = "cv", by_channels: bool = True
+    img: np.ndarray,
+    mask: Optional[np.ndarray] = None,
+    mode: ImageMode = "cv",
+    by_channels: bool = True,
 ) -> np.ndarray:
     _check_preconditions(img, mask, by_channels)
 
@@ -902,7 +916,10 @@ def gauss_noise(image: np.ndarray, gauss: np.ndarray) -> np.ndarray:
 
 @clipped
 def _brightness_contrast_adjust_non_uint(
-    img: np.ndarray, alpha: float = 1, beta: float = 0, beta_by_max: bool = False
+    img: np.ndarray,
+    alpha: float = 1,
+    beta: float = 0,
+    beta_by_max: bool = False,
 ) -> np.ndarray:
     dtype = img.dtype
     img = img.astype("float32")
@@ -920,7 +937,10 @@ def _brightness_contrast_adjust_non_uint(
 
 @preserve_shape
 def _brightness_contrast_adjust_uint(
-    img: np.ndarray, alpha: float = 1, beta: float = 0, beta_by_max: bool = False
+    img: np.ndarray,
+    alpha: float = 1,
+    beta: float = 0,
+    beta_by_max: bool = False,
 ) -> np.ndarray:
     dtype = np.dtype("uint8")
 
@@ -941,7 +961,10 @@ def _brightness_contrast_adjust_uint(
 
 
 def brightness_contrast_adjust(
-    img: np.ndarray, alpha: float = 1, beta: float = 0, beta_by_max: bool = False
+    img: np.ndarray,
+    alpha: float = 1,
+    beta: float = 0,
+    beta_by_max: bool = False,
 ) -> np.ndarray:
     if img.dtype == np.uint8:
         return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
@@ -1008,7 +1031,10 @@ def gray_to_rgb(img: np.ndarray) -> np.ndarray:
 
 @preserve_shape
 def downscale(
-    img: np.ndarray, scale: float, down_interpolation: int = cv2.INTER_AREA, up_interpolation: int = cv2.INTER_LINEAR
+    img: np.ndarray,
+    scale: float,
+    down_interpolation: int = cv2.INTER_AREA,
+    up_interpolation: int = cv2.INTER_LINEAR,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1329,7 +1355,11 @@ def adjust_hue_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
 
 @preserve_shape
 def superpixels(
-    image: np.ndarray, n_segments: int, replace_samples: Sequence[bool], max_size: Optional[int], interpolation: int
+    image: np.ndarray,
+    n_segments: int,
+    replace_samples: Sequence[bool],
+    max_size: Optional[int],
+    interpolation: int,
 ) -> np.ndarray:
     if not np.any(replace_samples):
         return image
@@ -1345,7 +1375,10 @@ def superpixels(
             image = resize_fn(image)
 
     segments = skimage.segmentation.slic(
-        image, n_segments=n_segments, compactness=10, channel_axis=-1 if image.ndim > TWO else None
+        image,
+        n_segments=n_segments,
+        compactness=10,
+        channel_axis=-1 if image.ndim > TWO else None,
     )
 
     min_value = 0
@@ -1378,7 +1411,9 @@ def superpixels(
 
     if orig_shape != image.shape:
         resize_fn = _maybe_process_in_chunks(
-            cv2.resize, dsize=(orig_shape[1], orig_shape[0]), interpolation=interpolation
+            cv2.resize,
+            dsize=(orig_shape[1], orig_shape[0]),
+            interpolation=interpolation,
         )
         return resize_fn(image)
 
@@ -1395,7 +1430,11 @@ def add_weighted(img1: np.ndarray, alpha: float, img2: np.ndarray, beta: float) 
 @clipped
 @preserve_shape
 def unsharp_mask(
-    image: np.ndarray, ksize: int, sigma: float = 0.0, alpha: float = 0.2, threshold: int = 10
+    image: np.ndarray,
+    ksize: int,
+    sigma: float = 0.0,
+    alpha: float = 0.2,
+    threshold: int = 10,
 ) -> np.ndarray:
     blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
 
@@ -1465,7 +1504,56 @@ def spatter(
     return img * 255
 
 
-def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> np.ndarray:
+def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
+    """Generates an array of nearly equal integer intervals that sum up to `n`.
+
+    This function divides the number `n` into `parts` nearly equal parts. It ensures that
+    the sum of all parts equals `n`, and the difference between any two parts is at most one.
+    This is useful for distributing a total amount into nearly equal discrete parts.
+
+    Args:
+        n (int): The total value to be split.
+        parts (int): The number of parts to split into.
+
+    Returns:
+        np.ndarray: An array of integers where each integer represents the size of a part.
+
+    Example:
+        >>> almost_equal_intervals(20, 3)
+        array([7, 7, 6])  # Splits 20 into three parts: 7, 7, and 6
+        >>> almost_equal_intervals(16, 4)
+        array([4, 4, 4, 4])  # Splits 16 into four equal parts
+    """
+    part_size, remainder = divmod(n, parts)
+    # Create an array with the base part size and adjust the first `remainder` parts by adding 1
+    return np.array([part_size + 1 if i < remainder else part_size for i in range(parts)])
+
+
+def generate_shuffled_splits(
+    size: int,
+    divisions: int,
+    random_state: Optional[np.random.RandomState] = None,
+) -> np.ndarray:
+    """Generate shuffled splits for a given dimension size and number of divisions.
+
+    Args:
+        size (int): Total size of the dimension (height or width).
+        divisions (int): Number of divisions (rows or columns).
+        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
+
+    Returns:
+        np.ndarray: Cumulative edges of the shuffled intervals.
+    """
+    intervals = almost_equal_intervals(size, divisions)
+    intervals = random_utils.shuffle(intervals, random_state=random_state)
+    return np.insert(np.cumsum(intervals), 0, 0)
+
+
+def split_uniform_grid(
+    image_shape: Tuple[int, int],
+    grid: Tuple[int, int],
+    random_state: Optional[np.random.RandomState] = None,
+) -> np.ndarray:
     """Splits an image shape into a uniform grid specified by the grid dimensions.
 
     Args:
@@ -1475,12 +1563,10 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
     Returns:
         np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
     """
-    height, width = image_shape
-    n_rows, n_cols = (int(x) for x in grid)
+    n_rows, n_cols = grid
 
-    # Compute split points for the grid
-    height_splits = np.linspace(0, height, n_rows + 1, dtype=int)
-    width_splits = np.linspace(0, width, n_cols + 1, dtype=int)
+    height_splits = generate_shuffled_splits(image_shape[0], grid[0], random_state)
+    width_splits = generate_shuffled_splits(image_shape[1], grid[1], random_state)
 
     # Calculate tiles coordinates
     tiles = [
@@ -1490,6 +1576,43 @@ def split_uniform_grid(image_shape: Tuple[int, int], grid: Tuple[int, int]) -> n
     ]
 
     return np.array(tiles)
+
+
+def create_shape_groups(tiles: np.ndarray) -> Dict[Tuple[int, int], List[int]]:
+    """Groups tiles by their shape and stores the indices for each shape."""
+    shape_groups = defaultdict(list)
+    for index, (start_y, start_x, end_y, end_x) in enumerate(tiles):
+        shape = (end_y - start_y, end_x - start_x)
+        shape_groups[shape].append(index)
+    return shape_groups
+
+
+def shuffle_tiles_within_shape_groups(
+    shape_groups: Dict[Tuple[int, int], List[int]],
+    random_state: Optional[np.random.RandomState] = None,
+) -> List[int]:
+    """Shuffles indices within each group of similar shapes and creates a list where each
+    index points to the index of the tile it should be mapped to.
+
+    Args:
+        shape_groups (Dict[Tuple[int, int], List[int]]): Groups of tile indices categorized by shape.
+        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
+
+    Returns:
+        List[int]: A list where each index is mapped to the new index of the tile after shuffling.
+    """
+    # Initialize the output list with the same size as the total number of tiles, filled with -1
+    num_tiles = sum(len(indices) for indices in shape_groups.values())
+    mapping = [-1] * num_tiles
+
+    # Prepare the random number generator
+
+    for indices in shape_groups.values():
+        shuffled_indices = random_utils.shuffle(indices.copy(), random_state=random_state)
+        for old, new in zip(indices, shuffled_indices):
+            mapping[old] = new
+
+    return mapping
 
 
 def chromatic_aberration(

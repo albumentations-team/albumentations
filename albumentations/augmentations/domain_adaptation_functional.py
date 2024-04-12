@@ -92,7 +92,10 @@ class DomainAdapter:
 
 @preserve_shape
 def adapt_pixel_distribution(
-    img: np.ndarray, ref: np.ndarray, transform_type: str = "pca", weight: float = 0.5
+    img: np.ndarray,
+    ref: np.ndarray,
+    transform_type: str = "pca",
+    weight: float = 0.5,
 ) -> np.ndarray:
     initial_type = img.dtype
     transformer = {"pca": PCA, "standard": StandardScaler, "minmax": MinMaxScaler}[transform_type]()

@@ -35,3 +35,22 @@ def test_multiprocessing(func, args, mp_pool):
         if status:
             break
     assert status
+
+
+@pytest.mark.parametrize("array, random_state", [
+    (np.array([1, 2, 3, 4, 5]), np.random.RandomState(42)),
+    (np.array([10, 20, 30]), np.random.RandomState(99)),
+    (np.array([1.5, 2.5, 3.5]), np.random.RandomState(43)),  # Float array
+])
+def test_shuffle_effectiveness(array, random_state):
+    shuffled_array = random_utils.shuffle(array, random_state)
+    assert len(array) == len(shuffled_array), "Shuffled array length differs"
+
+@pytest.mark.parametrize("array", [
+    (np.array([1, 2, 3, 4, 5])),
+    (np.array([10, 20, 30])),
+])
+def test_inplace_shuffle_check(array):
+    original_array = array.copy()
+    random_utils.shuffle(array)
+    assert not np.array_equal(original_array, array), "Shuffle should be in-place, but original array was not modified"

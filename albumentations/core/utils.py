@@ -26,7 +26,7 @@ def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
         pass
 
     raise RuntimeError(
-        f"Albumentations supports only numpy.ndarray and torch.Tensor data type for image. Got: {type(img)}"
+        f"Albumentations supports only numpy.ndarray and torch.Tensor data type for image. Got: {type(img)}",
     )
 
 
@@ -52,14 +52,18 @@ class DataProcessor(ABC):
         self.params = params
         self.data_fields = [self.default_data_name]
         if additional_targets is not None:
-            for k, v in additional_targets.items():
-                if v == self.default_data_name:
-                    self.data_fields.append(k)
+            self.add_targets(additional_targets)
 
     @property
     @abstractmethod
     def default_data_name(self) -> str:
         raise NotImplementedError
+
+    def add_targets(self, additional_targets: Dict[str, str]) -> None:
+        """Add targets to transform them the same way as one of existing targets"""
+        for k, v in additional_targets.items():
+            if v == self.default_data_name and k not in self.data_fields:
+                self.data_fields.append(k)
 
     def ensure_data_valid(self, data: Dict[str, Any]) -> None:
         pass
@@ -84,7 +88,11 @@ class DataProcessor(ABC):
             data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
     def check_and_convert(
-        self, data: List[BoxOrKeypointType], rows: int, cols: int, direction: str = "to"
+        self,
+        data: List[BoxOrKeypointType],
+        rows: int,
+        cols: int,
+        direction: str = "to",
     ) -> List[BoxOrKeypointType]:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
@@ -111,7 +119,10 @@ class DataProcessor(ABC):
 
     @abstractmethod
     def convert_from_albumentations(
-        self, data: List[BoxOrKeypointType], rows: int, cols: int
+        self,
+        data: List[BoxOrKeypointType],
+        rows: int,
+        cols: int,
     ) -> List[BoxOrKeypointType]:
         pass
 
