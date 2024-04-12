@@ -1,6 +1,9 @@
 import typing
 from unittest import mock
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import MagicMock, Mock, call, patch
+
+import albumentations as A
+from albumentations.core.composition import BaseCompose
 
 import cv2
 import numpy as np
@@ -452,3 +455,44 @@ def test_additional_targets():
     with pytest.raises(ValueError) as exc_info:
         transforms.add_targets({"image2": "mask"})
     assert str(exc_info.value) == "Trying to overwrite existed additional targets. Key=image2 Exists=image New value: mask"
+
+
+# Test 1: Probability 1 with HorizontalFlip
+def test_sequential_with_horizontal_flip_prob_1(image, mask):
+    # Setup transformations
+    transform = Sequential([HorizontalFlip(p=1)], p=1)
+    expected_transform = Compose([HorizontalFlip(p=1)])
+
+    with patch('random.random', return_value=0.1):  # Mocking probability less than 1
+        result = transform(image=image, mask=mask)
+        expected = expected_transform(image=image, mask=mask)
+
+    assert np.array_equal(result['image'], expected['image'])
+    assert np.array_equal(result['mask'], expected['mask'])
+
+# Test 2: Probability 0 with HorizontalFlip
+def test_sequential_with_horizontal_flip_prob_0(image, mask):
+    transform = Sequential([HorizontalFlip(p=1)], p=0)
+
+    with patch('random.random', return_value=0.99):  # Mocking probability greater than 0
+        result = transform(image=image, mask=mask)
+
+    assert np.array_equal(result['image'], image)
+    assert np.array_equal(result['mask'], mask)
+
+
+# Test 3: Multiple flips and transpose
+
+@pytest.mark.parametrize("aug", [A.HorizontalFlip, A.VerticalFlip, A.Transpose])
+def test_sequential_multiple_transformations(image, mask, aug):
+    transform = A.Sequential([
+        aug(p=1),
+        aug(p=1),
+    ], p=1)
+
+    with patch('random.random', return_value=0.1):  # Ensuring all transforms are applied
+        result = transform(image=image, mask=mask)
+
+    # Since HorizontalFlip, VerticalFlip, and Transpose are all applied twice, the image should be the same
+    assert np.array_equal(result['image'], image)
+    assert np.array_equal(result['mask'], mask)
