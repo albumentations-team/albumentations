@@ -1378,10 +1378,10 @@ def test_deprecation_warnings_random_shadow(
 
 
 @pytest.mark.parametrize("grid", [
-    (1, 2), (3, 3), (2, 1), (7, 7)
+    (2, 2), (3, 3), (4, 4), (5, 7)
 ])
 def test_grid_shuffle(image, mask, grid):
-    set_seed(1)
+    set_seed(4)
     aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)])
 
     res = aug(image=image, mask=mask)

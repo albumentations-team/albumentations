@@ -1529,26 +1529,30 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
     return np.array([part_size + 1 if i < remainder else part_size for i in range(parts)])
 
 
-def generate_shuffled_splits(size: int, divisions: int, random_state: Optional[int] = None) -> np.ndarray:
+def generate_shuffled_splits(
+    size: int,
+    divisions: int,
+    random_state: Optional[np.random.RandomState] = None,
+) -> np.ndarray:
     """Generate shuffled splits for a given dimension size and number of divisions.
 
     Args:
         size (int): Total size of the dimension (height or width).
         divisions (int): Number of divisions (rows or columns).
-        random_state (Optional[int]): Seed for the random number generator for reproducibility.
+        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
 
     Returns:
         np.ndarray: Cumulative edges of the shuffled intervals.
     """
     intervals = almost_equal_intervals(size, divisions)
-    intervals = random_utils.shuffle(intervals, random_state=np.random.RandomState(random_state))
+    intervals = random_utils.shuffle(intervals, random_state=random_state)
     return np.insert(np.cumsum(intervals), 0, 0)
 
 
 def split_uniform_grid(
     image_shape: Tuple[int, int],
     grid: Tuple[int, int],
-    random_state: Optional[int] = None,
+    random_state: Optional[np.random.RandomState] = None,
 ) -> np.ndarray:
     """Splits an image shape into a uniform grid specified by the grid dimensions.
 
@@ -1585,14 +1589,14 @@ def create_shape_groups(tiles: np.ndarray) -> Dict[Tuple[int, int], List[int]]:
 
 def shuffle_tiles_within_shape_groups(
     shape_groups: Dict[Tuple[int, int], List[int]],
-    random_state: Optional[int] = None,
+    random_state: Optional[np.random.RandomState] = None,
 ) -> List[int]:
     """Shuffles indices within each group of similar shapes and creates a list where each
     index points to the index of the tile it should be mapped to.
 
     Args:
         shape_groups (Dict[Tuple[int, int], List[int]]): Groups of tile indices categorized by shape.
-        random_state (Optional[int]): Seed for the random number generator for reproducibility.
+        random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
 
     Returns:
         List[int]: A list where each index is mapped to the new index of the tile after shuffling.
@@ -1604,7 +1608,7 @@ def shuffle_tiles_within_shape_groups(
     # Prepare the random number generator
 
     for indices in shape_groups.values():
-        shuffled_indices = random_utils.shuffle(indices.copy(), random_state=np.random.RandomState(random_state))
+        shuffled_indices = random_utils.shuffle(indices.copy(), random_state=random_state)
         for old, new in zip(indices, shuffled_indices):
             mapping[old] = new
 

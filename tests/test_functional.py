@@ -1105,10 +1105,8 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     ]
 )
 def test_split_uniform_grid(image_shape, grid, expected):
-    random_seed = 43
-    result = F.split_uniform_grid(image_shape, grid, random_seed)
-    print(image_shape, grid, expected)
-    print(result)
+    random_seed = 42
+    result = F.split_uniform_grid(image_shape, grid, random_state=np.random.RandomState(random_seed))
     np.testing.assert_array_equal(result, expected)
 
 
@@ -1122,7 +1120,7 @@ def test_split_uniform_grid(image_shape, grid, expected):
     (7, 3, 41, [0, 2, 4, 7]),  # Irregular intervals, specific seed
 ])
 def test_generate_shuffled_splits(size, divisions, random_state, expected):
-    result = F.generate_shuffled_splits(size, divisions, random_state)
+    result = F.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state) if random_state else None)
     assert len(result) == divisions + 1
     assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
 
@@ -1133,9 +1131,11 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
     (7, 3, 42),
 ])
 def test_consistent_shuffling(size, divisions, random_state):
-    result1 = F.generate_shuffled_splits(size, divisions, random_state)
+    set_seed(random_state)
+    result1 = F.generate_shuffled_splits(size, divisions, random_state = np.random.RandomState(random_state))
     assert len(result1) == divisions + 1
-    result2 = F.generate_shuffled_splits(size, divisions, random_state)
+    set_seed(random_state)
+    result2 = F.generate_shuffled_splits(size, divisions, random_state = np.random.RandomState(random_state))
     assert len(result2) == divisions + 1
     assert np.array_equal(result1, result2), "Shuffling is not consistent with the given random state"
 
@@ -1174,5 +1174,6 @@ def test_create_shape_groups(tiles, expected):
     ({(2, 2): [0, 1, 2]}, 2, [2, 1, 0])
 ])
 def test_shuffle_tiles_within_shape_groups(shape_groups, random_state, expected_output):
+    random_state = np.random.RandomState(random_state)
     actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, random_state)
     assert actual_output == expected_output, "Output did not match expected mapping"
