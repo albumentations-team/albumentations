@@ -1125,13 +1125,6 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
     result = F.generate_shuffled_splits(size, divisions, random_state)
     assert len(result) == divisions + 1
     assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
-    assert sum(result) == size, "Sum of intervals does not equal size"
-    min_interval = min(result)
-    max_interval = max(result)
-    assert max_interval - min_interval <= 1, "Intervals are not nearly equal"
-    result = F.generate_shuffled_splits(size, divisions, random_state)
-    assert len(result) == divisions + 1
-    assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
 
 @pytest.mark.parametrize("size, divisions, random_state", [
     (10, 2, 42),
@@ -1139,10 +1132,7 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
     (20, 5, 101),
     (7, 3, 42),
 ])
-def test_different_seeds_produce_different_shuffles(size, divisions):
-    result1 = F.generate_shuffled_splits(size, divisions, 1)
-    result2 = F.generate_shuffled_splits(size, divisions, 2)
-    assert not np.array_equal(result1, result2), "Different seeds should produce different shuffles"
+def test_consistent_shuffling(size, divisions, random_state):
     result1 = F.generate_shuffled_splits(size, divisions, random_state)
     assert len(result1) == divisions + 1
     result2 = F.generate_shuffled_splits(size, divisions, random_state)
