@@ -1125,6 +1125,13 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
     result = F.generate_shuffled_splits(size, divisions, random_state)
     assert len(result) == divisions + 1
     assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
+    assert sum(result) == size, "Sum of intervals does not equal size"
+    min_interval = min(result)
+    max_interval = max(result)
+    assert max_interval - min_interval <= 1, "Intervals are not nearly equal"
+    result = F.generate_shuffled_splits(size, divisions, random_state)
+    assert len(result) == divisions + 1
+    assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
 
 @pytest.mark.parametrize("size, divisions, random_state", [
     (10, 2, 42),
