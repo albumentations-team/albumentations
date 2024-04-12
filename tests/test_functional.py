@@ -1105,7 +1105,10 @@ def test_brightness_contrast_adjust_equal(beta_by_max):
     ]
 )
 def test_split_uniform_grid(image_shape, grid, expected):
-    result = F.split_uniform_grid(image_shape, grid, 0)
+    random_seed = 43
+    result = F.split_uniform_grid(image_shape, grid, random_seed)
+    print(image_shape, grid, expected)
+    print(result)
     np.testing.assert_array_equal(result, expected)
 
 
@@ -1135,3 +1138,41 @@ def test_consistent_shuffling(size, divisions, random_state):
     result2 = F.generate_shuffled_splits(size, divisions, random_state)
     assert len(result2) == divisions + 1
     assert np.array_equal(result1, result2), "Shuffling is not consistent with the given random state"
+
+
+@pytest.mark.parametrize("tiles, expected", [
+    # Simple case with two different shapes
+    (np.array([[0, 0, 2, 2], [0, 2, 2, 4], [2, 0, 4, 2], [2, 2, 4, 4]]),
+     {(2, 2): [0, 1, 2, 3]}),
+    # Tiles with three different shapes
+    (np.array([[0, 0, 1, 3], [0, 3, 1, 6], [1, 0, 4, 3], [1, 3, 4, 6]]),
+     {(1, 3): [0, 1], (3, 3): [2, 3]}),
+    # Single tile
+    (np.array([[0, 0, 1, 1]]),
+     {(1, 1): [0]}),
+    # No tiles
+    (np.array([]).reshape(0, 4),
+     {}),
+    # All tiles having the same shape
+    (np.array([[0, 0, 2, 2], [2, 2, 4, 4], [4, 4, 6, 6]]),
+     {(2, 2): [0, 1, 2]}),
+])
+def test_create_shape_groups(tiles, expected):
+    result = F.create_shape_groups(tiles)
+    assert len(result) == len(expected), "Incorrect number of shape groups"
+    for shape in expected:
+        assert shape in result, f"Shape {shape} is not in the result"
+        assert sorted(result[shape]) == sorted(expected[shape]), f"Incorrect indices for shape {shape}"
+
+
+@pytest.mark.parametrize("shape_groups, random_state, expected_output", [
+    # Test with a simple case of one group
+    ({(2, 2): [0, 1, 2, 3]}, 42, [1, 3, 0, 2]),
+    # Test with multiple groups and ensure that random state affects the shuffle consistently
+    ({(2, 2): [0, 1, 2, 3], (1, 1): [4]}, 42, [1, 3, 0, 2, 4]),
+    # All tiles having the same shape should be shuffled within themselves
+    ({(2, 2): [0, 1, 2]}, 2, [2, 1, 0])
+])
+def test_shuffle_tiles_within_shape_groups(shape_groups, random_state, expected_output):
+    actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, random_state)
+    assert actual_output == expected_output, "Output did not match expected mapping"

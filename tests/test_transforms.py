@@ -1365,13 +1365,34 @@ def test_deprecation_warnings_random_shadow(
         if expected_warning == ValueError:
             with pytest.raises(ValueError):
                 A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
-                               num_shadows_upper=num_shadows_upper)
+                               num_shadows_upper=num_shadows_upper, p=1)
         else:
             A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
-                           num_shadows_upper=num_shadows_upper)
+                           num_shadows_upper=num_shadows_upper, p=1)
         if expected_warning is DeprecationWarning:
             assert len(w) == 1
             assert issubclass(w[-1].category, expected_warning)
         else:
             assert not w
     warnings.resetwarnings()
+
+
+@pytest.mark.parametrize("grid", [
+    (1, 2), (3, 3), (2, 1), (7, 7)
+])
+def test_grid_shuffle(image, mask, grid):
+    set_seed(1)
+    aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)])
+
+    res = aug(image=image, mask=mask)
+    assert res["image"].shape == image.shape
+    assert res["mask"].shape == mask.shape
+
+    assert not np.array_equal(res["image"], image)
+    assert not np.array_equal(res["mask"], mask)
+
+    assert np.array_equal(res["image"].mean(axis=(0, 1)), image.mean(axis=(0, 1)))
+    assert np.array_equal(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)))
+
+    assert np.array_equal(res["mask"].mean(axis=(0, 1)), mask.mean(axis=(0, 1)))
+    assert np.array_equal(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)))

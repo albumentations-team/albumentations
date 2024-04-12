@@ -1543,7 +1543,7 @@ def generate_shuffled_splits(size: int, divisions: int, random_state: Optional[i
         np.ndarray: Cumulative edges of the shuffled intervals.
     """
     intervals = almost_equal_intervals(size, divisions)
-    random_utils.shuffle(intervals, random_state=np.random.RandomState(random_state))
+    intervals = random_utils.shuffle(intervals, random_state=np.random.RandomState(random_state))
     return np.insert(np.cumsum(intervals), 0, 0)
 
 
@@ -1588,26 +1588,29 @@ def create_shape_groups(tiles: np.ndarray) -> Dict[Tuple[int, int], List[int]]:
 def shuffle_tiles_within_shape_groups(
     shape_groups: Dict[Tuple[int, int], List[int]],
     random_state: Optional[int] = None,
-) -> Dict[int, int]:
-    """Shuffles indices within each group of similar shapes and creates a mapping of old indices to new positions."""
-    mapping = {}
+) -> List[int]:
+    """Shuffles indices within each group of similar shapes and creates a list where each
+    index points to the index of the tile it should be mapped to.
+
+    Args:
+        shape_groups (Dict[Tuple[int, int], List[int]]): Groups of tile indices categorized by shape.
+        random_state (Optional[int]): Seed for the random number generator for reproducibility.
+
+    Returns:
+        List[int]: A list where each index is mapped to the new index of the tile after shuffling.
+    """
+    # Initialize the output list with the same size as the total number of tiles, filled with -1
+    num_tiles = sum(len(indices) for indices in shape_groups.values())
+    mapping = [-1] * num_tiles
+
+    # Prepare the random number generator
+
     for indices in shape_groups.values():
-        shuffled_indices = indices[:]
-        random_utils.shuffle(shuffled_indices, random_state=np.random.RandomState(random_state))
+        shuffled_indices = random_utils.shuffle(indices.copy(), random_state=np.random.RandomState(random_state))
         for old, new in zip(indices, shuffled_indices):
             mapping[old] = new
+
     return mapping
-
-
-def get_tile_mapping(tiles: np.ndarray, random_state: Optional[int] = None) -> np.ndarray:
-    """Processes a list of tiles by grouping them by shape, shuffling within groups, and returning a mapping array."""
-    shape_groups = create_shape_groups(tiles)
-    mapping = shuffle_tiles_within_shape_groups(shape_groups, random_state)
-    # Create the final mapping array based on shuffled indices
-    mapping_array = np.empty(len(tiles), dtype=int)
-    for old_index, new_index in mapping.items():
-        mapping_array[old_index] = new_index
-    return mapping_array
 
 
 def chromatic_aberration(
