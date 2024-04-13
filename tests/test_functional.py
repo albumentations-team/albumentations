@@ -1177,3 +1177,57 @@ def test_shuffle_tiles_within_shape_groups(shape_groups, random_state, expected_
     random_state = np.random.RandomState(random_state)
     actual_output = F.shuffle_tiles_within_shape_groups(shape_groups, random_state)
     assert actual_output == expected_output, "Output did not match expected mapping"
+
+
+@pytest.mark.parametrize("group_member,expected", [
+    ("e", np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]])),  # Identity
+    ("r90", np.array([[2, 5, 8], [1, 4, 7], [0, 3, 6]])),  # Rotate 90 degrees counterclockwise
+    ("r180", np.array([[8, 7, 6], [5, 4, 3], [2, 1, 0]])),  # Rotate 180 degrees
+    ("r270", np.array([[6, 3, 0], [7, 4, 1], [8, 5, 2]])),  # Rotate 270 degrees counterclockwise
+    ("v", np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])),  # Vertical flip
+    ("t", np.array([[0, 3, 6], [1, 4, 7], [2, 5, 8]])),  # Transpose (reflect over main diagonal)
+    ("h", np.array([[2, 1, 0], [5, 4, 3], [8, 7, 6]])),  # Horizontal flip
+    ("hv", np.array([[8, 7, 6], [5, 4, 3], [2, 1, 0]]))  # Horizontal and vertical flip
+])
+def test_d4_transformations(group_member, expected):
+    img = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.uint8)
+    transformed_img = FGeometric.d4(img, group_member)
+    assert np.array_equal(transformed_img, expected), f"Failed for transformation {group_member}"
+
+
+@pytest.mark.parametrize("bbox, group_member, rows, cols, expected", [
+    ((0.05, 0.1, 0.55, 0.6), 'e', 200, 200, (0.05, 0.1, 0.55, 0.6)),  # Identity
+    ((0.05, 0.1, 0.55, 0.6), 'r90', 200, 200, (0.1, 0.45, 0.6, 0.95)),  # Rotate 90 degrees CCW
+    ((0.05, 0.1, 0.55, 0.6), 'r180', 200, 200, (0.45, 0.4, 0.95, 0.9)),  # Rotate 180 degrees
+    ((0.05, 0.1, 0.55, 0.6), 'r270', 200, 200, (0.4, 0.05, 0.9, 0.55)),  # Rotate 270 degrees CCW
+    ((0.05, 0.1, 0.55, 0.6), 'v', 200, 200, (0.05, 0.4, 0.55, 0.9)),  # Vertical flip
+    ((0.05, 0.1, 0.55, 0.6), 't', 200, 200, (0.1, 0.05, 0.6, 0.55)),  # Transpose around main diagonal
+    ((0.05, 0.1, 0.55, 0.6), 'h', 200, 200, (0.45, 0.1, 0.95, 0.6)),  # Horizontal flip
+    ((0.05, 0.1, 0.55, 0.6), 'hv', 200, 200, (1 - 0.6, 1 - 0.55, 1 - 0.1, 1 - 0.05)), # Transpose around second diagonal
+])
+def test_bbox_d4(bbox, group_member, rows, cols, expected):
+    result = FGeometric.bbox_d4(bbox, group_member, rows, cols)
+    assert result == pytest.approx(expected, rel=1e-5), f"Failed for transformation {group_member} with bbox {bbox}"
+
+# Test to check equivalence of keypoint transpose (axis=1) with vflip + hflip
+@pytest.mark.parametrize("keypoint, rows, cols", [
+    ((100, 150, 0, 1), 300, 400),  # Example keypoint with arbitrary angle and scale
+    ((200, 100, np.pi/4, 0.5), 300, 400),
+    ((50, 250, np.pi/2, 2), 300, 400),
+])
+def test_keypoint_transpose_vh_flip_equivalence(keypoint, rows, cols):
+
+    # Perform vertical and then horizontal flip
+    hflipped_keypoint = FGeometric.keypoint_hflip(keypoint, rows, cols)
+    vhflipped_keypoint = FGeometric.keypoint_vflip(hflipped_keypoint, rows, cols)
+
+    vflipped_keypoint = FGeometric.keypoint_vflip(keypoint, rows, cols)
+    hvflipped_keypoint = FGeometric.keypoint_hflip(vflipped_keypoint, rows, cols)
+
+    assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), "Sequential vflip and hflip not equivalent to transpose"
+
+    # # Perform transpose around the secondary diagonal
+    transposed_keypoint = FGeometric.keypoint_transpose(keypoint, 1, rows, cols)
+
+    # Assert that both methods produce the same result
+    assert transposed_keypoint == pytest.approx(vhflipped_keypoint), "Transpose not equivalent to sequential vflip and hflip"

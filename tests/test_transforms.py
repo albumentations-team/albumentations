@@ -146,6 +146,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.D4: {},
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout,
                               A.MixUp},

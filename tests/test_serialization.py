@@ -449,7 +449,8 @@ AUGMENTATION_CLS_PARAMS = [
             mask_fill_value=20,
         )
     ],
-    [A.Morphological, {}]
+    [A.Morphological, {}],
+    [A.D4, {}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
