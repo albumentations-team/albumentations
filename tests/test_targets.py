@@ -92,6 +92,7 @@ DUAL_TARGETS = {
     A.RandomSizedBBoxSafeCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
     A.MixUp: (Targets.IMAGE, Targets.MASK, Targets.GLOBAL_LABEL),
     A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
+    A.D4: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
 }
 
 str2target = {

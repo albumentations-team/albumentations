@@ -15,7 +15,7 @@ from albumentations.augmentations.utils import (
     preserve_shape,
 )
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType
+from albumentations.core.types import BoxInternalType, ColorType, D4Type, KeypointInternalType
 
 __all__ = [
     "optical_distortion",
@@ -65,10 +65,16 @@ __all__ = [
     "normalize_bbox",
     "denormalize_bbox",
     "vflip",
+    "d4",
+    "bbox_d4",
+    "keypoint_d4",
 ]
 
 TWO = 2
 THREE = 3
+
+ROT90_180_FACTOR = 2
+ROT90_270_FACTOR = 3
 
 
 def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:
@@ -90,11 +96,55 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxI
     x_min, y_min, x_max, y_max = bbox[:4]
     if factor == 1:
         bbox = y_min, 1 - x_max, y_max, 1 - x_min
-    elif factor == TWO:
+    elif factor == ROT90_180_FACTOR:
         bbox = 1 - x_max, 1 - y_max, 1 - x_min, 1 - y_min
-    elif factor == THREE:
+    elif factor == ROT90_270_FACTOR:
         bbox = 1 - y_max, x_min, 1 - y_min, x_max
     return bbox
+
+
+def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -> BoxInternalType:
+    """Applies a `D_4` symmetry group transformation to a bounding box.
+
+    The function transforms a bounding box according to the specified group member from the `D_4` group.
+    These transformations include rotations and reflections, specified to work on an image's bounding box given
+    its dimensions.
+
+    Parameters:
+    - bbox (BoxInternalType): The bounding box to transform. This should be a structure specifying coordinates
+        like (xmin, ymin, xmax, ymax).
+    - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
+        Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
+    - rows (int): The number of rows in the image, used to adjust transformations that depend on image dimensions.
+    - cols (int): The number of columns in the image, used for the same purposes as rows.
+
+    Returns:
+    - BoxInternalType: The transformed bounding box.
+
+    Raises:
+    - ValueError: If an invalid group member is specified.
+
+    Examples:
+    - Applying a 90-degree rotation:
+      `bbox_d4((10, 20, 110, 120), 'r90', 100, 100)`
+      This would rotate the bounding box 90 degrees within a 100x100 image.
+    """
+    transformations = {
+        "e": lambda x: x,  # Identity transformation
+        "r90": lambda x: bbox_rot90(x, 1, rows, cols),  # Rotate 90 degrees
+        "r180": lambda x: bbox_rot90(x, 2, rows, cols),  # Rotate 180 degrees
+        "r270": lambda x: bbox_rot90(x, 3, rows, cols),  # Rotate 270 degrees
+        "v": lambda x: bbox_vflip(x, rows, cols),  # Vertical flip
+        "hv": lambda x: bbox_transpose(x, 1, rows, cols),  # Transpose (reflect over second diagonal)
+        "h": lambda x: bbox_hflip(x, rows, cols),  # Horizontal flip
+        "t": lambda x: bbox_transpose(x, 0, rows, cols),  # Transpose (reflect over main diagonal)
+    }
+
+    # Execute the appropriate transformation
+    if group_member in transformations:
+        return transformations[group_member](bbox)
+
+    raise ValueError(f"Invalid group member: {group_member}")
 
 
 @angle_2pi_range
@@ -128,12 +178,63 @@ def keypoint_rot90(
 
     if factor == 1:
         x, y, angle = y, (cols - 1) - x, angle - math.pi / 2
-    elif factor == TWO:
+    elif factor == ROT90_180_FACTOR:
         x, y, angle = (cols - 1) - x, (rows - 1) - y, angle - math.pi
-    elif factor == THREE:
+    elif factor == ROT90_270_FACTOR:
         x, y, angle = (rows - 1) - y, x, angle + math.pi / 2
 
     return x, y, angle, scale
+
+
+def keypoint_d4(
+    keypoint: KeypointInternalType,
+    group_member: D4Type,
+    rows: int,
+    cols: int,
+    **params: Any,
+) -> KeypointInternalType:
+    """Applies a `D_4` symmetry group transformation to a keypoint.
+
+    This function adjusts a keypoint's coordinates according to the specified `D_4` group transformation,
+    which includes rotations and reflections suitable for image processing tasks. These transformations account
+    for the dimensions of the image to ensure the keypoint remains within its boundaries.
+
+    Parameters:
+    - keypoint (KeypointInternalType): The keypoint to transform. T
+        his should be a structure or tuple specifying coordinates
+        like (x, y, [additional parameters]).
+    - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
+        Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
+    - rows (int): The number of rows in the image.
+    - cols (int): The number of columns in the image.
+    - params (Any): Not used
+
+    Returns:
+    - KeypointInternalType: The transformed keypoint.
+
+    Raises:
+    - ValueError: If an invalid group member is specified, indicating that the specified transformation does not exist.
+
+    Examples:
+    - Rotating a keypoint by 90 degrees in a 100x100 image:
+      `keypoint_d4((50, 30), 'r90', 100, 100)`
+      This would move the keypoint from (50, 30) to (70, 50) assuming standard coordinate transformations.
+    """
+    transformations = {
+        "e": lambda x: x,  # Identity transformation
+        "r90": lambda x: keypoint_rot90(x, 1, rows, cols),  # Rotate 90 degrees
+        "r180": lambda x: keypoint_rot90(x, 2, rows, cols),  # Rotate 180 degrees
+        "r270": lambda x: keypoint_rot90(x, 3, rows, cols),  # Rotate 270 degrees
+        "v": lambda x: keypoint_vflip(x, rows, cols),  # Vertical flip
+        "hv": lambda x: keypoint_transpose(x, 1, rows, cols),  # Transpose (reflect over second diagonal)
+        "h": lambda x: keypoint_hflip(x, rows, cols),  # Horizontal flip
+        "t": lambda x: keypoint_transpose(x, 0, rows, cols),  # Transpose (reflect over main diagonal)
+    }
+    # Execute the appropriate transformation
+    if group_member in transformations:
+        return transformations[group_member](keypoint)
+
+    raise ValueError(f"Invalid group member: {group_member}")
 
 
 @preserve_channel_dim
@@ -815,6 +916,56 @@ def hflip_cv2(img: np.ndarray) -> np.ndarray:
 
 
 @preserve_shape
+def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
+    """Applies a `D_4` symmetry group transformation to an image array.
+
+    This function manipulates an image using transformations such as rotations and flips,
+    corresponding to the `D_4` dihedral group symmetry operations.
+    Each transformation is identified by a unique group member code.
+
+    Parameters:
+    - img (np.ndarray): The input image array to transform.
+    - group_member (D4Type): A string identifier indicating the specific transformation to apply. Valid codes include:
+      - 'e': Identity (no transformation).
+      - 'r90': Rotate 90 degrees counterclockwise.
+      - 'r180': Rotate 180 degrees.
+      - 'r270': Rotate 270 degrees counterclockwise.
+      - 'v': Vertical flip.
+      - 'hv': Vertical and horizontal flip (combination).
+      - 't': Transpose (reflect over the main diagonal).
+      - 'h': Horizontal flip.
+
+    Returns:
+    - np.ndarray: The transformed image array.
+
+    Raises:
+    - ValueError: If an invalid group member is specified.
+
+    Examples:
+    - Rotating an image by 90 degrees:
+      `transformed_image = d4(original_image, 'r90')`
+    - Applying a horizontal flip to an image:
+      `transformed_image = d4(original_image, 'h')`
+    """
+    transformations = {
+        "e": lambda x: x,  # Identity transformation
+        "r90": lambda x: rot90(x, 1),  # Rotate 90 degrees
+        "r180": lambda x: rot90(x, 2),  # Rotate 180 degrees
+        "r270": lambda x: rot90(x, 3),  # Rotate 270 degrees
+        "v": vflip,  # Vertical flip
+        "hv": lambda x: hflip(vflip(x)),  # Horizontal and vertical flip
+        "h": hflip,  # Horizontal flip
+        "t": transpose,  # Transpose (reflect over main diagonal)
+    }
+
+    # Execute the appropriate transformation
+    if group_member in transformations:
+        return np.ascontiguousarray(transformations[group_member](img))
+
+    raise ValueError(f"Invalid group member: {group_member}")
+
+
+@preserve_shape
 def random_flip(img: np.ndarray, code: int) -> np.ndarray:
     return cv2.flip(img, code)
 
@@ -951,6 +1102,7 @@ def keypoint_hflip(keypoint: KeypointInternalType, rows: int, cols: int) -> Keyp
     return (cols - 1) - x, y, angle, scale
 
 
+@angle_2pi_range
 def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) -> KeypointInternalType:
     """Flip a keypoint either vertically, horizontally or both depending on the value of `d`.
 
@@ -982,21 +1134,40 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
     return keypoint
 
 
-def keypoint_transpose(keypoint: KeypointInternalType) -> KeypointInternalType:
-    """Rotate a keypoint by angle.
+@angle_2pi_range
+def keypoint_transpose(keypoint: KeypointInternalType, axis: int, rows: int, cols: int) -> KeypointInternalType:
+    """Transposes a keypoint along a specified axis: main diagonal (0) or secondary diagonal (1).
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.
+        axis: 0 for transposition over the main diagonal, 1 for transposition over the secondary diagonal.
+        rows: Total number of rows (height) in the image.
+        cols: Total number of columns (width) in the image.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
+        A transformed keypoint `(x, y, angle, scale)`.
+
+    Raises:
+        ValueError: If axis is not 0 or 1.
 
     """
     x, y, angle, scale = keypoint[:4]
 
-    angle = np.pi - angle if angle <= np.pi else 3 * np.pi - angle
+    if axis not in {0, 1}:
+        raise ValueError("Axis must be either 0 (main diagonal) or 1 (secondary diagonal).")
 
-    return y, x, angle, scale
+    if axis == 0:
+        # Transpose over the main diagonal, swap x and y.
+        new_x, new_y = y, x
+        # Adjust angle to reflect the coordinate swap.
+        angle = np.pi / 2 - angle if angle <= np.pi else 3 * np.pi / 2 - angle
+    elif axis == 1:
+        # Transpose over the secondary diagonal, flip and swap x and y.
+        new_x, new_y = cols - x - 1, rows - y - 1  # Adjusted to reflect indices starting from 0.
+        # Adjust angle to reflect the mirrored swap.
+        angle = np.pi + angle if angle <= np.pi else angle
+
+    return (new_x, new_y, angle, scale)
 
 
 @preserve_channel_dim

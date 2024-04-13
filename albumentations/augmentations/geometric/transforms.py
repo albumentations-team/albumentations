@@ -25,11 +25,13 @@ from albumentations.core.transforms_interface import BaseTransformInitSchema, Du
 from albumentations.core.types import (
     BoxInternalType,
     ColorType,
+    D4Type,
     KeypointInternalType,
     ScaleFloatType,
     ScaleIntType,
     SizeType,
     Targets,
+    d4_group_elements,
 )
 from albumentations.core.utils import to_tuple
 
@@ -48,6 +50,7 @@ __all__ = [
     "OpticalDistortion",
     "GridDistortion",
     "PadIfNeeded",
+    "D4",
 ]
 
 TWO = 2
@@ -1584,7 +1587,7 @@ class Transpose(DualTransform):
         return F.bbox_transpose(bbox, 0, **params)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return F.keypoint_transpose(keypoint)
+        return F.keypoint_transpose(keypoint, axis=0, **params)
 
     def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
@@ -1867,3 +1870,73 @@ class GridDistortion(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
+
+
+class D4(DualTransform):
+    """Applies one of the eight possible D4 dihedral group transformations to a square-shaped input,
+        maintaining the square shape. These transformations correspond to the symmetries of a square,
+        including rotations and reflections.
+
+    The D4 group transformations include:
+    - 'e' (identity): No transformation is applied.
+    - 'r90' (rotation by 90 degrees counterclockwise)
+    - 'r180' (rotation by 180 degrees)
+    - 'r270' (rotation by 270 degrees counterclockwise)
+    - 'v' (reflection across the vertical midline)
+    - 'hv' (reflection across the anti-diagonal)
+    - 'h' (reflection across the horizontal midline)
+    - 't' (reflection across the main diagonal)
+
+    Even if the probability (`p`) of applying the transform is set to 1, the identity transformation
+    'e' may still occur, which means the input will remain unchanged in one out of eight cases.
+
+    Args:
+        p (float): Probability of applying the transform. Default is 1, meaning the
+                   transform is applied every time it is called.
+
+    Targets:
+        image, mask, bboxes, keypoints
+
+    Image types:
+        uint8, float32
+
+    Note:
+        This transform is particularly useful when augmenting data that does not have a clear orientation:
+        - Top view satellite or drone imagery
+        - Medical images
+
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        p: ProbabilityType = 1
+
+    def __init__(
+        self,
+        always_apply: bool = False,
+        p: float = 1,
+    ):
+        super().__init__(always_apply, p)
+
+    def apply(self, img: np.ndarray, group_element: D4Type, **params: Any) -> np.ndarray:
+        return F.d4(img, group_element)
+
+    def apply_to_bbox(self, bbox: BoxInternalType, group_element: D4Type, **params: Any) -> BoxInternalType:
+        return F.bbox_d4(bbox, group_element, **params)
+
+    def apply_to_keypoint(
+        self,
+        keypoint: KeypointInternalType,
+        group_element: D4Type,
+        **params: Any,
+    ) -> KeypointInternalType:
+        return F.keypoint_d4(keypoint, group_element, **params)
+
+    def get_params(self) -> Dict[str, D4Type]:
+        return {
+            "group_element": random_utils.choice(d4_group_elements),
+        }
+
+    def get_transform_init_args_names(self) -> Tuple[()]:
+        return ()
