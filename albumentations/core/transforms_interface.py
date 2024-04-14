@@ -43,10 +43,12 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
-    # `_targets` defines the types of targets (e.g., image, mask) that the transform can be applied to.
-    _targets: Union[Tuple[Targets, ...], Targets]
-    _available_targets: Tuple[str, ...]
-    _target2func: Dict[str, Callable[..., Any]]
+    _targets: Union[Tuple[Targets, ...], Targets]  # targets that this transform can work on
+    _available_targets: Tuple[str, ...]  # targets that this transform, as string, lower-cased
+    _target2func: Dict[
+        str,
+        Callable[..., Any],
+    ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
     fill_value: ColorType
@@ -101,12 +103,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         params = self.update_params(params, **kwargs)
         res = {}
         for key, arg in kwargs.items():
-            if arg is not None:
-                target_function = self._get_target_function(key)
+            if key in self._target2func and arg is not None:
+                target_function = self._target2func[key]
                 target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
                 res[key] = target_function(arg, **dict(params, **target_dependencies))
             else:
-                res[key] = None
+                res[key] = arg
         return res
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
@@ -202,7 +204,15 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
 
         """
-        self._additional_targets = {**self._additional_targets, **additional_targets}
+        for k, v in additional_targets.items():
+            if k in self._additional_targets and v != self._additional_targets[k]:
+                raise ValueError(
+                    f"Trying to overwrite existed additional targets. "
+                    f"Key={k} Exists={self._additional_targets[k]} New value: {v}",
+                )
+            if v in self._available_targets:
+                self._additional_targets[k] = v
+                self._target2func[k] = self.targets[v]
 
     @property
     def targets_as_params(self) -> List[str]:
