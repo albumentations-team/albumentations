@@ -45,6 +45,8 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 class BasicTransform(Serializable, metaclass=CombinedMeta):
     # `_targets` defines the types of targets (e.g., image, mask) that the transform can be applied to.
     _targets: Union[Tuple[Targets, ...], Targets]
+    _available_targets: Tuple[str, ...]
+    _target2func: Dict[str, Callable[..., Any]]
     call_backup = None
     interpolation: int
     fill_value: ColorType
@@ -64,6 +66,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._additional_targets: Dict[str, str] = {}
         # replay mode params
         self.params: Dict[Any, Any] = {}
+        self.set_targets()
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
         if args:
@@ -155,6 +158,23 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         # >>  {"image": self.apply}
         # >>  {"masks": self.apply_to_masks}
         raise NotImplementedError
+
+    def set_targets(self) -> None:
+        """Set _available_targets"""
+        if not hasattr(self, "_targets"):
+            self._available_targets = ()
+        else:
+            self._available_targets = tuple(
+                target.value.lower()
+                for target in (self._targets if isinstance(self._targets, tuple) else [self._targets])
+            )
+        self.set_target2func()
+
+    def set_target2func(self) -> None:
+        """Set mapping for targets and methods for which they depend"""
+        self._target2func = {
+            target: self.targets[target] for target in self._available_targets if target in self.targets
+        }
 
     def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Update parameters with transform specific params"""
