@@ -32,8 +32,8 @@ RainMode = Literal["drizzle", "heavy", "torrential"]
 
 MorphologyMode = Literal["erosion", "dilation"]
 
-d4_group_elements = ["e", "r90", "r180", "r270", "v", "hv", "h", "t"]
-D4Type = Literal["e", "r90", "r180", "r270", "v", "hv", "h", "t"]
+d4_group_elements = ["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
+D4Type = Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 
 
 class ReferenceImage(TypedDict):

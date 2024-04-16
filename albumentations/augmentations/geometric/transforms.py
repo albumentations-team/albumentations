@@ -1584,10 +1584,10 @@ class Transpose(DualTransform):
         return F.transpose(img)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return F.bbox_transpose(bbox, 0, **params)
+        return F.bbox_transpose(bbox, **params)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return F.keypoint_transpose(keypoint, axis=0, **params)
+        return F.keypoint_transpose(keypoint, **params)
 
     def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
@@ -1883,7 +1883,7 @@ class D4(DualTransform):
     - 'r180' (rotation by 180 degrees)
     - 'r270' (rotation by 270 degrees counterclockwise)
     - 'v' (reflection across the vertical midline)
-    - 'hv' (reflection across the anti-diagonal)
+    - 'hvt' (reflection across the anti-diagonal)
     - 'h' (reflection across the horizontal midline)
     - 't' (reflection across the main diagonal)
 
