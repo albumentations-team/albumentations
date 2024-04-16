@@ -1208,8 +1208,7 @@ def get_md5_hash(image):
 def test_d4_unique(image):
     hashes = set()
     for element in d4_group_elements:
-        hash = get_md5_hash(FGeometric.d4(image, element))
-        hashes.add(hash)
+        hashes.add(get_md5_hash(FGeometric.d4(image, element)))
 
     assert len(hashes) == len(set(hashes)), "d4 should generate unique images for all group elements"
 
@@ -1230,7 +1229,6 @@ def test_bbox_d4(bbox, group_member, rows, cols, expected):
     assert result == pytest.approx(expected, rel=1e-5), f"Failed for transformation {group_member} with bbox {bbox}"
 
 
-# Test to check equivalence of keypoint transpose (axis=1) with vflip + hflip
 @pytest.mark.parametrize("keypoint, rows, cols", [
     ((100, 150, 0, 1), 300, 400),  # Example keypoint with arbitrary angle and scale
     ((200, 100, np.pi/4, 0.5), 300, 400),
@@ -1245,7 +1243,7 @@ def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
     vflipped_keypoint = FGeometric.keypoint_vflip(keypoint, rows, cols)
     hvflipped_keypoint = FGeometric.keypoint_hflip(vflipped_keypoint, rows, cols)
 
-    assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), "Sequential vflip and hflip not equivalent to sequential hflip and vflip"
+    assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), "Sequential vflip + hflip not equivalent to hflip + vflip"
     assert vhflipped_keypoint == pytest.approx(FGeometric.keypoint_rot90(keypoint, 2, rows, cols)), "rot180 not equivalent to vflip + hflip"
 
 

@@ -955,7 +955,7 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
         "v": vflip,  # Vertical flip
         "hvt": lambda x: transpose(rot90(x, 2)),  # Reflect over anti-diagonal
         "h": hflip,  # Horizontal flip
-        "t": lambda x: transpose(x),  # Transpose (reflect over main diagonal)
+        "t": transpose,  # Transpose (reflect over main diagonal)
     }
 
     # Execute the appropriate transformation
