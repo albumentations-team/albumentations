@@ -114,7 +114,7 @@ def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -
     - bbox (BoxInternalType): The bounding box to transform. This should be a structure specifying coordinates
         like (xmin, ymin, xmax, ymax).
     - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
-        Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hv', 'h', 't'.
+        Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hvt', 'h', 't'.
     - rows (int): The number of rows in the image, used to adjust transformations that depend on image dimensions.
     - cols (int): The number of columns in the image, used for the same purposes as rows.
 
@@ -135,9 +135,9 @@ def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -
         "r180": lambda x: bbox_rot90(x, 2, rows, cols),  # Rotate 180 degrees
         "r270": lambda x: bbox_rot90(x, 3, rows, cols),  # Rotate 270 degrees
         "v": lambda x: bbox_vflip(x, rows, cols),  # Vertical flip
-        "hv": lambda x: bbox_transpose(x, 1, rows, cols),  # Transpose (reflect over second diagonal)
+        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2, rows, cols), rows, cols),  # Reflect over anti-diagonal
         "h": lambda x: bbox_hflip(x, rows, cols),  # Horizontal flip
-        "t": lambda x: bbox_transpose(x, 0, rows, cols),  # Transpose (reflect over main diagonal)
+        "t": lambda x: bbox_transpose(x, rows, cols),  # Transpose (reflect over main diagonal)
     }
 
     # Execute the appropriate transformation
@@ -226,9 +226,9 @@ def keypoint_d4(
         "r180": lambda x: keypoint_rot90(x, 2, rows, cols),  # Rotate 180 degrees
         "r270": lambda x: keypoint_rot90(x, 3, rows, cols),  # Rotate 270 degrees
         "v": lambda x: keypoint_vflip(x, rows, cols),  # Vertical flip
-        "hv": lambda x: keypoint_transpose(x, 1, rows, cols),  # Transpose (reflect over second diagonal)
+        "hvt": lambda x: keypoint_transpose(keypoint_rot90(x, 2, rows, cols), rows, cols),  # Reflect over anti diagonal
         "h": lambda x: keypoint_hflip(x, rows, cols),  # Horizontal flip
-        "t": lambda x: keypoint_transpose(x, 0, rows, cols),  # Transpose (reflect over main diagonal)
+        "t": lambda x: keypoint_transpose(x, rows, cols),  # Transpose (reflect over main diagonal)
     }
     # Execute the appropriate transformation
     if group_member in transformations:
@@ -931,9 +931,9 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
       - 'r180': Rotate 180 degrees.
       - 'r270': Rotate 270 degrees counterclockwise.
       - 'v': Vertical flip.
-      - 'hv': Vertical and horizontal flip (combination).
-      - 't': Transpose (reflect over the main diagonal).
+      - 'hvt': Transpose over second diagonal
       - 'h': Horizontal flip.
+      - 't': Transpose (reflect over the main diagonal).
 
     Returns:
     - np.ndarray: The transformed image array.
@@ -953,9 +953,9 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
         "r180": lambda x: rot90(x, 2),  # Rotate 180 degrees
         "r270": lambda x: rot90(x, 3),  # Rotate 270 degrees
         "v": vflip,  # Vertical flip
-        "hv": lambda x: hflip(vflip(x)),  # Horizontal and vertical flip
+        "hvt": lambda x: transpose(rot90(x, 2)),  # Reflect over anti-diagonal
         "h": hflip,  # Horizontal flip
-        "t": transpose,  # Transpose (reflect over main diagonal)
+        "t": lambda x: transpose(x),  # Transpose (reflect over main diagonal)
     }
 
     # Execute the appropriate transformation
@@ -971,7 +971,21 @@ def random_flip(img: np.ndarray, code: int) -> np.ndarray:
 
 
 def transpose(img: np.ndarray) -> np.ndarray:
-    return img.transpose(1, 0, 2) if len(img.shape) > TWO else img.transpose(1, 0)
+    """Transposes the first two dimensions of an array of any dimensionality.
+    Retains the order of any additional dimensions.
+
+    Args:
+        img (np.ndarray): Input array.
+
+    Returns:
+        np.ndarray: Transposed array.
+    """
+    # Generate the new axes order
+    new_axes = list(range(img.ndim))
+    new_axes[0], new_axes[1] = 1, 0  # Swap the first two dimensions
+
+    # Transpose the array using the new axes order
+    return img.transpose(new_axes)
 
 
 def rot90(img: np.ndarray, factor: int) -> np.ndarray:
@@ -1039,12 +1053,11 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
     return bbox
 
 
-def bbox_transpose(bbox: KeypointInternalType, axis: int, rows: int, cols: int) -> KeypointInternalType:
+def bbox_transpose(bbox: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Transposes a bounding box along given axis.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        axis: 0 - main axis, 1 - secondary axis.
         rows: Image rows.
         cols: Image cols.
 
@@ -1056,14 +1069,7 @@ def bbox_transpose(bbox: KeypointInternalType, axis: int, rows: int, cols: int) 
 
     """
     x_min, y_min, x_max, y_max = bbox[:4]
-    if axis not in {0, 1}:
-        msg = "Axis must be either 0 or 1."
-        raise ValueError(msg)
-    if axis == 0:
-        bbox = (y_min, x_min, y_max, x_max)
-    if axis == 1:
-        bbox = (1 - y_max, 1 - x_max, 1 - y_min, 1 - x_min)
-    return bbox
+    return (y_min, x_min, y_max, x_max)
 
 
 @angle_2pi_range
@@ -1135,12 +1141,11 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
 
 
 @angle_2pi_range
-def keypoint_transpose(keypoint: KeypointInternalType, axis: int, rows: int, cols: int) -> KeypointInternalType:
+def keypoint_transpose(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Transposes a keypoint along a specified axis: main diagonal (0) or secondary diagonal (1).
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.
-        axis: 0 for transposition over the main diagonal, 1 for transposition over the secondary diagonal.
         rows: Total number of rows (height) in the image.
         cols: Total number of columns (width) in the image.
 
@@ -1153,21 +1158,12 @@ def keypoint_transpose(keypoint: KeypointInternalType, axis: int, rows: int, col
     """
     x, y, angle, scale = keypoint[:4]
 
-    if axis not in {0, 1}:
-        raise ValueError("Axis must be either 0 (main diagonal) or 1 (secondary diagonal).")
+    # Transpose over the main diagonal: swap x and y.
+    new_x, new_y = y, x
+    # Adjust angle to reflect the coordinate swap.
+    angle = np.pi / 2 - angle if angle <= np.pi else 3 * np.pi / 2 - angle
 
-    if axis == 0:
-        # Transpose over the main diagonal, swap x and y.
-        new_x, new_y = y, x
-        # Adjust angle to reflect the coordinate swap.
-        angle = np.pi / 2 - angle if angle <= np.pi else 3 * np.pi / 2 - angle
-    elif axis == 1:
-        # Transpose over the secondary diagonal, flip and swap x and y.
-        new_x, new_y = cols - x - 1, rows - y - 1  # Adjusted to reflect indices starting from 0.
-        # Adjust angle to reflect the mirrored swap.
-        angle = np.pi + angle if angle <= np.pi else angle
-
-    return (new_x, new_y, angle, scale)
+    return new_x, new_y, angle, scale
 
 
 @preserve_channel_dim
