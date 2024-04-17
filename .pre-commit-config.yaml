@@ -70,7 +70,7 @@ repos:
     hooks:
       - id: markdownlint
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "1.7.0"
+    rev: "1.8.0"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/pre-commit/mirrors-mypy

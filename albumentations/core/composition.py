@@ -282,6 +282,7 @@ class Compose(BaseCompose):
         checked_single = ["image", "mask"]
         checked_multi = ["masks"]
         check_bbox_param = ["bboxes"]
+        check_keypoints_param = ["keypoints"]
         shapes = []
         for data_name, data in kwargs.items():
             internal_data_name = self._additional_targets.get(data_name, data_name)
@@ -295,6 +296,10 @@ class Compose(BaseCompose):
                 shapes.append(data[0].shape[:2])
             if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
                 msg = "bbox_params must be specified for bbox transformations"
+                raise ValueError(msg)
+
+            if internal_data_name in check_keypoints_param and self.processors.get("keypoints") is None:
+                msg = "keypoints_params must be specified for keypoint transformations"
                 raise ValueError(msg)
 
         if self.is_check_shapes and shapes and shapes.count(shapes[0]) != len(shapes):
