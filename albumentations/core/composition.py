@@ -242,8 +242,11 @@ class Compose(BaseCompose):
         rows, cols = get_shape(data["image"])
 
         for p in self._check_each_transform:
-            for data_name in p.data_fields:
-                data[data_name] = p.filter(data[data_name], rows, cols)
+            for data_name in data:
+                if data_name in p.data_fields or (
+                    data_name in self._additional_targets and self._additional_targets[data_name] in p.data_fields
+                ):
+                    data[data_name] = p.filter(data[data_name], rows, cols)
         return data
 
     def to_dict_private(self) -> Dict[str, Any]:
