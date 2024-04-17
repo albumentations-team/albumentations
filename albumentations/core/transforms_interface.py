@@ -86,11 +86,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
             if self.deterministic:
-                if self.targets_as_params:
-                    warn(
-                        self.get_class_fullname() + " could work incorrectly in ReplayMode for other input data"
-                        " because its' params depend on targets.",
-                    )
                 kwargs[self.save_key][id(self)] = deepcopy(params)
             return self.apply_with_params(params, **kwargs)
 
@@ -116,6 +111,11 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             raise KeyError(msg)
 
         self.deterministic = flag
+        if self.deterministic and self.targets_as_params:
+            warn(
+                self.get_class_fullname() + " could work incorrectly in ReplayMode for other input data"
+                " because its' params depend on targets.",
+            )
         self.save_key = save_key
         return self
 

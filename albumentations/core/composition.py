@@ -191,6 +191,9 @@ class Compose(BaseCompose):
         self._disable_check_args_for_transforms(self.transforms)
 
         self.is_check_shapes = is_check_shapes
+        self._check_each_transform = tuple(  # processors that checks after each transform
+            proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
+        )
 
     @staticmethod
     def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:
@@ -220,17 +223,13 @@ class Compose(BaseCompose):
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else get_always_apply(self.transforms)
 
-        check_each_transform = any(
-            getattr(item.params, "check_each_transform", False) for item in self.processors.values()
-        )
-
         for p in self.processors.values():
             p.preprocess(data)
 
         for t in transforms:
             data = t(**data)
 
-            if check_each_transform:
+            if self._check_each_transform:
                 data = self._check_data_post_transform(data)
         data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
@@ -242,12 +241,12 @@ class Compose(BaseCompose):
     def _check_data_post_transform(self, data: Any) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
 
-        for p in self.processors.values():
-            if not getattr(p.params, "check_each_transform", False):
-                continue
-
-            for data_name in p.data_fields:
-                data[data_name] = p.filter(data[data_name], rows, cols)
+        for p in self._check_each_transform:
+            for data_name in data:
+                if data_name in p.data_fields or (
+                    data_name in self._additional_targets and self._additional_targets[data_name] in p.data_fields
+                ):
+                    data[data_name] = p.filter(data[data_name], rows, cols)
         return data
 
     def to_dict_private(self) -> Dict[str, Any]:
