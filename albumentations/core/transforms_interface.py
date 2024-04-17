@@ -43,10 +43,17 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
+    # `_targets` defines the types of targets (e.g., image, mask) that the transform can be applied to.
+    _targets: Union[Tuple[Targets, ...], Targets]
     call_backup = None
     interpolation: Union[int, Interpolation]
     fill_value: ColorType
     mask_fill_value: Optional[ColorType]
+    # replay mode params
+    deterministic: bool = False
+    save_key = "replay"
+    replay_mode = False
+    applied_in_replay = False
 
     class InitSchema(BaseTransformInitSchema):
         pass
@@ -55,13 +62,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self.p = p
         self.always_apply = always_apply
         self._additional_targets: Dict[str, str] = {}
-
         # replay mode params
-        self.deterministic = False
-        self.save_key = "replay"
         self.params: Dict[Any, Any] = {}
-        self.replay_mode = False
-        self.applied_in_replay = False
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
         if args:
@@ -91,8 +93,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return kwargs
 
     def apply_with_params(self, params: Dict[str, Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
-        if params is None:
-            return kwargs
+        """Apply transforms with parameters."""
         params = self.update_params(params, **kwargs)
         res = {}
         for key, arg in kwargs.items():
@@ -105,6 +106,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return res
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
+        """Set transform to be deterministic."""
         if save_key == "params":
             msg = "params save_key is reserved"
             raise KeyError(msg)
@@ -124,6 +126,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return f"{self.__class__.__name__}({format_args(state)})"
 
     def _get_target_function(self, key: str) -> Callable[..., Any]:
+        """Returns function to process target"""
         transform_key = key
         if key in self._additional_targets:
             transform_key = self._additional_targets.get(key, key)
@@ -131,20 +134,23 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return self.targets.get(transform_key, lambda x, **p: x)
 
     def apply(self, img: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
+        """Apply transform on image."""
         raise NotImplementedError
 
     def get_params(self) -> Dict[str, Any]:
+        """Returns parameters independent of input"""
         return {}
 
     @property
     def targets(self) -> Dict[str, Callable[..., Any]]:
-        # you must specify targets in subclass
-        # foe example:
-        # >>  ('image', 'mask')
-        # >>  ('image', 'boxes')
+        # mapping for targets and methods for which they depend
+        # for example:
+        # >>  {"image": self.apply}
+        # >>  {"masks": self.apply_to_masks}
         raise NotImplementedError
 
     def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+        """Update parameters with transform specific params"""
         if hasattr(self, "interpolation"):
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
@@ -172,9 +178,13 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     @property
     def targets_as_params(self) -> List[str]:
+        """Targets used to get params"""
         return []
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Returns parameters dependent on targets.
+        Dependent target is defined in `self.targets_as_params`
+        """
         raise NotImplementedError(
             "Method get_params_dependent_on_targets is not implemented in class " + self.__class__.__name__,
         )
@@ -188,11 +198,13 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return True
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        """Returns names of arguments that are used in __init__ method of the transform"""
         msg = f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
         "method is not implemented"
         raise NotImplementedError(msg)
 
     def get_base_init_args(self) -> Dict[str, Any]:
+        """Returns base init args - always_apply and p"""
         return {"always_apply": self.always_apply, "p": self.p}
 
     def get_transform_init_args(self) -> Dict[str, Any]:
