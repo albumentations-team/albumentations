@@ -43,7 +43,11 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
+class BasicTransform(Serializable, metaclass=CombinedMeta):
+    # `_targets` defines the types of targets (e.g., image, mask) that the transform can be applied to.
     _targets: Union[Tuple[Targets, ...], Targets]
+    call_backup = None
+    interpolation: Union[int, Interpolation]
     call_backup = None
     interpolation: Union[int, Interpolation]
     fill_value: ColorType
