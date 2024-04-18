@@ -40,8 +40,15 @@ class ReferenceImage(TypedDict):
     image: np.ndarray
     mask: NotRequired[np.ndarray]
     global_label: NotRequired[np.ndarray]
-    bbox: NotRequired[BoxType]
-    keypoints: NotRequired[KeypointType]
+    bboxes: NotRequired[Sequence[BoxType]]
+    keypoints: NotRequired[Sequence[KeypointType]]
+
+
+class ReferencePasteElement(TypedDict):
+    image: np.ndarray
+    mask: NotRequired[np.ndarray]
+    bbox_label: NotRequired[str]
+    keypoints: NotRequired[Sequence[KeypointType]]
 
 
 class Targets(Enum):

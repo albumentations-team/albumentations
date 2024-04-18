@@ -1,6 +1,6 @@
 import random
 import types
-from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import numpy as np
@@ -10,8 +10,9 @@ from typing_extensions import Annotated
 from albumentations.augmentations.functional import add_weighted
 from albumentations.augmentations.mixing.functional import blend_images_with_mask, generate_random_coordinates
 from albumentations.augmentations.utils import is_grayscale_image
+from albumentations.core.bbox_utils import normalize_bbox
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
-from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
+from albumentations.core.types import BoxType, KeypointType, ReferenceImage, ReferencePasteElement, Targets
 from albumentations.random_utils import beta
 
 __all__ = ["MixUp"]
@@ -226,7 +227,7 @@ class CopyAndPaste(ReferenceBasedTransform):
     def __init__(
         self,
         reference_data: Optional[Union[Generator[Any, None, None], Sequence[Any]]],
-        read_fn: Callable[[List[ReferenceImage]], Any],
+        read_fn: Callable[[List[ReferencePasteElement]], Any],
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -237,7 +238,7 @@ class CopyAndPaste(ReferenceBasedTransform):
     def apply(
         self,
         img: np.ndarray,
-        mix_data: List[ReferenceImage],
+        mix_data: List[ReferencePasteElement],
         embedding_coordinates: Sequence[Tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
@@ -250,6 +251,42 @@ class CopyAndPaste(ReferenceBasedTransform):
                 coordinates[1],
             )
         return img
+
+    def apply_to_bboxes(
+        self,
+        bboxes: Sequence[BoxType],
+        mix_data: List[ReferencePasteElement],
+        embedding_coordinates: Sequence[Tuple[int, int, int, int]],
+        **params: Any,
+    ) -> Sequence[BoxType]:
+        height, width = params["image"].shape[:2]
+        result = list(bboxes)
+        for mix_element, coordinates in zip(mix_data, embedding_coordinates):
+            unnormalized_bbox = (*coordinates, mix_element["bbox_label"])
+            result += [cast(BoxType, normalize_bbox(unnormalized_bbox, height, width))]
+        return result
+
+    def apply_to_keypoints(
+        self,
+        keypoints: Sequence[KeypointType],
+        mix_data: List[ReferencePasteElement],
+        embedding_coordinates: Sequence[Tuple[int, int, int, int]],
+        **params: Any,
+    ) -> Sequence[KeypointType]:
+        result = list(keypoints)
+
+        for mix_element, coordinates in zip(mix_data, embedding_coordinates):
+            x_min, y_min = coordinates[:2]
+            x_translation = x_min
+            y_translation = y_min
+            for keypoint in mix_element["keypoints"]:
+                x, y = keypoint[:2]
+                label = keypoint[-1]
+                scale = 0
+                angle = 0
+                result.append((x + x_translation, y + y_translation, angle, scale, label))
+
+        return keypoints
 
     @property
     def targets_as_params(self) -> List[str]:
