@@ -1217,7 +1217,6 @@ def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: f
     transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
 
     res = transform(image=image, bboxes=bboxes)["bboxes"]
-    print("Res = ", res)
     assert res == expected
 
 
