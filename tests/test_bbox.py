@@ -14,7 +14,7 @@ from albumentations.core.bbox_utils import (
 )
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp
-
+import albumentations as A
 
 @pytest.mark.parametrize(
     ["bbox", "expected"],
@@ -281,4 +281,41 @@ def test_bbox_params_edges(transforms, bboxes, result_bboxes, min_area, min_visi
     image = np.empty([100, 100, 3], dtype=np.uint8)
     aug = Compose(transforms, bbox_params=BboxParams("pascal_voc", min_area=min_area, min_visibility=min_visibility))
     res = aug(image=image, bboxes=bboxes)["bboxes"]
-    assert np.allclose(res, result_bboxes)
+    assert np.array_equal(res, result_bboxes)
+
+def test_bounding_box_outside_no_clip():
+    """
+    Test error is raised when bounding box exceeds image boundaries without clipping.
+    """
+    # Define a transformation with NoOp
+    transform = Compose([NoOp()],
+                        bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+
+    # Bounding box that exceeds the image dimensions
+    bbox = (110, 50, 140, 90)  # x_min, y_min, x_max, y_max in pixel values
+    labels = [1]
+
+    # Test should raise an error since bbox is out of image bounds and clipping is not enabled
+    with pytest.raises(ValueError):
+        transform(image=np.zeros((100, 100, 3), dtype=np.uint8), bboxes=[bbox], labels=labels)
+
+def test_bounding_box_outside_clip():
+    """
+    Test that bounding box is clipped correctly to image boundaries when clip=True.
+    """
+    # Define a transformation with NoOp and enable clipping
+    transform = Compose([A.NoOp()],
+                        bbox_params={'format': 'pascal_voc', 'label_fields': ['labels'], 'clip': True})
+
+    # Bounding box that initially exceeds the image dimensions
+    bbox = (-10, -10, 110, 110)  # x_min, y_min, x_max, y_max in pixel values
+    labels = [1]
+
+    # Apply transformation
+    transformed = transform(image=np.zeros((100, 100, 3), dtype=np.uint8), bboxes=[bbox], labels=labels)
+
+    # Expected bounding box should be clipped to image dimensions in pixels
+    expected_bbox = (0, 0, 100, 100)
+
+    # Check if the transformed bounding box is as expected
+    assert transformed['bboxes'][0] == expected_bbox

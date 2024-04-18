@@ -31,7 +31,7 @@ class BboxParams(Params):
     """Parameters of bounding boxes
 
     Args:
-        format (str): format of bounding boxes. Should be 'coco', 'pascal_voc', 'albumentations' or 'yolo'.
+        format (str): format of bounding boxes. Should be `coco`, `pascal_voc`, `albumentations` or `yolo`.
 
             The `coco` format
                 `[x_min, y_min, width, height]`, e.g. [97, 12, 150, 200].
@@ -43,30 +43,31 @@ class BboxParams(Params):
             The `yolo` format
                 `[x, y, width, height]`, e.g. [0.1, 0.2, 0.3, 0.4];
                 `x`, `y` - normalized bbox center; `width`, `height` - normalized bbox width and height.
-        label_fields (list): list of fields that are joined with boxes, e.g labels.
-            Should be same type as boxes.
-        min_area (float): minimum area of a bounding box. All bounding boxes whose
-            visible area in pixels is less than this value will be removed. Default: 0.0.
-        min_visibility (float): minimum fraction of area for a bounding box
-            to remain this box in list. Default: 0.0.
-        min_width (float): Minimum width of a bounding box. All bounding boxes whose width is
-            less than this value will be removed. Default: 0.0.
-        min_height (float): Minimum height of a bounding box. All bounding boxes whose height is
-            less than this value will be removed. Default: 0.0.
-        check_each_transform (bool): if `True`, then bboxes will be checked after each dual transform.
-            Default: `True`
+        label_fields (list): List of fields joined with boxes, e.g., labels.
+        min_area (float): Minimum area of a bounding box in pixels or normalized units.
+            Bounding boxes with an area less than this value will be removed. Default: 0.0.
+        min_area (float): Minimum area of a bounding box in pixels or normalized units.
+            Bounding boxes with an area less than this value will be removed. Default: 0.0.
+        min_width (float): Minimum width of a bounding box in pixels or normalized units.
+            Bounding boxes with a width less than this value will be removed. Default: 0.0.
+        min_height (float): Minimum height of a bounding box in pixels or normalized units.
+            Bounding boxes with a height less than this value will be removed. Default: 0.0.
+        check_each_transform (bool): If True, bounding boxes will be checked after each dual transform. Default: True.
+        clip (bool): If True, bounding boxes will be clipped to the image borders before applying any transform.
+            Default: False.
 
     """
 
     def __init__(
         self,
         format: str,
-        label_fields: Optional[Sequence[str]] = None,
+        label_fields: Optional[Sequence[Any]] = None,
         min_area: float = 0.0,
         min_visibility: float = 0.0,
         min_width: float = 0.0,
         min_height: float = 0.0,
         check_each_transform: bool = True,
+        clip: bool = False,
     ):
         super().__init__(format, label_fields)
         self.min_area = min_area
@@ -74,6 +75,7 @@ class BboxParams(Params):
         self.min_width = min_width
         self.min_height = min_height
         self.check_each_transform = check_each_transform
+        self.clip = clip
 
     def to_dict_private(self) -> Dict[str, Any]:
         data = super().to_dict_private()
@@ -84,6 +86,7 @@ class BboxParams(Params):
                 "min_width": self.min_width,
                 "min_height": self.min_height,
                 "check_each_transform": self.check_each_transform,
+                "clip": self.clip,
             },
         )
         return data
@@ -137,6 +140,13 @@ class BboxProcessor(DataProcessor):
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
     def convert_to_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
+        if self.params.clip:
+            data = convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=False)
+            data = filter_bboxes(data, rows, cols, min_area=0, min_visibility=0, min_width=0, min_height=0)
+            for bbox in data:
+                check_bbox(bbox)
+            return data
+
         return convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
 
@@ -340,13 +350,13 @@ def convert_bbox_to_albumentations(
             msg = "In YOLO format all coordinates must be float and in range (0, 1]"
             raise ValueError(msg)
 
-        (x, y, w, h), tail = bbox[:4], bbox[4:]
+        (x, y, width, height), tail = bbox[:4], bbox[4:]
 
-        w_half, h_half = w / 2, h / 2
+        w_half, h_half = width / 2, height / 2
         x_min = x - w_half
         y_min = y - h_half
-        x_max = x_min + w
-        y_max = y_min + h
+        x_max = x_min + width
+        y_max = y_min + height
     else:
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
 
@@ -405,9 +415,9 @@ def convert_bbox_from_albumentations(
         (x_min, y_min, x_max, y_max), tail = bbox[:4], bbox[4:]
         x = (x_min + x_max) / 2.0
         y = (y_min + y_max) / 2.0
-        w = x_max - x_min
-        h = y_max - y_min
-        bbox = cast(BoxType, (x, y, w, h, *tail))
+        width = x_max - x_min
+        height = y_max - y_min
+        bbox = cast(BoxType, (x, y, width, height, *tail))
     return bbox
 
 
@@ -533,9 +543,9 @@ def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_
     x2, y2 = 0, 0
     for bbox in bboxes:
         x_min, y_min, x_max, y_max = bbox[:4]
-        w, h = x_max - x_min, y_max - y_min
-        lim_x1, lim_y1 = x_min + erosion_rate * w, y_min + erosion_rate * h
-        lim_x2, lim_y2 = x_max - erosion_rate * w, y_max - erosion_rate * h
+        bbox_width, bbox_height = x_max - x_min, y_max - y_min
+        lim_x1, lim_y1 = x_min + erosion_rate * bbox_width, y_min + erosion_rate * bbox_height
+        lim_x2, lim_y2 = x_max - erosion_rate * bbox_width, y_max - erosion_rate * bbox_height
         x1, y1 = np.min([x1, lim_x1]), np.min([y1, lim_y1])
         x2, y2 = np.max([x2, lim_x2]), np.max([y2, lim_y2])
     return x1, y1, x2, y2
