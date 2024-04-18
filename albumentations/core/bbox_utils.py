@@ -43,11 +43,12 @@ class BboxParams(Params):
             The `yolo` format
                 `[x, y, width, height]`, e.g. [0.1, 0.2, 0.3, 0.4];
                 `x`, `y` - normalized bbox center; `width`, `height` - normalized bbox width and height.
-        label_fields (list): List of fields joined with boxes, e.g., labels.
+
+        label_fields (list): List of fields joined with boxes, e.g., labels. Should be of the same type as boxes.
         min_area (float): Minimum area of a bounding box in pixels or normalized units.
             Bounding boxes with an area less than this value will be removed. Default: 0.0.
-        min_area (float): Minimum area of a bounding box in pixels or normalized units.
-            Bounding boxes with an area less than this value will be removed. Default: 0.0.
+        min_visibility (float): Minimum fraction of area for a bounding box to remain in the list.
+            Bounding boxes with a visible area less than this fraction will be removed. Default: 0.0.
         min_width (float): Minimum width of a bounding box in pixels or normalized units.
             Bounding boxes with a width less than this value will be removed. Default: 0.0.
         min_height (float): Minimum height of a bounding box in pixels or normalized units.
