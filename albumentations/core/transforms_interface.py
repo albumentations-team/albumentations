@@ -95,15 +95,13 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def apply_with_params(self, params: Dict[str, Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
         """Apply transforms with parameters."""
         params = self.update_params(params, **kwargs)
-        res = {}
         for key, arg in kwargs.items():
             if arg is not None:
                 target_function = self._get_target_function(key)
-                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
-                res[key] = target_function(arg, **dict(params, **target_dependencies))
+                kwargs[key] = target_function(arg, **params)
             else:
-                res[key] = None
-        return res
+                kwargs[key] = None
+        return kwargs
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
         """Set transform to be deterministic."""
@@ -159,10 +157,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params["mask_fill_value"] = self.mask_fill_value
         params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
         return params
-
-    @property
-    def target_dependence(self) -> Dict[str, Any]:
-        return {}
 
     def add_targets(self, additional_targets: Dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets

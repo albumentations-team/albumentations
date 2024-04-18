@@ -312,14 +312,13 @@ class Compose(BaseCompose):
 
     @staticmethod
     def _make_targets_contiguous(data: Any) -> Dict[str, Any]:
-        result = {}
         for key, value in data.items():
             if isinstance(value, np.ndarray):
-                result[key] = np.ascontiguousarray(value)
+                data[key] = np.ascontiguousarray(value)
             else:
-                result[key] = value
+                data[key] = value
 
-        return result
+        return data
 
 
 class OneOf(BaseCompose):
