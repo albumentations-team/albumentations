@@ -65,3 +65,7 @@ class ImageCompressionType(IntEnum):
 
     JPEG = 0
     WEBP = 1
+
+
+MONO_SHAPE_LENGTH = 2
+MULTI_SHAPE_LENGTH = 3

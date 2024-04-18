@@ -8,6 +8,7 @@ from pydantic import Field
 from typing_extensions import Annotated
 
 from albumentations.augmentations.functional import add_weighted
+from albumentations.augmentations.mixing.functional import blend_images_with_mask, generate_random_coordinates
 from albumentations.augmentations.utils import is_grayscale_image
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
 from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
@@ -219,3 +220,65 @@ class MixUp(ReferenceBasedTransform):
         if self.mix_coef_return_name:
             res[self.mix_coef_return_name] = params["mix_coef"]
         return res
+
+
+class CopyAndPaste(ReferenceBasedTransform):
+    def __init__(
+        self,
+        reference_data: Optional[Union[Generator[Any, None, None], Sequence[Any]]],
+        read_fn: Callable[[List[ReferenceImage]], Any],
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply, p)
+        self.reference_data = reference_data
+        self.read_fn = read_fn
+
+    def apply(
+        self,
+        img: np.ndarray,
+        mix_data: List[ReferenceImage],
+        embedding_coordinates: Sequence[Tuple[int, int, int, int]],
+        **params: Any,
+    ) -> np.ndarray:
+        for mix_element, coordinates in zip(mix_data, embedding_coordinates):
+            img = blend_images_with_mask(
+                img,
+                mix_element["image"],
+                mix_element.get("mask"),
+                coordinates[0],
+                coordinates[1],
+            )
+        return img
+
+    @property
+    def targets_as_params(self) -> List[str]:
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        reference_element = None
+        # Check if reference_data is not empty and is a sequence (list, tuple, np.array)
+        if isinstance(self.reference_data, Sequence) and not isinstance(self.reference_data, (str, bytes)):
+            if len(self.reference_data) > 0:  # Additional check to ensure it's not empty
+                reference_idx = random.randint(0, len(self.reference_data) - 1)
+                reference_element = self.reference_data[reference_idx]
+        # Check if reference_data is an iterator or generator
+        elif isinstance(self.reference_data, Iterator):
+            try:
+                reference_element = next(self.reference_data)  # Attempt to get the next item
+            except StopIteration:
+                warn(
+                    "Reference data iterator/generator has been exhausted. "
+                    "Further mixing augmentations will not be applied.",
+                    RuntimeWarning,
+                )
+                return {"mix_data": [], "embedding_coordinates": []}
+
+        # If mix_data is None or empty after the above checks, return default values
+        if reference_element is None:
+            return {"mix_data": [], "embedding_coordinates": []}
+
+        img = params["image"]
+        mix_data = self.read_fn(reference_element)
+        embedding_coordinates = generate_random_coordinates([x["image"] for x in reference_element], img.shape[:2])
+        return {"mix_data": mix_data, "embedding_coordinates": embedding_coordinates}
