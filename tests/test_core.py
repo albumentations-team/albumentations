@@ -63,7 +63,7 @@ def test_compose():
 
 
 def oneof_always_apply_crash():
-    aug = Compose([HorizontalFlip(), Rotate(), OneOf([Blur(), MedianBlur()], p=1)], p=1)
+    aug = Compose([HorizontalFlip(p=1), Rotate(p=1), OneOf([Blur(p=1), MedianBlur(p=1)], p=1)], p=1)
     image = np.ones((8, 8))
     data = aug(image=image)
     assert data
@@ -162,7 +162,7 @@ def test_additional_targets(image, mask):
 def test_check_bboxes_with_correct_values():
     try:
         check_bboxes([[0.1, 0.5, 0.8, 1.0], [0.2, 0.5, 0.5, 0.6, 99]])
-    except Exception as e:  # skipcq: PYL-W0703
+    except Exception as e:
         pytest.fail(f"Unexpected Exception {e!r}")
 
 

@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
+from typing_extensions import Literal
 
 from .serialization import Serializable
 from .types import BoxOrKeypointType, ScalarType, ScaleType, SizeType
@@ -14,8 +15,7 @@ PAIR = 2
 
 def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
     if isinstance(img, np.ndarray):
-        rows, cols = img.shape[:2]
-        return rows, cols
+        return img.shape[:2]
 
     try:
         import torch
@@ -92,7 +92,7 @@ class DataProcessor(ABC):
         data: List[BoxOrKeypointType],
         rows: int,
         cols: int,
-        direction: str = "to",
+        direction: Literal["to", "from"] = "to",
     ) -> List[BoxOrKeypointType]:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
@@ -100,6 +100,7 @@ class DataProcessor(ABC):
 
         if direction == "to":
             return self.convert_to_albumentations(data, rows, cols)
+
         if direction == "from":
             return self.convert_from_albumentations(data, rows, cols)
 

@@ -14,7 +14,7 @@ from albumentations.core.bbox_utils import (
 )
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp
-
+import albumentations as A
 
 @pytest.mark.parametrize(
     ["bbox", "expected"],
@@ -281,4 +281,30 @@ def test_bbox_params_edges(transforms, bboxes, result_bboxes, min_area, min_visi
     image = np.empty([100, 100, 3], dtype=np.uint8)
     aug = Compose(transforms, bbox_params=BboxParams("pascal_voc", min_area=min_area, min_visibility=min_visibility))
     res = aug(image=image, bboxes=bboxes)["bboxes"]
-    assert np.allclose(res, result_bboxes)
+    assert np.array_equal(res, result_bboxes)
+
+def test_bounding_box_partially_outside_no_clip():
+    """
+    Test error is raised when bounding box exceeds image boundaries without clipping.
+    """
+    # Define a transformation with NoOp
+    transform = Compose([NoOp()],
+                        bbox_params={'format': 'pascal_voc', 'label_fields': ['labels']})
+
+    # Bounding box that exceeds the image dimensions
+    bbox = (110, 50, 140, 90)  # x_min, y_min, x_max, y_max in pixel values
+    labels = [1]
+
+    # Test should raise an error since bbox is out of image bounds and clipping is not enabled
+    with pytest.raises(ValueError):
+        transform(image=np.zeros((100, 100, 3), dtype=np.uint8), bboxes=[bbox], labels=labels)
+
+@pytest.mark.parametrize("image_size, bbox, expected_bbox", [
+    ((100, 100), (-10, -10, 110, 110), (0, 0, 100, 100)),
+    ((200, 200), (-20, -20, 220, 220), (0, 0, 200, 200)),
+    ((50, 50), (-5, -5, 55, 55), (0, 0, 50, 50))
+])
+def test_bounding_box_outside_clip(image_size, bbox, expected_bbox):
+    transform = Compose([A.NoOp()], bbox_params={'format': 'pascal_voc', 'label_fields': ['labels'], 'clip': True})
+    transformed = transform(image=np.zeros((*image_size, 3), dtype=np.uint8), bboxes=[bbox], labels=[1])
+    assert transformed['bboxes'][0] == expected_bbox
