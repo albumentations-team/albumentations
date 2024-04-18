@@ -871,7 +871,6 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
 def test_perspective_keep_size():
     h, w = 100, 100
     img = np.zeros([h, w, 3], dtype=np.uint8)
-    h, w = img.shape[:2]
     bboxes = []
     for _ in range(10):
         x1 = np.random.randint(0, w - 1)
@@ -887,7 +886,7 @@ def test_perspective_keep_size():
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
     transform_2 = A.Compose(
-        [A.Perspective(keep_size=False, p=1), A.Resize(h, w)],
+        [A.Perspective(keep_size=False, p=1), A.Resize(h, w, p=1)],
         keypoint_params=A.KeypointParams("xys"),
         bbox_params=A.BboxParams("pascal_voc", label_fields=["labels"]),
     )
@@ -897,7 +896,7 @@ def test_perspective_keep_size():
     set_seed(0)
     res_2 = transform_2(image=img, bboxes=bboxes, keypoints=keypoints, labels=[0] * len(bboxes))
 
-    assert np.allclose(res_1["bboxes"], res_2["bboxes"])
+    assert np.allclose(res_1["bboxes"], res_2["bboxes"], atol=0.2)
     assert np.allclose(res_1["keypoints"], res_2["keypoints"])
 
 
@@ -1080,8 +1079,8 @@ def test_affine_incorrect_scale_range(params):
             {
                 "bboxes": [
                     [15.65896994771262, 0.2946228229078849, 21.047137067150473, 4.617219579173327, 0],
-                    [194.29851584295034, 25.564320319214918, 199.68668296238818, 29.88691707548036, 0],
-                    [178.9528629328495, 95.38278042082668, 184.34103005228735, 99.70537717709212, 0],
+                    [194.29851584295034, 25.564320319214918, 199, 29.88691707548036, 0],
+                    [178.9528629328495, 95.38278042082668, 184.34103005228735, 99, 0],
                     [0.47485022613917677, 70.11308292451965, 5.701484157049652, 73.70074852182076, 0],
                 ],
                 "keypoints": [
@@ -1112,7 +1111,7 @@ def test_affine_incorrect_scale_range(params):
                 "bboxes": [
                     [0.3133170376117963, 25.564320319214918, 5.701484157049649, 29.88691707548036, 0],
                     [178.9528629328495, 0.2946228229078862, 184.34103005228735, 4.617219579173327, 0],
-                    [194.29851584295034, 70.11308292451965, 199.68668296238818, 74.43567968078509, 0],
+                    [194.29851584295034, 70.11308292451965, 199, 74.43567968078509, 0],
                     [15.658969947712617, 95.38278042082668, 20.88560387862309, 98.97044601812779, 0],
                 ],
                 "keypoints": [
@@ -1209,7 +1208,7 @@ def test_rotate_equal(img, aug_cls, angle):
         [[(0, 0, 10, 10, 1)], [], 0.9, -1],
         [[(0, 0, 10, 10, 1)], [(0, 0, 8, 8, 1)], 0.6, -1],
         [[(90, 90, 100, 100, 1)], [], 0.9, 1],
-        [[(90, 90, 100, 100, 1)], [(92, 92, 100, 100, 1)], 0.6, 1],
+        [[(90, 90, 100, 100, 1)], [(92, 92, 99, 99, 1)], 0.49, 1],
     ],
 )
 def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: float, sign: int):

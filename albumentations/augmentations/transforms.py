@@ -239,8 +239,6 @@ class Normalize(ImageOnlyTransform):
                 minimum and maximum pixel values.
             - "min_max_per_channel": Scales each channel of the image pixel values to a [0, 1]
                 range based on the per-channel minimum and maximum pixel values.
-            - "inception": Applies normalization suitable for Inception models
-                with mean and std values of (0.5, 0.5, 0.5) respectively.
 
         p (float): Probability of applying the transform. Defaults to 1.0.
 
@@ -252,7 +250,6 @@ class Normalize(ImageOnlyTransform):
 
     Note:
         For "standard" normalization, `mean`, `std`, and `max_pixel_value` must be provided.
-        For "inception" normalization, the specific mean and std values should be used.
         For other normalization types, these parameters are ignored.
     """
 
@@ -272,7 +269,6 @@ class Normalize(ImageOnlyTransform):
             "image_per_channel",
             "min_max",
             "min_max_per_channel",
-            "inception",
         ] = "standard"
         p: ProbabilityType = 1
 
