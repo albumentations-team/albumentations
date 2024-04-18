@@ -1,5 +1,6 @@
 from inspect import Parameter, signature
 from typing import Any, Callable, Dict, Optional, Tuple, Type
+from warnings import warn
 
 from pydantic import BaseModel
 
@@ -28,6 +29,11 @@ class ValidatedTransformMeta(type):
                 config = dct["InitSchema"](**full_kwargs)
 
                 validated_kwargs = config.model_dump()
+                for name_arg in kwargs:
+                    if name_arg not in validated_kwargs:
+                        warn(
+                            f"Argument '{name_arg}' is not valid and will be ignored.",
+                        )
 
                 original_init(self, **validated_kwargs)
 

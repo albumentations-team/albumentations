@@ -1,4 +1,5 @@
 from typing import Optional
+import warnings
 import pytest
 import cv2
 
@@ -304,3 +305,15 @@ def test_custom_image_transform_signature():
     assert expected_params['always_apply'].default is False
     assert expected_params['p'].default == 0.5
     assert expected_params['custom_param'].annotation is int
+
+
+def test_wrong_argument() -> None:
+    """Test that pas Transform will get warning"""
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        transform = A.Crop(wrong_param=10)
+        assert not hasattr(transform, "wrong_param")
+        assert len(w) == 1
+        assert issubclass(w[0].category, UserWarning)
+        assert str(w[0].message) == "Argument 'wrong_param' is not valid and will be ignored."
+    warnings.resetwarnings()

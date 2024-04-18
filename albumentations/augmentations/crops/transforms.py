@@ -356,7 +356,8 @@ class _BaseRandomSizedCrop(DualTransform):
     # Base class for RandomSizedCrop and RandomResizedCrop
 
     class InitSchema(BaseRandomSizedCropInitSchema):
-        pass
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        size: Tuple[int, int]
 
     def __init__(
         self,
