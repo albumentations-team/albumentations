@@ -273,7 +273,7 @@ def test_crop_boxes_replay_compose():
     ["transforms", "bboxes", "result_bboxes", "min_area", "min_visibility"],
     [
         [[Crop(10, 10, 20, 20)], [[0, 0, 10, 10, 0]], [], 0, 0],
-        [[Crop(0, 0, 90, 90)], [[0, 0, 91, 91, 0], [0, 0, 90, 90, 0]], [[0, 0, 90, 90, 0]], 0, 1],
+        [[Crop(0, 0, 90, 90)], [[0, 0, 91, 91, 0], [0, 0, 89, 89, 0]], [[0, 0, 89, 89, 0]], 0, 1],
         [[Crop(0, 0, 90, 90)], [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]], [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]], 10, 0],
     ],
 )
@@ -300,9 +300,9 @@ def test_bounding_box_partially_outside_no_clip():
         transform(image=np.zeros((100, 100, 3), dtype=np.uint8), bboxes=[bbox], labels=labels)
 
 @pytest.mark.parametrize("image_size, bbox, expected_bbox", [
-    ((100, 100), (-10, -10, 110, 110), (0, 0, 100, 100)),
-    ((200, 200), (-20, -20, 220, 220), (0, 0, 200, 200)),
-    ((50, 50), (-5, -5, 55, 55), (0, 0, 50, 50))
+    ((100, 100), (-10, -10, 110, 110), (0, 0, 99, 99)),
+    ((200, 200), (-20, -20, 220, 220), (0, 0, 199, 199)),
+    ((50, 50), (-5, -5, 55, 55), (0, 0, 49, 49))
 ])
 def test_bounding_box_outside_clip(image_size, bbox, expected_bbox):
     transform = Compose([A.NoOp()], bbox_params={'format': 'pascal_voc', 'label_fields': ['labels'], 'clip': True})

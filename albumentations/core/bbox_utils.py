@@ -475,6 +475,30 @@ def check_bboxes(bboxes: Sequence[BoxType]) -> None:
         check_bbox(bbox)
 
 
+def clip_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
+    """Clips the bounding box coordinates to ensure they fit within the boundaries of an image.
+
+    The function first denormalizes the bounding box coordinates from relative to absolute (pixel) values.
+    Each coordinate is then clipped to the respective dimension of the image to ensure that the bounding box
+    does not exceed the image's boundaries. Finally, the bounding box is normalized back to relative values.
+
+    Parameters:
+        bbox (BoxInternalType): The bounding box in normalized format (relative to image dimensions).
+        rows (int): The number of rows (height) in the image.
+        cols (int): The number of columns (width) in the image.
+
+    Returns:
+        BoxInternalType: The clipped bounding box, normalized to the image dimensions.
+    """
+    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
+
+    x_min = np.clip(x_min, 0, cols - 1)
+    x_max = np.clip(x_max, 0, cols - 1)
+    y_min = np.clip(y_min, 0, rows - 1)
+    y_max = np.clip(y_max, 0, rows - 1)
+    return cast(BoxType, normalize_bbox((x_min, y_min, x_max, y_max), rows, cols) + tuple(bbox[4:]))
+
+
 def filter_bboxes(
     bboxes: Sequence[BoxType],
     rows: int,
@@ -508,7 +532,10 @@ def filter_bboxes(
         bbox = bboxes[i]
         # Calculate areas of bounding box before and after clipping.
         transformed_box_area = calculate_bbox_area(bbox, rows, cols)
-        bbox, tail = cast(BoxType, tuple(np.clip(bbox[:4], 0, 1.0))), tuple(bbox[4:])
+        clipped_bbox = clip_bbox(bbox, rows, cols)
+
+        bbox, tail = clipped_bbox[:4], clipped_bbox[4:]
+
         clipped_box_area = calculate_bbox_area(bbox, rows, cols)
 
         # Calculate width and height of the clipped bounding box.
