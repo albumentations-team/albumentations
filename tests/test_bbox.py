@@ -283,7 +283,7 @@ def test_bbox_params_edges(transforms, bboxes, result_bboxes, min_area, min_visi
     res = aug(image=image, bboxes=bboxes)["bboxes"]
     assert np.array_equal(res, result_bboxes)
 
-def test_bounding_box_outside_no_clip():
+def test_bounding_box_partially_outside_no_clip():
     """
     Test error is raised when bounding box exceeds image boundaries without clipping.
     """
@@ -299,23 +299,12 @@ def test_bounding_box_outside_no_clip():
     with pytest.raises(ValueError):
         transform(image=np.zeros((100, 100, 3), dtype=np.uint8), bboxes=[bbox], labels=labels)
 
-def test_bounding_box_outside_clip():
-    """
-    Test that bounding box is clipped correctly to image boundaries when clip=True.
-    """
-    # Define a transformation with NoOp and enable clipping
-    transform = Compose([A.NoOp()],
-                        bbox_params={'format': 'pascal_voc', 'label_fields': ['labels'], 'clip': True})
-
-    # Bounding box that initially exceeds the image dimensions
-    bbox = (-10, -10, 110, 110)  # x_min, y_min, x_max, y_max in pixel values
-    labels = [1]
-
-    # Apply transformation
-    transformed = transform(image=np.zeros((100, 100, 3), dtype=np.uint8), bboxes=[bbox], labels=labels)
-
-    # Expected bounding box should be clipped to image dimensions in pixels
-    expected_bbox = (0, 0, 100, 100)
-
-    # Check if the transformed bounding box is as expected
+@pytest.mark.parametrize("image_size, bbox, expected_bbox", [
+    ((100, 100), (-10, -10, 110, 110), (0, 0, 100, 100)),
+    ((200, 200), (-20, -20, 220, 220), (0, 0, 200, 200)),
+    ((50, 50), (-5, -5, 55, 55), (0, 0, 50, 50))
+])
+def test_bounding_box_outside_clip(image_size, bbox, expected_bbox):
+    transform = Compose([A.NoOp()], bbox_params={'format': 'pascal_voc', 'label_fields': ['labels'], 'clip': True})
+    transformed = transform(image=np.zeros((*image_size, 3), dtype=np.uint8), bboxes=[bbox], labels=[1])
     assert transformed['bboxes'][0] == expected_bbox
