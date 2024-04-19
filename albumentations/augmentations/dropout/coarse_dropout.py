@@ -1,10 +1,10 @@
-import random
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
+from albumentations import random_utils
 from albumentations.core.pydantic import OnePlusIntNonDecreasingRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScalarType, Targets
@@ -191,20 +191,20 @@ class CoarseDropout(DualTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for _ in range(random.randint(self.num_holes_range[0], self.num_holes_range[1])):
+        for _ in range(random_utils.randint(self.num_holes_range[0], self.num_holes_range[1] + 1)):
             if all(isinstance(x, int) for x in self.hole_height_range + self.hole_width_range):
-                hole_height = random.randint(int(self.hole_height_range[0]), int(self.hole_height_range[1]))
-                hole_width = random.randint(int(self.hole_width_range[0]), int(self.hole_width_range[1]))
+                hole_height = random_utils.randint(int(self.hole_height_range[0]), int(self.hole_height_range[1] + 1))
+                hole_width = random_utils.randint(int(self.hole_width_range[0]), int(self.hole_width_range[1] + 1))
             elif all(isinstance(x, float) for x in self.hole_height_range + self.hole_width_range):
-                hole_height = int(height * random.uniform(self.hole_height_range[0], self.hole_height_range[1]))
-                hole_width = int(width * random.uniform(self.hole_width_range[0], self.hole_width_range[1]))
+                hole_height = int(height * random_utils.uniform(self.hole_height_range[0], self.hole_height_range[1]))
+                hole_width = int(width * random_utils.uniform(self.hole_width_range[0], self.hole_width_range[1]))
             else:
                 msg = f"Min width, max width, min height and max height should all either be ints or floats. \
                     Got: {[ type(x) for x in self.hole_height_range + self.hole_width_range]} respectively"
                 raise ValueError(msg)
 
-            y1 = random.randint(0, height - hole_height)
-            x1 = random.randint(0, width - hole_width)
+            y1 = random_utils.randint(0, height - hole_height + 1)
+            x1 = random_utils.randint(0, width - hole_width + 1)
             y2 = y1 + hole_height
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))

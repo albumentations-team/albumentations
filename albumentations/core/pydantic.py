@@ -103,12 +103,14 @@ OnePlusIntNonDecreasingRangeType = Annotated[
 ]
 
 
-def check_01_range(value: ScaleType) -> Tuple[float, float]:
-    result = to_tuple(value, 0)
+def convert_to_0plus_range(value: ScaleType) -> Tuple[float, float]:
+    return to_tuple(value, low=0)
 
-    if not all(0 <= x <= 1 for x in result):
+
+def check_01_range(value: Tuple[float, float]) -> Tuple[float, float]:
+    if not all(0 <= x <= 1 for x in value):
         raise ValueError(f"All values should be in [0, 1], got {value} instead")
-    return result
+    return value
 
 
-ZeroOneRangeType = Annotated[ScaleType, AfterValidator(check_01_range)]
+ZeroOneRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(check_01_range)]

@@ -101,7 +101,8 @@ def test_create_symmetric_range(value, expected):
     assert create_symmetric_range(value) == expected
 
 @pytest.mark.parametrize("value", [
-    (0.9),  # Invalid input
+    (0, 0.9),  # Invalid input
+    (0, 1.1),  # Invalid input
 ])
 def test_check_1plus_range_with_invalid_input(value):
     with pytest.raises(ValueError):
@@ -109,14 +110,13 @@ def test_check_1plus_range_with_invalid_input(value):
 
 @pytest.mark.parametrize("value,expected", [
     ((1, 2), (1.0, 2.0)),
-    (2, (1.0, 2.0)),
 ])
 def test_check_1plus_range_with_valid_input(value, expected):
     assert check_1plus_range(value) == expected
 
 @pytest.mark.parametrize("value", [
-    (-0.1),
-    (1.2),
+    (0, -0.1),
+    (2, 1.2),
 ])
 def test_check_01_range_with_invalid_input(value):
     with pytest.raises(ValueError):
@@ -124,7 +124,7 @@ def test_check_01_range_with_invalid_input(value):
 
 @pytest.mark.parametrize("value,expected", [
     ((0, 1), (0.0, 1.0)),
-    ((0.3), (0.0, 0.3)),
+    ((0, 0.3), (0.0, 0.3)),
 ])
 def test_check_01_range_with_valid_input(value, expected):
     assert check_01_range(value) == expected
