@@ -15,21 +15,26 @@ __all__ = ["CoarseDropout"]
 
 
 class CoarseDropout(DualTransform):
-    """CoarseDropout of the rectangular regions in the image.
+    """CoarseDropout randomly drops out rectangular regions from the image and optionally,
+    the corresponding regions in an associated mask, to simulate the occlusion and
+    varied object sizes found in real-world settings. This transformation is an
+    evolution of CutOut and RandomErasing, offering more flexibility in the size,
+    number of dropout regions, and fill values.
 
     Args:
-        num_holes_range (Tuple[int, int]): A range specifying the minimum and maximum
-            number of regions to zero out. The first value is the minimum number of holes,
-            and the second is the maximum.
-        hole_height_range (Tuple[ScalarType, ScalarType]): A range specifying the minimum
-            and maximum height of the holes. The first value is the minimum height, and
-            the second is the maximum height.
-        hole_width_range (Tuple[ScalarType, ScalarType]): A range specifying the minimum
-            and maximum width of the holes. The first value is the minimum width, and
-            the second is the maximum width.
-        fill_value (ColorType): Value for dropped pixels in the image.
-        mask_fill_value (Optional[ColorType]): Fill value for dropped pixels in the mask.
-            If `None`, the mask is not affected. Default: `None`.
+        num_holes_range (Tuple[int, int]): Specifies the range (minimum and maximum)
+            of the number of rectangular regions to zero out. This allows for dynamic
+            variation in the number of regions removed per transformation instance.
+        hole_height_range (Tuple[ScalarType, ScalarType]): Defines the minimum and
+            maximum heights of the dropout regions, providing variability in their vertical dimensions.
+        hole_width_range (Tuple[ScalarType, ScalarType]): Defines the minimum and
+            maximum widths of the dropout regions, providing variability in their horizontal dimensions.
+        fill_value (ColorType, Literal["random"]): Specifies the value used to fill the dropout regions.
+            This can be a constant value, a tuple specifying pixel intensity across channels, or 'random'
+            which fills the region with random noise.
+        mask_fill_value (Optional[ColorType]): Specifies the fill value for dropout regions in the mask.
+            If set to `None`, the mask regions corresponding to the image dropout regions are left unchanged.
+
 
     Targets:
         image, mask, keypoints
