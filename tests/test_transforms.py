@@ -10,7 +10,6 @@ import warnings
 from torchvision import transforms as torch_transforms
 
 import albumentations as A
-from albumentations.augmentations.dropout.functional import cutout
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
