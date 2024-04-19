@@ -180,6 +180,36 @@ Even if a parameter defined as `Tuple`, the transform should work correctly with
 
 To maintain determinism and reproducibility, handle all probability calculations within the `get_params` or `get_params_dependent_on_targets` methods. These calculations should not occur in the `apply_xxx` or `__init__` methods, as it is crucial to separate configuration from execution in our codebase.
 
+## Guidelines for Modifying Existing Code
+
+Maintaining the stability and usability of Albumentations for all users is a priority. When contributing, it's important to follow these guidelines for modifying existing code:
+
+### Transform Modifications
+
+**Transform Interfaces**: Changes to transform interfaces or the removal of old transforms should be handled delicately. Introduce changes through a deprecation warning phase that lasts several months. This provides users ample time to adapt to new changes.
+
+### Custom Transformations
+
+**Support for Customization**: We highly value the ability to create custom transformations based on ImageOnlyTransform and DualTransform. Significant changes, like the removal of methods such as get_params_depend_on_targets, should also proceed through a deprecation phase to preserve backward compatibility.
+
+### Helper Functions
+
+**Flexibility with Helpers**: Helper functions can be modified more freely. While these functions may be directly used by some users, typically they are power users who are capable of handling such changes. Thus, adding, removing, or moving helper functions can be done with relative freedom.
+
+### Private Methods and Internal Logic
+
+**Internal Changes**: Private methods and functions within transform_interface and Compose that do not affect inheritance from ImageOnlyTransform, DualTransform, or alter the behavior of transformations can be changed or optimized boldly. These modifications do not require a deprecation phase.
+
+### Handling Broken Features
+
+**Rapid Response**: If it becomes evident that a transformation or feature is fundamentally broken, take decisive action to fix or overhaul it. This may involve substantial changes or relocations within the codebase to correct the issue efficiently.
+
+### Application of Changes
+
+* Always document your changes thoroughly, especially if they affect how users interact with the library.
+* Use the pull request description to explain your changes and the reasons behind them. This helps maintainers understand your decisions and facilitates the review process.
+By adhering to these guidelines, contributors can ensure that their enhancements and fixes are integrated smoothly and maintain the high standards of the Albumentations library.
+
 ## Additional Resources
 
 [Albumentations Documentation](https://albumentations.ai/docs/)
