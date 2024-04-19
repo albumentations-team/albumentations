@@ -76,7 +76,7 @@ def convert_to_1plus_range(value: ScaleType) -> Tuple[float, float]:
 
 
 def check_1plus_range(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
-    if not all(x >= 1 for x in value):
+    if any(x < 1 for x in value):
         raise ValueError(f"All values should be >= 1, got {value} instead")
     return value
 

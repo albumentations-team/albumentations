@@ -61,7 +61,7 @@ def cutout(
         fill_value = np.array(fill_value, dtype=img.dtype)
 
     for x1, y1, x2, y2 in holes:
-        if fill_value == "random":
+        if isinstance(fill_value, str) and fill_value == "random":
             shape = (y2 - y1, x2 - x1) if img.ndim == MONO_CHANNEL_DIMENSIONS else (y2 - y1, x2 - x1, img.shape[2])
             random_fill = generate_random_fill(img.dtype, shape)
             img[y1:y2, x1:x2] = random_fill
