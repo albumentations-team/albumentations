@@ -217,8 +217,8 @@ class CoarseDropout(DualTransform):
                 self.hole_width_range,
             )
 
-            y1 = random_utils.randint(0, height - hole_height + 1)
-            x1 = random_utils.randint(0, width - hole_width + 1)
+            y1 = random_utils.randint(0, height - hole_height)
+            x1 = random_utils.randint(0, width - hole_width)
             y2 = y1 + hole_height
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
