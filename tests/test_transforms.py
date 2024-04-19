@@ -1381,6 +1381,10 @@ def test_deprecation_warnings_random_shadow(
     (2, 2), (3, 3), (4, 4), (5, 7)
 ])
 def test_grid_shuffle(image, mask, grid):
+    """
+    As we reshuffle the grid, the mean and sum of the image and mask should remain the same,
+    while the reshuffled image and mask should not be equal to the original image and mask.
+    """
     set_seed(4)
     aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)])
 

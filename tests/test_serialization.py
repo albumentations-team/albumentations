@@ -110,7 +110,7 @@ AUGMENTATION_CLS_PARAMS = [
     [A.GaussNoise, {"var_limit": (20, 90), "mean": 10, "per_channel": False}],
     [A.CLAHE, {"clip_limit": 2, "tile_grid_size": (12, 12)}],
     [A.RandomGamma, {"gamma_limit": (10, 90)}],
-    [A.CoarseDropout, {"max_holes": 4, "max_height": 4, "max_width": 4}],
+    [A.CoarseDropout, {"num_holes_range": (2, 5), "hole_height_range": (3, 4), "hole_width_range": (4, 6)}],
     [
         A.RandomSnow,
         {"snow_point_lower": 0.2, "snow_point_upper": 0.4, "brightness_coeff": 4},
@@ -1046,7 +1046,6 @@ def test_template_transform_serialization(image, template, seed, p):
             A.Lambda,
             A.TemplateTransform,
             A.MixUp,
-            A.ShiftScaleRotate,
         }) )
 def test_augmentations_serialization(augmentation_cls, params):
     instance = augmentation_cls(**params)
@@ -1060,11 +1059,14 @@ def test_augmentations_serialization(augmentation_cls, params):
             model_cls (Type): The augmentation class possibly containing an InitSchema class.
 
         Returns:
-            Set[str]: A set of field names collected from all InitSchema classes.
+            Set[str]: A set of field names collected from all InitSchema classes, excluding
+                  fields marked as deprecated.
         """
         fields = set()
         if hasattr(model_cls, 'InitSchema'):
-            fields |= set(model_cls.InitSchema.model_fields.keys())
+            for field_name, field in model_cls.InitSchema.model_fields.items():
+                if not field.deprecated:
+                    fields.add(field_name)
 
         for base in model_cls.__bases__:
             fields |= get_all_init_schema_fields(base)

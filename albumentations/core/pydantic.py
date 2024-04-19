@@ -5,7 +5,7 @@ from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 from typing_extensions import Annotated
 
-from albumentations.core.types import ScaleType
+from albumentations.core.types import ScalarType, ScaleType
 from albumentations.core.utils import to_tuple
 
 valid_interpolations = [
@@ -71,24 +71,46 @@ def create_symmetric_range(value: ScaleType) -> Tuple[float, float]:
 SymmetricRangeType = Annotated[ScaleType, AfterValidator(create_symmetric_range)]
 
 
-def check_1plus_range(value: ScaleType) -> Tuple[float, float]:
-    result = to_tuple(value, low=1)
+def convert_to_1plus_range(value: ScaleType) -> Tuple[float, float]:
+    return to_tuple(value, low=1)
 
-    if not all(x >= 1 for x in result):
+
+def check_1plus_range(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+    if any(x < 1 for x in value):
         raise ValueError(f"All values should be >= 1, got {value} instead")
-    return result
+    return value
 
 
-OnePlusFloatRangeType = Annotated[ScaleType, AfterValidator(check_1plus_range)]
-OnePlusIntRangeType = Annotated[ScaleType, AfterValidator(check_1plus_range), AfterValidator(float2int)]
+def check_nondecreasing_range(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+    if not value[0] <= value[1]:
+        raise ValueError(f"First value should be less than the second value, got {value} instead")
+    return value
 
 
-def check_01_range(value: ScaleType) -> Tuple[float, float]:
-    result = to_tuple(value, 0)
+OnePlusFloatRangeType = Annotated[ScaleType, AfterValidator(convert_to_1plus_range), AfterValidator(check_1plus_range)]
+OnePlusIntRangeType = Annotated[
+    ScaleType,
+    AfterValidator(convert_to_1plus_range),
+    AfterValidator(check_1plus_range),
+    AfterValidator(float2int),
+]
 
-    if not all(0 <= x <= 1 for x in result):
+OnePlusIntNonDecreasingRangeType = Annotated[
+    Tuple[ScalarType, ScalarType],
+    AfterValidator(check_1plus_range),
+    AfterValidator(check_nondecreasing_range),
+    AfterValidator(float2int),
+]
+
+
+def convert_to_0plus_range(value: ScaleType) -> Tuple[float, float]:
+    return to_tuple(value, low=0)
+
+
+def check_01_range(value: Tuple[float, float]) -> Tuple[float, float]:
+    if not all(0 <= x <= 1 for x in value):
         raise ValueError(f"All values should be in [0, 1], got {value} instead")
-    return result
+    return value
 
 
-ZeroOneRangeType = Annotated[ScaleType, AfterValidator(check_01_range)]
+ZeroOneRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(check_01_range)]
