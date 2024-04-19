@@ -1,10 +1,11 @@
 import random
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, cast
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
+from albumentations.core.pydantic import OnePlusIntNonDecreasingRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScalarType, Targets
 
@@ -51,56 +52,117 @@ class CoarseDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        max_holes: int = Field(default=8, ge=0, description="Maximum number of regions to zero out.")
-        max_height: ScalarType = Field(default=8, ge=0, description="Maximum height of the hole.")
-        max_width: ScalarType = Field(default=8, ge=0, description="Maximum width of the hole.")
-        min_holes: Optional[int] = Field(default=None, ge=0, description="Minimum number of regions to zero out.")
-        min_height: Optional[ScalarType] = Field(default=None, ge=0, description="Minimum height of the hole.")
-        min_width: Optional[ScalarType] = Field(default=None, ge=0, description="Minimum width of the hole.")
+        min_holes: Optional[int] = Field(
+            default=None,
+            ge=0,
+            description="Minimum number of regions to zero out.",
+            deprecated="Use num_holes_range instead.",
+        )
+        max_holes: Optional[int] = Field(
+            default=8,
+            ge=0,
+            description="Maximum number of regions to zero out.",
+            deprecated="Use num_holes_range instead.",
+        )
+        num_holes_range: OnePlusIntNonDecreasingRangeType = (1, 1)
+
+        hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8)
+        min_height: Optional[ScalarType] = Field(
+            default=None,
+            ge=0,
+            description="Minimum height of the hole.",
+            deprecated="Use hole_height_range instead.",
+        )
+        max_height: Optional[ScalarType] = Field(
+            default=8,
+            ge=0,
+            description="Maximum height of the hole.",
+            deprecated="Use hole_height_range instead.",
+        )
+
+        hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8)
+        min_width: Optional[ScalarType] = Field(
+            default=None,
+            ge=0,
+            description="Minimum width of the hole.",
+            deprecated="Use hole_width_range instead.",
+        )
+        max_width: Optional[ScalarType] = Field(
+            default=8,
+            ge=0,
+            description="Maximum width of the hole.",
+            deprecated="Use hole_width_range instead.",
+        )
+
         fill_value: ColorType = Field(default=0, description="Value for dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(default=None, description="Fill value for dropped pixels in mask.")
 
         @model_validator(mode="after")
         def check_holes_and_dimensions(self) -> Self:
-            self.min_holes = self.min_holes if self.min_holes is not None else self.max_holes
+            if self.max_holes is not None:
+                if self.min_holes is None:
+                    self.num_holes_range = (self.max_holes, self.max_holes)
+                    self.min_holes = None
+                else:
+                    self.num_holes_range = (self.min_holes, self.max_holes)
 
-            self.min_height = self.min_height if self.min_height is not None else self.max_height
-            self.min_width = self.min_width if self.min_width is not None else self.max_width
+                self.max_holes = None
 
-            if not 0 < self.min_height <= self.max_height:
+            if self.max_height is not None:
+                if self.min_height is None:
+                    self.hole_height_range = (self.max_height, self.max_height)
+                    self.min_height = None
+                else:
+                    self.hole_height_range = (self.min_height, self.max_height)
+
+                self.max_height = None
+
+            if self.max_width is not None:
+                if self.min_width is None:
+                    self.hole_width_range = (self.max_width, self.max_width)
+                else:
+                    self.hole_width_range = (self.min_width, self.max_width)
+
+            if not 0 <= self.hole_width_range[0] <= self.hole_width_range[1]:
                 raise ValueError(
-                    f"Invalid combination of min_height and max_height. Got: {[self.min_height, self.max_height]}",
+                    "First value in hole_width_range should be less or equal than the second value. "
+                    f"Got: {self.hole_width_range}",
                 )
-            if not 0 < self.min_width <= self.max_width:
+
+            if not 0 <= self.hole_height_range[0] <= self.hole_height_range[1]:
                 raise ValueError(
-                    f"Invalid combination of min_width and max_width. Got: {[self.min_width, self.max_width]}",
+                    "First value in hole_height_range should be less or equal than the second value. "
+                    f"Got: {self.hole_height_range}",
                 )
-            if not 0 < self.min_holes <= self.max_holes:
+
+            if not 1 <= self.num_holes_range[0] <= self.num_holes_range[1]:
                 raise ValueError(
-                    f"Invalid combination of min_holes and max_holes. Got: {[self.min_holes, self.max_holes]}",
+                    "First value in hole_height_range should be less or equal than second and at least 1. "
+                    f"Got: {self.num_holes_range}",
                 )
             return self
 
     def __init__(
         self,
-        max_holes: int = 8,
-        max_height: ScalarType = 8,
-        max_width: ScalarType = 8,
+        max_holes: Optional[int] = 8,
+        max_height: Optional[ScalarType] = 8,
+        max_width: Optional[ScalarType] = 8,
         min_holes: Optional[int] = None,
         min_height: Optional[ScalarType] = None,
         min_width: Optional[ScalarType] = None,
         fill_value: ColorType = 0,
         mask_fill_value: Optional[ColorType] = None,
+        num_holes_range: Tuple[int, int] = (1, 1),
+        hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8),
+        hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8),
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-        self.min_holes = cast(int, min_holes)
-        self.max_holes = max_holes
-        self.min_height = cast(ScalarType, min_height)
-        self.max_height = max_height
-        self.min_width = cast(ScalarType, min_width)
-        self.max_width = max_width
+        self.num_holes_range = num_holes_range
+        self.hole_height_range = hole_height_range
+        self.hole_width_range = hole_width_range
+
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
 
@@ -129,39 +191,16 @@ class CoarseDropout(DualTransform):
         height, width = img.shape[:2]
 
         holes = []
-        for _ in range(random.randint(self.min_holes, self.max_holes)):
-            if all(
-                [
-                    isinstance(self.min_height, int),
-                    isinstance(self.min_width, int),
-                    isinstance(self.max_height, int),
-                    isinstance(self.max_width, int),
-                ],
-            ):
-                hole_height = random.randint(int(self.min_height), int(self.max_height))
-                hole_width = random.randint(int(self.min_width), int(self.max_width))
-            elif all(
-                [
-                    isinstance(self.min_height, float),
-                    isinstance(self.min_width, float),
-                    isinstance(self.max_height, float),
-                    isinstance(self.max_width, float),
-                ],
-            ):
-                hole_height = int(height * random.uniform(self.min_height, self.max_height))
-                hole_width = int(width * random.uniform(self.min_width, self.max_width))
+        for _ in range(random.randint(self.num_holes_range[0], self.num_holes_range[1])):
+            if all(isinstance(x, int) for x in self.hole_height_range + self.hole_width_range):
+                hole_height = random.randint(int(self.hole_height_range[0]), int(self.hole_height_range[1]))
+                hole_width = random.randint(int(self.hole_width_range[0]), int(self.hole_width_range[1]))
+            elif all(isinstance(x, float) for x in self.hole_height_range + self.hole_width_range):
+                hole_height = int(height * random.uniform(self.hole_height_range[0], self.hole_height_range[1]))
+                hole_width = int(width * random.uniform(self.hole_width_range[0], self.hole_width_range[1]))
             else:
-                msg = "Min width, max width, \
-                    min height and max height \
-                    should all either be ints or floats. \
-                    Got: {} respectively".format(
-                    [
-                        type(self.min_width),
-                        type(self.max_width),
-                        type(self.min_height),
-                        type(self.max_height),
-                    ],
-                )
+                msg = f"Min width, max width, min height and max height should all either be ints or floats. \
+                    Got: {[ type(x) for x in self.hole_height_range + self.hole_width_range]} respectively"
                 raise ValueError(msg)
 
             y1 = random.randint(0, height - hole_height)
@@ -186,12 +225,9 @@ class CoarseDropout(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
-            "max_holes",
-            "max_height",
-            "max_width",
-            "min_holes",
-            "min_height",
-            "min_width",
+            "num_holes_range",
+            "hole_height_range",
+            "hole_width_range",
             "fill_value",
             "mask_fill_value",
         )

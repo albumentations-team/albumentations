@@ -44,7 +44,7 @@ repos:
       types: [python]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.3.7
+    rev: v0.4.1
     hooks:
       # Run the linter.
       - id: ruff
@@ -78,6 +78,6 @@ repos:
     hooks:
       - id: mypy
         files: ^albumentations/
-        additional_dependencies: [ types-PyYAML, types-setuptools, pydantic>=2.6]
+        additional_dependencies: [ types-PyYAML, types-setuptools, pydantic>=2.7]
         args:
           [ --config-file=pyproject.toml ]
