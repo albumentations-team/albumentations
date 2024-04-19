@@ -99,47 +99,38 @@ class CoarseDropout(DualTransform):
 
         @model_validator(mode="after")
         def check_holes_and_dimensions(self) -> Self:
-            if self.max_holes is not None:
-                if self.min_holes is None:
-                    self.num_holes_range = (self.max_holes, self.max_holes)
-                    self.min_holes = None
-                else:
-                    self.num_holes_range = (self.min_holes, self.max_holes)
+            # Helper to update ranges and reset max values
 
-                self.max_holes = None
+            def update_range(
+                min_value: Optional[ScalarType],
+                max_value: Optional[ScalarType],
+                default_range: Tuple[ScalarType, ScalarType],
+            ) -> Tuple[ScalarType, ScalarType]:
+                if max_value is not None:
+                    return (min_value or max_value, max_value)
 
-            if self.max_height is not None:
-                if self.min_height is None:
-                    self.hole_height_range = (self.max_height, self.max_height)
-                    self.min_height = None
-                else:
-                    self.hole_height_range = (self.min_height, self.max_height)
+                return default_range
 
-                self.max_height = None
+            # Update ranges for holes, heights, and widths
+            self.num_holes_range = update_range(self.min_holes, self.max_holes, self.num_holes_range)
+            self.hole_height_range = update_range(self.min_height, self.max_height, self.hole_height_range)
+            self.hole_width_range = update_range(self.min_width, self.max_width, self.hole_width_range)
 
-            if self.max_width is not None:
-                if self.min_width is None:
-                    self.hole_width_range = (self.max_width, self.max_width)
-                else:
-                    self.hole_width_range = (self.min_width, self.max_width)
+            # Validation for hole dimensions ranges
+            def validate_range(range_value: Tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
+                if not minimum <= range_value[0] <= range_value[1]:
+                    raise ValueError(
+                        f"First value in {range_name} should be less or equal than the second value "
+                        f"and at least {minimum}. Got: {range_value}",
+                    )
+                if isinstance(range_value[0], float) and not all(0 <= x <= 1 for x in range_value):
+                    raise ValueError(f"All values in {range_name} should be in [0, 1] range. Got: {range_value}")
 
-            if not 0 <= self.hole_width_range[0] <= self.hole_width_range[1]:
-                raise ValueError(
-                    "First value in hole_width_range should be less or equal than the second value. "
-                    f"Got: {self.hole_width_range}",
-                )
+            # Validate each range
+            validate_range(self.num_holes_range, "num_holes_range", minimum=1)
+            validate_range(self.hole_height_range, "hole_height_range")
+            validate_range(self.hole_width_range, "hole_width_range")
 
-            if not 0 <= self.hole_height_range[0] <= self.hole_height_range[1]:
-                raise ValueError(
-                    "First value in hole_height_range should be less or equal than the second value. "
-                    f"Got: {self.hole_height_range}",
-                )
-
-            if not 1 <= self.num_holes_range[0] <= self.num_holes_range[1]:
-                raise ValueError(
-                    "First value in hole_height_range should be less or equal than second and at least 1. "
-                    f"Got: {self.num_holes_range}",
-                )
             return self
 
     def __init__(
@@ -195,8 +186,16 @@ class CoarseDropout(DualTransform):
     ) -> Tuple[int, int]:
         """Calculate random hole dimensions based on the provided ranges."""
         if isinstance(height_range[0], int):
-            hole_height = random_utils.randint(int(height_range[0]), int(height_range[1] + 1))
-            hole_width = random_utils.randint(int(width_range[0]), int(width_range[1] + 1))
+            min_height = height_range[0]
+            max_height = height_range[1]
+
+            min_width = width_range[0]
+            max_width = width_range[1]
+            max_height = min(max_height, height)
+            max_width = min(max_width, width)
+            hole_height = random_utils.randint(min_height, max_height + 1)
+            hole_width = random_utils.randint(min_width, max_width + 1)
+
         else:  # Assume float
             hole_height = int(height * random_utils.uniform(height_range[0], height_range[1]))
             hole_width = int(width * random_utils.uniform(width_range[0], width_range[1]))
@@ -217,8 +216,8 @@ class CoarseDropout(DualTransform):
                 self.hole_width_range,
             )
 
-            y1 = random_utils.randint(0, height - hole_height)
-            x1 = random_utils.randint(0, width - hole_width)
+            y1 = random_utils.randint(0, height - hole_height + 1)
+            x1 = random_utils.randint(0, width - hole_width + 1)
             y2 = y1 + hole_height
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
