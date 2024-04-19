@@ -2,6 +2,8 @@ import numpy as np
 import pytest
 
 from albumentations.augmentations.dropout.functional import cutout
+from albumentations.augmentations.utils import MAX_VALUES_BY_DTYPE
+from tests.utils import set_seed
 
 
 @pytest.mark.parametrize(
@@ -39,3 +41,58 @@ def test_cutout_with_various_fill_values(img, fill_value):
 
     # Check the filled values
     assert np.all(result == expected_result), "The result does not match the expected output."
+
+
+@pytest.mark.parametrize("dtype, max_value", [
+    (np.uint8, MAX_VALUES_BY_DTYPE[np.uint8]),
+    (np.uint16, MAX_VALUES_BY_DTYPE[np.uint16]),
+    (np.uint32, MAX_VALUES_BY_DTYPE[np.uint32]),
+    (np.float32, MAX_VALUES_BY_DTYPE[np.float32]),
+])
+@pytest.mark.parametrize("shape", [
+    (100, 100),
+    (100, 100, 1),
+    (100, 100, 3),
+    (100, 100, 7),
+])
+@pytest.mark.parametrize("fill_type", [
+    "random",
+    "single_value",
+    "channel_specific",
+])
+def test_cutout_various_types_and_fills(dtype, max_value, shape, fill_type):
+    set_seed(0)
+    img = np.zeros(shape, dtype=dtype)
+    holes = [(10, 10, 50, 50)]
+
+    if fill_type == "random":
+        fill_value = "random"
+    elif fill_type == "single_value":
+        fill_value = max_value if dtype != np.float32 else 0.5  # Use middle value for float32
+    elif fill_type == "channel_specific":
+        if len(shape) == 2:  # Grayscale image, no channel dimension
+            fill_value = [max_value] if dtype != np.float32 else [0.5]
+        else:
+            fill_value = [i % max_value for i in range(shape[2])] if dtype != np.float32 else [(i / shape[2]) for i in range(shape[2])]
+
+    result_img = cutout(img, holes, fill_value)
+
+    if fill_type == "random":
+        assert result_img.dtype == dtype
+        # Check if the hole is not all zeros
+        assert not np.all(result_img[10:50, 10:50] == 0)
+        assert result_img[10:50, 10:50].mean() == pytest.approx(max_value / 2, abs=0.05 * max_value)
+        assert result_img[10:50, 10:50].max() == pytest.approx(max_value, abs=0.05 * max_value)
+        assert result_img[10:50, 10:50].min() == pytest.approx(0, abs=0.05 * max_value)
+    else:
+        if isinstance(fill_value, (list, tuple)):
+            expected_fill_value = np.array(fill_value, dtype=dtype)
+        else:
+            expected_fill_value = np.array([fill_value] * img.shape[-1], dtype=dtype)
+
+        # Ensure the hole has the correct fill value
+        if len(shape) == 2:  # Handle no channel dimension in grayscale
+            assert np.all(result_img[10:50, 10:50] == expected_fill_value[0])
+        else:
+            for channel_index in range(result_img.shape[-1]):
+                assert np.all(result_img[10:50, 10:50, channel_index] == expected_fill_value[channel_index])

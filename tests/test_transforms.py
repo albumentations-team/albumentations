@@ -10,6 +10,7 @@ import warnings
 from torchvision import transforms as torch_transforms
 
 import albumentations as A
+from albumentations.augmentations.dropout.functional import cutout
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
@@ -1381,6 +1382,10 @@ def test_deprecation_warnings_random_shadow(
     (2, 2), (3, 3), (4, 4), (5, 7)
 ])
 def test_grid_shuffle(image, mask, grid):
+    """
+    As we reshuffle the grid, the mean and sum of the image and mask should remain the same,
+    while the reshuffled image and mask should not be equal to the original image and mask.
+    """
     set_seed(4)
     aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)])
 

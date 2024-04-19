@@ -1,8 +1,8 @@
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from pydantic import Field, model_validator
-from typing_extensions import Self
+from typing_extensions import Literal, Self
 
 from albumentations import random_utils
 from albumentations.core.pydantic import OnePlusIntNonDecreasingRangeType
@@ -18,23 +18,18 @@ class CoarseDropout(DualTransform):
     """CoarseDropout of the rectangular regions in the image.
 
     Args:
-        max_holes (int): Maximum number of regions to zero out.
-        max_height (int, float): Maximum height of the hole.
-        If float, it is calculated as a fraction of the image height.
-        max_width (int, float): Maximum width of the hole.
-        If float, it is calculated as a fraction of the image width.
-        min_holes (int): Minimum number of regions to zero out. If `None`,
-            `min_holes` is be set to `max_holes`. Default: `None`.
-        min_height (int, float): Minimum height of the hole. Default: None. If `None`,
-            `min_height` is set to `max_height`. Default: `None`.
-            If float, it is calculated as a fraction of the image height.
-        min_width (int, float): Minimum width of the hole. If `None`, `min_height` is
-            set to `max_width`. Default: `None`.
-            If float, it is calculated as a fraction of the image width.
-
-        fill_value (int, float, list of int, list of float): value for dropped pixels.
-        mask_fill_value (int, float, list of int, list of float): fill value for dropped pixels
-            in mask. If `None` - mask is not affected. Default: `None`.
+        num_holes_range (Tuple[int, int]): A range specifying the minimum and maximum
+            number of regions to zero out. The first value is the minimum number of holes,
+            and the second is the maximum.
+        hole_height_range (Tuple[ScalarType, ScalarType]): A range specifying the minimum
+            and maximum height of the holes. The first value is the minimum height, and
+            the second is the maximum height.
+        hole_width_range (Tuple[ScalarType, ScalarType]): A range specifying the minimum
+            and maximum width of the holes. The first value is the minimum width, and
+            the second is the maximum width.
+        fill_value (ColorType): Value for dropped pixels in the image.
+        mask_fill_value (Optional[ColorType]): Fill value for dropped pixels in the mask.
+            If `None`, the mask is not affected. Default: `None`.
 
     Targets:
         image, mask, keypoints
@@ -66,7 +61,6 @@ class CoarseDropout(DualTransform):
         )
         num_holes_range: OnePlusIntNonDecreasingRangeType = (1, 1)
 
-        hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8)
         min_height: Optional[ScalarType] = Field(
             default=None,
             ge=0,
@@ -79,8 +73,8 @@ class CoarseDropout(DualTransform):
             description="Maximum height of the hole.",
             deprecated="Use hole_height_range instead.",
         )
+        hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8)
 
-        hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8)
         min_width: Optional[ScalarType] = Field(
             default=None,
             ge=0,
@@ -93,8 +87,9 @@ class CoarseDropout(DualTransform):
             description="Maximum width of the hole.",
             deprecated="Use hole_width_range instead.",
         )
+        hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8)
 
-        fill_value: ColorType = Field(default=0, description="Value for dropped pixels.")
+        fill_value: Union[ColorType, Literal["random"]] = Field(default=0, description="Value for dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(default=None, description="Fill value for dropped pixels in mask.")
 
         @model_validator(mode="after")
@@ -150,7 +145,7 @@ class CoarseDropout(DualTransform):
         min_holes: Optional[int] = None,
         min_height: Optional[ScalarType] = None,
         min_width: Optional[ScalarType] = None,
-        fill_value: ColorType = 0,
+        fill_value: Union[ColorType, Literal["random"]] = 0,
         mask_fill_value: Optional[ColorType] = None,
         num_holes_range: Tuple[int, int] = (1, 1),
         hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8),
@@ -163,13 +158,13 @@ class CoarseDropout(DualTransform):
         self.hole_height_range = hole_height_range
         self.hole_width_range = hole_width_range
 
-        self.fill_value = fill_value
+        self.fill_value = fill_value  # type: ignore[assignment]
         self.mask_fill_value = mask_fill_value
 
     def apply(
         self,
         img: np.ndarray,
-        fill_value: ScalarType = 0,
+        fill_value: Union[ColorType, Literal["random"]] = 0,
         holes: Iterable[Tuple[int, int, int, int]] = (),
         **params: Any,
     ) -> np.ndarray:
@@ -186,22 +181,36 @@ class CoarseDropout(DualTransform):
             return mask
         return cutout(mask, holes, mask_fill_value)
 
+    @staticmethod
+    def calculate_hole_dimensions(
+        height: int,
+        width: int,
+        height_range: Tuple[ScalarType, ScalarType],
+        width_range: Tuple[ScalarType, ScalarType],
+    ) -> Tuple[int, int]:
+        """Calculate random hole dimensions based on the provided ranges."""
+        if isinstance(height_range[0], int):
+            hole_height = random_utils.randint(int(height_range[0]), int(height_range[1] + 1))
+            hole_width = random_utils.randint(int(width_range[0]), int(width_range[1] + 1))
+        else:  # Assume float
+            hole_height = int(height * random_utils.uniform(height_range[0], height_range[1]))
+            hole_width = int(width * random_utils.uniform(width_range[0], width_range[1]))
+        return hole_height, hole_width
+
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
 
         holes = []
-        for _ in range(random_utils.randint(self.num_holes_range[0], self.num_holes_range[1] + 1)):
-            if all(isinstance(x, int) for x in self.hole_height_range + self.hole_width_range):
-                hole_height = random_utils.randint(int(self.hole_height_range[0]), int(self.hole_height_range[1] + 1))
-                hole_width = random_utils.randint(int(self.hole_width_range[0]), int(self.hole_width_range[1] + 1))
-            elif all(isinstance(x, float) for x in self.hole_height_range + self.hole_width_range):
-                hole_height = int(height * random_utils.uniform(self.hole_height_range[0], self.hole_height_range[1]))
-                hole_width = int(width * random_utils.uniform(self.hole_width_range[0], self.hole_width_range[1]))
-            else:
-                msg = f"Min width, max width, min height and max height should all either be ints or floats. \
-                    Got: {[ type(x) for x in self.hole_height_range + self.hole_width_range]} respectively"
-                raise ValueError(msg)
+        num_holes = random_utils.randint(self.num_holes_range[0], self.num_holes_range[1] + 1)
+
+        for _ in range(num_holes):
+            hole_height, hole_width = self.calculate_hole_dimensions(
+                height,
+                width,
+                self.hole_height_range,
+                self.hole_width_range,
+            )
 
             y1 = random_utils.randint(0, height - hole_height + 1)
             x1 = random_utils.randint(0, width - hole_width + 1)
