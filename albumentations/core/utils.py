@@ -133,7 +133,8 @@ class DataProcessor(ABC):
         for data_name in self.data_fields:
             for field in self.params.label_fields:
                 if not len(data[data_name]) == len(data[field]):
-                    raise ValueError
+                    raise ValueError(f"The lengths of bboxes and labels do not match. Got {len(data[data_name])} "
+                                     f"and {len(data[field])} respectively.")
 
                 data_with_added_field = []
                 for d, field_value in zip(data[data_name], data[field]):
