@@ -1322,11 +1322,11 @@ class RandomCropFromBorders(DualTransform):
 
         @model_validator(mode="after")
         def validate_crop_values(self) -> Self:
-            if self.crop_left + self.crop_right >= 1.0:
-                msg = "The sum of crop_left and crop_right must be less than 1."
+            if self.crop_left + self.crop_right > 1.0:
+                msg = "The sum of crop_left and crop_right must be <= 1."
                 raise ValueError(msg)
-            if self.crop_top + self.crop_bottom >= 1.0:
-                msg = "The sum of crop_top and crop_bottom must be less than 1."
+            if self.crop_top + self.crop_bottom > 1.0:
+                msg = "The sum of crop_top and crop_bottom must be <= 1."
                 raise ValueError(msg)
             return self
 
@@ -1346,11 +1346,14 @@ class RandomCropFromBorders(DualTransform):
         self.crop_bottom = crop_bottom
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, int]:
-        img = params["image"]
-        x_min = random_utils.randint(0, int(self.crop_left * img.shape[1]))
-        x_max = random_utils.randint(max(x_min + 1, int((1 - self.crop_right) * img.shape[1])), img.shape[1])
-        y_min = random_utils.randint(0, int(self.crop_top * img.shape[0]))
-        y_max = random_utils.randint(max(y_min + 1, int((1 - self.crop_bottom) * img.shape[0])), img.shape[0])
+        height, width = params["image"].shape[:2]
+
+        x_min = random_utils.randint(0, int(self.crop_left * width) + 1)
+        x_max = random_utils.randint(max(x_min + 1, int((1 - self.crop_right) * width)), height + 1)
+
+        y_min = random_utils.randint(0, int(self.crop_top * height) + 1)
+        y_max = random_utils.randint(max(y_min + 1, int((1 - self.crop_bottom) * height)), height + 1)
+
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
     def apply(
