@@ -1270,25 +1270,25 @@ class CropAndPad(DualTransform):
 
 
 class RandomCropFromBorders(DualTransform):
-    """Crop bbox from image randomly cut parts from borders without resize at the end
+    """Randomly crops parts of the image from the borders without resizing at the end. The cropped regions are defined
+    as fractions of the original image dimensions, specified for each side of the image (left, right, top, bottom).
 
     Args:
-        crop_left (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
-        from left side in range [0, crop_left * width)
-        crop_right (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
-        from right side in range [(1 - crop_right) * width, width)
-        crop_top (float): singlefloat value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
-        from top side in range [0, crop_top * height)
-        crop_bottom (float): single float value in (0.0, 1.0) range. Default 0.1. Image will be randomly cut
-        from bottom side in range [(1 - crop_bottom) * height, height)
-        p (float): probability of applying the transform. Default: 1.
+        crop_left (float): Fraction of the width to randomly crop from the left side. Must be in the range [0.0, 1.0].
+                            Default is 0.1.
+        crop_right (float): Fraction of the width to randomly crop from the right side. Must be in the range [0.0, 1.0].
+                            Default is 0.1.
+        crop_top (float): Fraction of the height to randomly crop from the top side. Must be in the range [0.0, 1.0].
+                          Default is 0.1.
+        crop_bottom (float): Fraction of the height to randomly crop from the bottom side.
+                             Must be in the range [0.0, 1.0]. Default is 0.1.
+        p (float): Probability of applying the transform. Default is 1.
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
         uint8, float32
-
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
@@ -1349,7 +1349,7 @@ class RandomCropFromBorders(DualTransform):
         height, width = params["image"].shape[:2]
 
         x_min = random_utils.randint(0, int(self.crop_left * width) + 1)
-        x_max = random_utils.randint(max(x_min + 1, int((1 - self.crop_right) * width)), height + 1)
+        x_max = random_utils.randint(max(x_min + 1, int((1 - self.crop_right) * width)), width + 1)
 
         y_min = random_utils.randint(0, int(self.crop_top * height) + 1)
         y_max = random_utils.randint(max(y_min + 1, int((1 - self.crop_bottom) * height)), height + 1)
