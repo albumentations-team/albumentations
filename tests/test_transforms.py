@@ -1400,3 +1400,22 @@ def test_grid_shuffle(image, mask, grid):
 
     assert np.array_equal(res["mask"].mean(axis=(0, 1)), mask.mean(axis=(0, 1)))
     assert np.array_equal(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)))
+
+@pytest.mark.parametrize("crop_left, crop_right, crop_top, crop_bottom", [
+    (0, 0, 0, 0),
+    (0, 1, 0, 1),
+    (1, 0, 1, 0),
+    (0.5, 0.5, 0.5, 0.5),
+    ( 0.1, 0.1, 0.1, 0.1 ),
+                                                                          ( 0.3, 0.3, 0.3, 0.3 )])
+def test_random_crop_from_borders(image, mask, bboxes, keypoints, crop_left, crop_right, crop_top, crop_bottom):
+    set_seed(0)
+    aug = A.Compose([A.RandomCropFromBorders(crop_left=crop_left,
+                                             crop_right=crop_right,
+                                             crop_top=crop_top,
+                                             crop_bottom=crop_bottom,
+                                             p=1)],
+                    bbox_params=A.BboxParams("pascal_voc"),
+                    keypoint_params=A.KeypointParams("xy"))
+
+    assert aug(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)

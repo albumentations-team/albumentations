@@ -15,5 +15,5 @@ conda convert --platform win-64 conda_build/linux-64/*.tar.bz2 -o conda_build/
 conda convert --platform osx-64 conda_build/linux-64/*.tar.bz2 -o conda_build/
 
 # Upload to Anaconda
-# We could use --all but too much platforms to upload
+# We could use --all but too many platforms to upload
 ls conda_build/*/*.tar.bz2 | xargs -I {} anaconda -v -t $ANACONDA_TOKEN upload -u albumentations {}
