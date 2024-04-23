@@ -3,6 +3,8 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - 'CONTRIBUTORS.md'
 
 jobs:
   test_and_lint:
@@ -52,9 +54,10 @@ jobs:
         slug: albumentations-team/albumentations
 
   check_code_formatting_types:
-    name: Check code formatting with ruff and mypy + tests
+    name: Check code formatting with ruff and mypy
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: true
       matrix:
         python-version: ["3.8"]
     steps:
