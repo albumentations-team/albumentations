@@ -11,19 +11,18 @@ build:
   number: 0
   script: python -m pip install . --no-deps --ignore-installed --no-cache-dir -vvv
 
-# https://conda.io/docs/user-guide/tasks/build-packages/define-metadata.html#export-runtime-requirements
 requirements:
   build:
     - python
     - numpy>=1.24.4
     - scipy
-    - opencv
+    - opencv-python-headless  # Ensure correct dependency
 
   run:
     - python
     - numpy>=1.24.4
     - scipy
-    - opencv
+    - opencv-python-headless  # Ensure correct dependency
 
 test:
   imports:
@@ -32,4 +31,4 @@ test:
 about:
   home: {{ data['url'] }}
   license: {{ data['license'] }}
-summary: {{ data['description'] }}
+  summary: {{ data['description'] }}
