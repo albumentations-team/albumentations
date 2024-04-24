@@ -1,23 +1,24 @@
 import multiprocessing
 import sys
-import warnings
 
 import numpy as np
 import pytest
 
 @pytest.fixture
-def image():
-    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-
-@pytest.fixture
 def global_label():
     return np.array([1, 0, 0])
 
+@pytest.fixture
+def square_image():
+    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+
+@pytest.fixture
+def rectangular_image():
+    return np.random.randint(low=0, high=256, size=(101, 99, 3), dtype=np.uint8)
 
 @pytest.fixture
 def mask():
     return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-
 
 @pytest.fixture
 def bboxes():
@@ -35,9 +36,8 @@ def keypoints():
 
 
 @pytest.fixture
-def float_image():
+def square_float_image():
     return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
-
 
 @pytest.fixture
 def template():
@@ -59,3 +59,11 @@ def mp_pool():
     else:
         method = None
     return multiprocessing.get_context(method).Pool(8)
+
+TEST_UINT8_IMAGES = [np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                       np.random.randint(low=0, high=256, size=(101, 99, 3), dtype=np.uint8)]
+
+TEST_FLOAT32_IMAGES = [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32"),
+                    np.random.uniform(low=0.0, high=1.0, size=(101, 99, 3)).astype("float32")]
+
+TEST_IMAGES = TEST_UINT8_IMAGES + TEST_FLOAT32_IMAGES

@@ -191,10 +191,10 @@ class RandomGridShuffle(DualTransform):
         return keypoint
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
-        height, weight = params["image"].shape[:2]
+        height, width = params["image"].shape[:2]
         random_state = random_utils.get_random_state()
         original_tiles = F.split_uniform_grid(
-            (height, weight),
+            (height, width),
             self.grid,
             random_state=random_state,
         )

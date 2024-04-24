@@ -11,6 +11,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
 from albumentations.core.bbox_utils import filter_bboxes
 from albumentations.core.types import d4_group_elements
+from tests.conftest import TEST_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
 
 
@@ -178,14 +179,14 @@ def generate_rotation_matrix(image: np.ndarray, angle: float) -> np.ndarray:
     center = (width / 2 - 0.5, height / 2 - 0.5)
     return cv2.getRotationMatrix2D(center, angle, 1.0)
 
-@pytest.mark.parametrize("image_type", ['image', 'float_image'])
-def test_compare_rotate_and_affine_with_fixtures(request, image_type):
-    test_image = request.getfixturevalue(image_type)
+
+@pytest.mark.parametrize("image", TEST_IMAGES)
+def test_compare_rotate_and_affine_with_fixtures(image):
     # Generate the rotation matrix for a 60-degree rotation around the image center
-    rotation_matrix = generate_rotation_matrix(test_image, 60)
+    rotation_matrix = generate_rotation_matrix(image, 60)
 
     # Apply rotation using FGeometric.rotate
-    rotated_img_1 = FGeometric.rotate(test_image, angle=60, border_mode = cv2.BORDER_CONSTANT, value = 0)
+    rotated_img_1 = FGeometric.rotate(image, angle=60, border_mode = cv2.BORDER_CONSTANT, value = 0)
 
     # Convert 2x3 cv2 matrix to 3x3 for skimage's ProjectiveTransform
     full_matrix = np.vstack([rotation_matrix, [0, 0, 1]])
@@ -193,12 +194,12 @@ def test_compare_rotate_and_affine_with_fixtures(request, image_type):
 
     # Apply rotation using warp_affine
     rotated_img_2 = FGeometric.warp_affine(
-        img=test_image,
+        img=image,
         matrix=projective_transform,
         interpolation=cv2.INTER_LINEAR,
         cval=0,
         mode=cv2.BORDER_CONSTANT,
-        output_shape=test_image.shape[:2]
+        output_shape=image.shape[:2]
     )
 
     # Assert that the two rotated images are equal
@@ -1049,9 +1050,9 @@ def test_cv_dtype_from_np():
 @pytest.mark.parametrize(
     ["image", "mean", "std"],
     [
-        [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]],
-        [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8), 0.5, 0.5],
-        [np.random.randint(0, 256, [100, 100], dtype=np.uint8), 0.5, 0.5],
+        [np.random.randint(0, 256, [101, 99, 3], dtype=np.uint8), [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]],
+        [np.random.randint(0, 256, [101, 99, 3], dtype=np.uint8), 0.5, 0.5],
+        [np.random.randint(0, 256, [101, 99], dtype=np.uint8), 0.5, 0.5],
     ],
 )
 def test_normalize_np_cv_equal(image, mean, std):
@@ -1060,7 +1061,7 @@ def test_normalize_np_cv_equal(image, mean, std):
 
     res1 = F.normalize_cv2(image, mean, std)
     res2 = F.normalize_numpy(image, mean, std)
-    assert np.allclose(res1, res2)
+    assert np.array_equal(res1, res2)
 
 
 @pytest.mark.parametrize("beta_by_max", [True, False])
@@ -1204,7 +1205,7 @@ def get_md5_hash(image):
     hash_md5.update(image_bytes)
     return hash_md5.hexdigest()
 
-
+@pytest.mark.parametrize("image", TEST_IMAGES)
 def test_d4_unique(image):
     hashes = set()
     for element in d4_group_elements:

@@ -3,6 +3,8 @@ import pytest
 import math
 
 import albumentations as A
+from tests.conftest import TEST_IMAGES, TEST_UINT8_IMAGES
+from tests.utils import set_seed
 from .test_functional_mixing import find_mix_coef
 
 def image_generator():
@@ -39,9 +41,10 @@ def complex_read_fn_image(x):
               (A.MixUp, {
             "reference_data": complex_image_generator(),
             "read_fn": complex_read_fn_image})] )
-def test_image_only(augmentation_cls, params, image):
+def test_image_only(augmentation_cls, params):
+    square_image = TEST_UINT8_IMAGES[0]
     aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
-    data = aug(image=image)
+    data = aug(image=square_image)
     assert data["image"].dtype == np.uint8
 
 @pytest.mark.parametrize(
@@ -57,10 +60,11 @@ def test_image_only(augmentation_cls, params, image):
               ),
               ]
 )
-def test_image_global_label(augmentation_cls, params, image, global_label):
+def test_image_global_label(augmentation_cls, params, global_label):
+    square_image = TEST_UINT8_IMAGES[0]
     aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
 
-    data = aug(image=image, global_label=global_label)
+    data = aug(image=square_image, global_label=global_label)
 
     assert data["image"].dtype == np.uint8
 
@@ -73,7 +77,7 @@ def test_image_global_label(augmentation_cls, params, image, global_label):
 
     mix_coef = data["mix_coef"]
 
-    mix_coeff_image = find_mix_coef(data["image"], image, reference_image)
+    mix_coeff_image = find_mix_coef(data["image"], square_image, reference_image)
     mix_coeff_label = find_mix_coef(data["global_label"], global_label, reference_global_label)
 
     assert math.isclose(mix_coef, mix_coeff_image, abs_tol=0.01)
@@ -89,12 +93,16 @@ def test_image_global_label(augmentation_cls, params, image, global_label):
 
                 "read_fn": lambda x: x})]
 )
-def test_image_mask_global_label(augmentation_cls, params, image, mask, global_label):
+def test_image_mask_global_label(augmentation_cls, params, global_label):
+    image = TEST_UINT8_IMAGES[0]
+    mask = image[:, :, 0].copy()
+
+    reference_data = params["reference_data"][0]
+
     aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
 
     data = aug(image=image, global_label=global_label, mask=mask)
 
-    reference_data = params["reference_data"][0]
 
     mix_coef = data["mix_coef"]
 
@@ -107,25 +115,39 @@ def test_image_mask_global_label(augmentation_cls, params, image, mask, global_l
     assert math.isclose(mix_coeff_image, mix_coeff_mask, abs_tol=0.01)
     assert 0 <= mix_coeff_image <= 1
 
+@pytest.mark.parametrize("image", TEST_IMAGES)
+def test_additional_targets(image, global_label):
+    set_seed(42)
 
-def test_additional_targets(image, mask, global_label):
-    reference_data = [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
-                                    "mask": np.random.randint(0, 256, (100, 100), dtype=np.uint8),
+    mask = image.copy()
+    image1 = np.random.randint(0, 256, image.shape, dtype=np.uint8).astype(image.dtype)
+    mask1 = np.random.randint(0, 256, mask.shape, dtype=np.uint8).astype(mask.dtype)
+    reference_image = np.random.randint(0, 256, image.shape, dtype=np.uint8).astype(image.dtype)
+    reference_mask = np.random.randint(0, 256, mask.shape, dtype=np.uint8).astype(mask.dtype)
+
+    if image.dtype == np.float32:
+        image /= 255
+        mask1 /= 255
+        image1 /= 255
+        mask1 /= 255
+        reference_image /= 255
+        reference_mask /= 255
+
+    reference_data = [{"image": reference_image,
+                                    "mask": reference_mask,
                                    "global_label": np.array([0, 0, 1])}]
 
 
     aug = A.Compose([A.MixUp(p=1, reference_data=reference_data, read_fn = lambda x: x)], additional_targets={'image1': 'image', 'mask1': 'mask',
                                                                            'global_label1': 'global_label'})
 
-    image1 = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
-    mask1 = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
     global_label1 = np.array([0, 1, 0])
 
     data = aug(image=image, global_label=global_label, mask=mask, image1=image1, global_label1=global_label1, mask1=mask1)
 
     mix_coef = data["mix_coef"]
 
-    assert data["image"].dtype == np.uint8
+    assert data["image"].dtype == image.dtype
 
     mix_coeff_image = find_mix_coef(data["image"], image, reference_data[0]["image"])
     mix_coeff_mask = find_mix_coef(data["mask"], mask, reference_data[0]["mask"])
@@ -145,11 +167,13 @@ def test_additional_targets(image, mask, global_label):
     assert math.isclose(mix_coeff_image, mix_coeff_mask1, abs_tol=0.01)
     assert math.isclose(mix_coeff_image, mix_coeff_label1, abs_tol=0.01)
 
+@pytest.mark.parametrize("image", TEST_IMAGES)
+def test_bbox_error(image, global_label, bboxes):
+    mask = image.copy()
 
-def test_bbox_error(image, mask, global_label, bboxes):
     reference_data = [
-        {"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
-         "mask": np.random.randint(0, 256, (100, 100, 1), dtype=np.uint8),
+        {"image": np.random.randint(0, 256, image.shape, dtype=np.uint8).astype(image.dtype),
+         "mask": np.random.randint(0, 256, mask.shape, dtype=np.uint8).astype(mask.dtype),
          "bboxes": [[15, 12, 75, 30, 1], [55, 25, 90, 90, 2]],
          "global_label": np.array([0, 0, 1])}
         ]
@@ -159,10 +183,13 @@ def test_bbox_error(image, mask, global_label, bboxes):
     with pytest.raises(NotImplementedError):
         aug(image=image, global_label=global_label, mask=mask, bboxes=bboxes)
 
-def test_keypoint_error(image, mask, global_label, keypoints):
+@pytest.mark.parametrize("image", TEST_IMAGES)
+def test_keypoint_error(image, global_label, keypoints):
+    mask = image.copy()
+
     reference_data = [
-        {"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
-         "mask": np.random.randint(0, 256, (100, 100, 1), dtype=np.uint8),
+        {"image": np.random.randint(0, 256, image.shape, dtype=np.uint8).astype(image.dtype),
+         "mask": np.random.randint(0, 256, mask.shape, dtype=np.uint8).astype(mask.dtype),
          "keypoints": [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]],
          "global_label": np.array([0, 0, 1])}
     ]
@@ -172,11 +199,13 @@ def test_keypoint_error(image, mask, global_label, keypoints):
     with pytest.raises(NotImplementedError):
         aug(image=image, global_label=global_label, mask=mask, keypoints=keypoints)
 
+@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize( ["augmentation_cls", "params"], [(A.ColorJitter, {"p": 1}), (A.HorizontalFlip, {"p": 1})])
+def test_pipeline(augmentation_cls, params, image, global_label):
+    mask = image.copy()
 
-@pytest.mark.parametrize( ["augmentation_cls", "params"], [(A.CLAHE, {"p": 1}), (A.HorizontalFlip, {"p": 1})])
-def test_pipeline(augmentation_cls, params, image, mask, global_label):
-    reference_data =[{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
-                     "mask": np.random.randint(0, 256, (100, 100, 1), dtype=np.uint8),
+    reference_data =[{"image": np.random.randint(0, 256, image.shape, dtype=np.uint8).astype(image.dtype),
+                     "mask": np.random.randint(0, 256, mask.shape, dtype=np.uint8).astype(mask.dtype),
                      "global_label": np.array([0, 0, 1])}]
 
     mix_up = A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)
@@ -185,7 +214,7 @@ def test_pipeline(augmentation_cls, params, image, mask, global_label):
 
     data = aug(image=image, global_label=global_label, mask=mask)
 
-    assert data["image"].dtype == np.uint8
+    assert data["image"].dtype == image.dtype
 
     mix_coef = data["mix_coef"]
 
