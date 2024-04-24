@@ -6,11 +6,11 @@ from torchvision.transforms import ColorJitter
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
-from tests.conftest import TEST_UINT8_IMAGES
+from tests.conftest import UINT8_IMAGES
 from .utils import set_seed
 
 
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_torch_to_tensor_v2_augmentations(image):
     mask = image.copy()
     aug = ToTensorV2()
@@ -22,7 +22,7 @@ def test_torch_to_tensor_v2_augmentations(image):
     assert data["mask"].dtype == torch.uint8
 
 
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image):
     mask = image[:, :, 0].copy()
 
@@ -42,7 +42,7 @@ def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image):
     assert data["mask"].dtype == torch.uint8
 
 
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_torch_to_tensor_v2_augmentations_with_transpose_3d_mask(image):
     aug = ToTensorV2(transpose_mask=True)
     mask_shape = image.shape[:2] + (4,)

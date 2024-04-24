@@ -13,7 +13,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
-from tests.conftest import TEST_IMAGES
+from tests.conftest import IMAGES
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -1377,7 +1377,7 @@ def test_deprecation_warnings_random_shadow(
             assert not w
     warnings.resetwarnings()
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 @pytest.mark.parametrize("grid", [
     (3, 3), (4, 4), (5, 7)
 ])
@@ -1404,7 +1404,7 @@ def test_grid_shuffle(image, grid):
     np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.03)
     np.testing.assert_allclose(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)), atol=0.03)
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 @pytest.mark.parametrize("crop_left, crop_right, crop_top, crop_bottom", [
     (0, 0, 0, 0),
     (0, 1, 0, 1),

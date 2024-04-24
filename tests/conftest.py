@@ -34,11 +34,6 @@ def albumentations_bboxes():
 def keypoints():
     return [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]]
 
-
-@pytest.fixture
-def square_float_image():
-    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
-
 @pytest.fixture
 def template():
     return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
@@ -60,10 +55,17 @@ def mp_pool():
         method = None
     return multiprocessing.get_context(method).Pool(8)
 
-TEST_UINT8_IMAGES = [np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
-                       np.random.randint(low=0, high=256, size=(101, 99, 3), dtype=np.uint8)]
+SQUARE_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+RECTANGULAR_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(101, 99, 3), dtype=np.uint8)
 
-TEST_FLOAT32_IMAGES = [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32"),
-                    np.random.uniform(low=0.0, high=1.0, size=(101, 99, 3)).astype("float32")]
+SQUARE_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
+RECTANGULAR_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(101, 99, 3)).astype("float32")
 
-TEST_IMAGES = TEST_UINT8_IMAGES + TEST_FLOAT32_IMAGES
+UINT8_IMAGES = [SQUARE_UINT8_IMAGE, RECTANGULAR_UINT8_IMAGE]
+
+FLOAT32_IMAGES = [SQUARE_FLOAT_IMAGE, RECTANGULAR_FLOAT_IMAGE]
+
+IMAGES = UINT8_IMAGES + FLOAT32_IMAGES
+
+SQUARE_IMAGES = [SQUARE_UINT8_IMAGE, SQUARE_FLOAT_IMAGE]
+RECTANGULAR_IMAGES = [RECTANGULAR_UINT8_IMAGE, RECTANGULAR_FLOAT_IMAGE]

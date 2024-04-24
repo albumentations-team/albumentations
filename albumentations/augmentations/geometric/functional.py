@@ -155,7 +155,7 @@ def keypoint_rot90(
     cols: int,
     **params: Any,
 ) -> KeypointInternalType:
-    """Rotates a keypoint by 90 degrees CCW (see np.rot90)
+    """Rotates a keypoint by 90 degrees CCW
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.
@@ -170,11 +170,10 @@ def keypoint_rot90(
         ValueError: if factor not in set {0, 1, 2, 3}
 
     """
-    x, y, angle, scale = keypoint[:4]
+    x, y, angle, scale = keypoint
 
     if factor not in {0, 1, 2, 3}:
-        msg = "Parameter n must be in set {0, 1, 2, 3}"
-        raise ValueError(msg)
+        raise ValueError("Parameter factor must be in set {0, 1, 2, 3}")
 
     if factor == 1:
         x, y, angle = y, (cols - 1) - x, angle - math.pi / 2
@@ -915,7 +914,6 @@ def hflip_cv2(img: np.ndarray) -> np.ndarray:
     return cv2.flip(img, 1)
 
 
-@preserve_shape
 def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
     """Applies a `D_4` symmetry group transformation to an image array.
 
@@ -1142,7 +1140,7 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
 
 @angle_2pi_range
 def keypoint_transpose(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
-    """Transposes a keypoint along a specified axis: main diagonal (0) or secondary diagonal (1).
+    """Transposes a keypoint along a specified axis: main diagonal
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.

@@ -13,7 +13,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from albumentations.core.types import ImageCompressionType
-from tests.conftest import TEST_IMAGES, TEST_UINT8_IMAGES
+from tests.conftest import FLOAT32_IMAGES, IMAGES, UINT8_IMAGES
 
 
 from .utils import (
@@ -481,7 +481,7 @@ AUGMENTATION_CLS_EXCEPT = {
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_serialization_with_custom_parameters(
     augmentation_cls, params, p, seed, image, always_apply
 ):
@@ -497,7 +497,7 @@ def test_augmentations_serialization_with_custom_parameters(
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
 
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT),
@@ -565,7 +565,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_for_bboxes_serialization(
     augmentation_cls, params, p, seed, image, albumentations_bboxes, always_apply
 ):
@@ -630,7 +630,7 @@ def test_augmentations_for_bboxes_serialization(
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, image, keypoints, always_apply):
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
     serialized_aug = A.to_dict(aug)
@@ -656,7 +656,7 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_augmentations_serialization_with_call_params(
     augmentation_cls, params, call_params, p, seed, image, always_apply
 ):
@@ -671,17 +671,18 @@ def test_augmentations_serialization_with_call_params(
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 
 
-def test_from_float_serialization(square_float_image):
+@pytest.mark.parametrize("image", FLOAT32_IMAGES)
+def test_from_float_serialization(image):
     aug = A.FromFloat(p=1, dtype="uint8")
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
-    aug_data = aug(image=square_float_image)
-    deserialized_aug_data = deserialized_aug(image=square_float_image)
+    aug_data = aug(image=image)
+    deserialized_aug_data = deserialized_aug(image=image)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 
 
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_transform_pipeline_serialization(seed, image):
     mask = image.copy()
     aug = A.Compose(
@@ -749,7 +750,7 @@ def test_transform_pipeline_serialization(seed, image):
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_format, labels):
     aug = A.Compose(
         [
@@ -799,7 +800,7 @@ def test_transform_pipeline_serialization_with_bboxes(seed, image, bboxes, bbox_
     ],
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints, keypoint_format, labels):
     aug = A.Compose(
         [
@@ -852,7 +853,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     ),
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", TEST_UINT8_IMAGES)
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
     aug = A.Compose(
         [augmentation_cls(always_apply=True, **params)],
@@ -874,7 +875,7 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("p", [1])
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
     def vflip_image(image, **kwargs):
         return FGeometric.vflip(image)

@@ -3,7 +3,7 @@ import pytest
 import math
 
 import albumentations as A
-from tests.conftest import TEST_IMAGES, TEST_UINT8_IMAGES
+from tests.conftest import IMAGES, UINT8_IMAGES
 from tests.utils import set_seed
 from .test_functional_mixing import find_mix_coef
 
@@ -42,7 +42,7 @@ def complex_read_fn_image(x):
             "reference_data": complex_image_generator(),
             "read_fn": complex_read_fn_image})] )
 def test_image_only(augmentation_cls, params):
-    square_image = TEST_UINT8_IMAGES[0]
+    square_image = UINT8_IMAGES[0]
     aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
     data = aug(image=square_image)
     assert data["image"].dtype == np.uint8
@@ -61,7 +61,7 @@ def test_image_only(augmentation_cls, params):
               ]
 )
 def test_image_global_label(augmentation_cls, params, global_label):
-    square_image = TEST_UINT8_IMAGES[0]
+    square_image = UINT8_IMAGES[0]
     aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
 
     data = aug(image=square_image, global_label=global_label)
@@ -94,7 +94,7 @@ def test_image_global_label(augmentation_cls, params, global_label):
                 "read_fn": lambda x: x})]
 )
 def test_image_mask_global_label(augmentation_cls, params, global_label):
-    image = TEST_UINT8_IMAGES[0]
+    image = UINT8_IMAGES[0]
     mask = image[:, :, 0].copy()
 
     reference_data = params["reference_data"][0]
@@ -115,7 +115,7 @@ def test_image_mask_global_label(augmentation_cls, params, global_label):
     assert math.isclose(mix_coeff_image, mix_coeff_mask, abs_tol=0.01)
     assert 0 <= mix_coeff_image <= 1
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_additional_targets(image, global_label):
     set_seed(42)
 
@@ -167,7 +167,7 @@ def test_additional_targets(image, global_label):
     assert math.isclose(mix_coeff_image, mix_coeff_mask1, abs_tol=0.01)
     assert math.isclose(mix_coeff_image, mix_coeff_label1, abs_tol=0.01)
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_bbox_error(image, global_label, bboxes):
     mask = image.copy()
 
@@ -183,7 +183,7 @@ def test_bbox_error(image, global_label, bboxes):
     with pytest.raises(NotImplementedError):
         aug(image=image, global_label=global_label, mask=mask, bboxes=bboxes)
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_keypoint_error(image, global_label, keypoints):
     mask = image.copy()
 
@@ -199,7 +199,7 @@ def test_keypoint_error(image, global_label, keypoints):
     with pytest.raises(NotImplementedError):
         aug(image=image, global_label=global_label, mask=mask, keypoints=keypoints)
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 @pytest.mark.parametrize( ["augmentation_cls", "params"], [(A.ColorJitter, {"p": 1}), (A.HorizontalFlip, {"p": 1})])
 def test_pipeline(augmentation_cls, params, image, global_label):
     mask = image.copy()

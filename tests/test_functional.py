@@ -11,7 +11,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
 from albumentations.core.bbox_utils import filter_bboxes
 from albumentations.core.types import d4_group_elements
-from tests.conftest import TEST_IMAGES
+from tests.conftest import IMAGES, RECTANGULAR_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
 
 
@@ -180,7 +180,7 @@ def generate_rotation_matrix(image: np.ndarray, angle: float) -> np.ndarray:
     return cv2.getRotationMatrix2D(center, angle, 1.0)
 
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_compare_rotate_and_affine_with_fixtures(image):
     # Generate the rotation matrix for a 60-degree rotation around the image center
     rotation_matrix = generate_rotation_matrix(image, 60)
@@ -646,6 +646,30 @@ def test_bbox_crop():
 def test_bbox_random_crop():
     cropped_bbox = A.bbox_random_crop((0.5, 0.2, 0.9, 0.7), 80, 80, 0.2, 0.1, 100, 100)
     assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
+
+
+@pytest.mark.parametrize("factor, expected_positions", [
+    (1, (199, 150)),  # Rotated 90 degrees CCW
+    (2, (249, 199)), # Rotated 180 degrees
+    (3, (100, 249)),  # Rotated 270 degrees CCW
+])
+def test_keypoint_image_rot90_match(factor, expected_positions):
+    rows, cols = 300, 400  # Non-square dimensions
+    img = np.zeros((rows, cols), dtype=int)
+    # Placing the keypoint away from the center and edge: (150, 100)
+    keypoint = (150, 100, 0, 1)
+    img[keypoint[1], keypoint[0]] = 1
+
+    # Rotate the image
+    rotated_img = FGeometric.rot90(img, factor)
+
+    # Rotate the keypoint
+    rotated_keypoint = FGeometric.keypoint_rot90(keypoint, factor, img.shape[0], img.shape[1])
+
+    # Assert that the rotated keypoint lands where expected
+    assert rotated_img[rotated_keypoint[1], rotated_keypoint[0]] == 1, \
+           f"Key point after rotation factor {factor} is not at the expected position {expected_positions}, but at {rotated_keypoint}"
+
 
 
 def test_bbox_rot90():
@@ -1205,13 +1229,38 @@ def get_md5_hash(image):
     hash_md5.update(image_bytes)
     return hash_md5.hexdigest()
 
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_d4_unique(image):
     hashes = set()
     for element in d4_group_elements:
         hashes.add(get_md5_hash(FGeometric.d4(image, element)))
 
     assert len(hashes) == len(set(hashes)), "d4 should generate unique images for all group elements"
+
+@pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
+@pytest.mark.parametrize("group_member", d4_group_elements)
+def test_d4_output_shape(image, group_member):
+    result = FGeometric.d4(image, group_member)
+    if group_member in ['r90', 'r270', 't', 'hvt']:
+        assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
+    else:
+        assert result.shape == image.shape, "Output shape should match input shape"
+
+
+@pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
+def test_d4_output_shape(image):
+    result = FGeometric.transpose(image)
+    assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
+
+
+@pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
+@pytest.mark.parametrize("factor", [0, 1, 2, 3])
+def test_d4_output_shape(image, factor):
+    result = FGeometric.rot90(image, factor)
+    if factor in {1, 3}:
+        assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
+    else:
+        assert result.shape == image.shape, "Output shape should match input shape"
 
 
 
@@ -1246,6 +1295,9 @@ def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
 
     assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), "Sequential vflip + hflip not equivalent to hflip + vflip"
     assert vhflipped_keypoint == pytest.approx(FGeometric.keypoint_rot90(keypoint, 2, rows, cols)), "rot180 not equivalent to vflip + hflip"
+
+
+
 
 
 base_matrix = np.array([[1, 2, 3],

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from tests.conftest import TEST_FLOAT32_IMAGES, TEST_IMAGES, TEST_UINT8_IMAGES
+from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -88,10 +88,12 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
         },
     ),
 )
-def test_image_only_augmentations_with_float_values(augmentation_cls, params, square_float_image, mask):
+def test_image_only_augmentations(augmentation_cls, params):
+    image = SQUARE_FLOAT_IMAGE
+    mask = image[:, :, 0].copy().astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=square_float_image, mask=mask)
-    assert data["image"].dtype == square_float_image.dtype
+    data = aug(image=image, mask=mask)
+    assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
 
@@ -128,7 +130,7 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, sq
             },
     ),
 )
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_dual_augmentations(augmentation_cls, params, image):
     mask = image[:, :, 0].copy()
     aug = A.Compose([augmentation_cls(p=1, **params)])
@@ -163,7 +165,7 @@ def test_dual_augmentations(augmentation_cls, params, image):
             },
     ),
 )
-@pytest.mark.parametrize("image", TEST_FLOAT32_IMAGES)
+@pytest.mark.parametrize("image", FLOAT32_IMAGES)
 def test_dual_augmentations_with_float_values(augmentation_cls, params, image):
     mask = image.copy().astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
@@ -438,7 +440,7 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
 
 
 @pytest.mark.parametrize(["augmentation_cls", "params"], [[A.RandomCropNearBBox, {"max_part_shift": 0.15}]])
-@pytest.mark.parametrize("image", TEST_IMAGES)
+@pytest.mark.parametrize("image", IMAGES)
 def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image):
     aug = augmentation_cls(p=1, **params)
     annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
