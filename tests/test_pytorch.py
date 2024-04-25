@@ -6,10 +6,13 @@ from torchvision.transforms import ColorJitter
 
 import albumentations as A
 from albumentations.pytorch.transforms import ToTensorV2
+from tests.conftest import UINT8_IMAGES
 from .utils import set_seed
 
 
-def test_torch_to_tensor_v2_augmentations(image, mask):
+@pytest.mark.parametrize("image", UINT8_IMAGES)
+def test_torch_to_tensor_v2_augmentations(image):
+    mask = image.copy()
     aug = ToTensorV2()
     data = aug(image=image, mask=mask, force_apply=True)
     height, width, num_channels = image.shape
@@ -19,11 +22,16 @@ def test_torch_to_tensor_v2_augmentations(image, mask):
     assert data["mask"].dtype == torch.uint8
 
 
-def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image, mask):
+@pytest.mark.parametrize("image", UINT8_IMAGES)
+def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image):
+    mask = image[:, :, 0].copy()
+
     aug = ToTensorV2(transpose_mask=True)
+
     data = aug(image=image, mask=mask, force_apply=True)
     image_height, image_width, image_num_channels = image.shape
     mask_height, mask_width = mask.shape
+
     assert isinstance(data["image"], torch.Tensor) and data["image"].shape == (
         image_num_channels,
         image_height,
@@ -34,9 +42,11 @@ def test_torch_to_tensor_v2_augmentations_with_transpose_2d_mask(image, mask):
     assert data["mask"].dtype == torch.uint8
 
 
+@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_torch_to_tensor_v2_augmentations_with_transpose_3d_mask(image):
     aug = ToTensorV2(transpose_mask=True)
-    mask = np.random.randint(low=0, high=256, size=(100, 100, 4), dtype=np.uint8)
+    mask_shape = image.shape[:2] + (4,)
+    mask = np.random.randint(low=0, high=256, size=mask_shape, dtype=np.uint8)
     data = aug(image=image, mask=mask, force_apply=True)
     image_height, image_width, image_num_channels = image.shape
     mask_height, mask_width, mask_num_channels = mask.shape

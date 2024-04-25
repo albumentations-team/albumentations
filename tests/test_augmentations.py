@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
+from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -39,11 +40,13 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
             },
     ),
 )
-def test_image_only_augmentations_mask_persists(augmentation_cls, params, image, mask):
+def test_image_only_augmentations_mask_persists(augmentation_cls, params):
+    image = SQUARE_UINT8_IMAGE
+    mask = image.copy()
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
-    assert data["image"].dtype == np.uint8
-    assert data["mask"].dtype == np.uint8
+    assert data["image"].dtype == image.dtype
+    assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
 
 
@@ -85,11 +88,13 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params, image,
         },
     ),
 )
-def test_image_only_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
+def test_image_only_augmentations(augmentation_cls, params):
+    image = SQUARE_FLOAT_IMAGE
+    mask = image[:, :, 0].copy().astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=float_image, mask=mask)
-    assert data["image"].dtype == np.float32
-    assert data["mask"].dtype == np.uint8
+    data = aug(image=image, mask=mask)
+    assert data["image"].dtype == image.dtype
+    assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
 
 
@@ -113,24 +118,25 @@ def test_image_only_augmentations_with_float_values(augmentation_cls, params, fl
                 "fill_value": 0,
                 "mask_fill_value": 1,
             },
-              A.MixUp: {
+            A.MixUp: {
                 "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
             },
-
         },
         except_augmentations={
             A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
-def test_dual_augmentations(augmentation_cls, params, image, mask):
-    aug = augmentation_cls(p=1, **params)
+def test_dual_augmentations(augmentation_cls, params):
+    image = SQUARE_UINT8_IMAGE
+    mask = image[:, :, 0].copy()
+    aug = A.Compose([augmentation_cls(p=1, **params)])
     data = aug(image=image, mask=mask)
-    assert data["image"].dtype == np.uint8
-    assert data["mask"].dtype == np.uint8
+    assert data["image"].dtype == image.dtype
+    assert data["mask"].dtype == mask.dtype
 
 
 @pytest.mark.parametrize(
@@ -165,9 +171,11 @@ def test_dual_augmentations(augmentation_cls, params, image, mask):
             },
     ),
 )
-def test_dual_augmentations_with_float_values(augmentation_cls, params, float_image, mask):
+def test_dual_augmentations_with_float_values(augmentation_cls, params):
+    image = SQUARE_FLOAT_IMAGE
+    mask = image.copy()[:, :, 0].astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=float_image, mask=mask)
+    data = aug(image=image, mask=mask)
     assert data["image"].dtype == np.float32
     assert data["mask"].dtype == np.uint8
 
@@ -220,7 +228,9 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, float_im
             },
     ),
 )
-def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
+def test_augmentations_wont_change_input(augmentation_cls, params):
+    image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    mask = image[:, :, 0].copy()
     image_copy = image.copy()
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
@@ -288,11 +298,12 @@ def test_augmentations_wont_change_input(augmentation_cls, params, image, mask):
         },
     ),
 )
-def test_augmentations_wont_change_float_input(augmentation_cls, params, float_image):
-    float_image_copy = float_image.copy()
+def test_augmentations_wont_change_float_input(augmentation_cls, params):
+    image = np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)
+    float_image_copy = image.copy()
     aug = augmentation_cls(p=1, **params)
-    aug(image=float_image)
-    assert np.array_equal(float_image, float_image_copy)
+    aug(image=image)
+    assert np.array_equal(image, float_image_copy)
 
 
 @pytest.mark.parametrize(
@@ -319,7 +330,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
+            A.MixUp: {
                 "reference_data": [{"image": np.random.randint(0, 256, (224, 224), dtype=np.uint8),
                                     "mask": np.random.randint(0, 1, (224, 224), dtype=np.uint8),
                                     }],
@@ -363,23 +374,17 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params, float_i
         },
     ),
 )
-def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, image, mask):
+@pytest.mark.parametrize("shape", [(224, 224), (224, 224, 1)])
+def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, shape):
     aug = augmentation_cls(p=1, **params)
 
     # Test for grayscale image
-    image = np.zeros((224, 224), dtype=np.uint8)
-    mask = np.zeros((224, 224))
+    image = np.zeros(shape, dtype=np.uint8)
+    mask = np.zeros(shape)
     result = aug(image=image, mask=mask)
     assert np.array_equal(image.shape, result["image"].shape)
     assert np.array_equal(mask.shape, result["mask"].shape)
 
-    # Test for grayscale image with dummy dim
-    image_1ch = np.zeros((224, 224, 1), dtype=np.uint8)
-    mask_1ch = np.zeros((224, 224, 1))
-
-    result = aug(image=image_1ch, mask=mask_1ch)
-    assert np.array_equal(image_1ch.shape, result["image"].shape)
-    assert np.array_equal(mask_1ch.shape, result["mask"].shape)
 
 
 @pytest.mark.parametrize(
@@ -437,12 +442,13 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, ima
         },
     ),
 )
-def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, mask):
+def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
+    shape = (224, 224, 3)
     aug = augmentation_cls(p=1, **params)
 
     # Test for RGB image
-    image_3ch = np.zeros((224, 224, 3), dtype=np.uint8)
-    mask_3ch = np.zeros((224, 224, 3))
+    image_3ch = np.zeros(shape, dtype=np.uint8)
+    mask_3ch = np.zeros(shape)
 
     result = aug(image=image_3ch, mask=mask_3ch)
     assert np.array_equal(image_3ch.shape, result["image"].shape)
@@ -450,11 +456,12 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params, image, ma
 
 
 @pytest.mark.parametrize(["augmentation_cls", "params"], [[A.RandomCropNearBBox, {"max_part_shift": 0.15}]])
-def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image, mask):
+@pytest.mark.parametrize("image", IMAGES)
+def test_image_only_crop_around_bbox_augmentation(augmentation_cls, params, image):
     aug = augmentation_cls(p=1, **params)
     annotations = {"image": image, "cropping_bbox": [-59, 77, 177, 231]}
     data = aug(**annotations)
-    assert data["image"].dtype == np.uint8
+    assert data["image"].dtype == image.dtype
 
 
 @pytest.mark.parametrize(

@@ -3,11 +3,8 @@ from warnings import warn
 import numpy as np
 
 from albumentations.augmentations.functional import add_weighted
-from albumentations.augmentations.utils import clipped, preserve_shape
 
 
-@clipped
-@preserve_shape
 def mix_arrays(array1: np.ndarray, array2: np.ndarray, mix_coef: float) -> np.ndarray:
     warn(
         "The function 'mix_arrays' is deprecated."

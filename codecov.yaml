@@ -25,3 +25,4 @@ codecov:
   ignore:
     - "tests/"
     - "tools/"
+    - "benchmark/"

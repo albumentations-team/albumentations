@@ -1,23 +1,16 @@
 import multiprocessing
 import sys
-import warnings
 
 import numpy as np
 import pytest
 
 @pytest.fixture
-def image():
-    return np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
-
-@pytest.fixture
 def global_label():
     return np.array([1, 0, 0])
-
 
 @pytest.fixture
 def mask():
     return np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-
 
 @pytest.fixture
 def bboxes():
@@ -32,12 +25,6 @@ def albumentations_bboxes():
 @pytest.fixture
 def keypoints():
     return [[20, 30, 40, 50, 1], [20, 30, 60, 80, 2]]
-
-
-@pytest.fixture
-def float_image():
-    return np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
-
 
 @pytest.fixture
 def template():
@@ -59,3 +46,18 @@ def mp_pool():
     else:
         method = None
     return multiprocessing.get_context(method).Pool(8)
+
+SQUARE_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+RECTANGULAR_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(101, 99, 3), dtype=np.uint8)
+
+SQUARE_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype("float32")
+RECTANGULAR_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(101, 99, 3)).astype("float32")
+
+UINT8_IMAGES = [SQUARE_UINT8_IMAGE, RECTANGULAR_UINT8_IMAGE]
+
+FLOAT32_IMAGES = [SQUARE_FLOAT_IMAGE, RECTANGULAR_FLOAT_IMAGE]
+
+IMAGES = UINT8_IMAGES + FLOAT32_IMAGES
+
+SQUARE_IMAGES = [SQUARE_UINT8_IMAGE, SQUARE_FLOAT_IMAGE]
+RECTANGULAR_IMAGES = [RECTANGULAR_UINT8_IMAGE, RECTANGULAR_FLOAT_IMAGE]

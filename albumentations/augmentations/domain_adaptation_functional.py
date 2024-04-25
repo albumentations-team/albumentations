@@ -12,7 +12,7 @@ from typing_extensions import Protocol
 from albumentations.augmentations.utils import (
     clipped,
     get_opencv_dtype_from_numpy,
-    preserve_shape,
+    preserve_channel_dim,
 )
 
 GRAYSCALE_IMAGE_SHAPE = 2
@@ -90,7 +90,7 @@ class DomainAdapter:
         return self.reconstruct(result, height, width)
 
 
-@preserve_shape
+@preserve_channel_dim
 def adapt_pixel_distribution(
     img: np.ndarray,
     ref: np.ndarray,
@@ -115,7 +115,7 @@ def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np
 
 
 @clipped
-@preserve_shape
+@preserve_channel_dim
 def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: float) -> np.ndarray:
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
@@ -159,7 +159,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     return src_in_trg
 
 
-@preserve_shape
+@preserve_channel_dim
 def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
     # Resize reference image only if necessary
     if img.shape[:2] != reference_image.shape[:2]:
