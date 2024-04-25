@@ -12,7 +12,6 @@ from albumentations.augmentations.utils import (
     angle_2pi_range,
     clipped,
     preserve_channel_dim,
-    preserve_shape,
 )
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import BoxInternalType, ColorType, D4Type, KeypointInternalType
@@ -329,7 +328,7 @@ def keypoint_rotate(
     return x, y, a + math.radians(angle), s
 
 
-@preserve_shape
+@preserve_channel_dim
 def elastic_transform(
     img: np.ndarray,
     alpha: float,
@@ -963,7 +962,7 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
     raise ValueError(f"Invalid group member: {group_member}")
 
 
-@preserve_shape
+@preserve_channel_dim
 def random_flip(img: np.ndarray, code: int) -> np.ndarray:
     return cv2.flip(img, code)
 
@@ -1220,7 +1219,7 @@ def pad_with_params(
     return pad_fn(img)
 
 
-@preserve_shape
+@preserve_channel_dim
 def optical_distortion(
     img: np.ndarray,
     k: int = 0,
@@ -1253,7 +1252,7 @@ def optical_distortion(
     return cv2.remap(img, map1, map2, interpolation=interpolation, borderMode=border_mode, borderValue=value)
 
 
-@preserve_shape
+@preserve_channel_dim
 def grid_distortion(
     img: np.ndarray,
     num_steps: int = 10,
@@ -1317,7 +1316,7 @@ def grid_distortion(
     return remap_fn(img)
 
 
-@preserve_shape
+@preserve_channel_dim
 def elastic_transform_approx(
     img: np.ndarray,
     alpha: float,

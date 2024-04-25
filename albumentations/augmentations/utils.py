@@ -24,7 +24,6 @@ __all__ = [
     "get_opencv_dtype_from_numpy",
     "angle_2pi_range",
     "clip",
-    "preserve_shape",
     "preserve_channel_dim",
     "ensure_contiguous",
     "is_rgb_image",
@@ -114,20 +113,6 @@ def angle_2pi_range(
     return wrapped_function
 
 
-def preserve_shape(
-    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
-) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
-    """Preserve shape of the image"""
-
-    @wraps(func)
-    def wrapped_function(img: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
-        shape = img.shape
-        result = func(img, *args, **kwargs)
-        return result.reshape(shape)
-
-    return wrapped_function
-
-
 def preserve_channel_dim(
     func: Callable[Concatenate[np.ndarray, P], np.ndarray],
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
@@ -142,7 +127,10 @@ def preserve_channel_dim(
             and shape[-1] == 1
             and len(result.shape) == MONO_CHANNEL_DIMENSIONS
         ):
-            result = np.expand_dims(result, axis=-1)
+            return np.expand_dims(result, axis=-1)
+
+        if len(shape) == MONO_CHANNEL_DIMENSIONS and len(result.shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
+            return result[:, :, 0]
         return result
 
     return wrapped_function
