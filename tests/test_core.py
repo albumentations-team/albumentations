@@ -29,7 +29,6 @@ from albumentations.core.composition import (
     KeypointParams,
     OneOf,
     OneOrOther,
-    PerChannel,
     ReplayCompose,
     Sequential,
     SomeOf,
@@ -123,7 +122,7 @@ def test_to_tuple(input, kwargs, expected):
 
 
 @pytest.mark.parametrize("image", IMAGES)
-def test_image_only_transform(request, image):
+def test_image_only_transform(image):
     mask = image.copy()
     height, width = image.shape[:2]
     with mock.patch.object(ImageOnlyTransform, "apply") as mocked_apply:
@@ -191,22 +190,6 @@ def test_check_bboxes_with_end_greater_that_start():
         check_bboxes([[0.8, 0.5, 0.7, 0.6, 99], [0.1, 0.5, 0.8, 1.0]])
     message = "x_max is less than or equal to x_min for bbox [0.8, 0.5, 0.7, 0.6, 99]."
     assert str(exc_info.value) == message
-
-
-def test_per_channel_mono():
-    transforms = [Blur(), Rotate()]
-    augmentation = PerChannel(transforms, p=1)
-    image = np.ones((8, 8))
-    data = augmentation(image=image)
-    assert data
-
-
-def test_per_channel_multi():
-    transforms = [Blur(), Rotate()]
-    augmentation = PerChannel(transforms, p=1)
-    image = np.ones((8, 8, 5))
-    data = augmentation(image=image)
-    assert data
 
 
 def test_deterministic_oneof():

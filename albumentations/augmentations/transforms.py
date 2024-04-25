@@ -1375,9 +1375,9 @@ class RGBShift(ImageOnlyTransform):
 
     def get_params(self) -> Dict[str, Any]:
         return {
-            "r_shift": random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-            "g_shift": random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-            "b_shift": random.uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
+            "r_shift": random_utils.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
+            "g_shift": random_utils.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
+            "b_shift": random_utils.uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str]:
@@ -1606,7 +1606,7 @@ class CLAHE(ImageOnlyTransform):
 
 
 class ChannelShuffle(ImageOnlyTransform):
-    """Randomly rearrange channels of the input RGB image.
+    """Randomly rearrange channels of the image.
 
     Args:
         p: probability of applying the transform. Default: 0.5.
@@ -1623,7 +1623,7 @@ class ChannelShuffle(ImageOnlyTransform):
     def targets_as_params(self) -> List[str]:
         return ["image"]
 
-    def apply(self, img: np.ndarray, channels_shuffled: Tuple[int, int, int] = (0, 1, 2), **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, channels_shuffled: Tuple[int, ...] = (0, 1, 2), **params: Any) -> np.ndarray:
         return F.channel_shuffle(img, channels_shuffled)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -2141,7 +2141,7 @@ class FancyPCA(ImageOnlyTransform):
     "ImageNet Classification with Deep Convolutional Neural Networks"
 
     Args:
-        alpha:  how much to perturb/scale the eigen vecs and vals.
+        alpha:  how much to perturb/scale the eigen vectors and eigenvalues.
             scale is samples from gaussian distribution (mu=0, sigma=alpha)
 
     Targets:
@@ -2415,9 +2415,9 @@ class Superpixels(ImageOnlyTransform):
                 * A probability of ``0.5`` would mean, that around half of all
                   segments are replaced by their average color.
                 * A probability of ``1.0`` would mean, that all segments are
-                  replaced by their average color (resulting in a voronoi
+                  replaced by their average color (resulting in a Voronoi
                   image).
-            Behaviour based on chosen data types for this parameter:
+            Behavior based on chosen data types for this parameter:
                 * If a ``float``, then that ``flat`` will always be used.
                 * If ``tuple`` ``(a, b)``, then a random probability will be
                   sampled from the interval ``[a, b]`` per image.
