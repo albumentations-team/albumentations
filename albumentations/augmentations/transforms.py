@@ -1707,11 +1707,12 @@ class RandomGamma(ImageOnlyTransform):
 
 
 class ToGray(ImageOnlyTransform):
-    """Convert the input RGB image to grayscale. If the mean pixel value for the resulting image is greater
-    than 127, invert the resulting grayscale image.
+    """Convert the input RGB image to grayscale. If the input image is already grayscale, a warning is issued but
+    the original image is returned unchanged. This transformation checks if the image is RGB; if not, it raises
+    a TypeError.
 
     Args:
-        p: probability of applying the transform. Default: 0.5.
+        p (float): Probability of applying the transform. Default is 0.5.
 
     Targets:
         image
@@ -1719,6 +1720,11 @@ class ToGray(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Note:
+        This transform assumes the input image is in RGB format.
+
+    Raises:
+        TypeError: If the input image is not a 3-channel RGB image.
     """
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
