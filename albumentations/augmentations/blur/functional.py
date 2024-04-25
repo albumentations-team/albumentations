@@ -10,7 +10,7 @@ from albumentations.augmentations.geometric.functional import scale
 from albumentations.augmentations.utils import (
     _maybe_process_in_chunks,
     clipped,
-    preserve_shape,
+    preserve_channel_dim,
 )
 
 __all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur", "defocus", "central_zoom", "zoom_blur"]
@@ -19,13 +19,13 @@ TWO = 2
 EIGHT = 8
 
 
-@preserve_shape
+@preserve_channel_dim
 def blur(img: np.ndarray, ksize: int) -> np.ndarray:
     blur_fn = _maybe_process_in_chunks(cv2.blur, ksize=(ksize, ksize))
     return blur_fn(img)
 
 
-@preserve_shape
+@preserve_channel_dim
 def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
     if img.dtype == np.float32 and ksize not in {3, 5}:
         raise ValueError(f"Invalid ksize value {ksize}. For a float32 image the only valid ksize values are 3 and 5")
@@ -34,14 +34,14 @@ def median_blur(img: np.ndarray, ksize: int) -> np.ndarray:
     return blur_fn(img)
 
 
-@preserve_shape
+@preserve_channel_dim
 def gaussian_blur(img: np.ndarray, ksize: int, sigma: float = 0) -> np.ndarray:
     # When sigma=0, it is computed as `sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8`
     blur_fn = _maybe_process_in_chunks(cv2.GaussianBlur, ksize=(ksize, ksize), sigmaX=sigma)
     return blur_fn(img)
 
 
-@preserve_shape
+@preserve_channel_dim
 def glass_blur(
     img: np.ndarray,
     sigma: float,

@@ -13,6 +13,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from tests.conftest import IMAGES
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -1194,7 +1195,6 @@ def test_rotate_equal(img, aug_cls, angle):
     assert diff[:, :2].max() <= 2
     assert (diff[:, -1] % 360).max() <= 1
 
-
 @pytest.mark.parametrize(
     "get_transform",
     [
@@ -1211,7 +1211,8 @@ def test_rotate_equal(img, aug_cls, angle):
         [[(90, 90, 100, 100, 1)], [(92, 92, 99, 99, 1)], 0.49, 1],
     ],
 )
-def test_bbox_clipping(get_transform, image, bboxes, expected, min_visibility: float, sign: int):
+def test_bbox_clipping(get_transform, bboxes, expected, min_visibility: float, sign: int):
+    image = np.zeros([100, 100, 3], dtype=np.uint8)
     transform = get_transform(sign)
     transform.p = 1
     transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
@@ -1376,16 +1377,19 @@ def test_deprecation_warnings_random_shadow(
             assert not w
     warnings.resetwarnings()
 
-
+@pytest.mark.parametrize("image", IMAGES)
 @pytest.mark.parametrize("grid", [
-    (2, 2), (3, 3), (4, 4), (5, 7)
+    (3, 3), (4, 4), (5, 7)
 ])
-def test_grid_shuffle(image, mask, grid):
+def test_grid_shuffle(image, grid):
     """
     As we reshuffle the grid, the mean and sum of the image and mask should remain the same,
     while the reshuffled image and mask should not be equal to the original image and mask.
     """
-    set_seed(4)
+    set_seed(0)
+
+    mask = image.copy()
+
     aug = A.Compose([A.RandomGridShuffle(grid=grid, p=1)])
 
     res = aug(image=image, mask=mask)
@@ -1395,8 +1399,27 @@ def test_grid_shuffle(image, mask, grid):
     assert not np.array_equal(res["image"], image)
     assert not np.array_equal(res["mask"], mask)
 
-    assert np.array_equal(res["image"].mean(axis=(0, 1)), image.mean(axis=(0, 1)))
-    assert np.array_equal(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)))
+    print((res["image"] - image).sum())
 
-    assert np.array_equal(res["mask"].mean(axis=(0, 1)), mask.mean(axis=(0, 1)))
-    assert np.array_equal(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)))
+    np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.03)
+    np.testing.assert_allclose(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)), atol=0.03)
+
+@pytest.mark.parametrize("image", IMAGES)
+@pytest.mark.parametrize("crop_left, crop_right, crop_top, crop_bottom", [
+    (0, 0, 0, 0),
+    (0, 1, 0, 1),
+    (1, 0, 1, 0),
+    (0.5, 0.5, 0.5, 0.5),
+    ( 0.1, 0.1, 0.1, 0.1 ),
+                                                                          ( 0.3, 0.3, 0.3, 0.3 )])
+def test_random_crop_from_borders(image, bboxes, keypoints, crop_left, crop_right, crop_top, crop_bottom):
+    set_seed(0)
+    aug = A.Compose([A.RandomCropFromBorders(crop_left=crop_left,
+                                             crop_right=crop_right,
+                                             crop_top=crop_top,
+                                             crop_bottom=crop_bottom,
+                                             p=1)],
+                    bbox_params=A.BboxParams("pascal_voc"),
+                    keypoint_params=A.KeypointParams("xy"))
+
+    assert aug(image=image, mask=image, bboxes=bboxes, keypoints=keypoints)

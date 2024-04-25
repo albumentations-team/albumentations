@@ -4,13 +4,13 @@ import numpy as np
 from typing_extensions import Literal
 
 from albumentations import random_utils
-from albumentations.augmentations.utils import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_shape
+from albumentations.augmentations.utils import MAX_VALUES_BY_DTYPE, is_grayscale_image, preserve_channel_dim
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, ColorType, KeypointType
 
 __all__ = ["cutout", "channel_dropout", "keypoint_in_hole"]
 
 
-@preserve_shape
+@preserve_channel_dim
 def channel_dropout(
     img: np.ndarray,
     channels_to_drop: Union[int, Tuple[int, ...], np.ndarray],

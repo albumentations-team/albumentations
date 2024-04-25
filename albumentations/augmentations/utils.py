@@ -7,7 +7,12 @@ import numpy as np
 from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
-from albumentations.core.types import KeypointInternalType
+from albumentations.core.types import (
+    MONO_CHANNEL_DIMENSIONS,
+    NUM_MULTI_CHANNEL_DIMENSIONS,
+    RGB_NUM_CHANNELS,
+    KeypointInternalType,
+)
 
 __all__ = [
     "read_bgr_image",
@@ -19,7 +24,6 @@ __all__ = [
     "get_opencv_dtype_from_numpy",
     "angle_2pi_range",
     "clip",
-    "preserve_shape",
     "preserve_channel_dim",
     "ensure_contiguous",
     "is_rgb_image",
@@ -57,8 +61,6 @@ NPDTYPE_TO_OPENCV_DTYPE = {
 }
 
 TWO = 2
-THREE = 3
-RGB_NUM_CHANNELS = 3
 FOUR = 4
 BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]
 
@@ -111,20 +113,6 @@ def angle_2pi_range(
     return wrapped_function
 
 
-def preserve_shape(
-    func: Callable[Concatenate[np.ndarray, P], np.ndarray],
-) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
-    """Preserve shape of the image"""
-
-    @wraps(func)
-    def wrapped_function(img: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
-        shape = img.shape
-        result = func(img, *args, **kwargs)
-        return result.reshape(shape)
-
-    return wrapped_function
-
-
 def preserve_channel_dim(
     func: Callable[Concatenate[np.ndarray, P], np.ndarray],
 ) -> Callable[Concatenate[np.ndarray, P], np.ndarray]:
@@ -134,8 +122,15 @@ def preserve_channel_dim(
     def wrapped_function(img: np.ndarray, *args: P.args, **kwargs: P.kwargs) -> np.ndarray:
         shape = img.shape
         result = func(img, *args, **kwargs)
-        if len(shape) == THREE and shape[-1] == 1 and len(result.shape) == TWO:
-            result = np.expand_dims(result, axis=-1)
+        if (
+            len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS
+            and shape[-1] == 1
+            and len(result.shape) == MONO_CHANNEL_DIMENSIONS
+        ):
+            return np.expand_dims(result, axis=-1)
+
+        if len(shape) == MONO_CHANNEL_DIMENSIONS and len(result.shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
+            return result[:, :, 0]
         return result
 
     return wrapped_function
@@ -154,20 +149,21 @@ def ensure_contiguous(
     return wrapped_function
 
 
+def get_num_channels(image: np.ndarray) -> int:
+    return image.shape[2] if len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS else 1
+
+
 def is_rgb_image(image: np.ndarray) -> bool:
-    return len(image.shape) == THREE and image.shape[-1] == RGB_NUM_CHANNELS
+    return get_num_channels(image) == RGB_NUM_CHANNELS
 
 
 def is_grayscale_image(image: np.ndarray) -> bool:
-    return (len(image.shape) == TWO) or (len(image.shape) == THREE and image.shape[-1] == 1)
+    return get_num_channels(image) == 1
 
 
 def is_multispectral_image(image: np.ndarray) -> bool:
-    return len(image.shape) == THREE and image.shape[-1] not in [1, 3]
-
-
-def get_num_channels(image: np.ndarray) -> int:
-    return image.shape[2] if len(image.shape) == THREE else 1
+    num_channels = get_num_channels(image)
+    return num_channels not in {1, 3}
 
 
 def non_rgb_warning(image: np.ndarray) -> None:
