@@ -1496,7 +1496,8 @@ def test_coarse_dropout_invalid_input(params):
             A.MixUp,
             A.NoOp,
             A.Lambda,
-            A.ToRGB
+            A.ToRGB,
+            A.RandomRotate90
         },
     ),
 )
@@ -1553,7 +1554,8 @@ def test_change_image(augmentation_cls, params):
             A.SmallestMaxSize,
             A.RandomScale,
             A.ChannelShuffle,
-            A.ChromaticAberration
+            A.ChromaticAberration,
+            A.RandomRotate90
         },
     ),
 )
