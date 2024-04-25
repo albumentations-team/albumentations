@@ -3,6 +3,7 @@ import warnings
 from collections import defaultdict
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Union, cast
 
+import cv2
 import numpy as np
 
 from albumentations import random_utils
@@ -30,12 +31,12 @@ __all__ = [
     "Sequential",
     "TransformType",
     "TransformsSeqType",
+    "SelectiveChannelTransform",
 ]
 
-TWO = 2
-
-
+NUM_ONEOF_TRANSFORMS = 2
 REPR_INDENT_STEP = 2
+
 TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = List[TransformType]
 
@@ -406,7 +407,7 @@ class OneOrOther(BaseCompose):
                 raise ValueError(msg)
             transforms = [first, second]
         super().__init__(transforms, p)
-        if len(self.transforms) != TWO:
+        if len(self.transforms) != NUM_ONEOF_TRANSFORMS:
             warnings.warn("Length of transforms is not equal to 2.")
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
@@ -421,18 +422,39 @@ class OneOrOther(BaseCompose):
         return self.transforms[-1](force_apply=True, **data)
 
 
-class PerChannel(BaseCompose):
-    """Apply transformations per-channel
+class SelectiveChannelTransform(BaseCompose):
+    """A transformation class to apply specified transforms to selected channels of an image.
 
-    Args:
-        transforms (list): list of transformations to compose.
-        channels (sequence): channels to apply the transform to. Pass None to apply to all.
-        Default: None (apply to all)
-        p (float): probability of applying the transform. Default: 0.5.
+    This class extends BaseCompose to allow selective application of transformations to
+    specified image channels. It extracts the selected channels, applies the transformations,
+    and then reinserts the transformed channels back into their original positions in the image.
 
+    Parameters:
+        transforms (TransformsSeqType):
+            A sequence of transformations (from Albumentations) to be applied to the specified channels.
+        channels (Sequence[int]):
+            A sequence of integers specifying the indices of the channels to which the transforms should be applied.
+        always_apply (bool):
+            If True, the transform will always be applied, ignoring the probability `p`.
+        p (float):
+            Probability that the transform will be applied; the default is 1.0 (always apply).
+
+    Methods:
+        __call__(*args, **kwargs):
+            Applies the transforms to the image according to the specified channels.
+            The input data should include 'image' key with the image array.
+
+    Returns:
+        Dict[str, Any]: The transformed data dictionary, which includes the transformed 'image' key.
     """
 
-    def __init__(self, transforms: TransformsSeqType, channels: Optional[Sequence[int]] = None, p: float = 0.5):
+    def __init__(
+        self,
+        transforms: TransformsSeqType,
+        channels: Sequence[int] = (0, 1, 2),
+        always_apply: bool = False,
+        p: float = 1.0,
+    ) -> None:
         super().__init__(transforms, p)
         self.channels = channels
 
@@ -440,18 +462,19 @@ class PerChannel(BaseCompose):
         if force_apply or random.random() < self.p:
             image = data["image"]
 
-            # Expand mono images to have a single channel
-            if len(image.shape) == TWO:
-                image = np.expand_dims(image, -1)
+            selected_channels = image[:, :, self.channels]
+            sub_image = np.ascontiguousarray(selected_channels)
 
-            if self.channels is None:
-                self.channels = range(image.shape[2])
+            for t in self.transforms:
+                sub_image = t(image=sub_image)["image"]
 
-            for c in self.channels:
-                for t in self.transforms:
-                    image[:, :, c] = t(image=image[:, :, c])["image"]
+            transformed_channels = cv2.split(sub_image)
+            output_img = image.copy()
 
-            data["image"] = image
+            for idx, channel in zip(self.channels, transformed_channels):
+                output_img[:, :, idx] = channel
+
+            data["image"] = np.ascontiguousarray(output_img)
 
         return data
 

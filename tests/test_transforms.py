@@ -13,7 +13,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
-from tests.conftest import IMAGES
+from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -1454,3 +1454,127 @@ def test_coarse_dropout_functionality(params, expected):
 def test_coarse_dropout_invalid_input(params):
     with pytest.raises(Exception):
         aug = A.CoarseDropout(**params, p=1)
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+            A.Superpixels: {"p_replace": (1, 1),
+                             "n_segments": (10, 10),
+                             "max_size": 10
+                            },
+        },
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.MaskDropout,
+            A.MixUp,
+            A.NoOp,
+            A.Lambda,
+            A.ToRGB,
+            A.RandomRotate90,
+            A.FancyPCA
+        },
+    ),
+)
+def test_change_image(augmentation_cls, params):
+    """Checks whether transform performs changes to the image."""
+    aug = A.Compose([augmentation_cls(p=1, **params)])
+    image = SQUARE_UINT8_IMAGE
+    assert not np.array_equal(aug(image=image)["image"], image)
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+            A.Superpixels: {"p_replace": (1, 1),
+                             "n_segments": (10, 10),
+                             "max_size": 10
+                            },
+            A.FancyPCA: {"alpha":1}
+        },
+        except_augmentations={
+            A.Crop,
+            A.CenterCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.RandomCrop,
+            A.RandomResizedCrop,
+            A.RandomSizedCrop,
+            A.CropAndPad,
+            A.Resize,
+            A.TemplateTransform,
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.MaskDropout,
+            A.MixUp,
+            A.NoOp,
+            A.Lambda,
+            A.ToRGB,
+            A.ChannelDropout,
+            A.LongestMaxSize,
+            A.PadIfNeeded,
+            A.RandomCropFromBorders,
+            A.SmallestMaxSize,
+            A.RandomScale,
+            A.ChannelShuffle,
+            A.ChromaticAberration,
+            A.RandomRotate90,
+            A.FancyPCA
+        },
+    ),
+)
+def test_selective_channel(augmentation_cls, params):
+    set_seed(0)
+
+    image = SQUARE_MULTI_UINT8_IMAGE
+    channels = [3, 2, 4]
+
+    aug = A.Compose(
+        [A.SelectiveChannelTransform(transforms=[augmentation_cls(**params, always_apply=True, p=1)], channels=channels, always_apply=True, p=1)],
+    )
+
+    transformed_image = aug(image=image)["image"]
+
+    for channel in range(image.shape[-1]):
+        if channel in channels:
+            assert not np.array_equal(image[..., channel], transformed_image[..., channel])
+        else:
+            assert np.array_equal(image[..., channel], transformed_image[..., channel])
