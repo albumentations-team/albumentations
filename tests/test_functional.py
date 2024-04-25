@@ -181,7 +181,7 @@ def generate_rotation_matrix(image: np.ndarray, angle: float) -> np.ndarray:
 
 
 @pytest.mark.parametrize("image", IMAGES)
-def test_compare_rotate_and_affine_with_fixtures(image):
+def test_compare_rotate_and_affine(image):
     # Generate the rotation matrix for a 60-degree rotation around the image center
     rotation_matrix = generate_rotation_matrix(image, 60)
 
@@ -1295,10 +1295,6 @@ def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
 
     assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), "Sequential vflip + hflip not equivalent to hflip + vflip"
     assert vhflipped_keypoint == pytest.approx(FGeometric.keypoint_rot90(keypoint, 2, rows, cols)), "rot180 not equivalent to vflip + hflip"
-
-
-
-
 
 base_matrix = np.array([[1, 2, 3],
                         [4, 5, 6],

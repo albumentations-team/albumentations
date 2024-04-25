@@ -13,7 +13,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from albumentations.core.types import ImageCompressionType
-from tests.conftest import FLOAT32_IMAGES, IMAGES, UINT8_IMAGES
+from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES
 
 
 from .utils import (
@@ -80,9 +80,8 @@ TEST_SEEDS = (0, 1, 42)
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("always_apply", (False, True))
-@pytest.mark.parametrize("image_type", ['square_image', 'square_float_image', 'rectangular_image', 'rectangular_float_image'])
-def test_augmentations_serialization(request, augmentation_cls, params, p, seed, image_type, always_apply):
-    image = request.getfixturevalue(image_type)
+@pytest.mark.parametrize("image", IMAGES)
+def test_augmentations_serialization(augmentation_cls, params, p, seed, image, always_apply):
     mask = image.copy()
 
     aug = augmentation_cls(p=p, always_apply=always_apply, **params)
@@ -1023,7 +1022,8 @@ def test_shorten_class_name(class_fullname, expected_short_class_name):
 
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("p", [1])
-def test_template_transform_serialization(square_image, template, seed, p):
+def test_template_transform_serialization(template, seed, p):
+    image = SQUARE_UINT8_IMAGE
     template_transform = A.TemplateTransform(name="template", templates=template, p=p)
 
     aug = A.Compose([A.Flip(), template_transform, A.Blur()])
@@ -1032,9 +1032,9 @@ def test_template_transform_serialization(square_image, template, seed, p):
     deserialized_aug = A.from_dict(serialized_aug, nonserializable={"template": template_transform})
 
     set_seed(seed)
-    aug_data = aug(image=square_image)
+    aug_data = aug(image=image)
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=square_image)
+    deserialized_aug_data = deserialized_aug(image=image)
 
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 

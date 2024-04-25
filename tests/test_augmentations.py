@@ -41,7 +41,7 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
     ),
 )
 def test_image_only_augmentations_mask_persists(augmentation_cls, params):
-    image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
     mask = image.copy()
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
@@ -126,12 +126,12 @@ def test_image_only_augmentations(augmentation_cls, params):
             },
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.MixUp
+            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
-@pytest.mark.parametrize("image", IMAGES)
-def test_dual_augmentations(augmentation_cls, params, image):
+def test_dual_augmentations(augmentation_cls, params):
+    image = SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
     aug = A.Compose([augmentation_cls(p=1, **params)])
     data = aug(image=image, mask=mask)
@@ -158,16 +158,22 @@ def test_dual_augmentations(augmentation_cls, params, image):
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32),
+                                    "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
+                                    }],
+                "read_fn": lambda x: x,
             }
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.MixUp
+            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
-@pytest.mark.parametrize("image", FLOAT32_IMAGES)
-def test_dual_augmentations_with_float_values(augmentation_cls, params, image):
-    mask = image.copy().astype(np.uint8)
+def test_dual_augmentations_with_float_values(augmentation_cls, params):
+    image = SQUARE_FLOAT_IMAGE
+    mask = image.copy()[:, :, 0].astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
     data = aug(image=image, mask=mask)
     assert data["image"].dtype == np.float32
@@ -209,10 +215,16 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params, image):
                 "mask_y_length": 10,
                 "mask_fill_value": 1,
                 "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
             }
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.MixUp
+            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
@@ -318,6 +330,12 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.MixUp: {
+                "reference_data": [{"image": np.random.randint(0, 256, (224, 224), dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, (224, 224), dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            }
         },
         except_augmentations={
             A.ChannelDropout,
@@ -353,7 +371,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomCropFromBorders,
             A.Spatter,
             A.ChromaticAberration,
-            A.MixUp
         },
     ),
 )
@@ -422,7 +439,6 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
             A.PadIfNeeded,
             A.RandomScale,
             A.RandomCropFromBorders,
-            A.MixUp
         },
     ),
 )
