@@ -1,6 +1,6 @@
 import random
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -44,7 +44,7 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
     _targets: Union[Tuple[Targets, ...], Targets]  # targets that this transform can work on
-    _available_targets: Tuple[str, ...]  # targets that this transform, as string, lower-cased
+    _available_targets: Set[str]  # targets that this transform, as string, lower-cased
     _target2func: Dict[
         str,
         Callable[..., Any],
@@ -68,6 +68,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._additional_targets: Dict[str, str] = {}
         # replay mode params
         self.params: Dict[Any, Any] = {}
+        self._target2func = {}
         self.set_targets()
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
@@ -131,15 +132,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         state.update(self.get_transform_init_args())
         return f"{self.__class__.__name__}({format_args(state)})"
 
-    def _get_target_function(self, key: str) -> Callable[..., Any]:
-        """Returns function to process target"""
-        """Returns function to process target"""
-        transform_key = key
-        if key in self._additional_targets:
-            transform_key = self._additional_targets.get(key, key)
-
-        return self.targets.get(transform_key, lambda x, **p: x)
-
     def apply(self, img: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform on image."""
         raise NotImplementedError
@@ -164,16 +156,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def set_targets(self) -> None:
         """Set _available_targets"""
         if not hasattr(self, "_targets"):
-            self._available_targets = ()
+            self._available_targets = set()
         else:
-            self._available_targets = tuple(
+            self._available_targets = {
                 target.value.lower()
                 for target in (self._targets if isinstance(self._targets, tuple) else [self._targets])
-            )
-        self.set_target2func()
-
-    def set_target2func(self) -> None:
-        """Set mapping for targets and methods for which they depend"""
+            }
         self._target2func = {
             target: self.targets[target] for target in self._available_targets if target in self.targets
         }
