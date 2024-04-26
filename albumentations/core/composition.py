@@ -192,6 +192,7 @@ class Compose(BaseCompose):
         self._disable_check_args_for_transforms(self.transforms)
 
         self.is_check_shapes = is_check_shapes
+        self._always_apply = get_always_apply(self.transforms)  # transforms list that always apply
         self._check_each_transform = tuple(  # processors that checks after each transform
             proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
         )
@@ -222,7 +223,11 @@ class Compose(BaseCompose):
 
         for p in self.processors.values():
             p.ensure_data_valid(data)
-        transforms = self.transforms if need_to_run else get_always_apply(self.transforms)
+        transforms = self.transforms if need_to_run else self._always_apply
+
+        check_each_transform = any(
+            getattr(item.params, "check_each_transform", False) for item in self.processors.values()
+        )
 
         for p in self.processors.values():
             p.preprocess(data)
