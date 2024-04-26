@@ -225,10 +225,6 @@ class Compose(BaseCompose):
             p.ensure_data_valid(data)
         transforms = self.transforms if need_to_run else self._always_apply
 
-        check_each_transform = any(
-            getattr(item.params, "check_each_transform", False) for item in self.processors.values()
-        )
-
         for p in self.processors.values():
             p.preprocess(data)
 
