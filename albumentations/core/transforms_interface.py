@@ -106,8 +106,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         for key, arg in kwargs.items():
             if key in self._target2func and arg is not None:
                 target_function = self._target2func[key]
-                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
-                res[key] = target_function(arg, **dict(params, **target_dependencies))
+                res[key] = target_function(arg, **params)
             else:
                 res[key] = arg
         return res
@@ -179,10 +178,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params["mask_fill_value"] = self.mask_fill_value
         params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
         return params
-
-    @property
-    def target_dependence(self) -> Dict[str, Any]:
-        return {}
 
     def add_targets(self, additional_targets: Dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets
