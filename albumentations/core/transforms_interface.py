@@ -162,6 +162,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 target.value.lower()
                 for target in (self._targets if isinstance(self._targets, tuple) else [self._targets])
             }
+        for target in self.targets:
+            self._available_targets.add(target)
         self._target2func = {
             target: self.targets[target] for target in self._available_targets if target in self.targets
         }
