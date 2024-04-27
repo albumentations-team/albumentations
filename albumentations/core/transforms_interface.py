@@ -155,9 +155,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 target.value.lower()
                 for target in (self._targets if isinstance(self._targets, tuple) else [self._targets])
             }
-        for target in self.targets:
-            self._available_keys.add(target)
-        self._key2func = {key: self.targets[target] for key in self._available_keys if key in self.targets}
+        self._available_keys.update(self.targets.keys())
+        self._key2func = {key: self.targets[key] for key in self._available_keys if key in self.targets}
 
     @property
     def available_keys(self) -> Set[str]:

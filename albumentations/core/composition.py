@@ -134,7 +134,7 @@ class BaseCompose(Serializable):
                         f"Trying to overwrite existed additional targets. "
                         f"Key={k} Exists={self._additional_targets[k]} New value: {v}",
                     )
-                self._additional_targets.update(additional_targets)
+            self._additional_targets.update(additional_targets)
             for t in self.transforms:
                 t.add_targets(additional_targets)
             for proc in self.processors.values():
