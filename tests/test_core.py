@@ -80,7 +80,7 @@ def test_always_apply():
 
 
 def test_one_of():
-    transforms = [Mock(p=1) for _ in range(10)]
+    transforms = [Mock(p=1, available_keys={"image"}) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -90,7 +90,7 @@ def test_one_of():
 @pytest.mark.parametrize("N", [1, 2, 5, 10])
 @pytest.mark.parametrize("replace", [True, False])
 def test_n_of(N, replace):
-    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}) for _ in range(10)]
+    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}) for _ in range(10)]
     augmentation = SomeOf(transforms, N, p=1, replace=replace)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -100,7 +100,7 @@ def test_n_of(N, replace):
 
 
 def test_sequential():
-    transforms = [Mock(side_effect=lambda **kw: kw) for _ in range(10)]
+    transforms = [Mock(side_effect=lambda **kw: kw, available_keys={"image"}) for _ in range(10)]
     augmentation = Sequential(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -254,7 +254,7 @@ def test_named_args():
     ],
 )
 def test_targets_type_check(targets, additional_targets, err_message):
-    aug = Compose([], additional_targets=additional_targets)
+    aug = Compose([A.NoOp()], additional_targets=additional_targets)
 
     with pytest.raises(TypeError) as exc_info:
         aug(**targets)
@@ -421,7 +421,7 @@ def test_contiguous_output(transforms):
     ],
 )
 def test_compose_image_mask_equal_size(targets):
-    transforms = Compose([])
+    transforms = Compose([A.NoOp()])
 
     with pytest.raises(ValueError) as exc_info:
         transforms(**targets)
