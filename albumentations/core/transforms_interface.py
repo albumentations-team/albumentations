@@ -319,7 +319,7 @@ class ImageOnlyTransform(BasicTransform):
 
 
 class NoOp(DualTransform):
-    """Identical transform (does nothing).
+    """Identity transform (does nothing).
 
     Targets:
         image, mask, bboxes, keypoints, global_label

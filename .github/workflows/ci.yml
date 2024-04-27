@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        operating-system: [ubuntu-latest, windows-latest, macos-13]
         python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
       fail-fast: true
     steps:
@@ -34,7 +34,7 @@ jobs:
         pip install torch==2.2.0 torchvision==0.17.0
         --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
-      if: matrix.operating-system == 'macos-latest'
+      if: matrix.operating-system == 'macos-13'
       run: pip install torch==2.2.0 torchvision==0.17.0
     - name: Install dev requirements
       run: pip install -r requirements-dev.txt
@@ -48,7 +48,7 @@ jobs:
     - name: Run PyTest
       run: pytest --cov .
     - name: Upload coverage reports to Codecov
-      uses: codecov/codecov-action@v4.0.1
+      uses: codecov/codecov-action@v4.3.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         slug: albumentations-team/albumentations

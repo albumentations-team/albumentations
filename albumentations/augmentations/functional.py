@@ -18,7 +18,6 @@ from albumentations.augmentations.utils import (
     is_rgb_image,
     non_rgb_warning,
     preserve_channel_dim,
-    preserve_shape,
 )
 from albumentations.core.types import (
     ColorType,
@@ -104,7 +103,7 @@ def normalize_numpy(img: np.ndarray, mean: np.ndarray, denominator: np.ndarray) 
     return img
 
 
-@preserve_shape
+@preserve_channel_dim
 def normalize(img: np.ndarray, mean: ColorType, std: ColorType, max_pixel_value: float = 255.0) -> np.ndarray:
     mean_np = np.array(mean, dtype=np.float32)
     mean_np *= max_pixel_value
@@ -120,7 +119,7 @@ def normalize(img: np.ndarray, mean: ColorType, std: ColorType, max_pixel_value:
     return normalize_numpy(img, mean_np, denominator)
 
 
-@preserve_shape
+@preserve_channel_dim
 def normalize_per_image(
     img: np.ndarray,
     normalization: Literal["image", "image_per_channel", "min_max", "min_max_per_channel"],
@@ -228,7 +227,7 @@ def _shift_hsv_non_uint8(
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
 
 
-@preserve_shape
+@preserve_channel_dim
 def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val_shift: np.ndarray) -> np.ndarray:
     if hue_shift == 0 and sat_shift == 0 and val_shift == 0:
         return img
@@ -285,7 +284,7 @@ def solarize(img: np.ndarray, threshold: int = 128) -> np.ndarray:
     return result_img
 
 
-@preserve_shape
+@preserve_channel_dim
 def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     """Reduce the number of bits for each color channel.
 
@@ -441,7 +440,7 @@ def equalize(
     return result_img
 
 
-@preserve_shape
+@preserve_channel_dim
 def move_tone_curve(img: np.ndarray, low_y: float, high_y: float) -> np.ndarray:
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
@@ -501,7 +500,7 @@ def _shift_image_uint8(img: np.ndarray, value: np.ndarray) -> np.ndarray:
     return cv2.LUT(img, lut)
 
 
-@preserve_shape
+@preserve_channel_dim
 def _shift_rgb_uint8(img: np.ndarray, r_shift: ScalarType, g_shift: ScalarType, b_shift: ScalarType) -> np.ndarray:
     if r_shift == g_shift == b_shift:
         height, width, channels = img.shape
@@ -545,13 +544,13 @@ def clahe(img: np.ndarray, clip_limit: float = 2.0, tile_grid_size: Tuple[int, i
     return cv2.cvtColor(img, cv2.COLOR_LAB2RGB)
 
 
-@preserve_shape
+@preserve_channel_dim
 def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     conv_fn = _maybe_process_in_chunks(cv2.filter2D, ddepth=-1, kernel=kernel)
     return conv_fn(img)
 
 
-@preserve_shape
+@preserve_channel_dim
 def image_compression(img: np.ndarray, quality: int, image_type: np.dtype) -> np.ndarray:
     if image_type in [".jpeg", ".jpg"]:
         quality_flag = cv2.IMWRITE_JPEG_QUALITY
@@ -583,7 +582,7 @@ def image_compression(img: np.ndarray, quality: int, image_type: np.dtype) -> np
     return img
 
 
-@preserve_shape
+@preserve_channel_dim
 def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
     """Bleaches out pixels, imitation snow.
 
@@ -629,7 +628,7 @@ def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.
     return image_rgb
 
 
-@preserve_shape
+@preserve_channel_dim
 def add_rain(
     img: np.ndarray,
     slant: int,
@@ -693,7 +692,7 @@ def add_rain(
     return image_rgb
 
 
-@preserve_shape
+@preserve_channel_dim
 def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List[Tuple[int, int]]) -> np.ndarray:
     """Add fog to the image.
 
@@ -744,7 +743,7 @@ def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List
     return image_rgb
 
 
-@preserve_shape
+@preserve_channel_dim
 def add_sun_flare(
     img: np.ndarray,
     flare_center_x: float,
@@ -808,7 +807,7 @@ def add_sun_flare(
 
 
 @ensure_contiguous
-@preserve_shape
+@preserve_channel_dim
 def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     """Add shadows to the image.
 
@@ -851,7 +850,7 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
 
 
 @ensure_contiguous
-@preserve_shape
+@preserve_channel_dim
 def add_gravel(img: np.ndarray, gravels: List[Any]) -> np.ndarray:
     """Add gravel to the image.
 
@@ -900,7 +899,7 @@ def channel_shuffle(img: np.ndarray, channels_shuffled: np.ndarray) -> np.ndarra
     return img[..., channels_shuffled]
 
 
-@preserve_shape
+@preserve_channel_dim
 def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
     if img.dtype == np.uint8:
         table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** gamma) * 255
@@ -935,7 +934,7 @@ def _brightness_contrast_adjust_non_uint(
     return img
 
 
-@preserve_shape
+@preserve_channel_dim
 def _brightness_contrast_adjust_uint(
     img: np.ndarray,
     alpha: float = 1,
@@ -1029,7 +1028,7 @@ def gray_to_rgb(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
 
-@preserve_shape
+@preserve_channel_dim
 def downscale(
     img: np.ndarray,
     scale: float,
@@ -1107,7 +1106,7 @@ def _multiply_uint8(img: np.ndarray, multiplier: np.ndarray) -> np.ndarray:
     return np.multiply(img, multiplier)
 
 
-@preserve_shape
+@preserve_channel_dim
 def _multiply_uint8_optimized(img: np.ndarray, multiplier: np.ndarray) -> np.ndarray:
     if is_grayscale_image(img) or len(multiplier) == 1:
         multiplier = multiplier[0]
@@ -1263,7 +1262,7 @@ def _adjust_brightness_torchvision_uint8(img: np.ndarray, factor: float) -> np.n
     return cv2.LUT(img, lut)
 
 
-@preserve_shape
+@preserve_channel_dim
 def adjust_brightness_torchvision(img: np.ndarray, factor: np.ndarray) -> np:
     if factor == 0:
         return np.zeros_like(img)
@@ -1284,7 +1283,7 @@ def _adjust_contrast_torchvision_uint8(img: np.ndarray, factor: float, mean: np.
     return cv2.LUT(img, lut)
 
 
-@preserve_shape
+@preserve_channel_dim
 def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
     if factor == 1:
         return img
@@ -1306,7 +1305,7 @@ def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
     )
 
 
-@preserve_shape
+@preserve_channel_dim
 def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float = 0) -> np.ndarray:
     if factor == 1:
         return img
@@ -1353,7 +1352,7 @@ def adjust_hue_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
 
 
-@preserve_shape
+@preserve_channel_dim
 def superpixels(
     image: np.ndarray,
     n_segments: int,
@@ -1421,14 +1420,14 @@ def superpixels(
 
 
 @clipped
-@preserve_shape
+@preserve_channel_dim
 def add_weighted(img1: np.ndarray, alpha: float, img2: np.ndarray, beta: float) -> np.ndarray:
     img2 = img2.reshape(img1.shape).astype(img1.dtype)
     return cv2.addWeighted(img1, alpha, img2, beta, 0)
 
 
 @clipped
-@preserve_shape
+@preserve_channel_dim
 def unsharp_mask(
     image: np.ndarray,
     ksize: int,
@@ -1460,7 +1459,7 @@ def unsharp_mask(
     return from_float(output, dtype=input_dtype)
 
 
-@preserve_shape
+@preserve_channel_dim
 def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[float, Sequence[float]]) -> np.ndarray:
     if isinstance(drop_value, (int, float)) and drop_value == 0:
         drop_values = np.zeros_like(image)
@@ -1470,7 +1469,7 @@ def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[fl
 
 
 @clipped
-@preserve_shape
+@preserve_channel_dim
 def spatter(
     img: np.ndarray,
     non_mud: Optional[np.ndarray],
@@ -1684,12 +1683,12 @@ def _distort_channel(
     )
 
 
-@preserve_shape
+@preserve_channel_dim
 def erode(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return cv2.erode(img, kernel, iterations=1)
 
 
-@preserve_shape
+@preserve_channel_dim
 def dilate(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     return cv2.dilate(img, kernel, iterations=1)
 

@@ -97,47 +97,50 @@ class CoarseDropout(DualTransform):
         fill_value: Union[ColorType, Literal["random"]] = Field(default=0, description="Value for dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(default=None, description="Fill value for dropped pixels in mask.")
 
+        @staticmethod
+        def update_range(
+            min_value: Optional[ScalarType],
+            max_value: Optional[ScalarType],
+            default_range: Tuple[ScalarType, ScalarType],
+        ) -> Tuple[ScalarType, ScalarType]:
+            if max_value is not None:
+                return (min_value or max_value, max_value)
+
+            return default_range
+
+        @staticmethod
+        # Validation for hole dimensions ranges
+        def validate_range(range_value: Tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
+            if not minimum <= range_value[0] <= range_value[1]:
+                raise ValueError(
+                    f"First value in {range_name} should be less or equal than the second value "
+                    f"and at least {minimum}. Got: {range_value}",
+                )
+            if isinstance(range_value[0], float) and not all(0 <= x <= 1 for x in range_value):
+                raise ValueError(f"All values in {range_name} should be in [0, 1] range. Got: {range_value}")
+
         @model_validator(mode="after")
-        def check_holes_and_dimensions(self) -> Self:
-            # Helper to update ranges and reset max values
+        def check_num_holes_and_dimensions(self) -> Self:
+            if self.max_holes is not None:
+                # Update ranges for holes, heights, and widths
+                self.num_holes_range = self.update_range(self.min_holes, self.max_holes, self.num_holes_range)
+            self.validate_range(self.num_holes_range, "num_holes_range", minimum=1)
 
-            def update_range(
-                min_value: Optional[ScalarType],
-                max_value: Optional[ScalarType],
-                default_range: Tuple[ScalarType, ScalarType],
-            ) -> Tuple[ScalarType, ScalarType]:
-                if max_value is not None:
-                    return (min_value or max_value, max_value)
+            if self.max_height is not None:
+                self.hole_height_range = self.update_range(self.min_height, self.max_height, self.hole_height_range)
+            self.validate_range(self.hole_height_range, "hole_height_range")
 
-                return default_range
-
-            # Update ranges for holes, heights, and widths
-            self.num_holes_range = update_range(self.min_holes, self.max_holes, self.num_holes_range)
-            self.hole_height_range = update_range(self.min_height, self.max_height, self.hole_height_range)
-            self.hole_width_range = update_range(self.min_width, self.max_width, self.hole_width_range)
-
-            # Validation for hole dimensions ranges
-            def validate_range(range_value: Tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
-                if not minimum <= range_value[0] <= range_value[1]:
-                    raise ValueError(
-                        f"First value in {range_name} should be less or equal than the second value "
-                        f"and at least {minimum}. Got: {range_value}",
-                    )
-                if isinstance(range_value[0], float) and not all(0 <= x <= 1 for x in range_value):
-                    raise ValueError(f"All values in {range_name} should be in [0, 1] range. Got: {range_value}")
-
-            # Validate each range
-            validate_range(self.num_holes_range, "num_holes_range", minimum=1)
-            validate_range(self.hole_height_range, "hole_height_range")
-            validate_range(self.hole_width_range, "hole_width_range")
+            if self.max_width is not None:
+                self.hole_width_range = self.update_range(self.min_width, self.max_width, self.hole_width_range)
+            self.validate_range(self.hole_width_range, "hole_width_range")
 
             return self
 
     def __init__(
         self,
-        max_holes: Optional[int] = 8,
-        max_height: Optional[ScalarType] = 8,
-        max_width: Optional[ScalarType] = 8,
+        max_holes: Optional[int] = None,
+        max_height: Optional[ScalarType] = None,
+        max_width: Optional[ScalarType] = None,
         min_holes: Optional[int] = None,
         min_height: Optional[ScalarType] = None,
         min_width: Optional[ScalarType] = None,
