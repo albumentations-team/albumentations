@@ -44,8 +44,8 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
     _targets: Union[Tuple[Targets, ...], Targets]  # targets that this transform can work on
-    _available_targets: Set[str]  # targets that this transform, as string, lower-cased
-    _target2func: Dict[
+    _available_keys: Set[str]  # targets that this transform, as string, lower-cased
+    _key2func: Dict[
         str,
         Callable[..., Any],
     ]  # mapping for targets (plus additional targets) and methods for which they depend
@@ -68,8 +68,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._additional_targets: Dict[str, str] = {}
         # replay mode params
         self.params: Dict[Any, Any] = {}
-        self._target2func = {}
-        self.set_targets()
+        self._key2func = {}
+        self._set_keys()
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
         if args:
@@ -103,8 +103,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         params = self.update_params(params, **kwargs)
         res = {}
         for key, arg in kwargs.items():
-            if key in self._target2func and arg is not None:
-                target_function = self._target2func[key]
+            if key in self._key2func and arg is not None:
+                target_function = self._key2func[key]
                 res[key] = target_function(arg, **params)
             else:
                 res[key] = arg
@@ -146,20 +146,23 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         # >>  {"masks": self.apply_to_masks}
         raise NotImplementedError
 
-    def set_targets(self) -> None:
-        """Set _available_targets"""
+    def _set_keys(self) -> None:
+        """Set _available_keys"""
         if not hasattr(self, "_targets"):
-            self._available_targets = set()
+            self._available_keys = set()
         else:
-            self._available_targets = {
+            self._available_keys = {
                 target.value.lower()
                 for target in (self._targets if isinstance(self._targets, tuple) else [self._targets])
             }
         for target in self.targets:
-            self._available_targets.add(target)
-        self._target2func = {
-            target: self.targets[target] for target in self._available_targets if target in self.targets
-        }
+            self._available_keys.add(target)
+        self._key2func = {key: self.targets[target] for key in self._available_keys if key in self.targets}
+
+    @property
+    def available_keys(self) -> Set[str]:
+        """Returns set of available keys"""
+        return self._available_keys
 
     def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Update parameters with transform specific params"""
@@ -188,9 +191,10 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                     f"Trying to overwrite existed additional targets. "
                     f"Key={k} Exists={self._additional_targets[k]} New value: {v}",
                 )
-            if v in self._available_targets:
+            if v in self._available_keys:
                 self._additional_targets[k] = v
-                self._target2func[k] = self.targets[v]
+                self._key2func[k] = self.targets[v]
+                self._available_keys.add(k)
 
     @property
     def targets_as_params(self) -> List[str]:
