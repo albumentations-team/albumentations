@@ -318,8 +318,12 @@ class ImageCompression(ImageOnlyTransform):
     """Decreases image quality by Jpeg, WebP compression of an image.
 
     Args:
-        quality_lower: lower bound on the image quality. Should be in [0, 100] range for jpeg and [1, 100] for webp.
-        quality_upper: upper bound on the image quality. Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        quality_lower: **Deprecated: use 'quality_range' instead** lower bound on the image quality.
+            Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        quality_upper: **Deprecated: use 'quality_range' instead** upper bound on the image quality.
+            Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        quality_range: tuple of bounds on the image quality i.e. (quality_lower, quality_upper).
+            Both values should be in [0, 100] range for jpeg and [1, 100] for webp.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
             Default: ImageCompressionType.JPEG
 
@@ -332,32 +336,70 @@ class ImageCompression(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        quality_lower: int = Field(default=99, description="Lower bound on the image quality", ge=1, le=100)
-        quality_upper: int = Field(default=100, description="Upper bound on the image quality", ge=1, le=100)
+        _size_len = 2
+        quality_range: Optional[Union[Tuple[int, int], List[int]]] = Field(
+            default=(99, 100),
+            description="lower and upper bound on the image quality as tuple (lower_bound, upper_bound)",
+        )
+        quality_lower: Optional[int] = Field(
+            default=None,
+            description="Lower bound on the image quality",
+            ge=1,
+            le=100,
+        )
+        quality_upper: Optional[int] = Field(
+            default=None,
+            description="Upper bound on the image quality",
+            ge=1,
+            le=100,
+        )
         compression_type: ImageCompressionType = Field(
             default=ImageCompressionType.JPEG,
             description="Image compression format",
         )
 
         @model_validator(mode="after")
-        def validate_quality(self) -> Self:
-            if self.quality_lower >= self.quality_upper:
-                msg = "quality_lower must be less than quality_upper"
-                raise ValueError(msg)
+        def validate_ranges(self) -> Self:
+            lower = 1
+            upper = 100
+
+            def validate_range(range: Tuple[int, int], name: str) -> None:
+                if len(range) != self._size_len:
+                    msg = f"'quality_range' should have lenght of {self._size_len} but lenght of {len(range)} was found"
+                    raise ValueError(msg)
+                for i, el in enumerate(range):
+                    if el < lower or el > upper:
+                        msg = f"element {i} in {name} has value {el} and not between {lower} and {upper}"
+                        raise ValueError
+                if range[0] > range[1]:
+                    msg = "quality lower bound must be less than quality upper bound"
+                    raise ValueError(msg)
+
+            if self.quality_lower or self.quality_upper:
+                warn(
+                    "`quality_lower` and `quality_upper` are deprecated. "
+                    "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
+                    DeprecationWarning,
+                )
+                if not (self.quality_lower and self.quality_upper):
+                    msg = "If either 'quality_upper' or 'quality_lower' is specified, the other one must be as well."
+                    raise ValueError(msg)
+                self.quality_range = (self.quality_lower, self.quality_upper)
+            self.quality_range = tuple(self.quality_range)  # Convert valid list to Tuple[nt, int]
+            validate_range(self.quality_range, "quality_range")
             return self
 
     def __init__(
         self,
-        quality_lower: int = 99,
-        quality_upper: int = 100,
+        quality_lower: Optional[int] = None,
+        quality_upper: Optional[int] = None,
+        quality_range: Optional[Union[Tuple[int, int], List[int]]] = (99, 100),
         compression_type: ImageCompressionType = ImageCompressionType.JPEG,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-
-        self.quality_lower = quality_lower
-        self.quality_upper = quality_upper
+        self.quality_range = quality_range
         self.compression_type = compression_type
 
     def apply(self, img: np.ndarray, quality: int = 100, image_type: str = ".jpg", **params: Any) -> np.ndarray:
@@ -373,14 +415,13 @@ class ImageCompression(ImageOnlyTransform):
             image_type = ".webp"
 
         return {
-            "quality": random_utils.randint(self.quality_lower, self.quality_upper + 1),
+            "quality": random_utils.randint(self.quality_range[0], self.quality_range[1] + 1),
             "image_type": image_type,
         }
 
     def get_transform_init_args(self) -> Dict[str, Any]:
         return {
-            "quality_lower": self.quality_lower,
-            "quality_upper": self.quality_upper,
+            "quality_range": self.quality_range,
             "compression_type": self.compression_type.value,
         }
 

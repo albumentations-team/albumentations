@@ -1419,3 +1419,61 @@ def test_random_crop_from_borders(image, mask, bboxes, keypoints, crop_left, cro
                     keypoint_params=A.KeypointParams("xy"))
 
     assert aug(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+
+@pytest.mark.parametrize("lower, upper", [
+    (50,80),
+    (99,100),
+    (1,100),
+])
+def test_image_compression_interfaces_deprecation_warning(lower, upper):
+    range = (lower, upper)
+    list = [lower, upper]
+    with warnings.catch_warnings(record=True) as w:
+        assert len(w) == 0
+        # DeprecationWarning expected
+        transform_albu = A.ImageCompression(quality_lower=lower, quality_upper=upper)
+        assert len(w) == 1
+        assert issubclass(w[-1].category, DeprecationWarning)
+
+        # DeprecationWarning expected
+        transform_albu_implicit = A.ImageCompression(lower, upper)
+        assert len(w) == 2
+        assert issubclass(w[-1].category, DeprecationWarning)
+
+        # No deprecation warning expected
+        transform_albu_range = A.ImageCompression(quality_range=range)
+        assert len(w) == 2
+
+        # No deprecation warning expected
+        transform_albu_list = A.ImageCompression(quality_range=list)
+        assert len(w) == 2
+
+        #check parameter assignment
+        assert transform_albu.quality_range == (lower, upper)
+        assert transform_albu_implicit.quality_range == (lower, upper)
+        assert transform_albu_range.quality_range == range
+        assert transform_albu_range.quality_range == range
+    warnings.resetwarnings()
+
+@pytest.mark.parametrize("lower, upper", [
+    (50,101), # upper bound too high
+    (-1,50), # lower bound too low
+    (70,50), # lower bound > upper bound
+    (None, 50) # parameter missing
+])
+def test_unvalid_bounds_values(lower, upper):
+    with pytest.raises(ValueError):
+        with warnings.catch_warnings(record=True) as w:
+            A.ImageCompression(quality_lower=lower, quality_upper=upper)
+            assert len(w) == 1 and issubclass(w[-1].category, DeprecationWarning)
+
+    with pytest.raises(ValueError):
+        range = (lower, upper)
+        A.ImageCompression(quality_range=range)
+
+@pytest.mark.parametrize("test", [None])
+def test_image_compression_default_use(test):
+    with warnings.catch_warnings(record=True) as w:
+        transform_albu_def = A.ImageCompression()
+        assert len(w) == 0
+        assert transform_albu_def.quality_range == (99,100)
