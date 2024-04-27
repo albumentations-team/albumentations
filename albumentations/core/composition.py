@@ -1,7 +1,7 @@
 import random
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union, cast
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Union, cast
 
 import cv2
 import numpy as np
@@ -65,6 +65,9 @@ class BaseCompose(Serializable):
         self.replay_mode = False
         self.applied_in_replay = False
         self._additional_targets: Dict[str, str] = {}
+        self._available_keys: Set[str] = set()
+        self._set_keys()
+
         self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
 
     def __iter__(self) -> Iterator[TransformType]:
@@ -85,6 +88,10 @@ class BaseCompose(Serializable):
     @property
     def additional_targets(self) -> Dict[str, str]:
         return self._additional_targets
+
+    @property
+    def available_keys(self) -> Set[str]:
+        return self._available_keys
 
     def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
         args = {k: v for k, v in self.to_dict_private().items() if not (k.startswith("__") or k == "transforms")}
@@ -132,6 +139,12 @@ class BaseCompose(Serializable):
                 t.add_targets(additional_targets)
             for proc in self.processors.values():
                 proc.add_targets(additional_targets)
+        self._set_keys()
+
+    def _set_keys(self) -> None:
+        """Set _available_keys"""
+        for t in self.transforms:
+            self._available_keys.update(t.available_keys)
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> None:
         for t in self.transforms:
@@ -208,22 +221,27 @@ class Compose(BaseCompose):
     def disable_check_args_private(self) -> None:
         self.is_check_args = False
 
-    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Dict[str, Any]:
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
-        if self.is_check_args:
-            self._check_args(**data)
 
         if not isinstance(force_apply, (bool, int)):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
 
         need_to_run = force_apply or random.random() < self.p
+        if not need_to_run and not self._always_apply:
+            return kwargs
+
+        transforms = self.transforms if need_to_run else self._always_apply
+        data = {k: v for k, v in kwargs.items() if k in self._available_keys}
+
+        if self.is_check_args:
+            self._check_args(**data)
 
         for p in self.processors.values():
             p.ensure_data_valid(data)
-        transforms = self.transforms if need_to_run else self._always_apply
 
         for p in self.processors.values():
             p.preprocess(data)
@@ -238,7 +256,7 @@ class Compose(BaseCompose):
         for p in self.processors.values():
             p.postprocess(data)
 
-        return data
+        return {**kwargs, **data}
 
     def _check_data_post_transform(self, data: Any) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
@@ -494,6 +512,7 @@ class ReplayCompose(Compose):
         super().__init__(transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes)
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
+        self._available_keys.add(save_key)
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Dict[str, Any]:
         kwargs[self.save_key] = defaultdict(dict)
