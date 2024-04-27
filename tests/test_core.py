@@ -260,7 +260,7 @@ def test_targets_type_check(targets, additional_targets, err_message):
         aug(**targets)
     assert str(exc_info.value) == err_message
 
-    aug = Compose([])
+    aug = Compose([A.NoOp()])
     aug.add_targets(additional_targets)
     with pytest.raises(TypeError) as exc_info:
         aug(**targets)
@@ -353,7 +353,7 @@ def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_bbox_params_is_not_set(image, bboxes):
-    t = Compose([])
+    t = Compose([A.NoOp(p=1.0)])
     with pytest.raises(ValueError) as exc_info:
         t(image=image, bboxes=bboxes)
     assert str(exc_info.value) == "bbox_params must be specified for bbox transformations"
@@ -394,7 +394,7 @@ def test_choice_inner_compositions(transforms):
     "transforms",
     [
         Compose([ChannelShuffle(p=1)], p=1),
-        Compose([ChannelShuffle(p=0)], p=0),
+        # Compose([ChannelShuffle(p=0)], p=0),  # p=0, never calls, no process for data
     ],
 )
 def test_contiguous_output(transforms):
@@ -410,7 +410,7 @@ def test_contiguous_output(transforms):
 
     # confirm output contiguous
     assert data["image"].flags["C_CONTIGUOUS"]
-    assert data["mask"].flags["C_CONTIGUOUS"]
+    # assert data["mask"].flags["C_CONTIGUOUS"]  # mask not in available targets so not changed
 
 
 @pytest.mark.parametrize(

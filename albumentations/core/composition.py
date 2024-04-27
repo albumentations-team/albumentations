@@ -66,9 +66,8 @@ class BaseCompose(Serializable):
         self.applied_in_replay = False
         self._additional_targets: Dict[str, str] = {}
         self._available_keys: Set[str] = set()
-        self._set_keys()
-
         self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
+        self._set_keys()
 
     def __iter__(self) -> Iterator[TransformType]:
         return iter(self.transforms)
@@ -145,6 +144,9 @@ class BaseCompose(Serializable):
         """Set _available_keys"""
         for t in self.transforms:
             self._available_keys.update(t.available_keys)
+        for proc in self.processors.values():
+            if proc.params.label_fields:
+                self._available_keys.update(proc.params.label_fields)
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> None:
         for t in self.transforms:
