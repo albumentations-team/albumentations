@@ -1262,11 +1262,6 @@ def grid_distortion(
     border_mode: int = cv2.BORDER_REFLECT_101,
     value: Optional[ColorType] = None,
 ) -> np.ndarray:
-    """Perform a grid distortion of an input image.
-
-    Reference:
-        http://pythology.blogspot.sg/2014/03/interpolation-on-regular-distorted-grid.html
-    """
     height, width = img.shape[:2]
 
     x_step = width // num_steps
