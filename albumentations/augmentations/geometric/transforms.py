@@ -1733,8 +1733,8 @@ class GridDistortion(DualTransform):
         uint8, float32
 
     Note:
-        This transform in helpful in medical, document analysis, OCR, and other tasks where local
-        distance is not preserved.
+        This transform is helpful in medical imagery, Optical Character Recognition, and other tasks where local
+        distance may not be preserved.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
