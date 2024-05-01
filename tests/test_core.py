@@ -53,8 +53,8 @@ def test_one_or_other():
 
 
 def test_compose():
-    first = MagicMock()
-    second = MagicMock()
+    first = MagicMock(available_keys={"image"})
+    second = MagicMock(available_keys={"image"})
     augmentation = Compose([first, second], p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -70,8 +70,8 @@ def oneof_always_apply_crash():
 
 
 def test_always_apply():
-    first = MagicMock(always_apply=True)
-    second = MagicMock(always_apply=False)
+    first = MagicMock(always_apply=True, available_keys={"image"})
+    second = MagicMock(always_apply=False, available_keys={"image"})
     augmentation = Compose([first, second], p=0)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -410,7 +410,7 @@ def test_contiguous_output(transforms):
 
     # confirm output contiguous
     assert data["image"].flags["C_CONTIGUOUS"]
-    # assert data["mask"].flags["C_CONTIGUOUS"]  # mask not in available targets so not changed
+    assert data["mask"].flags["C_CONTIGUOUS"]
 
 
 @pytest.mark.parametrize(
@@ -432,7 +432,7 @@ def test_compose_image_mask_equal_size(targets):
         "of Compose class (do it only if you are sure about your data consistency)."
     )
     # test after disabling shapes check
-    transforms = Compose([], is_check_shapes=False)
+    transforms = Compose([A.NoOp()], is_check_shapes=False)
     transforms(**targets)
 
 
@@ -491,3 +491,19 @@ def test_sequential_multiple_transformations(image, aug):
     # Since HorizontalFlip, VerticalFlip, and Transpose are all applied twice, the image should be the same
     assert np.array_equal(result['image'], image)
     assert np.array_equal(result['mask'], mask)
+
+
+def test_compose_non_available_keys() -> None:
+    """Check that non available keys raises error, except `mask` and `masks`"""
+    transform = A.Compose(
+        [MagicMock(available_keys={"image"}),],
+    )
+    image = np.empty([10, 10, 3], dtype=np.uint8)
+    mask = np.empty([10, 10], dtype=np.uint8)
+    _res = transform(image=image, mask=mask)
+    _res = transform(image=image, masks=[mask])
+    with pytest.raises(ValueError) as exc_info:
+        _res = transform(image=image, image_2=mask)
+
+    expected_msg = "Key image_2 is not in available keys."
+    assert str(exc_info.value) == expected_msg

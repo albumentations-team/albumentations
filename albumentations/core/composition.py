@@ -144,9 +144,11 @@ class BaseCompose(Serializable):
         """Set _available_keys"""
         for t in self.transforms:
             self._available_keys.update(t.available_keys)
-        for proc in self.processors.values():
-            if proc.params.label_fields:
-                self._available_keys.update(proc.params.label_fields)
+        if self.processors:
+            self._available_keys.update(["labels"])
+            for proc in self.processors.values():
+                if proc.params.label_fields:
+                    self._available_keys.update(proc.params.label_fields)
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> None:
         for t in self.transforms:
@@ -223,7 +225,7 @@ class Compose(BaseCompose):
     def disable_check_args_private(self) -> None:
         self.is_check_args = False
 
-    def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
@@ -234,10 +236,9 @@ class Compose(BaseCompose):
 
         need_to_run = force_apply or random.random() < self.p
         if not need_to_run and not self._always_apply:
-            return kwargs
+            return data
 
         transforms = self.transforms if need_to_run else self._always_apply
-        data = {k: v for k, v in kwargs.items() if k in self._available_keys}
 
         if self.is_check_args:
             self._check_args(**data)
@@ -258,7 +259,7 @@ class Compose(BaseCompose):
         for p in self.processors.values():
             p.postprocess(data)
 
-        return {**kwargs, **data}
+        return data
 
     def _check_data_post_transform(self, data: Any) -> Dict[str, Any]:
         rows, cols = get_shape(data["image"])
@@ -307,6 +308,9 @@ class Compose(BaseCompose):
         check_keypoints_param = ["keypoints"]
         shapes = []
         for data_name, data in kwargs.items():
+            if data_name not in self._available_keys and data_name not in ["mask", "masks"]:
+                msg = f"Key {data_name} is not in available keys."
+                raise ValueError(msg)
             internal_data_name = self._additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
