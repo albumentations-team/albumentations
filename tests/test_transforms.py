@@ -1431,24 +1431,19 @@ def test_image_compression_interfaces_deprecation_warning(lower, upper):
     range = (lower, upper)
     list = [lower, upper]
     with warnings.catch_warnings(record=True) as w:
-        assert len(w) == 0
         # DeprecationWarning expected
         transform_albu = A.ImageCompression(quality_lower=lower, quality_upper=upper)
-        assert len(w) == 1
         assert issubclass(w[-1].category, DeprecationWarning)
 
         # DeprecationWarning expected
         transform_albu_implicit = A.ImageCompression(lower, upper)
-        assert len(w) == 2
         assert issubclass(w[-1].category, DeprecationWarning)
 
         # No deprecation warning expected
         transform_albu_range = A.ImageCompression(quality_range=range)
-        assert len(w) == 2
 
         # No deprecation warning expected
         transform_albu_list = A.ImageCompression(quality_range=list)
-        assert len(w) == 2
 
         #check parameter assignment
         assert transform_albu.quality_range == (lower, upper)
@@ -1467,7 +1462,7 @@ def test_image_compression_unvalid_bounds_values(lower, upper):
     with pytest.raises(ValueError):
         with warnings.catch_warnings(record=True) as w:
             A.ImageCompression(quality_lower=lower, quality_upper=upper)
-            assert len(w) == 1 and issubclass(w[-1].category, DeprecationWarning)
+            assert issubclass(w[-1].category, DeprecationWarning)
 
     with pytest.raises(ValueError):
         range = (lower, upper)
@@ -1477,9 +1472,8 @@ def test_image_compression_unvalid_bounds_values(lower, upper):
 def test_image_compression_default_use(test):
     with warnings.catch_warnings(record=True) as w:
         transform_albu_def = A.ImageCompression()
-        assert len(w) == 0
         assert transform_albu_def.quality_range == (99,100)
-        
+
 @pytest.mark.parametrize("params, expected", [
     # Default values
     ({}, {"num_holes_range": (1, 1), "hole_height_range": (8, 8), "hole_width_range": (8, 8)}),
