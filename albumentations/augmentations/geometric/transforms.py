@@ -12,7 +12,7 @@ from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask
-from albumentations.augmentations.utils import BIG_INTEGER, check_range
+from albumentations.augmentations.utils import BIG_INTEGER, check_range, get_num_channels
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.pydantic import (
     BorderModeType,
@@ -23,6 +23,7 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
+    NUM_MULTI_CHANNEL_DIMENSIONS,
     BoxInternalType,
     ColorType,
     D4Type,
@@ -54,7 +55,6 @@ __all__ = [
 ]
 
 TWO = 2
-THREE = 3
 
 
 class ElasticTransform(DualTransform):
@@ -819,7 +819,7 @@ class Affine(DualTransform):
         maxr = corners[:, 1].max()
         out_height = maxr - minr + 1
         out_width = maxc - minc + 1
-        if len(input_shape) == THREE:
+        if len(input_shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
             output_shape = np.ceil((out_height, out_width, input_shape[2]))
         else:
             output_shape = np.ceil((out_height, out_width))
@@ -1509,7 +1509,7 @@ class HorizontalFlip(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
-        if img.ndim == THREE and img.shape[2] > 1 and img.dtype == np.uint8:
+        if get_num_channels(img) > 1 and img.dtype == np.uint8:
             # Opencv is faster than numpy only in case of
             # non-gray scale 8bits images
             return F.hflip_cv2(img)
@@ -1704,22 +1704,27 @@ class OpticalDistortion(DualTransform):
 
 
 class GridDistortion(DualTransform):
-    """Args:
-        num_steps (int): count of grid cells on each side.
-        distort_limit (float, (float, float)): If distort_limit is a single float, the range
-            will be (-distort_limit, distort_limit). Default: (-0.03, 0.03).
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+    """Applies grid distortion augmentation to images, masks, and bounding boxes. This technique involves dividing
+    the image into a grid of cells and randomly displacing the intersection points of the grid,
+    resulting in localized distortions.
+
+    Args:
+        num_steps (int): Number of grid cells on each side (minimum 1).
+        distort_limit (float, (float, float)): Range of distortion limits. If a single float is provided,
+            the range will be from (-distort_limit, distort_limit). Default: (-0.03, 0.03).
+        interpolation (OpenCV flag): Interpolation algorithm used for image transformation. Options are:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
-            cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-        normalized (bool): if true, distortion will be normalized to do not go outside the image. Default: False
-            See for more information: https://github.com/albumentations-team/albumentations/pull/722
+        border_mode (OpenCV flag): Pixel extrapolation method used when pixels outside the image are required.
+            Options are: cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP,
+            cv2.BORDER_REFLECT_101.
+            Default: cv2.BORDER_REFLECT_101.
+        value (int, float, list of ints, list of floats, optional): Value used for padding when
+            border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float, list of ints, list of floats, optional): Padding value for masks when
+            border_mode is cv2.BORDER_CONSTANT.
+        normalized (bool): If True, ensures that distortion does not exceed image boundaries. Default: False.
+            Reference: https://github.com/albumentations-team/albumentations/pull/722
 
     Targets:
         image, mask, bboxes
@@ -1727,6 +1732,9 @@ class GridDistortion(DualTransform):
     Image types:
         uint8, float32
 
+    Note:
+        This transform is helpful in medical imagery, Optical Character Recognition, and other tasks where local
+        distance may not be preserved.
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
