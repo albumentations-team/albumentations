@@ -425,7 +425,7 @@ def elastic_transform(
 @preserve_channel_dim
 def resize(img: np.ndarray, height: int, width: int, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
     img_height, img_width = img.shape[:2]
-    if height == img_height and width == img_width:
+    if (height, width) == img.shape[:2]:
         return img
     resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)

@@ -115,7 +115,7 @@ class Rotate(DualTransform):
 
     def __init__(
         self,
-        limit: ScaleFloatType = 90,
+        limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,
@@ -146,7 +146,7 @@ class Rotate(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         img_out = F.rotate(img, angle, interpolation, self.border_mode, self.value)
-        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
+        if self.crop_border:
             return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
@@ -161,7 +161,7 @@ class Rotate(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         img_out = F.rotate(mask, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
-        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
+        if self.crop_border:
             return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
@@ -178,7 +178,7 @@ class Rotate(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         bbox_out = F.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
-        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
+        if self.crop_border:
             return FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
         return bbox_out
 
@@ -195,7 +195,7 @@ class Rotate(DualTransform):
         **params: Any,
     ) -> KeypointInternalType:
         keypoint_out = F.keypoint_rotate(keypoint, angle, rows, cols, **params)
-        if self.crop_border and x_min is not None and x_max is not None and y_min is not None and y_max is not None:
+        if self.crop_border:
             return FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
         return keypoint_out
 
@@ -241,6 +241,9 @@ class Rotate(DualTransform):
         if self.crop_border:
             height, width = params["image"].shape[:2]
             out_params.update(self._rotated_rect_with_max_area(height, width, out_params["angle"]))
+        else:
+            out_params.update({"x_min": -1, "x_max": -1, "y_min": -1, "y_max": -1})
+
         return out_params
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
@@ -300,7 +303,7 @@ class SafeRotate(DualTransform):
         self.mask_value = mask_value
 
     def apply(self, img: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
-        return F.safe_rotate(img, matrix, cast(int, self.interpolation), self.value, self.border_mode)
+        return F.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
 
     def apply_to_mask(self, mask: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
         return F.safe_rotate(mask, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)

@@ -180,6 +180,32 @@ Even if a parameter defined as `Tuple`, the transform should work correctly with
 
 To maintain determinism and reproducibility, handle all probability calculations within the `get_params` or `get_params_dependent_on_targets` methods. These calculations should not occur in the `apply_xxx` or `__init__` methods, as it is crucial to separate configuration from execution in our codebase.
 
+### Specific Guidelines for Method Definitions
+
+#### Handling `apply_xxx` Methods
+
+When contributing code related to transformation methods, specifically methods that start with `apply_` (e.g., `apply_to_mask`, `apply_to_bbox`), please adhere to the following guidelines:
+
+**No Default Arguments**: Do not use default arguments in `apply_xxx` methods. Every parameter should be explicitly required, promoting clarity and reducing hidden behaviors that can arise from default values.
+
+### Examples
+
+Here are a few examples to illustrate these guidelines:
+
+**Incorrect** method definition:
+
+```python
+def apply_to_mask(self, mask, fill_value=0):  # Default value not allowed
+    # implementation
+```
+
+**Correct** method definition:
+
+```python
+def apply_to_mask(self, mask, fill_value):  # No default values
+    # implementation
+```
+
 ## Guidelines for Modifying Existing Code
 
 Maintaining the stability and usability of Albumentations for all users is a priority. When contributing, it's important to follow these guidelines for modifying existing code:

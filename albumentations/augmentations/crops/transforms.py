@@ -764,7 +764,6 @@ class BBoxSafeRandomCrop(DualTransform):
         crop_width: int,
         h_start: int,
         w_start: int,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return F.random_crop(img, crop_height, crop_width, h_start, w_start)
@@ -868,11 +867,10 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         crop_width: int,
         h_start: int,
         w_start: int,
-        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
-        return FGeometric.resize(crop, self.height, self.width, interpolation)
+        return FGeometric.resize(crop, self.height, self.width, self.interpolation)
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (*super().get_transform_init_args_names(), "height", "width", "interpolation")

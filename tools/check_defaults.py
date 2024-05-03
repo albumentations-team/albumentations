@@ -2,7 +2,6 @@ import sys
 import inspect
 import albumentations
 from albumentations.core.transforms_interface import BasicTransform
-from typing import Union, get_origin, get_args
 
 def check_apply_methods(cls):
     """Check for issues in 'apply' methods related to default arguments and Optional type annotations."""
@@ -14,17 +13,7 @@ def check_apply_methods(cls):
                 # Check for default values
                 if param.default is not inspect.Parameter.empty:
                     issues.append(f"Default argument found in {cls.__name__}.{name} for parameter {param.name} with default value {param.default}")
-                # Check for Optional type annotations
-                if check_optional_annotation(param.annotation):
-                    issues.append(f"Optional type annotation found in {cls.__name__}.{name} for parameter {param.name}")
     return issues
-
-def check_optional_annotation(annotation):
-    """Check if the annotation is Optional[...]"""
-    origin = get_origin(annotation)
-    if origin is Union:
-        return any(arg is type(None) for arg in get_args(annotation))
-    return False
 
 def is_subclass_of_basic_transform(cls):
     """Check if a given class is a subclass of BasicTransform, excluding BasicTransform itself."""

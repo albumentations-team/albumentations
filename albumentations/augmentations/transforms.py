@@ -8,10 +8,10 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
-from typing_extensions import Annotated, Literal, Self
+from typing_extensions import Annotated, Literal, Self, TypedDict
 
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
@@ -26,10 +26,13 @@ from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
+    OnePlusIntNonDecreasingRangeType,
     OnePlusIntRangeType,
     ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
+    check_01_range,
+    check_nondecreasing_range,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -975,7 +978,7 @@ class RandomShadow(ImageOnlyTransform):
             default=(0, 0.5, 1, 1),
             description="Region of the image where shadows will appear",
         )
-        num_shadows_limit: Tuple[int, int] = Field(default=(1, 2))
+        num_shadows_limit: OnePlusIntNonDecreasingRangeType = (1, 2)
         num_shadows_lower: Optional[int] = Field(
             default=None,
             description="Lower limit for the possible number of shadows",
@@ -990,19 +993,15 @@ class RandomShadow(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
-            if self.num_shadows_limit[0] > self.num_shadows_limit[1]:
-                msg = "num_shadows_limit[0] must be less than or equal to num_shadows_limit[1]."
-                raise ValueError(msg)
+            if self.num_shadows_lower is not None or self.num_shadows_upper is not None:
+                self.num_shadows_limit = cast(Tuple[int, int], (self.num_shadows_lower, self.num_shadows_upper))
+                self.num_shadows_lower = None
+                self.num_shadows_upper = None
 
             shadow_lower_x, shadow_lower_y, shadow_upper_x, shadow_upper_y = self.shadow_roi
 
             if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
                 raise ValueError(f"Invalid shadow_roi. Got: {self.shadow_roi}")
-
-            if self.num_shadows_lower is not None or self.num_shadows_upper is not None:
-                self.num_shadows_limit = cast(Tuple[int, int], (self.num_shadows_lower, self.num_shadows_upper))
-                self.num_shadows_lower = None
-                self.num_shadows_upper = None
 
             return self
 
@@ -1023,8 +1022,6 @@ class RandomShadow(ImageOnlyTransform):
         self.num_shadows_limit = num_shadows_limit
 
     def apply(self, img: np.ndarray, vertices_list: List[np.ndarray], **params: Any) -> np.ndarray:
-        if vertices_list is None:
-            vertices_list = []
         return F.add_shadow(img, vertices_list)
 
     @property
@@ -1538,16 +1535,16 @@ class ISONoise(ImageOnlyTransform):
         img: np.ndarray,
         color_shift: float,
         intensity: float,
-        random_state: np.random.RandomState,
+        random_seed: int,
         **params: Any,
     ) -> np.ndarray:
-        return F.iso_noise(img, color_shift, intensity, random_state)
+        return F.iso_noise(img, color_shift, intensity, np.random.RandomState(random_seed))
 
     def get_params(self) -> Dict[str, Any]:
         return {
             "color_shift": random_utils.uniform(self.color_shift[0], self.color_shift[1]),
             "intensity": random_utils.uniform(self.intensity[0], self.intensity[1]),
-            "random_state": random_utils.get_random_state(),
+            "random_seed": random_utils.get_random_seed(),
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
@@ -1879,17 +1876,23 @@ class FromFloat(ImageOnlyTransform):
         return {"dtype": self.dtype.name, "max_value": self.max_value}
 
 
+class InterpolationDict(TypedDict):
+    upscale: int
+    downscale: int
+
+
 class Downscale(ImageOnlyTransform):
-    """Decreases image quality by downscaling and upscaling back.
+    """Decreases image quality by downscaling and then upscaling it back to its original size.
 
     Args:
-        scale_min: lower bound on the image scale. Should be <= scale_max.
-        scale_max: upper bound on the image scale. Should be < 1.
-        interpolation: cv2 interpolation method. Could be:
-            - single cv2 interpolation flag - selected method will be used for downscale and upscale.
-            - dict(downscale=flag, upscale=flag)
-            - Downscale.Interpolation(downscale=flag, upscale=flag) -
-            Default: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
+        scale_range (Tuple[float, float]): A tuple defining the minimum and maximum scale to which the image
+            will be downscaled. The range should be between 0 and 1, inclusive at minimum and exclusive at maximum.
+            The first value should be less than or equal to the second value.
+        interpolation_pair (InterpolationDict): A dictionary specifying the interpolation methods to use for
+            downscaling and upscaling. Should include keys 'downscale' and 'upscale' with cv2 interpolation
+                flags as values.
+            Example: {"downscale": cv2.INTER_NEAREST, "upscale": cv2.INTER_LINEAR}.
+        always_apply (bool): If set to True, the transform will always be applied. Defaults to False.
 
     Targets:
         image
@@ -1897,78 +1900,92 @@ class Downscale(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Note:
+        Previous parameters `scale_min`, `scale_max`, and `interpolation` are deprecated. Use `scale_range`
+        and `interpolation_pair` for specifying scaling bounds and interpolation methods respectively.
+
+    Example:
+        >>> transform = Downscale(scale_range=(0.5, 0.9), interpolation_pair={"downscale": cv2.INTER_AREA,
+                                                          "upscale": cv2.INTER_CUBIC})
+        >>> transformed = transform(image=img)
     """
 
     class InitSchema(BaseTransformInitSchema):
-        scale_min: float = Field(default=0.25, ge=0, le=1, description="Lower bound on the image scale.")
-        scale_max: float = Field(default=0.25, ge=0, lt=1, description="Upper bound on the image scale.")
-        interpolation: Optional[Union[int, Interpolation, Dict[str, int]]] = Field(
-            default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
-            description="CV2 interpolation method or a dictionary specifying downscale and upscale methods.",
+        scale_min: Optional[float] = Field(
+            default=None,
+            ge=0,
+            le=1,
+            description="Lower bound on the image scale.",
+            deprecated="Use scale_range instead.",
+        )
+        scale_max: Optional[float] = Field(
+            default=None,
+            ge=0,
+            lt=1,
+            description="Upper bound on the image scale.",
+            deprecated="Use scale_range instead.",
         )
 
+        interpolation: Optional[Union[int, Interpolation, InterpolationDict]] = Field(
+            default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
+            deprecated="Use interpolation_pair instead.",
+        )
+        interpolation_pair: InterpolationDict
+
+        scale_range: Annotated[
+            Tuple[float, float], AfterValidator(check_01_range), AfterValidator(check_nondecreasing_range)
+        ] = (0.25, 0.25)
+
         @model_validator(mode="after")
-        def validate_scale(self) -> Self:
-            if self.scale_min > self.scale_max:
-                msg = "scale_min must be less than or equal to scale_max"
-                raise ValueError(msg)
+        def validate_params(self) -> Self:
+            if self.scale_min is not None and self.scale_max is not None:
+                self.scale_range = (self.scale_min, self.scale_max)
+                self.scale_min = None
+                self.scale_max = None
+
+            if self.interpolation is not None:
+                if isinstance(self.interpolation, dict):
+                    self.interpolation_pair = self.interpolation
+                elif isinstance(self.interpolation, int):
+                    self.interpolation_pair = {"upscale": self.interpolation, "downscale": self.interpolation}
+                elif isinstance(self.interpolation, Interpolation):
+                    self.interpolation_pair = {
+                        "upscale": self.interpolation.upscale,
+                        "downscale": self.interpolation.downscale,
+                    }
+                self.interpolation = None
+
             return self
-
-        @field_validator("interpolation")
-        @classmethod
-        def set_interpolation(cls, v: Any) -> Interpolation:
-            if isinstance(v, dict):
-                return Interpolation(**v)
-            if isinstance(v, int):
-                return Interpolation(downscale=v, upscale=v)
-            if isinstance(v, Interpolation):
-                return v
-            if v is None:
-                return Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST)
-
-            msg = (
-                "Interpolation must be an int, Interpolation instance, "
-                "or dict specifying downscale and upscale methods."
-            )
-            raise ValueError(msg)
 
     def __init__(
         self,
-        scale_min: float = 0.25,
-        scale_max: float = 0.25,
-        interpolation: Optional[Union[int, Interpolation, Dict[str, int]]] = None,
+        scale_min: Optional[float] = None,
+        scale_max: Optional[float] = None,
+        interpolation: Optional[Union[int, Interpolation, InterpolationDict]] = None,
+        scale_range: Tuple[float, float] = (0.25, 0.25),
+        interpolation_pair: InterpolationDict = InterpolationDict(
+            {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST}
+        ),
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
-        self.scale_min = scale_min
-        self.scale_max = scale_max
-        self.interpolation = cast(Interpolation, interpolation)
+        self.scale_range = scale_range
+        self.interpolation_pair = interpolation_pair
 
     def apply(self, img: np.ndarray, scale: float, **params: Any) -> np.ndarray:
-        if isinstance(self.interpolation, int):
-            msg = "Should not be here, added for typing purposes. Please report this issue."
-            raise TypeError(msg)
         return F.downscale(
             img,
             scale=scale,
-            down_interpolation=self.interpolation.downscale,
-            up_interpolation=self.interpolation.upscale,
+            down_interpolation=self.interpolation_pair["downscale"],
+            up_interpolation=self.interpolation_pair["upscale"],
         )
 
     def get_params(self) -> Dict[str, Any]:
-        return {"scale": random.uniform(self.scale_min, self.scale_max)}
+        return {"scale": random.uniform(self.scale_range[0], self.scale_range[1])}
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
-        return "scale_min", "scale_max"
-
-    def to_dict_private(self) -> Dict[str, Any]:
-        if isinstance(self.interpolation, int):
-            msg = "Should not be here, added for typing purposes. Please report this issue."
-            raise TypeError(msg)
-        result = super().to_dict_private()
-        result["interpolation"] = {"upscale": self.interpolation.upscale, "downscale": self.interpolation.downscale}
-        return result
+        return ("scale_range", "interpolation_pair")
 
 
 class Lambda(NoOp):
@@ -2475,7 +2492,7 @@ class Superpixels(ImageOnlyTransform):
         n_segments: int,
         **kwargs: Any,
     ) -> np.ndarray:
-        return F.superpixels(img, n_segments, replace_samples, self.max_size, cast(int, self.interpolation))
+        return F.superpixels(img, n_segments, replace_samples, self.max_size, self.interpolation)
 
 
 class TemplateTransform(ImageOnlyTransform):
@@ -3118,7 +3135,7 @@ class ChromaticAberration(ImageOnlyTransform):
             secondary_distortion_red,
             primary_distortion_blue,
             secondary_distortion_blue,
-            cast(int, self.interpolation),
+            self.interpolation,
         )
 
     def get_params(self) -> Dict[str, float]:

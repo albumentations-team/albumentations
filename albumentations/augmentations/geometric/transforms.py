@@ -142,7 +142,7 @@ class ElasticTransform(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        random_state: np.random.RandomState,
+        random_seed: int,
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
@@ -154,12 +154,12 @@ class ElasticTransform(DualTransform):
             interpolation,
             self.border_mode,
             self.value,
-            random_state,
+            np.random.RandomState(random_seed),
             self.approximate,
             self.same_dxdy,
         )
 
-    def apply_to_mask(self, mask: np.ndarray, random_state: np.random.RandomState, **params: Any) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, random_seed: int, **params: Any) -> np.ndarray:
         return F.elastic_transform(
             mask,
             self.alpha,
@@ -168,7 +168,7 @@ class ElasticTransform(DualTransform):
             cv2.INTER_NEAREST,
             self.border_mode,
             self.mask_value,
-            random_state,
+            np.random.RandomState(random_seed),
             self.approximate,
             self.same_dxdy,
         )
@@ -176,7 +176,7 @@ class ElasticTransform(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        random_state: np.random.RandomState,
+        random_seed: int,
         **params: Any,
     ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
@@ -193,14 +193,14 @@ class ElasticTransform(DualTransform):
             cv2.INTER_NEAREST,
             self.border_mode,
             self.mask_value,
-            random_state,
+            np.random.RandomState(random_seed),
             self.approximate,
         )
         bbox_returned = bbox_from_mask(mask)
         return cast(BoxInternalType, F.normalize_bbox(bbox_returned, rows, cols))
 
     def get_params(self) -> Dict[str, int]:
-        return {"random_state": random_utils.get_random_state()}
+        return {"random_seed": random_utils.get_random_seed()}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
@@ -689,7 +689,7 @@ class Affine(DualTransform):
         return F.warp_affine(
             img,
             matrix,
-            interpolation=cast(int, self.interpolation),
+            interpolation=self.interpolation,
             cval=self.cval,
             mode=self.mode,
             output_shape=output_shape,
@@ -1156,7 +1156,7 @@ class PiecewiseAffine(DualTransform):
         matrix: skimage.transform.PiecewiseAffineTransform,
         **params: Any,
     ) -> np.ndarray:
-        return F.piecewise_affine(img, matrix, cast(int, self.interpolation), self.mode, self.cval)
+        return F.piecewise_affine(img, matrix, self.interpolation, self.mode, self.cval)
 
     def apply_to_mask(
         self,
