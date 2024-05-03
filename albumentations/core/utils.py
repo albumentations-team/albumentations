@@ -148,15 +148,14 @@ class DataProcessor(ABC):
         return data
 
     def remove_label_fields_from_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if self.params.label_fields is None:
+        if not self.params.label_fields:
             return data
         label_fields_len = len(self.params.label_fields)
         for data_name in self.data_fields:
             if data_name in data:
                 for idx, field in enumerate(self.params.label_fields):
                     data[field] = [bbox[-label_fields_len + idx] for bbox in data[data_name]]
-                if label_fields_len:
-                    data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
+                data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
         return data
 
 
