@@ -75,8 +75,9 @@ class DataProcessor(ABC):
         rows, cols = get_shape(data["image"])
 
         for data_name in self.data_fields:
-            data[data_name] = self.filter(data[data_name], rows, cols)
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
+            if data_name in data:
+                data[data_name] = self.filter(data[data_name], rows, cols)
+                data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="from")
 
         return self.remove_label_fields_from_data(data)
 
@@ -85,7 +86,8 @@ class DataProcessor(ABC):
 
         rows, cols = data["image"].shape[:2]
         for data_name in self.data_fields:
-            data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
+            if data_name in data:
+                data[data_name] = self.check_and_convert(data[data_name], rows, cols, direction="to")
 
     def check_and_convert(
         self,
@@ -131,27 +133,28 @@ class DataProcessor(ABC):
         if self.params.label_fields is None:
             return data
         for data_name in self.data_fields:
-            for field in self.params.label_fields:
-                if not len(data[data_name]) == len(data[field]):
-                    raise ValueError(
-                        f"The lengths of bboxes and labels do not match. Got {len(data[data_name])} "
-                        f"and {len(data[field])} respectively.",
-                    )
+            if data_name in data:
+                for field in self.params.label_fields:
+                    if not len(data[data_name]) == len(data[field]):
+                        raise ValueError(
+                            f"The lengths of bboxes and labels do not match. Got {len(data[data_name])} "
+                            f"and {len(data[field])} respectively.",
+                        )
 
-                data_with_added_field = []
-                for d, field_value in zip(data[data_name], data[field]):
-                    data_with_added_field.append([*list(d), field_value])
-                data[data_name] = data_with_added_field
+                    data_with_added_field = []
+                    for d, field_value in zip(data[data_name], data[field]):
+                        data_with_added_field.append([*list(d), field_value])
+                    data[data_name] = data_with_added_field
         return data
 
     def remove_label_fields_from_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        if self.params.label_fields is None:
+        if not self.params.label_fields:
             return data
+        label_fields_len = len(self.params.label_fields)
         for data_name in self.data_fields:
-            label_fields_len = len(self.params.label_fields)
-            for idx, field in enumerate(self.params.label_fields):
-                data[field] = [bbox[-label_fields_len + idx] for bbox in data[data_name]]
-            if label_fields_len:
+            if data_name in data:
+                for idx, field in enumerate(self.params.label_fields):
+                    data[field] = [bbox[-label_fields_len + idx] for bbox in data[data_name]]
                 data[data_name] = [d[:-label_fields_len] for d in data[data_name]]
         return data
 
