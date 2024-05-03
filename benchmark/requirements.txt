@@ -162,7 +162,7 @@ torch==2.2.1+rocm5.7
     #   torchvision
 torchvision==0.17.1+rocm5.7
     # via -r requirements.in
-tqdm==4.66.2
+tqdm==4.66.3
     # via
     #   -r requirements.in
     #   iopath
