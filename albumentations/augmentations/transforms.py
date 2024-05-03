@@ -8,7 +8,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
 from typing_extensions import Annotated, Literal, Self, TypedDict
@@ -1881,6 +1881,11 @@ class InterpolationDict(TypedDict):
     downscale: int
 
 
+class InterpolationPydantic(BaseModel):
+    upscale: InterpolationType
+    downscale: InterpolationType
+
+
 class Downscale(ImageOnlyTransform):
     """Decreases image quality by downscaling and then upscaling it back to its original size.
 
@@ -1930,7 +1935,7 @@ class Downscale(ImageOnlyTransform):
             default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
             deprecated="Use interpolation_pair instead.",
         )
-        interpolation_pair: InterpolationDict
+        interpolation_pair: InterpolationPydantic
 
         scale_range: Annotated[
             Tuple[float, float], AfterValidator(check_01_range), AfterValidator(check_nondecreasing_range)
@@ -1945,14 +1950,15 @@ class Downscale(ImageOnlyTransform):
 
             if self.interpolation is not None:
                 if isinstance(self.interpolation, dict):
-                    self.interpolation_pair = self.interpolation
+                    self.interpolation_pair = InterpolationPydantic(**self.interpolation)
                 elif isinstance(self.interpolation, int):
-                    self.interpolation_pair = {"upscale": self.interpolation, "downscale": self.interpolation}
+                    self.interpolation_pair = InterpolationPydantic(
+                        upscale=self.interpolation, downscale=self.interpolation
+                    )
                 elif isinstance(self.interpolation, Interpolation):
-                    self.interpolation_pair = {
-                        "upscale": self.interpolation.upscale,
-                        "downscale": self.interpolation.downscale,
-                    }
+                    self.interpolation_pair = InterpolationPydantic(
+                        upscale=self.interpolation.upscale, downscale=self.interpolation.downscale
+                    )
                 self.interpolation = None
 
             return self
