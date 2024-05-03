@@ -21,6 +21,7 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
+    NUM_MULTI_CHANNEL_DIMENSIONS,
     BoxInternalType,
     ColorType,
     KeypointInternalType,
@@ -46,7 +47,6 @@ __all__ = [
 ]
 
 TWO = 2
-THREE = 3
 
 
 class CropInitSchema(BaseTransformInitSchema):
@@ -81,7 +81,7 @@ class RandomCrop(DualTransform):
         self.height = height
         self.width = width
 
-    def apply(self, img: np.ndarray, h_start: int = 0, w_start: int = 0, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, h_start: int, w_start: int, **params: Any) -> np.ndarray:
         return F.random_crop(img, self.height, self.width, h_start, w_start)
 
     def get_params(self) -> Dict[str, float]:
@@ -248,10 +248,10 @@ class CropNonEmptyMaskIfExists(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> np.ndarray:
         return F.crop(img, x_min, y_min, x_max, y_max)
@@ -259,10 +259,10 @@ class CropNonEmptyMaskIfExists(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> BoxInternalType:
         return F.bbox_crop(
@@ -278,10 +278,10 @@ class CropNonEmptyMaskIfExists(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> KeypointInternalType:
         return F.crop_keypoint_by_coords(keypoint, crop_coords=(x_min, y_min, x_max, y_max))
@@ -293,7 +293,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
             ignore_values_np = np.array(self.ignore_values)
             mask = np.where(np.isin(mask, ignore_values_np), 0, mask)
 
-        if mask.ndim == THREE and self.ignore_channels is not None:
+        if mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and self.ignore_channels is not None:
             target_channels = np.array([ch for ch in range(mask.shape[-1]) if ch not in self.ignore_channels])
             mask = np.take(mask, target_channels, axis=-1)
 
@@ -320,7 +320,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
         mask_height, mask_width = mask.shape[:2]
 
         if mask.any():
-            mask = mask.sum(axis=-1) if mask.ndim == THREE else mask
+            mask = mask.sum(axis=-1) if mask.ndim == NUM_MULTI_CHANNEL_DIMENSIONS else mask
             non_zero_yx = np.argwhere(mask)
             y, x = random.choice(non_zero_yx)
             x_min = x - random.randint(0, self.width - 1)
@@ -373,11 +373,11 @@ class _BaseRandomSizedCrop(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        crop_height: int = 0,
-        crop_width: int = 0,
-        h_start: int = 0,
-        w_start: int = 0,
-        interpolation: int = cv2.INTER_LINEAR,
+        crop_height: int,
+        crop_width: int,
+        h_start: int,
+        w_start: int,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
@@ -386,12 +386,12 @@ class _BaseRandomSizedCrop(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        crop_height: int = 0,
-        crop_width: int = 0,
-        h_start: int = 0,
-        w_start: int = 0,
-        rows: int = 0,
-        cols: int = 0,
+        crop_height: int,
+        crop_width: int,
+        h_start: int,
+        w_start: int,
+        rows: int,
+        cols: int,
         **params: Any,
     ) -> BoxInternalType:
         return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
@@ -399,12 +399,12 @@ class _BaseRandomSizedCrop(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        crop_height: int = 0,
-        crop_width: int = 0,
-        h_start: int = 0,
-        w_start: int = 0,
-        rows: int = 0,
-        cols: int = 0,
+        crop_height: int,
+        crop_width: int,
+        h_start: int,
+        w_start: int,
+        rows: int,
+        cols: int,
         **params: Any,
     ) -> KeypointInternalType:
         keypoint = F.keypoint_random_crop(keypoint, crop_height, crop_width, h_start, w_start, rows, cols)
@@ -440,8 +440,20 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         p: ProbabilityType = 1
         min_max_height: OnePlusIntRangeType
         w2h_ratio: Annotated[float, Field(gt=0, description="Aspect ratio of crop.")]
-        width: Optional[int] = None
-        height: Optional[int] = None
+        width: Optional[int] = Field(
+            None,
+            deprecated=(
+                "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
+                "Please use a tuple (height, width) for the 'size' argument."
+            ),
+        )
+        height: Optional[int] = Field(
+            None,
+            deprecated=(
+                "Initializing with 'height' and 'width' is deprecated. "
+                "Please use a tuple (height, width) for the 'size' argument."
+            ),
+        )
         size: Optional[ScaleIntType] = None
 
         @model_validator(mode="after")
@@ -449,12 +461,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
             if isinstance(self.size, int):
                 if isinstance(self.width, int):
                     self.size = (self.size, self.width)
-                    warn(
-                        "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
-                        "Please use a tuple (height, width) for the 'size' argument.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
                 else:
                     msg = "If size is an integer, width as integer must be specified."
                     raise TypeError(msg)
@@ -464,13 +470,6 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
                     message = "If 'size' is not provided, both 'height' and 'width' must be specified."
                     raise ValueError(message)
                 self.size = (self.height, self.width)
-                warn(
-                    "Initializing with 'height' and 'width' is deprecated. "
-                    "Please use a tuple (height, width) for the 'size' argument.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-
             return self
 
     def __init__(
@@ -528,8 +527,12 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     class InitSchema(BaseTransformInitSchema):
         scale: ZeroOneRangeType = (0.08, 1.0)
         ratio: NonNegativeFloatRangeType = (0.75, 1.3333333333333333)
-        width: Optional[int] = None
-        height: Optional[int] = None
+        width: Optional[int] = Field(
+            None, deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead."
+        )
+        height: Optional[int] = Field(
+            None, deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead."
+        )
         size: Optional[ScaleIntType] = None
         p: ProbabilityType = 1
         interpolation: InterpolationType = cv2.INTER_LINEAR
@@ -539,12 +542,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
             if isinstance(self.size, int):
                 if isinstance(self.width, int):
                     self.size = (self.size, self.width)
-                    warn(
-                        "Initializing with 'size' as an integer and a separate 'width' is deprecated. "
-                        "Please use a tuple (height, width) for the 'size' argument.",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
                 else:
                     msg = "If size is an integer, width as integer must be specified."
                     raise TypeError(msg)
@@ -554,12 +551,6 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
                     message = "If 'size' is not provided, both 'height' and 'width' must be specified."
                     raise ValueError(message)
                 self.size = (self.height, self.width)
-                warn(
-                    "Initializing with 'height' and 'width' is deprecated. "
-                    "Please use a tuple (height, width) for the 'size' argument.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
 
             return self
 
@@ -692,10 +683,10 @@ class RandomCropNearBBox(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> np.ndarray:
         return F.clamping_crop(img, x_min, y_min, x_max, y_max)
@@ -722,10 +713,10 @@ class RandomCropNearBBox(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> KeypointInternalType:
         return F.crop_keypoint_by_coords(keypoint, crop_coords=(x_min, y_min, x_max, y_max))
@@ -769,10 +760,11 @@ class BBoxSafeRandomCrop(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        crop_height: int = 0,
-        crop_width: int = 0,
-        h_start: int = 0,
-        w_start: int = 0,
+        crop_height: int,
+        crop_width: int,
+        h_start: int,
+        w_start: int,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return F.random_crop(img, crop_height, crop_width, h_start, w_start)
@@ -808,12 +800,12 @@ class BBoxSafeRandomCrop(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        crop_height: int = 0,
-        crop_width: int = 0,
-        h_start: int = 0,
-        w_start: int = 0,
-        rows: int = 0,
-        cols: int = 0,
+        crop_height: int,
+        crop_width: int,
+        h_start: int,
+        w_start: int,
+        rows: int,
+        cols: int,
         **params: Any,
     ) -> BoxInternalType:
         return F.bbox_random_crop(bbox, crop_height, crop_width, h_start, w_start, rows, cols)
@@ -872,11 +864,11 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
     def apply(
         self,
         img: np.ndarray,
-        crop_height: int = 0,
-        crop_width: int = 0,
-        h_start: int = 0,
-        w_start: int = 0,
-        interpolation: int = cv2.INTER_LINEAR,
+        crop_height: int,
+        crop_width: int,
+        h_start: int,
+        w_start: int,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         crop = F.random_crop(img, crop_height, crop_width, h_start, w_start)
@@ -1042,12 +1034,12 @@ class CropAndPad(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        crop_params: Sequence[int] = (),
-        pad_params: Sequence[int] = (),
-        pad_value: float = 0,
-        rows: int = 0,
-        cols: int = 0,
-        interpolation: int = cv2.INTER_LINEAR,
+        crop_params: Sequence[int],
+        pad_params: Sequence[int],
+        pad_value: float,
+        rows: int,
+        cols: int,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return F.crop_and_pad(
@@ -1065,12 +1057,12 @@ class CropAndPad(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        crop_params: Optional[Sequence[int]] = None,
-        pad_params: Optional[Sequence[int]] = None,
-        pad_value_mask: Optional[float] = None,
-        rows: int = 0,
-        cols: int = 0,
-        interpolation: int = cv2.INTER_NEAREST,
+        crop_params: Sequence[int],
+        pad_params: Sequence[int],
+        pad_value_mask: float,
+        rows: int,
+        cols: int,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return F.crop_and_pad(
@@ -1088,12 +1080,12 @@ class CropAndPad(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        crop_params: Optional[Sequence[int]] = None,
-        pad_params: Optional[Sequence[int]] = None,
-        rows: int = 0,
-        cols: int = 0,
-        result_rows: int = 0,
-        result_cols: int = 0,
+        crop_params: Sequence[int],
+        pad_params: Sequence[int],
+        rows: int,
+        cols: int,
+        result_rows: int,
+        result_cols: int,
         **params: Any,
     ) -> BoxInternalType:
         return F.crop_and_pad_bbox(bbox, crop_params, pad_params, rows, cols, result_rows, result_cols)
@@ -1101,12 +1093,12 @@ class CropAndPad(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        crop_params: Optional[Sequence[int]] = None,
-        pad_params: Optional[Sequence[int]] = None,
-        rows: int = 0,
-        cols: int = 0,
-        result_rows: int = 0,
-        result_cols: int = 0,
+        crop_params: Sequence[int],
+        pad_params: Sequence[int],
+        rows: int,
+        cols: int,
+        result_rows: int,
+        result_cols: int,
         **params: Any,
     ) -> KeypointInternalType:
         return F.crop_and_pad_keypoint(
@@ -1359,10 +1351,10 @@ class RandomCropFromBorders(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> np.ndarray:
         return F.clamping_crop(img, x_min, y_min, x_max, y_max)
@@ -1370,10 +1362,10 @@ class RandomCropFromBorders(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> np.ndarray:
         return F.clamping_crop(mask, x_min, y_min, x_max, y_max)
@@ -1381,10 +1373,10 @@ class RandomCropFromBorders(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
@@ -1393,10 +1385,10 @@ class RandomCropFromBorders(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        x_min: int = 0,
-        x_max: int = 0,
-        y_min: int = 0,
-        y_max: int = 0,
+        x_min: int,
+        x_max: int,
+        y_min: int,
+        y_max: int,
         **params: Any,
     ) -> KeypointInternalType:
         return F.crop_keypoint_by_coords(keypoint, crop_coords=(x_min, y_min, x_max, y_max))

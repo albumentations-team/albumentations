@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -92,7 +92,7 @@ class MaskDropout(DualTransform):
         del params["mask"]
         return params
 
-    def apply(self, img: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, dropout_mask: np.ndarray, **params: Any) -> np.ndarray:
         if dropout_mask is None:
             return img
 
@@ -107,7 +107,7 @@ class MaskDropout(DualTransform):
 
         return img
 
-    def apply_to_mask(self, mask: np.ndarray, dropout_mask: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, dropout_mask: np.ndarray, **params: Any) -> np.ndarray:
         if dropout_mask is None:
             return mask
 

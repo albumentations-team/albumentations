@@ -37,6 +37,13 @@ repos:
       - id: requirements-txt-fixer
   - repo: local
     hooks:
+    -   id: check-defaults-in-apply
+        name: Check defaults in apply method of BasicTransform subclasses
+        entry: python -m tools.check_defaults
+        language: system
+        files: '\.py$'
+  - repo: local
+    hooks:
     - id: check-docstrings
       name: Check Docstrings for '---' sequences
       entry: python tools/check_docstrings.py
@@ -66,7 +73,7 @@ repos:
       - id: codespell
         additional_dependencies: ["tomli"]
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.39.0
+    rev: v0.40.0
     hooks:
       - id: markdownlint
   - repo: https://github.com/tox-dev/pyproject-fmt

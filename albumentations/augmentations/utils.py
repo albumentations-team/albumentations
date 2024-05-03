@@ -10,7 +10,7 @@ from albumentations.core.keypoints_utils import angle_to_2pi_range
 from albumentations.core.types import (
     MONO_CHANNEL_DIMENSIONS,
     NUM_MULTI_CHANNEL_DIMENSIONS,
-    RGB_NUM_CHANNELS,
+    NUM_RGB_CHANNELS,
     KeypointInternalType,
 )
 
@@ -154,7 +154,7 @@ def get_num_channels(image: np.ndarray) -> int:
 
 
 def is_rgb_image(image: np.ndarray) -> bool:
-    return get_num_channels(image) == RGB_NUM_CHANNELS
+    return get_num_channels(image) == NUM_RGB_CHANNELS
 
 
 def is_grayscale_image(image: np.ndarray) -> bool:
