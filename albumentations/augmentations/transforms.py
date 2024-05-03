@@ -375,21 +375,6 @@ class ImageCompression(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
-            lower = 1
-            upper = 100
-
-            def validate_range(range: Tuple[int, int], name: str) -> None:
-                if len(range) != self._size_len:
-                    msg = f"'quality_range' should have lenght of {self._size_len} but lenght of {len(range)} was found"
-                    raise ValueError(msg)
-                for i, el in enumerate(range):
-                    if el < lower or el > upper:
-                        msg = f"element {i} in {name} has value {el} and not between {lower} and {upper}"
-                        raise ValueError
-                if range[0] > range[1]:
-                    msg = "quality lower bound must be less than quality upper bound"
-                    raise ValueError(msg)
-
             if self.quality_lower or self.quality_upper:
                 warn(
                     "`quality_lower` and `quality_upper` are deprecated. "
