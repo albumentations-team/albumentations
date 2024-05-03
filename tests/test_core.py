@@ -512,7 +512,7 @@ def test_compose_non_available_keys() -> None:
 def test_compose_without_keys() -> None:
     """Check that absent of key not raises error"""
     image = np.empty([10, 10, 3], dtype=np.uint8)
-    keypoints =[[1, 1], [7, 7]]
+    keypoints = [[1, 1], [7, 7]]
     bboxes = [[0, 0, 7, 7, 0],]
     transform = A.Compose(
         [A.NoOp(),],
@@ -525,3 +525,7 @@ def test_compose_without_keys() -> None:
     res = transform(image=image)
     assert "keypoints" not in res
     assert "bboxes" not in res
+    res = transform(image=image, keypoints=[])
+    assert res["keypoints"] == []
+    res = transform(image=image, bboxes=[])
+    assert res["bboxes"] == []
