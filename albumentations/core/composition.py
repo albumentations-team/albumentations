@@ -147,6 +147,7 @@ class BaseCompose(Serializable):
         if self.processors:
             self._available_keys.update(["labels"])
             for proc in self.processors.values():
+                self._available_keys.update(proc.data_fields)
                 if proc.params.label_fields:
                     self._available_keys.update(proc.params.label_fields)
 
