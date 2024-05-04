@@ -320,12 +320,8 @@ class ImageCompression(ImageOnlyTransform):
     """Decreases image quality by Jpeg, WebP compression of an image.
 
     Args:
-        quality_lower: **Deprecated: use 'quality_range' instead** lower bound on the image quality.
-            Should be in [0, 100] range for jpeg and [1, 100] for webp.
-        quality_upper: **Deprecated: use 'quality_range' instead** upper bound on the image quality.
-            Should be in [0, 100] range for jpeg and [1, 100] for webp.
         quality_range: tuple of bounds on the image quality i.e. (quality_lower, quality_upper).
-            Both values should be in [0, 100] range for jpeg and [1, 100] for webp.
+            Both values should be in [1, 100] range for jpeg.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
             Default: ImageCompressionType.JPEG
 
@@ -338,12 +334,12 @@ class ImageCompression(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        quality_range: Optional[Tuple[int, int]] = Field(
+        quality_range: OnePlusIntNonDecreasingRangeType = Field(
             default=(99, 100),
             description="lower and upper bound on the image quality as tuple (lower_bound, upper_bound)",
         )
         quality_lower: Optional[int] = Field(
-            default=None,
+            default=99,
             description="Lower bound on the image quality",
             ge=1,
             le=100,
@@ -351,7 +347,7 @@ class ImageCompression(ImageOnlyTransform):
             "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
         )
         quality_upper: Optional[int] = Field(
-            default=None,
+            default=100,
             description="Upper bound on the image quality",
             ge=1,
             le=100,
@@ -363,41 +359,30 @@ class ImageCompression(ImageOnlyTransform):
             description="Image compression format",
         )
 
-        @staticmethod
-        def validate_range(range: Tuple[int, int], name: str) -> None:
-            lower = 1
-            upper = 100
-            for i, el in enumerate(range):
-                if el < lower or el > upper:
-                    msg = f"element {i} in {name} has value {el} and not between {lower} and {upper}"
-                    raise ValueError
-            if range[0] > range[1]:
-                msg = "quality lower bound must be less than quality upper bound"
-                raise ValueError(msg)
-
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
-            if self.quality_lower or self.quality_upper:
-                warn(
-                    "`quality_lower` and `quality_upper` are deprecated. "
-                    "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
-                    DeprecationWarning,
-                )
-                if not (self.quality_lower and self.quality_upper):
-                    msg = "If either 'quality_upper' or 'quality_lower' is specified, the other one must be as well."
-                    raise ValueError(msg)
+            if self.quality_lower is not None and self.quality_upper is not None:
                 self.quality_range = (self.quality_lower, self.quality_upper)
-            if self.quality_range is None:
-                raise ValueError("quality_range is not defined")
-            self.validate_range(self.quality_range, "quality_range")
+                self.quality_lower = None
+                self.quality_upper = None
+            elif self.quality_lower is None and self.quality_upper is not None:
+                self.quality_range = self.quality_range[0], self.quality_upper
+                self.quality_upper = None
+            elif self.quality_lower is not None and self.quality_upper is None:
+                self.quality_range = self.quality_lower, self.quality_range[1]
+                self.quality_lower = None
+
+            if not all(1 <= x <= MAX_JPEG_QUALITY for x in self.quality_range):
+                raise ValueError("Quality range values should be in [1, 100] range.")
+
             return self
 
     def __init__(
         self,
         quality_lower: Optional[int] = None,
         quality_upper: Optional[int] = None,
-        quality_range: Optional[Union[Tuple[int, int], List[int]]] = (99, 100),
         compression_type: ImageCompressionType = ImageCompressionType.JPEG,
+        quality_range: Tuple[int, int] = (99, 100),
         always_apply: bool = False,
         p: float = 0.5,
     ):
@@ -405,21 +390,20 @@ class ImageCompression(ImageOnlyTransform):
         self.quality_range = quality_range
         self.compression_type = compression_type
 
-    def apply(
-        self, img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp", ".jpeg"], **params: Any
-    ) -> np.ndarray:
+    def apply(self, img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp"], **params: Any) -> np.ndarray:
         if img.ndim != MONO_CHANNEL_DIMENSIONS and img.shape[-1] not in (1, 3, 4):
             msg = "ImageCompression transformation expects 1, 3 or 4 channel images."
             raise TypeError(msg)
         return F.image_compression(img, quality, image_type)
 
     def get_params(self) -> Dict[str, Any]:
-        if self.quality_range is None:
-            raise ValueError("quality_range is not defined")
-        image_type = ".jpg"
-
-        if self.compression_type == ImageCompressionType.WEBP:
+        if self.compression_type == ImageCompressionType.JPEG:
+            image_type = ".jpg"
+        elif self.compression_type == ImageCompressionType.WEBP:
             image_type = ".webp"
+        else:
+            raise ValueError(f"Unknown image compression type: {self.compression_type}")
+
         return {
             "quality": random_utils.randint(self.quality_range[0], self.quality_range[1] + 1),
             "image_type": image_type,

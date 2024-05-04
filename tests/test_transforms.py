@@ -13,6 +13,8 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from albumentations.augmentations.transforms import ImageCompression
+from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
@@ -1330,57 +1332,29 @@ def test_random_crop_from_borders(image, bboxes, keypoints, crop_left, crop_righ
 
     assert aug(image=image, mask=image, bboxes=bboxes, keypoints=keypoints)
 
-@pytest.mark.parametrize("lower, upper", [
-    (50,80),
-    (99,100),
-    (1,100),
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
+    ({}, {"quality_range": (99, 100), "compression_type": ImageCompressionType.JPEG}),
+    # Test custom quality range and compression type
+    ({"quality_range": (10, 90), "compression_type": ImageCompressionType.WEBP},
+     {"quality_range": (10, 90), "compression_type": ImageCompressionType.WEBP}),
+    # Deprecated quality values handling
+    ({"quality_lower": 75}, {"quality_range": (75, 100)}),
 ])
-def test_image_compression_interfaces_deprecation_warning(lower, upper):
-    range = (lower, upper)
-    list = [lower, upper]
-    with warnings.catch_warnings(record=True) as w:
-        # DeprecationWarning expected
-        transform_albu = A.ImageCompression(quality_lower=lower, quality_upper=upper)
-        assert issubclass(w[-1].category, DeprecationWarning)
+def test_image_compression_initialization(params, expected):
+    img_comp = ImageCompression(**params)
+    for key, value in expected.items():
+        assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
 
-        # DeprecationWarning expected
-        transform_albu_implicit = A.ImageCompression(lower, upper)
-        assert issubclass(w[-1].category, DeprecationWarning)
-
-        # No deprecation warning expected
-        transform_albu_range = A.ImageCompression(quality_range=range)
-
-        # No deprecation warning expected
-        transform_albu_list = A.ImageCompression(quality_range=list)
-
-        #check parameter assignment
-        assert transform_albu.quality_range == (lower, upper)
-        assert transform_albu_implicit.quality_range == (lower, upper)
-        assert transform_albu_range.quality_range == range
-        assert transform_albu_range.quality_range == range
-    warnings.resetwarnings()
-
-@pytest.mark.parametrize("lower, upper", [
-    (50,101), # upper bound too high
-    (-1,50), # lower bound too low
-    (70,50), # lower bound > upper bound
-    (None, 50) # parameter missing
+@pytest.mark.parametrize("params", [
+    ({"quality_range": (101, 105)}),  # Invalid quality range
+    ({"quality_range": (0, 0)}),  # Invalid range for JPEG
+    ({"compression_type": "unknown"})  # Invalid compression type
 ])
-def test_image_compression_unvalid_bounds_values(lower, upper):
-    with pytest.raises(ValueError):
-        with warnings.catch_warnings(record=True) as w:
-            A.ImageCompression(quality_lower=lower, quality_upper=upper)
-            assert issubclass(w[-1].category, DeprecationWarning)
+def test_image_compression_invalid_input(params):
+    with pytest.raises(Exception):
+        ImageCompression(**params)
 
-    with pytest.raises(ValueError):
-        range = (lower, upper)
-        A.ImageCompression(quality_range=range)
-
-@pytest.mark.parametrize("test", [None])
-def test_image_compression_default_use(test):
-    with warnings.catch_warnings(record=True) as w:
-        transform_albu_def = A.ImageCompression()
-        assert transform_albu_def.quality_range == (99,100)
 
 @pytest.mark.parametrize("params, expected", [
     # Default values
