@@ -1,5 +1,5 @@
 import random
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
@@ -94,8 +94,8 @@ class HistogramMatching(ImageOnlyTransform):
     def apply(
         self: np.ndarray,
         img: np.ndarray,
-        reference_image: Optional[np.ndarray] = None,
-        blend_ratio: float = 0.5,
+        reference_image: np.ndarray,
+        blend_ratio: float,
         **params: Any,
     ) -> np.ndarray:
         return apply_histogram(img, reference_image, blend_ratio)
@@ -193,8 +193,8 @@ class FDA(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        target_image: Optional[np.ndarray] = None,
-        beta: float = 0.1,
+        target_image: np.ndarray,
+        beta: float,
         **params: Any,
     ) -> np.ndarray:
         return fourier_domain_adaptation(img, target_image, beta)

@@ -72,8 +72,8 @@ class RandomScale(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        scale: float = 0,
-        interpolation: int = cv2.INTER_LINEAR,
+        scale: float,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return F.scale(img, scale, interpolation)
@@ -85,7 +85,7 @@ class RandomScale(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        scale: float = 0,
+        scale: float,
         **params: Any,
     ) -> KeypointInternalType:
         return F.keypoint_scale(keypoint, scale, scale)
@@ -149,8 +149,8 @@ class LongestMaxSize(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        max_size: int = 1024,
-        interpolation: int = cv2.INTER_LINEAR,
+        max_size: int,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
@@ -162,7 +162,7 @@ class LongestMaxSize(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        max_size: int = 1024,
+        max_size: int,
         **params: Any,
     ) -> KeypointInternalType:
         height = params["rows"]
@@ -214,8 +214,8 @@ class SmallestMaxSize(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        max_size: int = 1024,
-        interpolation: int = cv2.INTER_LINEAR,
+        max_size: int,
+        interpolation: int,
         **params: Any,
     ) -> np.ndarray:
         return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
@@ -226,7 +226,7 @@ class SmallestMaxSize(DualTransform):
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
-        max_size: int = 1024,
+        max_size: int,
         **params: Any,
     ) -> KeypointInternalType:
         height = params["rows"]
@@ -282,7 +282,7 @@ class Resize(DualTransform):
         self.width = width
         self.interpolation = interpolation
 
-    def apply(self, img: np.ndarray, interpolation: int = cv2.INTER_LINEAR, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, interpolation: int, **params: Any) -> np.ndarray:
         return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:

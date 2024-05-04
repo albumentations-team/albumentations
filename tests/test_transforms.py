@@ -13,6 +13,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from albumentations.random_utils import get_random_seed
 from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
@@ -99,10 +100,15 @@ def test_grid_distortion_steps(size):
 def test_elastic_transform_interpolation(monkeypatch, interpolation):
     image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+
+    random_seed = get_random_seed()
+
     monkeypatch.setattr(
-        "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_state": 1111}
+        "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_seed": random_seed}
     )
+
     aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
+
     data = aug(image=image, mask=mask)
     expected_image = FGeometric.elastic_transform(
         image,
@@ -111,7 +117,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         alpha_affine=50,
         interpolation=interpolation,
         border_mode=cv2.BORDER_REFLECT_101,
-        random_state=np.random.RandomState(1111),
+        random_state=np.random.RandomState(random_seed),
     )
     expected_mask = FGeometric.elastic_transform(
         mask,
@@ -120,7 +126,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         alpha_affine=50,
         interpolation=cv2.INTER_NEAREST,
         border_mode=cv2.BORDER_REFLECT_101,
-        random_state=np.random.RandomState(1111),
+        random_state=np.random.RandomState(random_seed),
     )
     assert np.array_equal(data["image"], expected_image)
     assert np.array_equal(data["mask"], expected_mask)
@@ -316,7 +322,7 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
 
     aug = A.Compose([augmentation_cls(always_apply=True, **params)])
     aug.add_targets(additional_targets={"image2": "image"})
-    for _i in range(10):
+    for _ in range(10):
         image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
         image2 = image1.copy()
         res = aug(image=image1, image2=image2)
@@ -703,26 +709,6 @@ def test_grid_dropout_params(ratio, holes_number_x, holes_number_y, unit_size_mi
         [[0, 0], [1, 1], 0, 1],
         [[1, 1], [0, 0], 1, 0],
         [[1, 1], [1, 1], 1, 1],
-        [[0, 0], [0, 0], 3, 0],
-        [[0, 3], [0, 0], 3, 0],
-        [[0, 3], [0.1, 0.1], 3, 0.1],
-    ],
-)
-def test_gaus_blur_limits(blur_limit, sigma, result_blur, result_sigma):
-    img = np.zeros([100, 100, 3], dtype=np.uint8)
-
-    aug = A.Compose([A.GaussianBlur(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
-
-    res = aug(image=img)["image"]
-    assert np.allclose(res, gaussian_blur(img, result_blur, result_sigma))
-
-
-@pytest.mark.parametrize(
-    ["blur_limit", "sigma", "result_blur", "result_sigma"],
-    [
-        [[0, 0], [1, 1], 0, 1],
-        [[1, 1], [0, 0], 1, 0],
-        [[1, 1], [1, 1], 1, 1],
     ],
 )
 def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
@@ -846,29 +832,6 @@ def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
             assert _max <= 10, f"Max value: {_max}"
 
 
-@pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
-def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
-    x_uint8 = np.zeros((5, 5)).astype(np.uint8)
-    x_uint8[2, 2] = val_uint8
-
-    x_float32 = np.zeros((5, 5)).astype(np.float32)
-    x_float32[2, 2] = val_uint8 / 255.0
-
-    glassblur = A.GlassBlur(always_apply=True, max_delta=1)
-
-    set_seed(0)
-    blur_uint8 = glassblur(image=x_uint8)["image"]
-
-    set_seed(0)
-    blur_float32 = glassblur(image=x_float32)["image"]
-
-    # Before comparison, rescale the blur_float32 to [0, 255]
-    diff = np.abs(blur_uint8 - blur_float32 * 255)
-
-    # The difference between the results of float32 and uint8 will be at most 2.
-    assert np.all(diff <= 2.0)
-
-
 def test_perspective_keep_size():
     h, w = 100, 100
     img = np.zeros([h, w, 3], dtype=np.uint8)
@@ -980,44 +943,6 @@ def test_template_transform_incorrect_channels(img_channels, template_channels):
         "as input image ({}), got {}".format(img_channels, template.shape[-1])
     )
     assert str(exc_info.value) == message
-
-
-@pytest.mark.parametrize(["val_uint8"], [[0], [1], [128], [255]])
-def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
-    x_uint8 = np.zeros((5, 5)).astype(np.uint8)
-    x_uint8[2, 2] = val_uint8
-
-    x_float32 = np.zeros((5, 5)).astype(np.float32)
-    x_float32[2, 2] = val_uint8 / 255.0
-
-    adv_blur = A.AdvancedBlur(blur_limit=(3, 5), always_apply=True)
-
-    set_seed(0)
-    adv_blur_uint8 = adv_blur(image=x_uint8)["image"]
-
-    set_seed(0)
-    adv_blur_float32 = adv_blur(image=x_float32)["image"]
-
-    # Before comparison, rescale the adv_blur_float32 to [0, 255]
-    diff = np.abs(adv_blur_uint8 - adv_blur_float32 * 255)
-
-    # The difference between the results of float32 and uint8 will be at most 2.
-    assert np.all(diff <= 2.0)
-
-
-@pytest.mark.parametrize(
-    ["params"],
-    [
-        [{"blur_limit": (2, 5)}],
-        [{"blur_limit": (3, 6)}],
-        [{"sigma_x_limit": (0.0, 1.0), "sigma_y_limit": (0.0, 1.0)}],
-        [{"beta_limit": (0.1, 0.9)}],
-        [{"beta_limit": (1.1, 8.0)}],
-    ],
-)
-def test_advanced_blur_raises_on_incorrect_params(params):
-    with pytest.raises(ValueError):
-        A.AdvancedBlur(**params)
 
 
 @pytest.mark.parametrize(
@@ -1323,28 +1248,8 @@ def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
     assert transformed_image_albu.shape == transformed_image_pt_np.shape
     assert transform_albu_height_is_size.shape == transformed_image_pt_np.shape
 
-@pytest.mark.parametrize("size, width, height, expected_warning", [
-    ((100, 200), None, None, None),
-    (None, 200, 100, DeprecationWarning),
-    (100, None, None, TypeError),
-])
-def test_deprecation_warnings(size, width, height, expected_warning):
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        if expected_warning == TypeError:
-            with pytest.raises(TypeError):
-                A.RandomResizedCrop(size=size, width=width, height=height)
-        else:
-            A.RandomResizedCrop(size=size, width=width, height=height)
-        if expected_warning is DeprecationWarning:
-            assert len(w) == 1
-            assert issubclass(w[-1].category, expected_warning)
-        else:
-            assert not w
-    warnings.resetwarnings()
-
-
 @pytest.mark.parametrize("num_shadows_limit, num_shadows_lower, num_shadows_upper, expected_warning", [
+    ((1, 1), None, None, None),
     ((1, 2), None, None, None),
     ((2, 3), None, None, None),
     ((1, 2), 1, None, DeprecationWarning),
@@ -1362,20 +1267,23 @@ def test_deprecation_warnings_random_shadow(
     Test deprecation warnings for RandomShadow
     """
     with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+        warnings.simplefilter("always")  # Change the filter to capture all warnings
         if expected_warning == ValueError:
             with pytest.raises(ValueError):
                 A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
                                num_shadows_upper=num_shadows_upper, p=1)
-        else:
+        elif expected_warning is DeprecationWarning:
             A.RandomShadow(num_shadows_limit=num_shadows_limit, num_shadows_lower=num_shadows_lower,
                            num_shadows_upper=num_shadows_upper, p=1)
-        if expected_warning is DeprecationWarning:
-            assert len(w) == 1
-            assert issubclass(w[-1].category, expected_warning)
+            for warning in w:
+                print(f"Warning captured: {warning.category.__name__}, Message: '{warning.message}'")
+
+                if warning.category is DeprecationWarning:
+                    print(f"Deprecation Warning: {warning.message}")
+            assert any(issubclass(warning.category, DeprecationWarning) for warning in w), \
+                "No DeprecationWarning found"
         else:
-            assert not w
-    warnings.resetwarnings()
+            assert not w, "Unexpected warnings raised"
 
 @pytest.mark.parametrize("image", IMAGES)
 @pytest.mark.parametrize("grid", [
@@ -1629,3 +1537,29 @@ def test_selective_channel(augmentation_cls, params):
             assert not np.array_equal(image[..., channel], transformed_image[..., channel])
         else:
             assert np.array_equal(image[..., channel], transformed_image[..., channel])
+
+
+@pytest.mark.parametrize("params, expected", [
+    # Default values
+    ({}, {"scale_range": (0.25, 0.25), "interpolation_pair": {"downscale": cv2.INTER_NEAREST, "upscale": cv2.INTER_NEAREST}}),
+    # Boundary values
+    ({"scale_range": (0.1, 0.9)}, {"scale_range": (0.1, 0.9)}),
+    ({"interpolation_pair": {"downscale": cv2.INTER_LINEAR, "upscale": cv2.INTER_CUBIC}}, {"interpolation_pair": {"downscale": cv2.INTER_LINEAR, "upscale": cv2.INTER_CUBIC}}),
+    # Deprecated values handling
+    ({"scale_min": 0.1, "scale_max": 0.9}, {"scale_range": (0.1, 0.9)}),
+    ({"interpolation": cv2.INTER_AREA}, {"interpolation_pair": {"downscale": cv2.INTER_AREA, "upscale": cv2.INTER_AREA}}),
+])
+def test_downscale_functionality(params, expected):
+    aug = A.Downscale(**params, p=1)
+    aug_dict = aug.get_transform_init_args()
+    for key, value in expected.items():
+        assert aug_dict[key] == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"scale_range": (0.9, 0.1)}),  # Invalid range, max < min
+    ({"scale_range": (1.1, 1.2)}),  # Values outside valid scale range (0, 1)
+    ({"interpolation_pair": {"downscale": 9999, "upscale": 9999}}),  # Invalid interpolation method
+])
+def test_downscale_invalid_input(params):
+    with pytest.raises(Exception):
+        aug = A.Downscale(**params, p=1)

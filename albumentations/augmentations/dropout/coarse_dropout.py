@@ -163,8 +163,8 @@ class CoarseDropout(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        fill_value: Union[ColorType, Literal["random"]] = 0,
-        holes: Iterable[Tuple[int, int, int, int]] = (),
+        fill_value: Union[ColorType, Literal["random"]],
+        holes: Iterable[Tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         return cutout(img, holes, fill_value)
@@ -172,8 +172,8 @@ class CoarseDropout(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        mask_fill_value: ScalarType = 0,
-        holes: Iterable[Tuple[int, int, int, int]] = (),
+        mask_fill_value: ScalarType,
+        holes: Iterable[Tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         if mask_fill_value is None:
@@ -234,7 +234,7 @@ class CoarseDropout(DualTransform):
     def apply_to_keypoints(
         self,
         keypoints: Sequence[KeypointType],
-        holes: Iterable[Tuple[int, int, int, int]] = (),
+        holes: Iterable[Tuple[int, int, int, int]],
         **params: Any,
     ) -> List[KeypointType]:
         return [keypoint for keypoint in keypoints if not any(keypoint_in_hole(keypoint, hole) for hole in holes)]
