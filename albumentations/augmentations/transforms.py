@@ -321,7 +321,7 @@ class ImageCompression(ImageOnlyTransform):
 
     Args:
         quality_range: tuple of bounds on the image quality i.e. (quality_lower, quality_upper).
-            Both values should be in [1, 100] range for jpeg.
+            Both values should be in [1, 100] range.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
             Default: ImageCompressionType.JPEG
 
@@ -361,19 +361,18 @@ class ImageCompression(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
-            if self.quality_lower is not None and self.quality_upper is not None:
-                self.quality_range = (self.quality_lower, self.quality_upper)
+            # Update the quality_range based on the non-None values of quality_lower and quality_upper
+            if self.quality_lower is not None or self.quality_upper is not None:
+                lower = self.quality_lower if self.quality_lower is not None else self.quality_range[0]
+                upper = self.quality_upper if self.quality_upper is not None else self.quality_range[1]
+                self.quality_range = (lower, upper)
+                # Clear the deprecated individual quality settings
                 self.quality_lower = None
                 self.quality_upper = None
-            elif self.quality_lower is None and self.quality_upper is not None:
-                self.quality_range = self.quality_range[0], self.quality_upper
-                self.quality_upper = None
-            elif self.quality_lower is not None and self.quality_upper is None:
-                self.quality_range = self.quality_lower, self.quality_range[1]
-                self.quality_lower = None
 
-            if not all(1 <= x <= MAX_JPEG_QUALITY for x in self.quality_range):
-                raise ValueError("Quality range values should be in [1, 100] range.")
+            # Validate the quality_range
+            if not (1 <= self.quality_range[0] <= MAX_JPEG_QUALITY and 1 <= self.quality_range[1] <= MAX_JPEG_QUALITY):
+                raise ValueError(f"Quality range values should be within [1, {MAX_JPEG_QUALITY}] range.")
 
             return self
 
