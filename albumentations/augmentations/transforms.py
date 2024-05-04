@@ -320,8 +320,8 @@ class ImageCompression(ImageOnlyTransform):
     """Decreases image quality by Jpeg, WebP compression of an image.
 
     Args:
-        quality_lower: lower bound on the image quality. Should be in [0, 100] range for jpeg and [1, 100] for webp.
-        quality_upper: upper bound on the image quality. Should be in [0, 100] range for jpeg and [1, 100] for webp.
+        quality_range: tuple of bounds on the image quality i.e. (quality_lower, quality_upper).
+            Both values should be in [1, 100] range.
         compression_type (ImageCompressionType): should be ImageCompressionType.JPEG or ImageCompressionType.WEBP.
             Default: ImageCompressionType.JPEG
 
@@ -334,57 +334,83 @@ class ImageCompression(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        quality_lower: int = Field(default=99, description="Lower bound on the image quality", ge=1, le=100)
-        quality_upper: int = Field(default=100, description="Upper bound on the image quality", ge=1, le=100)
+        quality_range: OnePlusIntNonDecreasingRangeType = Field(
+            default=(99, 100),
+            description="lower and upper bound on the image quality as tuple (lower_bound, upper_bound)",
+        )
+        quality_lower: Optional[int] = Field(
+            default=99,
+            description="Lower bound on the image quality",
+            ge=1,
+            le=100,
+            deprecated="`quality_lower` and `quality_upper` are deprecated. "
+            "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
+        )
+        quality_upper: Optional[int] = Field(
+            default=100,
+            description="Upper bound on the image quality",
+            ge=1,
+            le=100,
+            deprecated="`quality_lower` and `quality_upper` are deprecated. "
+            "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
+        )
         compression_type: ImageCompressionType = Field(
             default=ImageCompressionType.JPEG,
             description="Image compression format",
         )
 
         @model_validator(mode="after")
-        def validate_quality(self) -> Self:
-            if self.quality_lower >= self.quality_upper:
-                msg = "quality_lower must be less than quality_upper"
-                raise ValueError(msg)
+        def validate_ranges(self) -> Self:
+            # Update the quality_range based on the non-None values of quality_lower and quality_upper
+            if self.quality_lower is not None or self.quality_upper is not None:
+                lower = self.quality_lower if self.quality_lower is not None else self.quality_range[0]
+                upper = self.quality_upper if self.quality_upper is not None else self.quality_range[1]
+                self.quality_range = (lower, upper)
+                # Clear the deprecated individual quality settings
+                self.quality_lower = None
+                self.quality_upper = None
+
+            # Validate the quality_range
+            if not (1 <= self.quality_range[0] <= MAX_JPEG_QUALITY and 1 <= self.quality_range[1] <= MAX_JPEG_QUALITY):
+                raise ValueError(f"Quality range values should be within [1, {MAX_JPEG_QUALITY}] range.")
+
             return self
 
     def __init__(
         self,
-        quality_lower: int = 99,
-        quality_upper: int = 100,
+        quality_lower: Optional[int] = None,
+        quality_upper: Optional[int] = None,
         compression_type: ImageCompressionType = ImageCompressionType.JPEG,
+        quality_range: Tuple[int, int] = (99, 100),
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
-
-        self.quality_lower = quality_lower
-        self.quality_upper = quality_upper
+        self.quality_range = quality_range
         self.compression_type = compression_type
 
-    def apply(
-        self, img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp", ".jpeg"], **params: Any
-    ) -> np.ndarray:
+    def apply(self, img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp"], **params: Any) -> np.ndarray:
         if img.ndim != MONO_CHANNEL_DIMENSIONS and img.shape[-1] not in (1, 3, 4):
             msg = "ImageCompression transformation expects 1, 3 or 4 channel images."
             raise TypeError(msg)
         return F.image_compression(img, quality, image_type)
 
     def get_params(self) -> Dict[str, Any]:
-        image_type = ".jpg"
-
-        if self.compression_type == ImageCompressionType.WEBP:
+        if self.compression_type == ImageCompressionType.JPEG:
+            image_type = ".jpg"
+        elif self.compression_type == ImageCompressionType.WEBP:
             image_type = ".webp"
+        else:
+            raise ValueError(f"Unknown image compression type: {self.compression_type}")
 
         return {
-            "quality": random_utils.randint(self.quality_lower, self.quality_upper + 1),
+            "quality": random_utils.randint(self.quality_range[0], self.quality_range[1] + 1),
             "image_type": image_type,
         }
 
     def get_transform_init_args(self) -> Dict[str, Any]:
         return {
-            "quality_lower": self.quality_lower,
-            "quality_upper": self.quality_upper,
+            "quality_range": self.quality_range,
             "compression_type": self.compression_type.value,
         }
 

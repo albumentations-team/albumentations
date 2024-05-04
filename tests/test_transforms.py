@@ -13,6 +13,8 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.blur.functional import gaussian_blur
+from albumentations.augmentations.transforms import ImageCompression
+from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
@@ -1329,6 +1331,30 @@ def test_random_crop_from_borders(image, bboxes, keypoints, crop_left, crop_righ
                     keypoint_params=A.KeypointParams("xy"))
 
     assert aug(image=image, mask=image, bboxes=bboxes, keypoints=keypoints)
+
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
+    ({}, {"quality_range": (99, 100), "compression_type": ImageCompressionType.JPEG}),
+    # Test custom quality range and compression type
+    ({"quality_range": (10, 90), "compression_type": ImageCompressionType.WEBP},
+     {"quality_range": (10, 90), "compression_type": ImageCompressionType.WEBP}),
+    # Deprecated quality values handling
+    ({"quality_lower": 75}, {"quality_range": (75, 100)}),
+])
+def test_image_compression_initialization(params, expected):
+    img_comp = ImageCompression(**params)
+    for key, value in expected.items():
+        assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"quality_range": (101, 105)}),  # Invalid quality range
+    ({"quality_range": (0, 0)}),  # Invalid range for JPEG
+    ({"compression_type": "unknown"})  # Invalid compression type
+])
+def test_image_compression_invalid_input(params):
+    with pytest.raises(Exception):
+        ImageCompression(**params)
+
 
 @pytest.mark.parametrize("params, expected", [
     # Default values

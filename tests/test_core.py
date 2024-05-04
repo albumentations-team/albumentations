@@ -503,7 +503,7 @@ def test_sequential_multiple_transformations(image, aug):
             A.CLAHE(p=1),
             A.RandomBrightnessContrast(p=1),
             A.RandomGamma(p=1),
-            A.ImageCompression(quality_lower=75, p=1),
+            A.ImageCompression(quality_range=(75, 100), p=1),
         ],
         [  # with dual
             A.Blur(p=1),
@@ -512,7 +512,7 @@ def test_sequential_multiple_transformations(image, aug):
             A.CLAHE(p=1),
             A.RandomBrightnessContrast(p=1),
             A.RandomGamma(p=1),
-            A.ImageCompression(quality_lower=75, p=1),
+            A.ImageCompression(quality_range=(75, 100), p=1),
             A.Crop(x_max=50, y_max=50),
         ]
     ]
