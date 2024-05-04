@@ -494,6 +494,30 @@ def test_sequential_multiple_transformations(image, aug):
 
 
 @pytest.mark.parametrize(
+    "transforms",
+    [
+        [  # image only
+            A.Blur(p=1),
+            A.MedianBlur(p=1),
+            A.ToGray(p=1),
+            A.CLAHE(p=1),
+            A.RandomBrightnessContrast(p=1),
+            A.RandomGamma(p=1),
+            A.ImageCompression(quality_lower=75, p=1),
+        ],
+        [  # with dual
+            A.Blur(p=1),
+            A.MedianBlur(p=1),
+            A.ToGray(p=1),
+            A.CLAHE(p=1),
+            A.RandomBrightnessContrast(p=1),
+            A.RandomGamma(p=1),
+            A.ImageCompression(quality_lower=75, p=1),
+            A.Crop(x_max=50, y_max=50),
+        ]
+    ]
+)
+@pytest.mark.parametrize(
     ["compose_args", "args"],
     [
         [
@@ -546,22 +570,10 @@ def test_sequential_multiple_transformations(image, aug):
         ],
     ]
 )
-def test_common_pipeline_validity(compose_args: dict, args: dict):
+def test_common_pipeline_validity(transforms: list, compose_args: dict, args: dict):
     # Just check that everything is fine - no errors
 
-    pipeline = A.Compose(
-        [
-            A.Blur(p=1),
-            A.MedianBlur(p=1),
-            A.ToGray(p=1),
-            A.CLAHE(p=1),
-            A.RandomBrightnessContrast(p=1),
-            A.RandomGamma(p=1),
-            A.ImageCompression(quality_lower=75, p=1),
-            A.Crop(x_max=50, y_max=50),
-        ],
-        **compose_args,
-    )
+    pipeline = A.Compose(transforms, **compose_args)
 
     res = pipeline(**args)
     for k in args.keys():
