@@ -491,3 +491,78 @@ def test_sequential_multiple_transformations(image, aug):
     # Since HorizontalFlip, VerticalFlip, and Transpose are all applied twice, the image should be the same
     assert np.array_equal(result['image'], image)
     assert np.array_equal(result['mask'], mask)
+
+
+@pytest.mark.parametrize(
+    ["compose_args", "args"],
+    [
+        [
+            {},
+            {"image": np.empty([100, 100, 3], dtype=np.uint8)}
+        ],
+        [
+            {},
+            {
+                "image": np.empty([100, 100, 3], dtype=np.uint8),
+                "mask": np.empty([100, 100, 3], dtype=np.uint8),
+            }
+        ],
+        [
+            {},
+            {
+                "image": np.empty([100, 100, 3], dtype=np.uint8),
+                "masks": [np.empty([100, 100, 3], dtype=np.uint8)] * 3,
+            }
+        ],
+        [
+            dict(bbox_params=A.BboxParams(format="yolo", label_fields=["class_labels"])),
+            {
+                "image": np.empty([100, 100, 3], dtype=np.uint8),
+                "bboxes": [[0.5, 0.5, 0.1, 0.1]],
+                "class_labels": [1],
+            }
+        ],
+        [
+            dict(keypoint_params=A.KeypointParams(format="xy", label_fields=["class_labels"])),
+            {
+                "image": np.empty([100, 100, 3], dtype=np.uint8),
+                "keypoints": [[10, 20]],
+                "class_labels": [1],
+            }
+        ],
+        [
+            dict(
+                bbox_params=A.BboxParams(format="yolo", label_fields=["class_labels_1"]),
+                keypoint_params=A.KeypointParams(format="xy", label_fields=["class_labels_2"])
+            ),
+            {
+                "image": np.empty([100, 100, 3], dtype=np.uint8),
+                "mask": np.empty([100, 100, 3], dtype=np.uint8),
+                "bboxes": [[0.5, 0.5, 0.1, 0.1]],
+                "class_labels_1": [1],
+                "keypoints": [[10, 20]],
+                "class_labels_2": [1],
+            }
+        ],
+    ]
+)
+def test_common_pipeline_validity(compose_args: dict, args: dict):
+    # Just check that everything is fine - no errors
+
+    pipeline = A.Compose(
+        [
+            A.Blur(p=1),
+            A.MedianBlur(p=1),
+            A.ToGray(p=1),
+            A.CLAHE(p=1),
+            A.RandomBrightnessContrast(p=1),
+            A.RandomGamma(p=1),
+            A.ImageCompression(quality_lower=75, p=1),
+            A.Crop(x_max=50, y_max=50),
+        ],
+        **compose_args,
+    )
+
+    res = pipeline(**args)
+    for k in args.keys():
+        assert k in res
