@@ -7,8 +7,12 @@ from numpy.typing import DTypeLike
 from .core.types import FloatNumType, IntNumType, NumType, SizeType
 
 
+def get_random_seed() -> int:
+    return py_random.randint(0, (1 << 32) - 1)
+
+
 def get_random_state() -> np.random.RandomState:
-    return np.random.RandomState(py_random.randint(0, (1 << 32) - 1))
+    return np.random.RandomState(get_random_seed())
 
 
 def uniform(

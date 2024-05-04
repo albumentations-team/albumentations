@@ -72,11 +72,11 @@ class Blur(ImageOnlyTransform):
         super().__init__(always_apply, p)
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
-    def apply(self, img: np.ndarray, kernel: int = 3, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
         return F.blur(img, kernel)
 
     def get_params(self) -> Dict[str, Any]:
-        return {"ksize": int(random.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2))))}
+        return {"kernel": random_utils.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("blur_limit",)
@@ -133,7 +133,7 @@ class MotionBlur(Blur):
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (*super().get_transform_init_args_names(), "allow_shifted")
 
-    def apply(self, img: np.ndarray, kernel: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
         return FMain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, Any]:
@@ -194,7 +194,7 @@ class MedianBlur(Blur):
     def __init__(self, blur_limit: ScaleIntType = 7, always_apply: bool = False, p: float = 0.5):
         super().__init__(blur_limit, always_apply, p)
 
-    def apply(self, img: np.ndarray, kernel: int = 3, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
         return F.median_blur(img, kernel)
 
 
@@ -260,7 +260,7 @@ class GaussianBlur(ImageOnlyTransform):
         self.blur_limit = cast(Tuple[int, int], blur_limit)
         self.sigma_limit = cast(Tuple[float, float], sigma_limit)
 
-    def apply(self, img: np.ndarray, ksize: int = 3, sigma: float = 0, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, ksize: int, sigma: float, **params: Any) -> np.ndarray:
         return F.gaussian_blur(img, ksize, sigma=sigma)
 
     def get_params(self) -> Dict[str, float]:
@@ -318,7 +318,7 @@ class GlassBlur(ImageOnlyTransform):
         self.iterations = iterations
         self.mode = mode
 
-    def apply(self, img: np.ndarray, *args: Any, dxy: np.ndarray = None, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, *args: Any, dxy: np.ndarray, **params: Any) -> np.ndarray:
         if dxy is None:
             msg = "dxy is None"
             raise ValueError(msg)
@@ -450,7 +450,7 @@ class AdvancedBlur(ImageOnlyTransform):
         self.beta_limit = cast(Tuple[float, float], beta_limit)
         self.noise_limit = cast(Tuple[float, float], noise_limit)
 
-    def apply(self, img: np.ndarray, kernel: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
         return FMain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, np.ndarray]:
@@ -532,7 +532,7 @@ class Defocus(ImageOnlyTransform):
         self.radius = cast(Tuple[int, int], radius)
         self.alias_blur = cast(Tuple[float, float], alias_blur)
 
-    def apply(self, img: np.ndarray, radius: int = 3, alias_blur: float = 0.5, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, radius: int, alias_blur: float, **params: Any) -> np.ndarray:
         return F.defocus(img, radius, alias_blur)
 
     def get_params(self) -> Dict[str, Any]:
@@ -582,11 +582,7 @@ class ZoomBlur(ImageOnlyTransform):
         self.max_factor = cast(Tuple[float, float], max_factor)
         self.step_factor = cast(Tuple[float, float], step_factor)
 
-    def apply(self, img: np.ndarray, zoom_factors: Optional[np.ndarray] = None, **params: Any) -> np.ndarray:
-        if zoom_factors is None:
-            msg = "zoom_factors is None"
-            raise ValueError(msg)
-
+    def apply(self, img: np.ndarray, zoom_factors: np.ndarray, **params: Any) -> np.ndarray:
         return F.zoom_blur(img, zoom_factors)
 
     def get_params(self) -> Dict[str, Any]:

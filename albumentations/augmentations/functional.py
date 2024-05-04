@@ -551,8 +551,8 @@ def convolve(img: np.ndarray, kernel: np.ndarray) -> np.ndarray:
 
 
 @preserve_channel_dim
-def image_compression(img: np.ndarray, quality: int, image_type: np.dtype) -> np.ndarray:
-    if image_type in [".jpeg", ".jpg"]:
+def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg", ".webp", ".jpeg"]) -> np.ndarray:
+    if image_type in {".jpeg", ".jpg"}:
         quality_flag = cv2.IMWRITE_JPEG_QUALITY
     elif image_type == ".webp":
         quality_flag = cv2.IMWRITE_WEBP_QUALITY

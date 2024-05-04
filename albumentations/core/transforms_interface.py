@@ -50,7 +50,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         Callable[..., Any],
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
-    interpolation: Union[int, Interpolation]
+    interpolation: int
     fill_value: ColorType
     mask_fill_value: Optional[ColorType]
     # replay mode params

@@ -90,13 +90,13 @@ class GridDropout(DualTransform):
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
 
-    def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]] = (), **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], **params: Any) -> np.ndarray:
         return F.cutout(img, holes, self.fill_value)
 
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        holes: Iterable[Tuple[int, int, int, int]] = (),
+        holes: Iterable[Tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         if self.mask_fill_value is None:
