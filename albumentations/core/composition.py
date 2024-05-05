@@ -147,6 +147,9 @@ class BaseCompose(Serializable):
         if self.processors:
             self._available_keys.update(["labels"])
             for proc in self.processors.values():
+                if proc.default_data_name not in self._available_keys:  # if no transform to process this data
+                    warnings.warn(f"Got processor for {proc.default_data_name}, but no transform to process it.")
+                self._available_keys.update(proc.data_fields)
                 if proc.params.label_fields:
                     self._available_keys.update(proc.params.label_fields)
 
