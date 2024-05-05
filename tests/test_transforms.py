@@ -1537,3 +1537,87 @@ def test_downscale_functionality(params, expected):
 def test_downscale_invalid_input(params):
     with pytest.raises(Exception):
         aug = A.Downscale(**params, p=1)
+
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+        },
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.CropAndPad,
+            A.PixelDropout,
+            A.MixUp,
+            A.XYMasking
+        },
+    ),
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+        },
+        except_augmentations={
+        #     A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.MaskDropout,
+            A.MixUp
+        },
+    ),
+)
+def test_dual_transforms_methods(augmentation_cls, params):
+    """Checks whether transformations based on DualTransform dont has abstract methods."""
+    aug = augmentation_cls(p=1, **params)
+    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
+
+    arg = {
+        "masks": mask,
+        "masks": [mask],
+        "bboxes": [[0, 0, 0.1, 0.1, 1]],
+        "keypoints": [(0, 0, 0, 0), (1, 1, 0, 0)],
+    }
+
+    for target in aug.targets:
+        if target in arg:
+            kwarg = {target: arg[target]}
+            try:
+                _res = aug(image=image, **kwarg)
+            except Exception as e:
+                if isinstance(e, NotImplementedError):
+                    raise NotImplementedError(f"{target} error at: {augmentation_cls},  {e}")
+                raise e

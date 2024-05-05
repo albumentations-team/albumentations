@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 from pydantic import Field
@@ -213,3 +213,11 @@ class GridDropout(DualTransform):
             "fill_value",
             "mask_fill_value",
         )
+
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+        }

@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -815,6 +815,15 @@ class BBoxSafeRandomCrop(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("erosion_rate",)
+
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+            "bboxes": self.apply_to_bboxes,
+        }
 
 
 class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):

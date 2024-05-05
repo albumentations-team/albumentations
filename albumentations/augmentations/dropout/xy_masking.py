@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
 
 import numpy as np
 from pydantic import Field, model_validator
@@ -214,3 +214,12 @@ class XYMasking(DualTransform):
             "fill_value",
             "mask_fill_value",
         )
+
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+            "keypoints": self.apply_to_keypoints,
+        }

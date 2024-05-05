@@ -1,7 +1,7 @@
 import math
 import random
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -214,6 +214,15 @@ class ElasticTransform(DualTransform):
             "approximate",
             "same_dxdy",
         )
+
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+            "bboxes": self.apply_to_bboxes,
+        }
 
 
 class Perspective(DualTransform):
@@ -1702,6 +1711,15 @@ class OpticalDistortion(DualTransform):
             "mask_value",
         )
 
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+            "bboxes": self.apply_to_bboxes,
+        }
+
 
 class GridDistortion(DualTransform):
     """Applies grid distortion augmentation to images, masks, and bounding boxes. This technique involves dividing
@@ -1878,6 +1896,15 @@ class GridDistortion(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
+
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+            "bboxes": self.apply_to_bboxes,
+        }
 
 
 class D4(DualTransform):

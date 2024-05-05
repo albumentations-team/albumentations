@@ -212,6 +212,15 @@ class RandomGridShuffle(DualTransform):
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("grid",)
 
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+            "keypoints": self.apply_to_keypoints,
+        }
+
 
 class Normalize(ImageOnlyTransform):
     """Applies various normalization techniques to an image. The specific normalization technique can be selected
@@ -3282,3 +3291,11 @@ class Morphological(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("scale", "operation")
+
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+        }
