@@ -92,6 +92,8 @@ jobs:
       run: pip install -r requirements-dev.txt
     - name: Run checks
       run: pre-commit run --files $(find albumentations -type f)
+    - name: check-defaults-in-apply
+      run: python -m tools.check_defaults
 
   check_transforms_docs:
     name: Check Readme is not outdated
