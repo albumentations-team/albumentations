@@ -1,6 +1,6 @@
 import random
 import warnings
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Union, cast
 
 import cv2
@@ -22,6 +22,7 @@ from .utils import format_args, get_shape
 __all__ = [
     "BaseCompose",
     "Compose",
+    "Compose2",
     "SomeOf",
     "OneOf",
     "OneOrOther",
@@ -49,6 +50,16 @@ def get_always_apply(transforms: Union["BaseCompose", TransformsSeqType]) -> Tra
         elif transform.always_apply:
             new_transforms.append(transform)
     return new_transforms
+
+
+def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransform]:
+    result = {}
+    for transform in transforms:
+        if isinstance(transform, BaseCompose):
+            result.update(get_transforms_dict(transform.transforms))
+        else:
+            result[id(transform)] = transform
+    return result
 
 
 class BaseCompose(Serializable):
@@ -349,6 +360,42 @@ class Compose(BaseCompose):
                 result[key] = value
 
         return result
+
+
+class Compose2(Compose):
+    """Same as Compose but return parameters for each applied transform.
+    Compose transforms and handle all transformations regarding bounding boxes
+
+    Args:
+        transforms (list): list of transformations to compose.
+        bbox_params (BboxParams): Parameters for bounding boxes transforms
+        keypoint_params (KeypointParams): Parameters for keypoints transforms
+        additional_targets (dict): Dict with keys - new target name, values - old target name. ex: {'image2': 'image'}
+        p (float): probability of applying all list of transforms. Default: 1.0.
+        is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
+            would like to disable this check - pass False (do it only if you are sure in your data consistency).
+
+    """
+
+    def __init__(
+        self,
+        transforms: TransformsSeqType,
+        bbox_params: Optional[Union[Dict[str, Any], "BboxParams"]] = None,
+        keypoint_params: Optional[Union[Dict[str, Any], "KeypointParams"]] = None,
+        additional_targets: Optional[Dict[str, str]] = None,
+        p: float = 1.0,
+        is_check_shapes: bool = True,
+        save_key: str = "applied_params",
+    ):
+        super().__init__(transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes)
+        self.set_deterministic(True, save_key=save_key)
+        self.save_key = save_key
+        self._available_keys.add(save_key)
+        self._transforms_dict = get_transforms_dict(self.transforms)
+
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+        data[self.save_key] = OrderedDict()
+        return super().__call__(*args, **data)
 
 
 class OneOf(BaseCompose):
