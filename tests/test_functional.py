@@ -972,7 +972,7 @@ def test_maybe_process_in_chunks():
 
     for i in range(1, image.shape[-1] + 1):
         before = image[:, :, :i]
-        after = FGeometric.rotate(before, angle=1, interpolation=cv2.INTER_LINEAR)
+        after = FGeometric.rotate(before, angle=1, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101, value=None)
         assert before.shape == after.shape
 
 

@@ -247,7 +247,7 @@ def rotate(
     angle: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType],
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
@@ -342,8 +342,8 @@ def elastic_transform(
     alpha_affine: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType],
-    random_state: Optional[np.random.RandomState],
+    value: Optional[ColorType] = None,
+    random_state: Optional[np.random.RandomState] = None,
     approximate: bool = False,
     same_dxdy: bool = False,
 ) -> np.ndarray:
@@ -1233,7 +1233,7 @@ def optical_distortion(
     dy: int,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType],
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -1266,7 +1266,7 @@ def grid_distortion(
     ysteps: Tuple[()],
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType],
+    value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1325,8 +1325,8 @@ def elastic_transform_approx(
     alpha_affine: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType],
-    random_state: Optional[np.random.RandomState],
+    value: Optional[ColorType] = None,
+    random_state: Optional[np.random.RandomState] = None,
 ) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
