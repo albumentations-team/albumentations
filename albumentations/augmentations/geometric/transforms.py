@@ -1201,8 +1201,8 @@ class PadIfNeeded(DualTransform):
             Can be one of 'center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', or 'random'.
             Default is 'center'.
         border_mode (int): Specifies the border mode to use if padding is required.
-            The default is `cv2.BORDER_REFLECT_101`.
-            If `value` is not None, `border_mode` will automatically be set to `cv2.BORDER_CONSTANT`.
+            The default is `cv2.BORDER_REFLECT_101`. If `value` is provided and `border_mode` is set to a mode
+            that does not use a constant value, it should be manually set to `cv2.BORDER_CONSTANT`.
         value (Union[int, float, list[int], list[float]], optional): Value to fill the border pixels if
             the border mode is `cv2.BORDER_CONSTANT`. Default is None.
         mask_value (Union[int, float, list[int], list[float]], optional): Similar to `value` but used for padding masks.
@@ -1274,7 +1274,7 @@ class PadIfNeeded(DualTransform):
                 msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
                 raise ValueError(msg)
 
-            if self.value is not None:
+            if self.value is not None and self.border_mode in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
                 self.border_mode = cv2.BORDER_CONSTANT
 
             if self.border_mode == cv2.BORDER_CONSTANT and self.value is None:
