@@ -14,7 +14,13 @@ from albumentations.augmentations.utils import (
     preserve_channel_dim,
 )
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.types import BoxInternalType, ColorType, D4Type, KeypointInternalType
+from albumentations.core.types import (
+    NUM_MULTI_CHANNEL_DIMENSIONS,
+    BoxInternalType,
+    ColorType,
+    D4Type,
+    KeypointInternalType,
+)
 
 __all__ = [
     "optical_distortion",
@@ -239,9 +245,9 @@ def keypoint_d4(
 def rotate(
     img: np.ndarray,
     angle: float,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
+    interpolation: int,
+    border_mode: int,
+    value: Optional[ColorType],
 ) -> np.ndarray:
     height, width = img.shape[:2]
     # for images we use additional shifts of (0.5, 0.5) as otherwise
@@ -272,7 +278,7 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
-    References:
+    Reference:
         https://arxiv.org/abs/2109.13488
 
     """
@@ -334,10 +340,10 @@ def elastic_transform(
     alpha: float,
     sigma: float,
     alpha_affine: float,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    interpolation: int,
+    border_mode: int,
+    value: Optional[ColorType],
+    random_state: Optional[np.random.RandomState],
     approximate: bool = False,
     same_dxdy: bool = False,
 ) -> np.ndarray:
@@ -423,7 +429,7 @@ def elastic_transform(
 
 
 @preserve_channel_dim
-def resize(img: np.ndarray, height: int, width: int, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
+def resize(img: np.ndarray, height: int, width: int, interpolation: int) -> np.ndarray:
     img_height, img_width = img.shape[:2]
     if (height, width) == img.shape[:2]:
         return img
@@ -432,7 +438,7 @@ def resize(img: np.ndarray, height: int, width: int, interpolation: int = cv2.IN
 
 
 @preserve_channel_dim
-def scale(img: np.ndarray, scale: float, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
+def scale(img: np.ndarray, scale: float, interpolation: int) -> np.ndarray:
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
     return resize(img, new_height, new_width, interpolation)
@@ -531,7 +537,7 @@ def perspective_bbox(
     )
 
 
-def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool = False) -> float:
+def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
     """Args:
     matrix (np.ndarray): Rotation matrix
     y_up (bool): is Y axis looks up or down
@@ -610,7 +616,7 @@ def keypoint_affine(
 
     x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
-    a += rotation2d_matrix_to_euler_angles(matrix.params[:2])
+    a += rotation2d_matrix_to_euler_angles(matrix.params[:2], y_up=False)
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
 
@@ -658,8 +664,8 @@ def safe_rotate(
     img: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    value: Optional[ColorType] = None,
-    border_mode: int = cv2.BORDER_REFLECT_101,
+    value: Optional[ColorType],
+    border_mode: int,
 ) -> np.ndarray:
     height, width = img.shape[:2]
     warp_fn = _maybe_process_in_chunks(
@@ -832,12 +838,12 @@ def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
     if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
-    threshold: Optional[float] = None,
+    threshold: Optional[float],
 ) -> List[Tuple[float, float]]:
     """Convert outputs of `to_distance_maps` to `KeypointsOnImage`.
     This is the inverse of `to_distance_maps`.
     """
-    if distance_maps.ndim != THREE:
+    if distance_maps.ndim != NUM_MULTI_CHANNEL_DIMENSIONS:
         msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
         raise ValueError(msg)
     height, width, nb_keypoints = distance_maps.shape
@@ -1168,8 +1174,8 @@ def pad(
     img: np.ndarray,
     min_height: int,
     min_width: int,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
+    border_mode: int,
+    value: Optional[ColorType],
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1204,8 +1210,8 @@ def pad_with_params(
     h_pad_bottom: int,
     w_pad_left: int,
     w_pad_right: int,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
+    border_mode: int,
+    value: Optional[ColorType],
 ) -> np.ndarray:
     pad_fn = _maybe_process_in_chunks(
         cv2.copyMakeBorder,
@@ -1222,12 +1228,12 @@ def pad_with_params(
 @preserve_channel_dim
 def optical_distortion(
     img: np.ndarray,
-    k: int = 0,
-    dx: int = 0,
-    dy: int = 0,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
+    k: int,
+    dx: int,
+    dy: int,
+    interpolation: int,
+    border_mode: int,
+    value: Optional[ColorType],
 ) -> np.ndarray:
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -1255,12 +1261,12 @@ def optical_distortion(
 @preserve_channel_dim
 def grid_distortion(
     img: np.ndarray,
-    num_steps: int = 10,
-    xsteps: Tuple[()] = (),
-    ysteps: Tuple[()] = (),
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
+    num_steps: int,
+    xsteps: Tuple[()],
+    ysteps: Tuple[()],
+    interpolation: int,
+    border_mode: int,
+    value: Optional[ColorType],
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1317,10 +1323,10 @@ def elastic_transform_approx(
     alpha: float,
     sigma: float,
     alpha_affine: float,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    interpolation: int,
+    border_mode: int,
+    value: Optional[ColorType],
+    random_state: Optional[np.random.RandomState],
 ) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
