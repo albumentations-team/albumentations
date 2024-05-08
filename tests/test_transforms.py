@@ -1497,4 +1497,30 @@ def test_downscale_functionality(params, expected):
 ])
 def test_downscale_invalid_input(params):
     with pytest.raises(Exception):
-        aug = A.Downscale(**params, p=1)
+        A.Downscale(**params, p=1)
+
+
+@pytest.mark.parametrize("params, expected", [
+    # Default values
+    ({}, {"min_height": 1024, "min_width": 1024, "position": A.PadIfNeeded.PositionType.CENTER, "border_mode": cv2.BORDER_REFLECT_101}),
+    # Boundary values
+    ({"min_height": 800, "min_width": 800}, {"min_height": 800, "min_width": 800}),
+    ({"pad_height_divisor": 10, "min_height": None, "pad_width_divisor": 10, "min_width": None},
+     {"pad_height_divisor": 10, "min_height": None, "pad_width_divisor": 10, "min_width": None}),
+    ({"position": "top_left"}, {"position": A.PadIfNeeded.PositionType.TOP_LEFT}),
+    # Value handling when border_mode is BORDER_CONSTANT
+    ({"border_mode": cv2.BORDER_CONSTANT, "value": 255}, {"border_mode": cv2.BORDER_CONSTANT, "value": 255}),
+    ({"border_mode": cv2.BORDER_REFLECT_101, "value": 255}, {"border_mode": cv2.BORDER_CONSTANT, "value": 255}),
+    ({"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0]}, {"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0]}),
+    # Mask value handling
+    ({"border_mode": cv2.BORDER_CONSTANT, "value": [0, 0, 0], "mask_value": 128}, {"border_mode": cv2.BORDER_CONSTANT, "mask_value": 128, "value": [0, 0, 0]}),
+])
+def test_pad_if_needed_functionality(params, expected):
+    # Setup the augmentation with the provided parameters
+    aug = A.PadIfNeeded(**params, p=1)
+    # Get the initialization arguments to check against expected
+    aug_dict = {key: getattr(aug, key) for key in expected.keys()}
+
+    # Assert each expected key/value pair
+    for key, value in expected.items():
+        assert aug_dict[key] == value, f"Failed on {key} with value {value}"
