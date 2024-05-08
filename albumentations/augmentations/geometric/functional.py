@@ -76,7 +76,6 @@ __all__ = [
 ]
 
 TWO = 2
-THREE = 3
 
 ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
@@ -664,8 +663,8 @@ def safe_rotate(
     img: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    value: Optional[ColorType],
-    border_mode: int,
+    value: Optional[ColorType] = None,
+    border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
     height, width = img.shape[:2]
     warp_fn = _maybe_process_in_chunks(
