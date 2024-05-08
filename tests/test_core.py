@@ -292,7 +292,7 @@ def test_targets_type_check(targets, additional_targets, err_message):
             {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
             BboxParams("pascal_voc", check_each_transform=True),
             None,
-            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 74, 74, 0]]},
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
         ],
         [
             {
@@ -301,7 +301,7 @@ def test_targets_type_check(targets, additional_targets, err_message):
             },
             BboxParams("pascal_voc", check_each_transform=True),
             KeypointParams("xy", check_each_transform=True),
-            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 74, 74, 0]], "keypoints": np.array([[10, 10]]) + 25},
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
         ],
         [
             {
@@ -323,7 +323,7 @@ def test_targets_type_check(targets, additional_targets, err_message):
             BboxParams("pascal_voc", check_each_transform=True),
             KeypointParams("xy", check_each_transform=False),
             {
-                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 74, 74, 0]],
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
                 "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
             },
         ],

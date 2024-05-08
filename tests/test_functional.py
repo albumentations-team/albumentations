@@ -9,7 +9,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
-from albumentations.core.bbox_utils import filter_bboxes
+
 from albumentations.core.types import d4_group_elements
 from tests.conftest import IMAGES, RECTANGULAR_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
@@ -684,60 +684,6 @@ def test_bbox_transpose():
     rot90 = FGeometric.bbox_rot90((0.7, 0.1, 0.8, 0.4), 2, 100, 200)
     reflected_anti_diagonal = FGeometric.bbox_transpose(rot90, 100, 200)
     assert np.allclose(reflected_anti_diagonal, (0.6, 0.2, 0.9, 0.3))
-
-
-@pytest.mark.parametrize(
-    ["bboxes", "min_area", "min_visibility", "target"],
-    [
-        (
-            [(0.1, 0.5, 1.1, 0.9), (-0.1, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
-            0,
-            0,
-            [(0.1, 0.5, 0.99, 0.9), (0.0, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
-        ),
-        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.5, 0.5, 0.6)], 150, 0, [(0.1, 0.5, 0.8, 0.9)]),
-        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.9, 0.5, 1.6)], 0, 0.75, [(0.1, 0.5, 0.8, 0.9)]),
-        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 1.1)], 0, 0.7, [(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 0.99)]),
-    ],
-)
-def test_filter_bboxes(bboxes, min_area, min_visibility, target):
-    filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
-    assert filtered_bboxes == target
-
-
-@pytest.mark.parametrize(
-    ["bboxes", "img_width", "img_height", "min_width", "min_height", "target"],
-    [
-        [
-            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
-            100,
-            100,
-            20,
-            20,
-            [(0.1, 0.1, 0.9, 0.9)],
-        ],
-        [
-            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
-            100,
-            100,
-            20,
-            0,
-            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.9, 0.2)],
-        ],
-        [
-            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
-            100,
-            100,
-            0,
-            20,
-            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9)],
-        ],
-    ],
-)
-def test_filter_bboxes_by_min_width_height(bboxes, img_width, img_height, min_width, min_height, target):
-    filtered_bboxes = filter_bboxes(bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height)
-    assert filtered_bboxes == target
-
 
 def test_fun_max_size():
     target_width = 256

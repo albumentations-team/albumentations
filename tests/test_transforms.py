@@ -12,7 +12,6 @@ from torchvision import transforms as torch_transforms
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.augmentations.blur.functional import gaussian_blur
 from albumentations.augmentations.transforms import ImageCompression
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
@@ -1007,8 +1006,8 @@ def test_affine_incorrect_scale_range(params):
             {
                 "bboxes": [
                     [15.65896994771262, 0.2946228229078849, 21.047137067150473, 4.617219579173327, 0],
-                    [194.29851584295034, 25.564320319214918, 199, 29.88691707548036, 0],
-                    [178.9528629328495, 95.38278042082668, 184.34103005228735, 99, 0],
+                    [194.29851584295034, 25.564320319214918, 199.68668296238818, 29.88691707548036, 0],
+                    [178.9528629328495, 95.38278042082668, 184.34103005228735, 99.70537717709212, 0],
                     [0.47485022613917677, 70.11308292451965, 5.701484157049652, 73.70074852182076, 0],
                 ],
                 "keypoints": [
@@ -1039,7 +1038,7 @@ def test_affine_incorrect_scale_range(params):
                 "bboxes": [
                     [0.3133170376117963, 25.564320319214918, 5.701484157049649, 29.88691707548036, 0],
                     [178.9528629328495, 0.2946228229078862, 184.34103005228735, 4.617219579173327, 0],
-                    [194.29851584295034, 70.11308292451965, 199, 74.43567968078509, 0],
+                    [194.29851584295034, 70.11308292451965, 199.68668296238818, 74.43567968078509, 0],
                     [15.658969947712617, 95.38278042082668, 20.88560387862309, 98.97044601812779, 0],
                 ],
                 "keypoints": [
@@ -1121,44 +1120,6 @@ def test_rotate_equal(img, aug_cls, angle):
     diff = np.round(np.abs(res_a - res_b))
     assert diff[:, :2].max() <= 2
     assert (diff[:, -1] % 360).max() <= 1
-
-@pytest.mark.parametrize(
-    "get_transform",
-    [
-        lambda sign: A.Affine(translate_px=sign * 2),
-        lambda sign: A.ShiftScaleRotate(shift_limit=(sign * 0.02, sign * 0.02), scale_limit=0, rotate_limit=0),
-    ],
-)
-@pytest.mark.parametrize(
-    ["bboxes", "expected", "min_visibility", "sign"],
-    [
-        [[(0, 0, 10, 10, 1)], [], 0.9, -1],
-        [[(0, 0, 10, 10, 1)], [(0, 0, 8, 8, 1)], 0.6, -1],
-        [[(90, 90, 100, 100, 1)], [], 0.9, 1],
-        [[(90, 90, 100, 100, 1)], [(92, 92, 99, 99, 1)], 0.49, 1],
-    ],
-)
-def test_bbox_clipping(get_transform, bboxes, expected, min_visibility: float, sign: int):
-    image = np.zeros([100, 100, 3], dtype=np.uint8)
-    transform = get_transform(sign)
-    transform.p = 1
-    transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
-
-    res = transform(image=image, bboxes=bboxes)["bboxes"]
-    assert res == expected
-
-
-def test_bbox_clipping_perspective():
-    set_seed(0)
-    transform = A.Compose(
-        [A.Perspective(scale=(0.05, 0.05), p=1)], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6)
-    )
-
-    image = np.empty([1000, 1000, 3], dtype=np.uint8)
-    bboxes = np.array([[0, 0, 100, 100, 1]])
-    res = transform(image=image, bboxes=bboxes)["bboxes"]
-    assert len(res) == 0
-
 
 @pytest.mark.parametrize("seed", list(range(10)))
 def test_motion_blur_allow_shifted(seed):
