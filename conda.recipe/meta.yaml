@@ -16,12 +16,20 @@ requirements:
     - python
     - numpy>=1.24.4
     - scipy
+    - scikit-learn
+    - pydantic>=2.7
+    - pytorch
+    - typing_extensions
     - opencv-python-headless  # Ensure correct dependency
 
   run:
     - python
     - numpy>=1.24.4
     - scipy
+    - scikit-learn
+    - pydantic>=2.7
+    - pytorch
+    - typing_extensions
     - opencv-python-headless  # Ensure correct dependency
 
 test:

@@ -1,4 +1,4 @@
-__version__ = "1.4.6"
+__version__ = "1.4.7"
 
 from albumentations.check_version import check_for_updates
 
