@@ -1,6 +1,7 @@
 import json
 import logging
 import urllib.request
+from urllib.request import OpenerDirector
 
 from albumentations import __version__ as current_version
 
@@ -9,6 +10,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 SUCCESS_HTML_CODE = 200
+
+opener = None
+
+
+def get_opener() -> OpenerDirector:
+    global opener  # noqa: PLW0603
+    if opener is None:
+        opener = urllib.request.build_opener(urllib.request.HTTPHandler(), urllib.request.HTTPSHandler())
+    return opener
 
 
 def fetch_version_info() -> str:
