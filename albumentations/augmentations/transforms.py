@@ -421,8 +421,8 @@ class RandomSnow(ImageOnlyTransform):
     From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     Args:
-        snow_point_lower: lower_bond of the amount of snow. Should be in [0, 1] range
-        snow_point_upper: upper_bond of the amount of snow. Should be in [0, 1] range
+        snow_point_range: tuple of bounds on the amount of snow i.e. (snow_point_lower, snow_point_upper).
+            Both values should be in [0, 1] range.
         brightness_coeff: larger number will lead to a more snow on the image. Should be >= 0
 
     Targets:
@@ -434,39 +434,67 @@ class RandomSnow(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        snow_point_lower: float = Field(default=0.1, description="Lower bound of the amount of snow", ge=0, le=1)
-        snow_point_upper: float = Field(default=0.3, description="Upper bound of the amount of snow", ge=0, le=1)
+        snow_point_range: Tuple[float, float] = Field(
+            default=(0.1, 0.3),
+            description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
+        )
+        snow_point_lower: Optional[float] = Field(
+            default=0.1,
+            description="Lower bound of the amount of snow",
+            ge=0,
+            le=1,
+            deprecated="`snow_point_lower` and `snow_point_upper` are deprecated."
+            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
+        )
+        snow_point_upper: Optional[float] = Field(
+            default=0.3,
+            description="Upper bound of the amount of snow",
+            ge=0,
+            le=1,
+            deprecated="`snow_point_lower` and `snow_point_upper` are deprecated."
+            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
+        )
         brightness_coeff: float = Field(default=2.5, description="Brightness coefficient, must be >= 0", ge=0)
 
         @model_validator(mode="after")
-        def validate_snow_points(self) -> Self:
-            if self.snow_point_lower > self.snow_point_upper:
-                msg = "snow_point_lower must be less than or equal to snow_point_upper."
-                raise ValueError(msg)
+        def validate_ranges(self) -> Self:
+            # Update the quality_range based on the non-None values of quality_lower and quality_upper
+            if self.snow_point_lower is not None or self.snow_point_upper is not None:
+                lower = self.snow_point_lower if self.snow_point_lower is not None else self.snow_point_range[0]
+                upper = self.snow_point_upper if self.snow_point_upper is not None else self.snow_point_range[1]
+                self.snow_point_range = (lower, upper)
+                # Clear the deprecated individual quality settings
+                self.snow_point_lower = None
+                self.snow_point_upper = None
+
+            # Validate the snow_point_range
+            if not (0 <= self.snow_point_range[0] <= self.snow_point_range[1] <= 1):
+                raise ValueError("snow_point_range values should be increasing within [0, 1] range.")
+
             return self
 
     def __init__(
         self,
-        snow_point_lower: float = 0.1,
-        snow_point_upper: float = 0.3,
+        snow_point_lower: Optional[float] = None,
+        snow_point_upper: Optional[float] = None,
         brightness_coeff: float = 2.5,
+        snow_point_range: Tuple[float, float] = (0.1, 0.3),
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
 
-        self.snow_point_lower = snow_point_lower
-        self.snow_point_upper = snow_point_upper
+        self.snow_point_range = snow_point_range
         self.brightness_coeff = brightness_coeff
 
     def apply(self, img: np.ndarray, snow_point: float, **params: Any) -> np.ndarray:
         return F.add_snow(img, snow_point, self.brightness_coeff)
 
     def get_params(self) -> Dict[str, np.ndarray]:
-        return {"snow_point": random.uniform(self.snow_point_lower, self.snow_point_upper)}
+        return {"snow_point": random.uniform(*self.snow_point_range)}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("snow_point_lower", "snow_point_upper", "brightness_coeff")
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return ("snow_point_range", "brightness_coeff")
 
 
 class RandomGravel(ImageOnlyTransform):
