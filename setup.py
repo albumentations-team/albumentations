@@ -13,8 +13,8 @@ INSTALL_REQUIRES = [
 
 CHOOSE_INSTALL_REQUIRES = [
     (
-        ("opencv-python>=4.9.0", "opencv-contrib-python>=4.9.0", "opencv-contrib-python-headless>=4.9.0"),
-        "opencv-python-headless>=4.9.0",
+        ("opencv-python>=4.5.5.64", "opencv-contrib-python>=4.5.5.64", "opencv-contrib-python-headless>=4.5.5.64"),
+        "opencv-python-headless>=4.5.5.64",
     ),
 ]
 
