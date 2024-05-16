@@ -593,8 +593,7 @@ class RandomRain(ImageOnlyTransform):
     """Adds rain effects.
 
     Args:
-        slant_lower: should be in range [-20, 20].
-        slant_upper: should be in range [-20, 20].
+        slant_range: tuple of type (slant_lower, slant_upper), values should be in range [-20, 20]
         drop_length: should be in range [0, 100].
         drop_width: should be in range [1, 5].
         drop_color (list of (r, g, b)): rain lines color.
@@ -614,8 +613,25 @@ class RandomRain(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        slant_lower: int = Field(default=-10, description="Lower bound for rain slant angle", ge=-20, le=20)
-        slant_upper: int = Field(default=10, description="Upper bound for rain slant angle", ge=-20, le=20)
+        slant_lower: Optional[int] = Field(
+            default=-10,
+            description="Lower bound for rain slant angle",
+            ge=-20,
+            le=20,
+            deprecated="`slant_lower` and `slant_upper` are deprecated."
+            "Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+        )
+        slant_upper: Optional[int] = Field(
+            default=10,
+            description="Upper bound for rain slant angle",
+            ge=-20,
+            le=20,
+            deprecated="`slant_lower` and `slant_upper` are deprecated."
+            "Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+        )
+        slant_range: Tuple[int, int] = Field(
+            default=(-10, 10), description="Tuple like (slant_lower, slant_upper) for rain slant angle"
+        )
         drop_length: int = Field(default=20, description="Length of raindrops", ge=0, le=100)
         drop_width: int = Field(default=1, description="Width of raindrops", ge=1, le=5)
         drop_color: Tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
@@ -629,16 +645,27 @@ class RandomRain(ImageOnlyTransform):
         rain_type: Optional[RainMode] = Field(default=None, description="Type of rain to simulate")
 
         @model_validator(mode="after")
-        def validate_slant_range_and_rain_type(self) -> Self:
-            if self.slant_lower >= self.slant_upper:
-                msg = "slant_upper must be greater than or equal to slant_lower."
-                raise ValueError(msg)
+        def validate_ranges(self) -> Self:
+            # Update the quality_range based on the non-None values of quality_lower and quality_upper
+            if self.slant_lower is not None or self.slant_upper is not None:
+                lower = self.slant_lower if self.slant_lower is not None else self.slant_range[0]
+                upper = self.slant_upper if self.slant_upper is not None else self.slant_range[1]
+                self.slant_range = (lower, upper)
+                # Clear the deprecated individual quality settings
+                self.slant_lower = None
+                self.slant_upper = None
+
+            # Validate the slant_range
+            if not (-TWENTY <= self.slant_range[0] <= self.slant_range[1] <= TWENTY):
+                raise ValueError("slant_range values should be increasing within [-20, 20] range.")
+
             return self
 
     def __init__(
         self,
-        slant_lower: int = -10,
-        slant_upper: int = 10,
+        slant_lower: Optional[int] = None,
+        slant_upper: Optional[int] = None,
+        slant_range: Tuple[int, int] = (-10, 10),
         drop_length: int = 20,
         drop_width: int = 1,
         drop_color: Tuple[int, int, int] = (200, 200, 200),
@@ -649,8 +676,7 @@ class RandomRain(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
-        self.slant_lower = slant_lower
-        self.slant_upper = slant_upper
+        self.slant_range = slant_range
         self.drop_length = drop_length
         self.drop_width = drop_width
         self.drop_color = drop_color
@@ -683,7 +709,7 @@ class RandomRain(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
-        slant = int(random.uniform(self.slant_lower, self.slant_upper))
+        slant = int(random.uniform(*self.slant_range))
 
         height, width = img.shape[:2]
         area = height * width
@@ -714,8 +740,7 @@ class RandomRain(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
-            "slant_lower",
-            "slant_upper",
+            "slant_range",
             "drop_length",
             "drop_width",
             "drop_color",

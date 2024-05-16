@@ -12,7 +12,7 @@ from torchvision import transforms as torch_transforms
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.augmentations.transforms import ImageCompression
+from albumentations.augmentations.transforms import ImageCompression, RandomRain
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
@@ -1524,3 +1524,26 @@ def test_pad_if_needed_functionality(params, expected):
     # Assert each expected key/value pair
     for key, value in expected.items():
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
+
+
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
+    ({}, {"slant_range": (-10, 10)}),
+    # Test custom quality range and compression type
+    ({"slant_range": (-7, 4)},
+     {"slant_range": (-7, 4)}),
+    # Deprecated quality values handling
+    ({"slant_lower": 2}, {"slant_range": (2, 10)}),
+])
+def test_image_compression_initialization(params, expected):
+    img_rain = RandomRain(**params)
+    for key, value in expected.items():
+        assert getattr(img_rain, key) == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"slant_range": (12, 8)}),  # Invalid slant range -> not increasing
+    ({"slant_range": (-8, 32)}),  # invalis slant range -> 32 out of upper bound
+])
+def test_image_compression_invalid_input(params):
+    with pytest.raises(Exception):
+        RandomRain(**params)
