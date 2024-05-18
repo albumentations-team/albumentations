@@ -7,12 +7,13 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage.transform
+from albucore.utils import get_num_channels
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask
-from albumentations.augmentations.utils import BIG_INTEGER, check_range, get_num_channels
+from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.pydantic import (
     BorderModeType,
@@ -23,7 +24,9 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
+    BIG_INTEGER,
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    TWO,
     BoxInternalType,
     ColorType,
     D4Type,
@@ -53,8 +56,6 @@ __all__ = [
     "PadIfNeeded",
     "D4",
 ]
-
-TWO = 2
 
 
 class ElasticTransform(DualTransform):

@@ -2,12 +2,9 @@ from typing import Optional, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
+from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.geometric import functional as FGeometric
-from albumentations.augmentations.utils import (
-    _maybe_process_in_chunks,
-    preserve_channel_dim,
-)
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import BoxInternalType, KeypointInternalType
 
@@ -284,7 +281,7 @@ def crop_and_pad(
         )
 
     if keep_size:
-        resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
+        resize_fn = maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
         return resize_fn(img)
 
     return img

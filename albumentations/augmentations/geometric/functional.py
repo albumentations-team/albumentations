@@ -4,15 +4,11 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 import cv2
 import numpy as np
 import skimage.transform
+from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim
 from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
-from albumentations.augmentations.utils import (
-    _maybe_process_in_chunks,
-    angle_2pi_range,
-    clipped,
-    preserve_channel_dim,
-)
+from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
@@ -253,7 +249,7 @@ def rotate(
     # we get an ugly black border for 90deg rotations
     matrix = cv2.getRotationMatrix2D((width / 2 - 0.5, height / 2 - 0.5), angle, 1.0)
 
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -376,7 +372,7 @@ def elastic_transform(
     )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -416,7 +412,7 @@ def elastic_transform(
     map_x = np.float32(x + dx)
     map_y = np.float32(y + dy)
 
-    remap_fn = _maybe_process_in_chunks(
+    remap_fn = maybe_process_in_chunks(
         cv2.remap,
         map1=map_x,
         map2=map_y,
@@ -429,10 +425,9 @@ def elastic_transform(
 
 @preserve_channel_dim
 def resize(img: np.ndarray, height: int, width: int, interpolation: int) -> np.ndarray:
-    img_height, img_width = img.shape[:2]
     if (height, width) == img.shape[:2]:
         return img
-    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
+    resize_fn = maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)
 
 
@@ -492,7 +487,7 @@ def perspective(
     interpolation: int,
 ) -> np.ndarray:
     height, width = img.shape[:2]
-    perspective_func = _maybe_process_in_chunks(
+    perspective_func = maybe_process_in_chunks(
         cv2.warpPerspective,
         M=matrix,
         dsize=(max_width, max_height),
@@ -593,7 +588,7 @@ def warp_affine(
         return image
 
     dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix.params[:2],
         dsize=dsize,
@@ -667,7 +662,7 @@ def safe_rotate(
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
     height, width = img.shape[:2]
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -1212,7 +1207,7 @@ def pad_with_params(
     border_mode: int,
     value: Optional[ColorType],
 ) -> np.ndarray:
-    pad_fn = _maybe_process_in_chunks(
+    pad_fn = maybe_process_in_chunks(
         cv2.copyMakeBorder,
         top=h_pad_top,
         bottom=h_pad_bottom,
@@ -1305,7 +1300,7 @@ def grid_distortion(
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
 
-    remap_fn = _maybe_process_in_chunks(
+    remap_fn = maybe_process_in_chunks(
         cv2.remap,
         map1=map_x,
         map2=map_y,
@@ -1357,7 +1352,7 @@ def elastic_transform_approx(
     )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -1380,7 +1375,7 @@ def elastic_transform_approx(
     map_x = np.float32(x + dx)
     map_y = np.float32(y + dy)
 
-    remap_fn = _maybe_process_in_chunks(
+    remap_fn = maybe_process_in_chunks(
         cv2.remap,
         map1=map_x,
         map2=map_y,
