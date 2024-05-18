@@ -270,20 +270,6 @@ def test_random_crop_extrema():
     assert np.array_equal(cropped_img2, expected2)
 
 
-# def test_clip():
-#     img = np.array([[-300, 0], [100, 400]], dtype=np.float32)
-#     expected = np.array([[0, 0], [100, 255]], dtype=np.float32)
-#     clipped = F.clip(img, dtype=np.uint8, maxval=255)
-#     assert np.array_equal(clipped, expected)
-
-
-# def test_clip_float():
-#     img = np.array([[-0.02, 0], [0.5, 2.2]], dtype=np.float32)
-#     expected = np.array([[0, 0], [0.5, 1.0]], dtype=np.float32)
-#     clipped = F.clip(img, dtype=np.float32, maxval=1.0)
-#     assert_array_almost_equal_nulp(clipped, expected)
-
-
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_pad(target):
     img = np.array([[1, 2], [3, 4]], dtype=np.uint8)
@@ -749,28 +735,6 @@ def test_brightness_contrast():
         F._brightness_contrast_adjust_non_uint(image_uint8), F._brightness_contrast_adjust_uint(image_uint8)
     )
 
-    # dtype = np.uint16
-    # min_value = np.iinfo(dtype).min
-    # max_value = np.iinfo(dtype).max
-
-    # image_uint16 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
-
-    # assert np.array_equal(
-    #     F.brightness_contrast_adjust(image_uint16), F._brightness_contrast_adjust_non_uint(image_uint16)
-    # )
-
-    # F.brightness_contrast_adjust(image_uint16)
-
-    # dtype = np.uint32
-    # min_value = np.iinfo(dtype).min
-    # max_value = np.iinfo(dtype).max
-
-    # image_uint32 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
-
-    # assert np.array_equal(
-    #     F.brightness_contrast_adjust(image_uint32), F._brightness_contrast_adjust_non_uint(image_uint32)
-    # )
-
     image_float = np.random.random((5, 5, 3)).astype(np.float32)
 
     assert np.array_equal(
@@ -820,10 +784,6 @@ def test_brightness_contrast():
             [1, 0],
             np.array([[3, 4], [1, 2]], dtype=np.uint8)  # Corrected expectation
         ),
-
-        # Test with splitting tiles diag
-
-        # Other tests remain the same if they correctly represent what your function does
     ]
 )
 def test_swap_tiles_on_image(img, tiles, mapping, expected):
@@ -977,32 +937,11 @@ def test_maybe_process_in_chunks():
         assert before.shape == after.shape
 
 
-# def test_multiply_uint8_optimized():
-#     image = np.random.randint(0, 256, [256, 320], np.uint8)
-#     m = 1.5
-
-#     result = F._multiply_uint8_optimized(image, [m])
-#     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-#     assert np.all(tmp == result)
-
-#     image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
-#     result = F._multiply_uint8_optimized(image, [m])
-#     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-#     assert np.all(tmp == result)
-
-#     m = np.array([1.5, 0.75, 1.1])
-#     image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
-#     result = F._multiply_uint8_optimized(image, m)
-#     tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-#     assert np.all(tmp == result)
-
-
 @pytest.mark.parametrize(
     "img", [np.random.randint(0, 256, [100, 100], dtype=np.uint8), np.random.random([100, 100]).astype(np.float32)]
 )
 def test_shift_hsv_gray(img):
     F.shift_hsv(img, 0.5, 0.5, 0.5)
-
 
 
 @pytest.mark.parametrize(
