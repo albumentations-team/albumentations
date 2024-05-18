@@ -8,7 +8,7 @@ import skimage
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.augmentations.utils import get_opencv_dtype_from_numpy, is_multispectral_image, MAX_VALUES_BY_DTYPE
+from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE
 
 from albumentations.core.types import d4_group_elements
 from tests.conftest import IMAGES, RECTANGULAR_IMAGES
@@ -270,20 +270,6 @@ def test_random_crop_extrema():
     assert np.array_equal(cropped_img2, expected2)
 
 
-def test_clip():
-    img = np.array([[-300, 0], [100, 400]], dtype=np.float32)
-    expected = np.array([[0, 0], [100, 255]], dtype=np.float32)
-    clipped = F.clip(img, dtype=np.uint8, maxval=255)
-    assert np.array_equal(clipped, expected)
-
-
-def test_clip_float():
-    img = np.array([[-0.02, 0], [0.5, 2.2]], dtype=np.float32)
-    expected = np.array([[0, 0], [0.5, 1.0]], dtype=np.float32)
-    clipped = F.clip(img, dtype=np.float32, maxval=1.0)
-    assert_array_almost_equal_nulp(clipped, expected)
-
-
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_pad(target):
     img = np.array([[1, 2], [3, 4]], dtype=np.uint8)
@@ -422,7 +408,7 @@ def test_to_float(dtype, expected_divider, max_value):
     assert actual.dtype == np.float32, "Resulting dtype is not float32."
 
 
-@pytest.mark.parametrize("dtype", [np.float64, np.int64])
+@pytest.mark.parametrize("dtype", [np.int64])
 def test_to_float_raises_for_unsupported_dtype_without_max_value(dtype):
     img = np.ones((100, 100, 3), dtype=dtype)
     with pytest.raises(RuntimeError) as exc_info:
@@ -430,10 +416,10 @@ def test_to_float_raises_for_unsupported_dtype_without_max_value(dtype):
     assert "Unsupported dtype" in str(exc_info.value)
 
 
-@pytest.mark.parametrize("dtype", [np.float64, np.int64])
+@pytest.mark.parametrize("dtype", [np.int64])
 def test_to_float_with_max_value_for_unsupported_dtypes(dtype):
     img = np.ones((100, 100, 3), dtype=dtype)
-    max_value = 1.0 if dtype == np.float64 else np.iinfo(dtype).max
+    max_value = np.iinfo(dtype).max
     expected = (img.astype(np.float32) / max_value).astype(np.float32)
     actual = F.to_float(img, max_value=max_value)
     assert_almost_equal(actual, expected, decimal=6)
@@ -457,7 +443,7 @@ def test_from_float(dtype, multiplier, max_value):
     assert_array_almost_equal_nulp(actual, expected)
 
 
-@pytest.mark.parametrize("dtype", [np.int64, np.float64])
+@pytest.mark.parametrize("dtype", [np.int64])
 def test_from_float_unsupported_dtype_without_max_value(dtype):
     img = np.random.rand(100, 100, 3).astype(np.float32)
     with pytest.raises(RuntimeError) as exc_info:
@@ -749,29 +735,7 @@ def test_brightness_contrast():
         F._brightness_contrast_adjust_non_uint(image_uint8), F._brightness_contrast_adjust_uint(image_uint8)
     )
 
-    dtype = np.uint16
-    min_value = np.iinfo(dtype).min
-    max_value = np.iinfo(dtype).max
-
-    image_uint16 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
-
-    assert np.array_equal(
-        F.brightness_contrast_adjust(image_uint16), F._brightness_contrast_adjust_non_uint(image_uint16)
-    )
-
-    F.brightness_contrast_adjust(image_uint16)
-
-    dtype = np.uint32
-    min_value = np.iinfo(dtype).min
-    max_value = np.iinfo(dtype).max
-
-    image_uint32 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
-
-    assert np.array_equal(
-        F.brightness_contrast_adjust(image_uint32), F._brightness_contrast_adjust_non_uint(image_uint32)
-    )
-
-    image_float = np.random.random((5, 5, 3))
+    image_float = np.random.random((5, 5, 3)).astype(np.float32)
 
     assert np.array_equal(
         F.brightness_contrast_adjust(image_float), F._brightness_contrast_adjust_non_uint(image_float)
@@ -820,10 +784,6 @@ def test_brightness_contrast():
             [1, 0],
             np.array([[3, 4], [1, 2]], dtype=np.uint8)  # Corrected expectation
         ),
-
-        # Test with splitting tiles diag
-
-        # Other tests remain the same if they correctly represent what your function does
     ]
 )
 def test_swap_tiles_on_image(img, tiles, mapping, expected):
@@ -831,9 +791,9 @@ def test_swap_tiles_on_image(img, tiles, mapping, expected):
     assert np.array_equal(result_img, expected)
 
 
-@pytest.mark.parametrize("dtype", list(F.MAX_VALUES_BY_DTYPE.keys()))
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
 def test_solarize(dtype):
-    max_value = F.MAX_VALUES_BY_DTYPE[dtype]
+    max_value = MAX_VALUES_BY_DTYPE[dtype]
 
     if dtype == np.dtype("float32"):
         img = np.arange(2**10, dtype=np.float32) / (2**10)
@@ -976,45 +936,11 @@ def test_maybe_process_in_chunks():
         assert before.shape == after.shape
 
 
-def test_multiply_uint8_optimized():
-    image = np.random.randint(0, 256, [256, 320], np.uint8)
-    m = 1.5
-
-    result = F._multiply_uint8_optimized(image, [m])
-    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.all(tmp == result)
-
-    image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
-    result = F._multiply_uint8_optimized(image, [m])
-    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.all(tmp == result)
-
-    m = np.array([1.5, 0.75, 1.1])
-    image = np.random.randint(0, 256, [256, 320, 3], np.uint8)
-    result = F._multiply_uint8_optimized(image, m)
-    tmp = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.all(tmp == result)
-
-
 @pytest.mark.parametrize(
     "img", [np.random.randint(0, 256, [100, 100], dtype=np.uint8), np.random.random([100, 100]).astype(np.float32)]
 )
 def test_shift_hsv_gray(img):
     F.shift_hsv(img, 0.5, 0.5, 0.5)
-
-
-def test_cv_dtype_from_np():
-    assert get_opencv_dtype_from_numpy(np.uint8) == cv2.CV_8U
-    assert get_opencv_dtype_from_numpy(np.uint16) == cv2.CV_16U
-    assert get_opencv_dtype_from_numpy(np.float32) == cv2.CV_32F
-    assert get_opencv_dtype_from_numpy(np.float64) == cv2.CV_64F
-    assert get_opencv_dtype_from_numpy(np.int32) == cv2.CV_32S
-
-    assert get_opencv_dtype_from_numpy(np.dtype("uint8")) == cv2.CV_8U
-    assert get_opencv_dtype_from_numpy(np.dtype("uint16")) == cv2.CV_16U
-    assert get_opencv_dtype_from_numpy(np.dtype("float32")) == cv2.CV_32F
-    assert get_opencv_dtype_from_numpy(np.dtype("float64")) == cv2.CV_64F
-    assert get_opencv_dtype_from_numpy(np.dtype("int32")) == cv2.CV_32S
 
 
 @pytest.mark.parametrize(

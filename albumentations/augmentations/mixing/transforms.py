@@ -4,11 +4,11 @@ from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Opt
 from warnings import warn
 
 import numpy as np
+from albucore.utils import is_grayscale_image
 from pydantic import Field
 from typing_extensions import Annotated
 
 from albumentations.augmentations.functional import add_weighted
-from albumentations.augmentations.utils import is_grayscale_image
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
 from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
 from albumentations.random_utils import beta

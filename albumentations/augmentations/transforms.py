@@ -8,6 +8,8 @@ from warnings import warn
 
 import cv2
 import numpy as np
+from albucore.functions import multiply
+from albucore.utils import get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
@@ -16,12 +18,7 @@ from typing_extensions import Annotated, Literal, Self, TypedDict
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
-from albumentations.augmentations.utils import (
-    check_range,
-    get_num_channels,
-    is_grayscale_image,
-    is_rgb_image,
-)
+from albumentations.augmentations.utils import check_range
 from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
@@ -32,7 +29,8 @@ from albumentations.core.pydantic import (
     SymmetricRangeType,
     ZeroOneRangeType,
     check_01_range,
-    check_nondecreasing_range,
+    nondecreasing,
+    range_0plus,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -1236,7 +1234,7 @@ class Solarize(ImageOnlyTransform):
         image
 
     Image types:
-        any
+        uint8, float32
 
     """
 
@@ -1251,7 +1249,7 @@ class Solarize(ImageOnlyTransform):
         return F.solarize(img, threshold)
 
     def get_params(self) -> Dict[str, float]:
-        return {"threshold": random.uniform(self.threshold[0], self.threshold[1])}
+        return {"threshold": random_utils.uniform(self.threshold[0], self.threshold[1])}
 
     def get_transform_init_args_names(self) -> Tuple[str]:
         return ("threshold",)
@@ -1991,9 +1989,10 @@ class Downscale(ImageOnlyTransform):
         )
         interpolation_pair: InterpolationPydantic
 
-        scale_range: Annotated[
-            Tuple[float, float], AfterValidator(check_01_range), AfterValidator(check_nondecreasing_range)
-        ] = (0.25, 0.25)
+        scale_range: Annotated[Tuple[float, float], AfterValidator(check_01_range), AfterValidator(nondecreasing)] = (
+            0.25,
+            0.25,
+        )
 
         @model_validator(mode="after")
         def validate_params(self) -> Self:
@@ -2143,60 +2142,64 @@ class Lambda(NoOp):
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
-    """Multiply image to random number or array of numbers.
+    """Multiply image by a random number or array of numbers.
 
     Args:
-        multiplier: If single float image will be multiplied to this number.
-            If tuple of float multiplier will be in range `[multiplier[0], multiplier[1])`. Default: (0.9, 1.1).
-        per_channel: If `False`, same values for all channels will be used.
-            If `True` use sample values for each channels. Default False.
-        elementwise: If `False` multiply multiply all pixels in an image with a random value sampled once.
-            If `True` Multiply image pixels with values that are pixelwise randomly sampled. Default: False.
+        multiplier: If a single float, the image will be multiplied by this number.
+            If a tuple of floats, the multiplier will be a random number in the range `[multiplier[0], multiplier[1])`.
+            Default: (0.9, 1.1).
+        elementwise: If `False`, multiply all pixels in the image by a single random value sampled once.
+            If `True`, multiply image pixels by values that are pixelwise randomly sampled. Default: False.
+        p: Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
-        Any
+        uint8, np.float32
 
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: NonNegativeFloatRangeType = (0.9, 1.1)
-        per_channel: bool = Field(default=False, description="Apply multiplier per channel.")
+        multiplier: Annotated[Tuple[float, float], AfterValidator(range_0plus), AfterValidator(nondecreasing)] = (
+            0.9,
+            1.1,
+        )
+        per_channel: Optional[bool] = Field(
+            default=False,
+            description="Apply multiplier per channel.",
+            deprecated="Does not have any effect. Will be removed in future releases.",
+        )
         elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
 
     def __init__(
         self,
         multiplier: ScaleFloatType = (0.9, 1.1),
-        per_channel: bool = False,
+        per_channel: Optional[bool] = None,
         elementwise: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.multiplier = cast(Tuple[float, float], multiplier)
-        self.per_channel = per_channel
         self.elementwise = elementwise
 
-    def apply(self, img: np.ndarray, multiplier: float, **kwargs: Any) -> np.ndarray:
-        return F.multiply(img, multiplier)
+    def apply(
+        self, img: np.ndarray, multiplier: Union[float, np.ndarray, Sequence[float]], **kwargs: Any
+    ) -> np.ndarray:
+        return multiply(img, multiplier)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         if self.multiplier[0] == self.multiplier[1]:
-            return {"multiplier": np.array([self.multiplier[0]])}
+            return {"multiplier": self.multiplier[0]}
 
         img = params["image"]
 
-        height, width = img.shape[:2]
+        num_channels = get_num_channels(img)
 
-        num_channels = (1 if is_grayscale_image(img) else img.shape[-1]) if self.per_channel else 1
+        shape = img.shape if self.elementwise else [num_channels]
 
-        shape = [height, width, num_channels] if self.elementwise else [num_channels]
-
-        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], tuple(shape))
-        if img.ndim == MONO_CHANNEL_DIMENSIONS:
-            multiplier = np.squeeze(multiplier)
+        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
         return {"multiplier": multiplier}
 
@@ -2205,7 +2208,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return "multiplier", "per_channel", "elementwise"
+        return "multiplier", "elementwise"
 
 
 class FancyPCA(ImageOnlyTransform):
@@ -2358,7 +2361,7 @@ class ColorJitter(ImageOnlyTransform):
             raise TypeError(msg)
         color_transforms = [brightness, contrast, saturation, hue]
         for i in order:
-            img = self.transforms[i](img, color_transforms[i])  # type: ignore[operator]
+            img = self.transforms[i](img, color_transforms[i])
         return img
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
