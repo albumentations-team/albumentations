@@ -791,7 +791,6 @@ def test_swap_tiles_on_image(img, tiles, mapping, expected):
     assert np.array_equal(result_img, expected)
 
 
-# @pytest.mark.parametrize("dtype", list(MAX_VALUES_BY_DTYPE.keys()))
 @pytest.mark.parametrize("dtype", [np.uint8, np.float32])
 def test_solarize(dtype):
     max_value = MAX_VALUES_BY_DTYPE[dtype]
