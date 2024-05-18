@@ -583,7 +583,7 @@ def test_multiplicative_noise_rgb(image, elementwise):
         assert mul.shape == (image.shape[-1],)
 
     result = aug.apply(image, mul)
-    assert np.allclose(clip(image.astype(np.float32) * mul.astype(np.float64), dtype), result)
+    assert np.allclose(clip(image.astype(np.float32) * mul.astype(np.float32), dtype), result)
 
 
 def test_mask_dropout():

@@ -64,7 +64,9 @@ jobs:
         path: build
     - name: Run PyTest
       run: pytest --cov .
+
     - name: Upload coverage reports to Codecov
+      if: matrix.operating-system == 'ubuntu-latest' && matrix.python-version == '3.8'
       uses: codecov/codecov-action@v4.3.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
