@@ -2,11 +2,11 @@ import random
 from typing import Any, Dict, List, Mapping, Tuple
 
 import numpy as np
+from albucore.utils import is_grayscale_image
 from pydantic import Field
 from typing_extensions import Annotated
 
 from albumentations import random_utils
-from albumentations.augmentations.utils import is_grayscale_image
 from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ColorType
