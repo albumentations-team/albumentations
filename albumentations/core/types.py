@@ -2,6 +2,7 @@ from enum import Enum, IntEnum
 from typing import Any, Literal, Sequence, Tuple, Union
 
 import numpy as np
+from albucore.utils import MAX_VALUES_BY_DTYPE
 from typing_extensions import NotRequired, TypedDict
 
 ScalarType = Union[int, float]
@@ -70,3 +71,11 @@ class ImageCompressionType(IntEnum):
 NUM_MULTI_CHANNEL_DIMENSIONS = 3
 MONO_CHANNEL_DIMENSIONS = 2
 NUM_RGB_CHANNELS = 3
+
+TWO = 2
+THREE = 3
+FOUR = 4
+EIGHT = 8
+THREE_SIXTY = 360
+
+BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]

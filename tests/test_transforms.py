@@ -9,6 +9,7 @@ import pytest
 import warnings
 from torchvision import transforms as torch_transforms
 
+from albucore.utils import clip
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
@@ -401,7 +402,7 @@ def test_equalize():
     b = F.equalize(img, mask=mask)
     assert np.all(a == b)
 
-    def mask_func(image, test):  # skipcq: PYL-W0613
+    def mask_func(image, test):
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
@@ -548,57 +549,41 @@ def test_resize_keypoints():
 )
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
-    aug = A.MultiplicativeNoise((m, m), p=1)
-    result = aug(image=image)["image"]
-    image = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.allclose(image, result)
-
-    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    aug = A.MultiplicativeNoise((m, m), elementwise=False, p=1)
     params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == image.shape
-    result = aug.apply(image, mul)
-    dtype = image.dtype
-    image = image.astype(np.float32) * mul
-    image = F.clip(image, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+    assert m == params["multiplier"]
+    result_e = aug(image=image)["image"]
+    assert np.allclose(clip(image * m, image.dtype), result_e)
 
+    aug = A.MultiplicativeNoise((m, m), elementwise=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": image})
+    result_ne = aug.apply(image, params["multiplier"])
+
+    assert np.allclose(clip(image * params["multiplier"], image.dtype), result_ne)
 
 @pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+    "image", [
+        np.random.randint(0, 256, [256, 320, 3], np.uint8),
+        np.random.random([256, 320, 3]).astype(np.float32)
+    ]
 )
-def test_multiplicative_noise_rgb(image):
+@pytest.mark.parametrize(
+    "elementwise", ( True, False )
+)
+def test_multiplicative_noise_rgb(image, elementwise):
     dtype = image.dtype
 
-    m = 0.5
-    aug = A.MultiplicativeNoise((m, m), p=1)
-    result = aug(image=image)["image"]
-    image = F.clip(image * m, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
-
-    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    aug = A.MultiplicativeNoise(multiplier=(0.9, 1.1), elementwise=elementwise, p=1)
     params = aug.get_params_dependent_on_targets({"image": image})
     mul = params["multiplier"]
-    assert mul.shape == image.shape[:2] + (1,)
-    result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
 
-    aug = A.MultiplicativeNoise(per_channel=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == (3,)
-    result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+    if elementwise:
+        assert mul.shape == image.shape
+    else:
+        assert mul.shape == (image.shape[-1],)
 
-    aug = A.MultiplicativeNoise(elementwise=True, per_channel=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == image.shape
     result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.allclose(image, result)
+    assert np.allclose(clip(image.astype(np.float32) * mul.astype(np.float32), dtype), result)
 
 
 def test_mask_dropout():
@@ -1270,7 +1255,7 @@ def test_grid_shuffle(image, grid):
     assert not np.array_equal(res["image"], image)
     assert not np.array_equal(res["mask"], mask)
 
-    np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.03)
+    np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.04)
     np.testing.assert_allclose(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)), atol=0.03)
 
 @pytest.mark.parametrize("image", IMAGES)

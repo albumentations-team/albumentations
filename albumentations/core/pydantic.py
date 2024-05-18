@@ -81,7 +81,13 @@ def check_1plus_range(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType,
     return value
 
 
-def check_nondecreasing_range(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+def range_0plus(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+    if any(x < 0 for x in value):
+        raise ValueError(f"All values should be >= 0, got {value} instead")
+    return value
+
+
+def nondecreasing(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
     if not value[0] <= value[1]:
         raise ValueError(f"First value should be less than the second value, got {value} instead")
     return value
@@ -98,7 +104,7 @@ OnePlusIntRangeType = Annotated[
 OnePlusIntNonDecreasingRangeType = Annotated[
     Tuple[ScalarType, ScalarType],
     AfterValidator(check_1plus_range),
-    AfterValidator(check_nondecreasing_range),
+    AfterValidator(nondecreasing),
     AfterValidator(float2int),
 ]
 
