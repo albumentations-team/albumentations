@@ -8,6 +8,8 @@ from warnings import warn
 
 import cv2
 import numpy as np
+from albucore.functions import multiply
+from albucore.utils import get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
@@ -16,12 +18,7 @@ from typing_extensions import Annotated, Literal, Self, TypedDict
 from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
-from albumentations.augmentations.utils import (
-    check_range,
-    get_num_channels,
-    is_grayscale_image,
-    is_rgb_image,
-)
+from albumentations.augmentations.utils import check_range
 from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
@@ -32,7 +29,8 @@ from albumentations.core.pydantic import (
     SymmetricRangeType,
     ZeroOneRangeType,
     check_01_range,
-    check_nondecreasing_range,
+    nondecreasing,
+    range_0plus,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -416,14 +414,15 @@ class ImageCompression(ImageOnlyTransform):
 
 
 class RandomSnow(ImageOnlyTransform):
-    """Bleach out some pixel values simulating snow.
-
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    """Bleach out some pixel values imitating snow.
 
     Args:
-        snow_point_lower: lower_bond of the amount of snow. Should be in [0, 1] range
-        snow_point_upper: upper_bond of the amount of snow. Should be in [0, 1] range
-        brightness_coeff: larger number will lead to a more snow on the image. Should be >= 0
+        snow_point_range (tuple): Tuple of bounds on the amount of snow i.e. (snow_point_lower, snow_point_upper).
+            Both values should be in the (0, 1) range. Default: (0.1, 0.3).
+        brightness_coeff (float): Coefficient applied to increase the brightness of pixels
+            below the snow_point threshold. Larger values lead to more pronounced snow effects.
+            Should be > 0. Default: 2.5.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -431,42 +430,73 @@ class RandomSnow(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+
     """
 
     class InitSchema(BaseTransformInitSchema):
-        snow_point_lower: float = Field(default=0.1, description="Lower bound of the amount of snow", ge=0, le=1)
-        snow_point_upper: float = Field(default=0.3, description="Upper bound of the amount of snow", ge=0, le=1)
-        brightness_coeff: float = Field(default=2.5, description="Brightness coefficient, must be >= 0", ge=0)
+        snow_point_range: Annotated[
+            Tuple[float, float], AfterValidator(check_01_range), AfterValidator(nondecreasing)
+        ] = Field(
+            default=(0.1, 0.3),
+            description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
+        )
+        snow_point_lower: Optional[float] = Field(
+            default=None,
+            description="Lower bound of the amount of snow",
+            gt=0,
+            lt=1,
+            deprecated="`snow_point_lower` deprecated."
+            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
+        )
+        snow_point_upper: Optional[float] = Field(
+            default=None,
+            description="Upper bound of the amount of snow",
+            gt=0,
+            lt=1,
+            deprecated="`snow_point_upper` deprecated."
+            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
+        )
+        brightness_coeff: float = Field(default=2.5, description="Brightness coefficient, must be > 0", gt=0)
 
         @model_validator(mode="after")
-        def validate_snow_points(self) -> Self:
-            if self.snow_point_lower > self.snow_point_upper:
-                msg = "snow_point_lower must be less than or equal to snow_point_upper."
-                raise ValueError(msg)
+        def validate_ranges(self) -> Self:
+            if self.snow_point_lower is not None or self.snow_point_upper is not None:
+                lower = self.snow_point_lower if self.snow_point_lower is not None else self.snow_point_range[0]
+                upper = self.snow_point_upper if self.snow_point_upper is not None else self.snow_point_range[1]
+                self.snow_point_range = (lower, upper)
+                self.snow_point_lower = None
+                self.snow_point_upper = None
+
+            # Validate the snow_point_range
+            if not (0 < self.snow_point_range[0] <= self.snow_point_range[1] < 1):
+                raise ValueError("snow_point_range values should be increasing within (0, 1) range.")
+
             return self
 
     def __init__(
         self,
-        snow_point_lower: float = 0.1,
-        snow_point_upper: float = 0.3,
+        snow_point_lower: Optional[float] = None,
+        snow_point_upper: Optional[float] = None,
         brightness_coeff: float = 2.5,
+        snow_point_range: Tuple[float, float] = (0.1, 0.3),
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
 
-        self.snow_point_lower = snow_point_lower
-        self.snow_point_upper = snow_point_upper
+        self.snow_point_range = snow_point_range
         self.brightness_coeff = brightness_coeff
 
     def apply(self, img: np.ndarray, snow_point: float, **params: Any) -> np.ndarray:
         return F.add_snow(img, snow_point, self.brightness_coeff)
 
     def get_params(self) -> Dict[str, np.ndarray]:
-        return {"snow_point": random.uniform(self.snow_point_lower, self.snow_point_upper)}
+        return {"snow_point": random_utils.uniform(*self.snow_point_range)}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("snow_point_lower", "snow_point_upper", "brightness_coeff")
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return "snow_point_range", "brightness_coeff"
 
 
 class RandomGravel(ImageOnlyTransform):
@@ -1233,7 +1263,7 @@ class Solarize(ImageOnlyTransform):
         image
 
     Image types:
-        any
+        uint8, float32
 
     """
 
@@ -1248,7 +1278,7 @@ class Solarize(ImageOnlyTransform):
         return F.solarize(img, threshold)
 
     def get_params(self) -> Dict[str, float]:
-        return {"threshold": random.uniform(self.threshold[0], self.threshold[1])}
+        return {"threshold": random_utils.uniform(self.threshold[0], self.threshold[1])}
 
     def get_transform_init_args_names(self) -> Tuple[str]:
         return ("threshold",)
@@ -1988,9 +2018,10 @@ class Downscale(ImageOnlyTransform):
         )
         interpolation_pair: InterpolationPydantic
 
-        scale_range: Annotated[
-            Tuple[float, float], AfterValidator(check_01_range), AfterValidator(check_nondecreasing_range)
-        ] = (0.25, 0.25)
+        scale_range: Annotated[Tuple[float, float], AfterValidator(check_01_range), AfterValidator(nondecreasing)] = (
+            0.25,
+            0.25,
+        )
 
         @model_validator(mode="after")
         def validate_params(self) -> Self:
@@ -2140,60 +2171,64 @@ class Lambda(NoOp):
 
 
 class MultiplicativeNoise(ImageOnlyTransform):
-    """Multiply image to random number or array of numbers.
+    """Multiply image by a random number or array of numbers.
 
     Args:
-        multiplier: If single float image will be multiplied to this number.
-            If tuple of float multiplier will be in range `[multiplier[0], multiplier[1])`. Default: (0.9, 1.1).
-        per_channel: If `False`, same values for all channels will be used.
-            If `True` use sample values for each channels. Default False.
-        elementwise: If `False` multiply multiply all pixels in an image with a random value sampled once.
-            If `True` Multiply image pixels with values that are pixelwise randomly sampled. Default: False.
+        multiplier: If a single float, the image will be multiplied by this number.
+            If a tuple of floats, the multiplier will be a random number in the range `[multiplier[0], multiplier[1])`.
+            Default: (0.9, 1.1).
+        elementwise: If `False`, multiply all pixels in the image by a single random value sampled once.
+            If `True`, multiply image pixels by values that are pixelwise randomly sampled. Default: False.
+        p: Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
 
     Image types:
-        Any
+        uint8, np.float32
 
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: NonNegativeFloatRangeType = (0.9, 1.1)
-        per_channel: bool = Field(default=False, description="Apply multiplier per channel.")
+        multiplier: Annotated[Tuple[float, float], AfterValidator(range_0plus), AfterValidator(nondecreasing)] = (
+            0.9,
+            1.1,
+        )
+        per_channel: Optional[bool] = Field(
+            default=False,
+            description="Apply multiplier per channel.",
+            deprecated="Does not have any effect. Will be removed in future releases.",
+        )
         elementwise: bool = Field(default=False, description="Apply multiplier element-wise to pixels.")
 
     def __init__(
         self,
         multiplier: ScaleFloatType = (0.9, 1.1),
-        per_channel: bool = False,
+        per_channel: Optional[bool] = None,
         elementwise: bool = False,
         always_apply: bool = False,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.multiplier = cast(Tuple[float, float], multiplier)
-        self.per_channel = per_channel
         self.elementwise = elementwise
 
-    def apply(self, img: np.ndarray, multiplier: float, **kwargs: Any) -> np.ndarray:
-        return F.multiply(img, multiplier)
+    def apply(
+        self, img: np.ndarray, multiplier: Union[float, np.ndarray, Sequence[float]], **kwargs: Any
+    ) -> np.ndarray:
+        return multiply(img, multiplier)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         if self.multiplier[0] == self.multiplier[1]:
-            return {"multiplier": np.array([self.multiplier[0]])}
+            return {"multiplier": self.multiplier[0]}
 
         img = params["image"]
 
-        height, width = img.shape[:2]
+        num_channels = get_num_channels(img)
 
-        num_channels = (1 if is_grayscale_image(img) else img.shape[-1]) if self.per_channel else 1
+        shape = img.shape if self.elementwise else [num_channels]
 
-        shape = [height, width, num_channels] if self.elementwise else [num_channels]
-
-        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], tuple(shape))
-        if img.ndim == MONO_CHANNEL_DIMENSIONS:
-            multiplier = np.squeeze(multiplier)
+        multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
         return {"multiplier": multiplier}
 
@@ -2202,7 +2237,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return "multiplier", "per_channel", "elementwise"
+        return "multiplier", "elementwise"
 
 
 class FancyPCA(ImageOnlyTransform):
@@ -2355,7 +2390,7 @@ class ColorJitter(ImageOnlyTransform):
             raise TypeError(msg)
         color_transforms = [brightness, contrast, saturation, hue]
         for i in order:
-            img = self.transforms[i](img, color_transforms[i])  # type: ignore[operator]
+            img = self.transforms[i](img, color_transforms[i])
         return img
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:

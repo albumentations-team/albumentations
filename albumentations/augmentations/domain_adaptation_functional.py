@@ -4,20 +4,13 @@ from typing import Optional, Tuple
 
 import cv2
 import numpy as np
+from albucore.utils import clipped, get_num_channels, get_opencv_dtype_from_numpy, preserve_channel_dim
 from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from typing_extensions import Protocol
 
-from albumentations.augmentations.utils import (
-    clipped,
-    get_opencv_dtype_from_numpy,
-    preserve_channel_dim,
-)
-
-GRAYSCALE_IMAGE_SHAPE = 2
-NON_GRAY_IMAGE_SHAPE = 3
-RGB_NUM_CHANNELS = 3
+from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
 
 __all__ = [
     "fourier_domain_adaptation",
@@ -120,9 +113,9 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     src_img = img.astype(np.float32)
     trg_img = target_img.astype(np.float32)
 
-    if len(src_img.shape) == GRAYSCALE_IMAGE_SHAPE:
+    if len(src_img.shape) == MONO_CHANNEL_DIMENSIONS:
         src_img = np.expand_dims(src_img, axis=-1)
-    if len(trg_img.shape) == GRAYSCALE_IMAGE_SHAPE:
+    if len(trg_img.shape) == MONO_CHANNEL_DIMENSIONS:
         trg_img = np.expand_dims(trg_img, axis=-1)
 
     num_channels = src_img.shape[-1]
@@ -168,7 +161,7 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
     img, reference_image = np.squeeze(img), np.squeeze(reference_image)
 
     # Determine if the images are multi-channel based on a predefined condition or shape analysis
-    is_multichannel = img.ndim == NON_GRAY_IMAGE_SHAPE and img.shape[2] == RGB_NUM_CHANNELS
+    is_multichannel = get_num_channels(img) > 1
 
     # Match histograms between the images
     matched = match_histograms(img, reference_image, channel_axis=2 if is_multichannel else None)

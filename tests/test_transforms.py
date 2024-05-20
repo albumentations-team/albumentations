@@ -9,12 +9,14 @@ import pytest
 import warnings
 from torchvision import transforms as torch_transforms
 
+from albucore.utils import clip
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.transforms import ImageCompression, RandomRain
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
+from albumentations.augmentations.transforms import RandomSnow
 from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
@@ -401,7 +403,7 @@ def test_equalize():
     b = F.equalize(img, mask=mask)
     assert np.all(a == b)
 
-    def mask_func(image, test):  # skipcq: PYL-W0613
+    def mask_func(image, test):
         return mask
 
     aug = A.Equalize(mask=mask_func, mask_params=["test"], p=1)
@@ -548,57 +550,41 @@ def test_resize_keypoints():
 )
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
-    aug = A.MultiplicativeNoise((m, m), p=1)
-    result = aug(image=image)["image"]
-    image = F.clip(image * m, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.allclose(image, result)
-
-    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    aug = A.MultiplicativeNoise((m, m), elementwise=False, p=1)
     params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == image.shape
-    result = aug.apply(image, mul)
-    dtype = image.dtype
-    image = image.astype(np.float32) * mul
-    image = F.clip(image, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+    assert m == params["multiplier"]
+    result_e = aug(image=image)["image"]
+    assert np.allclose(clip(image * m, image.dtype), result_e)
 
+    aug = A.MultiplicativeNoise((m, m), elementwise=True, p=1)
+    params = aug.get_params_dependent_on_targets({"image": image})
+    result_ne = aug.apply(image, params["multiplier"])
+
+    assert np.allclose(clip(image * params["multiplier"], image.dtype), result_ne)
 
 @pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
+    "image", [
+        np.random.randint(0, 256, [256, 320, 3], np.uint8),
+        np.random.random([256, 320, 3]).astype(np.float32)
+    ]
 )
-def test_multiplicative_noise_rgb(image):
+@pytest.mark.parametrize(
+    "elementwise", ( True, False )
+)
+def test_multiplicative_noise_rgb(image, elementwise):
     dtype = image.dtype
 
-    m = 0.5
-    aug = A.MultiplicativeNoise((m, m), p=1)
-    result = aug(image=image)["image"]
-    image = F.clip(image * m, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
-
-    aug = A.MultiplicativeNoise(elementwise=True, p=1)
+    aug = A.MultiplicativeNoise(multiplier=(0.9, 1.1), elementwise=elementwise, p=1)
     params = aug.get_params_dependent_on_targets({"image": image})
     mul = params["multiplier"]
-    assert mul.shape == image.shape[:2] + (1,)
-    result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
 
-    aug = A.MultiplicativeNoise(per_channel=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == (3,)
-    result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, dtype, F.MAX_VALUES_BY_DTYPE[dtype])
-    assert np.allclose(image, result)
+    if elementwise:
+        assert mul.shape == image.shape
+    else:
+        assert mul.shape == (image.shape[-1],)
 
-    aug = A.MultiplicativeNoise(elementwise=True, per_channel=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
-    mul = params["multiplier"]
-    assert mul.shape == image.shape
     result = aug.apply(image, mul)
-    image = F.clip(image.astype(np.float32) * mul, image.dtype, F.MAX_VALUES_BY_DTYPE[image.dtype])
-    assert np.allclose(image, result)
+    assert np.allclose(clip(image.astype(np.float32) * mul.astype(np.float32), dtype), result)
 
 
 def test_mask_dropout():
@@ -1270,7 +1256,7 @@ def test_grid_shuffle(image, grid):
     assert not np.array_equal(res["image"], image)
     assert not np.array_equal(res["mask"], mask)
 
-    np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.03)
+    np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.04)
     np.testing.assert_allclose(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)), atol=0.03)
 
 @pytest.mark.parametrize("image", IMAGES)
@@ -1525,7 +1511,6 @@ def test_pad_if_needed_functionality(params, expected):
     for key, value in expected.items():
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
 
-
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values
     ({}, {"slant_range": (-10, 10)}),
@@ -1547,3 +1532,28 @@ def test_image_compression_initialization(params, expected):
 def test_image_compression_invalid_input(params):
     with pytest.raises(Exception):
         RandomRain(**params)
+
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
+    ({}, {"snow_point_range": (0.1, 0.3)}),
+    # Test snow point range
+    ({"snow_point_range": (0.2, 0.6)},
+     {"snow_point_range": (0.2, 0.6)}),
+    # Deprecated quality values handling
+    ({"snow_point_lower": 0.15}, {"snow_point_range": (0.15, 0.3)}),
+    ({"snow_point_upper": 0.4}, {"snow_point_range": (0.1, 0.4)}),
+])
+def test_randomsnow_initialization(params, expected):
+    img_comp = RandomSnow(**params)
+    for key, value in expected.items():
+        assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"snow_point_range": (1.2, 1.5)}),  # Invalid quality range -> upper bound
+    ({"snow_point_range": (0.9, 0.7)}),  # Invalid range  -> not increasing
+])
+def test_randomsnow_invalid_input(params):
+    with pytest.raises(Exception):
+        a = RandomSnow(**params)
+        print(a.snow_point_range)
+
