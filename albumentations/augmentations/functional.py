@@ -628,21 +628,24 @@ def add_rain(
     brightness_coefficient: float,
     rain_drops: List[Tuple[int, int]],
 ) -> np.ndarray:
-    """From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    """Adds rain drops to the image.
 
     Args:
-        img: Image.
-        slant:
-        drop_length:
-        drop_width:
-        drop_color:
-        blur_value: Rainy view are blurry.
-        brightness_coefficient: Rainy days are usually shady.
-        rain_drops:
+        img (np.ndarray): Input image.
+        slant (int): The angle of the rain drops.
+        drop_length (int): The length of each rain drop.
+        drop_width (int): The width of each rain drop.
+        drop_color (Tuple[int, int, int]): The color of the rain drops in RGB format.
+        blur_value (int): The size of the kernel used to blur the image. Rainy views are blurry.
+        brightness_coefficient (float): Coefficient to adjust the brightness of the image. Rainy days are usually shady.
+        rain_drops (List[Tuple[int, int]]): A list of tuples where each tuple represents the (x, y)
+            coordinates of the starting point of a rain drop.
 
     Returns:
-        Image
+        np.ndarray: Image with rain effect added.
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     non_rgb_warning(img)
 
@@ -652,8 +655,6 @@ def add_rain(
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for RandomRain augmentation")
 
     image = img.copy()
 

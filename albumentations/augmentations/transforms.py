@@ -40,6 +40,7 @@ from albumentations.core.transforms_interface import (
     NoOp,
 )
 from albumentations.core.types import (
+    MAX_RAIN_ANGLE,
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
     BoxInternalType,
@@ -620,16 +621,19 @@ class RandomGravel(ImageOnlyTransform):
 
 
 class RandomRain(ImageOnlyTransform):
-    """Adds rain effects.
+    """Adds rain effects to an image.
 
     Args:
-        slant_range: tuple of type (slant_lower, slant_upper), values should be in range [-20, 20]
-        drop_length: should be in range [0, 100].
-        drop_width: should be in range [1, 5].
-        drop_color (list of (r, g, b)): rain lines color.
-        blur_value (int): rainy view are blurry
-        brightness_coefficient (float): rainy days are usually shady. Should be in range [0, 1].
-        rain_type: One of [None, "drizzle", "heavy", "torrential"]
+        slant_range (Tuple[int, int]): Tuple of type (slant_lower, slant_upper) representing the range for
+            rain slant angle.
+        drop_length (int): Length of the raindrops.
+        drop_width (int): Width of the raindrops.
+        drop_color (Tuple[int, int, int]): Color of the rain drops in RGB format.
+        blur_value (int): Blur value for simulating rain effect. Rainy views are blurry.
+        brightness_coefficient (float): Coefficient to adjust the brightness of the image.
+            Rainy days are usually shady. Should be in the range (0, 1].
+        rain_type (Optional[str]): Type of rain to simulate. One of [None, "drizzle", "heavy", "torrential"].
+
 
     Targets:
         image
@@ -644,49 +648,41 @@ class RandomRain(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         slant_lower: Optional[int] = Field(
-            default=-10,
+            default=None,
             description="Lower bound for rain slant angle",
-            ge=-20,
-            le=20,
-            deprecated="`slant_lower` and `slant_upper` are deprecated."
-            "Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+            deprecated="`slant_lower` is deprecated.Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
         )
         slant_upper: Optional[int] = Field(
-            default=10,
+            default=None,
             description="Upper bound for rain slant angle",
-            ge=-20,
-            le=20,
-            deprecated="`slant_lower` and `slant_upper` are deprecated."
-            "Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+            deprecated="`slant_upper` is deprecated.Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
         )
-        slant_range: Tuple[int, int] = Field(
+        slant_range: Annotated[Tuple[float, float], AfterValidator(nondecreasing)] = Field(
             default=(-10, 10), description="Tuple like (slant_lower, slant_upper) for rain slant angle"
         )
-        drop_length: int = Field(default=20, description="Length of raindrops", ge=0, le=100)
-        drop_width: int = Field(default=1, description="Width of raindrops", ge=1, le=5)
+        drop_length: int = Field(default=20, description="Length of raindrops", ge=1)
+        drop_width: int = Field(default=1, description="Width of raindrops", ge=1)
         drop_color: Tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
-        blur_value: int = Field(default=7, description="Blur value for simulating rain effect", ge=0)
+        blur_value: int = Field(default=7, description="Blur value for simulating rain effect", ge=1)
         brightness_coefficient: float = Field(
             default=0.7,
             description="Brightness coefficient for rainy effect",
-            ge=0,
+            gt=0,
             le=1,
         )
         rain_type: Optional[RainMode] = Field(default=None, description="Type of rain to simulate")
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
-            # Update the quality_range based on the non-None values of quality_lower and quality_upper
             if self.slant_lower is not None or self.slant_upper is not None:
                 lower = self.slant_lower if self.slant_lower is not None else self.slant_range[0]
                 upper = self.slant_upper if self.slant_upper is not None else self.slant_range[1]
                 self.slant_range = (lower, upper)
-                # Clear the deprecated individual quality settings
                 self.slant_lower = None
                 self.slant_upper = None
 
             # Validate the slant_range
-            if not (-TWENTY <= self.slant_range[0] <= self.slant_range[1] <= TWENTY):
+            if not (-MAX_RAIN_ANGLE <= self.slant_range[0] <= self.slant_range[1] <= MAX_RAIN_ANGLE):
                 raise ValueError("slant_range values should be increasing within [-20, 20] range.")
 
             return self
@@ -739,7 +735,7 @@ class RandomRain(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
-        slant = int(random.uniform(*self.slant_range))
+        slant = int(random_utils.uniform(*self.slant_range))
 
         height, width = img.shape[:2]
         area = height * width

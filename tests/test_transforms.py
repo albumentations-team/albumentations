@@ -1514,11 +1514,10 @@ def test_pad_if_needed_functionality(params, expected):
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values
     ({}, {"slant_range": (-10, 10)}),
-    # Test custom quality range and compression type
     ({"slant_range": (-7, 4)},
      {"slant_range": (-7, 4)}),
-    # Deprecated quality values handling
     ({"slant_lower": 2}, {"slant_range": (2, 10)}),
+    ({"slant_upper": 2}, {"slant_range": (-10, 2)}),
 ])
 def test_image_compression_initialization(params, expected):
     img_rain = RandomRain(**params)
@@ -1527,7 +1526,7 @@ def test_image_compression_initialization(params, expected):
 
 @pytest.mark.parametrize("params", [
     ({"slant_range": (12, 8)}),  # Invalid slant range -> not increasing
-    ({"slant_range": (-8, 32)}),  # invalis slant range -> 32 out of upper bound
+    ({"slant_range": (-8, 62)}),  # invalid slant range -> 32 out of upper bound
 ])
 def test_image_compression_invalid_input(params):
     with pytest.raises(Exception):
@@ -1556,4 +1555,3 @@ def test_randomsnow_invalid_input(params):
     with pytest.raises(Exception):
         a = RandomSnow(**params)
         print(a.snow_point_range)
-
