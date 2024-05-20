@@ -572,17 +572,20 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
 
 @preserve_channel_dim
 def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.ndarray:
-    """Bleaches out pixels, imitation snow.
-
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    """Bleaches out pixels, imitating snow.
 
     Args:
-        img: Image.
-        snow_point: Number of show points.
-        brightness_coeff: Brightness coefficient.
+        img (np.ndarray): Input image.
+        snow_point (float): A float in the range [0, 1], scaled and adjusted to determine
+            the threshold for pixel modification.
+        brightness_coeff (float): Coefficient applied to increase the brightness of pixels below the snow_point
+            threshold. Larger values lead to more pronounced snow effects.
 
     Returns:
-        Image.
+        np.ndarray: Image with simulated snow effect.
+
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
 
     """
     non_rgb_warning(img)
@@ -596,8 +599,6 @@ def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for RandomSnow augmentation")
 
     image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
     image_hls = np.array(image_hls, dtype=np.float32)

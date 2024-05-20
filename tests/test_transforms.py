@@ -16,6 +16,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.transforms import ImageCompression
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
+from albumentations.augmentations.transforms import RandomSnow
 from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
@@ -1509,3 +1510,27 @@ def test_pad_if_needed_functionality(params, expected):
     # Assert each expected key/value pair
     for key, value in expected.items():
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
+    ({}, {"snow_point_range": (0.1, 0.3)}),
+    # Test snow point range
+    ({"snow_point_range": (0.2, 0.6)},
+     {"snow_point_range": (0.2, 0.6)}),
+    # Deprecated quality values handling
+    ({"snow_point_lower": 0.15}, {"snow_point_range": (0.15, 0.3)}),
+    ({"snow_point_upper": 0.4}, {"snow_point_range": (0.1, 0.4)}),
+])
+def test_randomsnow_initialization(params, expected):
+    img_comp = RandomSnow(**params)
+    for key, value in expected.items():
+        assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"snow_point_range": (1.2, 1.5)}),  # Invalid quality range -> upper bound
+    ({"snow_point_range": (0.9, 0.7)}),  # Invalid range  -> not increasing
+])
+def test_randomsnow_invalid_input(params):
+    with pytest.raises(Exception):
+        a = RandomSnow(**params)
+        print(a.snow_point_range)
