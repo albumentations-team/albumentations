@@ -13,7 +13,7 @@ from albucore.utils import clip
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albumentations.augmentations.transforms import ImageCompression
+from albumentations.augmentations.transforms import ImageCompression, RandomRain
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from albumentations.augmentations.transforms import RandomSnow
@@ -1513,6 +1513,27 @@ def test_pad_if_needed_functionality(params, expected):
 
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values
+    ({}, {"slant_range": (-10, 10)}),
+    ({"slant_range": (-7, 4)},
+     {"slant_range": (-7, 4)}),
+    ({"slant_lower": 2}, {"slant_range": (2, 10)}),
+    ({"slant_upper": 2}, {"slant_range": (-10, 2)}),
+])
+def test_random_rain_initialization(params, expected):
+    img_rain = RandomRain(**params)
+    for key, value in expected.items():
+        assert getattr(img_rain, key) == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"slant_range": (12, 8)}),  # Invalid slant range -> decreasing
+    ({"slant_range": (-8, 62)}),  # invalid slant range -> 62 out of upper bound
+])
+def test_random_rain_invalid_input(params):
+    with pytest.raises(Exception):
+        RandomRain(**params)
+
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
     ({}, {"snow_point_range": (0.1, 0.3)}),
     # Test snow point range
     ({"snow_point_range": (0.2, 0.6)},
@@ -1521,16 +1542,16 @@ def test_pad_if_needed_functionality(params, expected):
     ({"snow_point_lower": 0.15}, {"snow_point_range": (0.15, 0.3)}),
     ({"snow_point_upper": 0.4}, {"snow_point_range": (0.1, 0.4)}),
 ])
-def test_randomsnow_initialization(params, expected):
+def test_random_snow_initialization(params, expected):
     img_comp = RandomSnow(**params)
     for key, value in expected.items():
         assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
 
 @pytest.mark.parametrize("params", [
     ({"snow_point_range": (1.2, 1.5)}),  # Invalid quality range -> upper bound
-    ({"snow_point_range": (0.9, 0.7)}),  # Invalid range  -> not increasing
+    ({"snow_point_range": (0.9, 0.7)}),  # Invalid range  -> decreasing
 ])
-def test_randomsnow_invalid_input(params):
+def test_random_snow_invalid_input(params):
     with pytest.raises(Exception):
         a = RandomSnow(**params)
         print(a.snow_point_range)
