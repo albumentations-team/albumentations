@@ -683,8 +683,9 @@ class RandomRain(ImageOnlyTransform):
 
             # Validate the slant_range
             if not (-MAX_RAIN_ANGLE <= self.slant_range[0] <= self.slant_range[1] <= MAX_RAIN_ANGLE):
-                raise ValueError("slant_range values should be increasing within [-20, 20] range.")
-
+                raise ValueError(
+                    f"slant_range values should be increasing within [-{MAX_RAIN_ANGLE}, {MAX_RAIN_ANGLE}] range."
+                )
             return self
 
     def __init__(
