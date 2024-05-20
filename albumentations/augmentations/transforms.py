@@ -447,7 +447,7 @@ class RandomSnow(ImageOnlyTransform):
             description="Lower bound of the amount of snow",
             gt=0,
             lt=1,
-            deprecated="`snow_point_lower`deprecated."
+            deprecated="`snow_point_lower` deprecated."
             "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
         )
         snow_point_upper: Optional[float] = Field(
@@ -462,12 +462,10 @@ class RandomSnow(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
-            # Update the quality_range based on the non-None values of quality_lower and quality_upper
             if self.snow_point_lower is not None or self.snow_point_upper is not None:
                 lower = self.snow_point_lower if self.snow_point_lower is not None else self.snow_point_range[0]
                 upper = self.snow_point_upper if self.snow_point_upper is not None else self.snow_point_range[1]
                 self.snow_point_range = (lower, upper)
-                # Clear the deprecated individual quality settings
                 self.snow_point_lower = None
                 self.snow_point_upper = None
 
