@@ -1514,13 +1514,14 @@ def test_pad_if_needed_functionality(params, expected):
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values
     ({}, {"snow_point_range": (0.1, 0.3)}),
-    # Test custom quality range and compression type
+    # Test snow point range
     ({"snow_point_range": (0.2, 0.6)},
      {"snow_point_range": (0.2, 0.6)}),
     # Deprecated quality values handling
     ({"snow_point_lower": 0.15}, {"snow_point_range": (0.15, 0.3)}),
+    ({"snow_point_upper": 0.4}, {"snow_point_range": (0.1, 0.4)}),
 ])
-def test_image_compression_initialization(params, expected):
+def test_randomsnow_initialization(params, expected):
     img_comp = RandomSnow(**params)
     for key, value in expected.items():
         assert getattr(img_comp, key) == value, f"Failed on {key} with value {value}"
@@ -1529,7 +1530,7 @@ def test_image_compression_initialization(params, expected):
     ({"snow_point_range": (1.2, 1.5)}),  # Invalid quality range -> upper bound
     ({"snow_point_range": (0.9, 0.7)}),  # Invalid range  -> not increasing
 ])
-def test_image_compression_invalid_input(params):
+def test_randomsnow_invalid_input(params):
     with pytest.raises(Exception):
         a = RandomSnow(**params)
         print(a.snow_point_range)
