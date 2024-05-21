@@ -28,9 +28,10 @@ from albumentations.core.pydantic import (
     ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
-    check_01_range,
+    check_0plus,
+    check_01,
+    check_1plus,
     nondecreasing,
-    range_0plus,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -437,11 +438,11 @@ class RandomSnow(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        snow_point_range: Annotated[
-            Tuple[float, float], AfterValidator(check_01_range), AfterValidator(nondecreasing)
-        ] = Field(
-            default=(0.1, 0.3),
-            description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
+        snow_point_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
+            Field(
+                default=(0.1, 0.3),
+                description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
+            )
         )
         snow_point_lower: Optional[float] = Field(
             default=None,
@@ -1056,23 +1057,33 @@ class RandomShadow(ImageOnlyTransform):
             default=(0, 0.5, 1, 1),
             description="Region of the image where shadows will appear",
         )
-        num_shadows_limit: OnePlusIntNonDecreasingRangeType = (1, 2)
+        num_shadows_limit: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
+            1,
+            2,
+        )
         num_shadows_lower: Optional[int] = Field(
             default=None,
             description="Lower limit for the possible number of shadows",
-            deprecated="num_shadows_lower is deprecated. Use num_shadows_limit instead.",
+            deprecated="`num_shadows_lower` is deprecated. Use `num_shadows_limit` instead.",
         )
         num_shadows_upper: Optional[int] = Field(
             default=None,
             description="Upper limit for the possible number of shadows",
-            deprecated="num_shadows_upper is deprecated. Use num_shadows_limit instead.",
+            deprecated="`num_shadows_upper` is deprecated. Use `num_shadows_limit` instead.",
         )
-        shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", gt=0)
+        shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", ge=1)
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
             if self.num_shadows_lower is not None or self.num_shadows_upper is not None:
-                self.num_shadows_limit = cast(Tuple[int, int], (self.num_shadows_lower, self.num_shadows_upper))
+                num_shadows_lower = (
+                    self.num_shadows_lower if self.num_shadows_lower is not None else self.num_shadows_limit[0]
+                )
+                num_shadows_upper = (
+                    self.num_shadows_upper if self.num_shadows_upper is not None else self.num_shadows_limit[1]
+                )
+
+                self.num_shadows_limit = (num_shadows_lower, num_shadows_upper)
                 self.num_shadows_lower = None
                 self.num_shadows_upper = None
 
@@ -2015,7 +2026,7 @@ class Downscale(ImageOnlyTransform):
         )
         interpolation_pair: InterpolationPydantic
 
-        scale_range: Annotated[Tuple[float, float], AfterValidator(check_01_range), AfterValidator(nondecreasing)] = (
+        scale_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
             0.25,
             0.25,
         )
@@ -2187,7 +2198,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: Annotated[Tuple[float, float], AfterValidator(range_0plus), AfterValidator(nondecreasing)] = (
+        multiplier: Annotated[Tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = (
             0.9,
             1.1,
         )

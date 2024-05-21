@@ -75,13 +75,13 @@ def convert_to_1plus_range(value: ScaleType) -> Tuple[float, float]:
     return to_tuple(value, low=1)
 
 
-def check_1plus_range(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+def check_1plus(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
     if any(x < 1 for x in value):
         raise ValueError(f"All values should be >= 1, got {value} instead")
     return value
 
 
-def range_0plus(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+def check_0plus(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
     if any(x < 0 for x in value):
         raise ValueError(f"All values should be >= 0, got {value} instead")
     return value
@@ -93,17 +93,17 @@ def nondecreasing(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, Sca
     return value
 
 
-OnePlusFloatRangeType = Annotated[ScaleType, AfterValidator(convert_to_1plus_range), AfterValidator(check_1plus_range)]
+OnePlusFloatRangeType = Annotated[ScaleType, AfterValidator(convert_to_1plus_range), AfterValidator(check_1plus)]
 OnePlusIntRangeType = Annotated[
     ScaleType,
     AfterValidator(convert_to_1plus_range),
-    AfterValidator(check_1plus_range),
+    AfterValidator(check_1plus),
     AfterValidator(float2int),
 ]
 
 OnePlusIntNonDecreasingRangeType = Annotated[
     Tuple[ScalarType, ScalarType],
-    AfterValidator(check_1plus_range),
+    AfterValidator(check_1plus),
     AfterValidator(nondecreasing),
     AfterValidator(float2int),
 ]
@@ -113,10 +113,10 @@ def convert_to_0plus_range(value: ScaleType) -> Tuple[float, float]:
     return to_tuple(value, low=0)
 
 
-def check_01_range(value: Tuple[float, float]) -> Tuple[float, float]:
+def check_01(value: Tuple[float, float]) -> Tuple[float, float]:
     if not all(0 <= x <= 1 for x in value):
         raise ValueError(f"All values should be in [0, 1], got {value} instead")
     return value
 
 
-ZeroOneRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(check_01_range)]
+ZeroOneRangeType = Annotated[ScaleType, AfterValidator(convert_to_0plus_range), AfterValidator(check_01)]

@@ -799,14 +799,14 @@ def add_sun_flare(
 @contiguous
 @preserve_channel_dim
 def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
-    """Add shadows to the image.
+    """Add shadows to the image by reducing the intensity of the RGB values in specified regions.
 
     Args:
-        img (numpy.ndarray):
-        vertices_list (list[numpy.ndarray]):
+        img (np.ndarray): Input image.
+        vertices_list (List[np.ndarray]): List of vertices for shadow polygons.
 
     Returns:
-        numpy.ndarray:
+        np.ndarray: Image with shadows added.
 
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -815,28 +815,26 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     input_dtype = img.dtype
     needs_float = False
 
+    max_value = MAX_VALUES_BY_DTYPE[np.uint8]
+
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for RandomShadow augmentation")
 
-    image_hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
-    mask = np.zeros_like(img)
+    mask = np.zeros_like(img, dtype=np.uint8)
+    cv2.fillPoly(mask, vertices_list, (max_value, max_value, max_value))
 
-    # adding all shadow polygons on empty mask, single 255 denotes only red channel
-    cv2.fillPoly(mask, vertices_list, 255)
-
-    # if red channel is hot, image's "Lightness" channel's brightness is lowered
-    red_max_value_ind = mask[:, :, 0] == MAX_VALUES_BY_DTYPE[np.dtype("uint8")]
-    image_hls[:, :, 1][red_max_value_ind] = image_hls[:, :, 1][red_max_value_ind] * 0.5
-
-    image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
+    # Apply shadow to the RGB channels directly
+    # It could be tempting to convert to HLS and apply the shadow to the L channel, but it creates artifacts
+    shadow_intensity = 0.5  # Adjust this value to control the shadow intensity
+    img_shadowed = img.copy()
+    shadowed_indices = mask[:, :, 0] == max_value
+    img_shadowed[shadowed_indices] = (img_shadowed[shadowed_indices] * shadow_intensity).astype(np.uint8)
 
     if needs_float:
-        return to_float(image_rgb, max_value=255)
+        return to_float(img_shadowed, max_value=max_value)
 
-    return image_rgb
+    return img_shadowed
 
 
 @contiguous
