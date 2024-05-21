@@ -799,7 +799,7 @@ def add_sun_flare(
 @contiguous
 @preserve_channel_dim
 def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
-    """Add shadows to the image by directly modifying the RGB values.
+    """Add shadows to the image by reducing the intensity of the RGB values in specified regions.
 
     Args:
         img (np.ndarray): Input image.
@@ -825,7 +825,7 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     cv2.fillPoly(mask, vertices_list, (max_value, max_value, max_value))
 
     # Apply shadow to the RGB channels directly
-    # It could be tmepting to convert to HLS and apply the shadow to the L channel, but it creates artifacts
+    # It could be tempting to convert to HLS and apply the shadow to the L channel, but it creates artifacts
     shadow_intensity = 0.5  # Adjust this value to control the shadow intensity
     img_shadowed = img.copy()
     shadowed_indices = mask[:, :, 0] == max_value
