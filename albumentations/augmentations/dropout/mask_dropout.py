@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -117,3 +117,11 @@ class MaskDropout(DualTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "max_objects", "image_fill_value", "mask_fill_value"
+
+    @property
+    def targets(self) -> Dict[str, Callable[..., Any]]:
+        return {
+            "image": self.apply,
+            "mask": self.apply_to_mask,
+            "masks": self.apply_to_masks,
+        }
