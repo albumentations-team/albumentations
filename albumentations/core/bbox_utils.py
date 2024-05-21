@@ -492,10 +492,26 @@ def clip_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     """
     x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
 
-    x_min = np.clip(x_min, 0, cols - 1)
-    x_max = np.clip(x_max, 0, cols - 1)
-    y_min = np.clip(y_min, 0, rows - 1)
-    y_max = np.clip(y_max, 0, rows - 1)
+    ## Note:
+    # It could be tempting to use cols - 1 and rows - 1 as the upper bounds for the clipping
+
+    # But this would cause the bounding box to be clipped to the image dimensions - 1 which is not what we want.
+    # Bounding box lives not in the middle of pixels but between them.
+
+    # Example: for image with height 100, width 100, the pixel values are in the range [0, 99]
+    # but if we want bounding box to be 1 pixel width and height and lie on the boundary of the image
+    # it will be described as [99, 99, 100, 100] => clip by image_size - 1 will lead to [99, 99, 99, 99]
+    # which is incorrect
+
+    # It could be also tempting to clip `x_min`` to `cols - 1`` and `y_min` to `rows - 1`, but this also leads
+    # to another error. If image fully lies outside of the visible area and min_area is set to 0, then
+    # the bounding box will be clipped to the image size - 1 and will be 1 pixel in size and fully visible,
+    # but it should be completely removed.
+
+    x_min = np.clip(x_min, 0, cols)
+    x_max = np.clip(x_max, 0, cols)
+    y_min = np.clip(y_min, 0, rows)
+    y_max = np.clip(y_max, 0, rows)
     return cast(BoxType, normalize_bbox((x_min, y_min, x_max, y_max), rows, cols) + tuple(bbox[4:]))
 
 

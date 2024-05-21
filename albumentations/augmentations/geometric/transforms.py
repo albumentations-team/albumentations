@@ -7,12 +7,13 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage.transform
+from albucore.utils import get_num_channels
 from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask
-from albumentations.augmentations.utils import BIG_INTEGER, check_range, get_num_channels
+from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.pydantic import (
     BorderModeType,
@@ -23,7 +24,9 @@ from albumentations.core.pydantic import (
 )
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
+    BIG_INTEGER,
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    TWO,
     BoxInternalType,
     ColorType,
     D4Type,
@@ -53,8 +56,6 @@ __all__ = [
     "PadIfNeeded",
     "D4",
 ]
-
-TWO = 2
 
 
 class ElasticTransform(DualTransform):
@@ -1197,22 +1198,26 @@ class PiecewiseAffine(DualTransform):
 
 
 class PadIfNeeded(DualTransform):
-    """Pad side of the image / max if side is less than desired number.
+    """Pads the sides of an image if the image dimensions are less than the specified minimum dimensions.
+    If the `pad_height_divisor` or `pad_width_divisor` is specified, the function additionally ensures
+    that the image dimensions are divisible by these values.
 
     Args:
-        min_height (int): minimal result image height.
-        min_width (int): minimal result image width.
-        pad_height_divisor (int): if not None, ensures image height is dividable by value of this argument.
-        pad_width_divisor (int): if not None, ensures image width is dividable by value of this argument.
-        position (Union[str, PositionType]): Position of the image. should be PositionType.CENTER or
-            PositionType.TOP_LEFT or PositionType.TOP_RIGHT or PositionType.BOTTOM_LEFT or PositionType.BOTTOM_RIGHT.
-            or PositionType.RANDOM. Default: PositionType.CENTER.
-        border_mode (OpenCV flag): OpenCV border mode.
-        value (int, float, list of int, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of int,
-                    list of float): padding value for mask if border_mode is cv2.BORDER_CONSTANT.
-        p (float): probability of applying the transform. Default: 1.0.
+        min_height (int): Minimum desired height of the image. Ensures image height is at least this value.
+        min_width (int): Minimum desired width of the image. Ensures image width is at least this value.
+        pad_height_divisor (int, optional): If set, pads the image height to make it divisible by this value.
+        pad_width_divisor (int, optional): If set, pads the image width to make it divisible by this value.
+        position (Union[str, PositionType]): Position where the image is to be placed after padding.
+            Can be one of 'center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', or 'random'.
+            Default is 'center'.
+        border_mode (int): Specifies the border mode to use if padding is required.
+            The default is `cv2.BORDER_REFLECT_101`. If `value` is provided and `border_mode` is set to a mode
+            that does not use a constant value, it should be manually set to `cv2.BORDER_CONSTANT`.
+        value (Union[int, float, list[int], list[float]], optional): Value to fill the border pixels if
+            the border mode is `cv2.BORDER_CONSTANT`. Default is None.
+        mask_value (Union[int, float, list[int], list[float]], optional): Similar to `value` but used for padding masks.
+            Default is None.
+        p (float): Probability of applying the transform. Default is 1.0.
 
     Targets:
         image, mask, bboxes, keypoints
@@ -1278,6 +1283,14 @@ class PadIfNeeded(DualTransform):
             if (self.min_width is None) == (self.pad_width_divisor is None):
                 msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
                 raise ValueError(msg)
+
+            if self.value is not None and self.border_mode in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
+                self.border_mode = cv2.BORDER_CONSTANT
+
+            if self.border_mode == cv2.BORDER_CONSTANT and self.value is None:
+                msg = "If 'border_mode' is set to 'BORDER_CONSTANT', 'value' must be provided."
+                raise ValueError(msg)
+
             return self
 
     def __init__(

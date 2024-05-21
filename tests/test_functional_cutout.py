@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from albumentations.augmentations.dropout.functional import cutout
-from albumentations.augmentations.utils import MAX_VALUES_BY_DTYPE
+from albucore.utils import MAX_VALUES_BY_DTYPE
 from tests.utils import set_seed
 
 

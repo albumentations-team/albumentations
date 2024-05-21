@@ -40,7 +40,9 @@ jobs:
           ${{ runner.os }}-pip-
 
     - name: Update pip
-      run: python -m pip install --upgrade pip
+      run: |
+        python -m pip install --upgrade pip
+        pip cache purge
     - name: Install wheel
       run: python -m pip install --upgrade wheel
     - name: Install PyTorch on Linux and Windows
@@ -64,7 +66,9 @@ jobs:
         path: build
     - name: Run PyTest
       run: pytest --cov .
+
     - name: Upload coverage reports to Codecov
+      if: matrix.operating-system == 'ubuntu-latest' && matrix.python-version == '3.8'
       uses: codecov/codecov-action@v4.3.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -92,6 +96,8 @@ jobs:
       run: pip install -r requirements-dev.txt
     - name: Run checks
       run: pre-commit run --files $(find albumentations -type f)
+    - name: check-defaults-in-apply
+      run: python -m tools.check_defaults
 
   check_transforms_docs:
     name: Check Readme is not outdated

@@ -4,17 +4,19 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, 
 import cv2
 import numpy as np
 import skimage.transform
+from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim
 from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
-from albumentations.augmentations.utils import (
-    _maybe_process_in_chunks,
-    angle_2pi_range,
-    clipped,
-    preserve_channel_dim,
-)
+from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.types import BoxInternalType, ColorType, D4Type, KeypointInternalType
+from albumentations.core.types import (
+    NUM_MULTI_CHANNEL_DIMENSIONS,
+    BoxInternalType,
+    ColorType,
+    D4Type,
+    KeypointInternalType,
+)
 
 __all__ = [
     "optical_distortion",
@@ -70,7 +72,6 @@ __all__ = [
 ]
 
 TWO = 2
-THREE = 3
 
 ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
@@ -239,8 +240,8 @@ def keypoint_d4(
 def rotate(
     img: np.ndarray,
     angle: float,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
+    interpolation: int,
+    border_mode: int,
     value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
@@ -248,7 +249,7 @@ def rotate(
     # we get an ugly black border for 90deg rotations
     matrix = cv2.getRotationMatrix2D((width / 2 - 0.5, height / 2 - 0.5), angle, 1.0)
 
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -272,7 +273,7 @@ def bbox_rotate(bbox: BoxInternalType, angle: float, method: str, rows: int, col
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
 
-    References:
+    Reference:
         https://arxiv.org/abs/2109.13488
 
     """
@@ -334,8 +335,8 @@ def elastic_transform(
     alpha: float,
     sigma: float,
     alpha_affine: float,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
+    interpolation: int,
+    border_mode: int,
     value: Optional[ColorType] = None,
     random_state: Optional[np.random.RandomState] = None,
     approximate: bool = False,
@@ -371,7 +372,7 @@ def elastic_transform(
     )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -411,7 +412,7 @@ def elastic_transform(
     map_x = np.float32(x + dx)
     map_y = np.float32(y + dy)
 
-    remap_fn = _maybe_process_in_chunks(
+    remap_fn = maybe_process_in_chunks(
         cv2.remap,
         map1=map_x,
         map2=map_y,
@@ -423,16 +424,15 @@ def elastic_transform(
 
 
 @preserve_channel_dim
-def resize(img: np.ndarray, height: int, width: int, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
-    img_height, img_width = img.shape[:2]
+def resize(img: np.ndarray, height: int, width: int, interpolation: int) -> np.ndarray:
     if (height, width) == img.shape[:2]:
         return img
-    resize_fn = _maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
+    resize_fn = maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)
 
 
 @preserve_channel_dim
-def scale(img: np.ndarray, scale: float, interpolation: int = cv2.INTER_LINEAR) -> np.ndarray:
+def scale(img: np.ndarray, scale: float, interpolation: int) -> np.ndarray:
     height, width = img.shape[:2]
     new_height, new_width = int(height * scale), int(width * scale)
     return resize(img, new_height, new_width, interpolation)
@@ -487,7 +487,7 @@ def perspective(
     interpolation: int,
 ) -> np.ndarray:
     height, width = img.shape[:2]
-    perspective_func = _maybe_process_in_chunks(
+    perspective_func = maybe_process_in_chunks(
         cv2.warpPerspective,
         M=matrix,
         dsize=(max_width, max_height),
@@ -531,7 +531,7 @@ def perspective_bbox(
     )
 
 
-def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool = False) -> float:
+def rotation2d_matrix_to_euler_angles(matrix: np.ndarray, y_up: bool) -> float:
     """Args:
     matrix (np.ndarray): Rotation matrix
     y_up (bool): is Y axis looks up or down
@@ -588,7 +588,7 @@ def warp_affine(
         return image
 
     dsize = int(np.round(output_shape[1])), int(np.round(output_shape[0]))
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix.params[:2],
         dsize=dsize,
@@ -610,7 +610,7 @@ def keypoint_affine(
 
     x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix.params[:2]).squeeze()
-    a += rotation2d_matrix_to_euler_angles(matrix.params[:2])
+    a += rotation2d_matrix_to_euler_angles(matrix.params[:2], y_up=False)
     s *= np.max([scale["x"], scale["y"]])
     return x, y, a, s
 
@@ -662,7 +662,7 @@ def safe_rotate(
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
     height, width = img.shape[:2]
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -832,12 +832,12 @@ def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
     if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
-    threshold: Optional[float] = None,
+    threshold: Optional[float],
 ) -> List[Tuple[float, float]]:
     """Convert outputs of `to_distance_maps` to `KeypointsOnImage`.
     This is the inverse of `to_distance_maps`.
     """
-    if distance_maps.ndim != THREE:
+    if distance_maps.ndim != NUM_MULTI_CHANNEL_DIMENSIONS:
         msg = f"Expected three-dimensional input, got {distance_maps.ndim} dimensions and shape {distance_maps.shape}."
         raise ValueError(msg)
     height, width, nb_keypoints = distance_maps.shape
@@ -1168,8 +1168,8 @@ def pad(
     img: np.ndarray,
     min_height: int,
     min_width: int,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
+    border_mode: int,
+    value: Optional[ColorType],
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1204,10 +1204,10 @@ def pad_with_params(
     h_pad_bottom: int,
     w_pad_left: int,
     w_pad_right: int,
-    border_mode: int = cv2.BORDER_REFLECT_101,
-    value: Optional[ColorType] = None,
+    border_mode: int,
+    value: Optional[ColorType],
 ) -> np.ndarray:
-    pad_fn = _maybe_process_in_chunks(
+    pad_fn = maybe_process_in_chunks(
         cv2.copyMakeBorder,
         top=h_pad_top,
         bottom=h_pad_bottom,
@@ -1222,11 +1222,11 @@ def pad_with_params(
 @preserve_channel_dim
 def optical_distortion(
     img: np.ndarray,
-    k: int = 0,
-    dx: int = 0,
-    dy: int = 0,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
+    k: int,
+    dx: int,
+    dy: int,
+    interpolation: int,
+    border_mode: int,
     value: Optional[ColorType] = None,
 ) -> np.ndarray:
     """Barrel / pincushion distortion. Unconventional augment.
@@ -1255,11 +1255,11 @@ def optical_distortion(
 @preserve_channel_dim
 def grid_distortion(
     img: np.ndarray,
-    num_steps: int = 10,
-    xsteps: Tuple[()] = (),
-    ysteps: Tuple[()] = (),
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
+    num_steps: int,
+    xsteps: Tuple[()],
+    ysteps: Tuple[()],
+    interpolation: int,
+    border_mode: int,
     value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
@@ -1300,7 +1300,7 @@ def grid_distortion(
     map_x = map_x.astype(np.float32)
     map_y = map_y.astype(np.float32)
 
-    remap_fn = _maybe_process_in_chunks(
+    remap_fn = maybe_process_in_chunks(
         cv2.remap,
         map1=map_x,
         map2=map_y,
@@ -1317,8 +1317,8 @@ def elastic_transform_approx(
     alpha: float,
     sigma: float,
     alpha_affine: float,
-    interpolation: int = cv2.INTER_LINEAR,
-    border_mode: int = cv2.BORDER_REFLECT_101,
+    interpolation: int,
+    border_mode: int,
     value: Optional[ColorType] = None,
     random_state: Optional[np.random.RandomState] = None,
 ) -> np.ndarray:
@@ -1352,7 +1352,7 @@ def elastic_transform_approx(
     )
     matrix = cv2.getAffineTransform(pts1, pts2)
 
-    warp_fn = _maybe_process_in_chunks(
+    warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
         M=matrix,
         dsize=(width, height),
@@ -1375,7 +1375,7 @@ def elastic_transform_approx(
     map_x = np.float32(x + dx)
     map_y = np.float32(y + dy)
 
-    remap_fn = _maybe_process_in_chunks(
+    remap_fn = maybe_process_in_chunks(
         cv2.remap,
         map1=map_x,
         map2=map_y,

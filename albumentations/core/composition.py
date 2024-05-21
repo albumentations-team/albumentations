@@ -1,7 +1,7 @@
 import random
 import warnings
 from collections import defaultdict
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Union, cast
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Union, cast
 
 import cv2
 import numpy as np
@@ -65,7 +65,9 @@ class BaseCompose(Serializable):
         self.replay_mode = False
         self.applied_in_replay = False
         self._additional_targets: Dict[str, str] = {}
+        self._available_keys: Set[str] = set()
         self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
+        self._set_keys()
 
     def __iter__(self) -> Iterator[TransformType]:
         return iter(self.transforms)
@@ -85,6 +87,10 @@ class BaseCompose(Serializable):
     @property
     def additional_targets(self) -> Dict[str, str]:
         return self._additional_targets
+
+    @property
+    def available_keys(self) -> Set[str]:
+        return self._available_keys
 
     def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
         args = {k: v for k, v in self.to_dict_private().items() if not (k.startswith("__") or k == "transforms")}
@@ -127,11 +133,25 @@ class BaseCompose(Serializable):
                         f"Trying to overwrite existed additional targets. "
                         f"Key={k} Exists={self._additional_targets[k]} New value: {v}",
                     )
-                self._additional_targets.update(additional_targets)
+            self._additional_targets.update(additional_targets)
             for t in self.transforms:
                 t.add_targets(additional_targets)
             for proc in self.processors.values():
                 proc.add_targets(additional_targets)
+        self._set_keys()
+
+    def _set_keys(self) -> None:
+        """Set _available_keys"""
+        for t in self.transforms:
+            self._available_keys.update(t.available_keys)
+        if self.processors:
+            self._available_keys.update(["labels"])
+            for proc in self.processors.values():
+                if proc.default_data_name not in self._available_keys:  # if no transform to process this data
+                    warnings.warn(f"Got processor for {proc.default_data_name}, but no transform to process it.")
+                self._available_keys.update(proc.data_fields)
+                if proc.params.label_fields:
+                    self._available_keys.update(proc.params.label_fields)
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> None:
         for t in self.transforms:
@@ -192,6 +212,7 @@ class Compose(BaseCompose):
         self._disable_check_args_for_transforms(self.transforms)
 
         self.is_check_shapes = is_check_shapes
+        self._always_apply = get_always_apply(self.transforms)  # transforms list that always apply
         self._check_each_transform = tuple(  # processors that checks after each transform
             proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
         )
@@ -211,18 +232,22 @@ class Compose(BaseCompose):
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
-        if self.is_check_args:
-            self._check_args(**data)
 
         if not isinstance(force_apply, (bool, int)):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
 
         need_to_run = force_apply or random.random() < self.p
+        if not need_to_run and not self._always_apply:
+            return data
+
+        transforms = self.transforms if need_to_run else self._always_apply
+
+        if self.is_check_args:
+            self._check_args(**data)
 
         for p in self.processors.values():
             p.ensure_data_valid(data)
-        transforms = self.transforms if need_to_run else get_always_apply(self.transforms)
 
         for p in self.processors.values():
             p.preprocess(data)
@@ -286,6 +311,9 @@ class Compose(BaseCompose):
         check_keypoints_param = ["keypoints"]
         shapes = []
         for data_name, data in kwargs.items():
+            if data_name not in self._available_keys and data_name not in ["mask", "masks"]:
+                msg = f"Key {data_name} is not in available keys."
+                raise ValueError(msg)
             internal_data_name = self._additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
@@ -493,6 +521,7 @@ class ReplayCompose(Compose):
         super().__init__(transforms, bbox_params, keypoint_params, additional_targets, p, is_check_shapes)
         self.set_deterministic(True, save_key=save_key)
         self.save_key = save_key
+        self._available_keys.add(save_key)
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Dict[str, Any]:
         kwargs[self.save_key] = defaultdict(dict)

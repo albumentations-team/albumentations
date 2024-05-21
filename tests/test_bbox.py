@@ -9,12 +9,14 @@ from albumentations.core.bbox_utils import (
     convert_bboxes_to_albumentations,
     denormalize_bbox,
     denormalize_bboxes,
+    filter_bboxes,
     normalize_bbox,
     normalize_bboxes,
 )
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp
 import albumentations as A
+from .utils import set_seed
 
 @pytest.mark.parametrize(
     ["bbox", "expected"],
@@ -300,11 +302,139 @@ def test_bounding_box_partially_outside_no_clip():
         transform(image=np.zeros((100, 100, 3), dtype=np.uint8), bboxes=[bbox], labels=labels)
 
 @pytest.mark.parametrize("image_size, bbox, expected_bbox", [
-    ((100, 100), (-10, -10, 110, 110), (0, 0, 99, 99)),
-    ((200, 200), (-20, -20, 220, 220), (0, 0, 199, 199)),
-    ((50, 50), (-5, -5, 55, 55), (0, 0, 49, 49))
+    ((100, 100), (-10, -10, 110, 110), (0, 0, 100, 100)),
+    ((200, 200), (-20, -20, 220, 220), (0, 0, 200, 200)),
+    ((50, 50), (-5, -5, 55, 55), (0, 0, 50, 50))
 ])
 def test_bounding_box_outside_clip(image_size, bbox, expected_bbox):
     transform = Compose([A.NoOp()], bbox_params={'format': 'pascal_voc', 'label_fields': ['labels'], 'clip': True})
     transformed = transform(image=np.zeros((*image_size, 3), dtype=np.uint8), bboxes=[bbox], labels=[1])
     assert transformed['bboxes'][0] == expected_bbox
+
+@pytest.mark.parametrize("bbox, expected_bbox", [
+    ((1, 1, 1, 1), (2, 1, 1, 1)),
+    ((0, 1, 1, 1), (3, 1, 1, 1)),
+    ((1, 0, 1, 1), (2, 0, 1, 1)),
+    ((0, 0, 1, 1), (3, 0, 1, 1))
+    ])
+def test_bounding_box_hflip(bbox, expected_bbox):
+    image = np.zeros((4, 4, 3), dtype=np.uint8)
+
+    transform = A.Compose(
+        [A.HorizontalFlip(p=1.0)],
+        bbox_params=A.BboxParams(format="coco", label_fields=[]),
+    )
+
+    transformed = transform(image=image, bboxes=[bbox])
+
+    assert transformed["bboxes"][0] == expected_bbox
+
+
+@pytest.mark.parametrize("bbox, expected_bbox", [
+    ((1, 1, 1, 1), (1, 2, 1, 1)),
+    ((0, 1, 1, 1), (0, 2, 1, 1)),
+    ((1, 0, 1, 1), (1, 3, 1, 1)),
+    ((0, 0, 1, 1), (0, 3, 1, 1))
+    ])
+def test_bounding_box_hflip(bbox, expected_bbox):
+    image = np.zeros((4, 4, 3), dtype=np.uint8)
+
+    transform = A.Compose(
+        [A.VerticalFlip(p=1.0)],
+        bbox_params=A.BboxParams(format="coco", label_fields=[]),
+    )
+
+    transformed = transform(image=image, bboxes=[bbox])
+
+    assert transformed["bboxes"][0] == expected_bbox
+
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "min_area", "min_visibility", "target"],
+    [
+        (
+            [(0.1, 0.5, 1.1, 0.9), (-0.1, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
+            0,
+            0,
+            [(0.1, 0.5, 1, 0.9), (0.0, 0.5, 0.8, 0.9), (0.1, 0.5, 0.8, 0.9)],
+        ),
+        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.5, 0.5, 0.6)], 150, 0, [(0.1, 0.5, 0.8, 0.9)]),
+        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.9, 0.5, 1.6)], 0, 0.75, [(0.1, 0.5, 0.8, 0.9)]),
+        ([(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 1.1)], 0, 0.7, [(0.1, 0.5, 0.8, 0.9), (0.4, 0.7, 0.5, 1)]),
+    ],
+)
+def test_filter_bboxes(bboxes, min_area, min_visibility, target):
+    filtered_bboxes = filter_bboxes(bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100)
+    assert filtered_bboxes == target
+
+
+@pytest.mark.parametrize(
+    ["bboxes", "img_width", "img_height", "min_width", "min_height", "target"],
+    [
+        [
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
+            100,
+            100,
+            20,
+            20,
+            [(0.1, 0.1, 0.9, 0.9)],
+        ],
+        [
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
+            100,
+            100,
+            20,
+            0,
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.9, 0.2)],
+        ],
+        [
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9), (0.1, 0.1, 0.9, 0.2), (0.1, 0.1, 0.2, 0.2)],
+            100,
+            100,
+            0,
+            20,
+            [(0.1, 0.1, 0.9, 0.9), (0.1, 0.1, 0.2, 0.9)],
+        ],
+    ],
+)
+def test_filter_bboxes_by_min_width_height(bboxes, img_width, img_height, min_width, min_height, target):
+    filtered_bboxes = filter_bboxes(bboxes, cols=img_width, rows=img_height, min_width=min_width, min_height=min_height)
+    assert filtered_bboxes == target
+
+@pytest.mark.parametrize(
+    "get_transform",
+    [
+        lambda sign: A.Affine(translate_px=sign * 2),
+        lambda sign: A.ShiftScaleRotate(shift_limit=(sign * 0.02, sign * 0.02), scale_limit=0, rotate_limit=0),
+    ],
+)
+@pytest.mark.parametrize(
+    ["bboxes", "expected", "min_visibility", "sign"],
+    [
+        [[(0, 0, 10, 10, 1)], [], 0.9, -1],
+        [[(0, 0, 10, 10, 1)], [(0, 0, 8, 8, 1)], 0.6, -1],
+        [[(90, 90, 100, 100, 1)], [], 0.9, 1],
+        [[(90, 90, 100, 100, 1)], [(92, 92, 100, 100, 1)], 0.49, 1],
+    ],
+)
+def test_bbox_clipping(get_transform, bboxes, expected, min_visibility: float, sign: int):
+    image = np.zeros([100, 100, 3], dtype=np.uint8)
+    transform = get_transform(sign)
+    transform.p = 1
+    transform = A.Compose([transform], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=min_visibility))
+
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert res == expected
+
+
+def test_bbox_clipping_perspective():
+    set_seed(0)
+    transform = A.Compose(
+        [A.Perspective(scale=(0.05, 0.05), p=1)], bbox_params=A.BboxParams(format="pascal_voc", min_visibility=0.6)
+    )
+
+    image = np.empty([1000, 1000, 3], dtype=np.uint8)
+    bboxes = np.array([[0, 0, 100, 100, 1]])
+    res = transform(image=image, bboxes=bboxes)["bboxes"]
+    assert len(res) == 0

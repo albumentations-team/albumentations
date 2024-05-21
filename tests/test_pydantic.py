@@ -22,8 +22,8 @@ from albumentations.core.pydantic import (
     check_valid_border_modes,
     process_non_negative_range,
     create_symmetric_range,
-    check_1plus_range,
-    check_01_range,
+    check_1plus,
+    check_01,
     valid_interpolations,
     valid_border_modes
 )
@@ -106,13 +106,13 @@ def test_create_symmetric_range(value, expected):
 ])
 def test_check_1plus_range_with_invalid_input(value):
     with pytest.raises(ValueError):
-        check_1plus_range(value)
+        check_1plus(value)
 
 @pytest.mark.parametrize("value,expected", [
     ((1, 2), (1.0, 2.0)),
 ])
 def test_check_1plus_range_with_valid_input(value, expected):
-    assert check_1plus_range(value) == expected
+    assert check_1plus(value) == expected
 
 @pytest.mark.parametrize("value", [
     (0, -0.1),
@@ -120,14 +120,14 @@ def test_check_1plus_range_with_valid_input(value, expected):
 ])
 def test_check_01_range_with_invalid_input(value):
     with pytest.raises(ValueError):
-        check_01_range(value)
+        check_01(value)
 
 @pytest.mark.parametrize("value,expected", [
     ((0, 1), (0.0, 1.0)),
     ((0, 0.3), (0.0, 0.3)),
 ])
 def test_check_01_range_with_valid_input(value, expected):
-    assert check_01_range(value) == expected
+    assert check_01(value) == expected
 
 class ValidationModel(BaseModel):
     interpolation: Optional[InterpolationType] = None

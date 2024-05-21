@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES
+from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -853,12 +853,12 @@ def test_pad_if_needed(augmentation_cls: Type[A.PadIfNeeded], params: Dict, imag
 @pytest.mark.parametrize(
     ["params", "image_shape"],
     [
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "center"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_left"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "top_right"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_left"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "bottom_right"}, (5, 6)],
-        [{"min_height": 10, "min_width": 12, "border_mode": 0, "value": 1, "position": "random"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": cv2.BORDER_CONSTANT, "value": 1, "position": "center"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": cv2.BORDER_CONSTANT, "value": 1, "position": "top_left"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": cv2.BORDER_CONSTANT, "value": 1, "position": "top_right"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": cv2.BORDER_CONSTANT, "value": 1, "position": "bottom_left"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": cv2.BORDER_CONSTANT, "value": 1, "position": "bottom_right"}, (5, 6)],
+        [{"min_height": 10, "min_width": 12, "border_mode": cv2.BORDER_CONSTANT, "value": 1, "position": "random"}, (5, 6)],
     ],
 )
 def test_pad_if_needed_position(params, image_shape):
@@ -1068,5 +1068,3 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
 
         aug = augmentation_cls(p=1, **params)
         aug(image=image, mask=mask)
-
-    # OK, if no exception is raised

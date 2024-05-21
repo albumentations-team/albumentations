@@ -1,6 +1,6 @@
 import random
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union, cast
 from warnings import warn
 
 import cv2
@@ -43,8 +43,12 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
-    # `_targets` defines the types of targets (e.g., image, mask) that the transform can be applied to.
-    _targets: Union[Tuple[Targets, ...], Targets]
+    _targets: Union[Tuple[Targets, ...], Targets]  # targets that this transform can work on
+    _available_keys: Set[str]  # targets that this transform, as string, lower-cased
+    _key2func: Dict[
+        str,
+        Callable[..., Any],
+    ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
     fill_value: ColorType
@@ -64,6 +68,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._additional_targets: Dict[str, str] = {}
         # replay mode params
         self.params: Dict[Any, Any] = {}
+        self._key2func = {}
+        self._set_keys()
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
         if args:
@@ -97,12 +103,11 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         params = self.update_params(params, **kwargs)
         res = {}
         for key, arg in kwargs.items():
-            if arg is not None:
-                target_function = self._get_target_function(key)
-                target_dependencies = {k: kwargs[k] for k in self.target_dependence.get(key, [])}
-                res[key] = target_function(arg, **dict(params, **target_dependencies))
+            if key in self._key2func and arg is not None:
+                target_function = self._key2func[key]
+                res[key] = target_function(arg, **params)
             else:
-                res[key] = None
+                res[key] = arg
         return res
 
     def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
@@ -125,14 +130,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         state.update(self.get_transform_init_args())
         return f"{self.__class__.__name__}({format_args(state)})"
 
-    def _get_target_function(self, key: str) -> Callable[..., Any]:
-        """Returns function to process target"""
-        transform_key = key
-        if key in self._additional_targets:
-            transform_key = self._additional_targets.get(key, key)
-
-        return self.targets.get(transform_key, lambda x, **p: x)
-
     def apply(self, img: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         """Apply transform on image."""
         raise NotImplementedError
@@ -149,6 +146,23 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         # >>  {"masks": self.apply_to_masks}
         raise NotImplementedError
 
+    def _set_keys(self) -> None:
+        """Set _available_keys"""
+        if not hasattr(self, "_targets"):
+            self._available_keys = set()
+        else:
+            self._available_keys = {
+                target.value.lower()
+                for target in (self._targets if isinstance(self._targets, tuple) else [self._targets])
+            }
+        self._available_keys.update(self.targets.keys())
+        self._key2func = {key: self.targets[key] for key in self._available_keys if key in self.targets}
+
+    @property
+    def available_keys(self) -> Set[str]:
+        """Returns set of available keys"""
+        return self._available_keys
+
     def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
         """Update parameters with transform specific params"""
         if hasattr(self, "interpolation"):
@@ -160,10 +174,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
         return params
 
-    @property
-    def target_dependence(self) -> Dict[str, Any]:
-        return {}
-
     def add_targets(self, additional_targets: Dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets
         ex: {'target_image': 'image'}
@@ -174,7 +184,16 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             additional_targets (dict): keys - new target name, values - old target name. ex: {'image2': 'image'}
 
         """
-        self._additional_targets = {**self._additional_targets, **additional_targets}
+        for k, v in additional_targets.items():
+            if k in self._additional_targets and v != self._additional_targets[k]:
+                raise ValueError(
+                    f"Trying to overwrite existed additional targets. "
+                    f"Key={k} Exists={self._additional_targets[k]} New value: {v}",
+                )
+            if v in self._available_keys:
+                self._additional_targets[k] = v
+                self._key2func[k] = self.targets[v]
+                self._available_keys.add(k)
 
     @property
     def targets_as_params(self) -> List[str]:

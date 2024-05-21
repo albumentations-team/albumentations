@@ -5,8 +5,6 @@ import skimage.transform
 import cv2
 import albumentations.augmentations.geometric.functional as FGeometric
 
-import albumentations as A
-
 from itertools import product
 
 

@@ -37,13 +37,6 @@ repos:
       - id: requirements-txt-fixer
   - repo: local
     hooks:
-    -   id: check-defaults-in-apply
-        name: Check defaults in apply method of BasicTransform subclasses
-        entry: python -m tools.check_defaults
-        language: system
-        files: '\.py$'
-  - repo: local
-    hooks:
     - id: check-docstrings
       name: Check Docstrings for '---' sequences
       entry: python tools/check_docstrings.py
@@ -51,7 +44,7 @@ repos:
       types: [python]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.4.2
+    rev: v0.4.4
     hooks:
       # Run the linter.
       - id: ruff
@@ -77,7 +70,7 @@ repos:
     hooks:
       - id: markdownlint
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "1.8.0"
+    rev: "2.1.2"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/pre-commit/mirrors-mypy

@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
+from albucore.utils import is_grayscale_image, is_multispectral_image
 from pydantic import field_validator
 
 from albumentations.augmentations.domain_adaptation_functional import (
@@ -10,11 +11,7 @@ from albumentations.augmentations.domain_adaptation_functional import (
     apply_histogram,
     fourier_domain_adaptation,
 )
-from albumentations.augmentations.utils import (
-    is_grayscale_image,
-    is_multispectral_image,
-    read_rgb_image,
-)
+from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType

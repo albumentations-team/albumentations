@@ -4,6 +4,7 @@ import numpy as np
 import torch
 
 from albumentations.core.transforms_interface import BasicTransform
+from albumentations.core.types import Targets
 
 __all__ = ["ToTensorV2"]
 
@@ -22,6 +23,8 @@ class ToTensorV2(BasicTransform):
         p (float): Probability of applying the transform. Default: 1.0.
 
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
 
     def __init__(self, transpose_mask: bool = False, always_apply: bool = True, p: float = 1.0):
         super().__init__(always_apply=always_apply, p=p)
@@ -51,6 +54,3 @@ class ToTensorV2(BasicTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("transpose_mask",)
-
-    def get_params_dependent_on_targets(self, params: Any) -> Dict[str, Any]:
-        return {}

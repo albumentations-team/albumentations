@@ -3,7 +3,6 @@
 # verbose regular expressions by Black.  Use [ ] to denote a significant space
 # character.
 
-
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
@@ -13,170 +12,165 @@ requires = [
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".ipynb_checkpoints",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pyenv",
-    ".pytest_cache",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    ".vscode",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "site-packages",
-    "venv",
-    "tests",
-    "setup.py",
-    "tools",
-    "benchmark",
-    "site",
-]
+target-version = "py38"
 
 line-length = 120
 indent-width = 4
 
 # Assume Python 3.8
-target-version = "py38"
-
-[tool.ruff.lint]
-explicit-preview-rules = true
-
-select = [
-    "F",
-    "E",
-    "W",
-    "C90",
-    "I",
-    "N",
-    "D",
-    "UP",
-    "YTT",
-    "ANN",
-    "ASYNC",
-    "TRIO",
-    "S",
-    "BLE",
-    "FBT",
-    "B",
-    "A",
-    "COM",
-    "CPY",
-    "C4",
-    "DTZ",
-    "T10",
-    "DJ",
-    "EM",
-    "EXE",
-    "ISC",
-    "ICN",
-    "G",
-    "INP",
-    "PIE",
-    "T20",
-    "PYI",
-    "PT",
-    "Q",
-    "RSE",
-    "RET",
-    "SLF",
-    "SLOT",
-    "SIM",
-    "TID",
-    "TCH",
-    "INT",
-    "ARG",
-    "PTH",
-    "TD",
-    "FIX",
-    "ERA",
-    "PD",
-    "PGH",
-    "PL",
-    "TRY",
-    "FLY",
-    "NPY",
-    "PERF",
-    "FURB",
-    "LOG",
-    "RUF",
-]
-ignore = [
-    "ANN101",
-    "D107",
-    "ANN401",
-    "ANN204",
-    "ARG002",
-    "S311",
-    "F403",
-    "PLR0913",
-    "FBT001",
-    "FBT002",
-    "ANN102",
-    "EM102",
-    "TRY003",
-    "A002",
-    "PTH123",
-    "ARG001",
-    "ARG005",
-    "B028",
-    "N812",
-    "FBT003",
-    "B027",
-    "D104",
-    "D100",
-    "D103",
-    "D102",
-    "D415",
-    "D101",
-    "D205",
-    "D105",
-    "D417",
-    "D106",
-    "EM101",
-    "COM812",
-    "B008",
+exclude = [
+  ".bzr",
+  ".direnv",
+  ".eggs",
+  ".git",
+  ".git-rewrite",
+  ".hg",
+  ".ipynb_checkpoints",
+  ".mypy_cache",
+  ".nox",
+  ".pants.d",
+  ".pyenv",
+  ".pytest_cache",
+  ".pytype",
+  ".ruff_cache",
+  ".svn",
+  ".tox",
+  ".venv",
+  ".vscode",
+  "__pypackages__",
+  "_build",
+  "benchmark",
+  "buck-out",
+  "build",
+  "dist",
+  "node_modules",
+  "setup.py",
+  "site",
+  "site-packages",
+  "tests",
+  "tools",
+  "venv",
 ]
 
-# Allow fix for all enabled rules (when `--fix`) is provided.
-fixable = ["ALL"]
-unfixable = []
-
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-
-[tool.ruff.format]
-# Like Black, use double quotes for strings.
-quote-style = "double"
-
-# Like Black, indent with spaces, rather than tabs.
-indent-style = "space"
-
+format.indent-style = "space"
 # Like Black, respect magic trailing commas.
-skip-magic-trailing-comma = false
-
+format.quote-style = "double"
+# Like Black, indent with spaces, rather than tabs.
+format.line-ending = "auto"
+format.skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
-line-ending = "auto"
-
-[tool.ruff.lint.pydocstyle]
-convention = "google"
+lint.select = [
+  "A",
+  "ANN",
+  "ARG",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "C90",
+  "COM",
+  "CPY",
+  "D",
+  "DJ",
+  "DTZ",
+  "E",
+  "EM",
+  "ERA",
+  "EXE",
+  "F",
+  "FBT",
+  "FIX",
+  "FLY",
+  "FURB",
+  "G",
+  "I",
+  "ICN",
+  "INP",
+  "INT",
+  "ISC",
+  "LOG",
+  "N",
+  "NPY",
+  "PD",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "Q",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "SLOT",
+  "T10",
+  "T20",
+  "TCH",
+  "TD",
+  "TID",
+  "TRIO",
+  "TRY",
+  "UP",
+  "W",
+  "YTT",
+]
+lint.explicit-preview-rules = true
+lint.fixable = [
+  "ALL",
+]
+lint.unfixable = [
+]
+# Allow unused variables when underscore-prefixed.
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+# Like Black, use double quotes for strings.
+lint.pydocstyle.convention = "google"
+lint.ignore = [
+  "A002",
+  "ANN101",
+  "ANN102",
+  "ANN204",
+  "ANN401",
+  "ARG001",
+  "ARG002",
+  "ARG005",
+  "B008",
+  "B027",
+  "B028",
+  "COM812",
+  "D100",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D106",
+  "D107",
+  "D205",
+  "D415",
+  "D417",
+  "EM101",
+  "EM102",
+  "F403",
+  "FBT001",
+  "FBT002",
+  "FBT003",
+  "G004",
+  "N812",
+  "PLR0913",
+  "PTH123",
+  "S311",
+  "TRY003",
+]
+# Allow fix for all enabled rules (when `--fix`) is provided.
 
 [tool.mypy]
-plugins = ["pydantic.mypy"]
+plugins = [
+  "pydantic.mypy",
+]
 
 python_version = "3.8"
 ignore_missing_imports = true
