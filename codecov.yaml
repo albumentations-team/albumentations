@@ -17,12 +17,10 @@ coverage:
     project:
       default:
         target: auto
-      paths:
-          - "**/*.py"
-
-codecov:
-  require_ci_to_pass: false
   ignore:
     - "tests/"
     - "tools/"
     - "benchmark/"
+
+codecov:
+  require_ci_to_pass: false
