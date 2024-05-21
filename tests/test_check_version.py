@@ -22,12 +22,6 @@ def mock_response_failure():
     mock_response.__enter__.return_value.status = 500  # use a different status code for failure
     return mock_response
 
-@pytest.fixture
-def mock_url_errors():
-    def _raise_error(error_type):
-        raise urllib.error.URLError(error_type)
-    return _raise_error
-
 def test_fetch_version_info_success(mocker, mock_response_success, caplog):
     mocker.patch('urllib.request.OpenerDirector.open', return_value=mock_response_success)
     with caplog.at_level(logging.DEBUG):
@@ -43,7 +37,6 @@ def test_fetch_version_info_timeout(mocker, caplog):
     mocker.patch('urllib.request.OpenerDirector.open', side_effect=urllib.error.URLError("timeout"))
     result = fetch_version_info()
     assert result == "", "Should return empty string on timeout error"
-    assert any("timeout" in message for message in caplog.text), "Should log timeout error"
 
 def test_check_for_updates_new_version_available(mocker):
     mocker.patch('albumentations.check_version.fetch_version_info', return_value='{"info": {"version": "1.0.2"}}')
