@@ -28,10 +28,10 @@ from albumentations.core.pydantic import (
     ProbabilityType,
     SymmetricRangeType,
     ZeroOneRangeType,
-    check_01_range,
-    check_1plus_range,
+    check_0plus,
+    check_01,
+    check_1plus,
     nondecreasing,
-    range_0plus,
 )
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
@@ -438,11 +438,11 @@ class RandomSnow(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        snow_point_range: Annotated[
-            Tuple[float, float], AfterValidator(check_01_range), AfterValidator(nondecreasing)
-        ] = Field(
-            default=(0.1, 0.3),
-            description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
+        snow_point_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
+            Field(
+                default=(0.1, 0.3),
+                description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
+            )
         )
         snow_point_lower: Optional[float] = Field(
             default=None,
@@ -1057,9 +1057,10 @@ class RandomShadow(ImageOnlyTransform):
             default=(0, 0.5, 1, 1),
             description="Region of the image where shadows will appear",
         )
-        num_shadows_limit: Annotated[
-            Tuple[int, int], AfterValidator(check_1plus_range), AfterValidator(nondecreasing)
-        ] = (1, 2)
+        num_shadows_limit: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
+            1,
+            2,
+        )
         num_shadows_lower: Optional[int] = Field(
             default=None,
             description="Lower limit for the possible number of shadows",
@@ -2025,7 +2026,7 @@ class Downscale(ImageOnlyTransform):
         )
         interpolation_pair: InterpolationPydantic
 
-        scale_range: Annotated[Tuple[float, float], AfterValidator(check_01_range), AfterValidator(nondecreasing)] = (
+        scale_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
             0.25,
             0.25,
         )
@@ -2197,7 +2198,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: Annotated[Tuple[float, float], AfterValidator(range_0plus), AfterValidator(nondecreasing)] = (
+        multiplier: Annotated[Tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = (
             0.9,
             1.1,
         )
