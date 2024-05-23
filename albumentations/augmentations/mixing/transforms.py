@@ -130,7 +130,7 @@ class MixUp(ReferenceBasedTransform):
         self.alpha = alpha
 
         if reference_data is None:
-            warn("No reference data provided for MixUp. This transform will act as a no-op.")
+            warn("No reference data provided for MixUp. This transform will act as a no-op.", stacklevel=2)
             # Create an empty generator
             self.reference_data: List[Any] = []
         elif (
@@ -203,6 +203,7 @@ class MixUp(ReferenceBasedTransform):
                     "Reference data iterator/generator has been exhausted. "
                     "Further mixing augmentations will not be applied.",
                     RuntimeWarning,
+                    stacklevel=2,
                 )
                 return {"mix_data": {}, "mix_coef": 1}
 

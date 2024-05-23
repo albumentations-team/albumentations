@@ -7,7 +7,7 @@ import numpy as np
 from pydantic import Field
 from typing_extensions import Literal
 
-from albumentations.augmentations.crops import functional as FCrops
+from albumentations.augmentations.crops import functional as fcrops
 from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
@@ -18,7 +18,7 @@ from albumentations.core.types import (
     Targets,
 )
 
-from . import functional as F
+from . import functional as fgeometric
 
 __all__ = ["Rotate", "RandomRotate90", "SafeRotate"]
 
@@ -53,10 +53,10 @@ class RandomRotate90(DualTransform):
         return {"factor": random.randint(0, 3)}
 
     def apply_to_bbox(self, bbox: BoxInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return F.bbox_rot90(bbox, factor, **params)
+        return fgeometric.bbox_rot90(bbox, factor, **params)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return F.keypoint_rot90(keypoint, factor, **params)
+        return fgeometric.keypoint_rot90(keypoint, factor, **params)
 
     def get_transform_init_args_names(self) -> Tuple[()]:
         return ()
@@ -145,9 +145,9 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        img_out = F.rotate(img, angle, interpolation, self.border_mode, self.value)
+        img_out = fgeometric.rotate(img, angle, interpolation, self.border_mode, self.value)
         if self.crop_border:
-            return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
+            return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
     def apply_to_mask(
@@ -160,9 +160,9 @@ class Rotate(DualTransform):
         y_max: int,
         **params: Any,
     ) -> np.ndarray:
-        img_out = F.rotate(mask, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
+        img_out = fgeometric.rotate(mask, angle, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
         if self.crop_border:
-            return FCrops.crop(img_out, x_min, y_min, x_max, y_max)
+            return fcrops.crop(img_out, x_min, y_min, x_max, y_max)
         return img_out
 
     def apply_to_bbox(
@@ -177,9 +177,9 @@ class Rotate(DualTransform):
         rows: int,
         **params: Any,
     ) -> np.ndarray:
-        bbox_out = F.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
+        bbox_out = fgeometric.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
         if self.crop_border:
-            return FCrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
+            return fcrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
         return bbox_out
 
     def apply_to_keypoint(
@@ -194,9 +194,9 @@ class Rotate(DualTransform):
         rows: int,
         **params: Any,
     ) -> KeypointInternalType:
-        keypoint_out = F.keypoint_rotate(keypoint, angle, rows, cols, **params)
+        keypoint_out = fgeometric.keypoint_rotate(keypoint, angle, rows, cols, **params)
         if self.crop_border:
-            return FCrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
+            return fcrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
         return keypoint_out
 
     @staticmethod
@@ -303,13 +303,13 @@ class SafeRotate(DualTransform):
         self.mask_value = mask_value
 
     def apply(self, img: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
-        return F.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
+        return fgeometric.safe_rotate(img, matrix, self.interpolation, self.value, self.border_mode)
 
     def apply_to_mask(self, mask: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
-        return F.safe_rotate(mask, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
+        return fgeometric.safe_rotate(mask, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
     def apply_to_bbox(self, bbox: BoxInternalType, cols: int, rows: int, **params: Any) -> BoxInternalType:
-        return F.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
+        return fgeometric.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
 
     def apply_to_keypoint(
         self,
@@ -321,7 +321,7 @@ class SafeRotate(DualTransform):
         rows: int,
         **params: Any,
     ) -> KeypointInternalType:
-        return F.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
+        return fgeometric.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
 
     @property
     def targets_as_params(self) -> List[str]:

@@ -8,7 +8,7 @@ from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Self
 
 from albumentations import random_utils
-from albumentations.augmentations import functional as FMain
+from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.utils import check_range
 from albumentations.core.pydantic import (
     NonNegativeFloatRangeType,
@@ -20,7 +20,7 @@ from albumentations.core.transforms_interface import BaseTransformInitSchema, Im
 from albumentations.core.types import ScaleFloatType, ScaleIntType
 from albumentations.core.utils import to_tuple
 
-from . import functional as F
+from . import functional as fblur
 
 __all__ = ["Blur", "MotionBlur", "GaussianBlur", "GlassBlur", "AdvancedBlur", "MedianBlur", "Defocus", "ZoomBlur"]
 
@@ -73,7 +73,7 @@ class Blur(ImageOnlyTransform):
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
-        return F.blur(img, kernel)
+        return fblur.blur(img, kernel)
 
     def get_params(self) -> Dict[str, Any]:
         return {"kernel": random_utils.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))}
@@ -134,7 +134,7 @@ class MotionBlur(Blur):
         return (*super().get_transform_init_args_names(), "allow_shifted")
 
     def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
-        return FMain.convolve(img, kernel=kernel)
+        return fmain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, Any]:
         ksize = random.choice(list(range(self.blur_limit[0], self.blur_limit[1] + 1, 2)))
@@ -195,7 +195,7 @@ class MedianBlur(Blur):
         super().__init__(blur_limit, always_apply, p)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
-        return F.median_blur(img, kernel)
+        return fblur.median_blur(img, kernel)
 
 
 class GaussianBlur(ImageOnlyTransform):
@@ -240,6 +240,7 @@ class GaussianBlur(ImageOnlyTransform):
                 warnings.warn(
                     "blur_limit and sigma_limit minimum value can not be both equal to 0. "
                     "blur_limit minimum value changed to 3.",
+                    stacklevel=2,
                 )
 
             if isinstance(self.blur_limit, tuple):
@@ -261,7 +262,7 @@ class GaussianBlur(ImageOnlyTransform):
         self.sigma_limit = cast(Tuple[float, float], sigma_limit)
 
     def apply(self, img: np.ndarray, ksize: int, sigma: float, **params: Any) -> np.ndarray:
-        return F.gaussian_blur(img, ksize, sigma=sigma)
+        return fblur.gaussian_blur(img, ksize, sigma=sigma)
 
     def get_params(self) -> Dict[str, float]:
         ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1)
@@ -323,7 +324,7 @@ class GlassBlur(ImageOnlyTransform):
             msg = "dxy is None"
             raise ValueError(msg)
 
-        return F.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
+        return fblur.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
         img = params["image"]
@@ -436,11 +437,11 @@ class AdvancedBlur(ImageOnlyTransform):
         super().__init__(always_apply, p)
 
         if sigmaX_limit is not None:
-            warnings.warn("sigmaX_limit is deprecated; use sigma_x_limit instead.", DeprecationWarning)
+            warnings.warn("sigmaX_limit is deprecated; use sigma_x_limit instead.", DeprecationWarning, stacklevel=2)
             sigma_x_limit = sigmaX_limit
 
         if sigmaY_limit is not None:
-            warnings.warn("sigmaY_limit is deprecated; use sigma_y_limit instead.", DeprecationWarning)
+            warnings.warn("sigmaY_limit is deprecated; use sigma_y_limit instead.", DeprecationWarning, stacklevel=2)
             sigma_y_limit = sigmaY_limit
 
         self.blur_limit = cast(Tuple[int, int], blur_limit)
@@ -451,7 +452,7 @@ class AdvancedBlur(ImageOnlyTransform):
         self.noise_limit = cast(Tuple[float, float], noise_limit)
 
     def apply(self, img: np.ndarray, kernel: np.ndarray, **params: Any) -> np.ndarray:
-        return FMain.convolve(img, kernel=kernel)
+        return fmain.convolve(img, kernel=kernel)
 
     def get_params(self) -> Dict[str, np.ndarray]:
         ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
@@ -533,7 +534,7 @@ class Defocus(ImageOnlyTransform):
         self.alias_blur = cast(Tuple[float, float], alias_blur)
 
     def apply(self, img: np.ndarray, radius: int, alias_blur: float, **params: Any) -> np.ndarray:
-        return F.defocus(img, radius, alias_blur)
+        return fblur.defocus(img, radius, alias_blur)
 
     def get_params(self) -> Dict[str, Any]:
         return {
@@ -583,7 +584,7 @@ class ZoomBlur(ImageOnlyTransform):
         self.step_factor = cast(Tuple[float, float], step_factor)
 
     def apply(self, img: np.ndarray, zoom_factors: np.ndarray, **params: Any) -> np.ndarray:
-        return F.zoom_blur(img, zoom_factors)
+        return fblur.zoom_blur(img, zoom_factors)
 
     def get_params(self) -> Dict[str, Any]:
         max_factor = random.uniform(self.max_factor[0], self.max_factor[1])

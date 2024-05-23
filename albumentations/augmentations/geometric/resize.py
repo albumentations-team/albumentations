@@ -15,7 +15,7 @@ from albumentations.core.types import (
 )
 from albumentations.core.utils import to_tuple
 
-from . import functional as F
+from . import functional as fgeometric
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
 
@@ -76,7 +76,7 @@ class RandomScale(DualTransform):
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
-        return F.scale(img, scale, interpolation)
+        return fgeometric.scale(img, scale, interpolation)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
@@ -88,7 +88,7 @@ class RandomScale(DualTransform):
         scale: float,
         **params: Any,
     ) -> KeypointInternalType:
-        return F.keypoint_scale(keypoint, scale, scale)
+        return fgeometric.keypoint_scale(keypoint, scale, scale)
 
     def get_transform_init_args(self) -> Dict[str, Any]:
         return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
@@ -153,7 +153,7 @@ class LongestMaxSize(DualTransform):
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
-        return F.longest_max_size(img, max_size=max_size, interpolation=interpolation)
+        return fgeometric.longest_max_size(img, max_size=max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
@@ -169,7 +169,7 @@ class LongestMaxSize(DualTransform):
         width = params["cols"]
 
         scale = max_size / max([height, width])
-        return F.keypoint_scale(keypoint, scale, scale)
+        return fgeometric.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
@@ -218,7 +218,7 @@ class SmallestMaxSize(DualTransform):
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
-        return F.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
+        return fgeometric.smallest_max_size(img, max_size=max_size, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         return bbox
@@ -233,7 +233,7 @@ class SmallestMaxSize(DualTransform):
         width = params["cols"]
 
         scale = max_size / min([height, width])
-        return F.keypoint_scale(keypoint, scale, scale)
+        return fgeometric.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> Dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
@@ -283,7 +283,7 @@ class Resize(DualTransform):
         self.interpolation = interpolation
 
     def apply(self, img: np.ndarray, interpolation: int, **params: Any) -> np.ndarray:
-        return F.resize(img, height=self.height, width=self.width, interpolation=interpolation)
+        return fgeometric.resize(img, height=self.height, width=self.width, interpolation=interpolation)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
@@ -294,7 +294,7 @@ class Resize(DualTransform):
         width = params["cols"]
         scale_x = self.width / width
         scale_y = self.height / height
-        return F.keypoint_scale(keypoint, scale_x, scale_y)
+        return fgeometric.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("height", "width", "interpolation")

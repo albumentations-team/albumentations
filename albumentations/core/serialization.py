@@ -104,6 +104,7 @@ class Serializable(metaclass=SerializableMeta):
                 f"Implement either '{self.__class__.__name__}.get_transform_init_args_names' "
                 f"or '{self.__class__.__name__}.get_transform_init_args' "
                 "method to make the transform serializable",
+                stacklevel=2,
             )
         return {"__version__": __version__, "transform": transform_dict}
 

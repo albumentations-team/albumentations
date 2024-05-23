@@ -121,6 +121,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             warn(
                 self.get_class_fullname() + " could work incorrectly in ReplayMode for other input data"
                 " because its' params depend on targets.",
+                stacklevel=2,
             )
         self.save_key = save_key
         return self

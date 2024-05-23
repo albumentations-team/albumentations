@@ -164,6 +164,13 @@ def test_normalize_per_image(shape, normalization, dtype):
                     assert np.isclose(channel_std, 1, atol=1e-3), f"STD for channel {c} should be close to 1"
 
 
+@pytest.mark.parametrize("normalization", ("min_max", "min_max_per_channel"))
+def test_zero_image(normalization):
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+    normalized = F.normalize_per_image(img, normalization)
+    assert np.all(normalized == 0), "All values should be zero after normalization"
+
+
 def test_normalize_float():
     img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
     normalized = F.normalize(img, mean=50, std=3, max_pixel_value=1.0)
