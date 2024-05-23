@@ -40,6 +40,8 @@ REPR_INDENT_STEP = 2
 TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = List[TransformType]
 
+AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints", "global_label")
+
 
 def get_always_apply(transforms: Union["BaseCompose", TransformsSeqType]) -> TransformsSeqType:
     new_transforms: TransformsSeqType = []
@@ -207,6 +209,8 @@ class Compose(BaseCompose):
             proc.ensure_transforms_valid(self.transforms)
 
         self.add_targets(additional_targets)
+        if not self.transforms:  # if no transforms -> do nothing, all keys will be available
+            self._available_keys.update(AVAILABLE_KEYS)
 
         self.is_check_args = True
         self._disable_check_args_for_transforms(self.transforms)
