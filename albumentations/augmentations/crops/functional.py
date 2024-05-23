@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
 
-from albumentations.augmentations.geometric import functional as FGeometric
+from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import BoxInternalType, KeypointInternalType
 
@@ -64,20 +64,18 @@ def crop_bbox_by_coords(
     rows: int,
     cols: int,
 ) -> BoxInternalType:
-    """Crop a bounding box using the provided coordinates of bottom-left and top-right corners in pixels and the
-    required height and width of the crop.
+    """Crop a bounding box using the provided coordinates of the crop area and the original image dimensions.
 
     Args:
-        bbox: A cropped box `(x_min, y_min, x_max, y_max)`.
-        crop_coords: Crop coordinates `(x1, y1, x2, y2)`.
-        crop_height:
-        crop_width:
-        rows: Image rows.
-        cols: Image cols.
+        bbox (BoxInternalType): A bounding box in the format `(x_min, y_min, x_max, y_max)`.
+        crop_coords (Tuple[int, int, int, int]): The coordinates of the crop area in the format `(x1, y1, x2, y2)`.
+        crop_height (int): The height of the crop area in pixels.
+        crop_width (int): The width of the crop area in pixels.
+        rows (int): The number of rows (height) in the original image.
+        cols (int): The number of columns (width) in the original image.
 
     Returns:
-        A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
+        BoxInternalType: A cropped bounding box in the format `(x_min, y_min, x_max, y_max)`.
     """
     normalized_bbox = denormalize_bbox(bbox, rows, cols)
     x_min, y_min, x_max, y_max = normalized_bbox[:4]
@@ -221,20 +219,19 @@ def bbox_crop(
     rows: int,
     cols: int,
 ) -> BoxInternalType:
-    """Crop a bounding box.
+    """Crop a bounding box using the provided coordinates.
 
     Args:
-        bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        x_min:
-        y_min:
-        x_max:
-        y_max:
-        rows: Image rows.
-        cols: Image cols.
+        bbox (BoxInternalType): A bounding box in the format `(x_min, y_min, x_max, y_max)`.
+        x_min (int): The minimum x-coordinate of the crop area.
+        y_min (int): The minimum y-coordinate of the crop area.
+        x_max (int): The maximum x-coordinate of the crop area.
+        y_max (int): The maximum y-coordinate of the crop area.
+        rows (int): The number of rows (height) in the original image.
+        cols (int): The number of columns (width) in the original image.
 
     Returns:
-        A cropped bounding box `(x_min, y_min, x_max, y_max)`.
-
+        BoxInternalType: A cropped bounding box in the format `(x_min, y_min, x_max, y_max)`.
     """
     crop_coords = x_min, y_min, x_max, y_max
     crop_height = y_max - y_min
@@ -270,7 +267,7 @@ def crop_and_pad(
     if crop_params is not None and any(i != 0 for i in crop_params):
         img = crop(img, *crop_params)
     if pad_params is not None and any(i != 0 for i in pad_params):
-        img = FGeometric.pad_with_params(
+        img = fgeometric.pad_with_params(
             img,
             pad_params[0],
             pad_params[1],
@@ -343,6 +340,6 @@ def crop_and_pad_keypoint(
     if keep_size and (result_cols != cols or result_rows != rows):
         scale_x = cols / result_cols
         scale_y = rows / result_rows
-        return FGeometric.keypoint_scale((x, y, angle, scale), scale_x, scale_y)
+        return fgeometric.keypoint_scale((x, y, angle, scale), scale_x, scale_y)
 
     return x, y, angle, scale

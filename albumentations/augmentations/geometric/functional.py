@@ -155,20 +155,20 @@ def keypoint_rot90(
     cols: int,
     **params: Any,
 ) -> KeypointInternalType:
-    """Rotates a keypoint by 90 degrees CCW
+    """Rotate a keypoint by 90 degrees counter-clockwise (CCW) a specified number of times.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
-        factor: Number of CCW rotations. Must be in range [0;3] See np.rot90.
-        rows: Image height.
-        cols: Image width.
+        keypoint (KeypointInternalType): A keypoint in the format `(x, y, angle, scale)`.
+        factor (int): The number of 90 degree CCW rotations to apply. Must be in the range [0, 3].
+        rows (int): The height of the image the keypoint belongs to.
+        cols (int): The width of the image the keypoint belongs to.
+        **params: Additional parameters.
 
     Returns:
-        tuple: A keypoint `(x, y, angle, scale)`.
+        KeypointInternalType: The rotated keypoint in the format `(x, y, angle, scale)`.
 
     Raises:
-        ValueError: if factor not in set {0, 1, 2, 3}
-
+        ValueError: If the factor is not in the set {0, 1, 2, 3}.
     """
     x, y, angle, scale = keypoint
 
@@ -310,17 +310,20 @@ def keypoint_rotate(
     cols: int,
     **params: Any,
 ) -> KeypointInternalType:
-    """Rotate a keypoint by angle.
+    """Rotate a keypoint by a specified angle.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
-        angle: Rotation angle.
-        rows: Image height.
-        cols: Image width.
+        keypoint (KeypointInternalType): A keypoint in the format `(x, y, angle, scale)`.
+        angle (float): The angle by which to rotate the keypoint, in degrees.
+        rows (int): The height of the image the keypoint belongs to.
+        cols (int): The width of the image the keypoint belongs to.
+        **params: Additional parameters.
 
     Returns:
-        A keypoint `(x, y, angle, scale)`.
+        KeypointInternalType: The rotated keypoint in the format `(x, y, angle, scale)`.
 
+    Note:
+        The rotation is performed around the center of the image.
     """
     center = (cols - 1) * 0.5, (rows - 1) * 0.5
     matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
@@ -761,7 +764,7 @@ def to_distance_maps(
     method that only supports the augmentation of images.
 
     Args:
-        keypoint: keypoint coordinates
+        keypoints: keypoint coordinates
         height: image height
         width: image width
         inverted (bool): If ``True``, inverted distance maps are returned where each

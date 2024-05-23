@@ -33,6 +33,7 @@ class ValidatedTransformMeta(type):
                     if name_arg not in validated_kwargs:
                         warn(
                             f"Argument '{name_arg}' is not valid and will be ignored.",
+                            stacklevel=2,
                         )
 
                 original_init(self, **validated_kwargs)

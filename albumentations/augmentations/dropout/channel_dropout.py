@@ -15,7 +15,6 @@ from .functional import channel_dropout
 
 __all__ = ["ChannelDropout"]
 
-NUM_GRAYSCALE_LENGTH = 2
 MIN_DROPOUT_CHANNEL_LIST_LENGTH = 2
 
 

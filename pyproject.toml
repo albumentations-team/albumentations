@@ -118,16 +118,6 @@ lint.select = [
   "W",
   "YTT",
 ]
-lint.explicit-preview-rules = true
-lint.fixable = [
-  "ALL",
-]
-lint.unfixable = [
-]
-# Allow unused variables when underscore-prefixed.
-lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
-# Like Black, use double quotes for strings.
-lint.pydocstyle.convention = "google"
 lint.ignore = [
   "A002",
   "ANN101",
@@ -136,11 +126,8 @@ lint.ignore = [
   "ANN401",
   "ARG001",
   "ARG002",
-  "ARG005",
   "B008",
   "B027",
-  "B028",
-  "COM812",
   "D100",
   "D101",
   "D102",
@@ -151,7 +138,6 @@ lint.ignore = [
   "D107",
   "D205",
   "D415",
-  "D417",
   "EM101",
   "EM102",
   "F403",
@@ -159,13 +145,24 @@ lint.ignore = [
   "FBT002",
   "FBT003",
   "G004",
-  "N812",
   "PLR0913",
   "PTH123",
   "S311",
   "TRY003",
 ]
+
 # Allow fix for all enabled rules (when `--fix`) is provided.
+
+lint.explicit-preview-rules = true
+lint.fixable = [
+  "ALL",
+]
+lint.unfixable = [
+]
+# Allow unused variables when underscore-prefixed.
+lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+# Like Black, use double quotes for strings.
+lint.pydocstyle.convention = "google"
 
 [tool.mypy]
 plugins = [

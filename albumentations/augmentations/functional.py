@@ -126,6 +126,7 @@ def normalize_per_image(
         https://github.com/ChristofHenkel/kaggle-landmark-2021-1st-place/blob/main/data/ch_ds_1.py
     """
     img = img.astype(np.float32)
+    eps = 1e-4
 
     if img.ndim == MONO_CHANNEL_DIMENSIONS:
         img = np.expand_dims(img, axis=-1)  # Ensure the image is at least 3D
@@ -133,14 +134,14 @@ def normalize_per_image(
     if normalization == "image":
         # Normalize the whole image based on its global mean and std
         mean = img.mean()
-        std = img.std() + 1e-4  # Adding a small epsilon to avoid division by zero
+        std = img.std() + eps  # Adding a small epsilon to avoid division by zero
         normalized_img = (img - mean) / std
         normalized_img = normalized_img.clip(-20, 20)  # Clipping outliers
 
     elif normalization == "image_per_channel":
         # Normalize the image per channel based on each channel's mean and std
         pixel_mean = img.mean(axis=(0, 1))
-        pixel_std = img.std(axis=(0, 1)) + 1e-4
+        pixel_std = img.std(axis=(0, 1)) + eps
         normalized_img = (img - pixel_mean[None, None, :]) / pixel_std[None, None, :]
         normalized_img = normalized_img.clip(-20, 20)
 
@@ -148,13 +149,13 @@ def normalize_per_image(
         # Apply min-max normalization to the whole image
         img_min = img.min()
         img_max = img.max()
-        normalized_img = (img - img_min) / (img_max - img_min)
+        normalized_img = (img - img_min) / (img_max - img_min + eps)
 
     elif normalization == "min_max_per_channel":
         # Apply min-max normalization per channel
         img_min = img.min(axis=(0, 1), keepdims=True)
         img_max = img.max(axis=(0, 1), keepdims=True)
-        normalized_img = (img - img_min) / (img_max - img_min)
+        normalized_img = (img - img_min) / (img_max - img_min + eps)
 
     else:
         raise ValueError(f"Unknown normalization method: {normalization}")
@@ -228,6 +229,7 @@ def shift_hsv(img: np.ndarray, hue_shift: np.ndarray, sat_shift: np.ndarray, val
             warn(
                 "HueSaturationValue: hue_shift and sat_shift are not applicable to grayscale image. "
                 "Set them to 0 or use RGB image",
+                stacklevel=2,
             )
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
 
@@ -556,6 +558,7 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
             "is most effective with uint8 inputs, "
             f"{input_dtype} is used as input.",
             UserWarning,
+            stacklevel=2,
         )
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
@@ -684,16 +687,20 @@ def add_rain(
 
 @preserve_channel_dim
 def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List[Tuple[int, int]]) -> np.ndarray:
-    """Add fog to the image.
+    """Add fog to an image using the provided coefficients and haze points.
 
     Args:
-        img: Image.
-        fog_coef: Fog coefficient.
-        alpha_coef: Alpha coefficient.
-        haze_list:
+        img (np.ndarray): The input image, expected to be a numpy array.
+        fog_coef (float): The fog coefficient, used to determine the intensity of the fog.
+        alpha_coef (float): The alpha coefficient, used to determine the transparency of the fog.
+        haze_list (List[Tuple[int, int]]): A list of tuples, where each tuple represents the x and y
+            coordinates of a haze point.
 
     Returns:
-        np.ndarray: Image.
+        np.ndarray: The output image with added fog, as a numpy array.
+
+    Raises:
+        ValueError: If the input image's dtype is not uint8 or float32.
 
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
@@ -742,21 +749,22 @@ def add_sun_flare(
     src_color: ColorType,
     circles: List[Any],
 ) -> np.ndarray:
-    """Add sun flare.
-
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
+    """Add a sun flare effect to an image.
 
     Args:
-        img (numpy.ndarray):
-        flare_center_x (float):
-        flare_center_y (float):
-        src_radius:
-        src_color (int, int, int):
-        circles (list):
+        img (np.ndarray): The input image.
+        flare_center_x (float): The x-coordinate of the flare center.
+        flare_center_y (float): The y-coordinate of the flare center.
+        src_radius (int): The radius of the source of the flare.
+        src_color (ColorType): The color of the flare, represented as a tuple of RGB values.
+        circles (List[Any]): A list of tuples, each representing a circle that contributes to the flare effect.
+            Each tuple contains the alpha value, the center coordinates, the radius, and the color of the circle.
 
     Returns:
-        numpy.ndarray:
+        np.ndarray: The output image with the sun flare effect added.
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     non_rgb_warning(img)
 
@@ -766,8 +774,6 @@ def add_sun_flare(
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
-    elif input_dtype not in (np.uint8, np.float32):
-        raise ValueError(f"Unexpected dtype {input_dtype} for RandomSunFlareaugmentation")
 
     overlay = img.copy()
     output = img.copy()
@@ -842,8 +848,6 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
 def add_gravel(img: np.ndarray, gravels: List[Any]) -> np.ndarray:
     """Add gravel to the image.
 
-    From https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     Args:
         img (numpy.ndarray): image to add gravel to
         gravels (list): list of gravel parameters. (float, float, float, float):
@@ -852,6 +856,8 @@ def add_gravel(img: np.ndarray, gravels: List[Any]) -> np.ndarray:
     Returns:
         numpy.ndarray:
 
+    Reference:
+        https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
     non_rgb_warning(img)
     input_dtype = img.dtype
@@ -967,19 +973,22 @@ def iso_noise(
     random_state: Optional[int] = None,
     **kwargs: Any,
 ) -> np.ndarray:
-    """Apply poisson noise to image to simulate camera sensor noise.
+    """Apply poisson noise to an image to simulate camera sensor noise.
 
     Args:
-        image (numpy.ndarray): Input image, currently, only RGB, uint8 images are supported.
-        color_shift (float):
-        intensity (float): Multiplication factor for noise values. Values of ~0.5 are produce noticeable,
-                   yet acceptable level of noise.
-        random_state:
-        **kwargs:
+        image (np.ndarray): Input image. Currently, only RGB, uint8 images are supported.
+        color_shift (float): The amount of color shift to apply. Default is 0.05.
+        intensity (float): Multiplication factor for noise values. Values of ~0.5 produce a noticeable,
+                           yet acceptable level of noise. Default is 0.5.
+        random_state (Optional[int]): If specified, this will set the random seed for the noise generation,
+                                      ensuring consistent results for the same input and seed.
+        **kwargs: Additional keyword arguments.
 
     Returns:
-        numpy.ndarray: Noised image
+        np.ndarray: The noised image.
 
+    Raises:
+        TypeError: If the input image's dtype is not uint8 or if the image is not RGB.
     """
     if image.dtype != np.uint8:
         msg = "Image must have uint8 channel type"
@@ -1476,9 +1485,15 @@ def split_uniform_grid(
     Args:
         image_shape (Tuple[int, int]): The shape of the image as (height, width).
         grid (Tuple[int, int]): The grid size as (rows, columns).
+        random_state (Optional[np.random.RandomState]): The random state to use for shuffling the splits.
+            If None, the splits are not shuffled.
 
     Returns:
         np.ndarray: An array containing the tiles' coordinates in the format (start_y, start_x, end_y, end_x).
+
+    Note:
+        The function uses `generate_shuffled_splits` to generate the splits for the height and width of the image.
+        The splits are then used to calculate the coordinates of the tiles.
     """
     n_rows, n_cols = grid
 

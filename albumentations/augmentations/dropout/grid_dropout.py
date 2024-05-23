@@ -7,7 +7,7 @@ from pydantic import Field
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, ScalarType, Targets
 
-from . import functional as F
+from . import functional as fdropout
 
 __all__ = ["GridDropout"]
 
@@ -91,7 +91,7 @@ class GridDropout(DualTransform):
         self.mask_fill_value = mask_fill_value
 
     def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], **params: Any) -> np.ndarray:
-        return F.cutout(img, holes, self.fill_value)
+        return fdropout.cutout(img, holes, self.fill_value)
 
     def apply_to_mask(
         self,
@@ -102,7 +102,7 @@ class GridDropout(DualTransform):
         if self.mask_fill_value is None:
             return mask
 
-        return F.cutout(mask, holes, self.mask_fill_value)
+        return fdropout.cutout(mask, holes, self.mask_fill_value)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]

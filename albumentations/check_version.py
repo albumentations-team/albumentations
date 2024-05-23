@@ -60,7 +60,7 @@ def check_for_updates() -> None:
         if latest_version and latest_version != current_version:
             logger.info(
                 f"A new version of Albumentations is available: {latest_version} (you have {current_version})."
-                " Upgrade using: pip install --upgrade albumentations"
+                " Upgrade using: pip install --upgrade albumentations",
             )
     except Exception as e:  # General exception catch to ensure silent failure  # noqa: BLE001
         logger.info(f"Failed to check for updates due to an unexpected error: {e}")
