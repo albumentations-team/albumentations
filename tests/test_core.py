@@ -514,7 +514,8 @@ def test_sequential_multiple_transformations(image, aug):
             A.RandomGamma(p=1),
             A.ImageCompression(quality_range=(75, 100), p=1),
             A.Crop(x_max=50, y_max=50),
-        ]
+        ],
+        [],  # empty
     ]
 )
 @pytest.mark.parametrize(
