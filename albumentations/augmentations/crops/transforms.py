@@ -978,11 +978,25 @@ class CropAndPad(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        px: Optional[Union[int, Tuple[int, int], Tuple[int, int, int, int]]] = Field(
+        px: Optional[
+            Union[
+                int,
+                Tuple[int, int],
+                Tuple[int, int, int, int],
+                Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], Tuple[int, int]],
+            ]
+        ] = Field(
             default=None,
             description="Number of pixels to crop (negative) or pad (positive).",
         )
-        percent: Optional[Union[float, Tuple[float, float], Tuple[float, float, float, float]]] = Field(
+        percent: Optional[
+            Union[
+                float,
+                Tuple[float, float],
+                Tuple[float, float, float, float],
+                Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]],
+            ]
+        ] = Field(
             default=None,
             description="Fraction of image size to crop (negative) or pad (positive).",
         )
