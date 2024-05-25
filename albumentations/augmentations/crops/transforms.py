@@ -5,7 +5,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from pydantic import Field, field_validator, model_validator
+from pydantic import AfterValidator, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
@@ -14,17 +14,20 @@ from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (
     BorderModeType,
     InterpolationType,
-    NonNegativeFloatRangeType,
     OnePlusIntRangeType,
     ProbabilityType,
     ZeroOneRangeType,
+    check_0plus,
+    check_01,
 )
-from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
+from albumentations.core.transforms_interface import PAIR, BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
     BoxInternalType,
-    ColorType,
     KeypointInternalType,
+    PercentType,
+    PxType,
+    ScalarType,
     ScaleFloatType,
     ScaleIntType,
     Targets,
@@ -525,8 +528,8 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: ZeroOneRangeType = (0.08, 1.0)
-        ratio: NonNegativeFloatRangeType = (0.75, 1.3333333333333333)
+        scale: Annotated[Tuple[float, float], AfterValidator(check_01)] = (0.08, 1.0)
+        ratio: Annotated[Tuple[float, float], AfterValidator(check_0plus)] = (0.75, 1.3333333333333333)
         width: Optional[int] = Field(
             None,
             deprecated="Initializing with 'height' and 'width' is deprecated. Use size instead.",
@@ -889,120 +892,116 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
 
 class CropAndPad(DualTransform):
     """Crop and pad images by pixel amounts or fractions of image sizes.
-    Cropping removes pixels at the sides (i.e. extracts a subimage from a given full image).
-    Padding adds pixels to the sides (e.g. black pixels).
-    This transformation will never crop images below a height or width of ``1``.
+    Cropping removes pixels at the sides (i.e., extracts a subimage from a given full image).
+    Padding adds pixels to the sides (e.g., black pixels).
+    This transformation will never crop images below a height or width of 1.
 
     Note:
         This transformation automatically resizes images back to their original size. To deactivate this, add the
-        parameter ``keep_size=False``.
+        parameter `keep_size=False`.
 
     Args:
-        px (int or tuple):
-            The number of pixels to crop (negative values) or pad (positive values)
-            on each side of the image. Either this or the parameter `percent` may
-            be set, not both at the same time.
-                * If ``None``, then pixel-based cropping/padding will not be used.
-                * If ``int``, then that exact number of pixels will always be cropped/padded.
-                * If a ``tuple`` of two ``int`` s with values ``a`` and ``b``,
-                  then each side will be cropped/padded by a random amount sampled
-                  uniformly per image and side from the interval ``[a, b]``. If
-                  however `sample_independently` is set to ``False``, only one
-                  value will be sampled per image and used for all sides.
-                * If a ``tuple`` of four entries, then the entries represent top,
-                  right, bottom, left. Each entry may be a single ``int`` (always
-                  crop/pad by exactly that value), a ``tuple`` of two ``int`` s
-                  ``a`` and ``b`` (crop/pad by an amount within ``[a, b]``), a
-                  ``list`` of ``int`` s (crop/pad by a random value that is
-                  contained in the ``list``).
-        percent (float or tuple):
-            The number of pixels to crop (negative values) or pad (positive values)
-            on each side of the image given as a *fraction* of the image
-            height/width. E.g. if this is set to ``-0.1``, the transformation will
-            always crop away ``10%`` of the image's height at both the top and the
-            bottom (both ``10%`` each), as well as ``10%`` of the width at the
-            right and left.
-            Expected value range is ``(-1.0, inf)``.
-            Either this or the parameter `px` may be set, not both
-            at the same time.
-                * If ``None``, then fraction-based cropping/padding will not be
-                  used.
-                * If ``float``, then that fraction will always be cropped/padded.
-                * If a ``tuple`` of two ``float`` s with values ``a`` and ``b``,
-                  then each side will be cropped/padded by a random fraction
-                  sampled uniformly per image and side from the interval
-                  ``[a, b]``. If however `sample_independently` is set to
-                  ``False``, only one value will be sampled per image and used for
-                  all sides.
-                * If a ``tuple`` of four entries, then the entries represent top,
-                  right, bottom, left. Each entry may be a single ``float``
-                  (always crop/pad by exactly that percent value), a ``tuple`` of
-                  two ``float`` s ``a`` and ``b`` (crop/pad by a fraction from
-                  ``[a, b]``), a ``list`` of ``float`` s (crop/pad by a random
-                  value that is contained in the list).
+        px (int,
+            Tuple[int, int],
+            Tuple[int, int, int, int],
+            Tuple[Union[int, Tuple[int, int], List[int]],
+                  Union[int, Tuple[int, int], List[int]],
+                  Union[int, Tuple[int, int], List[int]],
+                  Union[int, Tuple[int, int], List[int]]]):
+            The number of pixels to crop (negative values) or pad (positive values) on each side of the image.
+                Either this or the parameter `percent` may be set, not both at the same time.
+
+                * If `None`, then pixel-based cropping/padding will not be used.
+                * If `int`, then that exact number of pixels will always be cropped/padded.
+                * If a `tuple` of two `int`s with values `a` and `b`, then each side will be cropped/padded by a
+                    random amount sampled uniformly per image and side from the interval `[a, b]`.
+                    If `sample_independently` is set to `False`, only one value will be sampled per
+                        image and used for all sides.
+                * If a `tuple` of four entries, then the entries represent top, right, bottom, and left.
+                    Each entry may be:
+                    - A single `int` (always crop/pad by exactly that value).
+                    - A `tuple` of two `int`s `a` and `b` (crop/pad by an amount within `[a, b]`).
+                    - A `list` of `int`s (crop/pad by a random value that is contained in the `list`).
+
+        percent (float,
+                 Tuple[float, float],
+                 Tuple[float, float, float, float],
+                 Tuple[Union[float, Tuple[float, float], List[float]],
+                       Union[float, Tuple[float, float], List[float]],
+                       Union[float, Tuple[float, float], List[float]],
+                       Union[float, Tuple[float, float], List[float]]]):
+            The number of pixels to crop (negative values) or pad (positive values) on each side of the image given
+                as a *fraction* of the image height/width. E.g. if this is set to `-0.1`, the transformation will
+                always crop away `10%` of the image's height at both the top and the bottom (both `10%` each),
+                as well as `10%` of the width at the right and left. Expected value range is `(-1.0, inf)`.
+                Either this or the parameter `px` may be set, not both at the same time.
+
+                * If `None`, then fraction-based cropping/padding will not be used.
+                * If `float`, then that fraction will always be cropped/padded.
+                * If a `tuple` of two `float`s with values `a` and `b`, then each side will be cropped/padded by a
+                random fraction sampled uniformly per image and side from the interval `[a, b]`.
+                If `sample_independently` is set to `False`, only one value will be sampled per image and used
+                for all sides.
+                * If a `tuple` of four entries, then the entries represent top, right, bottom, and left.
+                    Each entry may be:
+                    - A single `float` (always crop/pad by exactly that percent value).
+                    - A `tuple` of two `float`s `a` and `b` (crop/pad by a fraction from `[a, b]`).
+                    - A `list` of `float`s (crop/pad by a random value that is contained in the `list`).
+
         pad_mode (int): OpenCV border mode.
-        pad_cval (number, Sequence[number]):
-            The constant value to use if the pad mode is ``BORDER_CONSTANT``.
-                * If ``number``, then that value will be used.
-                * If a ``tuple`` of two ``number`` s and at least one of them is
-                  a ``float``, then a random number will be uniformly sampled per
-                  image from the continuous interval ``[a, b]`` and used as the
-                  value. If both ``number`` s are ``int`` s, the interval is
-                  discrete.
-                * If a ``list`` of ``number``, then a random value will be chosen
-                  from the elements of the ``list`` and used as the value.
-        pad_cval_mask (number, Sequence[number]): Same as pad_cval but only for masks.
+        pad_cval (Union[int, float, Tuple[Union[int, float], Union[int, float]], List[Union[int, float]]]):
+            The constant value to use if the pad mode is `BORDER_CONSTANT`.
+                * If `number`, then that value will be used.
+                * If a `tuple` of two numbers and at least one of them is a `float`, then a random number
+                    will be uniformly sampled per image from the continuous interval `[a, b]` and used as the value.
+                    If both numbers are `int`s, the interval is discrete.
+                * If a `list` of numbers, then a random value will be chosen from the elements of the `list` and
+                    used as the value.
+
+        pad_cval_mask (Union[int, float, Tuple[Union[int, float], Union[int, float]], List[Union[int, float]]]):
+            Same as `pad_cval` but only for masks.
+
         keep_size (bool):
-            After cropping and padding, the result image will usually have a
-            different height/width compared to the original input image. If this
-            parameter is set to ``True``, then the cropped/padded image will be
-            resized to the input image's size, i.e. the output shape is always identical to the input shape.
+            After cropping and padding, the resulting image will usually have a different height/width compared to
+            the original input image. If this parameter is set to `True`, then the cropped/padded image will be
+            resized to the input image's size, i.e., the output shape is always identical to the input shape.
+
         sample_independently (bool):
-            If ``False`` *and* the values for `px`/`percent` result in exactly
-            *one* probability distribution for all image sides, only one single
-            value will be sampled from that probability distribution and used for
-            all sides. I.e. the crop/pad amount then is the same for all sides.
-            If ``True``, four values will be sampled independently, one per side.
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
-            cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
+            If `False` and the values for `px`/`percent` result in exactly one probability distribution for all
+            image sides, only one single value will be sampled from that probability distribution and used for
+            all sides. I.e., the crop/pad amount then is the same for all sides. If `True`, four values
+            will be sampled independently, one per side.
+
+        interpolation (int):
+            OpenCV flag that is used to specify the interpolation algorithm for images. Should be one of:
+            `cv2.INTER_NEAREST`, `cv2.INTER_LINEAR`, `cv2.INTER_CUBIC`, `cv2.INTER_AREA`, `cv2.INTER_LANCZOS4`.
+            Default: `cv2.INTER_LINEAR`.
 
     Targets:
         image, mask, bboxes, keypoints
 
     Image types:
-        any
+        unit8, float32
 
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        px: Optional[
-            Union[
-                int,
-                Tuple[int, int],
-                Tuple[int, int, int, int],
-                Tuple[Tuple[int, int], Tuple[int, int], Tuple[int, int], Tuple[int, int]],
-            ]
-        ] = Field(
+        px: Optional[PxType] = Field(
             default=None,
             description="Number of pixels to crop (negative) or pad (positive).",
         )
-        percent: Optional[
-            Union[
-                float,
-                Tuple[float, float],
-                Tuple[float, float, float, float],
-                Tuple[Tuple[float, float], Tuple[float, float], Tuple[float, float], Tuple[float, float]],
-            ]
-        ] = Field(
+        percent: Optional[PercentType] = Field(
             default=None,
             description="Fraction of image size to crop (negative) or pad (positive).",
         )
         pad_mode: BorderModeType = cv2.BORDER_CONSTANT
-        pad_cval: ColorType = Field(default=0, description="Padding value if pad_mode is BORDER_CONSTANT.")
-        pad_cval_mask: ColorType = Field(
+        pad_cval: Union[ScalarType, Tuple[ScalarType, ScalarType], List[ScalarType]] = Field(
+            default=0,
+            description="Padding value if pad_mode is BORDER_CONSTANT.",
+        )
+        pad_cval_mask: Union[ScalarType, Tuple[ScalarType, ScalarType], List[ScalarType]] = Field(
             default=0,
             description="Padding value for masks if pad_mode is BORDER_CONSTANT.",
         )
@@ -1020,7 +1019,7 @@ class CropAndPad(DualTransform):
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
             if self.px is None and self.percent is None:
-                msg = "px and percent are empty!"
+                msg = "Both px and percent are None!"
                 raise ValueError(msg)
             if self.px is not None and self.percent is not None:
                 msg = "Only px or percent may be set!"
@@ -1032,8 +1031,8 @@ class CropAndPad(DualTransform):
         px: Optional[Union[int, List[int]]] = None,
         percent: Optional[Union[float, List[float]]] = None,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: ColorType = 0,
-        pad_cval_mask: ColorType = 0,
+        pad_cval: Union[ScalarType, Tuple[ScalarType, ScalarType], List[ScalarType]] = 0,
+        pad_cval_mask: Union[ScalarType, Tuple[ScalarType, ScalarType], List[ScalarType]] = 0,
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,
@@ -1156,10 +1155,7 @@ class CropAndPad(DualTransform):
             regain2 = val2
             regain1 += diff
 
-        val1 = val1 - regain1
-        val2 = val2 - regain2
-
-        return val1, val2
+        return val1 - regain1, val2 - regain2
 
     @staticmethod
     def _prevent_zero(crop_params: List[int], height: int, width: int) -> List[int]:
@@ -1224,7 +1220,7 @@ class CropAndPad(DualTransform):
 
         if isinstance(self.px, int):
             params = [self.px] * 4
-        elif len(self.px) == TWO:
+        elif len(self.px) == PAIR:
             if self.sample_independently:
                 params = [random.randrange(*self.px) for _ in range(4)]
             else:
@@ -1232,8 +1228,10 @@ class CropAndPad(DualTransform):
                 params = [px] * 4
         elif isinstance(self.px[0], int):
             params = self.px
-        else:
+        elif len(self.px[0]) == PAIR:
             params = [random.randrange(*i) for i in self.px]
+        else:
+            params = [random.choice(i) for i in self.px]
 
         return params
 
@@ -1244,7 +1242,7 @@ class CropAndPad(DualTransform):
 
         if isinstance(self.percent, float):
             params = [self.percent] * 4
-        elif len(self.percent) == TWO:
+        elif len(self.percent) == PAIR:
             if self.sample_independently:
                 params = [random.uniform(*self.percent) for _ in range(4)]
             else:
@@ -1252,17 +1250,21 @@ class CropAndPad(DualTransform):
                 params = [px] * 4
         elif isinstance(self.percent[0], (int, float)):
             params = self.percent
-        else:
+        elif len(self.percent[0]) == PAIR:
             params = [random.uniform(*i) for i in self.percent]
+        else:
+            params = [random.choice(i) for i in self.percent]
 
         return params  # params = [top, right, bottom, left]
 
     @staticmethod
-    def _get_pad_value(pad_value: Union[float, Sequence[float]]) -> Union[int, float]:
+    def _get_pad_value(
+        pad_value: Union[ScalarType, Tuple[ScalarType, ScalarType], List[ScalarType]],
+    ) -> ScalarType:
         if isinstance(pad_value, (int, float)):
             return pad_value
 
-        if len(pad_value) == TWO:
+        if len(pad_value) == PAIR:
             a, b = pad_value
             if isinstance(a, int) and isinstance(b, int):
                 return random.randint(a, b)

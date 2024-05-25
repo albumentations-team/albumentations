@@ -1,5 +1,5 @@
 from enum import Enum, IntEnum
-from typing import Any, Literal, Sequence, Tuple, Union
+from typing import Any, List, Literal, Sequence, Tuple, TypeVar, Union
 
 import numpy as np
 from albucore.utils import MAX_VALUES_BY_DTYPE
@@ -19,7 +19,9 @@ BoxOrKeypointType = Union[BoxType, KeypointType]
 ScaleFloatType = Union[float, Tuple[float, float]]
 ScaleIntType = Union[int, Tuple[int, int]]
 
-ScaleType = Union[ScaleFloatType, ScaleIntType]
+ScalarValueType = TypeVar("ScalarValueType", float, int)
+
+ScaleType = Union[ScalarValueType, Tuple[ScalarValueType, ScalarValueType]]
 
 NumType = Union[int, float, np.ndarray]
 
@@ -72,6 +74,7 @@ NUM_MULTI_CHANNEL_DIMENSIONS = 3
 MONO_CHANNEL_DIMENSIONS = 2
 NUM_RGB_CHANNELS = 3
 
+PAIR = 2
 TWO = 2
 THREE = 3
 FOUR = 4
@@ -80,3 +83,29 @@ THREE_SIXTY = 360
 
 BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]
 MAX_RAIN_ANGLE = 45  # Maximum angle for rain augmentation in degrees
+
+
+PercentType = Union[
+    float,
+    Tuple[float, float],
+    Tuple[float, float, float, float],
+    Tuple[
+        Union[float, Tuple[float, float], List[float]],
+        Union[float, Tuple[float, float], List[float]],
+        Union[float, Tuple[float, float], List[float]],
+        Union[float, Tuple[float, float], List[float]],
+    ],
+]
+
+
+PxType = Union[
+    int,
+    Tuple[int, int],
+    Tuple[int, int, int, int],
+    Tuple[
+        Union[int, Tuple[int, int], List[int]],
+        Union[int, Tuple[int, int], List[int]],
+        Union[int, Tuple[int, int], List[int]],
+        Union[int, Tuple[int, int], List[int]],
+    ],
+]
