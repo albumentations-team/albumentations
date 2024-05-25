@@ -9,6 +9,8 @@ import pytest
 import warnings
 from torchvision import transforms as torch_transforms
 
+from albumentations.core.pydantic import valid_interpolations, valid_border_modes
+
 from albucore.utils import clip
 import albumentations as A
 import albumentations.augmentations.functional as F
@@ -1616,3 +1618,110 @@ def test_dual_transforms_methods(augmentation_cls, params):
                 if isinstance(e, NotImplementedError):
                     raise NotImplementedError(f"{target} error at: {augmentation_cls},  {e}")
                 raise e
+
+
+@pytest.mark.parametrize("px", [
+    10,
+    (10, 20),
+    (-10, 20, -30, 40),
+    ((10, 20), (20, 30), (30, 40), (40, 50)),
+    ([1, 2, 3, 4],  [1, 2, 3, 4], [1, 2, 3, 4], [1, 2, 3, 4]),
+    None
+])
+@pytest.mark.parametrize("percent", [
+    0.1,
+    (0.1, 0.2),
+    (0.1, 0.2, 0.3, 0.4),
+    ((-0.1, -0.2), (-0.2, -0.3), (0.3, 0.4), (0.4, 0.5)),
+    ([0.1, 0.2, 0.3, 0.4],  [0.1, 0.2, 0.3, 0.4], [0.1, 0.2, 0.3, 0.4], [0.1, 0.2, 0.3, 0.4]),
+    None
+])
+@pytest.mark.parametrize("pad_cval", [
+    0,
+    (0, 255),
+    [0, 255]
+])
+@pytest.mark.parametrize("keep_size", [
+    True,
+    False
+])
+@pytest.mark.parametrize("sample_independently", [
+    True,
+    False
+])
+@pytest.mark.parametrize("image", IMAGES)
+def test_crop_and_pad(px, percent, pad_cval, keep_size, sample_independently, image):
+    pad_cval_mask = 255 if isinstance(pad_cval, list) else pad_cval
+    interpolation = cv2.INTER_LINEAR
+    pad_mode = cv2.BORDER_CONSTANT
+    if (px is None) ==  (percent is None):
+        # Skip the test case where both px and percent are None or both are not None
+        return
+
+    transform = A.Compose([A.CropAndPad(
+        px=px,
+        percent=percent,
+        pad_mode=pad_mode,
+        pad_cval=pad_cval,
+        pad_cval_mask=pad_cval_mask,
+        keep_size=keep_size,
+        sample_independently=sample_independently,
+        interpolation=interpolation,
+        p=1
+    )])
+
+    transformed_image = transform(image=image)["image"]
+
+    if keep_size:
+        assert transformed_image.shape == image.shape
+
+    assert transformed_image is not None
+    assert transformed_image.shape[0] > 0
+    assert transformed_image.shape[1] > 0
+    assert transformed_image.shape[2] == image.shape[2]
+
+
+@pytest.mark.parametrize("percent, expected_shape", [
+    (0.1, (12, 12, 3)),  # Padding 10% of image size on each side
+    (-0.1, (8, 8, 3)),  # Cropping 10% of image size from each side
+    ((0.1, 0.2, 0.3, 0.4), (14, 16, 3)),  # Padding: top=10%, right=20%, bottom=30%, left=40%
+    ((-0.1, -0.2, -0.3, -0.4), (6, 4, 3)),  # Cropping: top=10%, right=20%, bottom=30%, left=40%
+])
+def test_crop_and_pad_percent(percent, expected_shape):
+    transform = A.Compose([A.CropAndPad(px=None, percent=percent, pad_mode=cv2.BORDER_CONSTANT, pad_cval=0, keep_size=False)])
+
+    image = np.ones((10, 10, 3), dtype=np.uint8)
+
+    transformed_image = transform(image=image)["image"]
+
+    assert transformed_image.shape == expected_shape
+    if percent is not None and all(p >= 0 for p in np.array(percent).flatten()):
+        assert transformed_image.sum() == image.sum()
+
+@pytest.mark.parametrize("px, expected_shape", [
+    (2, (14, 14, 3)),  # Padding 2 pixels on each side
+    (-2, (6, 6, 3)),  # Cropping 2 pixels from each side
+    ((1, 2, 3, 4), (14, 16, 3)),  # Padding: top=1, right=2, bottom=3, left=4
+    ((-1, -2, -3, -4), (6, 4, 3)),  # Cropping: top=1, right=2, bottom=3, left=4
+])
+def test_crop_and_pad_px_pixel_values(px, expected_shape):
+    transform = A.Compose([A.CropAndPad(px=px, percent=None, pad_mode=cv2.BORDER_CONSTANT, pad_cval=0, keep_size=False)])
+
+    image = np.ones((10, 10, 3), dtype=np.uint8) * 255
+
+    transformed_image = transform(image=image)["image"]
+
+    if isinstance(px, int):
+        px = [px] * 4  # Convert to list of 4 elements
+    if isinstance(px, tuple) and len(px) == 2:
+        px = [px[0], px[1], px[0], px[1]]  # Convert to 4 elements for padding
+
+    if px is not None:
+        if all(p >= 0 for p in px):  # Padding
+            pad_top, pad_right, pad_bottom, pad_left = px
+            central_region = transformed_image[pad_top:pad_top + image.shape[0], pad_left:pad_left + image.shape[1], :]
+            assert np.all(central_region == 255)
+        elif all(p <= 0 for p in px):  # Cropping
+            crop_top, crop_right, crop_bottom, crop_left = [-p for p in px]
+            cropped_region = image[crop_top:image.shape[0] - crop_bottom, crop_left:image.shape[1] - crop_right, :]
+            assert np.all(transformed_image == cropped_region)
