@@ -19,9 +19,9 @@ BoxOrKeypointType = Union[BoxType, KeypointType]
 ScaleFloatType = Union[float, Tuple[float, float]]
 ScaleIntType = Union[int, Tuple[int, int]]
 
-ScalarValueType = TypeVar("ScalarValueType", float, int)
+NumericType = TypeVar("NumericType", float, int)
 
-ScaleType = Union[ScalarValueType, Tuple[ScalarValueType, ScalarValueType]]
+ScaleType = Union[NumericType, Tuple[NumericType, NumericType]]
 
 NumType = Union[int, float, np.ndarray]
 

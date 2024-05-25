@@ -49,8 +49,6 @@ __all__ = [
     "BBoxSafeRandomCrop",
 ]
 
-TWO = 2
-
 
 class CropInitSchema(BaseTransformInitSchema):
     height: Optional[int] = Field(description="Height of the crop", ge=1)
@@ -1019,7 +1017,7 @@ class CropAndPad(DualTransform):
         @model_validator(mode="after")
         def check_px_percent(self) -> Self:
             if self.px is None and self.percent is None:
-                msg = "Both px and percent are None!"
+                msg = "Both px and percent parameters cannot be None simultaneously."
                 raise ValueError(msg)
             if self.px is not None and self.percent is not None:
                 msg = "Only px or percent may be set!"
