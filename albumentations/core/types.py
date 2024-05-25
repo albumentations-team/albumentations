@@ -21,7 +21,7 @@ ScaleIntType = Union[int, Tuple[int, int]]
 
 NumericType = TypeVar("NumericType", float, int)
 
-ScaleType = Union[NumericType, Tuple[NumericType, NumericType]]
+ScaleType = Union[ScaleIntType, ScaleFloatType]
 
 NumType = Union[int, float, np.ndarray]
 
