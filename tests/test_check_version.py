@@ -28,6 +28,7 @@ def test_fetch_version_info_success(mocker, mock_response_success, caplog):
         result = fetch_version_info()
         assert "1.0.1" in result, "Should return version data when HTTP status is 200"
 
+
 def test_fetch_version_info_failure(mocker, mock_response_failure):
     mocker.patch('urllib.request.OpenerDirector.open', return_value=mock_response_failure)
     result = fetch_version_info()
