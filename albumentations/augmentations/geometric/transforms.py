@@ -12,7 +12,7 @@ from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
-from albumentations.augmentations.functional import bbox_from_mask
+from albumentations.augmentations.functional import bbox_from_mask, center
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.pydantic import (
@@ -782,10 +782,7 @@ class Affine(DualTransform):
         # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
         rotate = -random.uniform(*self.rotate)
 
-        # for images we use additional shifts of (0.5, 0.5) as otherwise
-        # we get an ugly black border for 90deg rotations
-        shift_x = width / 2 - 0.5
-        shift_y = height / 2 - 0.5
+        shift_x, shift_y = center(width, height)
 
         matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
         matrix_shear_y_rot = skimage.transform.AffineTransform(rotation=-np.pi / 2)

@@ -44,7 +44,7 @@ repos:
       types: [python]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.4.5
+    rev: v0.4.6
     hooks:
       # Run the linter.
       - id: ruff
@@ -66,7 +66,7 @@ repos:
       - id: codespell
         additional_dependencies: ["tomli"]
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.40.0
+    rev: v0.41.0
     hooks:
       - id: markdownlint
   - repo: https://github.com/tox-dev/pyproject-fmt

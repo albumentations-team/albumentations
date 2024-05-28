@@ -8,6 +8,7 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
+from albumentations.augmentations.functional import center
 from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
@@ -334,7 +335,7 @@ class SafeRotate(DualTransform):
         height, width = image.shape[:2]
 
         # https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
-        image_center = (width / 2, height / 2)
+        image_center = center(width, height)
 
         # Rotation Matrix
         rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)

@@ -19,6 +19,7 @@ from albumentations.core.types import (
     MONO_CHANNEL_DIMENSIONS,
     ColorType,
     ImageMode,
+    NumericType,
     ScalarType,
     SpatterMode,
 )
@@ -1625,3 +1626,16 @@ def morphology(img: np.ndarray, kernel: np.ndarray, operation: str) -> np.ndarra
         return erode(img, kernel)
 
     raise ValueError(f"Unsupported operation: {operation}")
+
+
+def center(width: NumericType, height: NumericType) -> Tuple[float, float]:
+    """Calculate the center coordinates of a rectangle.
+
+    Args:
+        width (NumericType): The width of the rectangle.
+        height (NumericType): The height of the rectangle.
+
+    Returns:
+        Tuple[float, float]: The center coordinates of the rectangle.
+    """
+    return width / 2 - 0.5, height / 2 - 0.5
