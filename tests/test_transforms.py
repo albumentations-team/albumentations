@@ -1039,8 +1039,6 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
     )
     res = t(image=image, **targets)
 
-    print("Expected = ", res["keypoints"])
-
     for key, value in expected.items():
         assert np.allclose(np.array(value), np.array(res[key])), key
 
