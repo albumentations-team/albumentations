@@ -105,11 +105,18 @@ def test_rot90_float(target):
     assert_array_almost_equal_nulp(rotated, expected)
 
 
-def test_normalize():
-    img = np.ones((100, 100, 3), dtype=np.uint8) * 127
-    normalized = F.normalize(img, mean=50, std=3)
+@pytest.mark.parametrize("dtype", [
+    np.uint8,
+    np.float32,
+])
+def test_normalize(dtype: np.dtype) -> None:
+    img = np.ones((100, 100, 3), dtype=dtype) * 127
+    mean = np.array(50, dtype=np.float32) * 255
+    denominator = np.reciprocal(np.array(3, dtype=np.float32) * 255)
+    normalized = F.normalize(img, mean=mean, denominator=denominator)
     expected = (np.ones((100, 100, 3), dtype=np.float32) * 127 / 255 - 50) / 3
     assert_array_almost_equal_nulp(normalized, expected)
+
 
 # Parameterize tests for all combinations
 @pytest.mark.parametrize("shape", [
@@ -164,16 +171,27 @@ def test_normalize_per_image(shape, normalization, dtype):
                     assert np.isclose(channel_std, 1, atol=1e-3), f"STD for channel {c} should be close to 1"
 
 
+
 @pytest.mark.parametrize("normalization", ("min_max", "min_max_per_channel"))
-def test_zero_image(normalization):
-    img = np.zeros((100, 100, 3), dtype=np.uint8)
+@pytest.mark.parametrize("dtype", [
+    np.uint8,
+    np.float32,
+])
+def test_zero_image(normalization: str, dtype: np.dtype) -> None:
+    img = np.zeros((100, 100, 3), dtype=dtype)
     normalized = F.normalize_per_image(img, normalization)
     assert np.all(normalized == 0), "All values should be zero after normalization"
 
 
-def test_normalize_float():
-    img = np.ones((100, 100, 3), dtype=np.float32) * 0.4
-    normalized = F.normalize(img, mean=50, std=3, max_pixel_value=1.0)
+@pytest.mark.parametrize("dtype", [
+    np.uint8,
+    np.float32,
+])
+def test_normalize_float(dtype: np.dtype) -> None:
+    img = np.ones((100, 100, 3), dtype=dtype) * 0.4
+    mean = np.array(50, dtype=np.float32)
+    denominator = np.array(1 / 3, dtype=np.float32)
+    normalized = F.normalize(img, mean=mean, denominator=denominator)
     expected = (np.ones((100, 100, 3), dtype=np.float32) * 0.4 - 50) / 3
     assert_array_almost_equal_nulp(normalized, expected)
 

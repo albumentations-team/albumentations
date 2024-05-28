@@ -306,21 +306,24 @@ class Normalize(ImageOnlyTransform):
     ):
         super().__init__(always_apply=always_apply, p=p)
         self.mean = mean
+        self.mean_np = np.array(mean, dtype=np.float32) * max_pixel_value
         self.std = std
+        self.denominator = np.reciprocal(np.array(std, dtype=np.float32) * max_pixel_value)
         self.max_pixel_value = max_pixel_value
+        if normalization not in {"standard", "image", "image_per_channel", "min_max", "min_max_per_channel"}:
+            raise ValueError(
+                f"Error during Normalize initialization. Unknown normalization type: {normalization}",
+            )
         self.normalization = normalization
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if self.normalization == "standard":
             return fmain.normalize(
                 img,
-                cast(ColorType, self.mean),
-                cast(ColorType, self.std),
-                cast(float, self.max_pixel_value),
+                self.mean_np,
+                self.denominator,
             )
-        if self.normalization in {"image", "image_per_channel", "min_max", "min_max_per_channel"}:
-            return fmain.normalize_per_image(img, self.normalization)
-        raise ValueError(f"Unknown normalization type: {self.normalization}")
+        return fmain.normalize_per_image(img, self.normalization)
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("mean", "std", "max_pixel_value", "normalization")
