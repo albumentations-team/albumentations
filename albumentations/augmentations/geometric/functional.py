@@ -8,6 +8,7 @@ from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_di
 from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
+from albumentations.augmentations.functional import center
 from albumentations.augmentations.utils import angle_2pi_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import (
@@ -245,9 +246,9 @@ def rotate(
     value: Optional[ColorType] = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
-    # for images we use additional shifts of (0.5, 0.5) as otherwise
-    # we get an ugly black border for 90deg rotations
-    matrix = cv2.getRotationMatrix2D((width / 2 - 0.5, height / 2 - 0.5), angle, 1.0)
+
+    image_center = center(width, height)
+    matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
 
     warp_fn = maybe_process_in_chunks(
         cv2.warpAffine,
@@ -325,8 +326,8 @@ def keypoint_rotate(
     Note:
         The rotation is performed around the center of the image.
     """
-    center = (cols - 1) * 0.5, (rows - 1) * 0.5
-    matrix = cv2.getRotationMatrix2D(center, angle, 1.0)
+    image_center = center(cols, rows)
+    matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
     x, y, a, s = keypoint[:4]
     x, y = cv2.transform(np.array([[[x, y]]]), matrix).squeeze()
     return x, y, a + math.radians(angle), s

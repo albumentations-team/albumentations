@@ -5,7 +5,7 @@ pytest>=8.2.0
 pytest_cov>=4.1.0
 pytest_mock>=3.14.0
 requests>=2.31.0
-ruff>=0.4.5
+ruff>=0.4.6
 tomli>=2.0.1
 types-pkg-resources
 types-PyYAML

@@ -10,6 +10,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from typing_extensions import Protocol
 
+from albumentations.augmentations.functional import center
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
 
 __all__ = [
@@ -100,9 +101,11 @@ def adapt_pixel_distribution(
 def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np.ndarray:
     height, width = amp_src.shape[:2]
     border = int(np.floor(min(height, width) * beta))
-    center_y, center_h = height // 2, width // 2
-    h1, h2 = max(0, center_y - border), min(center_y + border, height - 1)
-    w1, w2 = max(0, center_h - border), min(center_h + border, width - 1)
+
+    center_x, center_y = center(width, height)
+
+    h1, h2 = max(0, int(center_y - border)), min(int(center_y + border), height)
+    w1, w2 = max(0, int(center_x - border)), min(int(center_x + border), width)
     amp_src[h1:h2, w1:w2] = amp_trg[h1:h2, w1:w2]
     return amp_src
 
