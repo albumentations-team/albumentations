@@ -15,12 +15,10 @@ from albumentations.augmentations.utils import (
 )
 from albumentations.core.types import (
     EIGHT,
-    FOUR,
     MONO_CHANNEL_DIMENSIONS,
     ColorType,
     ImageMode,
     NumericType,
-    ScalarType,
     SpatterMode,
 )
 
@@ -45,17 +43,14 @@ __all__ = [
     "fancy_pca",
     "from_float",
     "gamma_transform",
-    "gauss_noise",
     "image_compression",
     "invert",
     "iso_noise",
     "linear_transformation_rgb",
     "move_tone_curve",
     "noop",
-    "normalize",
     "posterize",
     "shift_hsv",
-    "shift_rgb",
     "solarize",
     "superpixels",
     "swap_tiles_on_image",
@@ -69,35 +64,6 @@ __all__ = [
     "erode",
     "dilate",
 ]
-
-
-def normalize_cv2(img: np.ndarray, mean: np.ndarray, denominator: np.ndarray) -> np.ndarray:
-    if mean.shape and len(mean) != FOUR and mean.shape != img.shape:
-        mean = np.array(mean.tolist() + [0] * (4 - len(mean)), dtype=np.float64)
-    if not denominator.shape:
-        denominator = np.array([denominator.tolist()] * 4, dtype=np.float64)
-    elif len(denominator) != FOUR and denominator.shape != img.shape:
-        denominator = np.array(denominator.tolist() + [1] * (4 - len(denominator)), dtype=np.float64)
-
-    img = np.ascontiguousarray(img.astype("float32"))
-    cv2.subtract(img, mean.astype(np.float64), img)
-    cv2.multiply(img, denominator.astype(np.float64), img)
-    return img
-
-
-def normalize_numpy(img: np.ndarray, mean: np.ndarray, denominator: np.ndarray) -> np.ndarray:
-    img = img.astype(np.float32)
-    img -= mean
-    img *= denominator
-    return img
-
-
-@preserve_channel_dim
-def normalize(img: np.ndarray, mean: np.ndarray, denominator: np.ndarray) -> np.ndarray:
-    if is_rgb_image(img):
-        return normalize_cv2(img, mean, denominator)
-
-    return normalize_numpy(img, mean, denominator)
 
 
 @preserve_channel_dim
@@ -171,11 +137,8 @@ def _shift_hsv_uint8(
         lut_hue = np.mod(lut_hue + hue_shift, 180).astype(dtype)
         hue = cv2.LUT(hue, lut_hue)
 
-    if sat_shift != 0:
-        sat = add(sat, sat_shift)
-
-    if val_shift != 0:
-        val = add(val, val_shift)
+    sat = add(sat, sat_shift)
+    val = add(val, val_shift)
 
     img = cv2.merge((hue, sat, val)).astype(dtype)
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
@@ -450,10 +413,6 @@ def move_tone_curve(img: np.ndarray, low_y: float, high_y: float) -> np.ndarray:
 
     lut_fn = maybe_process_in_chunks(cv2.LUT, lut=remapping)
     return lut_fn(img)
-
-
-def shift_rgb(img: np.ndarray, r_shift: ScalarType, g_shift: ScalarType, b_shift: ScalarType) -> np.ndarray:
-    return add(img, (r_shift, g_shift, b_shift))
 
 
 @clipped
@@ -842,10 +801,6 @@ def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
         table = (np.arange(0, 256.0 / 255, 1.0 / 255) ** gamma) * 255
         return cv2.LUT(img, table.astype(np.uint8))
     return np.power(img, gamma)
-
-
-def gauss_noise(image: np.ndarray, gauss: np.ndarray) -> np.ndarray:
-    return add(image, gauss)
 
 
 @clipped
