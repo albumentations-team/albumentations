@@ -8,7 +8,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from albucore.functions import multiply
+from albucore.functions import add, multiply, normalize
 from albucore.utils import get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
@@ -318,7 +318,7 @@ class Normalize(ImageOnlyTransform):
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if self.normalization == "standard":
-            return fmain.normalize(
+            return normalize(
                 img,
                 self.mean_np,
                 self.denominator,
@@ -1466,7 +1466,7 @@ class RGBShift(ImageOnlyTransform):
         if not is_rgb_image(img):
             msg = "RGBShift transformation expects 3-channel images."
             raise TypeError(msg)
-        return fmain.shift_rgb(img, r_shift, g_shift, b_shift)
+        return add(img, (r_shift, g_shift, b_shift))
 
     def get_params(self) -> Dict[str, Any]:
         return {
@@ -1567,8 +1567,8 @@ class GaussNoise(ImageOnlyTransform):
         self.mean = mean
         self.per_channel = per_channel
 
-    def apply(self, img: np.ndarray, gauss: float, **params: Any) -> np.ndarray:
-        return fmain.gauss_noise(img, gauss=gauss)
+    def apply(self, img: np.ndarray, gauss: Union[float, np.ndarray], **params: Any) -> np.ndarray:
+        return add(img, gauss)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, float]:
         image = params["image"]
