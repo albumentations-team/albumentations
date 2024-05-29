@@ -5,7 +5,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
-from albucore.functions import clip, clipped, multiply, preserve_channel_dim
+from albucore.functions import add, clip, clipped, multiply, preserve_channel_dim
 from albucore.utils import MAX_VALUES_BY_DTYPE, contiguous, is_grayscale_image, is_rgb_image, maybe_process_in_chunks
 from typing_extensions import Literal
 
@@ -172,14 +172,10 @@ def _shift_hsv_uint8(
         hue = cv2.LUT(hue, lut_hue)
 
     if sat_shift != 0:
-        lut_sat = np.arange(0, 256, dtype=np.int16)
-        lut_sat = clip(lut_sat + sat_shift, img.dtype)
-        sat = cv2.LUT(sat, lut_sat)
+        sat = add(sat, sat_shift)
 
     if val_shift != 0:
-        lut_val = np.arange(0, 256, dtype=np.int16)
-        lut_val = clip(lut_val + val_shift, img.dtype)
-        val = cv2.LUT(val, lut_val)
+        val = add(val, val_shift)
 
     img = cv2.merge((hue, sat, val)).astype(dtype)
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
@@ -191,7 +187,6 @@ def _shift_hsv_non_uint8(
     sat_shift: np.ndarray,
     val_shift: np.ndarray,
 ) -> np.ndarray:
-    dtype = img.dtype
     img = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     hue, sat, val = cv2.split(img)
 
@@ -200,10 +195,10 @@ def _shift_hsv_non_uint8(
         hue = np.mod(hue, 360)  # OpenCV fails with negative values
 
     if sat_shift != 0:
-        sat = clip(cv2.add(sat, sat_shift), dtype)
+        sat = add(sat, sat_shift)
 
     if val_shift != 0:
-        val = clip(cv2.add(val, val_shift), dtype)
+        val = add(val, val_shift)
 
     img = cv2.merge((hue, sat, val))
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
@@ -460,50 +455,8 @@ def move_tone_curve(img: np.ndarray, low_y: float, high_y: float) -> np.ndarray:
     return lut_fn(img)
 
 
-@clipped
-def _shift_rgb_non_uint8(img: np.ndarray, r_shift: float, g_shift: float, b_shift: float) -> np.ndarray:
-    if r_shift == g_shift == b_shift:
-        return img + r_shift
-
-    result_img = np.empty_like(img)
-    shifts = [r_shift, g_shift, b_shift]
-    for i, shift in enumerate(shifts):
-        result_img[..., i] = img[..., i] + shift
-
-    return result_img
-
-
-def _shift_image_uint8(img: np.ndarray, value: np.ndarray) -> np.ndarray:
-    max_value = MAX_VALUES_BY_DTYPE[img.dtype]
-
-    lut = np.arange(0, max_value + 1).astype("float32")
-    lut += value
-
-    lut = clip(lut, img.dtype)
-    return cv2.LUT(img, lut)
-
-
-@preserve_channel_dim
-def _shift_rgb_uint8(img: np.ndarray, r_shift: ScalarType, g_shift: ScalarType, b_shift: ScalarType) -> np.ndarray:
-    if r_shift == g_shift == b_shift:
-        height, width, channels = img.shape
-        img = img.reshape([height, width * channels])
-
-        return _shift_image_uint8(img, r_shift)
-
-    result_img = np.empty_like(img)
-    shifts = [r_shift, g_shift, b_shift]
-    for i, shift in enumerate(shifts):
-        result_img[..., i] = _shift_image_uint8(img[..., i], shift)
-
-    return result_img
-
-
 def shift_rgb(img: np.ndarray, r_shift: ScalarType, g_shift: ScalarType, b_shift: ScalarType) -> np.ndarray:
-    if img.dtype == np.uint8:
-        return _shift_rgb_uint8(img, r_shift, g_shift, b_shift)
-
-    return _shift_rgb_non_uint8(img, r_shift, g_shift, b_shift)
+    return add(img, (r_shift, g_shift, b_shift))
 
 
 @clipped
@@ -894,10 +847,8 @@ def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
     return np.power(img, gamma)
 
 
-@clipped
 def gauss_noise(image: np.ndarray, gauss: np.ndarray) -> np.ndarray:
-    image = image.astype("float32")
-    return image + gauss
+    return add(image, gauss)
 
 
 @clipped
