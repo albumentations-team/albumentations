@@ -1,6 +1,6 @@
 import random
 import warnings
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Union, cast
 
 import cv2
@@ -51,6 +51,16 @@ def get_always_apply(transforms: Union["BaseCompose", TransformsSeqType]) -> Tra
         elif transform.always_apply:
             new_transforms.append(transform)
     return new_transforms
+
+
+def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransform]:
+    result = {}
+    for transform in transforms:
+        if isinstance(transform, BaseCompose):
+            result.update(get_transforms_dict(transform.transforms))
+        else:
+            result[id(transform)] = transform
+    return result
 
 
 class BaseCompose(Serializable):
@@ -177,6 +187,7 @@ class Compose(BaseCompose):
             would like to disable this check - pass False (do it only if you are sure in your data consistency).
 
     """
+    _transforms_dict: Dict[int, BasicTransform]
 
     def __init__(
         self,
@@ -186,6 +197,8 @@ class Compose(BaseCompose):
         additional_targets: Optional[Dict[str, str]] = None,
         p: float = 1.0,
         is_check_shapes: bool = True,
+        return_params: bool = False,
+        save_key: str = "applied_params",
     ):
         super().__init__(transforms, p)
 
@@ -225,6 +238,13 @@ class Compose(BaseCompose):
             proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
         )
 
+        self.return_params = return_params
+        if return_params:
+            self.save_key = save_key
+            self._available_keys.add(save_key)
+            self._transforms_dict = get_transforms_dict(self.transforms)
+            self.set_deterministic(True, save_key=save_key)
+
     @staticmethod
     def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:
         for transform in transforms:
@@ -244,6 +264,9 @@ class Compose(BaseCompose):
         if not isinstance(force_apply, (bool, int)):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
+
+        if self.return_params:
+            data[self.save_key] = OrderedDict()
 
         need_to_run = force_apply or random.random() < self.p
         if not need_to_run and not self._always_apply:
