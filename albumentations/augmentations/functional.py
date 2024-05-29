@@ -194,11 +194,8 @@ def _shift_hsv_non_uint8(
         hue = cv2.add(hue, hue_shift)
         hue = np.mod(hue, 360)  # OpenCV fails with negative values
 
-    if sat_shift != 0:
-        sat = add(sat, sat_shift)
-
-    if val_shift != 0:
-        val = add(val, val_shift)
+    sat = add(sat, sat_shift)
+    val = add(val, val_shift)
 
     img = cv2.merge((hue, sat, val))
     return cv2.cvtColor(img, cv2.COLOR_HSV2RGB)
