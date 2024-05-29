@@ -187,6 +187,7 @@ class Compose(BaseCompose):
             would like to disable this check - pass False (do it only if you are sure in your data consistency).
 
     """
+
     _transforms_dict: Dict[int, BasicTransform]
 
     def __init__(
@@ -272,27 +273,41 @@ class Compose(BaseCompose):
         if not need_to_run and not self._always_apply:
             return data
 
+        self.preprocess(data)
+
         transforms = self.transforms if need_to_run else self._always_apply
-
-        if self.is_check_args:
-            self._check_args(**data)
-
-        for p in self.processors.values():
-            p.ensure_data_valid(data)
-
-        for p in self.processors.values():
-            p.preprocess(data)
-
         for t in transforms:
             data = t(**data)
 
             if self._check_each_transform:
                 data = self._check_data_post_transform(data)
-        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
 
+        return self.postprocess(data)
+
+    def run_with_params(self, *, params: Dict[int, Dict[str, Any]], **data: Any) -> Dict[str, Any]:
+        self.preprocess(data)
+
+        for tr_id, param in params.items():
+            tr = self._transforms_dict[tr_id]
+            data = tr.apply_with_params(param, **data)
+
+            if self._check_each_transform:
+                data = self._check_data_post_transform(data)
+
+        return self.postprocess(data)
+
+    def preprocess(self, data: Any) -> None:
+        if self.is_check_args:
+            self._check_args(**data)
+        for p in self.processors.values():
+            p.ensure_data_valid(data)
+        for p in self.processors.values():
+            p.preprocess(data)
+
+    def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
         for p in self.processors.values():
             p.postprocess(data)
-
         return data
 
     def _check_data_post_transform(self, data: Any) -> Dict[str, Any]:
