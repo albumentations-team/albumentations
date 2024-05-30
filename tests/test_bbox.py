@@ -255,7 +255,7 @@ def test_random_rotate():
     assert len(bboxes) == len(transformed["bboxes"])
 
 
-def test_crop_boxes_replay_compose():
+def test_crop_boxes_replay_compose() -> None:
     image = np.ones((512, 384, 3))
     bboxes = [(78, 42, 142, 80), (32, 12, 42, 72), (200, 100, 300, 200)]
     labels = [0, 1, 2]
@@ -267,6 +267,23 @@ def test_crop_boxes_replay_compose():
     input_data = dict(image=image, bboxes=bboxes, labels=labels)
     transformed = transform(**input_data)
     transformed2 = ReplayCompose.replay(transformed["replay"], **input_data)
+
+    np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])
+
+
+def test_crop_boxes_return_params() -> None:
+    image = np.ones((512, 384, 3))
+    bboxes = [(78, 42, 142, 80), (32, 12, 42, 72), (200, 100, 300, 200)]
+    labels = [0, 1, 2]
+    transform = Compose(
+        [RandomCrop(256, 256, p=1.0)],
+        bbox_params=BboxParams(format="pascal_voc", min_area=16, label_fields=["labels"]),
+        return_params=True
+    )
+
+    input_data = dict(image=image, bboxes=bboxes, labels=labels)
+    transformed = transform(**input_data)
+    transformed2 = transform.run_with_params(params=transformed["applied_params"], **input_data)
 
     np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])
 
