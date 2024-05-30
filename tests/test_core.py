@@ -211,6 +211,16 @@ def test_get_transforms_dict(transforms: TransformsSeqType, len_expected: int) -
     assert aug._transforms_dict == transforms_dict
 
 
+def test_comose_run_with_params_exeption() -> None:
+    aug = Compose([NoOp()])
+    aug_2 = Compose([NoOp()], return_params=True)
+    res = aug_2(image=np.random.random((8, 8)))
+    assert "applied_params" in res
+
+    with pytest.raises(RuntimeError):
+        _ = aug.run_with_params(params=res["applied_params"], image=np.random.random((8, 8)))
+
+
 def test_deterministic_oneof() -> None:
     aug = ReplayCompose([OneOf([HorizontalFlip(), Blur()])], p=1)
     for _ in range(10):

@@ -64,6 +64,8 @@ def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransfo
 
 
 class BaseCompose(Serializable):
+    _transforms_dict: Optional[Dict[int, BasicTransform]] = None
+
     def __init__(self, transforms: TransformsSeqType, p: float):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
             warnings.warn(
@@ -188,8 +190,6 @@ class Compose(BaseCompose):
 
     """
 
-    _transforms_dict: Dict[int, BasicTransform]
-
     def __init__(
         self,
         transforms: TransformsSeqType,
@@ -285,6 +285,9 @@ class Compose(BaseCompose):
         return self.postprocess(data)
 
     def run_with_params(self, *, params: Dict[int, Dict[str, Any]], **data: Any) -> Dict[str, Any]:
+        if self._transforms_dict is None:
+            raise RuntimeError("`run_with_params` is not available for Compose with `return_params=False`.")
+
         self.preprocess(data)
 
         for tr_id, param in params.items():
