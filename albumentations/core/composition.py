@@ -187,6 +187,8 @@ class Compose(BaseCompose):
         p (float): probability of applying all list of transforms. Default: 1.0.
         is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
             would like to disable this check - pass False (do it only if you are sure in your data consistency).
+        return_params (bool): if True returns params of each applied transform
+        save_key (str): key to save applied params, default is 'applied_params'
 
     """
 
@@ -285,6 +287,7 @@ class Compose(BaseCompose):
         return self.postprocess(data)
 
     def run_with_params(self, *, params: Dict[int, Dict[str, Any]], **data: Any) -> Dict[str, Any]:
+        """Run transforms with given parameters. Available only for Compose with `return_params=True`."""
         if self._transforms_dict is None:
             raise RuntimeError("`run_with_params` is not available for Compose with `return_params=False`.")
 
