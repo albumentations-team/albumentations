@@ -650,3 +650,24 @@ def test_compose_non_available_keys() -> None:
 
     expected_msg = "Key image_2 is not in available keys."
     assert str(exc_info.value) == expected_msg
+
+
+def test_transform_always_apply_warning() -> None:
+    """Check that warning is raised if always_apply argument is set to True"""
+    warning_expected = "always_apply is deprecated. Use `p=1` instead. self.p will be set to 1."
+
+    with pytest.warns(DeprecationWarning) as record:
+        transform = A.NoOp(always_apply=True, p=0.5)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected
+    assert transform.p == 1
+
+    with pytest.warns(DeprecationWarning) as record:
+        aug = A.Compose([A.NoOp(always_apply=True, p=0.5)], p=1)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected
+    assert aug.transforms[0].p == 1
