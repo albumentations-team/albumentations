@@ -124,12 +124,15 @@ def test_image_only_transform(image):
             mocked_apply.assert_called_once_with(image, interpolation=cv2.INTER_LINEAR, cols=width, rows=height)
             assert np.array_equal(data["mask"], mask)
 
+
 @pytest.mark.parametrize("image", IMAGES)
-def test_compose_doesnt_pass_force_apply(image):
-    transforms = [HorizontalFlip(p=0, always_apply=False)]
-    augmentation = Compose(transforms, p=1)
+def test_compose_doesnt_pass_force_apply(image: np.ndarray) -> None:
+    transforms = [HorizontalFlip(p=0)]
+    augmentation = Compose(transforms, p=1, return_params=True)
     result = augmentation(force_apply=True, image=image)
     assert np.array_equal(result["image"], image)
+    assert len(result["applied_params"]) == 0
+
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_dual_transform(image):
