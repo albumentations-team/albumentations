@@ -34,7 +34,7 @@ class Interpolation:
 
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    always_apply: bool = Field(default=False, description="Deprecated. Use `p=0` instead to always apply the transform")
+    always_apply: bool = Field(default=False, deprecated="Deprecated. Use `p=1` instead to always apply the transform")
     p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
 
 
