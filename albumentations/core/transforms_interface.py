@@ -34,7 +34,7 @@ class Interpolation:
 
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    always_apply: bool = Field(default=False, description="Always apply the transform")
+    always_apply: bool = Field(default=False, description="Deprecated. Use `p=0` instead to always apply the transform")
     p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
 
 
@@ -58,13 +58,20 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     save_key = "replay"
     replay_mode = False
     applied_in_replay = False
+    always_apply = False  # for backward compatibility
 
     class InitSchema(BaseTransformInitSchema):
         pass
 
     def __init__(self, always_apply: bool = False, p: float = 0.5):
         self.p = p
-        self.always_apply = always_apply
+        if always_apply:
+            warn(
+                "always_apply is deprecated. Use `p=1` instead. self.p will be set to 1.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.p = 1.0
         self._additional_targets: Dict[str, str] = {}
         # replay mode params
         self.params: Dict[Any, Any] = {}
@@ -81,7 +88,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
             return kwargs
 
-        if force_apply or self.always_apply or (random.random() < self.p):
+        if force_apply or (random.random() < self.p):
             params = self.get_params()
 
             if self.targets_as_params:

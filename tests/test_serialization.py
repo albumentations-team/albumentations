@@ -1,5 +1,6 @@
 import io
 from pathlib import Path
+from typing import Any, Dict, Set
 from unittest.mock import patch
 
 import cv2
@@ -27,6 +28,7 @@ from .utils import (
 images = []
 
 TEST_SEEDS = (0, 1, 42)
+
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
@@ -955,7 +957,7 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
 )
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-def test_serialization_conversion_with_totensor(transform_file_name, data_format, seed):
+def test_serialization_conversion_with_totensor(transform_file_name: str, data_format: str, seed: int) -> None:
     image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
 
     # Load transform from file
@@ -994,7 +996,7 @@ def test_custom_transform_with_overlapping_name():
     assert SERIALIZABLE_REGISTRY["tests.test_serialization.HorizontalFlip"] == HorizontalFlip
 
 
-def test_serialization_v2_to_dict():
+def test_serialization_v2_to_dict() -> None:
     transform = A.Compose([A.HorizontalFlip()])
     transform_dict = A.to_dict(transform)["transform"]
     assert transform_dict == {
@@ -1022,7 +1024,7 @@ def test_shorten_class_name(class_fullname, expected_short_class_name):
 
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 @pytest.mark.parametrize("p", [1])
-def test_template_transform_serialization(template, seed, p):
+def test_template_transform_serialization(template: np.ndarray, seed: int, p: float) -> None:
     image = SQUARE_UINT8_IMAGE
     template_transform = A.TemplateTransform(name="template", templates=template, p=p)
 
@@ -1039,7 +1041,10 @@ def test_template_transform_serialization(template, seed, p):
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
 
 
-@pytest.mark.parametrize( ["augmentation_cls", "params"], get_transforms(custom_arguments={
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
@@ -1056,26 +1061,29 @@ def test_template_transform_serialization(template, seed, p):
                 "fill_value": 0,
                 "mask_fill_value": 1,
             },
-             A.PadIfNeeded: {
-            "min_height": 512,
-            "min_width": 512,
-            "border_mode": 0,
-            "value": [124, 116, 104],
-            "position": "top_left"
+            A.PadIfNeeded: {
+                "min_height": 512,
+                "min_width": 512,
+                "border_mode": 0,
+                "value": [124, 116, 104],
+                "position": "top_left"
             },
-             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10}
-        },                                                                        except_augmentations={
+            A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10}
+        },
+        except_augmentations={
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
             A.MixUp,
-        }) )
-def test_augmentations_serialization(augmentation_cls, params):
+        },
+    ),
+)
+def test_augmentations_serialization(augmentation_cls: A.BasicTransform, params: Dict[str, Any]) -> None:
     instance = augmentation_cls(**params)
 
-    def get_all_init_schema_fields(model_cls):
+    def get_all_init_schema_fields(model_cls: A.BasicTransform) -> Set[str]:
         """
         Recursively collects fields from InitSchema classes defined in the given augmentation class
         and its base classes.
