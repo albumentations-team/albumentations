@@ -71,16 +71,6 @@ def oneof_always_apply_crash():
     assert data
 
 
-def test_always_apply():
-    first = MagicMock(always_apply=True, available_keys={"image"})
-    second = MagicMock(always_apply=False, available_keys={"image"})
-    augmentation = Compose([first, second], p=0)
-    image = np.ones((8, 8))
-    augmentation(image=image)
-    assert first.called
-    assert not second.called
-
-
 def test_one_of():
     transforms = [Mock(p=1, available_keys={"image"}) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)

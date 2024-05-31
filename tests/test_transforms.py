@@ -1,6 +1,6 @@
 import random
 from functools import partial
-from typing import Optional, Tuple, Type
+from typing import Any, Dict, Optional, Tuple, Type
 
 import cv2
 import numpy as np
@@ -16,6 +16,7 @@ import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.augmentations.transforms import ImageCompression, RandomRain
+from albumentations.core.transforms_interface import BasicTransform
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from albumentations.augmentations.transforms import RandomSnow
@@ -1378,6 +1379,7 @@ def test_change_image(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     assert not np.array_equal(aug(image=image)["image"], image)
 
+
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_transforms(
@@ -1390,11 +1392,12 @@ def test_change_image(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-            A.Superpixels: {"p_replace": (1, 1),
-                             "n_segments": (10, 10),
-                             "max_size": 10
-                            },
-            A.FancyPCA: {"alpha":1}
+            A.Superpixels: {
+                "p_replace": (1, 1),
+                "n_segments": (10, 10),
+                "max_size": 10
+            },
+            A.FancyPCA: {"alpha": 1}
         },
         except_augmentations={
             A.Crop,
@@ -1431,14 +1434,14 @@ def test_change_image(augmentation_cls, params):
         },
     ),
 )
-def test_selective_channel(augmentation_cls, params):
+def test_selective_channel(augmentation_cls: BasicTransform, params: Dict[str, Any]) -> None:
     set_seed(0)
 
     image = SQUARE_MULTI_UINT8_IMAGE
     channels = [3, 2, 4]
 
     aug = A.Compose(
-        [A.SelectiveChannelTransform(transforms=[augmentation_cls(**params, always_apply=True, p=1)], channels=channels, always_apply=True, p=1)],
+        [A.SelectiveChannelTransform(transforms=[augmentation_cls(**params, p=1)], channels=channels, p=1)],
     )
 
     transformed_image = aug(image=image)["image"]
