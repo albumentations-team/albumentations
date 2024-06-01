@@ -8,7 +8,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from albucore.functions import add, multiply, normalize
+from albucore.functions import add, add_weighted, multiply, normalize
 from albucore.utils import get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
@@ -44,6 +44,7 @@ from albumentations.core.types import (
     MAX_RAIN_ANGLE,
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
+    PAIR,
     BoxInternalType,
     ChromaticAberrationMode,
     ColorType,
@@ -110,7 +111,6 @@ __all__ = [
 NUM_BITS_ARRAY_LENGTH = 3
 MAX_JPEG_QUALITY = 100
 TWENTY = 20
-PAIR = 2
 
 
 class RandomGridShuffle(DualTransform):
@@ -2685,7 +2685,7 @@ class TemplateTransform(ImageOnlyTransform):
         template_weight: float,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_weighted(img, img_weight, template, template_weight)
+        return add_weighted(img, img_weight, template, template_weight)
 
     def get_params(self) -> Dict[str, float]:
         return {
