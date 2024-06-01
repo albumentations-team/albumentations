@@ -4,11 +4,11 @@ from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Opt
 from warnings import warn
 
 import numpy as np
+from albucore.functions import add_weighted
 from albucore.utils import is_grayscale_image
 from pydantic import Field
 from typing_extensions import Annotated
 
-from albumentations.augmentations.functional import add_weighted
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
 from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
 from albumentations.random_utils import beta
@@ -149,15 +149,17 @@ class MixUp(ReferenceBasedTransform):
 
         mix_img = mix_data["image"]
 
-        if not is_grayscale_image(img) and img.shape != mix_img.shape:
+        if img.shape != mix_img.shape and not is_grayscale_image(img):
             msg = "The shape of the reference image should be the same as the input image."
             raise ValueError(msg)
 
-        return add_weighted(img, mix_coef, mix_img, 1 - mix_coef) if mix_img is not None else img
+        return add_weighted(img, mix_coef, mix_img.reshape(img.shape), 1 - mix_coef) if mix_img is not None else img
 
     def apply_to_mask(self, mask: np.ndarray, mix_data: ReferenceImage, mix_coef: float, **params: Any) -> np.ndarray:
         mix_mask = mix_data.get("mask")
-        return add_weighted(mask, mix_coef, mix_mask, 1 - mix_coef) if mix_mask is not None else mask
+        return (
+            add_weighted(mask, mix_coef, mix_mask.reshape(mask.shape), 1 - mix_coef) if mix_mask is not None else mask
+        )
 
     def apply_to_global_label(
         self,

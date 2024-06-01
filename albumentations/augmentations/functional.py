@@ -5,7 +5,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
-from albucore.functions import add, clip, clipped, multiply, preserve_channel_dim
+from albucore.functions import add, add_weighted, clip, clipped, multiply, preserve_channel_dim
 from albucore.utils import MAX_VALUES_BY_DTYPE, contiguous, is_grayscale_image, is_rgb_image, maybe_process_in_chunks
 from typing_extensions import Literal
 
@@ -29,7 +29,6 @@ __all__ = [
     "add_gravel",
     "add_snow",
     "add_sun_flare",
-    "add_weighted",
     "adjust_brightness_torchvision",
     "adjust_contrast_torchvision",
     "adjust_hue_torchvision",
@@ -630,7 +629,7 @@ def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List
         rad = hw // 2
         point = (x + hw // 2, y + hw // 2)
         cv2.circle(overlay, point, int(rad), (255, 255, 255), -1)
-        cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
+        output = add_weighted(overlay, alpha, output, 1 - alpha)
 
         img = output.copy()
 
@@ -682,8 +681,7 @@ def add_sun_flare(
 
     for alpha, (x, y), rad3, (r_color, g_color, b_color) in circles:
         cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
-
-        cv2.addWeighted(overlay, alpha, output, 1 - alpha, 0, output)
+        output = add_weighted(overlay, alpha, output, 1 - alpha)
 
     point = (int(flare_center_x), int(flare_center_y))
 
@@ -694,14 +692,12 @@ def add_sun_flare(
     for i in range(num_times):
         cv2.circle(overlay, point, int(rad[i]), src_color, -1)
         alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
-        cv2.addWeighted(overlay, alp, output, 1 - alp, 0, output)
-
-    image_rgb = output
+        output = add_weighted(overlay, alp, output, 1 - alp)
 
     if needs_float:
-        image_rgb = to_float(image_rgb, max_value=255)
+        return to_float(output, max_value=255)
 
-    return image_rgb
+    return output
 
 
 @contiguous
@@ -1240,13 +1236,6 @@ def superpixels(
         return resize_fn(image)
 
     return image
-
-
-@clipped
-@preserve_channel_dim
-def add_weighted(img1: np.ndarray, alpha: float, img2: np.ndarray, beta: float) -> np.ndarray:
-    img2 = img2.reshape(img1.shape).astype(img1.dtype)
-    return cv2.addWeighted(img1, alpha, img2, beta, 0)
 
 
 @clipped
