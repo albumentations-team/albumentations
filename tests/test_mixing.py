@@ -61,6 +61,7 @@ def test_image_only(augmentation_cls, params):
               ]
 )
 def test_image_global_label(augmentation_cls, params, global_label):
+    set_seed(0)
     square_image = UINT8_IMAGES[0]
     aug = A.Compose([augmentation_cls(p=1, **params)], p=1)
 

@@ -15,7 +15,6 @@ from .geometric.functional import *
 from .geometric.resize import *
 from .geometric.rotate import *
 from .geometric.transforms import *
-from .mixing.functional import *
 from .mixing.transforms import *
 from .transforms import *
 from .utils import *
