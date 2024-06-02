@@ -1,3 +1,8 @@
+"""
+This module provides mixin functionality for the Albumentations library.
+It includes utility functions and classes to enhance the core capabilities.
+"""
+
 import functools
 import json
 import logging
