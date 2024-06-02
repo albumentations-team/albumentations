@@ -64,6 +64,9 @@ setup(
     packages=find_packages(exclude=["tests", "tools", "benchmark", ".github"]),
     python_requires=">=3.8",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
+    extras_require={
+        "hub": ["huggingface_hub"],
+    },
     classifiers=[
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
