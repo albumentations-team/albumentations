@@ -180,7 +180,7 @@ class HubMixin:
                 )
             else:
                 raise FileNotFoundError(
-                    f"{filename} not found in {Path(directory_or_repo_id).resolve()}."
+                    f"{filename} not found in {Path(directory_or_repo_id).resolve()}. "
                     "Please install `huggingface_hub` to load from the Hub.",
                 )
         if transform is not None:
