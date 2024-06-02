@@ -1,5 +1,4 @@
-"""
-This module provides mixin functionality for the Albumentations library.
+"""This module provides mixin functionality for the Albumentations library.
 It includes utility functions and classes to enhance the core capabilities.
 """
 
