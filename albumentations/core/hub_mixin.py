@@ -54,8 +54,8 @@ class HubMixin:
         save_path = save_directory / filename
 
         # save transforms
-        # Could be: A.save(self, save_path, data_format="json")
-        # But there is NO INDENTATION, that is why save manually
+        # We can use native method such as A.save(self, save_path, data_format="json")
+        # However, saved json file will not have indentations, that makes it hard to read.
         transform_dict = self.to_dict()  # type: ignore[attr-defined]
         transform_dict = serialize_enum(transform_dict)
         with save_path.open("w") as f:
