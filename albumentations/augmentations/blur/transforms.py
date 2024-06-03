@@ -68,7 +68,7 @@ class Blur(ImageOnlyTransform):
     class InitSchema(BlurInitSchema):
         pass
 
-    def __init__(self, blur_limit: ScaleIntType = 7, always_apply: bool = False, p: float = 0.5):
+    def __init__(self, blur_limit: ScaleIntType = 7, always_apply: Optional[bool] = None, p: float = 0.5):
         super().__init__(always_apply, p)
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
@@ -123,7 +123,7 @@ class MotionBlur(Blur):
         self,
         blur_limit: ScaleIntType = 7,
         allow_shifted: bool = True,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(blur_limit=blur_limit, always_apply=always_apply, p=p)
@@ -191,7 +191,7 @@ class MedianBlur(Blur):
 
     """
 
-    def __init__(self, blur_limit: ScaleIntType = 7, always_apply: bool = False, p: float = 0.5):
+    def __init__(self, blur_limit: ScaleIntType = 7, always_apply: Optional[bool] = None, p: float = 0.5):
         super().__init__(blur_limit, always_apply, p)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
@@ -254,7 +254,7 @@ class GaussianBlur(ImageOnlyTransform):
         self,
         blur_limit: ScaleIntType = (3, 7),
         sigma_limit: ScaleFloatType = 0,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -310,7 +310,7 @@ class GlassBlur(ImageOnlyTransform):
         max_delta: int = 4,
         iterations: int = 2,
         mode: Literal["fast", "exact"] = "fast",
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
@@ -431,7 +431,7 @@ class AdvancedBlur(ImageOnlyTransform):
         rotate_limit: ScaleIntType = 90,
         beta_limit: ScaleFloatType = (0.5, 8.0),
         noise_limit: ScaleFloatType = (0.9, 1.1),
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -526,7 +526,7 @@ class Defocus(ImageOnlyTransform):
         self,
         radius: ScaleIntType = (3, 10),
         alias_blur: ScaleFloatType = (0.1, 0.5),
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -576,7 +576,7 @@ class ZoomBlur(ImageOnlyTransform):
         self,
         max_factor: ScaleFloatType = (1, 1.31),
         step_factor: ScaleFloatType = (0.01, 0.03),
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)

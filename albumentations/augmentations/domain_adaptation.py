@@ -1,5 +1,5 @@
 import random
-from typing import Any, Callable, Dict, List, Literal, Sequence, Tuple, cast
+from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
@@ -80,7 +80,7 @@ class HistogramMatching(ImageOnlyTransform):
         reference_images: Sequence[Any],
         blend_ratio: Tuple[float, float] = (0.5, 1.0),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
@@ -179,7 +179,7 @@ class FDA(ImageOnlyTransform):
         reference_images: Sequence[Any],
         beta_limit: ScaleFloatType = (0, 0.1),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
@@ -274,7 +274,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         blend_ratio: Tuple[float, float] = (0.25, 1.0),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         transform_type: Literal["pca", "standard", "minmax"] = "pca",
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)

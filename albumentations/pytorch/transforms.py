@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -19,14 +19,14 @@ class ToTensorV2(BasicTransform):
     Attributes:
         transpose_mask (bool): If True, transposes 3D input mask dimensions from `[height, width, num_channels]` to
             `[num_channels, height, width]`.
-        always_apply (bool): Indicates if this transformation should be always applied. Default: True.
+        always_apply (bool): Deprecated. Default: None.
         p (float): Probability of applying the transform. Default: 1.0.
 
     """
 
     _targets = (Targets.IMAGE, Targets.MASK)
 
-    def __init__(self, transpose_mask: bool = False, always_apply: bool = True, p: float = 1.0):
+    def __init__(self, transpose_mask: bool = False, always_apply: Optional[bool] = None, p: float = 1.0):
         super().__init__(always_apply=always_apply, p=p)
         self.transpose_mask = transpose_mask
 

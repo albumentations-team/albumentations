@@ -123,7 +123,7 @@ class Rotate(DualTransform):
         mask_value: Optional[ColorType] = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -293,7 +293,7 @@ class SafeRotate(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,
         mask_value: Optional[ColorType] = None,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
