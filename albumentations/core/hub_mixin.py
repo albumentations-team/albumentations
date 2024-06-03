@@ -3,14 +3,13 @@ It includes utility functions and classes to enhance the core capabilities.
 """
 
 import functools
-import json
 import logging
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
 
 from albumentations.core.serialization import load as load_transform
-from albumentations.core.serialization import serialize_enum
+from albumentations.core.serialization import save as save_transform
 
 try:
     from huggingface_hub import HfApi, hf_hub_download
@@ -58,12 +57,7 @@ class HubMixin:
         save_path = save_directory / filename
 
         # save transforms
-        # We can use native method such as A.save(self, save_path, data_format="json")
-        # However, saved json file will not have indentations, that makes it hard to read.
-        transform_dict = self.to_dict()  # type: ignore[attr-defined]
-        transform_dict = serialize_enum(transform_dict)
-        with save_path.open("w") as f:
-            json.dump(transform_dict, f, indent=2)
+        save_transform(self, save_path, data_format="json")  # type: ignore[arg-type]
 
         return save_path
 
