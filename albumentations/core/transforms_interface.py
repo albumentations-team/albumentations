@@ -34,7 +34,10 @@ class Interpolation:
 
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    always_apply: bool = Field(default=False, deprecated="Deprecated. Use `p=1` instead to always apply the transform")
+    always_apply: Optional[bool] = Field(
+        default=None,
+        deprecated="Deprecated. Use `p=1` instead to always apply the transform",
+    )
     p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
 
 
@@ -58,20 +61,28 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     save_key = "replay"
     replay_mode = False
     applied_in_replay = False
-    always_apply = False  # for backward compatibility
+    always_apply: Optional[bool] = None  # for backward compatibility
 
     class InitSchema(BaseTransformInitSchema):
         pass
 
-    def __init__(self, always_apply: bool = False, p: float = 0.5):
+    def __init__(self, always_apply: Optional[bool] = None, p: float = 0.5):
         self.p = p
-        if always_apply:
-            warn(
-                "always_apply is deprecated. Use `p=1` instead. self.p will be set to 1.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            self.p = 1.0
+        if always_apply is not None:
+            if always_apply:
+                warn(
+                    "always_apply is deprecated. Use `p=1` if you want to always apply the transform."
+                    " self.p will be set to 1.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                self.p = 1.0
+            else:
+                warn(
+                    "always_apply is deprecated.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
         self._additional_targets: Dict[str, str] = {}
         # replay mode params
         self.params: Dict[Any, Any] = {}

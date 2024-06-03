@@ -179,7 +179,7 @@ class Crop(DualTransform):
         y_min: int = 0,
         x_max: int = 1024,
         y_max: int = 1024,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
         super().__init__(always_apply, p)

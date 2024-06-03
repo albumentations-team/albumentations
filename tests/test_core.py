@@ -653,8 +653,8 @@ def test_compose_non_available_keys() -> None:
 
 
 def test_transform_always_apply_warning() -> None:
-    """Check that warning is raised if always_apply argument is set to True"""
-    warning_expected = "always_apply is deprecated. Use `p=1` instead. self.p will be set to 1."
+    """Check that warning is raised if always_apply argument is used"""
+    warning_expected = "always_apply is deprecated. Use `p=1` if you want to always apply the transform. self.p will be set to 1."
 
     with pytest.warns(DeprecationWarning) as record:
         transform = A.NoOp(always_apply=True, p=0.5)
@@ -671,3 +671,21 @@ def test_transform_always_apply_warning() -> None:
 
     assert record[0].message.args[0] == warning_expected
     assert aug.transforms[0].p == 1
+
+    warning_expected_2 = "always_apply is deprecated."
+
+    with pytest.warns(DeprecationWarning) as record:
+        transform = A.NoOp(always_apply=False, p=0.5)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected_2
+    assert transform.p == 0.5
+
+    with pytest.warns(DeprecationWarning) as record:
+        aug = A.Compose([A.NoOp(always_apply=False, p=0.5)], p=1)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected_2
+    assert aug.transforms[0].p == 0.5
