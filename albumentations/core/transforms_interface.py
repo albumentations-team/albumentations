@@ -61,7 +61,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     save_key = "replay"
     replay_mode = False
     applied_in_replay = False
-    always_apply: Optional[bool] = None  # for backward compatibility
 
     class InitSchema(BaseTransformInitSchema):
         pass
@@ -242,8 +241,8 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         raise NotImplementedError(msg)
 
     def get_base_init_args(self) -> Dict[str, Any]:
-        """Returns base init args - always_apply and p"""
-        return {"always_apply": self.always_apply, "p": self.p}
+        """Returns base init args - p"""
+        return {"p": self.p}
 
     def get_transform_init_args(self) -> Dict[str, Any]:
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}

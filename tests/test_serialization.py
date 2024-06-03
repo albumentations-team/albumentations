@@ -1002,7 +1002,7 @@ def test_serialization_v2_to_dict() -> None:
     assert transform_dict == {
         "__class_fullname__": "Compose",
         "p": 1.0,
-        "transforms": [{"__class_fullname__": "HorizontalFlip", "always_apply": None, "p": 0.5}],
+        "transforms": [{"__class_fullname__": "HorizontalFlip", "p": 0.5}],
         "bbox_params": None,
         "keypoint_params": None,
         "additional_targets": {},
