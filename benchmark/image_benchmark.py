@@ -450,7 +450,7 @@ class MotionBlur(BenchmarkTest):
         self.imgaug_transform = iaa.MotionBlur(k=self.kernel_size, angle=[self.angle], direction=self.direction)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.MotionBlur(blur_limit=self.kernel_size, always_apply=True)
+        transform = A.MotionBlur(blur_limit=self.kernel_size, p=1)
         return transform(image=img)["image"]
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
@@ -517,7 +517,7 @@ class Elastic(BenchmarkTest):
         return Kaug.RandomElasticTransform(alpha=alpha, sigma=sigma, p=1)(img)
 
     def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
-        ## Uses approximate Elastic by default
+        # Uses approximate Elastic by default
         return v2.ElasticTransform(alpha=self.alpha, sigma=self.sigma, interpolation=InterpolationMode.BILINEAR)(img)
 
 

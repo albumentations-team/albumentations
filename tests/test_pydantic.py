@@ -354,7 +354,7 @@ def test_transform_without_schema() -> None:
 
 
 class CustomImageTransform(ImageOnlyTransform):
-    def __init__(self, custom_param: int, always_apply: bool = False, p: float = 0.5):
+    def __init__(self, custom_param: int, always_apply: Optional[bool] = None, p: float = 0.5):
         super().__init__(always_apply=always_apply, p=p)
         self.custom_param = custom_param
 
@@ -375,8 +375,8 @@ def test_custom_image_transform_signature() -> None:
     assert expected_params["always_apply"] == Parameter(
         "always_apply",
         kind=Parameter.POSITIONAL_OR_KEYWORD,
-        default=False,
-        annotation=bool,
+        default=None,
+        annotation=Optional[bool],
     )
 
     assert "p" in expected_params
@@ -385,7 +385,7 @@ def test_custom_image_transform_signature() -> None:
     )
 
     # Ensure the correct defaults and types
-    assert expected_params["always_apply"].default is False
+    assert expected_params["always_apply"].default is None
     assert expected_params["p"].default == 0.5
     assert expected_params["custom_param"].annotation is int
 

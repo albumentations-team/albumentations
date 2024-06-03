@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import numpy as np
 from albucore.utils import is_grayscale_image
@@ -42,7 +42,7 @@ class ChannelDropout(ImageOnlyTransform):
         self,
         channel_drop_range: Tuple[int, int] = (1, 1),
         fill_value: float = 0,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)

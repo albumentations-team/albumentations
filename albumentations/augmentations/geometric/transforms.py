@@ -124,7 +124,7 @@ class ElasticTransform(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[Union[int, float, List[int], List[float]]] = None,
         mask_value: Optional[Union[int, float, List[int], List[float]]] = None,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         approximate: bool = False,
         same_dxdy: bool = False,
         p: float = 0.5,
@@ -282,7 +282,7 @@ class Perspective(DualTransform):
         mask_pad_val: Union[ColorType] = 0,
         fit_output: bool = False,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -609,7 +609,7 @@ class Affine(DualTransform):
         fit_output: bool = False,
         keep_ratio: bool = False,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
@@ -932,7 +932,7 @@ class ShiftScaleRotate(Affine):
         shift_limit_x: Optional[ScaleFloatType] = None,
         shift_limit_y: Optional[ScaleFloatType] = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(
@@ -1077,7 +1077,7 @@ class PiecewiseAffine(DualTransform):
         cval_mask: int = 0,
         mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant",
         absolute_scale: bool = False,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         keypoints_threshold: float = 0.01,
         p: float = 0.5,
     ):
@@ -1311,7 +1311,7 @@ class PadIfNeeded(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,
         mask_value: Optional[ColorType] = None,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
         super().__init__(always_apply, p)
@@ -1672,7 +1672,7 @@ class OpticalDistortion(DualTransform):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: Optional[ColorType] = None,
         mask_value: Optional[ColorType] = None,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -1813,7 +1813,7 @@ class GridDistortion(DualTransform):
         value: Optional[ColorType] = None,
         mask_value: Optional[ColorType] = None,
         normalized: bool = False,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -1978,7 +1978,7 @@ class D4(DualTransform):
 
     def __init__(
         self,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 1,
     ):
         super().__init__(always_apply, p)

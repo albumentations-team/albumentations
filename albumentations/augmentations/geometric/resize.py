@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List, Sequence, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -59,7 +59,7 @@ class RandomScale(DualTransform):
         self,
         scale_limit: ScaleFloatType = 0.1,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
@@ -139,7 +139,7 @@ class LongestMaxSize(DualTransform):
         self,
         max_size: Union[int, Sequence[int]] = 1024,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 1,
     ):
         super().__init__(always_apply, p)
@@ -204,7 +204,7 @@ class SmallestMaxSize(DualTransform):
         self,
         max_size: Union[int, Sequence[int]] = 1024,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 1,
     ):
         super().__init__(always_apply, p)
@@ -274,7 +274,7 @@ class Resize(DualTransform):
         height: int,
         width: int,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 1,
     ):
         super().__init__(always_apply, p)
