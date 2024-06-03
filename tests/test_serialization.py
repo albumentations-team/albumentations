@@ -81,12 +81,11 @@ TEST_SEEDS = (0, 1, 42)
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
 @pytest.mark.parametrize("image", IMAGES)
-def test_augmentations_serialization(augmentation_cls, params, p, seed, image, always_apply):
+def test_augmentations_serialization(augmentation_cls, params, p, seed, image):
     mask = image.copy()
 
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+    aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
@@ -481,13 +480,12 @@ AUGMENTATION_CLS_EXCEPT = {
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_serialization_with_custom_parameters(
-    augmentation_cls, params, p, seed, image, always_apply
+    augmentation_cls, params, p, seed, image
 ):
     mask = image[:, :, 0].copy()
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+    aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
@@ -505,14 +503,13 @@ def test_augmentations_serialization_with_custom_parameters(
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 def test_augmentations_serialization_to_file_with_custom_parameters(
-    augmentation_cls, params, p, seed, image, always_apply, data_format
+    augmentation_cls, params, p, seed, image, data_format
 ):
     mask = image[:, :, 0].copy()
     with patch("builtins.open", OpenMock()):
-        aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+        aug = augmentation_cls(p=p, **params)
         filepath = f"serialized.{data_format}"
         A.save(aug, filepath, data_format=data_format)
         deserialized_aug = A.load(filepath, data_format=data_format)
@@ -565,12 +562,11 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_for_bboxes_serialization(
-    augmentation_cls, params, p, seed, image, albumentations_bboxes, always_apply
+    augmentation_cls, params, p, seed, image, albumentations_bboxes
 ):
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+    aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
@@ -630,10 +626,9 @@ def test_augmentations_for_bboxes_serialization(
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
 @pytest.mark.parametrize("image", UINT8_IMAGES)
-def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, image, keypoints, always_apply):
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, image, keypoints):
+    aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
@@ -656,12 +651,11 @@ def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, 
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("always_apply", (False, True))
 @pytest.mark.parametrize("image", IMAGES)
 def test_augmentations_serialization_with_call_params(
-    augmentation_cls, params, call_params, p, seed, image, always_apply
+    augmentation_cls, params, call_params, p, seed, image
 ):
-    aug = augmentation_cls(p=p, always_apply=always_apply, **params)
+    aug = augmentation_cls(p=p, **params)
     annotations = {"image": image, **call_params}
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -857,7 +851,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
 @pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
     aug = A.Compose(
-        [augmentation_cls(always_apply=True, **params)],
+        [augmentation_cls(p=1., **params)],
         additional_targets={"image2": "image"},
     )
 
