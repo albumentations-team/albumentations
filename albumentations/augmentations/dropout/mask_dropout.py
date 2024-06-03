@@ -1,5 +1,5 @@
 import random
-from typing import Any, Callable, Dict, List, Tuple, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -57,7 +57,7 @@ class MaskDropout(DualTransform):
         max_objects: ScaleIntType = (1, 1),
         image_fill_value: Union[float, Literal["inpaint"]] = 0,
         mask_fill_value: ScalarType = 0,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)

@@ -149,7 +149,7 @@ class CoarseDropout(DualTransform):
         num_holes_range: Tuple[int, int] = (1, 1),
         hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8),
         hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8),
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)

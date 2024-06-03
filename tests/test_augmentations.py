@@ -966,7 +966,7 @@ def test_perspective_valid_keypoints_after_transform(seed: int, scale: float, h:
 
 
 @pytest.mark.parametrize("kind", ["pca", "minmax", "standard"])
-def test_pixel_domain_adaptation(kind):
+def test_pixel_domain_adaptation(kind: str) -> None:
     img_uint8 = np.random.randint(low=100, high=200, size=(100, 100, 3), dtype=np.uint8)
     ref_img_uint8 = np.random.randint(low=0, high=100, size=(100, 100, 3), dtype=np.uint8)
     img_float, ref_img_float = (x.astype("float32") / 255.0 for x in (img_uint8, ref_img_uint8))
@@ -976,7 +976,7 @@ def test_pixel_domain_adaptation(kind):
             reference_images=[ref_img],
             blend_ratio=(1, 1),
             read_fn=lambda x: x,
-            always_apply=True,
+            p=1.0,
             transform_type=kind,
         )
         adapted = adapter(image=img)["image"]

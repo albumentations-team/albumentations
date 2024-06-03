@@ -152,7 +152,7 @@ class RandomGridShuffle(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
-    def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: bool = False, p: float = 0.5):
+    def __init__(self, grid: Tuple[int, int] = (3, 3), always_apply: Optional[bool] = None, p: float = 0.5):
         super().__init__(always_apply=always_apply, p=p)
         self.grid = grid
 

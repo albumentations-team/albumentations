@@ -83,7 +83,7 @@ class XYMasking(DualTransform):
         mask_y_length: ScaleIntType = 0,
         fill_value: ColorType = 0,
         mask_fill_value: ColorType = 0,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
