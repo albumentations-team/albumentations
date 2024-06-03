@@ -9,6 +9,7 @@ import numpy as np
 from albumentations import random_utils
 
 from .bbox_utils import BboxParams, BboxProcessor
+from .hub_mixin import HubMixin
 from .keypoints_utils import KeypointParams, KeypointsProcessor
 from .serialization import (
     SERIALIZABLE_REGISTRY,
@@ -166,7 +167,7 @@ class BaseCompose(Serializable):
             t.set_deterministic(flag, save_key)
 
 
-class Compose(BaseCompose):
+class Compose(BaseCompose, HubMixin):
     """Compose transforms and handle all transformations regarding bounding boxes
 
     Args:
