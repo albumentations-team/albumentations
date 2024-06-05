@@ -668,6 +668,34 @@ def test_compose_additional_targets_in_available_keys() -> None:
     augmentation(image=image, additional_target_1=image, additional_target_2=image) # will raise exception if not
     
 
+def test_additional_keys() -> None:
+    """Test with additional keys"""
+    # use ImageOnly transform
+    tr = A.Blur(p=1)
+    aug = A.Compose([tr])
+    image = np.empty([10, 10, 3], dtype=np.uint8)
+    mask = np.empty([10, 10], dtype=np.uint8)
+
+    # basic transform accept any keys
+    res = tr(image=image, mask=mask, masks=[mask], some_key=0)
+    assert "mask" in res
+    assert "some_key" in res
+
+    # compose check keys, mask and masks always in available keys
+    res = aug(image=image, mask=mask, masks=[mask])
+    assert "mask" in res
+    assert "masks" in res
+    # some_key is not in available keys
+    with pytest.raises(ValueError) as exc_info:
+        res = aug(image=image, some_key=0)
+    assert str(exc_info.value) == "Key some_key is not in available keys."
+
+    # add target for some_key
+    aug.add_targets({"some_key": None})
+    res = aug(image=image, some_key=0)
+    assert "some_key" in res
+
+
 def test_transform_always_apply_warning() -> None:
     """Check that warning is raised if always_apply argument is used"""
     warning_expected = "always_apply is deprecated. Use `p=1` if you want to always apply the transform. self.p will be set to 1."
