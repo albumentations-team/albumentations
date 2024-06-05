@@ -198,8 +198,7 @@ def test_color_jitter(brightness, contrast, saturation, hue):
     res1 = transform(image=img)["image"]
     res2 = np.array(pil_transform(pil_image))
 
-    _max = np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max()
-    assert _max <= 2, f"Max: {_max}"
+    assert np.abs(res1.astype(np.int16) - res2.astype(np.int16)).max() <= 2, f"Max: {_max}"
 
 
 def test_post_data_check():

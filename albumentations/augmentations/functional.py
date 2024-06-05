@@ -5,8 +5,17 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
-from albucore.functions import add, add_weighted, clip, clipped, multiply, preserve_channel_dim
-from albucore.utils import MAX_VALUES_BY_DTYPE, contiguous, is_grayscale_image, is_rgb_image, maybe_process_in_chunks
+from albucore.functions import add, add_weighted, multiply, multiply_add
+from albucore.utils import (
+    MAX_VALUES_BY_DTYPE,
+    clip,
+    clipped,
+    contiguous,
+    is_grayscale_image,
+    is_rgb_image,
+    maybe_process_in_chunks,
+    preserve_channel_dim,
+)
 from typing_extensions import Literal
 
 from albumentations import random_utils
@@ -799,62 +808,19 @@ def gamma_transform(img: np.ndarray, gamma: float) -> np.ndarray:
     return np.power(img, gamma)
 
 
-@clipped
-def _brightness_contrast_adjust_non_uint(
-    img: np.ndarray,
-    alpha: float = 1,
-    beta: float = 0,
-    beta_by_max: bool = False,
-) -> np.ndarray:
-    dtype = img.dtype
-    img = img.astype("float32")
-
-    if alpha != 1:
-        img *= alpha
-    if beta != 0:
-        if beta_by_max:
-            max_value = MAX_VALUES_BY_DTYPE[dtype]
-            img += beta * max_value
-        else:
-            img += beta * np.mean(img)
-    return img
-
-
-@preserve_channel_dim
-def _brightness_contrast_adjust_uint(
-    img: np.ndarray,
-    alpha: float = 1,
-    beta: float = 0,
-    beta_by_max: bool = False,
-) -> np.ndarray:
-    dtype = np.dtype("uint8")
-
-    max_value = MAX_VALUES_BY_DTYPE[dtype]
-
-    lut = np.arange(0, max_value + 1).astype("float32")
-
-    if alpha != 1:
-        lut *= alpha
-    if beta != 0:
-        if beta_by_max:
-            lut += beta * max_value
-        else:
-            lut += (alpha * beta) * np.mean(img)
-
-    lut = clip(lut, img.dtype)
-    return cv2.LUT(img, lut)
-
-
 def brightness_contrast_adjust(
     img: np.ndarray,
     alpha: float = 1,
     beta: float = 0,
     beta_by_max: bool = False,
 ) -> np.ndarray:
-    if img.dtype == np.uint8:
-        return _brightness_contrast_adjust_uint(img, alpha, beta, beta_by_max)
+    if beta_by_max:
+        max_value = MAX_VALUES_BY_DTYPE[img.dtype]
+        value = beta * max_value
+    else:
+        value = beta * np.mean(img)
 
-    return _brightness_contrast_adjust_non_uint(img, alpha, beta, beta_by_max)
+    return multiply_add(img, alpha, value)
 
 
 @clipped
@@ -890,7 +856,7 @@ def iso_noise(
         raise TypeError(msg)
 
     one_over_255 = float(1.0 / 255.0)
-    image = np.multiply(image, one_over_255, dtype=np.float32)
+    image = multiply(image, one_over_255).astype(np.float32)
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
@@ -1026,17 +992,19 @@ def mask_from_bbox(img: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarr
 
 
 def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
-    """Perform 'Fancy PCA' augmentation from:
-    http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
+    """Perform 'Fancy PCA' augmentation
+
 
     Args:
         img: numpy array with (h, w, rgb) shape, as ints between 0-255
-        alpha: how much to perturb/scale the eigen vecs and vals
+        alpha: how much to perturb/scale the eigen vectors and values
                 the paper used std=0.1
 
     Returns:
         numpy image-like array as uint8 range(0, 255)
 
+    Reference:
+        http://papers.nips.cc/paper/4824-imagenet-classification-with-deep-convolutional-neural-networks.pdf
     """
     if not is_rgb_image(img) or img.dtype != np.uint8:
         msg = "Image must be RGB image in uint8 format."
@@ -1098,14 +1066,6 @@ def adjust_brightness_torchvision(img: np.ndarray, factor: np.ndarray) -> np:
     return multiply(img, factor)
 
 
-def _adjust_contrast_torchvision_uint8(img: np.ndarray, factor: float, mean: np.ndarray) -> np.ndarray:
-    lut = np.arange(0, 256) * factor
-    lut = lut + mean * (1 - factor)
-    lut = clip(lut, img.dtype)
-
-    return cv2.LUT(img, lut)
-
-
 @preserve_channel_dim
 def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
     if factor == 1:
@@ -1118,10 +1078,7 @@ def adjust_contrast_torchvision(img: np.ndarray, factor: float) -> np.ndarray:
             mean = int(mean + 0.5)
         return np.full_like(img, mean, dtype=img.dtype)
 
-    if img.dtype == np.uint8:
-        return _adjust_contrast_torchvision_uint8(img, factor, mean)
-
-    return clip(img.astype(np.float32) * factor + mean * (1 - factor), img.dtype)
+    return multiply_add(img, factor, mean * (1 - factor))
 
 
 @preserve_channel_dim
@@ -1142,7 +1099,6 @@ def adjust_saturation_torchvision(img: np.ndarray, factor: float, gamma: float =
     if img.dtype == np.uint8:
         return result
 
-    # OpenCV does not clip values for float dtype
     return clip(result, img.dtype)
 
 
@@ -1267,7 +1223,8 @@ def unsharp_mask(
     sharp = np.clip(sharp, 0, 1)
 
     soft_mask = blur_fn(mask)
-    output = soft_mask * sharp + (1 - soft_mask) * image
+    output = add(multiply(sharp, soft_mask), multiply(image, 1 - soft_mask))
+
     return from_float(output, dtype=input_dtype)
 
 
