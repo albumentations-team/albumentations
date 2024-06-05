@@ -25,7 +25,7 @@ def test_glass_blur_float_uint8_diff_less_than_two(val_uint8):
     x_float32 = np.zeros((5, 5)).astype(np.float32)
     x_float32[2, 2] = val_uint8 / 255.0
 
-    glassblur = A.GlassBlur(always_apply=True, max_delta=1)
+    glassblur = A.GlassBlur(p=1, max_delta=1)
 
     set_seed(0)
     blur_uint8 = glassblur(image=x_uint8)["image"]
@@ -47,7 +47,7 @@ def test_advanced_blur_float_uint8_diff_less_than_two(val_uint8):
     x_float32 = np.zeros((5, 5)).astype(np.float32)
     x_float32[2, 2] = val_uint8 / 255.0
 
-    adv_blur = A.AdvancedBlur(blur_limit=(3, 5), always_apply=True)
+    adv_blur = A.AdvancedBlur(blur_limit=(3, 5), p=1)
 
     set_seed(0)
     adv_blur_uint8 = adv_blur(image=x_uint8)["image"]

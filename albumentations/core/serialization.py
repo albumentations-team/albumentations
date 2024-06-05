@@ -227,7 +227,7 @@ def save(
             raise ValueError(msg)
         yaml.safe_dump(transform_dict, filepath_or_buffer, default_flow_style=False)
     elif data_format == "json":
-        json.dump(transform_dict, filepath_or_buffer)
+        json.dump(transform_dict, filepath_or_buffer, indent=2)
 
 
 def load(

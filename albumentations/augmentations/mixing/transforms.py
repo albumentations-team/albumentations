@@ -120,7 +120,7 @@ class MixUp(ReferenceBasedTransform):
         read_fn: Callable[[ReferenceImage], Any] = lambda x: {"image": x, "mask": None, "class_label": None},
         alpha: float = 0.4,
         mix_coef_return_name: str = "mix_coef",
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)

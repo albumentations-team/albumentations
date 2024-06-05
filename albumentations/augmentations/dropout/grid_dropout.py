@@ -75,7 +75,7 @@ class GridDropout(DualTransform):
         random_offset: bool = False,
         fill_value: float = 0,
         mask_fill_value: Optional[ScalarType] = None,
-        always_apply: bool = False,
+        always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)

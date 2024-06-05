@@ -9,6 +9,7 @@ import numpy as np
 from albumentations import random_utils
 
 from .bbox_utils import BboxParams, BboxProcessor
+from .hub_mixin import HubMixin
 from .keypoints_utils import KeypointParams, KeypointsProcessor
 from .serialization import (
     SERIALIZABLE_REGISTRY,
@@ -41,16 +42,6 @@ TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = List[TransformType]
 
 AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints", "global_label")
-
-
-def get_always_apply(transforms: Union["BaseCompose", TransformsSeqType]) -> TransformsSeqType:
-    new_transforms: TransformsSeqType = []
-    for transform in transforms:
-        if isinstance(transform, BaseCompose):
-            new_transforms.extend(get_always_apply(transform))
-        elif transform.always_apply:
-            new_transforms.append(transform)
-    return new_transforms
 
 
 def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransform]:
@@ -176,7 +167,7 @@ class BaseCompose(Serializable):
             t.set_deterministic(flag, save_key)
 
 
-class Compose(BaseCompose):
+class Compose(BaseCompose, HubMixin):
     """Compose transforms and handle all transformations regarding bounding boxes
 
     Args:
@@ -236,7 +227,6 @@ class Compose(BaseCompose):
         self._disable_check_args_for_transforms(self.transforms)
 
         self.is_check_shapes = is_check_shapes
-        self._always_apply = get_always_apply(self.transforms)  # transforms list that always apply
         self._check_each_transform = tuple(  # processors that checks after each transform
             proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
         )
@@ -272,13 +262,12 @@ class Compose(BaseCompose):
             data[self.save_key] = OrderedDict()
 
         need_to_run = force_apply or random.random() < self.p
-        if not need_to_run and not self._always_apply:
+        if not need_to_run:
             return data
 
         self.preprocess(data)
 
-        transforms = self.transforms if need_to_run else self._always_apply
-        for t in transforms:
+        for t in self.transforms:
             data = t(**data)
 
             if self._check_each_transform:
@@ -514,8 +503,6 @@ class SelectiveChannelTransform(BaseCompose):
             A sequence of transformations (from Albumentations) to be applied to the specified channels.
         channels (Sequence[int]):
             A sequence of integers specifying the indices of the channels to which the transforms should be applied.
-        always_apply (bool):
-            If True, the transform will always be applied, ignoring the probability `p`.
         p (float):
             Probability that the transform will be applied; the default is 1.0 (always apply).
 
@@ -532,7 +519,6 @@ class SelectiveChannelTransform(BaseCompose):
         self,
         transforms: TransformsSeqType,
         channels: Sequence[int] = (0, 1, 2),
-        always_apply: bool = False,
         p: float = 1.0,
     ) -> None:
         super().__init__(transforms, p)

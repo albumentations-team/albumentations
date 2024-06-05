@@ -71,16 +71,6 @@ def oneof_always_apply_crash():
     assert data
 
 
-def test_always_apply():
-    first = MagicMock(always_apply=True, available_keys={"image"})
-    second = MagicMock(always_apply=False, available_keys={"image"})
-    augmentation = Compose([first, second], p=0)
-    image = np.ones((8, 8))
-    augmentation(image=image)
-    assert first.called
-    assert not second.called
-
-
 def test_one_of():
     transforms = [Mock(p=1, available_keys={"image"}) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
@@ -134,12 +124,15 @@ def test_image_only_transform(image):
             mocked_apply.assert_called_once_with(image, interpolation=cv2.INTER_LINEAR, cols=width, rows=height)
             assert np.array_equal(data["mask"], mask)
 
+
 @pytest.mark.parametrize("image", IMAGES)
-def test_compose_doesnt_pass_force_apply(image):
-    transforms = [HorizontalFlip(p=0, always_apply=False)]
-    augmentation = Compose(transforms, p=1)
+def test_compose_doesnt_pass_force_apply(image: np.ndarray) -> None:
+    transforms = [HorizontalFlip(p=0)]
+    augmentation = Compose(transforms, p=1, return_params=True)
     result = augmentation(force_apply=True, image=image)
     assert np.array_equal(result["image"], image)
+    assert len(result["applied_params"]) == 0
+
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_dual_transform(image):
@@ -657,3 +650,42 @@ def test_compose_non_available_keys() -> None:
 
     expected_msg = "Key image_2 is not in available keys."
     assert str(exc_info.value) == expected_msg
+
+
+def test_transform_always_apply_warning() -> None:
+    """Check that warning is raised if always_apply argument is used"""
+    warning_expected = "always_apply is deprecated. Use `p=1` if you want to always apply the transform. self.p will be set to 1."
+
+    with pytest.warns(DeprecationWarning) as record:
+        transform = A.NoOp(always_apply=True, p=0.5)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected
+    assert transform.p == 1
+
+    with pytest.warns(DeprecationWarning) as record:
+        aug = A.Compose([A.NoOp(always_apply=True, p=0.5)], p=1)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected
+    assert aug.transforms[0].p == 1
+
+    warning_expected_2 = "always_apply is deprecated."
+
+    with pytest.warns(DeprecationWarning) as record:
+        transform = A.NoOp(always_apply=False, p=0.5)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected_2
+    assert transform.p == 0.5
+
+    with pytest.warns(DeprecationWarning) as record:
+        aug = A.Compose([A.NoOp(always_apply=False, p=0.5)], p=1)
+
+    assert len(record) == 1
+
+    assert record[0].message.args[0] == warning_expected_2
+    assert aug.transforms[0].p == 0.5
