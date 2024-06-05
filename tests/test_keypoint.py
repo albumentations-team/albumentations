@@ -1,4 +1,5 @@
 import math
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pytest
@@ -12,6 +13,8 @@ from albumentations.core.keypoints_utils import (
     convert_keypoints_from_albumentations,
     convert_keypoints_to_albumentations,
 )
+from albumentations.core.transforms_interface import BasicTransform
+from albumentations.core.types import KeypointType
 
 
 @pytest.mark.parametrize(
@@ -25,7 +28,7 @@ from albumentations.core.keypoints_utils import (
         ((20, 30, 60, 80), "xyas", (20, 30, math.radians(60), 80)),
     ],
 )
-def test_convert_keypoint_to_albumentations(kp, source_format, expected):
+def test_convert_keypoint_to_albumentations(kp: KeypointType, source_format: str, expected: KeypointType) -> None:
     image = np.ones((100, 100, 3))
 
     converted_keypoint = convert_keypoint_to_albumentations(
@@ -44,7 +47,7 @@ def test_convert_keypoint_to_albumentations(kp, source_format, expected):
         ((20, 30, 0.6, 80), "xyas", (20, 30, math.degrees(0.6), 80)),
     ],
 )
-def test_convert_keypoint_from_albumentations(kp, target_format, expected):
+def test_convert_keypoint_from_albumentations(kp: KeypointType, target_format: str, expected: KeypointType) -> None:
     image = np.ones((100, 100, 3))
     converted_keypoint = convert_keypoint_from_albumentations(
         kp, rows=image.shape[0], cols=image.shape[1], target_format=target_format
@@ -61,18 +64,21 @@ def test_convert_keypoint_from_albumentations(kp, target_format, expected):
         ((20, 30, 60, 80, 99), "yx"),
     ],
 )
-def test_convert_keypoint_to_albumentations_and_back(kp, keypoint_format):
+def test_convert_keypoint_to_albumentations_and_back(kp: KeypointType, keypoint_format: str) -> None:
     image = np.ones((100, 100, 3))
     converted_kp = convert_keypoint_to_albumentations(
         kp, rows=image.shape[0], cols=image.shape[1], source_format=keypoint_format
     )
     converted_back_kp = convert_keypoint_from_albumentations(
-        converted_kp, rows=image.shape[0], cols=image.shape[1], target_format=keypoint_format
+        converted_kp,
+        rows=image.shape[0],
+        cols=image.shape[1],
+        target_format=keypoint_format,
     )
     assert converted_back_kp == kp
 
 
-def test_convert_keypoints_to_albumentations():
+def test_convert_keypoints_to_albumentations() -> None:
     keypoints = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
     image = np.ones((100, 100, 3))
     converted_keypoints = convert_keypoints_to_albumentations(
@@ -87,10 +93,10 @@ def test_convert_keypoints_to_albumentations():
     assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
 
 
-def test_convert_keypoints_from_albumentations():
+def test_convert_keypoints_from_albumentations() -> None:
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     image = np.ones((100, 100, 3))
-    converted_keypointes = convert_keypoints_from_albumentations(
+    converted_keypoints = convert_keypoints_from_albumentations(
         keypoints, rows=image.shape[0], cols=image.shape[1], target_format="xyas"
     )
     converted_keypoint_1 = convert_keypoint_from_albumentations(
@@ -99,7 +105,7 @@ def test_convert_keypoints_from_albumentations():
     converted_keypoint_2 = convert_keypoint_from_albumentations(
         keypoints[1], rows=image.shape[0], cols=image.shape[1], target_format="xyas"
     )
-    assert converted_keypointes == [converted_keypoint_1, converted_keypoint_2]
+    assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
 
 
 @pytest.mark.parametrize(
@@ -111,10 +117,13 @@ def test_convert_keypoints_from_albumentations():
         ([(20, 30, 60, 80, 99)], "xys", None),
     ],
 )
-def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
+def test_compose_with_keypoint_noop(keypoints: KeypointType, keypoint_format: str, labels: Optional[List[int]]) -> None:
     image = np.ones((100, 100, 3))
     if labels is not None:
-        aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": ["labels"]})
+        aug = A.Compose(
+            [A.NoOp(p=1.0)],
+            keypoint_params={"format": keypoint_format, "label_fields": ["labels"]},
+        )
         transformed = aug(image=image, keypoints=keypoints, labels=labels)
     else:
         aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format})
@@ -123,10 +132,15 @@ def test_compose_with_keypoint_noop(keypoints, keypoint_format, labels):
     assert transformed["keypoints"] == keypoints
 
 
-@pytest.mark.parametrize(["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]])
-def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_format):
+@pytest.mark.parametrize(
+    ["keypoints", "keypoint_format"], [[[[20, 30, 40, 50]], "xyas"]]
+)
+def test_compose_with_keypoint_noop_error_label_fields(keypoints: KeypointType, keypoint_format: str) -> None:
     image = np.ones((100, 100, 3))
-    aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": "class_id"})
+    aug = A.Compose(
+        [A.NoOp(p=1.0)],
+        keypoint_params={"format": keypoint_format, "label_fields": "class_id"},
+    )
     with pytest.raises(Exception):
         aug(image=image, keypoints=keypoints, cls_id=[0])
 
@@ -141,9 +155,15 @@ def test_compose_with_keypoint_noop_error_label_fields(keypoints, keypoint_forma
         ([(20, 30, 60, 80), (30, 40, 40, 50)], "xy", {"id": [3, 1]}),
     ],
 )
-def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, labels):
+def test_compose_with_keypoint_noop_label_outside(keypoints: KeypointType, keypoint_format: str, labels: Dict[str, Any]) -> None:
     image = np.ones((100, 100, 3))
-    aug = A.Compose([A.NoOp(p=1.0)], keypoint_params={"format": keypoint_format, "label_fields": list(labels.keys())})
+    aug = A.Compose(
+        [A.NoOp(p=1.0)],
+        keypoint_params={
+            "format": keypoint_format,
+            "label_fields": list(labels.keys()),
+        },
+    )
     transformed = aug(image=image, keypoints=keypoints, **labels)
     assert np.array_equal(transformed["image"], image)
     assert transformed["keypoints"] == keypoints
@@ -151,7 +171,7 @@ def test_compose_with_keypoint_noop_label_outside(keypoints, keypoint_format, la
         assert transformed[k] == v
 
 
-def test_random_sized_crop_size():
+def test_random_sized_crop_size() -> None:
     image = np.ones((100, 100, 3))
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = A.RandomSizedCrop(min_max_height=(70, 90), size=(50, 50), p=1.0)
@@ -160,7 +180,7 @@ def test_random_sized_crop_size():
     assert len(keypoints) == len(transformed["keypoints"])
 
 
-def test_random_resized_crop_size():
+def test_random_resized_crop_size() -> None:
     image = np.ones((100, 100, 3))
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     aug = A.RandomResizedCrop(size=(50, 50), p=1.0)
@@ -186,11 +206,13 @@ def test_random_resized_crop_size():
         [A.VerticalFlip, [[1, 1]], [[1, 1]]],
     ],
 )
-def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
+def test_keypoint_flips_transform_3x3(aug: BasicTransform, keypoints: KeypointType, expected: KeypointType) -> None:
     transform = A.Compose([aug(p=1)], keypoint_params={"format": "xy"})
 
     image = np.ones((3, 3, 3))
-    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    transformed = transform(
+        image=image, keypoints=keypoints, labels=np.ones(len(keypoints))
+    )
     assert np.allclose(expected, transformed["keypoints"])
 
 
@@ -200,19 +222,25 @@ def test_keypoint_flips_transform_3x3(aug, keypoints, expected):
         [A.HorizontalFlip, [[20, 30, 0, 0]], [[79, 30, 180, 0]]],
         [A.HorizontalFlip, [[20, 30, 45, 0]], [[79, 30, 135, 0]]],
         [A.HorizontalFlip, [[20, 30, 90, 0]], [[79, 30, 90, 0]]],
-        #
         [A.VerticalFlip, [[20, 30, 0, 0]], [[20, 69, 0, 0]]],
         [A.VerticalFlip, [[20, 30, 45, 0]], [[20, 69, 315, 0]]],
         [A.VerticalFlip, [[20, 30, 90, 0]], [[20, 69, 270, 0]]],
     ],
 )
-def test_keypoint_transform_format_xyas(aug, keypoints, expected):
+def test_keypoint_transform_format_xyas(aug: BasicTransform, keypoints: KeypointType, expected: KeypointType) -> None:
     transform = A.Compose(
-        [aug(p=1)], keypoint_params={"format": "xyas", "angle_in_degrees": True, "label_fields": ["labels"]}
+        [aug(p=1)],
+        keypoint_params={
+            "format": "xyas",
+            "angle_in_degrees": True,
+            "label_fields": ["labels"],
+        },
     )
 
     image = np.ones((100, 100, 3))
-    transformed = transform(image=image, keypoints=keypoints, labels=np.ones(len(keypoints)))
+    transformed = transform(
+        image=image, keypoints=keypoints, labels=np.ones(len(keypoints))
+    )
     assert np.allclose(expected, transformed["keypoints"])
 
 
@@ -225,7 +253,7 @@ def test_keypoint_transform_format_xyas(aug, keypoints, expected):
         ((20, 30, math.pi / 2, 0), (69, 20, math.pi, 0), 3),
     ],
 )
-def test_keypoint_rotate90(keypoint, expected, factor):
+def test_keypoint_rotate90(keypoint: KeypointType, expected: KeypointType, factor: int) -> None:
     actual = FGeometric.keypoint_rot90(keypoint, factor, rows=100, cols=200)
     assert actual == expected
 
@@ -241,7 +269,7 @@ def test_keypoint_rotate90(keypoint, expected, factor):
         [[99, 99, 0, 0], [0, 0, math.pi, 0], 180],
     ],
 )
-def test_keypoint_rotate(keypoint, expected, angle):
+def test_keypoint_rotate(keypoint: KeypointType, expected: KeypointType, angle: float) -> None:
     actual = FGeometric.keypoint_rotate(keypoint, angle, rows=100, cols=100)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
@@ -254,26 +282,31 @@ def test_keypoint_rotate(keypoint, expected, angle):
         [[0.0, 0.0, math.pi / 2, 1], [0.0, 0.0, math.pi / 2, 0.5], 0.5],
     ],
 )
-def test_keypoint_scale(keypoint, expected, scale):
+def test_keypoint_scale(keypoint: KeypointType, expected: KeypointType, scale: float) -> None:
     actual = FGeometric.keypoint_scale(keypoint, scale, scale)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
-def test_compose_with_additional_targets():
+def test_compose_with_additional_targets() -> None:
     image = np.ones((100, 100, 3))
     keypoints = [(10, 10), (50, 50)]
     kp1 = [(15, 15), (55, 55)]
 
-    aug = A.Compose([A.CenterCrop(50, 50)], keypoint_params={"format": "xy"}, additional_targets={"kp1": "keypoints"})
+    aug = A.Compose(
+        [A.CenterCrop(50, 50)],
+        keypoint_params={"format": "xy"},
+        additional_targets={"kp1": "keypoints"},
+    )
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
     assert transformed["keypoints"] == [(25, 25)]
     assert transformed["kp1"] == [(30, 30)]
 
     aug = A.Compose([A.CenterCrop(50, 50)], keypoint_params={"format": "xy"})
-    aug.add_targets( additional_targets={"kp1": "keypoints"})
+    aug.add_targets(additional_targets={"kp1": "keypoints"})
     transformed = aug(image=image, keypoints=keypoints, kp1=kp1)
     assert transformed["keypoints"] == [(25, 25)]
     assert transformed["kp1"] == [(30, 30)]
+
 
 @pytest.mark.parametrize(
     ["angle", "expected"],
@@ -289,13 +322,23 @@ def test_compose_with_additional_targets():
         [-2 * np.pi, 0],
     ],
 )
-def test_angle_to_2pi_range(angle, expected):
+def test_angle_to_2pi_range(angle, expected) -> None:
     assert np.isclose(angle_to_2pi_range(angle), expected)
 
 
-def test_coarse_dropout():
+def test_coarse_dropout() -> None:
     aug = A.Compose(
-        [A.CoarseDropout(min_holes=1, max_holes=1, min_height=128, max_width=128, min_width=128, max_height=128, p=1)],
+        [
+            A.CoarseDropout(
+                min_holes=1,
+                max_holes=1,
+                min_height=128,
+                max_width=128,
+                min_width=128,
+                max_height=128,
+                p=1,
+            )
+        ],
         keypoint_params=A.KeypointParams(format="xy"),
     )
 
@@ -306,15 +349,43 @@ def test_coarse_dropout():
 @pytest.mark.parametrize(
     ["keypoints", "expected_keypoints", "holes"],
     [
-        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(40, 40, 60, 60), (70, 70, 80, 80), (10, 10, 20, 20)]],
-        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(10, 10, 20, 20), (40, 40, 60, 60), (70, 70, 80, 80)]],
-        [[(50, 50, 0, 0), (75, 75, 0, 0)], [], [(40, 40, 60, 60), (10, 10, 20, 20), (70, 70, 80, 80)]],
-        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(75, 75, 0, 0)], [(40, 40, 60, 60), (10, 10, 20, 20)]],
-        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(50, 50, 0, 0)], [(70, 70, 80, 80), (10, 10, 20, 20)]],
-        [[(50, 50, 0, 0), (75, 75, 0, 0)], [(50, 50, 0, 0), (75, 75, 0, 0)], [(10, 10, 20, 20)]],
+        [
+            [(50, 50, 0, 0), (75, 75, 0, 0)],
+            [],
+            [(40, 40, 60, 60), (70, 70, 80, 80), (10, 10, 20, 20)],
+        ],
+        [
+            [(50, 50, 0, 0), (75, 75, 0, 0)],
+            [],
+            [(10, 10, 20, 20), (40, 40, 60, 60), (70, 70, 80, 80)],
+        ],
+        [
+            [(50, 50, 0, 0), (75, 75, 0, 0)],
+            [],
+            [(40, 40, 60, 60), (10, 10, 20, 20), (70, 70, 80, 80)],
+        ],
+        [
+            [(50, 50, 0, 0), (75, 75, 0, 0)],
+            [(75, 75, 0, 0)],
+            [(40, 40, 60, 60), (10, 10, 20, 20)],
+        ],
+        [
+            [(50, 50, 0, 0), (75, 75, 0, 0)],
+            [(50, 50, 0, 0)],
+            [(70, 70, 80, 80), (10, 10, 20, 20)],
+        ],
+        [
+            [(50, 50, 0, 0), (75, 75, 0, 0)],
+            [(50, 50, 0, 0), (75, 75, 0, 0)],
+            [(10, 10, 20, 20)],
+        ],
     ],
 )
-def test_coarse_dropout_remove_keypoints(keypoints, expected_keypoints, holes):
+def test_coarse_dropout_remove_keypoints(
+    keypoints: KeypointType,
+    expected_keypoints: KeypointType,
+    holes: List[Tuple[int, int, int, int]],
+) -> None:
     t = A.CoarseDropout()
     result_keypoints = t.apply_to_keypoints(keypoints, holes)
 
