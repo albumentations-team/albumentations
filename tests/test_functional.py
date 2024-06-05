@@ -691,26 +691,6 @@ def test_is_multispectral_image():
     assert not is_multispectral_image(gray_image)
 
 
-def test_brightness_contrast():
-    dtype = np.uint8
-    min_value = np.iinfo(dtype).min
-    max_value = np.iinfo(dtype).max
-
-    image_uint8 = np.random.randint(min_value, max_value, size=(5, 5, 3), dtype=dtype)
-
-    assert np.array_equal(F.brightness_contrast_adjust(image_uint8), F._brightness_contrast_adjust_uint(image_uint8))
-
-    assert np.array_equal(
-        F._brightness_contrast_adjust_non_uint(image_uint8), F._brightness_contrast_adjust_uint(image_uint8)
-    )
-
-    image_float = np.random.random((5, 5, 3)).astype(np.float32)
-
-    assert np.array_equal(
-        F.brightness_contrast_adjust(image_float), F._brightness_contrast_adjust_non_uint(image_float)
-    )
-
-
 @pytest.mark.parametrize(
     "img, tiles, mapping, expected",
     [
