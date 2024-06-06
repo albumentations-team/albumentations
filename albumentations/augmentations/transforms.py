@@ -8,7 +8,7 @@ from warnings import warn
 
 import cv2
 import numpy as np
-from albucore.functions import add, add_weighted, multiply, normalize
+from albucore.functions import add, add_weighted, multiply, normalize, normalize_per_image
 from albucore.utils import get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
@@ -323,10 +323,10 @@ class Normalize(ImageOnlyTransform):
                 self.mean_np,
                 self.denominator,
             )
-        return fmain.normalize_per_image(img, self.normalization)
+        return normalize_per_image(img, self.normalization)
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("mean", "std", "max_pixel_value", "normalization")
+        return "mean", "std", "max_pixel_value", "normalization"
 
 
 class ImageCompression(ImageOnlyTransform):
