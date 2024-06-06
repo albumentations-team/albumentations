@@ -10,5 +10,5 @@ from .core.serialization import *
 from .core.transforms_interface import *
 
 # Perform the version check after all other initializations
-if os.getenv("NO_ALBUMENTATIONS_UPDATE", '').lower() not in ['true', '1']:
+if os.getenv("NO_ALBUMENTATIONS_UPDATE", "").lower() not in ["true", "1"]:
     check_for_updates()
