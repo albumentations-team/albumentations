@@ -74,62 +74,6 @@ __all__ = [
 ]
 
 
-@preserve_channel_dim
-def normalize_per_image(
-    img: np.ndarray,
-    normalization: Literal["image", "image_per_channel", "min_max", "min_max_per_channel"],
-) -> np.ndarray:
-    """Apply per-image normalization based on the specified strategy.
-
-    Args:
-        img (np.ndarray): The image to be normalized, expected to be in HWC format.
-        normalization (str): The normalization strategy to apply. Options include:
-                             "image", "image_per_channel", "min_max", "min_max_per_channel".
-
-    Returns:
-        np.ndarray: The normalized image.
-
-    Reference:
-        https://github.com/ChristofHenkel/kaggle-landmark-2021-1st-place/blob/main/data/ch_ds_1.py
-    """
-    img = img.astype(np.float32)
-    eps = 1e-4
-
-    if img.ndim == MONO_CHANNEL_DIMENSIONS:
-        img = np.expand_dims(img, axis=-1)  # Ensure the image is at least 3D
-
-    if normalization == "image":
-        # Normalize the whole image based on its global mean and std
-        mean = img.mean()
-        std = img.std() + eps  # Adding a small epsilon to avoid division by zero
-        normalized_img = (img - mean) / std
-        normalized_img = normalized_img.clip(-20, 20)  # Clipping outliers
-
-    elif normalization == "image_per_channel":
-        # Normalize the image per channel based on each channel's mean and std
-        pixel_mean = img.mean(axis=(0, 1))
-        pixel_std = img.std(axis=(0, 1)) + eps
-        normalized_img = (img - pixel_mean[None, None, :]) / pixel_std[None, None, :]
-        normalized_img = normalized_img.clip(-20, 20)
-
-    elif normalization == "min_max":
-        # Apply min-max normalization to the whole image
-        img_min = img.min()
-        img_max = img.max()
-        normalized_img = (img - img_min) / (img_max - img_min + eps)
-
-    elif normalization == "min_max_per_channel":
-        # Apply min-max normalization per channel
-        img_min = img.min(axis=(0, 1), keepdims=True)
-        img_max = img.max(axis=(0, 1), keepdims=True)
-        normalized_img = (img - img_min) / (img_max - img_min + eps)
-
-    else:
-        raise ValueError(f"Unknown normalization method: {normalization}")
-
-    return normalized_img
-
-
 def _shift_hsv_uint8(
     img: np.ndarray,
     hue_shift: np.ndarray,
