@@ -113,7 +113,7 @@ def convert_to_0plus_range(value: ScaleType) -> Tuple[float, float]:
     return to_tuple(value, low=0)
 
 
-def check_01(value: Tuple[float, float]) -> Tuple[float, float]:
+def check_01(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
     if not all(0 <= x <= 1 for x in value):
         raise ValueError(f"All values should be in [0, 1], got {value} instead")
     return value

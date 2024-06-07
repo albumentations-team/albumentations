@@ -1716,3 +1716,26 @@ def test_crop_and_pad_px_pixel_values(px, expected_shape):
             crop_top, crop_right, crop_bottom, crop_left = [-p for p in px]
             cropped_region = image[crop_top:image.shape[0] - crop_bottom, crop_left:image.shape[1] - crop_right, :]
             assert np.all(transformed_image == cropped_region)
+
+
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
+    ({}, {"fog_coef_range": (0.3, 1)}),
+    # Test fog coefficient range
+    ({"fog_coef_range": (0.4, 0.7)}, {"fog_coef_range": (0.4, 0.7)}),
+    # Deprecated fog coefficient values handling
+    ({"fog_coef_lower": 0.2}, {"fog_coef_range": (0.2, 1)}),
+    ({"fog_coef_upper": 0.6}, {"fog_coef_range": (0.3, 0.6)}),
+])
+def test_random_fog_initialization(params, expected):
+    img_fog = A.RandomFog(**params)
+    for key, value in expected.items():
+        assert getattr(img_fog, key) == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"fog_coef_range": (1.2, 1.5)}),  # Invalid fog coefficient range -> upper bound
+    ({"fog_coef_range": (0.9, 0.7)}),  # Invalid range  -> decreasing
+])
+def test_random_fog_invalid_input(params):
+    with pytest.raises(Exception):
+        img_fog = A.RandomFog(**params)

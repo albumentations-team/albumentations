@@ -6,7 +6,7 @@ from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
 from albumentations import random_utils
-from albumentations.core.pydantic import check_0plus, nondecreasing
+from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, NumericType, ScalarType, Targets
 
@@ -63,7 +63,7 @@ class CoarseDropout(DualTransform):
             ge=0,
             description="Maximum number of regions to zero out.",
         )
-        num_holes_range: Annotated[Tuple[int, int], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = (1, 1)
+        num_holes_range: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (1, 1)
 
         min_height: Optional[ScalarType] = Field(
             default=None,
@@ -105,11 +105,7 @@ class CoarseDropout(DualTransform):
 
         @staticmethod
         # Validation for hole dimensions ranges
-        def validate_range(
-            range_value: Tuple[NumericType, NumericType],
-            range_name: str,
-            minimum: NumericType = 0,
-        ) -> None:
+        def validate_range(range_value: Tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
             if not minimum <= range_value[0] <= range_value[1]:
                 raise ValueError(
                     f"First value in {range_name} should be less or equal than the second value "
