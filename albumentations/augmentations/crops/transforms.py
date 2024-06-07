@@ -20,9 +20,10 @@ from albumentations.core.pydantic import (
     check_0plus,
     check_01,
 )
-from albumentations.core.transforms_interface import PAIR, BaseTransformInitSchema, DualTransform
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
+    PAIR,
     BoxInternalType,
     KeypointInternalType,
     PercentType,

@@ -352,20 +352,16 @@ class ImageCompression(ImageOnlyTransform):
             description="lower and upper bound on the image quality as tuple (lower_bound, upper_bound)",
         )
         quality_lower: Optional[int] = Field(
-            default=99,
+            default=None,
             description="Lower bound on the image quality",
             ge=1,
             le=100,
-            deprecated="`quality_lower` and `quality_upper` are deprecated. "
-            "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
         )
         quality_upper: Optional[int] = Field(
-            default=100,
+            default=None,
             description="Upper bound on the image quality",
             ge=1,
             le=100,
-            deprecated="`quality_lower` and `quality_upper` are deprecated. "
-            "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
         )
         compression_type: ImageCompressionType = Field(
             default=ImageCompressionType.JPEG,
@@ -376,6 +372,20 @@ class ImageCompression(ImageOnlyTransform):
         def validate_ranges(self) -> Self:
             # Update the quality_range based on the non-None values of quality_lower and quality_upper
             if self.quality_lower is not None or self.quality_upper is not None:
+                if self.quality_lower is not None:
+                    warn(
+                        "`quality_lower` is deprecated. Use `quality_range` as tuple"
+                        " (quality_lower, quality_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.quality_upper is not None:
+                    warn(
+                        "`quality_upper` is deprecated. Use `quality_range` as tuple"
+                        " (quality_lower, quality_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 lower = self.quality_lower if self.quality_lower is not None else self.quality_range[0]
                 upper = self.quality_upper if self.quality_upper is not None else self.quality_range[1]
                 self.quality_range = (lower, upper)
@@ -2056,19 +2066,16 @@ class Downscale(ImageOnlyTransform):
             ge=0,
             le=1,
             description="Lower bound on the image scale.",
-            deprecated="Use scale_range instead.",
         )
         scale_max: Optional[float] = Field(
             default=None,
             ge=0,
             lt=1,
             description="Upper bound on the image scale.",
-            deprecated="Use scale_range instead.",
         )
 
         interpolation: Optional[Union[int, Interpolation, InterpolationDict]] = Field(
             default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
-            deprecated="Use interpolation_pair instead.",
         )
         interpolation_pair: InterpolationPydantic
 
@@ -2080,11 +2087,23 @@ class Downscale(ImageOnlyTransform):
         @model_validator(mode="after")
         def validate_params(self) -> Self:
             if self.scale_min is not None and self.scale_max is not None:
+                warn(
+                    "scale_min and scale_max are deprecated. Use scale_range instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
                 self.scale_range = (self.scale_min, self.scale_max)
                 self.scale_min = None
                 self.scale_max = None
 
             if self.interpolation is not None:
+                warn(
+                    "Downscale.interpolation is deprecated. Use Downscale.interpolation_pair instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
                 if isinstance(self.interpolation, dict):
                     self.interpolation_pair = InterpolationPydantic(**self.interpolation)
                 elif isinstance(self.interpolation, int):
