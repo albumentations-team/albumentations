@@ -8,11 +8,9 @@ from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_di
 
 from albumentations.augmentations.functional import convolve
 from albumentations.augmentations.geometric.functional import scale
+from albumentations.core.types import EIGHT
 
 __all__ = ["blur", "median_blur", "gaussian_blur", "glass_blur", "defocus", "central_zoom", "zoom_blur"]
-
-TWO = 2
-EIGHT = 8
 
 
 @preserve_channel_dim
@@ -90,18 +88,19 @@ def defocus(img: np.ndarray, radius: int, alias_blur: float) -> np.ndarray:
 
 
 def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
-    h, w = img.shape[:2]
-    h_ch, w_ch = ceil(h / zoom_factor), ceil(w / zoom_factor)
-    h_top, w_top = (h - h_ch) // 2, (w - w_ch) // 2
+    height, width = img.shape[:2]
+    h_ch, w_ch = ceil(height / zoom_factor), ceil(width / zoom_factor)
+    h_top, w_top = (height - h_ch) // 2, (width - w_ch) // 2
 
     img = scale(img[h_top : h_top + h_ch, w_top : w_top + w_ch], zoom_factor, cv2.INTER_LINEAR)
-    h_trim_top, w_trim_top = (img.shape[0] - h) // 2, (img.shape[1] - w) // 2
-    return img[h_trim_top : h_trim_top + h, w_trim_top : w_trim_top + w]
+    h_trim_top, w_trim_top = (img.shape[0] - height) // 2, (img.shape[1] - width) // 2
+    return img[h_trim_top : h_trim_top + height, w_trim_top : w_trim_top + width]
 
 
 @clipped
 def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -> np.ndarray:
     out = np.zeros_like(img, dtype=np.float32)
+
     for zoom_factor in zoom_factors:
         out += central_zoom(img, zoom_factor)
 

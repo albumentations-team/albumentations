@@ -5,13 +5,11 @@ import numpy as np
 from pydantic import Field
 
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ColorType, ScalarType, Targets
+from albumentations.core.types import TWO, ColorType, ScalarType, Targets
 
 from . import functional as fdropout
 
 __all__ = ["GridDropout"]
-
-TWO = 2
 
 
 class GridDropout(DualTransform):

@@ -5,7 +5,7 @@ from pydantic import Field
 from pydantic.functional_validators import AfterValidator
 from typing_extensions import Annotated
 
-from albumentations.core.types import ScalarType, ScaleType
+from albumentations.core.types import NumericType, ScalarType, ScaleType
 from albumentations.core.utils import to_tuple
 
 valid_interpolations = [
@@ -75,19 +75,19 @@ def convert_to_1plus_range(value: ScaleType) -> Tuple[float, float]:
     return to_tuple(value, low=1)
 
 
-def check_1plus(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+def check_1plus(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
     if any(x < 1 for x in value):
         raise ValueError(f"All values should be >= 1, got {value} instead")
     return value
 
 
-def check_0plus(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+def check_0plus(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
     if any(x < 0 for x in value):
         raise ValueError(f"All values should be >= 0, got {value} instead")
     return value
 
 
-def nondecreasing(value: Tuple[ScalarType, ScalarType]) -> Tuple[ScalarType, ScalarType]:
+def nondecreasing(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
     if not value[0] <= value[1]:
         raise ValueError(f"First value should be less than the second value, got {value} instead")
     return value
@@ -113,7 +113,7 @@ def convert_to_0plus_range(value: ScaleType) -> Tuple[float, float]:
     return to_tuple(value, low=0)
 
 
-def check_01(value: Tuple[float, float]) -> Tuple[float, float]:
+def check_01(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
     if not all(0 <= x <= 1 for x in value):
         raise ValueError(f"All values should be in [0, 1], got {value} instead")
     return value

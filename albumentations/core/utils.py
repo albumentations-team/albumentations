@@ -5,12 +5,10 @@ import numpy as np
 from typing_extensions import Literal
 
 from .serialization import Serializable
-from .types import BoxOrKeypointType, ScalarType, ScaleType, SizeType
+from .types import PAIR, BoxOrKeypointType, ScalarType, ScaleType, SizeType
 
 if TYPE_CHECKING:
     import torch
-
-PAIR = 2
 
 
 def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:

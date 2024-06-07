@@ -23,7 +23,6 @@ from albumentations.core.pydantic import (
     InterpolationType,
     NonNegativeFloatRangeType,
     OnePlusFloatRangeType,
-    OnePlusIntNonDecreasingRangeType,
     OnePlusIntRangeType,
     ProbabilityType,
     SymmetricRangeType,
@@ -347,25 +346,22 @@ class ImageCompression(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        quality_range: OnePlusIntNonDecreasingRangeType = Field(
-            default=(99, 100),
-            description="lower and upper bound on the image quality as tuple (lower_bound, upper_bound)",
+        quality_range: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
+            99,
+            100,
         )
+
         quality_lower: Optional[int] = Field(
-            default=99,
+            default=None,
             description="Lower bound on the image quality",
             ge=1,
             le=100,
-            deprecated="`quality_lower` and `quality_upper` are deprecated. "
-            "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
         )
         quality_upper: Optional[int] = Field(
-            default=100,
+            default=None,
             description="Upper bound on the image quality",
             ge=1,
             le=100,
-            deprecated="`quality_lower` and `quality_upper` are deprecated. "
-            "Use `quality_range` as tuple (quality_lower, quality_upper) instead.",
         )
         compression_type: ImageCompressionType = Field(
             default=ImageCompressionType.JPEG,
@@ -376,6 +372,20 @@ class ImageCompression(ImageOnlyTransform):
         def validate_ranges(self) -> Self:
             # Update the quality_range based on the non-None values of quality_lower and quality_upper
             if self.quality_lower is not None or self.quality_upper is not None:
+                if self.quality_lower is not None:
+                    warn(
+                        "`quality_lower` is deprecated. Use `quality_range` as tuple"
+                        " (quality_lower, quality_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.quality_upper is not None:
+                    warn(
+                        "`quality_upper` is deprecated. Use `quality_range` as tuple"
+                        " (quality_lower, quality_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 lower = self.quality_lower if self.quality_lower is not None else self.quality_range[0]
                 upper = self.quality_upper if self.quality_upper is not None else self.quality_range[1]
                 self.quality_range = (lower, upper)
@@ -462,22 +472,32 @@ class RandomSnow(ImageOnlyTransform):
             description="Lower bound of the amount of snow",
             gt=0,
             lt=1,
-            deprecated="`snow_point_lower` deprecated."
-            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
         )
         snow_point_upper: Optional[float] = Field(
             default=None,
             description="Upper bound of the amount of snow",
             gt=0,
             lt=1,
-            deprecated="`snow_point_upper` deprecated."
-            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
         )
         brightness_coeff: float = Field(default=2.5, description="Brightness coefficient, must be > 0", gt=0)
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
             if self.snow_point_lower is not None or self.snow_point_upper is not None:
+                if self.snow_point_lower is not None:
+                    warn(
+                        "`snow_point_lower` deprecated. Use `snow_point_range` as tuple"
+                        " (snow_point_lower, snow_point_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.snow_point_upper is not None:
+                    warn(
+                        "`snow_point_upper` deprecated. Use `snow_point_range` as tuple"
+                        "(snow_point_lower, snow_point_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 lower = self.snow_point_lower if self.snow_point_lower is not None else self.snow_point_range[0]
                 upper = self.snow_point_upper if self.snow_point_upper is not None else self.snow_point_range[1]
                 self.snow_point_range = (lower, upper)
@@ -664,12 +684,10 @@ class RandomRain(ImageOnlyTransform):
         slant_lower: Optional[int] = Field(
             default=None,
             description="Lower bound for rain slant angle",
-            deprecated="`slant_lower` is deprecated.Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
         )
         slant_upper: Optional[int] = Field(
             default=None,
             description="Upper bound for rain slant angle",
-            deprecated="`slant_upper` is deprecated.Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
         )
         slant_range: Annotated[Tuple[float, float], AfterValidator(nondecreasing)] = Field(
             default=(-10, 10),
@@ -690,6 +708,18 @@ class RandomRain(ImageOnlyTransform):
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
             if self.slant_lower is not None or self.slant_upper is not None:
+                if self.slant_lower is not None:
+                    warn(
+                        "`slant_lower` deprecated. Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.slant_upper is not None:
+                    warn(
+                        "`slant_upper` deprecated. Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 lower = self.slant_lower if self.slant_lower is not None else self.slant_range[0]
                 upper = self.slant_upper if self.slant_upper is not None else self.slant_range[1]
                 self.slant_range = (lower, upper)
@@ -793,12 +823,13 @@ class RandomRain(ImageOnlyTransform):
 
 
 class RandomFog(ImageOnlyTransform):
-    """Simulates fog for the image
+    """Simulates fog for the image.
 
     Args:
-        fog_coef_lower: lower limit for fog intensity coefficient. Should be in [0, 1] range.
-        fog_coef_upper: upper limit for fog intensity coefficient. Should be in [0, 1] range.
-        alpha_coef: transparency of the fog circles. Should be in [0, 1] range.
+        fog_coef_range (tuple): Tuple of bounds on the fog intensity coefficient (fog_coef_lower, fog_coef_upper).
+            Default: (0.3, 1).
+        alpha_coef (float): Transparency of the fog circles. Should be in [0, 1] range. Default: 0.08.
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -808,32 +839,55 @@ class RandomFog(ImageOnlyTransform):
 
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     """
 
     class InitSchema(BaseTransformInitSchema):
-        fog_coef_lower: float = Field(default=0.3, description="Lower limit for fog intensity coefficient", ge=0, le=1)
-        fog_coef_upper: float = Field(default=1, description="Upper limit for fog intensity coefficient", ge=0, le=1)
+        fog_coef_lower: Optional[float] = Field(
+            default=None,
+            description="Lower limit for fog intensity coefficient",
+            ge=0,
+            le=1,
+        )
+        fog_coef_upper: Optional[float] = Field(
+            default=None,
+            description="Upper limit for fog intensity coefficient",
+            ge=0,
+            le=1,
+        )
+        fog_coef_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
+            0.3,
+            1,
+        )
+
         alpha_coef: float = Field(default=0.08, description="Transparency of the fog circles", ge=0, le=1)
 
         @model_validator(mode="after")
         def validate_fog_coefficients(self) -> Self:
-            if self.fog_coef_lower > self.fog_coef_upper:
-                msg = "fog_coef_upper must be greater than or equal to fog_coef_lower."
-                raise ValueError(msg)
+            if self.fog_coef_lower is not None:
+                warn("`fog_coef_lower` is deprecated, use `fog_coef_range` instead.", DeprecationWarning, stacklevel=2)
+            if self.fog_coef_upper is not None:
+                warn("`fog_coef_upper` is deprecated, use `fog_coef_range` instead.", DeprecationWarning, stacklevel=2)
+
+            lower = self.fog_coef_lower if self.fog_coef_lower is not None else self.fog_coef_range[0]
+            upper = self.fog_coef_upper if self.fog_coef_upper is not None else self.fog_coef_range[1]
+            self.fog_coef_range = (lower, upper)
+
+            self.fog_coef_lower = None
+            self.fog_coef_upper = None
+
             return self
 
     def __init__(
         self,
-        fog_coef_lower: float = 0.3,
-        fog_coef_upper: float = 1,
+        fog_coef_lower: Optional[float] = None,
+        fog_coef_upper: Optional[float] = None,
         alpha_coef: float = 0.08,
+        fog_coef_range: Tuple[float, float] = (0.3, 1),
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
-        self.fog_coef_lower = fog_coef_lower
-        self.fog_coef_upper = fog_coef_upper
+        self.fog_coef_range = fog_coef_range
         self.alpha_coef = alpha_coef
 
     def apply(
@@ -851,7 +905,7 @@ class RandomFog(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
-        fog_coef = random.uniform(self.fog_coef_lower, self.fog_coef_upper)
+        fog_coef = random.uniform(*self.fog_coef_range)
 
         height, width = imshape = img.shape[:2]
 
@@ -874,8 +928,8 @@ class RandomFog(ImageOnlyTransform):
 
         return {"haze_list": haze_list, "fog_coef": fog_coef}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str]:
-        return ("fog_coef_lower", "fog_coef_upper", "alpha_coef")
+    def get_transform_init_args_names(self) -> Tuple[str, str]:
+        return "fog_coef_range", "alpha_coef"
 
 
 class RandomSunFlare(ImageOnlyTransform):
@@ -1078,17 +1132,29 @@ class RandomShadow(ImageOnlyTransform):
         num_shadows_lower: Optional[int] = Field(
             default=None,
             description="Lower limit for the possible number of shadows",
-            deprecated="`num_shadows_lower` is deprecated. Use `num_shadows_limit` instead.",
         )
         num_shadows_upper: Optional[int] = Field(
             default=None,
             description="Upper limit for the possible number of shadows",
-            deprecated="`num_shadows_upper` is deprecated. Use `num_shadows_limit` instead.",
         )
         shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", ge=1)
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
+            if self.num_shadows_lower is not None:
+                warn(
+                    "`num_shadows_lower` is deprecated. Use `num_shadows_limit` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
+            if self.num_shadows_upper is not None:
+                warn(
+                    "`num_shadows_upper` is deprecated. Use `num_shadows_limit` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
             if self.num_shadows_lower is not None or self.num_shadows_upper is not None:
                 num_shadows_lower = (
                     self.num_shadows_lower if self.num_shadows_lower is not None else self.num_shadows_limit[0]
@@ -2024,19 +2090,16 @@ class Downscale(ImageOnlyTransform):
             ge=0,
             le=1,
             description="Lower bound on the image scale.",
-            deprecated="Use scale_range instead.",
         )
         scale_max: Optional[float] = Field(
             default=None,
             ge=0,
             lt=1,
             description="Upper bound on the image scale.",
-            deprecated="Use scale_range instead.",
         )
 
         interpolation: Optional[Union[int, Interpolation, InterpolationDict]] = Field(
             default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
-            deprecated="Use interpolation_pair instead.",
         )
         interpolation_pair: InterpolationPydantic
 
@@ -2048,11 +2111,23 @@ class Downscale(ImageOnlyTransform):
         @model_validator(mode="after")
         def validate_params(self) -> Self:
             if self.scale_min is not None and self.scale_max is not None:
+                warn(
+                    "scale_min and scale_max are deprecated. Use scale_range instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
                 self.scale_range = (self.scale_min, self.scale_max)
                 self.scale_min = None
                 self.scale_max = None
 
             if self.interpolation is not None:
+                warn(
+                    "Downscale.interpolation is deprecated. Use Downscale.interpolation_pair instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
                 if isinstance(self.interpolation, dict):
                     self.interpolation_pair = InterpolationPydantic(**self.interpolation)
                 elif isinstance(self.interpolation, int):

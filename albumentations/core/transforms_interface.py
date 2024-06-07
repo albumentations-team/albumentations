@@ -23,8 +23,6 @@ from .utils import format_args
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 
-PAIR = 2
-
 
 class Interpolation:
     def __init__(self, downscale: int = cv2.INTER_NEAREST, upscale: int = cv2.INTER_NEAREST):

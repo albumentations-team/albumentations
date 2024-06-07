@@ -1,13 +1,14 @@
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from warnings import warn
 
 import numpy as np
-from pydantic import Field, model_validator
-from typing_extensions import Literal, Self
+from pydantic import AfterValidator, Field, model_validator
+from typing_extensions import Annotated, Literal, Self
 
 from albumentations import random_utils
-from albumentations.core.pydantic import OnePlusIntNonDecreasingRangeType
+from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import ColorType, KeypointType, ScalarType, Targets
+from albumentations.core.types import ColorType, KeypointType, NumericType, ScalarType, Targets
 
 from .functional import cutout, keypoint_in_hole
 
@@ -56,27 +57,23 @@ class CoarseDropout(DualTransform):
             default=None,
             ge=0,
             description="Minimum number of regions to zero out.",
-            deprecated="Use num_holes_range instead.",
         )
         max_holes: Optional[int] = Field(
             default=8,
             ge=0,
             description="Maximum number of regions to zero out.",
-            deprecated="Use num_holes_range instead.",
         )
-        num_holes_range: OnePlusIntNonDecreasingRangeType = (1, 1)
+        num_holes_range: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (1, 1)
 
         min_height: Optional[ScalarType] = Field(
             default=None,
             ge=0,
             description="Minimum height of the hole.",
-            deprecated="Use hole_height_range instead.",
         )
         max_height: Optional[ScalarType] = Field(
             default=8,
             ge=0,
             description="Maximum height of the hole.",
-            deprecated="Use hole_height_range instead.",
         )
         hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8)
 
@@ -84,13 +81,11 @@ class CoarseDropout(DualTransform):
             default=None,
             ge=0,
             description="Minimum width of the hole.",
-            deprecated="Use hole_width_range instead.",
         )
         max_width: Optional[ScalarType] = Field(
             default=8,
             ge=0,
             description="Maximum width of the hole.",
-            deprecated="Use hole_width_range instead.",
         )
         hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8)
 
@@ -99,10 +94,10 @@ class CoarseDropout(DualTransform):
 
         @staticmethod
         def update_range(
-            min_value: Optional[ScalarType],
-            max_value: Optional[ScalarType],
-            default_range: Tuple[ScalarType, ScalarType],
-        ) -> Tuple[ScalarType, ScalarType]:
+            min_value: Optional[NumericType],
+            max_value: Optional[NumericType],
+            default_range: Tuple[NumericType, NumericType],
+        ) -> Tuple[NumericType, NumericType]:
             if max_value is not None:
                 return (min_value or max_value, max_value)
 
@@ -121,9 +116,28 @@ class CoarseDropout(DualTransform):
 
         @model_validator(mode="after")
         def check_num_holes_and_dimensions(self) -> Self:
+            if self.min_holes is not None:
+                warn("`min_holes` is deprecated. Use num_holes_range instead.", DeprecationWarning, stacklevel=2)
+
+            if self.max_holes is not None:
+                warn("`max_holes` is deprecated. Use num_holes_range instead.", DeprecationWarning, stacklevel=2)
+
+            if self.min_height is not None:
+                warn("`min_height` is deprecated. Use hole_height_range instead.", DeprecationWarning, stacklevel=2)
+
+            if self.max_height is not None:
+                warn("`max_height` is deprecated. Use hole_height_range instead.", DeprecationWarning, stacklevel=2)
+
+            if self.min_width is not None:
+                warn("`min_width` is deprecated. Use hole_width_range instead.", DeprecationWarning, stacklevel=2)
+
+            if self.max_width is not None:
+                warn("`max_width` is deprecated. Use hole_width_range instead.", DeprecationWarning, stacklevel=2)
+
             if self.max_holes is not None:
                 # Update ranges for holes, heights, and widths
                 self.num_holes_range = self.update_range(self.min_holes, self.max_holes, self.num_holes_range)
+
             self.validate_range(self.num_holes_range, "num_holes_range", minimum=1)
 
             if self.max_height is not None:
