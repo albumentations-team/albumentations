@@ -462,22 +462,32 @@ class RandomSnow(ImageOnlyTransform):
             description="Lower bound of the amount of snow",
             gt=0,
             lt=1,
-            deprecated="`snow_point_lower` deprecated."
-            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
         )
         snow_point_upper: Optional[float] = Field(
             default=None,
             description="Upper bound of the amount of snow",
             gt=0,
             lt=1,
-            deprecated="`snow_point_upper` deprecated."
-            "Use `snow_point_range` as tuple (snow_point_lower, snow_point_upper) instead.",
         )
         brightness_coeff: float = Field(default=2.5, description="Brightness coefficient, must be > 0", gt=0)
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
             if self.snow_point_lower is not None or self.snow_point_upper is not None:
+                if self.snow_point_lower is not None:
+                    warn(
+                        "`snow_point_lower` deprecated. Use `snow_point_range` as tuple"
+                        " (snow_point_lower, snow_point_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.snow_point_upper is not None:
+                    warn(
+                        "`snow_point_upper` deprecated. Use `snow_point_range` as tuple"
+                        "(snow_point_lower, snow_point_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 lower = self.snow_point_lower if self.snow_point_lower is not None else self.snow_point_range[0]
                 upper = self.snow_point_upper if self.snow_point_upper is not None else self.snow_point_range[1]
                 self.snow_point_range = (lower, upper)
@@ -664,12 +674,10 @@ class RandomRain(ImageOnlyTransform):
         slant_lower: Optional[int] = Field(
             default=None,
             description="Lower bound for rain slant angle",
-            deprecated="`slant_lower` is deprecated.Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
         )
         slant_upper: Optional[int] = Field(
             default=None,
             description="Upper bound for rain slant angle",
-            deprecated="`slant_upper` is deprecated.Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
         )
         slant_range: Annotated[Tuple[float, float], AfterValidator(nondecreasing)] = Field(
             default=(-10, 10),
@@ -690,6 +698,18 @@ class RandomRain(ImageOnlyTransform):
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
             if self.slant_lower is not None or self.slant_upper is not None:
+                if self.slant_lower is not None:
+                    warn(
+                        "`slant_lower` deprecated. Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.slant_upper is not None:
+                    warn(
+                        "`slant_upper` deprecated. Use `slant_range` as tuple (slant_lower, slant_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
                 lower = self.slant_lower if self.slant_lower is not None else self.slant_range[0]
                 upper = self.slant_upper if self.slant_upper is not None else self.slant_range[1]
                 self.slant_range = (lower, upper)
@@ -1078,17 +1098,29 @@ class RandomShadow(ImageOnlyTransform):
         num_shadows_lower: Optional[int] = Field(
             default=None,
             description="Lower limit for the possible number of shadows",
-            deprecated="`num_shadows_lower` is deprecated. Use `num_shadows_limit` instead.",
         )
         num_shadows_upper: Optional[int] = Field(
             default=None,
             description="Upper limit for the possible number of shadows",
-            deprecated="`num_shadows_upper` is deprecated. Use `num_shadows_limit` instead.",
         )
         shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", ge=1)
 
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
+            if self.num_shadows_lower is not None:
+                warn(
+                    "`num_shadows_lower` is deprecated. Use `num_shadows_limit` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
+            if self.num_shadows_upper is not None:
+                warn(
+                    "`num_shadows_upper` is deprecated. Use `num_shadows_limit` instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
             if self.num_shadows_lower is not None or self.num_shadows_upper is not None:
                 num_shadows_lower = (
                     self.num_shadows_lower if self.num_shadows_lower is not None else self.num_shadows_limit[0]
