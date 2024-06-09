@@ -148,6 +148,7 @@ class BaseCompose(Serializable):
 
     def _set_keys(self) -> None:
         """Set _available_keys"""
+        self._available_keys.update(self._additional_targets.keys())
         for t in self.transforms:
             self._available_keys.update(t.available_keys)
         if self.processors:
