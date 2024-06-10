@@ -651,6 +651,22 @@ def test_compose_non_available_keys() -> None:
     expected_msg = "Key image_2 is not in available keys."
     assert str(exc_info.value) == expected_msg
 
+def test_compose_additional_targets_in_available_keys() -> None:
+    """Check whether `available_keys` always contains everything in `additional_targets`"""
+    first = MagicMock(available_keys={"image"})
+    second = MagicMock(available_keys={"image"})
+    image = np.ones((8, 8))
+
+    # non-empty `transforms`
+    augmentation = Compose([first, second], p=1, 
+                           additional_targets={"additional_target_1": "image", "additional_target_2": "image"})
+    augmentation(image=image, additional_target_1=image, additional_target_2=image) # will raise exception if not
+
+    # empty `transforms`
+    augmentation = Compose([], p=1, 
+                           additional_targets={"additional_target_1": "image", "additional_target_2": "image"})
+    augmentation(image=image, additional_target_1=image, additional_target_2=image) # will raise exception if not
+    
 
 def test_transform_always_apply_warning() -> None:
     """Check that warning is raised if always_apply argument is used"""
