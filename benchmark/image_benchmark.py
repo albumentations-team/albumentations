@@ -521,22 +521,23 @@ class Elastic(BenchmarkTest):
         return v2.ElasticTransform(alpha=self.alpha, sigma=self.sigma, interpolation=InterpolationMode.BILINEAR)(img)
 
 
+class Normalize(BenchmarkTest):
+    def __init__(self):
+        self.mean = (0.485, 0.456, 0.406)
+        self.std=(0.229, 0.224, 0.225)
+
+    def albumentations_transform(self, img: torch.Tensor) -> np.ndarray:
+        transform = A.Normalize(mean=self.mean, std=self.std, p=1)
+        return transform(image=img)["image"]
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.Normalize(mean=self.mean, std=self.std, p=1)(img)
+
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return v2.Normalize(mean=self.mean, std=self.std)(img.float())
+
+
 def main() -> None:
-    args = parse_args()
-    package_versions = get_package_versions()
-    if args.print_package_versions:
-        print(get_markdown_table(package_versions))
-
-    images_per_second: Dict[str, Dict[str, Any]] = defaultdict(dict)
-    libraries = args.libraries
-    data_dir = Path(args.data_dir)
-    paths = sorted(data_dir.glob("*.*"))
-    paths = paths[: args.images]
-    imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths)]
-    imgs_pillow = [read_img_pillow(path) for path in tqdm(paths)]
-    imgs_torch = [read_img_torch(path) for path in tqdm(paths)]
-    imgs_kornia = [read_img_kornia(path) for path in tqdm(paths)]
-
     benchmarks = [
         HorizontalFlip(),
         VerticalFlip(),
@@ -558,7 +559,24 @@ def main() -> None:
         JpegCompression(),
         GaussianNoise(),
         Elastic(),
+        Normalize()
     ]
+
+    args = parse_args()
+    package_versions = get_package_versions()
+    if args.print_package_versions:
+        print(get_markdown_table(package_versions))
+
+    images_per_second: Dict[str, Dict[str, Any]] = defaultdict(dict)
+    libraries = args.libraries
+    data_dir = Path(args.data_dir)
+    paths = sorted(data_dir.glob("*.*"))
+    paths = paths[: args.images]
+    imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths)]
+    imgs_pillow = [read_img_pillow(path) for path in tqdm(paths)]
+    imgs_torch = [read_img_torch(path) for path in tqdm(paths)]
+    imgs_kornia = [read_img_kornia(path) for path in tqdm(paths)]
+
 
     def get_imgs(library: str) -> list:
         if library == "augly":
