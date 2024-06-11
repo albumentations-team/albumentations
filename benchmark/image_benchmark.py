@@ -537,46 +537,15 @@ class Normalize(BenchmarkTest):
         return v2.Normalize(mean=self.mean, std=self.std)(img.float())
 
 
-def main() -> None:
-    benchmarks = [
-        HorizontalFlip(),
-        VerticalFlip(),
-        Rotate(),
-        Affine(),
-        Equalize(),
-        RandomCrop64(),
-        RandomResizedCrop(),
-        ShiftRGB(),
-        Resize(512),
-        RandomGamma(),
-        Grayscale(),
-        ColorJitter(),
-        RandomPerspective(),
-        GaussianBlur(),
-        MedianBlur(),
-        MotionBlur(),
-        Posterize(),
-        JpegCompression(),
-        GaussianNoise(),
-        Elastic(),
-        Normalize()
-    ]
-
-    args = parse_args()
-    package_versions = get_package_versions()
-    if args.print_package_versions:
-        print(get_markdown_table(package_versions))
-
+def run_benchmarks(benchmarks: List[BenchmarkTest], args: argparse.Namespace, libraries: List[str], data_dir: Path) -> Dict[str, Dict[str, Any]]:
     images_per_second: Dict[str, Dict[str, Any]] = defaultdict(dict)
-    libraries = args.libraries
-    data_dir = Path(args.data_dir)
+
     paths = sorted(data_dir.glob("*.*"))
     paths = paths[: args.images]
-    imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths)]
-    imgs_pillow = [read_img_pillow(path) for path in tqdm(paths)]
-    imgs_torch = [read_img_torch(path) for path in tqdm(paths)]
-    imgs_kornia = [read_img_kornia(path) for path in tqdm(paths)]
-
+    imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths, desc="Loading images for OpenCV")]
+    imgs_pillow = [read_img_pillow(path) for path in tqdm(paths, desc="Loading images for Pillow")]
+    imgs_torch = [read_img_torch(path) for path in tqdm(paths, desc="Loading images for Torch")]
+    imgs_kornia = [read_img_kornia(path) for path in tqdm(paths, desc="Loading images for Kornia")]
 
     def get_imgs(library: str) -> list:
         if library == "augly":
@@ -608,6 +577,44 @@ def main() -> None:
         pbar.update(1)
     pbar.close()
 
+    return images_per_second
+
+
+def main() -> None:
+    benchmarks = [
+        HorizontalFlip(),
+        VerticalFlip(),
+        Rotate(),
+        Affine(),
+        Equalize(),
+        RandomCrop64(),
+        RandomResizedCrop(),
+        ShiftRGB(),
+        Resize(512),
+        RandomGamma(),
+        Grayscale(),
+        ColorJitter(),
+        RandomPerspective(),
+        GaussianBlur(),
+        MedianBlur(),
+        MotionBlur(),
+        Posterize(),
+        JpegCompression(),
+        GaussianNoise(),
+        Elastic(),
+        Normalize()
+    ]
+
+    args = parse_args()
+    package_versions = get_package_versions()
+    if args.print_package_versions:
+        print(get_markdown_table(package_versions))
+
+    libraries = args.libraries
+    data_dir = Path(args.data_dir)
+
+    images_per_second = run_benchmarks(benchmarks, args, libraries, data_dir)
+
     pd.set_option("display.width", 1000)
     df = pd.DataFrame.from_dict(images_per_second)
     df = df.map(lambda r: format_results(r, args.show_std))
@@ -618,8 +625,7 @@ def main() -> None:
         makedown_generator = MarkdownGenerator(df, package_versions)
         makedown_generator.print()
     else:
-        pass
-
+        print(df)
 
 if __name__ == "__main__":
     main()
