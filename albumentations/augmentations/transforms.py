@@ -1532,6 +1532,7 @@ class RGBShift(ImageOnlyTransform):
         if not is_rgb_image(img):
             msg = "RGBShift transformation expects 3-channel images."
             raise TypeError(msg)
+
         return add(img, (r_shift, g_shift, b_shift))
 
     def get_params(self) -> Dict[str, Any]:

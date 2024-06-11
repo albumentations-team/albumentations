@@ -308,7 +308,7 @@ class RandomResizedCrop(BenchmarkTest):
 class ShiftRGB(BenchmarkTest):
     def __init__(self, pixel_shift: int = 100):
         self.pixel_shift = pixel_shift
-        self.imgaug_transform = iaa.Add((pixel_shift, pixel_shift), per_channel=True)
+        self.imgaug_transform = iaa.Add((-pixel_shift, pixel_shift), per_channel=True)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.RGBShift(
