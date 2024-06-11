@@ -63,10 +63,16 @@ def parse_args() -> argparse.Namespace:
         "-r", "--runs", default=5, type=int, metavar="N", help="number of runs for each benchmark (default: 5)"
     )
     parser.add_argument(
-        "--show-std", dest="show_std", action="store_true", help="show standard deviation for benchmark runs"
+        "-s", "--show-std", dest="show_std", action="store_true", help="show standard deviation for benchmark runs"
     )
     parser.add_argument("-p", "--print-package-versions", action="store_true", help="print versions of packages")
     parser.add_argument("-m", "--markdown", action="store_true", help="print benchmarking results as a markdown table")
+    parser.add_argument(
+        "--warmup-images", default=10, type=int, metavar="N", help="number of images for warm-up runs (default: 10)"
+    )
+    parser.add_argument(
+        "-t", "--threshold-time", default=0.1, type=float, metavar="T", help="threshold time per image in seconds (default: 0.1)"
+    )
     return parser.parse_args()
 
 
@@ -541,7 +547,7 @@ def run_benchmarks(benchmarks: List[BenchmarkTest], args: argparse.Namespace, li
     images_per_second: Dict[str, Dict[str, Any]] = defaultdict(dict)
 
     paths = sorted(data_dir.glob("*.*"))
-    paths = paths[: args.images]
+    paths = paths[:args.images]
     imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths, desc="Loading images for OpenCV")]
     imgs_pillow = [read_img_pillow(path) for path in tqdm(paths, desc="Loading images for Pillow")]
     imgs_torch = [read_img_torch(path) for path in tqdm(paths, desc="Loading images for Torch")]
@@ -569,9 +575,19 @@ def run_benchmarks(benchmarks: List[BenchmarkTest], args: argparse.Namespace, li
             benchmark_images_per_second = None
 
             if benchmark.is_supported_by(library):
-                timer = Timer(lambda: benchmark.run(library, imgs))
-                run_times = timer.repeat(number=1, repeat=args.runs)
-                benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
+                # Warm-up run with a subset of images
+                warmup_imgs = imgs[:args.warmup_images]
+                warmup_timer = Timer(lambda: benchmark.run(library, warmup_imgs))
+                warmup_time = warmup_timer.timeit(number=1)
+                avg_warmup_time = warmup_time / args.warmup_images
+
+                if avg_warmup_time > args.threshold_time:
+                    benchmark_images_per_second = [1 / avg_warmup_time] * args.runs
+                else:
+                    full_timer = Timer(lambda: benchmark.run(library, imgs))
+                    run_times = full_timer.repeat(number=1, repeat=args.runs)
+                    benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
+
             images_per_second[library][str(benchmark)] = benchmark_images_per_second
 
         pbar.update(1)
@@ -626,6 +642,7 @@ def main() -> None:
         makedown_generator.print()
     else:
         print(df)
+
 
 if __name__ == "__main__":
     main()
