@@ -1291,6 +1291,8 @@ class RandomToneCurve(ImageOnlyTransform):
         scale: standard deviation of the normal distribution.
             Used to sample random distances to move two control points that modify the image's curve.
             Values should be in range [0, 1]. Default: 0.1
+        per_channel: If `True`, the tone curve will be applied to each channel of the input image separately.
+            This will lead to color distortion. Default: False.
 
     Targets:
         image
@@ -1307,24 +1309,32 @@ class RandomToneCurve(ImageOnlyTransform):
             ge=0,
             le=1,
         )
+        per_channel: bool = Field(default=False, description="Apply the tone curve to each channel separately")
 
     def __init__(
         self,
         scale: float = 0.1,
+        per_channel: bool = False,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.scale = scale
+        self.per_channel = per_channel
 
     def apply(self, img: np.ndarray, low_y: float, high_y: float, **params: Any) -> np.ndarray:
         return fmain.move_tone_curve(img, low_y, high_y)
 
-    def get_params(self) -> dict[str, float]:
-        return {
-            "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1),
-            "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1),
-        }
+    def get_params(self) -> dict[str, tuple[float, float, float]]:
+        if self.per_channel:
+            return {
+                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=[3]), 0, 1),
+                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=[3]), 0, 1),
+            }
+        # Same values for all channels
+        low_y = np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1)
+        high_y = np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1)
+        return {"low_y": (low_y, low_y, low_y), "high_y": (high_y, high_y, high_y)}
 
     def get_transform_init_args_names(self) -> tuple[str]:
         return ("scale",)

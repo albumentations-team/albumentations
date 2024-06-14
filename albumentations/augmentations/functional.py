@@ -336,40 +336,67 @@ def equalize(
 
 
 @preserve_channel_dim
-def move_tone_curve(img: np.ndarray, low_y: float, high_y: float) -> np.ndarray:
+def move_tone_curve(
+    img: np.ndarray,
+    low_y: Tuple[float, float, float],
+    high_y: Tuple[float, float, float],
+) -> np.ndarray:
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
         img: RGB or grayscale image.
-        low_y: y-position of a Bezier control point used
+        low_y: per-channel y-position of a Bezier control points used
             to adjust the tone curve, must be in range [0, 1]
-        high_y: y-position of a Bezier control point used
+        high_y: per-channel y-position of a Bezier control points used
             to adjust image tone curve, must be in range [0, 1]
 
     """
     input_dtype = img.dtype
+    needs_float = False
 
-    if not 0 <= low_y <= 1:
+    if not all(0 <= low <= 1 for low in low_y):
         msg = "low_shift must be in range [0, 1]"
         raise ValueError(msg)
-    if not 0 <= high_y <= 1:
+    if not all(0 <= high <= 1 for high in high_y):
         msg = "high_shift must be in range [0, 1]"
         raise ValueError(msg)
 
-    if input_dtype != np.uint8:
-        raise ValueError(f"Unsupported image type {input_dtype}")
+    if input_dtype == np.float32:
+        img = from_float(img, dtype=np.dtype("uint8"))
+        needs_float = True
+    elif input_dtype not in (np.uint8, np.float32):
+        raise ValueError(f"Unexpected dtype {input_dtype} for image augmentation")
 
     t = np.linspace(0.0, 1.0, 256)
 
     # Defines response of a four-point Bezier curve
-    def evaluate_bez(t: np.ndarray) -> np.ndarray:
-        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t**2 * high_y + t**3
+    def evaluate_bez_r(t: np.ndarray) -> np.ndarray:
+        return 3 * (1 - t) ** 2 * t * low_y[0] + 3 * (1 - t) * t**2 * high_y[0] + t**3
 
-    evaluate_bez = np.vectorize(evaluate_bez)
-    remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
+    def evaluate_bez_g(t: np.ndarray) -> np.ndarray:
+        return 3 * (1 - t) ** 2 * t * low_y[1] + 3 * (1 - t) * t**2 * high_y[1] + t**3
 
-    lut_fn = maybe_process_in_chunks(cv2.LUT, lut=remapping)
-    return lut_fn(img)
+    def evaluate_bez_b(t: np.ndarray) -> np.ndarray:
+        return 3 * (1 - t) ** 2 * t * low_y[2] + 3 * (1 - t) * t**2 * high_y[2] + t**3
+
+    evaluate_bez_r, evaluate_bez_g, evaluate_bez_b = (
+        np.vectorize(evaluate_bez_r),
+        np.vectorize(evaluate_bez_g),
+        np.vectorize(evaluate_bez_b),
+    )
+    remapping_r, remapping_g, remapping_b = (
+        np.rint(evaluate_bez_r(t) * 255).astype(np.uint8),
+        np.rint(evaluate_bez_g(t) * 255).astype(np.uint8),
+        np.rint(evaluate_bez_b(t) * 255).astype(np.uint8),
+    )
+
+    lut = np.stack([remapping_r, remapping_g, remapping_b], axis=1)[:, np.newaxis]
+    lut_fn = maybe_process_in_chunks(cv2.LUT, lut=lut)
+    output = lut_fn(img)
+    if needs_float:
+        output = to_float(output, max_value=255)
+
+    return output
 
 
 @clipped
