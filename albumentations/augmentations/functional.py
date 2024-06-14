@@ -1490,7 +1490,7 @@ PLANCKIAN_COEFFS = {
 }
 
 
-def planckian_jitter(img: np.ndarray, temperature: int, mode: str = "blackbody") -> np.ndarray:
+def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody", "CIED"] = "blackbody") -> np.ndarray:
     # Linearly interpolate between 2 closest temperatures
     step = 500
     t_left = (temperature // step) * step
@@ -1501,10 +1501,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: str = "blackbody")
 
     coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
 
-    if img.dtype == np.uint8:
-        image = img / 255.0
-    else:
-        image = img
+    image = img / 255.0 if img.dtype == np.uint8 else img
 
     image[:, :, 0] = image[:, :, 0] * (coeffs[0] / coeffs[1])
     image[:, :, 2] = image[:, :, 2] * (coeffs[2] / coeffs[1])
