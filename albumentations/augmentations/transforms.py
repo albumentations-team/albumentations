@@ -3463,9 +3463,9 @@ class PlanckianJitter(ImageOnlyTransform):
     changes in the scene.
 
     Args:
-        mode: 'blackbody' or 'CIED'.
+        mode: 'blackbody' or 'cied'.
         temperature_limit: Temperature range to sample from. Should be in range [3000K, 15000K] for `blackbody`
-            and [4000K, 15000K] for 'CIED' mode. Higher temperatures produce cooler (bluish) images.
+            and [4000K, 15000K] for 'cied' mode. Higher temperatures produce cooler (bluish) images.
 
     Targets:
         image
@@ -3497,6 +3497,11 @@ class PlanckianJitter(ImageOnlyTransform):
             min_cied_temperature, max_cied_temperature = 4_000, 15_000
             if min(temperature_limit) < min_cied_temperature or max(temperature_limit) > max_cied_temperature:
                 raise ValueError("Temperature limits for CIED should be in [4000, 15000] range")
+
+        # Make sure "white" color temperature (6000K) is always included
+        white_temperature = 6_000
+        if temperature_limit[0] > white_temperature or temperature_limit[1] < white_temperature:
+            raise ValueError("Temperature limits should include 'white' light (6000K)")
 
         self.mode = mode
         self.temperature_limit = temperature_limit
