@@ -1434,7 +1434,7 @@ def center(width: NumericType, height: NumericType) -> Tuple[float, float]:
     return width / 2 - 0.5, height / 2 - 0.5
 
 
-_planckian_coeffs = {
+PLANCKIAN_COEFFS = {
     "blackbody": {
         3_000: [0.6743, 0.4029, 0.0013],
         3_500: [0.6281, 0.4241, 0.1665],
@@ -1499,7 +1499,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: str = "blackbody")
     w_left = (t_right - temperature) / step
     w_right = (temperature - t_left) / step
 
-    coeffs = w_left * np.array(_planckian_coeffs[mode][t_left]) + w_right * np.array(_planckian_coeffs[mode][t_right])
+    coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
 
     if img.dtype == np.uint8:
         image = img / 255.0
@@ -1508,11 +1508,9 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: str = "blackbody")
 
     image[:, :, 0] = image[:, :, 0] * (coeffs[0] / coeffs[1])
     image[:, :, 2] = image[:, :, 2] * (coeffs[2] / coeffs[1])
-    # print(np.sum(image > 1) * 100 / (image.shape[0] * image.shape[1]))
     image[image > 1] = 1
 
     if img.dtype == np.uint8:
         image = (image * 255.0).astype(np.uint8)
 
     return image
-

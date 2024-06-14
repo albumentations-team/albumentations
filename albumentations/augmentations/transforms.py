@@ -3456,7 +3456,7 @@ class Morphological(DualTransform):
 
 
 class PlanckianJitter(ImageOnlyTransform):
-    r"""Ramdomly jitter the image illuminant along the planckian locus
+    r"""Randomly jitter the image illuminant along the planckian locus
 
     This is physics based color augmentation, that creates realistic
     variations in chromaticity, this can simulate the illumination
@@ -3464,7 +3464,7 @@ class PlanckianJitter(ImageOnlyTransform):
 
     Args:
         mode: 'blackbody' or 'CIED'.
-        temperature_limit: Tempreture range to sample from. Should be in range [3000K, 15000K] for `blackbody`
+        temperature_limit: Temperature range to sample from. Should be in range [3000K, 15000K] for `blackbody`
             and [4000K, 15000K] for 'CIED' mode. Higher temperatures produce cooler (bluish) images.
 
     Targets:
@@ -3481,33 +3481,31 @@ class PlanckianJitter(ImageOnlyTransform):
 
     def __init__(
         self,
-        mode="blackbody",
-        temperature_limit=(3000, 15000),
-        sampling_method="uniform",
-        always_apply=False,
-        p=0.5,
-    ):
-        super(PlanckianJitter, self).__init__(always_apply, p)
+        mode: str = "blackbody",
+        temperature_limit: Tuple[int, int] = (3000, 15000),
+        sampling_method: str = "uniform",
+        always_apply: Optional[bool] = None,
+        p: float = 0.5,
+    ) -> None:
+        super(PlanckianJitter, self).__init__(always_apply=always_apply, p=p)
         # Sanity check for values range
         if mode == "blackbody":
-            assert (
-                min(temperature_limit) >= 3000 and max(temperature_limit) <= 15000
-            ), "Temperature limits for blackbody should be in [3000, 15000] range"
+            if min(temperature_limit) < 3000 or max(temperature_limit) > 15000:
+                raise ValueError("Temperature limits for blackbody should be in [3000, 15000] range")
         elif mode == "cied":
-            assert (
-                min(temperature_limit) >= 4000 and max(temperature_limit) <= 15000
-            ), "Temperature limits for CIED should be in [4000, 15000] range"
-        
+            if min(temperature_limit) < 4000 or max(temperature_limit) > 15000:
+                raise ValueError("Temperature limits for CIED should be in [4000, 15000] range")
+
         self.mode = mode
         self.temperature_limit = temperature_limit
         self.sampling_method = sampling_method
 
-    def apply(self, image, temperature=5500, **params):
-        if not is_rgb_image(image):
+    def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:
+        if not is_rgb_image(img):
             raise TypeError("PlanckianJitter transformation expects 3-channel images.")
-        return fmain.planckian_jitter(image, temperature, mode=self.mode)
+        return fmain.planckian_jitter(img, temperature, mode=self.mode)
 
-    def get_params(self):
+    def get_params(self) -> Dict[str, Any]:
         if self.sampling_method == "uniform":
             # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
             if random_utils.random() < 0.4:
@@ -3525,8 +3523,8 @@ class PlanckianJitter(ImageOnlyTransform):
 
             temperature = 6000 - shift
         else:
-            raise ValueError("Unknown sampling method: {}".format(self.sampling_method))
+            raise ValueError(f"Unknown sampling method: {self.sampling_method}")
         return {"temperature": np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1])}
 
-    def get_transform_init_args_names(self):
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return ("mode", "temperature_limit")
