@@ -1462,7 +1462,7 @@ PLANCKIAN_COEFFS = {
         14_500: [0.3544, 0.4654, 0.6878],
         15_000: [0.3503, 0.4653, 0.6933],
     },
-    "CIED": {
+    "cied": {
         4_000: [0.5829, 0.4421, 0.2288],
         4_500: [0.5510, 0.4514, 0.2948],
         5_000: [0.5246, 0.4576, 0.3488],
@@ -1500,11 +1500,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: str = "blackbody")
     w_right = (temperature - t_left) / step
 
     coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
-
-    if img.dtype == np.uint8:
-        image = img / 255.0
-    else:
-        image = img
+    image = img / 255.0 if img.dtype == np.uint8 else img
 
     image[:, :, 0] = image[:, :, 0] * (coeffs[0] / coeffs[1])
     image[:, :, 2] = image[:, :, 2] * (coeffs[2] / coeffs[1])

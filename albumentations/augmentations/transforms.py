@@ -3487,13 +3487,15 @@ class PlanckianJitter(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ) -> None:
-        super(PlanckianJitter, self).__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=always_apply, p=p)
         # Sanity check for values range
         if mode == "blackbody":
-            if min(temperature_limit) < 3000 or max(temperature_limit) > 15000:
+            min_blackbody_temperature, max_blackbody_temperature = 3_000, 15_000
+            if min(temperature_limit) < min_blackbody_temperature or max(temperature_limit) > max_blackbody_temperature:
                 raise ValueError("Temperature limits for blackbody should be in [3000, 15000] range")
         elif mode == "cied":
-            if min(temperature_limit) < 4000 or max(temperature_limit) > 15000:
+            min_cied_temperature, max_cied_temperature = 4_000, 15_000
+            if min(temperature_limit) < min_cied_temperature or max(temperature_limit) > max_cied_temperature:
                 raise ValueError("Temperature limits for CIED should be in [4000, 15000] range")
 
         self.mode = mode
@@ -3506,15 +3508,16 @@ class PlanckianJitter(ImageOnlyTransform):
         return fmain.planckian_jitter(img, temperature, mode=self.mode)
 
     def get_params(self) -> Dict[str, Any]:
+        # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
+        split_prob = 0.4
         if self.sampling_method == "uniform":
-            # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
-            if random_utils.random() < 0.4:
+            if random_utils.random() < split_prob:
                 temperature = (random_utils.uniform(self.temperature_limit[0], 6000),)
             else:
                 temperature = (random_utils.uniform(6000, self.temperature_limit[1]),)
         elif self.sampling_method == "gaussian":
             # Sample values from asymmetric gaussian distribution
-            if random_utils.random() < 0.4:
+            if random_utils.random() < split_prob:
                 # Left side
                 shift = np.abs(random.gauss(0, np.abs(6000 - self.temperature_limit[0]) / 3))
             else:
