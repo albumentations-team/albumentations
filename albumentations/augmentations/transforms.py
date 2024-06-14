@@ -3465,15 +3465,20 @@ PLANKIAN_JITTER_CONSTANTS = {
 
 
 class PlanckianJitter(ImageOnlyTransform):
-    r"""Randomly jitter the image illuminant along the planckian locus
+    r"""Randomly jitter the image illuminant along the Planckian locus.
 
-    Physics based color augmentation, that creates realistic variations in chromaticity,
-    this can simulate the illumination changes in the scene.
+    Physics-based color augmentation creates realistic variations in chromaticity, simulating illumination changes
+    in a scene.
 
     Args:
-        mode: `blackbody` or `cied`.
-        temperature_limit: Temperature range to sample from. Should be in range `[3000K, 15000K]` for `blackbody`
-            and `[4000K, 15000K]` for `CIED` mode. Higher temperatures produce cooler (bluish) images.
+        mode (Literal["blackbody", "CIED"]): The mode of the transformation. "blackbody" simulates blackbody radiation,
+            and "CIED" uses the CIE D illuminant series.
+        temperature_limit (Tuple[int, int]): Temperature range to sample from. For "blackbody" mode, the range should
+            be within [3000K, 15000K]. For "CIED" mode, the range should be within [4000K, 15000K].
+            Higher temperatures produce cooler (bluish) images.
+        sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
+            "uniform" samples uniformly across the range, while "gaussian" samples from a Gaussian distribution.
+        p (float): Probability of applying the transform. Defaults to 0.5.
 
     Targets:
         image
@@ -3481,7 +3486,7 @@ class PlanckianJitter(ImageOnlyTransform):
     Image types:
         uint8, float32
 
-    Reference:
+    References:
         - https://github.com/TheZino/PlanckianJitter
         - https://arxiv.org/pdf/2202.07993.pdf
 
@@ -3562,7 +3567,7 @@ class PlanckianJitter(ImageOnlyTransform):
                     ),
                 )
 
-            temperature = 6000 - shift
+            temperature = PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_BOUNDARY"] - shift
         else:
             raise ValueError(f"Unknown sampling method: {self.sampling_method}")
 
