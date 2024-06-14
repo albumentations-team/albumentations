@@ -3492,7 +3492,7 @@ class PlanckianJitter(ImageOnlyTransform):
 
     """
 
-    class InitSchema(BlurInitSchema):
+    class InitSchema(BaseTransformInitSchema):
         mode: Literal["blackbody", "CIED"] = "blackbody"
         temperature_limit: Annotated[Tuple[int, int], AfterValidator(nondecreasing)] = (3000, 15000)
         sampling_method: Literal["uniform", "gaussian"] = "uniform"
