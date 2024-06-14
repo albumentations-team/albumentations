@@ -25,9 +25,11 @@ from albumentations.augmentations.utils import (
 from albumentations.core.types import (
     EIGHT,
     MONO_CHANNEL_DIMENSIONS,
+    NUM_MULTI_CHANNEL_DIMENSIONS,
     ColorType,
     ImageMode,
     NumericType,
+    SizeType,
     SpatterMode,
 )
 
@@ -66,11 +68,11 @@ __all__ = [
     "to_gray",
     "gray_to_rgb",
     "unsharp_mask",
-    "MAX_VALUES_BY_DTYPE",
     "split_uniform_grid",
     "chromatic_aberration",
     "erode",
     "dilate",
+    "generate_approx_gaussian_noise",
 ]
 
 
@@ -1432,3 +1434,22 @@ def center(width: NumericType, height: NumericType) -> Tuple[float, float]:
         Tuple[float, float]: The center coordinates of the rectangle.
     """
     return width / 2 - 0.5, height / 2 - 0.5
+
+
+def generate_approx_gaussian_noise(
+    shape: SizeType,
+    mean: float = 0,
+    sigma: float = 1,
+    scale: float = 0.25,
+) -> np.ndarray:
+    # Determine the low-resolution shape
+    downscaled_height = int(shape[0] * scale)
+    downsaled_width = int(shape[1] * scale)
+
+    if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
+        low_res_noise = random_utils.normal(mean, sigma, (downscaled_height, downsaled_width, shape[2]))
+    else:
+        low_res_noise = random_utils.normal(mean, sigma, (downscaled_height, downsaled_width))
+
+    # Upsample the noise to the original shape using OpenCV
+    return cv2.resize(low_res_noise, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)

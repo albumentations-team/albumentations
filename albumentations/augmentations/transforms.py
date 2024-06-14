@@ -6,10 +6,11 @@ from types import LambdaType
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
 from warnings import warn
 
+import albucore
 import cv2
 import numpy as np
 from albucore.functions import add, add_weighted, multiply, normalize, normalize_per_image
-from albucore.utils import get_num_channels, is_grayscale_image, is_rgb_image
+from albucore.utils import MAX_VALUES_BY_DTYPE, get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
@@ -1533,7 +1534,7 @@ class RGBShift(ImageOnlyTransform):
             msg = "RGBShift transformation expects 3-channel images."
             raise TypeError(msg)
 
-        return add(img, (r_shift, g_shift, b_shift))
+        return add(img, np.array([r_shift, g_shift, b_shift], dtype=img.dtype))
 
     def get_params(self) -> Dict[str, Any]:
         return {
@@ -1543,7 +1544,7 @@ class RGBShift(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str]:
-        return ("r_shift_limit", "g_shift_limit", "b_shift_limit")
+        return "r_shift_limit", "g_shift_limit", "b_shift_limit"
 
 
 class RandomBrightnessContrast(ImageOnlyTransform):
@@ -1598,15 +1599,20 @@ class RandomBrightnessContrast(ImageOnlyTransform):
 
 
 class GaussNoise(ImageOnlyTransform):
-    """Apply gaussian noise to the input image.
+    """Apply Gaussian noise to the input image.
 
     Args:
-        var_limit: variance range for noise. If var_limit is a single float, the range
-            will be (0, var_limit). Default: (10.0, 50.0).
-        mean: mean of the noise. Default: 0
-        per_channel: if set to True, noise will be sampled for each channel independently.
-            Otherwise, the noise will be sampled once for all channels. Default: True
-        p: probability of applying the transform. Default: 0.5.
+        var_limit (Union[float, Tuple[float, float]]): Variance range for noise.
+            If var_limit is a single float, the range will be (0, var_limit). Default: (10.0, 50.0).
+        mean (float): Mean of the noise. Default: 0
+        per_channel (bool): If set to True, noise will be sampled for each channel independently.
+            Otherwise, the noise will be sampled once for all channels.
+            Faster when `per_channel = False`.
+            Default: True
+        noise_scale_factor (float): Scaling factor for noise generation. Value should be in the range (0, 1].
+            When set to 1, noise is sampled for each pixel independently. If less, noise is sampled for a smaller size
+            and resized to fit the shape of the image. Smaller values make the transform faster. Default: 0.5
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1620,12 +1626,14 @@ class GaussNoise(ImageOnlyTransform):
         var_limit: NonNegativeFloatRangeType = Field(default=(10.0, 50.0), description="Variance range for noise.")
         mean: float = Field(default=0, description="Mean of the noise.")
         per_channel: bool = Field(default=True, description="Apply noise per channel.")
+        noise_scale_factor: float = Field(gt=0, le=1)
 
     def __init__(
         self,
         var_limit: ScaleFloatType = (10.0, 50.0),
         mean: float = 0,
         per_channel: bool = True,
+        noise_scale_factor: float = 0.5,
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
@@ -1633,23 +1641,31 @@ class GaussNoise(ImageOnlyTransform):
         self.var_limit = cast(Tuple[float, float], var_limit)
         self.mean = mean
         self.per_channel = per_channel
+        self.noise_scale_factor = noise_scale_factor
 
-    def apply(self, img: np.ndarray, gauss: Union[float, np.ndarray], **params: Any) -> np.ndarray:
-        return add(img, gauss)
+    def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
+        return albucore.add_array(img, gauss)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, float]:
         image = params["image"]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
-        sigma = var**0.5
+        sigma = math.sqrt(var)
 
         if self.per_channel:
-            gauss = random_utils.normal(self.mean, sigma, image.shape)
+            if self.noise_scale_factor == 1:
+                gauss = random_utils.normal(self.mean, sigma, image.shape)
+            else:
+                gauss = fmain.generate_approx_gaussian_noise(image.shape, self.mean, sigma, self.noise_scale_factor)
         else:
-            gauss = random_utils.normal(self.mean, sigma, image.shape[:2])
+            if self.noise_scale_factor == 1:
+                gauss = random_utils.normal(self.mean, sigma, image.shape[:2])
+            else:
+                gauss = fmain.generate_approx_gaussian_noise(image.shape, self.mean, sigma, self.noise_scale_factor)
+
             if image.ndim > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
 
-        return {"gauss": gauss}
+        return {"gauss": gauss.astype(image.dtype)}
 
     @property
     def targets_as_params(self) -> List[str]:
@@ -3061,7 +3077,7 @@ class PixelDropout(DualTransform):
             drop_shape = 1 if is_grayscale_image(img) else int(img.shape[-1])
 
             if img.dtype in (np.uint8, np.uint16, np.uint32):
-                drop_value = rnd.randint(0, int(fmain.MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
+                drop_value = rnd.randint(0, int(MAX_VALUES_BY_DTYPE[img.dtype]), drop_shape, img.dtype)
             elif img.dtype in [np.float32, np.double]:
                 drop_value = rnd.uniform(0, 1, drop_shape).astype(img.dtype)
             else:
