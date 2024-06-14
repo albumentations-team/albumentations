@@ -3453,3 +3453,80 @@ class Morphological(DualTransform):
             "mask": self.apply_to_mask,
             "masks": self.apply_to_masks,
         }
+
+
+class PlanckianJitter(ImageOnlyTransform):
+    r"""Ramdomly jitter the image illuminant along the planckian locus
+
+    This is physics based color augmentation, that creates realistic
+    variations in chromaticity, this can simulate the illumination
+    changes in the scene.
+
+    Args:
+        mode: 'blackbody' or 'CIED'.
+        temperature_limit: Tempreture range to sample from. Should be in range [3000K, 15000K] for `blackbody`
+            and [4000K, 15000K] for 'CIED' mode. Higher temperatures produce cooler (bluish) images.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Reference:
+        - https://github.com/TheZino/PlanckianJitter
+        - https://arxiv.org/pdf/2202.07993.pdf
+
+    """
+
+    def __init__(
+        self,
+        mode="blackbody",
+        temperature_limit=(3000, 15000),
+        sampling_method="uniform",
+        always_apply=False,
+        p=0.5,
+    ):
+        super(PlanckianJitter, self).__init__(always_apply, p)
+        # Sanity check for values range
+        if mode == "blackbody":
+            assert (
+                min(temperature_limit) >= 3000 and max(temperature_limit) <= 15000
+            ), "Temperature limits for blackbody should be in [3000, 15000] range"
+        elif mode == "cied":
+            assert (
+                min(temperature_limit) >= 4000 and max(temperature_limit) <= 15000
+            ), "Temperature limits for CIED should be in [4000, 15000] range"
+        
+        self.mode = mode
+        self.temperature_limit = temperature_limit
+        self.sampling_method = sampling_method
+
+    def apply(self, image, temperature=5500, **params):
+        if not is_rgb_image(image):
+            raise TypeError("PlanckianJitter transformation expects 3-channel images.")
+        return fmain.planckian_jitter(image, temperature, mode=self.mode)
+
+    def get_params(self):
+        if self.sampling_method == "uniform":
+            # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
+            if random_utils.random() < 0.4:
+                temperature = (random_utils.uniform(self.temperature_limit[0], 6000),)
+            else:
+                temperature = (random_utils.uniform(6000, self.temperature_limit[1]),)
+        elif self.sampling_method == "gaussian":
+            # Sample values from asymmetric gaussian distribution
+            if random_utils.random() < 0.4:
+                # Left side
+                shift = np.abs(random.gauss(0, np.abs(6000 - self.temperature_limit[0]) / 3))
+            else:
+                # Right side
+                shift = -np.abs(random.gauss(0, np.abs(self.temperature_limit[1] - 6000) / 3))
+
+            temperature = 6000 - shift
+        else:
+            raise ValueError("Unknown sampling method: {}".format(self.sampling_method))
+        return {"temperature": np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1])}
+
+    def get_transform_init_args_names(self):
+        return ("mode", "temperature_limit")
