@@ -180,6 +180,15 @@ Even if a parameter defined as `Tuple`, the transform should work correctly with
 
 To maintain determinism and reproducibility, handle all probability calculations within the `get_params` or `get_params_dependent_on_targets` methods. These calculations should not occur in the `apply_xxx` or `__init__` methods, as it is crucial to separate configuration from execution in our codebase.
 
+#### Using Random Number Generators
+
+When you need to use random number generation in your contributions:
+
+* Prefer `random` from the standard library: Use `random` whenever possible, as it generally offers faster performance compared to `np.random`.
+* Use `random_utils` for `np.random` functionality: When you need specific functionality provided by `np.random`, use the corresponding functions from `albumentations/random_utils.py` to ensure consistency and control over randomness.
+
+By following this approach, we maintain the efficiency and consistency of random operations across the codebase.
+
 ### Specific Guidelines for Method Definitions
 
 #### Handling `apply_xxx` Methods

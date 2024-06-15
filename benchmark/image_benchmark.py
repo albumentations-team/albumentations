@@ -13,7 +13,7 @@ import augly.image as imaugs
 import cv2
 import kornia as K
 import kornia.augmentation as Kaug
-import numpy as np
+
 import pandas as pd
 import pkg_resources
 import torch
@@ -43,6 +43,8 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
+import numpy as np
 
 
 DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "torchvision", "kornia", "augly", "imgaug"]
@@ -495,15 +497,15 @@ class JpegCompression(BenchmarkTest):
 class GaussianNoise(BenchmarkTest):
     def __init__(self, mean: float = 127, var: float = 0.010):
         self.mean = mean
-        self.var = var
-        self.imgaug_transform = iaa.AdditiveGaussianNoise(loc=self.mean, scale=(0, self.var * 255))
+        self.var = var * 255
+        self.imgaug_transform = iaa.AdditiveGaussianNoise(loc=self.mean, scale=(0, self.var), per_channel=True)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.GaussNoise(var_limit=self.var * 255, mean=self.mean, p=1)
+        transform = A.GaussNoise(var_limit=self.var, mean=self.mean, p=1, per_channel=True)
         return transform(image=img)["image"]
 
     def augly_transform(self, img: Image.Image) -> Image.Image:
-        return imaugs.RandomNoise(mean=self.mean, var=self.var * 255)(img)
+        return imaugs.RandomNoise(mean=self.mean, var=self.var)(img)
 
 
 class Elastic(BenchmarkTest):
