@@ -356,7 +356,7 @@ class Perspective(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         height, width = params["image"].shape[:2]
 
-        scale = random_utils.uniform(*self.scale)
+        scale = random.uniform(*self.scale)
         points = random_utils.normal(0, scale, [4, 2])
         points = np.mod(np.abs(points), 0.32)
 
@@ -1911,12 +1911,8 @@ class GridDistortion(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         height, width = params["image"].shape[:2]
 
-        stepsx = [
-            1 + random_utils.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)
-        ]
-        stepsy = [
-            1 + random_utils.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)
-        ]
+        stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
+        stepsy = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
 
         if self.normalized:
             return self._normalize(height, width, stepsx, stepsy)

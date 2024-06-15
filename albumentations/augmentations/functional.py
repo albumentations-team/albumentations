@@ -1447,9 +1447,10 @@ def generate_approx_gaussian_noise(
     downsaled_width = int(shape[1] * scale)
 
     if len(shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
-        low_res_noise = random_utils.normal(mean, sigma, (downscaled_height, downsaled_width, shape[2]))
+        low_res_noise = random_utils.normal(mean, sigma, (downscaled_height, downsaled_width, shape[-1]))
     else:
         low_res_noise = random_utils.normal(mean, sigma, (downscaled_height, downsaled_width))
 
     # Upsample the noise to the original shape using OpenCV
-    return cv2.resize(low_res_noise, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
+    result = cv2.resize(low_res_noise, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
+    return result.reshape(shape)

@@ -9,7 +9,7 @@ from warnings import warn
 import albucore
 import cv2
 import numpy as np
-from albucore.functions import add, add_weighted, multiply, normalize, normalize_per_image
+from albucore.functions import add_weighted, multiply, normalize, normalize_per_image
 from albucore.utils import MAX_VALUES_BY_DTYPE, get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
@@ -428,7 +428,7 @@ class ImageCompression(ImageOnlyTransform):
             raise ValueError(f"Unknown image compression type: {self.compression_type}")
 
         return {
-            "quality": random_utils.randint(self.quality_range[0], self.quality_range[1] + 1),
+            "quality": random.randint(self.quality_range[0], self.quality_range[1]),
             "image_type": image_type,
         }
 
@@ -529,7 +529,7 @@ class RandomSnow(ImageOnlyTransform):
         return fmain.add_snow(img, snow_point, self.brightness_coeff)
 
     def get_params(self) -> Dict[str, np.ndarray]:
-        return {"snow_point": random_utils.uniform(*self.snow_point_range)}
+        return {"snow_point": random.uniform(*self.snow_point_range)}
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
         return "snow_point_range", "brightness_coeff"
@@ -782,7 +782,7 @@ class RandomRain(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         img = params["image"]
-        slant = int(random_utils.uniform(*self.slant_range))
+        slant = int(random.uniform(*self.slant_range))
 
         height, width = img.shape[:2]
         area = height * width
@@ -803,9 +803,9 @@ class RandomRain(ImageOnlyTransform):
         rain_drops = []
 
         for _ in range(num_drops):  # If You want heavy rain, try increasing this
-            x = random_utils.randint(slant, width + 1) if slant < 0 else random_utils.randint(0, width - slant + 1)
+            x = random.randint(slant, width) if slant < 0 else random.randint(0, width - slant)
 
-            y = random_utils.randint(0, height - drop_length + 1)
+            y = random.randint(0, height - drop_length)
 
             rain_drops.append((x, y))
 
@@ -919,8 +919,8 @@ class RandomFog(ImageOnlyTransform):
 
         while midx > -hw or midy > -hw:
             for _ in range(hw // 10 * index):
-                x = random_utils.randint(midx, width - midx - hw + 1)
-                y = random_utils.randint(midy, height - midy - hw + 1)
+                x = random.randint(midx, width - midx - hw)
+                y = random.randint(midy, height - midy - hw)
                 haze_list.append((x, y))
 
             midx -= 3 * hw * width // sum(imshape)
@@ -1051,7 +1051,7 @@ class RandomSunFlare(ImageOnlyTransform):
         flare_center_x = int(width * flare_center_x)
         flare_center_y = int(height * flare_center_y)
 
-        num_circles = random_utils.randint(self.num_flare_circles_lower, self.num_flare_circles_upper + 1)
+        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
 
         circles = []
 
@@ -1067,8 +1067,8 @@ class RandomSunFlare(ImageOnlyTransform):
             y.append(rand_y)
 
         for _ in range(num_circles):
-            alpha = random_utils.uniform(0.05, 0.2)
-            r = random_utils.randint(0, len(x))
+            alpha = random.uniform(0.05, 0.2)
+            r = random.randint(0, len(x) - 1)
             rad = random.randint(1, max(height // 100 - 2, 2))
 
             r_color = random.randint(max(self.src_color[0] - 50, 0), self.src_color[0])
@@ -1202,7 +1202,7 @@ class RandomShadow(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        num_shadows = random_utils.randint(self.num_shadows_limit[0], self.num_shadows_limit[1] + 1)
+        num_shadows = random.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
 
         x_min, y_min, x_max, y_max = self.shadow_roi
 
@@ -1367,7 +1367,7 @@ class Solarize(ImageOnlyTransform):
         return fmain.solarize(img, threshold)
 
     def get_params(self) -> Dict[str, float]:
-        return {"threshold": random_utils.uniform(self.threshold[0], self.threshold[1])}
+        return {"threshold": random.uniform(self.threshold[0], self.threshold[1])}
 
     def get_transform_init_args_names(self) -> Tuple[str]:
         return ("threshold",)
@@ -1534,13 +1534,13 @@ class RGBShift(ImageOnlyTransform):
             msg = "RGBShift transformation expects 3-channel images."
             raise TypeError(msg)
 
-        return add(img, np.array([r_shift, g_shift, b_shift], dtype=img.dtype))
+        return albucore.add_vector(img, np.array([r_shift, g_shift, b_shift], dtype=img.dtype))
 
     def get_params(self) -> Dict[str, Any]:
         return {
-            "r_shift": random_utils.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-            "g_shift": random_utils.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-            "b_shift": random_utils.uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
+            "r_shift": random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
+            "g_shift": random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
+            "b_shift": random.uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, str, str]:
@@ -1652,15 +1652,17 @@ class GaussNoise(ImageOnlyTransform):
         sigma = math.sqrt(var)
 
         if self.per_channel:
+            target_shape = image.shape
             if self.noise_scale_factor == 1:
-                gauss = random_utils.normal(self.mean, sigma, image.shape)
+                gauss = random_utils.normal(self.mean, sigma, target_shape)
             else:
-                gauss = fmain.generate_approx_gaussian_noise(image.shape, self.mean, sigma, self.noise_scale_factor)
+                gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
         else:
+            target_shape = image.shape[:2]
             if self.noise_scale_factor == 1:
-                gauss = random_utils.normal(self.mean, sigma, image.shape[:2])
+                gauss = random_utils.normal(self.mean, sigma, target_shape)
             else:
-                gauss = fmain.generate_approx_gaussian_noise(image.shape, self.mean, sigma, self.noise_scale_factor)
+                gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
 
             if image.ndim > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
@@ -1672,7 +1674,7 @@ class GaussNoise(ImageOnlyTransform):
         return ["image"]
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("var_limit", "per_channel", "mean")
+        return "var_limit", "per_channel", "mean", "noise_scale_factor"
 
 
 class ISONoise(ImageOnlyTransform):
@@ -1728,8 +1730,8 @@ class ISONoise(ImageOnlyTransform):
 
     def get_params(self) -> Dict[str, Any]:
         return {
-            "color_shift": random_utils.uniform(self.color_shift[0], self.color_shift[1]),
-            "intensity": random_utils.uniform(self.intensity[0], self.intensity[1]),
+            "color_shift": random.uniform(self.color_shift[0], self.color_shift[1]),
+            "intensity": random.uniform(self.intensity[0], self.intensity[1]),
             "random_seed": random_utils.get_random_seed(),
         }
 
@@ -2333,7 +2335,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        multiplier: Union[float, np.ndarray, Sequence[float]],
+        multiplier: Union[float, np.ndarray],
         **kwargs: Any,
     ) -> np.ndarray:
         return multiply(img, multiplier)
@@ -2693,7 +2695,7 @@ class Superpixels(ImageOnlyTransform):
         return ("p_replace", "n_segments", "max_size", "interpolation")
 
     def get_params(self) -> Dict[str, Any]:
-        n_segments = random_utils.randint(self.n_segments[0], self.n_segments[1] + 1)
+        n_segments = random.randint(self.n_segments[0], self.n_segments[1])
         p = random.uniform(*self.p_replace)
         return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
 
@@ -3351,10 +3353,10 @@ class ChromaticAberration(ImageOnlyTransform):
         )
 
     def get_params(self) -> Dict[str, float]:
-        primary_distortion_red = random_utils.uniform(*self.primary_distortion_limit)
-        secondary_distortion_red = random_utils.uniform(*self.secondary_distortion_limit)
-        primary_distortion_blue = random_utils.uniform(*self.primary_distortion_limit)
-        secondary_distortion_blue = random_utils.uniform(*self.secondary_distortion_limit)
+        primary_distortion_red = random.uniform(*self.primary_distortion_limit)
+        secondary_distortion_red = random.uniform(*self.secondary_distortion_limit)
+        primary_distortion_blue = random.uniform(*self.primary_distortion_limit)
+        secondary_distortion_blue = random.uniform(*self.secondary_distortion_limit)
 
         secondary_distortion_red = self._match_sign(primary_distortion_red, secondary_distortion_red)
         secondary_distortion_blue = self._match_sign(primary_distortion_blue, secondary_distortion_blue)
