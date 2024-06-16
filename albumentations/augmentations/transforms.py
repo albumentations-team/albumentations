@@ -10,7 +10,7 @@ import albucore
 import cv2
 import numpy as np
 from albucore.functions import add_weighted, multiply, normalize, normalize_per_image
-from albucore.utils import MAX_VALUES_BY_DTYPE, get_num_channels, is_grayscale_image, is_rgb_image
+from albucore.utils import MAX_VALUES_BY_DTYPE, clip, get_num_channels, is_grayscale_image, is_rgb_image
 from pydantic import AfterValidator, BaseModel, Field, ValidationInfo, field_validator, model_validator
 from scipy import special
 from scipy.ndimage import gaussian_filter
@@ -1529,21 +1529,25 @@ class RGBShift(ImageOnlyTransform):
         self.g_shift_limit = cast(Tuple[float, float], g_shift_limit)
         self.b_shift_limit = cast(Tuple[float, float], b_shift_limit)
 
-    def apply(self, img: np.ndarray, r_shift: int, g_shift: int, b_shift: int, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, shift: np.ndarray, **params: Any) -> np.ndarray:
         if not is_rgb_image(img):
             msg = "RGBShift transformation expects 3-channel images."
             raise TypeError(msg)
 
-        return albucore.add_vector(img, np.array([r_shift, g_shift, b_shift], dtype=img.dtype))
+        return albucore.add_vector(img, shift)
 
     def get_params(self) -> Dict[str, Any]:
         return {
-            "r_shift": random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
-            "g_shift": random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
-            "b_shift": random.uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
+            "shift": np.array(
+                [
+                    random.uniform(self.r_shift_limit[0], self.r_shift_limit[1]),
+                    random.uniform(self.g_shift_limit[0], self.g_shift_limit[1]),
+                    random.uniform(self.b_shift_limit[0], self.b_shift_limit[1]),
+                ],
+            ),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str]:
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "r_shift_limit", "g_shift_limit", "b_shift_limit"
 
 
@@ -3241,11 +3245,11 @@ class Spatter(ImageOnlyTransform):
         liquid_layer[liquid_layer < cutout_threshold] = 0
 
         if mode == "rain":
-            liquid_layer = (liquid_layer * 255).astype(np.uint8)
+            liquid_layer = clip(liquid_layer * 255, np.uint8)
             dist = 255 - cv2.Canny(liquid_layer, 50, 150)
             dist = cv2.distanceTransform(dist, cv2.DIST_L2, 5)
             _, dist = cv2.threshold(dist, 20, 20, cv2.THRESH_TRUNC)
-            dist = blur(dist, 3).astype(np.uint8)
+            dist = clip(blur(dist, 3), np.uint8)
             dist = fmain.equalize(dist)
 
             ker = np.array([[-2, -1, 0], [-1, 1, 1], [0, 1, 2]])

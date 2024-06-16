@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple
 
 import cv2
 import numpy as np
-from albucore.utils import is_grayscale_image, is_multispectral_image
+from albucore.utils import clip, is_grayscale_image, is_multispectral_image
 from pydantic import field_validator
 
 from albumentations.augmentations.domain_adaptation_functional import (
@@ -299,7 +299,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
                     "Can not do it automatically when the image is out of [0..1] range."
                 )
                 raise TypeError(message)
-            return (img * 255).astype("uint8"), True
+            return clip(img * 255, np.uint8), True
         return img, False
 
     def apply(self, img: np.ndarray, reference_image: np.ndarray, blend_ratio: float, **params: Any) -> np.ndarray:

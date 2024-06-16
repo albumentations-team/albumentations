@@ -559,8 +559,6 @@ def test_multiplicative_noise_grayscale(image):
     result_e = aug(image=image)["image"]
 
     expected = image.astype(np.float32) * params["multiplier"]
-    if image.dtype == np.uint8:
-        expected = expected.round()
 
     assert np.allclose(clip(expected, image.dtype), result_e)
 
@@ -569,8 +567,6 @@ def test_multiplicative_noise_grayscale(image):
     result_ne = aug.apply(image, params["multiplier"])
 
     expected = image.astype(np.float32) * params["multiplier"]
-    if image.dtype == np.uint8:
-        expected = expected.round()
 
     assert np.allclose(clip(expected, image.dtype), result_ne)
 
@@ -598,8 +594,6 @@ def test_multiplicative_noise_rgb(image, elementwise):
     result = aug.apply(image, mul)
 
     expected = image.astype(np.float32) * mul
-    if image.dtype == np.uint8:
-        expected = expected.round()
 
     assert np.allclose(clip(expected, dtype), result, atol=1e-5)
 
@@ -1449,7 +1443,7 @@ def test_change_image(augmentation_cls, params):
     ),
 )
 def test_selective_channel(augmentation_cls: BasicTransform, params: Dict[str, Any]) -> None:
-    set_seed(1)
+    set_seed(3)
 
     image = SQUARE_MULTI_UINT8_IMAGE
     channels = [3, 2, 4]

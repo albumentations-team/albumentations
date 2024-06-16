@@ -688,7 +688,7 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
     shadow_intensity = 0.5  # Adjust this value to control the shadow intensity
     img_shadowed = img.copy()
     shadowed_indices = mask[:, :, 0] == max_value
-    img_shadowed[shadowed_indices] = (img_shadowed[shadowed_indices] * shadow_intensity).astype(np.uint8)
+    img_shadowed[shadowed_indices] = clip(img_shadowed[shadowed_indices] * shadow_intensity, np.uint8)
 
     if needs_float:
         return to_float(img_shadowed, max_value=max_value)
