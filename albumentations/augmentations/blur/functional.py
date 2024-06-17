@@ -1,6 +1,6 @@
 from itertools import product
 from math import ceil
-from typing import Sequence, Union
+from typing import Literal, Sequence, Union
 
 import cv2
 import numpy as np
@@ -42,7 +42,7 @@ def glass_blur(
     max_delta: int,
     iterations: int,
     dxy: np.ndarray,
-    mode: str,
+    mode: Literal["fast", "exact"],
 ) -> np.ndarray:
     x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
@@ -104,4 +104,4 @@ def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -
     for zoom_factor in zoom_factors:
         out += central_zoom(img, zoom_factor)
 
-    return ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)
+    return (img + out) / (len(zoom_factors) + 1)

@@ -96,7 +96,7 @@ def read_img_kornia(filepath: Path) -> torch.Tensor:
 def format_results(images_per_second_for_aug: Optional[List[float]], show_std: bool = False) -> str:
     if images_per_second_for_aug is None:
         return "-"
-    result = str(math.floor(np.mean(images_per_second_for_aug)))
+    result = str(math.floor(np.median(images_per_second_for_aug)))
     if show_std:
         result += f" ± {math.ceil(np.std(images_per_second_for_aug))}"
     return result

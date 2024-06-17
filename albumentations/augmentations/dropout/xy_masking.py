@@ -5,7 +5,6 @@ import numpy as np
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
-from albumentations import random_utils
 from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
@@ -169,9 +168,7 @@ class XYMasking(DualTransform):
 
         masks = []
 
-        num_masks_integer = (
-            num_masks if isinstance(num_masks, int) else random_utils.randint(num_masks[0], num_masks[1])
-        )
+        num_masks_integer = num_masks if isinstance(num_masks, int) else random.randint(num_masks[0], num_masks[1])
 
         for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)

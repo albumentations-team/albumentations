@@ -1,3 +1,4 @@
+import random
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
@@ -5,7 +6,6 @@ import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
-from albumentations import random_utils
 from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, NumericType, ScalarType, Targets
@@ -210,12 +210,12 @@ class CoarseDropout(DualTransform):
             max_width = width_range[1]
             max_height = min(max_height, height)
             max_width = min(max_width, width)
-            hole_height = random_utils.randint(min_height, max_height + 1)
-            hole_width = random_utils.randint(min_width, max_width + 1)
+            hole_height = random.randint(int(min_height), int(max_height))
+            hole_width = random.randint(int(min_width), int(max_width))
 
         else:  # Assume float
-            hole_height = int(height * random_utils.uniform(height_range[0], height_range[1]))
-            hole_width = int(width * random_utils.uniform(width_range[0], width_range[1]))
+            hole_height = int(height * random.uniform(height_range[0], height_range[1]))
+            hole_width = int(width * random.uniform(width_range[0], width_range[1]))
         return hole_height, hole_width
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -223,7 +223,7 @@ class CoarseDropout(DualTransform):
         height, width = img.shape[:2]
 
         holes = []
-        num_holes = random_utils.randint(self.num_holes_range[0], self.num_holes_range[1] + 1)
+        num_holes = random.randint(self.num_holes_range[0], self.num_holes_range[1])
 
         for _ in range(num_holes):
             hole_height, hole_width = self.calculate_hole_dimensions(
@@ -233,8 +233,8 @@ class CoarseDropout(DualTransform):
                 self.hole_width_range,
             )
 
-            y1 = random_utils.randint(0, height - hole_height + 1)
-            x1 = random_utils.randint(0, width - hole_width + 1)
+            y1 = random.randint(0, height - hole_height)
+            x1 = random.randint(0, width - hole_width)
             y2 = y1 + hole_height
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
