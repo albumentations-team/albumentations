@@ -2091,17 +2091,12 @@ class Downscale(ImageOnlyTransform):
             downscaling and upscaling. Should include keys 'downscale' and 'upscale' with cv2 interpolation
                 flags as values.
             Example: {"downscale": cv2.INTER_NEAREST, "upscale": cv2.INTER_LINEAR}.
-        always_apply (bool): Deprecated. Defaults to None.
 
     Targets:
         image
 
     Image types:
         uint8, float32
-
-    Note:
-        Previous parameters `scale_min`, `scale_max`, and `interpolation` are deprecated. Use `scale_range`
-        and `interpolation_pair` for specifying scaling bounds and interpolation methods respectively.
 
     Example:
         >>> transform = Downscale(scale_range=(0.5, 0.9), interpolation_pair={"downscale": cv2.INTER_AREA,
@@ -2210,7 +2205,6 @@ class Lambda(NoOp):
         keypoint: Keypoint transformation function.
         bbox: BBox transformation function.
         global_label: Global label transformation function.
-        always_apply: Deprecated. Defaults to None.
         p: probability of applying the transform. Default: 1.0.
 
     Targets:

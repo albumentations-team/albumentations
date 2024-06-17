@@ -166,6 +166,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [ChromaticAberration](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ChromaticAberration)
 - [ColorJitter](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.ColorJitter)
 - [Defocus](https://albumentations.ai/docs/api_reference/augmentations/blur/transforms/#albumentations.augmentations.blur.transforms.Defocus)
+- [Downscale](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Downscale)
 - [Emboss](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Emboss)
 - [Equalize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Equalize)
 - [FDA](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.FDA)
@@ -288,43 +289,43 @@ To run the benchmark yourself, follow the instructions in [benchmark/README.md](
 Results for running the benchmark on the first 2000 images from the ImageNet validation set using an AMD Ryzen Threadripper 3970X CPU.
 The table shows how many images per second can be processed on a single core; higher is better.
 
-| Library | Version |
-|---------|---------|
-| Python | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
-| albumentations | 1.4.8 |
-| imgaug | 0.4.0 |
-| torchvision | 0.18.1+rocm6.0 |
-| numpy | 1.26.4 |
-| opencv-python-headless | 4.10.0.82 |
-| scikit-image | 0.23.2 |
-| scipy | 1.13.1 |
-| pillow | 10.3.0 |
-| kornia | 0.7.2 |
-| augly | 1.0.0 |
+| Library                | Version                                            |
+| ---------------------- | -------------------------------------------------- |
+| Python                 | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
+| albumentations         | 1.4.8                                              |
+| imgaug                 | 0.4.0                                              |
+| torchvision            | 0.18.1+rocm6.0                                     |
+| numpy                  | 1.26.4                                             |
+| opencv-python-headless | 4.10.0.82                                          |
+| scikit-image           | 0.23.2                                             |
+| scipy                  | 1.13.1                                             |
+| pillow                 | 10.3.0                                             |
+| kornia                 | 0.7.2                                              |
+| augly                  | 1.0.0                                              |
 
-|                 |albumentations<br><small>1.4.8</small>|torchvision<br><small>0.18.1+rocm6.0</small>|kornia<br><small>0.7.2</small>|augly<br><small>1.0.0</small>|imgaug<br><small>0.4.0</small>|
-|-----------------|--------------------------------------|--------------------------------------------|------------------------------|-----------------------------|------------------------------|
-|HorizontalFlip   |**8084 ± 30**                         |2422 ± 16                                   |940 ± 10                      |3633 ± 7                     |4869 ± 10                     |
-|VerticalFlip     |7330 ± 11                             |2541 ± 2                                    |945 ± 4                       |4807 ± 4                     |**8400 ± 11**                 |
-|Rotate           |535 ± 5                               |144 ± 2                                     |202 ± 1                       |**572 ± 2**                  |494 ± 1                       |
-|Affine           |**1504 ± 46**                         |153 ± 1                                     |197 ± 1                       |-                            |671 ± 2                       |
-|Equalize         |1005 ± 1                              |328 ± 2                                     |76 ± 1                        |-                            |**1165 ± 1**                  |
-|RandomCrop64     |20880 ± 170                           |15792 ± 23                                  |833 ± 1                       |**21313 ± 603**              |5547 ± 2                      |
-|RandomResizedCrop|**2272 ± 6**                          |1113 ± 5                                    |189 ± 1                       |-                            |-                             |
-|ShiftRGB         |**1708 ± 2**                          |-                                           |425 ± 1                       |-                            |1480 ± 11                     |
-|Resize           |**2209 ± 1**                          |1285 ± 3                                    |200 ± 1                       |430 ± 1                      |1690 ± 1                      |
-|RandomGamma      |**3638 ± 7**                          |229 ± 1                                     |213 ± 1                       |-                            |2307 ± 3                      |
-|Grayscale        |**7234 ± 4**                          |1628 ± 6                                    |447 ± 1                       |2535 ± 1                     |1052 ± 6                      |
-|ColorJitter      |**438 ± 1**                           |50 ± 1                                      |47 ± 1                        |214 ± 1                      |-                             |
-|RandomPerspective|457 ± 2                               |122 ± 1                                     |115 ± 1                       |-                            |**460 ± 2**                   |
-|GaussianBlur     |**2073 ± 1**                          |110 ± 2                                     |74 ± 2                        |162 ± 1                      |1271 ± 1                      |
-|MedianBlur       |536 ± 1                               |-                                           |3 ± 0                         |-                            |**564 ± 1**                   |
-|MotionBlur       |**2156 ± 8**                          |-                                           |98 ± 1                        |-                            |503 ± 1                       |
-|Posterize        |**3435 ± 2**                          |2574 ± 2                                    |312 ± 9                       |-                            |1894 ± 1                      |
-|JpegCompression  |**805 ± 1**                           |-                                           |-                             |679 ± 16                     |427 ± 1                       |
-|GaussianNoise    |**239 ± 1**                           |-                                           |-                             |67 ± 1                       |124 ± 1                       |
-|Elastic          |126 ± 1                               |4 ± 0                                       |1 ± 0                         |-                            |**128 ± 1**                   |
-|Normalize        |**1056 ± 1**                          |429 ± 1                                     |398 ± 1                       |-                            |-                             |
+|                   | albumentations<br><small>1.4.8</small> | torchvision<br><small>0.18.1+rocm6.0</small> | kornia<br><small>0.7.2</small> | augly<br><small>1.0.0</small> | imgaug<br><small>0.4.0</small> |
+| ----------------- | -------------------------------------- | -------------------------------------------- | ------------------------------ | ----------------------------- | ------------------------------ |
+| HorizontalFlip    | **8084 ± 30**                          | 2422 ± 16                                    | 940 ± 10                       | 3633 ± 7                      | 4869 ± 10                      |
+| VerticalFlip      | 7330 ± 11                              | 2541 ± 2                                     | 945 ± 4                        | 4807 ± 4                      | **8400 ± 11**                  |
+| Rotate            | 535 ± 5                                | 144 ± 2                                      | 202 ± 1                        | **572 ± 2**                   | 494 ± 1                        |
+| Affine            | **1504 ± 46**                          | 153 ± 1                                      | 197 ± 1                        | -                             | 671 ± 2                        |
+| Equalize          | 1005 ± 1                               | 328 ± 2                                      | 76 ± 1                         | -                             | **1165 ± 1**                   |
+| RandomCrop64      | 20880 ± 170                            | 15792 ± 23                                   | 833 ± 1                        | **21313 ± 603**               | 5547 ± 2                       |
+| RandomResizedCrop | **2272 ± 6**                           | 1113 ± 5                                     | 189 ± 1                        | -                             | -                              |
+| ShiftRGB          | **1708 ± 2**                           | -                                            | 425 ± 1                        | -                             | 1480 ± 11                      |
+| Resize            | **2209 ± 1**                           | 1285 ± 3                                     | 200 ± 1                        | 430 ± 1                       | 1690 ± 1                       |
+| RandomGamma       | **3638 ± 7**                           | 229 ± 1                                      | 213 ± 1                        | -                             | 2307 ± 3                       |
+| Grayscale         | **7234 ± 4**                           | 1628 ± 6                                     | 447 ± 1                        | 2535 ± 1                      | 1052 ± 6                       |
+| ColorJitter       | **438 ± 1**                            | 50 ± 1                                       | 47 ± 1                         | 214 ± 1                       | -                              |
+| RandomPerspective | 457 ± 2                                | 122 ± 1                                      | 115 ± 1                        | -                             | **460 ± 2**                    |
+| GaussianBlur      | **2073 ± 1**                           | 110 ± 2                                      | 74 ± 2                         | 162 ± 1                       | 1271 ± 1                       |
+| MedianBlur        | 536 ± 1                                | -                                            | 3 ± 0                          | -                             | **564 ± 1**                    |
+| MotionBlur        | **2156 ± 8**                           | -                                            | 98 ± 1                         | -                             | 503 ± 1                        |
+| Posterize         | **3435 ± 2**                           | 2574 ± 2                                     | 312 ± 9                        | -                             | 1894 ± 1                       |
+| JpegCompression   | **805 ± 1**                            | -                                            | -                              | 679 ± 16                      | 427 ± 1                        |
+| GaussianNoise     | **239 ± 1**                            | -                                            | -                              | 67 ± 1                        | 124 ± 1                        |
+| Elastic           | 126 ± 1                                | 4 ± 0                                        | 1 ± 0                          | -                             | **128 ± 1**                    |
+| Normalize         | **1056 ± 1**                           | 429 ± 1                                      | 398 ± 1                        | -                             | -                              |
 
 ## Contributing
 
