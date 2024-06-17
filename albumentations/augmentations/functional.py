@@ -1517,7 +1517,7 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
 
     return image
 
-  
+
 def generate_approx_gaussian_noise(
     shape: SizeType,
     mean: float = 0,
@@ -1536,4 +1536,3 @@ def generate_approx_gaussian_noise(
     # Upsample the noise to the original shape using OpenCV
     result = cv2.resize(low_res_noise, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
     return result.reshape(shape)
-
