@@ -8,7 +8,6 @@ import numpy as np
 from pydantic import AfterValidator, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
-from albumentations import random_utils
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (
@@ -492,7 +491,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         self.w2h_ratio = w2h_ratio
 
     def get_params(self) -> Dict[str, Union[int, float]]:
-        crop_height = random_utils.randint(self.min_max_height[0], self.min_max_height[1])
+        crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
         return {
             "h_start": random.random(),
             "w_start": random.random(),
@@ -581,9 +580,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         area = img_height * img_width
 
         for _ in range(10):
-            target_area = random_utils.uniform(*self.scale) * area
+            target_area = random.uniform(*self.scale) * area
             log_ratio = (math.log(self.ratio[0]), math.log(self.ratio[1]))
-            aspect_ratio = math.exp(random_utils.uniform(*log_ratio))
+            aspect_ratio = math.exp(random.uniform(*log_ratio))
 
             width = int(round(math.sqrt(target_area * aspect_ratio)))
             height = int(round(math.sqrt(target_area / aspect_ratio)))
@@ -1364,11 +1363,11 @@ class RandomCropFromBorders(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, int]:
         height, width = params["image"].shape[:2]
 
-        x_min = random_utils.randint(0, int(self.crop_left * width) + 1)
-        x_max = random_utils.randint(max(x_min + 1, int((1 - self.crop_right) * width)), width + 1)
+        x_min = random.randint(0, int(self.crop_left * width))
+        x_max = random.randint(max(x_min + 1, int((1 - self.crop_right) * width)), width)
 
-        y_min = random_utils.randint(0, int(self.crop_top * height) + 1)
-        y_max = random_utils.randint(max(y_min + 1, int((1 - self.crop_bottom) * height)), height + 1)
+        y_min = random.randint(0, int(self.crop_top * height))
+        y_max = random.randint(max(y_min + 1, int((1 - self.crop_bottom) * height)), height)
 
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 

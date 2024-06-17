@@ -5,7 +5,7 @@ from typing import Optional, Tuple
 import cv2
 import numpy as np
 from albucore.functions import add_weighted
-from albucore.utils import clipped, get_num_channels, preserve_channel_dim
+from albucore.utils import clip, clipped, get_num_channels, preserve_channel_dim
 from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
@@ -52,7 +52,7 @@ class DomainAdapter:
     def from_colorspace(self, img: np.ndarray) -> np.ndarray:
         if self.color_out is None:
             return img
-        return cv2.cvtColor(img.astype("uint8"), self.color_out)
+        return cv2.cvtColor(clip(img, np.uint8), self.color_out)
 
     def flatten(self, img: np.ndarray) -> np.ndarray:
         img = self.to_colorspace(img)

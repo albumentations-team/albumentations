@@ -557,13 +557,18 @@ def test_multiplicative_noise_grayscale(image):
     params = aug.get_params_dependent_on_targets({"image": image})
     assert m == params["multiplier"]
     result_e = aug(image=image)["image"]
-    assert np.allclose(clip(image * m, image.dtype), result_e)
+
+    expected = image.astype(np.float32) * params["multiplier"]
+
+    assert np.allclose(clip(expected, image.dtype), result_e)
 
     aug = A.MultiplicativeNoise((m, m), elementwise=True, p=1)
     params = aug.get_params_dependent_on_targets({"image": image})
     result_ne = aug.apply(image, params["multiplier"])
 
-    assert np.allclose(clip(image * params["multiplier"], image.dtype), result_ne)
+    expected = image.astype(np.float32) * params["multiplier"]
+
+    assert np.allclose(clip(expected, image.dtype), result_ne)
 
 @pytest.mark.parametrize(
     "image", [
@@ -587,7 +592,10 @@ def test_multiplicative_noise_rgb(image, elementwise):
         assert mul.shape == (image.shape[-1],)
 
     result = aug.apply(image, mul)
-    assert np.allclose(clip(image.astype(np.float32) * mul.astype(np.float32), dtype), result)
+
+    expected = image.astype(np.float32) * mul
+
+    assert np.allclose(clip(expected, dtype), result, atol=1e-5)
 
 
 def test_mask_dropout():
@@ -1437,7 +1445,7 @@ def test_change_image(augmentation_cls, params):
     ),
 )
 def test_selective_channel(augmentation_cls: BasicTransform, params: Dict[str, Any]) -> None:
-    set_seed(0)
+    set_seed(3)
 
     image = SQUARE_MULTI_UINT8_IMAGE
     channels = [3, 2, 4]

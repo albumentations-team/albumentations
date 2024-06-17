@@ -456,8 +456,8 @@ class AdvancedBlur(ImageOnlyTransform):
 
     def get_params(self) -> Dict[str, np.ndarray]:
         ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
-        sigma_x = random_utils.uniform(*self.sigma_x_limit)
-        sigma_y = random_utils.uniform(*self.sigma_y_limit)
+        sigma_x = random.uniform(*self.sigma_x_limit)
+        sigma_y = random.uniform(*self.sigma_y_limit)
         angle = np.deg2rad(random.uniform(*self.rotate_limit))
 
         # Split into 2 cases to avoid selection of narrow kernels (beta > 1) too often.
@@ -538,8 +538,8 @@ class Defocus(ImageOnlyTransform):
 
     def get_params(self) -> Dict[str, Any]:
         return {
-            "radius": random_utils.randint(self.radius[0], self.radius[1] + 1),
-            "alias_blur": random_utils.uniform(self.alias_blur[0], self.alias_blur[1]),
+            "radius": random.randint(self.radius[0], self.radius[1]),
+            "alias_blur": random.uniform(self.alias_blur[0], self.alias_blur[1]),
         }
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
