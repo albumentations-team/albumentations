@@ -185,7 +185,7 @@ To maintain determinism and reproducibility, handle all probability calculations
 When you need to use random number generation in your contributions:
 
 * Prefer `random` from the standard library: Use `random` whenever possible, as it generally offers faster performance compared to `np.random`.
-* Use `random_utils` for `np.random` functionality: When you need specific functionality provided by `np.random`, use the corresponding functions from `albumentations/random_utils.py` to ensure consistency and control over randomness.
+* Use `random_utils` for functions from `np.random`: When you need specific functionality provided by `np.random`, use the corresponding functions from `albumentations/random_utils.py` to ensure consistency and control over randomness.
 
 By following this approach, we maintain the efficiency and consistency of random operations across the codebase.
 
