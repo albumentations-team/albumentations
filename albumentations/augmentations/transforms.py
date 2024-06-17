@@ -3471,10 +3471,10 @@ class PlanckianJitter(ImageOnlyTransform):
     in a scene.
 
     Args:
-        mode (Literal["blackbody", "CIED"]): The mode of the transformation. "blackbody" simulates blackbody radiation,
-            and "CIED" uses the CIE D illuminant series.
+        mode (Literal["blackbody", "cied"]): The mode of the transformation. "blackbody" simulates blackbody radiation,
+            and "cied" uses the CIED illuminant series.
         temperature_limit (Tuple[int, int]): Temperature range to sample from. For "blackbody" mode, the range should
-            be within [3000K, 15000K]. For "CIED" mode, the range should be within [4000K, 15000K].
+            be within [3000K, 15000K]. For "cied" mode, the range should be within [4000K, 15000K].
             Higher temperatures produce cooler (bluish) images.
         sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
             "uniform" samples uniformly across the range, while "gaussian" samples from a Gaussian distribution.
