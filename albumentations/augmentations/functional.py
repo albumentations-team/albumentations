@@ -28,6 +28,7 @@ from albumentations.core.types import (
     ColorType,
     ImageMode,
     NumericType,
+    PlanckianJitterMode,
     SpatterMode,
 )
 
@@ -1462,7 +1463,7 @@ PLANCKIAN_COEFFS = {
         14_500: [0.3544, 0.4654, 0.6878],
         15_000: [0.3503, 0.4653, 0.6933],
     },
-    "CIED": {
+    " cied": {
         4_000: [0.5829, 0.4421, 0.2288],
         4_500: [0.5510, 0.4514, 0.2948],
         5_000: [0.5246, 0.4576, 0.3488],
@@ -1490,7 +1491,8 @@ PLANCKIAN_COEFFS = {
 }
 
 
-def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody", "CIED"] = "blackbody") -> np.ndarray:
+@clipped
+def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMode = "blackbody") -> np.ndarray:
     # Linearly interpolate between 2 closest temperatures
     step = 500
     t_left = (temperature // step) * step
@@ -1508,6 +1510,6 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: Literal["blackbody
     image[image > 1] = 1
 
     if img.dtype == np.uint8:
-        image = (image * 255.0).astype(np.uint8)
+        return image * 255.0
 
     return image

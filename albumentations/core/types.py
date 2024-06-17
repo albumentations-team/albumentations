@@ -35,6 +35,8 @@ RainMode = Literal["drizzle", "heavy", "torrential"]
 
 MorphologyMode = Literal["erosion", "dilation"]
 
+PlanckianJitterMode = Literal["blackbody", "cied"]
+
 d4_group_elements = ["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 D4Type = Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 

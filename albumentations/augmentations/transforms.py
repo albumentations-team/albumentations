@@ -51,6 +51,7 @@ from albumentations.core.types import (
     ImageMode,
     KeypointInternalType,
     MorphologyMode,
+    PlanckianJitterMode,
     RainMode,
     ScaleFloatType,
     ScaleIntType,
@@ -3455,11 +3456,11 @@ class Morphological(DualTransform):
         }
 
 
-PLANKIAN_JITTER_CONSTANTS = {
+PLANKIAN_JITTER_CONST = {
     "MAX_TEMP": 15000,
     "MIN_BLACKBODY_TEMP": 3000,
     "MIN_CIED_TEMP": 4000,
-    "SAMPLING_TEMP_BOUNDARY": 6000,
+    "WHITE_TEMP": 6000,
     "SAMPLING_TEMP_PROB": 0.4,
 }
 
@@ -3471,9 +3472,9 @@ class PlanckianJitter(ImageOnlyTransform):
     in a scene.
 
     Args:
-        mode (Literal["blackbody", "cied"]): The mode of the transformation. "blackbody" simulates blackbody radiation,
-            and "cied" uses the CIED illuminant series.
-        temperature_limit (Tuple[int, int]): Temperature range to sample from. For "blackbody" mode, the range should
+        mode (Literal["blackbody", "cied"]): The mode of the transformation. `blackbody` simulates blackbody radiation,
+            and `cied` uses the CIED illuminant series.
+        temperature_limit (Tuple[int, int]): Temperature range to sample from. For `blackbody` mode, the range should
             be within [3000K, 15000K]. For "cied" mode, the range should be within [4000K, 15000K].
             Higher temperatures produce cooler (bluish) images.
         sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
@@ -3493,28 +3494,33 @@ class PlanckianJitter(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mode: Literal["blackbody", "CIED"] = "blackbody"
+        mode: PlanckianJitterMode = "blackbody"
         temperature_limit: Annotated[Tuple[int, int], AfterValidator(nondecreasing)] = (3000, 15000)
         sampling_method: Literal["uniform", "gaussian"] = "uniform"
 
         @model_validator(mode="after")
         def validate_temperature(self) -> Self:
+            max_temp = PLANKIAN_JITTER_CONST["MAX_TEMP"]
+
             if self.mode == "blackbody" and (
-                min(self.temperature_limit) < PLANKIAN_JITTER_CONSTANTS["MIN_BLACKBODY_TEMP"]
-                or max(self.temperature_limit) > PLANKIAN_JITTER_CONSTANTS["MAX_TEMP"]
+                min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_BLACKBODY_TEMP"]
+                or max(self.temperature_limit) > max_temp
             ):
                 raise ValueError("Temperature limits for blackbody should be in [3000, 15000] range")
-            if self.mode == "CIED" and (
-                min(self.temperature_limit) < PLANKIAN_JITTER_CONSTANTS["MIN_CIED_TEMP"]
-                or max(self.temperature_limit) > PLANKIAN_JITTER_CONSTANTS["MAX_TEMP"]
+            if self.mode == "cied" and (
+                min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_CIED_TEMP"]
+                or max(self.temperature_limit) > max_temp
             ):
                 raise ValueError("Temperature limits for CIED should be in [4000, 15000] range")
+
+            if not self.temperature_limit[0] <= PLANKIAN_JITTER_CONST["WHITE_TEMP"] <= self.temperature_limit[1]:
+                raise ValueError("White temperature should be within the temperature limits")
 
             return self
 
     def __init__(
         self,
-        mode: Literal["blackbody", "CIED"] = "blackbody",
+        mode: PlanckianJitterMode = "blackbody",
         temperature_limit: Tuple[int, int] = (3000, 15000),
         sampling_method: Literal["uniform", "gaussian"] = "uniform",
         always_apply: Optional[bool] = None,
@@ -3534,28 +3540,28 @@ class PlanckianJitter(ImageOnlyTransform):
     def get_params(self) -> Dict[str, Any]:
         if self.sampling_method == "uniform":
             # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
-            if random_utils.random() < PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_PROB"]:
+            if random_utils.random() < PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]:
                 temperature = (
-                    random_utils.uniform(
+                    random.uniform(
                         self.temperature_limit[0],
-                        PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_BOUNDARY"],
+                        PLANKIAN_JITTER_CONST["WHITE_TEMP"],
                     ),
                 )
             else:
                 temperature = (
-                    random_utils.uniform(
-                        PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_BOUNDARY"],
+                    random.uniform(
+                        PLANKIAN_JITTER_CONST["WHITE_TEMP"],
                         self.temperature_limit[1],
                     ),
                 )
         elif self.sampling_method == "gaussian":
             # Sample values from asymmetric gaussian distribution
-            if random_utils.random() < PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_PROB"]:
+            if random_utils.random() < PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]:
                 # Left side
                 shift = np.abs(
                     random.gauss(
                         0,
-                        np.abs(PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_BOUNDARY"] - self.temperature_limit[0]) / 3,
+                        np.abs(PLANKIAN_JITTER_CONST["SAMPLING_TEMP_BOUNDARY"] - self.temperature_limit[0]) / 3,
                     ),
                 )
             else:
@@ -3563,15 +3569,15 @@ class PlanckianJitter(ImageOnlyTransform):
                 shift = -np.abs(
                     random.gauss(
                         0,
-                        np.abs(self.temperature_limit[1] - PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_BOUNDARY"]) / 3,
+                        np.abs(self.temperature_limit[1] - PLANKIAN_JITTER_CONST["SAMPLING_TEMP_BOUNDARY"]) / 3,
                     ),
                 )
 
-            temperature = PLANKIAN_JITTER_CONSTANTS["SAMPLING_TEMP_BOUNDARY"] - shift
+            temperature = PLANKIAN_JITTER_CONST["SAMPLING_TEMP_BOUNDARY"] - shift
         else:
             raise ValueError(f"Unknown sampling method: {self.sampling_method}")
 
         return {"temperature": np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1])}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("mode", "temperature_limit")
+        return "mode", "temperature_limit"
