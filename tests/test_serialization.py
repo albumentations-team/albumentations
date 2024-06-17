@@ -458,7 +458,8 @@ AUGMENTATION_CLS_PARAMS = [
         )
     ],
     [A.Morphological, {}],
-    [A.D4, {}]
+    [A.D4, {}],
+    [A.PlanckianJitter, {}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {

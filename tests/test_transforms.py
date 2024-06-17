@@ -1362,6 +1362,7 @@ def test_coarse_dropout_invalid_input(params):
                              "n_segments": (10, 10),
                              "max_size": 10
                             },
+            A.ZoomBlur: {"max_factor": (1.05, 3)},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1438,7 +1439,8 @@ def test_change_image(augmentation_cls, params):
             A.ChannelShuffle,
             A.ChromaticAberration,
             A.RandomRotate90,
-            A.FancyPCA
+            A.FancyPCA,
+            A.PlanckianJitter
         },
     ),
 )

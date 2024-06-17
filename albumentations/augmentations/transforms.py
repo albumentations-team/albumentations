@@ -52,6 +52,7 @@ from albumentations.core.types import (
     ImageMode,
     KeypointInternalType,
     MorphologyMode,
+    PlanckianJitterMode,
     RainMode,
     ScaleFloatType,
     ScaleIntType,
@@ -106,6 +107,7 @@ __all__ = [
     "Spatter",
     "ChromaticAberration",
     "Morphological",
+    "PlanckianJitter",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -2089,17 +2091,12 @@ class Downscale(ImageOnlyTransform):
             downscaling and upscaling. Should include keys 'downscale' and 'upscale' with cv2 interpolation
                 flags as values.
             Example: {"downscale": cv2.INTER_NEAREST, "upscale": cv2.INTER_LINEAR}.
-        always_apply (bool): Deprecated. Defaults to None.
 
     Targets:
         image
 
     Image types:
         uint8, float32
-
-    Note:
-        Previous parameters `scale_min`, `scale_max`, and `interpolation` are deprecated. Use `scale_range`
-        and `interpolation_pair` for specifying scaling bounds and interpolation methods respectively.
 
     Example:
         >>> transform = Downscale(scale_range=(0.5, 0.9), interpolation_pair={"downscale": cv2.INTER_AREA,
@@ -2208,7 +2205,6 @@ class Lambda(NoOp):
         keypoint: Keypoint transformation function.
         bbox: BBox transformation function.
         global_label: Global label transformation function.
-        always_apply: Deprecated. Defaults to None.
         p: probability of applying the transform. Default: 1.0.
 
     Targets:
@@ -3418,7 +3414,6 @@ class Morphological(DualTransform):
                 and maximum sizes for the dilation kernel.
         operation (str, optional): The morphological operation to apply. Options are 'dilation' or 'erosion'.
             Default is 'dilation'.
-        always_apply (bool, optional): Deprecated. Default is None.
         p (float, optional): The probability of applying this transformation. Default is 0.5.
 
     Targets:
@@ -3476,3 +3471,133 @@ class Morphological(DualTransform):
             "mask": self.apply_to_mask,
             "masks": self.apply_to_masks,
         }
+
+
+PLANKIAN_JITTER_CONST = {
+    "MAX_TEMP": 15000,
+    "MIN_BLACKBODY_TEMP": 3000,
+    "MIN_CIED_TEMP": 4000,
+    "WHITE_TEMP": 6000,
+    "SAMPLING_TEMP_PROB": 0.4,
+}
+
+
+class PlanckianJitter(ImageOnlyTransform):
+    r"""Randomly jitter the image illuminant along the Planckian locus.
+
+    Physics-based color augmentation creates realistic variations in chromaticity, simulating illumination changes
+    in a scene.
+
+    Args:
+        mode (Literal["blackbody", "cied"]): The mode of the transformation. `blackbody` simulates blackbody radiation,
+            and `cied` uses the CIED illuminant series.
+        temperature_limit (Tuple[int, int]): Temperature range to sample from. For `blackbody` mode, the range should
+            be within [3000K, 15000K]. For "cied" mode, the range should be within [4000K, 15000K].
+            Higher temperatures produce cooler (bluish) images.
+        sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
+            "uniform" samples uniformly across the range, while "gaussian" samples from a Gaussian distribution.
+        p (float): Probability of applying the transform. Defaults to 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    References:
+        - https://github.com/TheZino/PlanckianJitter
+        - https://arxiv.org/pdf/2202.07993.pdf
+
+    """
+
+    class InitSchema(BaseTransformInitSchema):
+        mode: PlanckianJitterMode = "blackbody"
+        temperature_limit: Annotated[Tuple[int, int], AfterValidator(nondecreasing)] = (3000, 15000)
+        sampling_method: Literal["uniform", "gaussian"] = "uniform"
+
+        @model_validator(mode="after")
+        def validate_temperature(self) -> Self:
+            max_temp = PLANKIAN_JITTER_CONST["MAX_TEMP"]
+
+            if self.mode == "blackbody" and (
+                min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_BLACKBODY_TEMP"]
+                or max(self.temperature_limit) > max_temp
+            ):
+                raise ValueError("Temperature limits for blackbody should be in [3000, 15000] range")
+            if self.mode == "cied" and (
+                min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_CIED_TEMP"]
+                or max(self.temperature_limit) > max_temp
+            ):
+                raise ValueError("Temperature limits for CIED should be in [4000, 15000] range")
+
+            if not self.temperature_limit[0] <= PLANKIAN_JITTER_CONST["WHITE_TEMP"] <= self.temperature_limit[1]:
+                raise ValueError("White temperature should be within the temperature limits")
+
+            return self
+
+    def __init__(
+        self,
+        mode: PlanckianJitterMode = "blackbody",
+        temperature_limit: Tuple[int, int] = (3000, 15000),
+        sampling_method: Literal["uniform", "gaussian"] = "uniform",
+        always_apply: Optional[bool] = None,
+        p: float = 0.5,
+    ) -> None:
+        super().__init__(always_apply=always_apply, p=p)
+
+        self.mode = mode
+        self.temperature_limit = temperature_limit
+        self.sampling_method = sampling_method
+
+    def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:
+        if not is_rgb_image(img):
+            raise TypeError("PlanckianJitter transformation expects 3-channel images.")
+        return fmain.planckian_jitter(img, temperature, mode=self.mode)
+
+    def get_params(self) -> Dict[str, Any]:
+        sampling_prob_boundary = PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]
+        sampling_temp_boundary = PLANKIAN_JITTER_CONST["WHITE_TEMP"]
+
+        if self.sampling_method == "uniform":
+            # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
+            if random.random() < sampling_prob_boundary:
+                temperature = (
+                    random.uniform(
+                        self.temperature_limit[0],
+                        sampling_temp_boundary,
+                    ),
+                )
+            else:
+                temperature = (
+                    random.uniform(
+                        sampling_temp_boundary,
+                        self.temperature_limit[1],
+                    ),
+                )
+        elif self.sampling_method == "gaussian":
+            # Sample values from asymmetric gaussian distribution
+            if random.random() < sampling_prob_boundary:
+                # Left side
+                shift = np.abs(
+                    random.gauss(
+                        0,
+                        np.abs(sampling_temp_boundary - self.temperature_limit[0]) / 3,
+                    ),
+                )
+            else:
+                # Right side
+                shift = -np.abs(
+                    random.gauss(
+                        0,
+                        np.abs(self.temperature_limit[1] - sampling_temp_boundary) / 3,
+                    ),
+                )
+
+            temperature = sampling_temp_boundary - shift
+        else:
+            raise ValueError(f"Unknown sampling method: {self.sampling_method}")
+
+        return {"temperature": int(np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1]))}
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return "mode", "temperature_limit", "sampling_method"
