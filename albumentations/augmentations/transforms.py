@@ -106,6 +106,7 @@ __all__ = [
     "Spatter",
     "ChromaticAberration",
     "Morphological",
+    "PlanckianJitter",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
@@ -3538,30 +3539,33 @@ class PlanckianJitter(ImageOnlyTransform):
         return fmain.planckian_jitter(img, temperature, mode=self.mode)
 
     def get_params(self) -> Dict[str, Any]:
+        sampling_prob_boundary = PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]
+        sampling_temp_boundary = PLANKIAN_JITTER_CONST["WHITE_TEMP"]
+
         if self.sampling_method == "uniform":
             # Split into 2 cases to avoid selecting cold temperatures (>6000) too often
-            if random_utils.random() < PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]:
+            if random.random() < sampling_prob_boundary:
                 temperature = (
                     random.uniform(
                         self.temperature_limit[0],
-                        PLANKIAN_JITTER_CONST["WHITE_TEMP"],
+                        sampling_temp_boundary,
                     ),
                 )
             else:
                 temperature = (
                     random.uniform(
-                        PLANKIAN_JITTER_CONST["WHITE_TEMP"],
+                        sampling_temp_boundary,
                         self.temperature_limit[1],
                     ),
                 )
         elif self.sampling_method == "gaussian":
             # Sample values from asymmetric gaussian distribution
-            if random_utils.random() < PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]:
+            if random.random() < sampling_prob_boundary:
                 # Left side
                 shift = np.abs(
                     random.gauss(
                         0,
-                        np.abs(PLANKIAN_JITTER_CONST["SAMPLING_TEMP_BOUNDARY"] - self.temperature_limit[0]) / 3,
+                        np.abs(sampling_temp_boundary - self.temperature_limit[0]) / 3,
                     ),
                 )
             else:
@@ -3569,15 +3573,15 @@ class PlanckianJitter(ImageOnlyTransform):
                 shift = -np.abs(
                     random.gauss(
                         0,
-                        np.abs(self.temperature_limit[1] - PLANKIAN_JITTER_CONST["SAMPLING_TEMP_BOUNDARY"]) / 3,
+                        np.abs(self.temperature_limit[1] - sampling_temp_boundary) / 3,
                     ),
                 )
 
-            temperature = PLANKIAN_JITTER_CONST["SAMPLING_TEMP_BOUNDARY"] - shift
+            temperature = sampling_temp_boundary - shift
         else:
             raise ValueError(f"Unknown sampling method: {self.sampling_method}")
 
-        return {"temperature": np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1])}
+        return {"temperature": int(np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1]))}
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return "mode", "temperature_limit"
+        return "mode", "temperature_limit", "sampling_method"
