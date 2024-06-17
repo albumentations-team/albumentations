@@ -3414,7 +3414,6 @@ class Morphological(DualTransform):
                 and maximum sizes for the dilation kernel.
         operation (str, optional): The morphological operation to apply. Options are 'dilation' or 'erosion'.
             Default is 'dilation'.
-        always_apply (bool, optional): Deprecated. Default is None.
         p (float, optional): The probability of applying this transformation. Default is 0.5.
 
     Targets:
