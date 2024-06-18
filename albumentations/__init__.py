@@ -1,4 +1,4 @@
-__version__ = "1.4.8"
+__version__ = "1.4.9"
 
 import os
 
@@ -11,5 +11,4 @@ from .core.transforms_interface import *
 
 # Perform the version check after all other initializations
 if os.getenv("NO_ALBUMENTATIONS_UPDATE", "").lower() not in {"true", "1"}:
-    check_for_updates()
     check_for_updates()
