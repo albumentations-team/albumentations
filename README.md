@@ -292,7 +292,7 @@ The table shows how many images per second can be processed on a single core; hi
 | Library                | Version                                            |
 | ---------------------- | -------------------------------------------------- |
 | Python                 | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
-| albumentations         | 1.4.8                                              |
+| albumentations         | 1.4.9                                              |
 | imgaug                 | 0.4.0                                              |
 | torchvision            | 0.18.1+rocm6.0                                     |
 | numpy                  | 1.26.4                                             |
