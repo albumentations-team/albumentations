@@ -292,7 +292,7 @@ The table shows how many images per second can be processed on a single core; hi
 | Library                | Version                                            |
 | ---------------------- | -------------------------------------------------- |
 | Python                 | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
-| albumentations         | 1.4.8                                              |
+| albumentations         | 1.4.9                                              |
 | imgaug                 | 0.4.0                                              |
 | torchvision            | 0.18.1+rocm6.0                                     |
 | numpy                  | 1.26.4                                             |
@@ -303,7 +303,7 @@ The table shows how many images per second can be processed on a single core; hi
 | kornia                 | 0.7.2                                              |
 | augly                  | 1.0.0                                              |
 
-|                   | albumentations<br><small>1.4.8</small> | torchvision<br><small>0.18.1+rocm6.0</small> | kornia<br><small>0.7.2</small> | augly<br><small>1.0.0</small> | imgaug<br><small>0.4.0</small> |
+|                   | albumentations<br><small>1.4.9</small> | torchvision<br><small>0.18.1+rocm6.0</small> | kornia<br><small>0.7.2</small> | augly<br><small>1.0.0</small> | imgaug<br><small>0.4.0</small> |
 | ----------------- | -------------------------------------- | -------------------------------------------- | ------------------------------ | ----------------------------- | ------------------------------ |
 | HorizontalFlip    | **8084 ± 30**                          | 2422 ± 16                                    | 940 ± 10                       | 3633 ± 7                      | 4869 ± 10                      |
 | VerticalFlip      | 7330 ± 11                              | 2541 ± 2                                     | 945 ± 4                        | 4807 ± 4                      | **8400 ± 11**                  |
