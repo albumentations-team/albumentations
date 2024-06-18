@@ -3474,10 +3474,10 @@ class Morphological(DualTransform):
 
 
 PLANKIAN_JITTER_CONST = {
-    "MAX_TEMP": 15000,
-    "MIN_BLACKBODY_TEMP": 3000,
-    "MIN_CIED_TEMP": 4000,
-    "WHITE_TEMP": 6000,
+    "MAX_TEMP": 15_000,
+    "MIN_BLACKBODY_TEMP": 3_000,
+    "MIN_CIED_TEMP": 4_000,
+    "WHITE_TEMP": 6_000,
     "SAMPLING_TEMP_PROB": 0.4,
 }
 
@@ -3492,11 +3492,19 @@ class PlanckianJitter(ImageOnlyTransform):
         mode (Literal["blackbody", "cied"]): The mode of the transformation. `blackbody` simulates blackbody radiation,
             and `cied` uses the CIED illuminant series.
         temperature_limit (Tuple[int, int]): Temperature range to sample from. For `blackbody` mode, the range should
-            be within [3000K, 15000K]. For "cied" mode, the range should be within [4000K, 15000K].
-            Higher temperatures produce cooler (bluish) images.
+            be within `[3000K, 15000K]`. For "cied" mode, the range should be within `[4000K, 15000K]`. Range should
+            include white temperature `6000`
+            Higher temperatures produce cooler (bluish) images. If not defined, it defaults to:
+            - `[3000, 15000]` for `blackbody` mode
+            - `[4000, 15000]` for `cied` mode
+        p (float): Probability of applying the transform. Defaults to 0.5.
         sampling_method (Literal["uniform", "gaussian"]): Method to sample the temperature.
             "uniform" samples uniformly across the range, while "gaussian" samples from a Gaussian distribution.
         p (float): Probability of applying the transform. Defaults to 0.5.
+
+    If `temperature_limit` is not defined, it defaults to:
+        - `[3000, 15000]` for `blackbody` mode
+        - `[4000, 15000]` for `cied` mode
 
     Targets:
         image
@@ -3512,33 +3520,39 @@ class PlanckianJitter(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         mode: PlanckianJitterMode = "blackbody"
-        temperature_limit: Annotated[Tuple[int, int], AfterValidator(nondecreasing)] = (3000, 15000)
+        temperature_limit: Optional[Annotated[Tuple[int, int], AfterValidator(nondecreasing)]] = None
         sampling_method: Literal["uniform", "gaussian"] = "uniform"
 
         @model_validator(mode="after")
         def validate_temperature(self) -> Self:
-            max_temp = PLANKIAN_JITTER_CONST["MAX_TEMP"]
+            max_temp = int(PLANKIAN_JITTER_CONST["MAX_TEMP"])
 
-            if self.mode == "blackbody" and (
-                min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_BLACKBODY_TEMP"]
-                or max(self.temperature_limit) > max_temp
-            ):
-                raise ValueError("Temperature limits for blackbody should be in [3000, 15000] range")
-            if self.mode == "cied" and (
-                min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_CIED_TEMP"]
-                or max(self.temperature_limit) > max_temp
-            ):
-                raise ValueError("Temperature limits for CIED should be in [4000, 15000] range")
+            if self.temperature_limit is None:
+                if self.mode == "blackbody":
+                    self.temperature_limit = int(PLANKIAN_JITTER_CONST["MIN_BLACKBODY_TEMP"]), max_temp
+                elif self.mode == "cied":
+                    self.temperature_limit = int(PLANKIAN_JITTER_CONST["MIN_CIED_TEMP"]), max_temp
+            else:
+                if self.mode == "blackbody" and (
+                    min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_BLACKBODY_TEMP"]
+                    or max(self.temperature_limit) > max_temp
+                ):
+                    raise ValueError("Temperature limits for blackbody should be in [3000, 15000] range")
+                if self.mode == "cied" and (
+                    min(self.temperature_limit) < PLANKIAN_JITTER_CONST["MIN_CIED_TEMP"]
+                    or max(self.temperature_limit) > max_temp
+                ):
+                    raise ValueError("Temperature limits for CIED should be in [4000, 15000] range")
 
-            if not self.temperature_limit[0] <= PLANKIAN_JITTER_CONST["WHITE_TEMP"] <= self.temperature_limit[1]:
-                raise ValueError("White temperature should be within the temperature limits")
+                if not self.temperature_limit[0] <= PLANKIAN_JITTER_CONST["WHITE_TEMP"] <= self.temperature_limit[1]:
+                    raise ValueError("White temperature should be within the temperature limits")
 
             return self
 
     def __init__(
         self,
         mode: PlanckianJitterMode = "blackbody",
-        temperature_limit: Tuple[int, int] = (3000, 15000),
+        temperature_limit: Optional[Tuple[int, int]] = None,
         sampling_method: Literal["uniform", "gaussian"] = "uniform",
         always_apply: Optional[bool] = None,
         p: float = 0.5,
@@ -3546,7 +3560,7 @@ class PlanckianJitter(ImageOnlyTransform):
         super().__init__(always_apply=always_apply, p=p)
 
         self.mode = mode
-        self.temperature_limit = temperature_limit
+        self.temperature_limit = cast(Tuple[int, int], temperature_limit)
         self.sampling_method = sampling_method
 
     def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:
