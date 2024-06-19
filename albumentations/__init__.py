@@ -1,9 +1,8 @@
-__version__ = "1.4.9"
-
 import os
 
 from albumentations.check_version import check_for_updates
 
+from ._version import __version__  # noqa: F401
 from .augmentations import *
 from .core.composition import *
 from .core.serialization import *

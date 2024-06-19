@@ -3,7 +3,7 @@ import logging
 import urllib.request
 from urllib.request import OpenerDirector
 
-from albumentations import __version__ as current_version
+from albumentations._version import __version__ as current_version
 
 # Set up basic logging
 logging.basicConfig(level=logging.INFO)
