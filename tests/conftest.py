@@ -45,7 +45,8 @@ def mp_pool():
         method = "spawn"
     else:
         method = None
-    return multiprocessing.get_context(method).Pool(8)
+    return multiprocessing.get_context(method).Pool(4)
+
 
 SQUARE_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 RECTANGULAR_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(101, 99, 3), dtype=np.uint8)
@@ -62,4 +63,5 @@ IMAGES = UINT8_IMAGES + FLOAT32_IMAGES
 SQUARE_IMAGES = [SQUARE_UINT8_IMAGE, SQUARE_FLOAT_IMAGE]
 RECTANGULAR_IMAGES = [RECTANGULAR_UINT8_IMAGE, RECTANGULAR_FLOAT_IMAGE]
 
-SQUARE_MULTI_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(100, 100, 7), dtype=np.uint8)
+SQUARE_MULTI_UINT8_IMAGE = np.random.randint(low=0, high=256, size=(100, 100, 5), dtype=np.uint8)
+SQUARE_MULTI_FLOAT_IMAGE = np.random.uniform(low=0.0, high=1.0, size=(100, 100, 5)).astype("float32")
