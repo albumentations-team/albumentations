@@ -15,7 +15,7 @@ except ImportError:
     yaml_available = False
 
 
-from albumentations import __version__
+from albumentations._version import __version__
 
 __all__ = ["to_dict", "from_dict", "save", "load"]
 

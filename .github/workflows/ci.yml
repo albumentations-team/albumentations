@@ -6,6 +6,7 @@ on:
     paths-ignore:
       - 'CONTRIBUTORS.md'
       - 'benchmark/**'
+      - 'albumentations/_version.py'
 
 jobs:
   test_and_lint:
