@@ -5,6 +5,7 @@ on:
       - main
     paths-ignore:
       - 'CONTRIBUTORS.md'
+      - 'benchmark/**'
 
 jobs:
   test_and_lint:
@@ -54,9 +55,9 @@ jobs:
         --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-13'
-      run: uv pip --system install torch==2.2.0 torchvision==0.17.0
+      run: uv pip install --system torch==2.2.0 torchvision==0.17.0
     - name: Install dev requirements
-      run: uv pip --system install -r requirements-dev.txt
+      run: uv pip install --system -r requirements-dev.txt
     - name: Install dependencies
       run: |
         uv pip install .
@@ -116,8 +117,8 @@ jobs:
     - name: Install requirements
       run: |
         python -m pip install --upgrade pip uv
-        uv pip --system install requests
-        uv pip --system install .
+        uv pip install --system  requests
+        uv pip install --system .
     - name: Run checks for documentation
       run: python -m tools.make_transforms_docs check README.md
     - name: Run checks for used by documentation
