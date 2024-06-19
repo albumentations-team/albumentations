@@ -1748,4 +1748,18 @@ def test_random_fog_initialization(params, expected):
 ])
 def test_random_fog_invalid_input(params):
     with pytest.raises(Exception):
-        img_fog = A.RandomFog(**params)
+        A.RandomFog(**params)
+
+
+@pytest.mark.parametrize("image", IMAGES + [np.full((10, 10), 128, dtype=np.uint8)])
+@pytest.mark.parametrize("mean", (0, 10, -10))
+def test_gauss_noise(mean, image):
+    set_seed(42)
+    aug = A.GaussNoise(p=1, noise_scale_factor=1.0, mean=mean)
+
+    apply_params = aug.get_params_dependent_on_targets(params = {"image":image })
+
+    assert np.abs(mean - apply_params["gauss"].mean()) < 0.5
+    result = A.Compose([aug])(image=image)
+
+    assert not (result["image"] >= image).all()

@@ -1650,7 +1650,7 @@ class GaussNoise(ImageOnlyTransform):
         self.noise_scale_factor = noise_scale_factor
 
     def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
-        return albucore.add_array(img, gauss)
+        return fmain.add_noise(img, gauss)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, float]:
         image = params["image"]
@@ -1673,7 +1673,7 @@ class GaussNoise(ImageOnlyTransform):
             if image.ndim > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
 
-        return {"gauss": gauss.astype(image.dtype)}
+        return {"gauss": gauss}
 
     @property
     def targets_as_params(self) -> List[str]:

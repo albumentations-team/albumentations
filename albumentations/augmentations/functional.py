@@ -5,7 +5,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
-from albucore.functions import add, add_weighted, multiply, multiply_add
+from albucore.functions import add, add_array, add_weighted, multiply, multiply_add
 from albucore.utils import (
     MAX_VALUES_BY_DTYPE,
     clip,
@@ -1536,3 +1536,8 @@ def generate_approx_gaussian_noise(
     # Upsample the noise to the original shape using OpenCV
     result = cv2.resize(low_res_noise, (shape[1], shape[0]), interpolation=cv2.INTER_LINEAR)
     return result.reshape(shape)
+
+
+@clipped
+def add_noise(img: np.ndarray, noise: np.ndarray) -> np.ndarray:
+    return add_array(img, noise)
