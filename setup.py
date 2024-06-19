@@ -24,6 +24,8 @@ CHOOSE_INSTALL_REQUIRES = [
 def get_version() -> str:
     current_dir = Path(__file__).parent
     version_file = current_dir / "albumentations" / "_version.py"
+    if not version_file.is_file():
+        raise FileNotFoundError(f"Version file not found: {version_file}")
     with open(version_file, encoding="utf-8") as f:
         version_match = re.search(r'^__version__ = [\'"]([^\'"]*)[\'"]', f.read(), re.M)
         if version_match:
