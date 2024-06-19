@@ -30,21 +30,21 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: Cache Python packages
-      uses: actions/cache@v4
-      with:
-        path: ${{ matrix.path }}
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-${{ matrix.python-version }}-
-          ${{ runner.os }}-pip-
+    # - name: Cache Python packages
+    #   uses: actions/cache@v4
+    #   with:
+    #     path: ${{ matrix.path }}
+    #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-pip-${{ matrix.python-version }}-
+    #       ${{ runner.os }}-pip-
 
     - name: Update pip
       run: |
         python -m pip install --upgrade pip uv
         pip cache purge
-    - name: Install wheel
-      run: uv pip install --upgrade wheel
+    # - name: Install wheel
+    #   run: uv pip install --upgrade wheel
     - name: Install PyTorch on Linux and Windows
       if: >
         matrix.operating-system == 'ubuntu-latest' ||
