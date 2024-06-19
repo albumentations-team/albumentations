@@ -27,7 +27,8 @@ from .utils import (
 
 images = []
 
-TEST_SEEDS = (0, 1, 42)
+## Can use several seeds, but just too slow.
+TEST_SEEDS = (42, )
 
 
 @pytest.mark.parametrize(
@@ -915,7 +916,7 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_serialization_conversion_without_totensor(transform_file_name, data_format, seed):
-    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
 
     # Step 1: Load transform from file
     current_directory = Path(__file__).resolve().parent
@@ -953,7 +954,7 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_serialization_conversion_with_totensor(transform_file_name: str, data_format: str, seed: int) -> None:
-    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
 
     # Load transform from file
     current_directory = Path(__file__).resolve().parent

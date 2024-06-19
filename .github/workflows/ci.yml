@@ -13,14 +13,14 @@ jobs:
     runs-on: ${{ matrix.operating-system }}
     strategy:
       matrix:
-        operating-system: [ubuntu-latest, windows-latest, macos-latest]
+        operating-system: [ubuntu-latest-large, windows-latest-large, macos-latest-large]
         python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
         include:
-          - operating-system: ubuntu-latest
+          - operating-system: ubuntu-latest-large
             path: ~/.cache/pip
-          - operating-system: windows-latest
+          - operating-system: windows-latest-large
             path: ~\AppData\Local\pip\Cache
-          - operating-system: macos-latest
+          - operating-system: macos-latest-large
             path: ~/Library/Caches/pip
       fail-fast: true
     steps:
@@ -50,12 +50,12 @@ jobs:
       run: uv pip install --system --upgrade wheel
     - name: Install PyTorch on Linux and Windows
       if: >
-        matrix.operating-system == 'ubuntu-latest' ||
-        matrix.operating-system == 'windows-latest'
+        matrix.operating-system == 'ubuntu-latest-large' ||
+        matrix.operating-system == 'windows-latest-large'
       run: >
         uv pip install --system --verbose torch==2.3.0+cpu torchvision==0.18.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
-      if: matrix.operating-system == 'macos-latest'
+      if: matrix.operating-system == 'macos-latest-large'
       run: >
         uv pip install --system --verbose torch==2.3.0 torchvision==0.18.0
     - name: Install dev requirements
@@ -63,14 +63,10 @@ jobs:
     - name: Install dependencies
       run: |
         uv pip install --system .
-    - name: Cleanup the build directory
-      uses: JesseTG/rm@v1.0.3
-      with:
-        path: build
     - name: Run PyTest
       run: pytest --cov .
     - name: Upload coverage reports to Codecov
-      if: matrix.operating-system == 'ubuntu-latest' && matrix.python-version == '3.8'
+      if: matrix.operating-system == 'ubuntu-latest-large' && matrix.python-version == '3.10'
       uses: codecov/codecov-action@v4.3.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}

@@ -20,7 +20,7 @@ from albumentations.core.transforms_interface import BasicTransform
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from albumentations.augmentations.transforms import RandomSnow
-from tests.conftest import IMAGES, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, RECTANGULAR_FLOAT_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -201,7 +201,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
 def test_semantic_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts."""
     aug = augmentation_cls(p=1, **params)
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
 
     data = aug(image=image, mask=mask)
@@ -252,8 +252,8 @@ def __test_multiprocessing_support_proc(args):
 )
 def test_multiprocessing_support(mp_pool, augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
+    image = SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=1, **params)
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
 
     mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10))
 
@@ -298,28 +298,28 @@ def test_force_apply():
     get_image_only_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                "templates": SQUARE_UINT8_IMAGE,
             },
         },
     ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(p=1, **params)], additional_targets={"image2": "image"})
-    for _i in range(10):
-        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    for _ in range(10):
+        image1 = SQUARE_UINT8_IMAGE
         image2 = image1.copy()
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
@@ -329,7 +329,7 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(p=1, **params)])
     aug.add_targets(additional_targets={"image2": "image"})
     for _ in range(10):
-        image1 = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+        image1 = SQUARE_UINT8_IMAGE
         image2 = image1.copy()
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
@@ -471,7 +471,7 @@ def test_crop_non_empty_mask():
 
 @pytest.mark.parametrize("interpolation", [cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC])
 def test_downscale(interpolation):
-    img_float = np.random.rand(100, 100, 3)
+    img_float = SQUARE_FLOAT_IMAGE
     img_uint = (img_float * 255).astype("uint8")
 
     aug = A.Downscale(scale_min=0.5, scale_max=0.5, interpolation=interpolation, p=1)
@@ -571,10 +571,7 @@ def test_multiplicative_noise_grayscale(image):
     assert np.allclose(clip(expected, image.dtype), result_ne)
 
 @pytest.mark.parametrize(
-    "image", [
-        np.random.randint(0, 256, [256, 320, 3], np.uint8),
-        np.random.random([256, 320, 3]).astype(np.float32)
-    ]
+    "image", IMAGES
 )
 @pytest.mark.parametrize(
     "elementwise", ( True, False )
@@ -618,11 +615,10 @@ def test_mask_dropout():
     assert np.all(result["mask"] == 0)
 
 
-@pytest.mark.parametrize(
-    "image", [np.random.randint(0, 256, [256, 320, 3], np.uint8), np.random.random([256, 320, 3]).astype(np.float32)]
-)
+@pytest.mark.parametrize( "image", IMAGES )
 def test_grid_dropout_mask(image):
-    mask = np.ones([256, 320], dtype=np.uint8)
+    height, width = image.shape[:2]
+    mask = np.ones([height, width], dtype=np.uint8)
     aug = A.GridDropout(p=1, mask_fill_value=0)
     result = aug(image=image, mask=mask)
     # with mask on ones and fill_value = 0 the sum of pixels is smaller
@@ -632,21 +628,21 @@ def test_grid_dropout_mask(image):
     assert result["mask"].shape == mask.shape
 
     # with mask of zeros and fill_value = 0 mask should not change
-    mask = np.zeros([256, 320], dtype=np.uint8)
+    mask = np.zeros([height, width], dtype=np.uint8)
     aug = A.GridDropout(p=1, mask_fill_value=0)
     result = aug(image=image, mask=mask)
     assert result["image"].sum() < image.sum()
     assert np.all(result["mask"] == 0)
 
     # with mask mask_fill_value=100, mask sum is larger
-    mask = np.random.randint(0, 10, [256, 320], np.uint8)
+    mask = np.random.randint(0, 10, [height, width], np.uint8)
     aug = A.GridDropout(p=1, mask_fill_value=100)
     result = aug(image=image, mask=mask)
     assert result["image"].sum() < image.sum()
     assert result["mask"].sum() > mask.sum()
 
     # with mask mask_fill_value=None, mask is not changed
-    mask = np.ones([256, 320], dtype=np.uint8)
+    mask = np.ones([height, width], dtype=np.uint8)
     aug = A.GridDropout(p=1, mask_fill_value=None)
     result = aug(image=image, mask=mask)
     assert result["image"].sum() < image.sum()
@@ -756,7 +752,7 @@ def test_unsharp_mask_float_uint8_diff_less_than_two(val_uint8):
     ],
 )
 def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
-    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    img = SQUARE_UINT8_IMAGE
 
     transform = A.Compose(
         [
@@ -783,7 +779,7 @@ def test_color_jitter_float_uint8_equal(brightness, contrast, saturation, hue):
 
 @pytest.mark.parametrize(["hue", "sat", "val"], [[13, 17, 23], [14, 18, 24], [131, 143, 151], [132, 144, 152]])
 def test_hue_saturation_value_float_uint8_equal(hue, sat, val):
-    img = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    img = SQUARE_UINT8_IMAGE
 
     for i in range(2):
         sign = 1 if i == 0 else -1
@@ -920,7 +916,7 @@ def test_template_transform(img_weight, template_weight, template_transform, ima
 def test_template_transform_incorrect_size(template):
     image = np.random.randint(0, 256, (512, 512, 3), np.uint8)
     with pytest.raises(ValueError) as exc_info:
-        transform = A.TemplateTransform(template, p=1.)
+        transform = A.TemplateTransform(template, p=1.0)
         transform(image=image)
 
     message = f"Image and template must be the same size, got {image.shape[:2]} and {template.shape[:2]}"
@@ -929,8 +925,8 @@ def test_template_transform_incorrect_size(template):
 
 @pytest.mark.parametrize(["img_channels", "template_channels"], [(1, 3), (6, 3)])
 def test_template_transform_incorrect_channels(img_channels, template_channels):
-    img = np.random.randint(0, 256, [512, 512, img_channels], np.uint8)
-    template = np.random.randint(0, 256, [512, 512, template_channels], np.uint8)
+    img = np.random.randint(0, 255, [100, 100, img_channels], np.uint8)
+    template = np.random.randint(0, 255, [100, 100, template_channels], np.uint8)
 
     with pytest.raises(ValueError) as exc_info:
         transform = A.TemplateTransform(template, p=1.)
@@ -954,7 +950,7 @@ def test_template_transform_incorrect_channels(img_channels, template_channels):
 def test_affine_scale_ratio(params):
     set_seed(0)
     aug = A.Affine(**params, p=1.0)
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
     target = {"image": image}
     apply_params = aug.get_params_dependent_on_targets(target)
 
@@ -1071,7 +1067,7 @@ def test_safe_rotate(angle: float, targets: dict, expected: dict):
 @pytest.mark.parametrize(
     "img",
     [
-        np.random.randint(0, 256, [100, 100, 3], np.uint8),
+        SQUARE_UINT8_IMAGE,
         np.random.randint(0, 256, [25, 100, 3], np.uint8),
         np.random.randint(0, 256, [100, 25, 3], np.uint8),
     ],
@@ -1149,7 +1145,7 @@ def test_motion_blur_allow_shifted(seed):
 )
 @pytest.mark.parametrize("img_channels", [1, 6])
 def test_non_rgb_transform_warning(augmentation, img_channels):
-    img = np.random.randint(0, 256, (512, 512, img_channels), dtype=np.uint8)
+    img = np.random.randint(0, 255, (100, 100, img_channels), dtype=np.uint8)
 
     with pytest.raises(ValueError) as exc_info:
         augmentation(image=img, force_apply=True)
@@ -1348,7 +1344,7 @@ def test_coarse_dropout_invalid_input(params):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                "templates": clip(SQUARE_UINT8_IMAGE + 2, np.uint8),
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),

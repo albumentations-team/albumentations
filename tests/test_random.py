@@ -27,7 +27,7 @@ def _calc(args):
 def test_multiprocessing(func, args, mp_pool):
     set_seed(0)
 
-    n = 10
+    n = 4
     status = False
     for _ in range(n):
         res = mp_pool.map(_calc, [(func, args), (func, args)])
