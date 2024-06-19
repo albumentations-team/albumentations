@@ -62,7 +62,7 @@ jobs:
       run: uv pip install --system -r requirements-dev.txt
     - name: Install dependencies
       run: |
-        uv pip install .
+        uv pip install --system .
     - name: Cleanup the build directory
       uses: JesseTG/rm@v1.0.3
       with:
@@ -95,7 +95,7 @@ jobs:
     - name: Install requirements
       run: |
         python -m pip install --upgrade pip uv
-        uv pip --system install .
+        uv pip install --system .
     - name: Install dev requirements
       run: uv pip install --system -r requirements-dev.txt
     - name: Run checks
