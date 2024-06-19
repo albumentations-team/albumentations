@@ -1617,7 +1617,7 @@ class GaussNoise(ImageOnlyTransform):
             Default: True
         noise_scale_factor (float): Scaling factor for noise generation. Value should be in the range (0, 1].
             When set to 1, noise is sampled for each pixel independently. If less, noise is sampled for a smaller size
-            and resized to fit the shape of the image. Smaller values make the transform faster. Default: 0.5
+            and resized to fit the shape of the image. Smaller values make the transform faster. Default: 1.0.
         p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -1639,7 +1639,7 @@ class GaussNoise(ImageOnlyTransform):
         var_limit: ScaleFloatType = (10.0, 50.0),
         mean: float = 0,
         per_channel: bool = True,
-        noise_scale_factor: float = 0.5,
+        noise_scale_factor: float = 1,
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
@@ -1650,7 +1650,7 @@ class GaussNoise(ImageOnlyTransform):
         self.noise_scale_factor = noise_scale_factor
 
     def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
-        return albucore.add_array(img, gauss)
+        return fmain.add_noise(img, gauss)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, float]:
         image = params["image"]
@@ -1673,7 +1673,7 @@ class GaussNoise(ImageOnlyTransform):
             if image.ndim > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
 
-        return {"gauss": gauss.astype(image.dtype)}
+        return {"gauss": gauss}
 
     @property
     def targets_as_params(self) -> List[str]:
