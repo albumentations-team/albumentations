@@ -20,7 +20,7 @@ jobs:
             path: ~/.cache/pip
           - operating-system: windows-latest
             path: ~\AppData\Local\pip\Cache
-          - operating-system: macos-13
+          - operating-system: macos-latest
             path: ~/Library/Caches/pip
       fail-fast: true
     steps:
@@ -31,19 +31,18 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    # - name: Cache Python packages
-    #   uses: actions/cache@v4
-    #   with:
-    #     path: ${{ matrix.path }}
-    #     key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
-    #     restore-keys: |
-    #       ${{ runner.os }}-pip-${{ matrix.python-version }}-
-    #       ${{ runner.os }}-pip-
+    - name: Cache Python packages
+      uses: actions/cache@v4
+      with:
+        path: ${{ matrix.path }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements-dev.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
+          ${{ runner.os }}-pip-
 
-    # - name: Update pip
-    #   run: |
-    #     python -m pip install --upgrade pip uv
-    #     # pip cache purge
+    - name: Update pip
+      run: |
+        python -m pip install --upgrade pip uv
     - name: Update pip
       run: |
         python -m pip install --upgrade uv
