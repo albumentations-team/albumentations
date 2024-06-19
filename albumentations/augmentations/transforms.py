@@ -3615,3 +3615,47 @@ class PlanckianJitter(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return "mode", "temperature_limit", "sampling_method"
+
+
+class OverlayElements(DualTransform):
+    def __init__(
+        self,
+        always_apply: bool = False,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply=always_apply, p=p)
+
+    @property
+    def targets_as_params(self) -> List[str]:
+        return ["metadata"]
+
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        metadata = params["metadata"]
+        overlay_image = metadata["image"]
+        bbox = metadata["bbox"]
+        y_min, x_min, y_max, x_max = bbox
+
+        if "mask" in metadata:
+            mask = metadata["mask"]
+            mask = cv2.resize(mask, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_NEAREST)
+        else:
+            mask = np.ones((y_max - y_min, x_max - x_min), dtype=np.uint8)
+
+        overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
+
+        return {
+            "overlay_image": overlay_image,
+            "overlay_mask": mask,
+            "bbox": bbox,
+        }
+
+    def apply(
+        self,
+        img: np.ndarray,
+        overlay_image: np.ndarray,
+        overlay_mask: np.ndarray,
+        bbox: Tuple[int, int, int, int],
+        **params: Any,
+    ) -> np.ndarray:
+        y_min, x_min = bbox[:2]
+        return fmain.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=(y_min, x_min))
