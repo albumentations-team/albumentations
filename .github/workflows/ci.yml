@@ -92,9 +92,9 @@ jobs:
     - name: Install requirements
       run: |
         python -m pip install --upgrade pip uv
-        uv pip install .
+        uv pip --system install .
     - name: Install dev requirements
-      run: uv pip install -r requirements-dev.txt
+      run: uv pip install --system -r requirements-dev.txt
     - name: Run checks
       run: pre-commit run --files $(find albumentations -type f)
     - name: check-defaults-in-apply
@@ -116,8 +116,8 @@ jobs:
     - name: Install requirements
       run: |
         python -m pip install --upgrade pip uv
-        uv pip install requests
-        uv pip install .
+        uv pip --system install requests
+        uv pip --system install .
     - name: Run checks for documentation
       run: python -m tools.make_transforms_docs check README.md
     - name: Run checks for used by documentation
