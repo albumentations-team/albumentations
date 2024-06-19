@@ -1673,7 +1673,7 @@ class GaussNoise(ImageOnlyTransform):
             if image.ndim > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
 
-        return {"gauss": gauss.astype(image.dtype)}
+        return {"gauss": gauss}
 
     @property
     def targets_as_params(self) -> List[str]:
