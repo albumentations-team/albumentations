@@ -42,7 +42,7 @@ jobs:
     - name: Update pip
       run: |
         python -m pip install --upgrade pip uv
-        uv pip cache purge
+        pip cache purge
     - name: Install wheel
       run: uv pip install --upgrade wheel
     - name: Install PyTorch on Linux and Windows
