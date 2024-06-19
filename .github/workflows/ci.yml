@@ -41,25 +41,25 @@ jobs:
 
     - name: Update pip
       run: |
-        python -m pip install --upgrade pip
-        pip cache purge
+        python -m pip install --upgrade pip uv
+        uv pip cache purge
     - name: Install wheel
-      run: python -m pip install --upgrade wheel
+      run: uv pip install --upgrade wheel
     - name: Install PyTorch on Linux and Windows
       if: >
         matrix.operating-system == 'ubuntu-latest' ||
         matrix.operating-system == 'windows-latest'
       run: >
-        pip install torch==2.2.0 torchvision==0.17.0
+        uv pip install torch==2.2.0 torchvision==0.17.0
         --extra-index-url https://download.pytorch.org/whl/cpu
     - name: Install PyTorch on MacOS
       if: matrix.operating-system == 'macos-13'
-      run: pip install torch==2.2.0 torchvision==0.17.0
+      run: uv pip install torch==2.2.0 torchvision==0.17.0
     - name: Install dev requirements
-      run: pip install -r requirements-dev.txt
+      run: uv pip install -r requirements-dev.txt
     - name: Install dependencies
       run: |
-        pip install .
+        uv pip install .
     - name: Cleanup the build directory
       uses: JesseTG/rm@v1.0.3
       with:
@@ -91,10 +91,10 @@ jobs:
       run: cat codecov.yaml | curl --data-binary @- https://codecov.io/validate
     - name: Install requirements
       run: |
-        python -m pip install --upgrade pip
-        pip install .
+        python -m pip install --upgrade pip uv
+        uv pip install .
     - name: Install dev requirements
-      run: pip install -r requirements-dev.txt
+      run: uv pip install -r requirements-dev.txt
     - name: Run checks
       run: pre-commit run --files $(find albumentations -type f)
     - name: check-defaults-in-apply
@@ -115,9 +115,9 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install requirements
       run: |
-        python -m pip install --upgrade pip
-        pip install requests
-        pip install .
+        python -m pip install --upgrade pip uv
+        uv pip install requests
+        uv pip install .
     - name: Run checks for documentation
       run: python -m tools.make_transforms_docs check README.md
     - name: Run checks for used by documentation
