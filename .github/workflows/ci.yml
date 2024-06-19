@@ -50,13 +50,13 @@ jobs:
     - name: Install wheel
       run: uv pip install --system --upgrade wheel
     - name: Install PyTorch on Linux and Windows
-      if: >
-        matrix.operating-system == 'ubuntu-latest' ||
-        matrix.operating-system == 'windows-latest'
-      run: |
-        uv pip install --system torch==2.3.0 torchvision==0.18.0 --extra-index-url https://download.pytorch.org/whl/cpu
-    - name: Install PyTorch on MacOS
-      if: matrix.operating-system == 'macos-13'
+    #   if: >
+    #     matrix.operating-system == 'ubuntu-latest' ||
+    #     matrix.operating-system == 'windows-latest'
+    #   run: |
+    #     uv pip install --system torch==2.3.0 torchvision==0.18.0 --extra-index-url https://download.pytorch.org/whl/cpu
+    # - name: Install PyTorch on MacOS
+    #   if: matrix.operating-system == 'macos-13'
       run: uv pip install --system torch==2.3.0 torchvision==0.18.0
     - name: Install dev requirements
       run: uv pip install --system -r requirements-dev.txt
