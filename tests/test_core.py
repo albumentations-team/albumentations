@@ -1,6 +1,6 @@
 import typing
 from unittest import mock
-from unittest.mock import MagicMock, Mock, call, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
 
 import albumentations as A
 
@@ -72,7 +72,7 @@ def oneof_always_apply_crash():
 
 
 def test_one_of():
-    transforms = [Mock(p=1, available_keys={"image"}) for _ in range(10)]
+    transforms = [Mock(p=1, available_keys={"image"}, targets_as_params=[]) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -82,7 +82,7 @@ def test_one_of():
 @pytest.mark.parametrize("N", [1, 2, 5, 10])
 @pytest.mark.parametrize("replace", [True, False])
 def test_n_of(N, replace):
-    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}) for _ in range(10)]
+    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}, targets_as_params=[]) for _ in range(10)]
     augmentation = SomeOf(transforms, N, p=1, replace=replace)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -92,12 +92,11 @@ def test_n_of(N, replace):
 
 
 def test_sequential():
-    transforms = [Mock(side_effect=lambda **kw: kw, available_keys={"image"}) for _ in range(10)]
+    transforms = [Mock(side_effect=lambda **kw: kw, available_keys={"image"}, targets_as_params=[]) for _ in range(10)]
     augmentation = Sequential(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
     assert len([transform for transform in transforms if transform.called]) == len(transforms)
-
 
 @pytest.mark.parametrize("input,kwargs,expected", [
     (10, {}, (-10, 10)),
@@ -705,3 +704,21 @@ def test_transform_always_apply_warning() -> None:
 
     assert record[0].message.args[0] == warning_expected_2
     assert aug.transforms[0].p == 0.5
+
+
+@pytest.mark.parametrize("image", IMAGES)
+def test_crop_near_bbox(image):
+    bbox_key = "target_bbox"
+    aug = A.Compose([A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)],
+        bbox_params=BboxParams("pascal_voc"))
+
+    aug(image=image, bboxes=[[1, 2, 3, 4, 1]], target_bbox=[0, 5, 10, 20])
+
+    target_keys = {'image', 'bboxes', "labels", "mask", "masks", "keypoints", bbox_key}
+
+    assert aug._available_keys == target_keys
+
+    aug2 = A.Compose([A.Sequential([A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)])],
+        bbox_params=BboxParams("pascal_voc"))
+
+    assert aug2._available_keys == target_keys

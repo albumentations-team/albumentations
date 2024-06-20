@@ -647,9 +647,9 @@ class RandomCropNearBBox(DualTransform):
         uint8, float32
 
     Examples:
-        >>> aug = Compose([RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key='test_box')],
+        >>> aug = Compose([RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key='test_bbox')],
         >>>              bbox_params=BboxParams("pascal_voc"))
-        >>> result = aug(image=image, bboxes=bboxes, test_box=[0, 5, 10, 20])
+        >>> result = aug(image=image, bboxes=bboxes, test_bbox=[0, 5, 10, 20])
 
     """
 
