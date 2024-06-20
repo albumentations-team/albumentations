@@ -3630,8 +3630,8 @@ class OverlayElements(DualTransform):
     def targets_as_params(self) -> List[str]:
         return ["metadata"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        metadata = params["metadata"]
+    @staticmethod
+    def preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int]) -> Dict[str, Any]:
         overlay_image = metadata["image"]
 
         if "bbox" in metadata:
@@ -3647,10 +3647,9 @@ class OverlayElements(DualTransform):
             overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
             offset = (y_min, x_min)
         else:
-            bbox = None
             mask = np.ones_like(overlay_image, dtype=np.uint8) * 255  # Use the entire image as the mask
-            max_y_offset = params["image"].shape[0] - overlay_image.shape[0]
-            max_x_offset = params["image"].shape[1] - overlay_image.shape[1]
+            max_y_offset = img_shape[0] - overlay_image.shape[0]
+            max_x_offset = img_shape[1] - overlay_image.shape[1]
             offset = (random.randint(0, max_y_offset), random.randint(0, max_x_offset))
 
         return {
@@ -3659,13 +3658,28 @@ class OverlayElements(DualTransform):
             "offset": offset,
         }
 
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        metadata = params["metadata"]
+        img_shape = params["image"].shape
+
+        if isinstance(metadata, list):
+            overlay_data = [self.preprocess_metadata(md, img_shape) for md in metadata]
+        else:
+            overlay_data = [self.preprocess_metadata(metadata, img_shape)]
+
+        return {
+            "overlay_data": overlay_data,
+        }
+
     def apply(
         self,
         img: np.ndarray,
-        overlay_image: np.ndarray,
-        overlay_mask: np.ndarray,
-        bbox: Tuple[int, int, int, int],
+        overlay_data: List[Dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
-        y_min, x_min = bbox[:2]
-        return fmain.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=(y_min, x_min))
+        for data in overlay_data:
+            overlay_image = data["overlay_image"]
+            overlay_mask = data["overlay_mask"]
+            offset = data["offset"]
+            img = fmain.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=offset)
+        return img
