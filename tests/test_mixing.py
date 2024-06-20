@@ -275,7 +275,7 @@ def mock_random(monkeypatch):
             (100, 100),
             {
                 "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8),
                 "offset": (0, 0),
                 "bbox": [0, 0, 20, 20],
             }
@@ -286,7 +286,7 @@ def mock_random(monkeypatch):
             (100, 100),
             {
                 "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8),
                 "offset": (0, 0),
                 "mask_id": 1,
                 "bbox": [0, 0, 20, 20, 99],
@@ -298,3 +298,52 @@ def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int
     result = A.OverlayElements.preprocess_metadata(metadata, img_shape)
 
     assert DeepDiff(result, expected_output) == {}
+
+
+@pytest.mark.parametrize(
+    "metadata, expected_output",
+    [
+        (
+            {
+                "image": np.ones((10, 10, 3), dtype=np.uint8) * 255,
+                "bbox": [10, 20, 20, 30]
+            },
+            {
+                "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
+                "expected_bbox": [10, 20, 20, 30]
+            }
+        ),
+        (
+            {
+                "image": np.ones((10, 10, 3), dtype=np.uint8) * 255,
+                "bbox": [30, 40, 40, 50],
+                "label_id": 99
+            },
+            {
+                "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
+                "expected_bbox": [30, 40, 40, 50, 99]
+            }
+        ),
+        (
+            {
+                "image": np.ones((10, 10, 3), dtype=np.uint8) * 255
+            },
+            {
+                "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
+                "expected_bbox": [0, 0, 10, 10]
+            }
+        ),
+    ]
+)
+def test_end_to_end(metadata, expected_output):
+    transform = A.Compose([A.OverlayElements(p=1)])
+
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    transformed = transform(image=img, metadata=metadata)
+
+    expected_img = np.zeros((100, 100, 3), dtype=np.uint8)
+    y_min, x_min, y_max, x_max = expected_output["expected_bbox"][:4]
+    expected_img[y_min:y_max, x_min:x_max] = expected_output["expected_overlay"]
+
+    np.testing.assert_array_equal(transformed["image"], expected_img)

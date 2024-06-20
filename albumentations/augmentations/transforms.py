@@ -47,7 +47,6 @@ from albumentations.core.types import (
     NUM_RGB_CHANNELS,
     PAIR,
     BoxInternalType,
-    BoxType,
     ChromaticAberrationMode,
     ColorType,
     ImageCompressionType,
@@ -3623,10 +3622,9 @@ class PlanckianJitter(ImageOnlyTransform):
 class OverlayElements(DualTransform):
     def __init__(
         self,
-        always_apply: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(always_apply=None, p=p)
 
     @property
     def targets_as_params(self) -> List[str]:
@@ -3718,16 +3716,3 @@ class OverlayElements(DualTransform):
                 mask_section[overlay_mask > 0] = mask_id
 
         return mask
-
-    def apply_to_bboxes(
-        self,
-        bboxes: Sequence[BoxType],
-        overlay_data: List[Dict[str, Any]],
-        **params: Any,
-    ) -> Sequence[BoxType]:
-        bboxes = list(bboxes)
-        for data in overlay_data:
-            if data["bbox"]:
-                bboxes.append(data["bbox"])
-
-        return bboxes
