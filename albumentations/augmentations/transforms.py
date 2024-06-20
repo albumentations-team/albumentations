@@ -46,6 +46,7 @@ from albumentations.core.types import (
     NUM_RGB_CHANNELS,
     PAIR,
     BoxInternalType,
+    BoxType,
     ChromaticAberrationMode,
     ColorType,
     ImageCompressionType,
@@ -3657,6 +3658,8 @@ class OverlayElements(DualTransform):
             "overlay_mask": mask,
             "offset": offset,
             "mask_id": metadata.get("mask_id"),
+            "label_id": metadata.get("label_id"),
+            "bbox": bbox if "bbox" in metadata else None,
         }
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -3705,3 +3708,22 @@ class OverlayElements(DualTransform):
                 mask_section[overlay_mask > 0] = mask_id
 
         return mask
+
+    def apply_to_bboxes(
+        self,
+        bboxes: Sequence[BoxType],
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> Sequence[BoxType]:
+        bboxes = list(bboxes)
+        for data in overlay_data:
+            if data["bbox"]:
+                bbox = data["bbox"]
+                if "label_id" in data and data["label_id"] is not None:
+                    x_min, y_min, x_max, y_max = bbox
+                    label_id = data["label_id"]
+                    bboxes.append(cast(BoxType, [x_min, y_min, x_max, y_max, label_id]))
+                else:
+                    bboxes.append(bbox)
+
+        return bboxes
