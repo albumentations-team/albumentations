@@ -3628,7 +3628,7 @@ class OverlayElements(DualTransform):
 
     @property
     def targets_as_params(self) -> List[str]:
-        return ["metadata"]
+        return ["metadata", "image"]
 
     @staticmethod
     def preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int]) -> Dict[str, Any]:
@@ -3660,6 +3660,7 @@ class OverlayElements(DualTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         metadata = params["metadata"]
+
         img_shape = params["image"].shape
 
         if isinstance(metadata, list):
