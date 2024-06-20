@@ -3656,11 +3656,11 @@ class OverlayElements(DualTransform):
             "overlay_image": overlay_image,
             "overlay_mask": mask,
             "offset": offset,
+            "mask_id": metadata.get("mask_id"),
         }
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         metadata = params["metadata"]
-
         img_shape = params["image"].shape
 
         if isinstance(metadata, list):
@@ -3684,3 +3684,24 @@ class OverlayElements(DualTransform):
             offset = data["offset"]
             img = fmain.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=offset)
         return img
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> np.ndarray:
+        for data in overlay_data:
+            if "mask_id" in data and data["mask_id"] is not None:
+                overlay_mask = data["overlay_mask"]
+                offset = data["offset"]
+                mask_id = data["mask_id"]
+
+                y_min, x_min = offset
+                y_max = y_min + overlay_mask.shape[0]
+                x_max = x_min + overlay_mask.shape[1]
+
+                mask_section = mask[y_min:y_max, x_min:x_max]
+                mask_section[overlay_mask > 0] = mask_id
+
+        return mask
