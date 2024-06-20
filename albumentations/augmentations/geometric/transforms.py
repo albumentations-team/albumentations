@@ -546,11 +546,18 @@ class Affine(DualTransform):
             Fitting the output shape can be useful to avoid corners of the image being outside the image plane
             after applying rotations. Default: False
         keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
-                           Default: False.
+            Default: False.
         rotate_method (Literal["largest_box", "ellipse"]): rotation method used for the bounding boxes.
             Should be one of "largest_box" or "ellipse"[1]. Default: "largest_box"
         balanced_scale (bool): When True, scaling factors are chosen to be either entirely below or above 1,
-                               ensuring balanced scaling. Default: False.
+            ensuring balanced scaling. Default: False.
+
+            This is important because without it, scaling tends to lean towards upscaling. For example, if we want
+            the image to zoom in and out by 2x, we may pick an interval [0.5, 2]. Since the interval [0.5, 1] is
+            three times smaller than [1, 2], values above 1 are picked three times more often if sampled directly
+            from [0.5, 2]. With `balanced_scale`, the  function ensures that half the time, the scaling
+            factor is picked from below 1 (zooming out), and the other half from above 1 (zooming in).
+            This makes the zooming in and out process more balanced.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
