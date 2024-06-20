@@ -696,6 +696,9 @@ class RandomCropNearBBox(DualTransform):
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, int]:
         bbox = params[self.cropping_bbox_key]
+        image = params["image"]
+        height, width = image.shape[:2]
+
         h_max_shift = round((bbox[3] - bbox[1]) * self.max_part_shift[0])
         w_max_shift = round((bbox[2] - bbox[0]) * self.max_part_shift[1])
 
@@ -707,6 +710,9 @@ class RandomCropNearBBox(DualTransform):
 
         x_min = max(0, x_min)
         y_min = max(0, y_min)
+
+        x_max = min(width, x_max)
+        y_max = min(height, y_max)
 
         return {"x_min": x_min, "x_max": x_max, "y_min": y_min, "y_max": y_max}
 
@@ -726,7 +732,7 @@ class RandomCropNearBBox(DualTransform):
 
     @property
     def targets_as_params(self) -> List[str]:
-        return [self.cropping_bbox_key]
+        return ["image", self.cropping_bbox_key]
 
     def get_transform_init_args_names(self) -> Tuple[str, str]:
         return ("max_part_shift", "cropping_bbox_key")

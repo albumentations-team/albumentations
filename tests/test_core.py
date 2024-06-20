@@ -42,7 +42,7 @@ from albumentations.core.transforms_interface import (
 from albumentations.core.utils import to_tuple
 from tests.conftest import IMAGES
 
-from .utils import get_filtered_transforms
+from .utils import get_filtered_transforms, set_seed
 
 
 def test_one_or_other():
@@ -71,8 +71,9 @@ def oneof_always_apply_crash():
     assert data
 
 
-def test_one_of():
-    transforms = [Mock(p=1, available_keys={"image"}, targets_as_params=[]) for _ in range(10)]
+@pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
+def test_one_of(target_as_params):
+    transforms = [Mock(p=1, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -81,8 +82,9 @@ def test_one_of():
 
 @pytest.mark.parametrize("N", [1, 2, 5, 10])
 @pytest.mark.parametrize("replace", [True, False])
-def test_n_of(N, replace):
-    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}, targets_as_params=[]) for _ in range(10)]
+@pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
+def test_n_of(N, replace, target_as_params):
+    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
     augmentation = SomeOf(transforms, N, p=1, replace=replace)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -91,8 +93,9 @@ def test_n_of(N, replace):
     assert sum([transform.call_count for transform in transforms]) == N
 
 
-def test_sequential():
-    transforms = [Mock(side_effect=lambda **kw: kw, available_keys={"image"}, targets_as_params=[]) for _ in range(10)]
+@pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
+def test_sequential(target_as_params):
+    transforms = [Mock(side_effect=lambda **kw: kw, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
     augmentation = Sequential(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -708,6 +711,7 @@ def test_transform_always_apply_warning() -> None:
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_crop_near_bbox(image):
+    set_seed(42)
     bbox_key = "target_bbox"
     aug = A.Compose([A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)],
         bbox_params=BboxParams("pascal_voc"))
