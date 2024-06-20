@@ -151,6 +151,8 @@ class BaseCompose(Serializable):
         self._available_keys.update(self._additional_targets.keys())
         for t in self.transforms:
             self._available_keys.update(t.available_keys)
+            if hasattr(t, "targets_as_params"):
+                self._available_keys.update(t.targets_as_params)
         if self.processors:
             self._available_keys.update(["labels"])
             for proc in self.processors.values():
@@ -352,6 +354,7 @@ class Compose(BaseCompose, HubMixin):
         check_bbox_param = ["bboxes"]
         check_keypoints_param = ["keypoints"]
         shapes = []
+
         for data_name, data in kwargs.items():
             if data_name not in self._available_keys and data_name not in ["mask", "masks"]:
                 msg = f"Key {data_name} is not in available keys."
