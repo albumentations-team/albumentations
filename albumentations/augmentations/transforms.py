@@ -3633,21 +3633,30 @@ class OverlayElements(DualTransform):
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         metadata = params["metadata"]
         overlay_image = metadata["image"]
-        bbox = metadata["bbox"]
-        y_min, x_min, y_max, x_max = bbox
 
-        if "mask" in metadata:
-            mask = metadata["mask"]
-            mask = cv2.resize(mask, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_NEAREST)
+        if "bbox" in metadata:
+            bbox = metadata["bbox"]
+            y_min, x_min, y_max, x_max = bbox
+
+            if "mask" in metadata:
+                mask = metadata["mask"]
+                mask = cv2.resize(mask, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_NEAREST)
+            else:
+                mask = np.ones((y_max - y_min, x_max - x_min), dtype=np.uint8)
+
+            overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
+            offset = (y_min, x_min)
         else:
-            mask = np.ones((y_max - y_min, x_max - x_min), dtype=np.uint8)
-
-        overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
+            bbox = None
+            mask = np.ones_like(overlay_image, dtype=np.uint8) * 255  # Use the entire image as the mask
+            max_y_offset = params["image"].shape[0] - overlay_image.shape[0]
+            max_x_offset = params["image"].shape[1] - overlay_image.shape[1]
+            offset = (random.randint(0, max_y_offset), random.randint(0, max_x_offset))
 
         return {
             "overlay_image": overlay_image,
             "overlay_mask": mask,
-            "bbox": bbox,
+            "offset": offset,
         }
 
     def apply(
