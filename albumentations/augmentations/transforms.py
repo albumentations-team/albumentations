@@ -3652,7 +3652,7 @@ class OverlayElements(DualTransform):
             if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
                 bbox = [*bbox, metadata["bbox_id"]]
         else:
-            mask = np.ones_like(overlay_image, dtype=np.uint8) * 255  # Use the entire image as the mask
+            mask = np.ones_like(overlay_image, dtype=np.uint8)  # Use the entire image as the mask
             max_y_offset = img_shape[0] - overlay_image.shape[0]
             max_x_offset = img_shape[1] - overlay_image.shape[1]
             offset = (random.randint(0, max_y_offset), random.randint(0, max_x_offset))
@@ -3728,12 +3728,6 @@ class OverlayElements(DualTransform):
         bboxes = list(bboxes)
         for data in overlay_data:
             if data["bbox"]:
-                bbox = data["bbox"]
-                if "label_id" in data and data["label_id"] is not None:
-                    x_min, y_min, x_max, y_max = bbox
-                    label_id = data["label_id"]
-                    bboxes.append(cast(BoxType, [x_min, y_min, x_max, y_max, label_id]))
-                else:
-                    bboxes.append(bbox)
+                bboxes.append(data["bbox"])
 
         return bboxes
