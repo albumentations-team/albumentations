@@ -108,6 +108,7 @@ __all__ = [
     "ChromaticAberration",
     "Morphological",
     "PlanckianJitter",
+    "OverlayElements",
 ]
 
 NUM_BITS_ARRAY_LENGTH = 3
