@@ -467,7 +467,6 @@ class Perspective(DualTransform):
 
 class Affine(DualTransform):
     """Augmentation to apply affine transformations to images.
-    This is mostly a wrapper around the corresponding classes and functions in OpenCV.
 
     Affine transformations involve:
 
@@ -548,9 +547,10 @@ class Affine(DualTransform):
             after applying rotations. Default: False
         keep_ratio (bool): When True, the original aspect ratio will be kept when the random scale is applied.
                            Default: False.
-        rotate_method (str): rotation method used for the bounding boxes. Should be one of "largest_box" or
-            "ellipse"[1].
-            Default: "largest_box"
+        rotate_method (Literal["largest_box", "ellipse"]): rotation method used for the bounding boxes.
+            Should be one of "largest_box" or "ellipse"[1]. Default: "largest_box"
+        balanced_scale (bool): When True, scaling factors are chosen to be either entirely below or above 1,
+                               ensuring balanced scaling. Default: False.
         p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
@@ -593,6 +593,7 @@ class Affine(DualTransform):
         fit_output: Annotated[bool, Field(default=False, description="Adjust output to capture whole image.")]
         keep_ratio: Annotated[bool, Field(default=False, description="Maintain aspect ratio when scaling.")]
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
+        balanced_scale: Annotated[bool, Field(default=False, description="Use balanced scaling.")]
 
     def __init__(
         self,
@@ -609,6 +610,7 @@ class Affine(DualTransform):
         fit_output: bool = False,
         keep_ratio: bool = False,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
+        balanced_scale: bool = False,
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
@@ -637,6 +639,7 @@ class Affine(DualTransform):
         self.shear = self._handle_dict_arg(shear, "shear")
         self.keep_ratio = keep_ratio
         self.rotate_method = rotate_method
+        self.balanced_scale = balanced_scale
 
         if self.keep_ratio and self.scale["x"] != self.scale["y"]:
             raise ValueError(f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}")
@@ -656,6 +659,7 @@ class Affine(DualTransform):
             "cval_mask",
             "keep_ratio",
             "rotate_method",
+            "balanced_scale",
         )
 
     @staticmethod
@@ -701,7 +705,7 @@ class Affine(DualTransform):
         self,
         img: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform,
-        output_shape: Sequence[int],
+        output_shape: SizeType,
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.warp_affine(
@@ -717,7 +721,7 @@ class Affine(DualTransform):
         self,
         mask: np.ndarray,
         matrix: skimage.transform.ProjectiveTransform,
-        output_shape: Sequence[int],
+        output_shape: SizeType,
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.warp_affine(
@@ -760,6 +764,32 @@ class Affine(DualTransform):
     def targets_as_params(self) -> List[str]:
         return ["image"]
 
+    @staticmethod
+    def get_scale(scale: Dict[str, Tuple[float, float]], keep_ratio: bool, balanced_scale: bool) -> Dict[str, float]:
+        result_scale = {}
+        if balanced_scale:
+            for key, value in scale.items():
+                lower_interval = (value[0], 1.0) if value[0] < 1 else None
+                upper_interval = (1.0, value[1]) if value[1] > 1 else None
+
+                if lower_interval is not None and upper_interval is not None:
+                    selected_interval = random.choice([lower_interval, upper_interval])
+                elif lower_interval is not None:
+                    selected_interval = lower_interval
+                elif upper_interval is not None:
+                    selected_interval = upper_interval
+                else:
+                    raise ValueError(f"Both lower_interval and upper_interval are None for key: {key}")
+
+                result_scale[key] = random.uniform(*selected_interval)
+        else:
+            result_scale = {key: random.uniform(*value) for key, value in scale.items()}
+
+        if keep_ratio:
+            result_scale["y"] = result_scale["x"]
+
+        return result_scale
+
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         height, width = params["image"].shape[:2]
 
@@ -775,9 +805,8 @@ class Affine(DualTransform):
 
         # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
         shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
-        scale = {key: random.uniform(*value) for key, value in self.scale.items()}
-        if self.keep_ratio:
-            scale["y"] = scale["x"]
+
+        scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale)
 
         # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
         rotate = -random.uniform(*self.rotate)
@@ -818,8 +847,8 @@ class Affine(DualTransform):
     @staticmethod
     def _compute_affine_warp_output_shape(
         matrix: skimage.transform.ProjectiveTransform,
-        input_shape: Sequence[int],
-    ) -> Tuple[skimage.transform.ProjectiveTransform, Sequence[int]]:
+        input_shape: SizeType,
+    ) -> Tuple[skimage.transform.ProjectiveTransform, SizeType]:
         height, width = input_shape[:2]
 
         if height == 0 or width == 0:
@@ -828,21 +857,25 @@ class Affine(DualTransform):
         # determine shape of output image
         corners = np.array([[0, 0], [0, height - 1], [width - 1, height - 1], [width - 1, 0]])
         corners = matrix(corners)
+
         minc = corners[:, 0].min()
         minr = corners[:, 1].min()
         maxc = corners[:, 0].max()
         maxr = corners[:, 1].max()
+
         out_height = maxr - minr + 1
         out_width = maxc - minc + 1
+
         if len(input_shape) == NUM_MULTI_CHANNEL_DIMENSIONS:
             output_shape = np.ceil((out_height, out_width, input_shape[2]))
         else:
             output_shape = np.ceil((out_height, out_width))
-        output_shape_tuple = tuple([int(v) for v in output_shape.tolist()])
+
+        output_shape_tuple = tuple(int(v) for v in output_shape.tolist())
         # fit output image in new shape
-        translation = (-minc, -minr)
+        translation = -minc, -minr
         matrix_to_fit = skimage.transform.SimilarityTransform(translation=translation)
-        matrix = matrix + matrix_to_fit
+        matrix += matrix_to_fit
         return matrix, output_shape_tuple
 
 

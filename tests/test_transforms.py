@@ -1759,3 +1759,28 @@ def test_gauss_noise(mean, image):
     result = A.Compose([aug])(image=image)
 
     assert not (result["image"] >= image).all()
+
+
+@pytest.mark.parametrize(
+    "scale, keep_ratio, balanced_scale, expected_x_range, expected_y_range",
+    [
+        ({"x": (0.5, 2), "y": (0.5, 2)}, False, True, (0.5, 2), (0.5, 2)),
+        ({"x": (1, 2), "y": (1, 2)}, True, True, (1, 2), (1, 2)),
+        ({"x": (0.5, 1), "y": (0.5, 1)}, True, True, (0.5, 1), (0.5, 1)),
+        ({"x": (0.5, 2), "y": (0.5, 2)}, False, False, (0.5, 2), (0.5, 2)),
+        ({"x": (0.5, 2), "y": (0.5, 2)}, True, False, (0.5, 2), (0.5, 2)),
+    ],
+)
+def test_get_random_scale(scale, keep_ratio, balanced_scale, expected_x_range, expected_y_range):
+    result = A.Affine.get_scale(scale, keep_ratio, balanced_scale)
+
+    assert expected_x_range[0] <= result["x"] <= expected_x_range[1], "x is out of range"
+
+    if keep_ratio:
+        assert result["y"] == result["x"], "y should be equal to x when keep_ratio is True"
+    else:
+        assert expected_y_range[0] <= result["y"] <= expected_y_range[1], "y is out of range"
+
+    if balanced_scale:
+        assert expected_x_range[0] <= result["x"] < 1 or 1 < result["x"] <= expected_x_range[1], "x should be in the balanced range"
+        assert expected_y_range[0] <= result["y"] < 1 or 1 < result["y"] <= expected_x_range[1], "x should be in the balanced range"
