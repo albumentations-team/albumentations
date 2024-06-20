@@ -41,6 +41,7 @@ from albumentations.core.transforms_interface import (
     NoOp,
 )
 from albumentations.core.types import (
+    LENGTH_RAW_BBOX,
     MAX_RAIN_ANGLE,
     MONO_CHANNEL_DIMENSIONS,
     NUM_RGB_CHANNELS,
@@ -3637,7 +3638,7 @@ class OverlayElements(DualTransform):
 
         if "bbox" in metadata:
             bbox = metadata["bbox"]
-            y_min, x_min, y_max, x_max = bbox
+            y_min, x_min, y_max, x_max = bbox[:4]
 
             if "mask" in metadata:
                 mask = metadata["mask"]
@@ -3647,20 +3648,29 @@ class OverlayElements(DualTransform):
 
             overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
             offset = (y_min, x_min)
+
+            if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
+                bbox = [*bbox, metadata["bbox_id"]]
         else:
             mask = np.ones_like(overlay_image, dtype=np.uint8) * 255  # Use the entire image as the mask
             max_y_offset = img_shape[0] - overlay_image.shape[0]
             max_x_offset = img_shape[1] - overlay_image.shape[1]
             offset = (random.randint(0, max_y_offset), random.randint(0, max_x_offset))
+            bbox = [offset[1], offset[0], offset[1] + overlay_image.shape[1], offset[0] + overlay_image.shape[0]]
+            if "bbox_id" in metadata:
+                bbox = [*bbox, metadata["bbox_id"]]
 
-        return {
+        result = {
             "overlay_image": overlay_image,
             "overlay_mask": mask,
             "offset": offset,
-            "mask_id": metadata.get("mask_id"),
-            "label_id": metadata.get("label_id"),
-            "bbox": bbox if "bbox" in metadata else None,
+            "bbox": bbox,
         }
+
+        if "mask_id" in metadata:
+            result["mask_id"] = metadata["mask_id"]
+
+        return result
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         metadata = params["metadata"]

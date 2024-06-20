@@ -1,3 +1,4 @@
+from typing import Any, Dict, Tuple
 import numpy as np
 import pytest
 import math
@@ -6,6 +7,9 @@ import albumentations as A
 from tests.conftest import IMAGES, UINT8_IMAGES
 from tests.utils import set_seed
 from .test_functional_mixing import find_mix_coef
+import random
+from deepdiff import DeepDiff
+
 
 def image_generator():
     yield {"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)}
@@ -223,3 +227,74 @@ def test_pipeline(augmentation_cls, params, image, global_label):
 
     assert math.isclose(mix_coef, mix_coeff_label, abs_tol=0.01)
     assert 0 <= mix_coeff_label <= 1
+
+
+
+# Mock random.randint to produce consistent results
+@pytest.fixture(autouse=True)
+def mock_random(monkeypatch):
+    def mock_randint(start, end):
+        return start  # always return the start value for consistency in tests
+    monkeypatch.setattr(random, "randint", mock_randint)
+
+
+@pytest.mark.parametrize(
+    "metadata, img_shape, expected_output",
+    [
+        (
+            # Image + bbox without label + mask + mask_id + label_id + no offset
+            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+             "bbox": [30, 30, 50, 50],
+             "mask": np.ones((20, 20), dtype=np.uint8) * 127,
+             "mask_id": 1,
+             "bbox_id": 99},
+            (100, 100),
+            {
+                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "overlay_mask": np.ones((20, 20), dtype=np.uint8) * 127,
+                "offset": (30, 30),
+                "mask_id": 1,
+                "bbox": [30, 30, 50, 50, 99],
+            }
+        ),
+        # Image + bbox with label + mask_id + no mask
+        (
+            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255, "bbox": [30, 30, 50, 50, 99], "mask_id": 1},
+            (100, 100),
+            {
+                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "overlay_mask": np.ones((20, 20), dtype=np.uint8),
+                "offset": (30, 30),
+                "mask_id": 1,
+                "bbox": [30, 30, 50, 50, 99],
+            }
+        ),
+        # Image + no bbox, no mask_id, no label_id, no_mask
+        (
+            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255},
+            (100, 100),
+            {
+                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "offset": (0, 0),
+                "bbox": [0, 0, 20, 20],
+            }
+        ),
+        # image + mask_id + label_id + no mask
+        (
+            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255, "mask_id": 1, "bbox_id": 99},
+            (100, 100),
+            {
+                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "offset": (0, 0),
+                "mask_id": 1,
+                "bbox": [0, 0, 20, 20, 99],
+            }
+        ),
+    ]
+)
+def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int], expected_output: Dict[str, Any]):
+    result = A.OverlayElements.preprocess_metadata(metadata, img_shape)
+
+    assert DeepDiff(result, expected_output) == {}
