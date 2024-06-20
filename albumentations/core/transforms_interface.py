@@ -234,8 +234,10 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         """Returns names of arguments that are used in __init__ method of the transform"""
-        msg = f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
-        "method is not implemented"
+        msg = (
+            f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
+            "method is not implemented"
+        )
         raise NotImplementedError(msg)
 
     def get_base_init_args(self) -> Dict[str, Any]:
