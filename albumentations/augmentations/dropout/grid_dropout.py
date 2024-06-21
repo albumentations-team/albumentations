@@ -1,11 +1,13 @@
 import random
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from warnings import warn
 
 import numpy as np
-from pydantic import Field
+from pydantic import Field, model_validator
+from typing_extensions import Self
 
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
-from albumentations.core.types import TWO, ColorType, ScalarType, Targets
+from albumentations.core.types import PAIR, TWO, ColorType, Targets
 
 from . import functional as fdropout
 
@@ -16,25 +18,24 @@ class GridDropout(DualTransform):
     """GridDropout, drops out rectangular regions of an image and the corresponding mask in a grid fashion.
 
     Args:
-        ratio: the ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
+        ratio (float): The ratio of the mask holes to the unit_size (same for horizontal and vertical directions).
             Must be between 0 and 1. Default: 0.5.
-        unit_size_min (int): minimum size of the grid unit. Must be between 2 and the image shorter edge.
-            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-        unit_size_max (int): maximum size of the grid unit. Must be between 2 and the image shorter edge.
-            If 'None', holes_number_x and holes_number_y are used to setup the grid. Default: `None`.
-        holes_number_x (int): the number of grid units in x direction. Must be between 1 and image width//2.
-            If 'None', grid unit width is set as image_width//10. Default: `None`.
-        holes_number_y (int): the number of grid units in y direction. Must be between 1 and image height//2.
-            If `None`, grid unit height is set equal to the grid unit width or image height, whatever is smaller.
-        shift_x (int): offsets of the grid start in x direction from (0,0) coordinate.
-            Clipped between 0 and grid unit_width - hole_width. Default: 0.
-        shift_y (int): offsets of the grid start in y direction from (0,0) coordinate.
-            Clipped between 0 and grid unit height - hole_height. Default: 0.
-        random_offset (boolean): weather to offset the grid randomly between 0 and grid unit size - hole size
-            If 'True', entered shift_x, shift_y are ignored and set randomly. Default: `False`.
-        fill_value (int): value for the dropped pixels. Default = 0
-        mask_fill_value (int): value for the dropped pixels in mask.
-            If `None`, transformation is not applied to the mask. Default: `None`.
+        random_offset (bool): Whether to offset the grid randomly between 0 and grid unit size - hole size.
+            If True, entered shift_x and shift_y are ignored and set randomly. Default: False.
+        fill_value (Optional[ColorType]): Value for the dropped pixels. Default: 0.
+        mask_fill_value (Optional[ColorType]): Value for the dropped pixels in mask.
+            If None, transformation is not applied to the mask. Default: None.
+        unit_size (Optional[Tuple[int, int]]): Size of the grid unit. Default: None.
+             Must be between 2 and the image shorter edge.
+        holes_number_xy (Optional[Tuple[int, int]]): The number of grid units in x and y directions.
+            First value should be between 1 and image width//2,
+            Second value should be between 1 and image height//2.
+            Default: None.
+        shift_xy (Tuple[int, int]): Offsets of the grid start in x and y directions.
+            Offsets of the grid start in x and y directions from (0,0) coordinate.
+            Default: (0, 0).
+
+        p (float): Probability of applying the transform. Default: 0.5.
 
     Targets:
         image, mask
@@ -55,11 +56,44 @@ class GridDropout(DualTransform):
         unit_size_max: Optional[int] = Field(None, description="Maximum size of the grid unit.", ge=2)
         holes_number_x: Optional[int] = Field(None, description="The number of grid units in x direction.", ge=1)
         holes_number_y: Optional[int] = Field(None, description="The number of grid units in y direction.", ge=1)
-        shift_x: int = Field(0, description="Offsets of the grid start in x direction.", ge=0)
-        shift_y: int = Field(0, description="Offsets of the grid start in y direction.", ge=0)
+        shift_x: Optional[int] = Field(0, description="Offsets of the grid start in x direction.", ge=0)
+        shift_y: Optional[int] = Field(0, description="Offsets of the grid start in y direction.", ge=0)
         random_offset: bool = Field(False, description="Whether to offset the grid randomly.")
         fill_value: Optional[ColorType] = Field(0, description="Value for the dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(None, description="Value for the dropped pixels in mask.")
+        unit_size: Optional[Tuple[int, int]] = Field(None, description="Size of the grid unit.")
+        shift_xy: Tuple[int, int] = Field((0, 0), description="Offsets of the grid start in x and y directions.")
+        holes_number_xy: Optional[Tuple[int, int]] = Field(
+            None,
+            description="The number of grid units in x and y directions.",
+        )
+
+        @model_validator(mode="after")
+        def validate_normalization(self) -> Self:
+            if self.unit_size_min is not None and self.unit_size_max is not None:
+                self.unit_size = self.unit_size_min, self.unit_size_max
+                warn(
+                    "unit_size_min and unit_size_max are deprecated. Use unit_size instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
+            if self.shift_x is not None and self.shift_y is not None:
+                self.shift_xy = self.shift_x, self.shift_y
+                warn("shift_x and shift_y are deprecated. Use shift_xy instead.", DeprecationWarning, stacklevel=2)
+
+            if self.holes_number_x is not None and self.holes_number_y is not None:
+                self.holes_number_xy = self.holes_number_x, self.holes_number_y
+                warn(
+                    "holes_number_x and holes_number_y are deprecated. Use holes_number_xy instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+
+            if self.unit_size and self.unit_size[0] < TWO:
+                raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
+
+            return self
 
     def __init__(
         self,
@@ -68,25 +102,25 @@ class GridDropout(DualTransform):
         unit_size_max: Optional[int] = None,
         holes_number_x: Optional[int] = None,
         holes_number_y: Optional[int] = None,
-        shift_x: int = 0,
-        shift_y: int = 0,
+        shift_x: Optional[int] = None,
+        shift_y: Optional[int] = None,
         random_offset: bool = False,
-        fill_value: float = 0,
-        mask_fill_value: Optional[ScalarType] = None,
+        fill_value: ColorType = 0,
+        mask_fill_value: Optional[ColorType] = None,
+        unit_size: Optional[Tuple[int, int]] = None,
+        holes_number_xy: Optional[Tuple[int, int]] = None,
+        shift_xy: Tuple[int, int] = (0, 0),
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply, p)
         self.ratio = ratio
-        self.unit_size_min = unit_size_min
-        self.unit_size_max = unit_size_max
-        self.holes_number_x = holes_number_x
-        self.holes_number_y = holes_number_y
-        self.shift_x = shift_x
-        self.shift_y = shift_y
+        self.unit_size = unit_size
+        self.holes_number_xy = holes_number_xy
         self.random_offset = random_offset
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
+        self.shift_xy = shift_xy
 
     def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], **params: Any) -> np.ndarray:
         return fdropout.cutout(img, holes, self.fill_value)
@@ -113,20 +147,18 @@ class GridDropout(DualTransform):
 
     def _calculate_unit_dimensions(self, width: int, height: int) -> Tuple[int, int]:
         """Calculates the dimensions of the grid units."""
-        if self.unit_size_min is not None and self.unit_size_max is not None:
+        # if self.unit_size_min is not None and self.unit_size_max is not None:
+        if self.unit_size is not None:
             self._validate_unit_sizes(height, width)
-            unit_size = random.randint(self.unit_size_min, self.unit_size_max)
+            unit_size = random.randint(*self.unit_size)
             return unit_size, unit_size
 
         return self._calculate_dimensions_based_on_holes(width, height)
 
     def _validate_unit_sizes(self, height: int, width: int) -> None:
         """Validates the minimum and maximum unit sizes."""
-        if self.unit_size_min is not None and self.unit_size_max is not None:
-            if not TWO <= self.unit_size_min <= self.unit_size_max:
-                msg = "Max unit size should be >= min size, both at least 2 pixels."
-                raise ValueError(msg)
-            if self.unit_size_max > min(height, width):
+        if self.unit_size is not None:
+            if self.unit_size[1] > min(height, width):
                 msg = "Grid size limits must be within the shortest image edge."
                 raise ValueError(msg)
         else:
@@ -135,8 +167,9 @@ class GridDropout(DualTransform):
 
     def _calculate_dimensions_based_on_holes(self, width: int, height: int) -> Tuple[int, int]:
         """Calculates dimensions based on the number of holes specified."""
-        unit_width = self._calculate_dimension(width, self.holes_number_x, 10)
-        unit_height = self._calculate_dimension(height, self.holes_number_y, unit_width)
+        holes_number_x, holes_number_y = self.holes_number_xy or (None, None)
+        unit_width = self._calculate_dimension(width, holes_number_x, 10)
+        unit_height = self._calculate_dimension(height, holes_number_y, unit_width)
         return unit_width, unit_height
 
     def _calculate_dimension(self, dimension: int, holes_number: Optional[int], fallback: int) -> int:
@@ -167,10 +200,14 @@ class GridDropout(DualTransform):
         if self.random_offset:
             shift_x = random.randint(0, unit_width - hole_width)
             shift_y = random.randint(0, unit_height - hole_height)
-        else:
-            shift_x = 0 if self.shift_x is None else min(max(0, self.shift_x), unit_width - hole_width)
-            shift_y = 0 if self.shift_y is None else min(max(0, self.shift_y), unit_height - hole_height)
-        return shift_x, shift_y
+            return shift_x, shift_y
+
+        if isinstance(self.shift_xy, Sequence) and len(self.shift_xy) == PAIR:
+            shift_x = min(max(0, self.shift_xy[0]), unit_width - hole_width)
+            shift_y = min(max(0, self.shift_xy[1]), unit_height - hole_height)
+            return shift_x, shift_y
+
+        return 0, 0
 
     def _generate_holes(
         self,
@@ -201,21 +238,10 @@ class GridDropout(DualTransform):
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "ratio",
-            "unit_size_min",
-            "unit_size_max",
-            "holes_number_x",
-            "holes_number_y",
-            "shift_x",
-            "shift_y",
+            "unit_size",
+            "holes_number_xy",
+            "shift_xy",
             "random_offset",
             "fill_value",
             "mask_fill_value",
         )
-
-    @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
-        return {
-            "image": self.apply,
-            "mask": self.apply_to_mask,
-            "masks": self.apply_to_masks,
-        }
