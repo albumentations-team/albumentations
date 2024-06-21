@@ -68,7 +68,7 @@ TEST_SEEDS = (42, )
         random_offset=True,
         fill_value=10,
         mask_fill_value=20,
-    )
+    ),
         },
         except_augmentations={
             A.FDA,
@@ -76,8 +76,9 @@ TEST_SEEDS = (42, )
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
-            A.MixUp
+            A.MixUp,
         },
+
     ),
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -460,8 +461,9 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Morphological, {}],
     [A.D4, {}],
-    [A.PlanckianJitter, {}]
-
+    [A.PlanckianJitter, {}],
+    [A.OverlayElements, {}],
+    [A.RandomCropNearBBox, {}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -469,7 +471,6 @@ AUGMENTATION_CLS_EXCEPT = {
     A.HistogramMatching,
     A.PixelDistributionAdaptation,
     A.Lambda,
-    A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
     A.TemplateTransform,
@@ -492,9 +493,28 @@ def test_augmentations_serialization_with_custom_parameters(
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
-    aug_data = aug(image=image, mask=mask)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "metadata": [],
+            "mask": mask
+        }
+    elif augmentation_cls == A.RandomCropNearBBox:
+        data = {
+            "image": image,
+            "cropping_bbox": [10, 20, 40, 50],
+            "mask": mask
+        }
+    else:
+        data = {
+            "image": image,
+            "mask": mask,
+        }
+
+    aug_data = aug(**data)
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+    deserialized_aug_data = deserialized_aug(**data)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
@@ -516,10 +536,29 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         filepath = f"serialized.{data_format}"
         A.save(aug, filepath, data_format=data_format)
         deserialized_aug = A.load(filepath, data_format=data_format)
+
+        if augmentation_cls == A.OverlayElements:
+            data = {
+                "image": image,
+                "metadata": [],
+                "mask": mask
+            }
+        elif augmentation_cls == A.RandomCropNearBBox:
+            data = {
+                "image": image,
+                "cropping_bbox": [10, 20, 40, 50],
+                "mask": mask
+            }
+        else:
+            data = {
+                "image": image,
+                "mask": mask,
+            }
+
         set_seed(seed)
-        aug_data = aug(image=image, mask=mask)
+        aug_data = aug(**data)
         set_seed(seed)
-        deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+        deserialized_aug_data = deserialized_aug(**data)
         assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
         assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
@@ -559,7 +598,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.MixUp,
             A.CropNonEmptyMaskIfExists,
             A.GridDropout,
-            A.Morphological
+            A.Morphological,
+            A.OverlayElements
         },
     ),
 )
@@ -623,7 +663,8 @@ def test_augmentations_for_bboxes_serialization(
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
             A.MixUp,
-            A.Morphological
+            A.Morphological,
+            A.OverlayElements
         },
     ),
 )

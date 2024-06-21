@@ -126,7 +126,7 @@ def test_image_only_augmentations(augmentation_cls, params):
             },
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
@@ -134,7 +134,10 @@ def test_dual_augmentations(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
     aug = A.Compose([augmentation_cls(p=1, **params)])
-    data = aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        data = aug(image=image, mask=mask, metadata=[])
+    else:
+        data = aug(image=image, mask=mask)
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
 
@@ -167,7 +170,7 @@ def test_dual_augmentations(augmentation_cls, params):
             }
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
@@ -175,7 +178,11 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image.copy()[:, :, 0].astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        data = aug(image=image, mask=mask, metadata=[])
+    else:
+        data = aug(image=image, mask=mask)
+
     assert data["image"].dtype == np.float32
     assert data["mask"].dtype == np.uint8
 
@@ -224,7 +231,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
             }
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
@@ -234,7 +241,10 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     image_copy = image.copy()
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
-    aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        aug(image=image, mask=mask, metadata=[])
+    else:
+        aug(image=image, mask=mask)
     assert np.array_equal(image, image_copy)
     assert np.array_equal(mask, mask_copy)
 
@@ -290,7 +300,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
             A.ISONoise,
             A.Posterize,
             A.RandomToneCurve,
-            A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
@@ -301,8 +310,13 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
 def test_augmentations_wont_change_float_input(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     float_image_copy = image.copy()
+
     aug = augmentation_cls(p=1, **params)
-    aug(image=image)
+    if augmentation_cls == A.OverlayElements:
+        aug(image=image, metadata=[])
+    else:
+        aug(image=image)
+
     assert np.array_equal(image, float_image_copy)
 
 
@@ -361,7 +375,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomGravel,
             A.RandomRain,
             A.RandomScale,
-            A.RandomShadow,
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToRGB,
@@ -382,10 +395,21 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     # Test for grayscale image
     image = np.zeros(shape, dtype=np.uint8)
     mask = np.zeros(shape)
-    result = aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "metadata": [],
+            "mask": mask,
+        }
+    else:
+        data = {
+            "image": image,
+            "mask": mask,
+        }
+    result = aug(**data)
+
     assert np.array_equal(image.shape, result["image"].shape)
     assert np.array_equal(mask.shape, result["mask"].shape)
-
 
 
 @pytest.mark.parametrize(
@@ -449,7 +473,19 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
 
     aug = augmentation_cls(p=1, **params)
 
-    result = aug(image=image_3ch, mask=mask_3ch)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image_3ch,
+            "metadata": [],
+            "mask": mask_3ch,
+        }
+    else:
+        data = {
+            "image": image_3ch,
+            "mask": mask_3ch,
+        }
+    result = aug(**data)
+
     assert np.array_equal(image_3ch.shape, result["image"].shape)
     assert np.array_equal(mask_3ch.shape, result["mask"].shape)
 
@@ -541,7 +577,6 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -561,7 +596,17 @@ def test_mask_fill_value(augmentation_cls, params):
 def test_multichannel_image_augmentations(augmentation_cls, params):
     image = SQUARE_MULTI_UINT8_IMAGE
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
     assert data["image"].dtype == np.uint8
     assert data["image"].shape[2] == image.shape[-1]
 
@@ -619,7 +664,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -639,11 +683,21 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     ),
 )
 def test_float_multichannel_image_augmentations(augmentation_cls, params):
-    image = np.zeros((100, 100, 5), dtype=np.float32)
+    image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
+
     assert data["image"].dtype == np.float32
-    assert data["image"].shape[2] == 5
+    assert data["image"].shape[-1] == image.shape[-1]
 
 
 @pytest.mark.parametrize(
@@ -690,7 +744,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -710,13 +763,23 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
     ),
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
-    num_channels = 5
+    image = SQUARE_MULTI_UINT8_IMAGE
 
-    image = np.zeros((100, 100, num_channels), dtype=np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
+
     assert data["image"].dtype == np.uint8
-    assert data["image"].shape[2] == num_channels
+    assert data["image"].shape[-1] == image.shape[-1]
 
 
 @pytest.mark.parametrize(
@@ -764,7 +827,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -786,13 +848,22 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     ),
 )
 def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
-    num_channels = 5
-
-    image = np.zeros((100, 100, num_channels), dtype=np.float32)
+    image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
+
     assert data["image"].dtype == np.float32
-    assert data["image"].shape[2] == num_channels
+    assert data["image"].shape[2] == image.shape[-1]
 
 
 @pytest.mark.parametrize(
@@ -1059,6 +1130,10 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         # requires "bboxes" arg
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
         aug(image=image, mask=mask, bboxes=bboxes)
+    elif augmentation_cls == A.OverlayElements:
+        # requires "metadata" arg
+        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug(image=image, metadata=[], mask=mask)
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:

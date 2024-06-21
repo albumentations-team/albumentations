@@ -168,9 +168,20 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
 def test_binary_mask_interpolation(augmentation_cls, params):
     """Checks whether transformations based on DualTransform does not introduce a mask interpolation artifacts"""
     aug = augmentation_cls(p=1, **params)
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
-    data = aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "mask": mask,
+            "metadata": []
+        }
+    else:
+        data = {
+            "image": image,
+            "mask": mask,
+        }
+    data = aug(**data)
     assert np.array_equal(np.unique(data["mask"]), np.array([0, 1]))
 
 
@@ -194,7 +205,8 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.CropAndPad,
             A.PixelDropout,
             A.MixUp,
-            A.XYMasking
+            A.XYMasking,
+            A.OverlayElements
         },
     ),
 )
@@ -246,7 +258,8 @@ def __test_multiprocessing_support_proc(args):
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
-            A.MixUp
+            A.MixUp,
+            A.OverlayElements
         },
     ),
 )
@@ -1382,7 +1395,19 @@ def test_change_image(augmentation_cls, params):
     """Checks whether transform performs changes to the image."""
     aug = A.Compose([augmentation_cls(p=1, **params)])
     image = SQUARE_UINT8_IMAGE
-    assert not np.array_equal(aug(image=image)["image"], image)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "metadata": {
+                "image": clip(SQUARE_UINT8_IMAGE + 2, image.dtype),
+                "bbox": (10, 20, 30, 40)
+            }
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    assert not np.array_equal(aug(**data)["image"], image)
 
 
 @pytest.mark.parametrize(
@@ -1436,7 +1461,8 @@ def test_change_image(augmentation_cls, params):
             A.ChromaticAberration,
             A.RandomRotate90,
             A.FancyPCA,
-            A.PlanckianJitter
+            A.PlanckianJitter,
+            A.OverlayElements
         },
     ),
 )
@@ -1450,7 +1476,9 @@ def test_selective_channel(augmentation_cls: BasicTransform, params: Dict[str, A
         [A.SelectiveChannelTransform(transforms=[augmentation_cls(**params, p=1)], channels=channels, p=1)],
     )
 
-    transformed_image = aug(image=image)["image"]
+    data = {"image": image}
+
+    transformed_image = aug(**data)["image"]
 
     for channel in range(image.shape[-1]):
         if channel in channels:
@@ -1581,22 +1609,23 @@ def test_random_snow_invalid_input(params):
             },
         },
         except_augmentations={
-        #     A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
+            A.RandomCropNearBBox,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
             A.FDA,
             A.HistogramMatching,
             A.PixelDistributionAdaptation,
             A.MaskDropout,
-            A.MixUp
+            A.MixUp,
+            A.OverlayElements
         },
     ),
 )
 def test_dual_transforms_methods(augmentation_cls, params):
     """Checks whether transformations based on DualTransform dont has abstract methods."""
     aug = augmentation_cls(p=1, **params)
-    image = np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=4, size=(100, 100), dtype=np.uint8) * 64
 
     arg = {

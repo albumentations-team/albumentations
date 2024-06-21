@@ -3620,6 +3620,35 @@ class PlanckianJitter(ImageOnlyTransform):
 
 
 class OverlayElements(DualTransform):
+    """Apply overlay elements such as images and masks onto an input image. This transformation can be used to add
+    various objects (e.g., stickers, logos) to images with optional masks and bounding boxes for better placement
+    control.
+
+    Args:
+        p (float): Probability of applying the transformation. Default: 0.5.
+
+    Possible Metadata Fields:
+        - image (np.ndarray): The overlay image to be applied. This is a required field.
+        - bbox (List[int]): The bounding box specifying the region where the overlay should be applied. It should
+                            contain four integers: [y_min, x_min, y_max, x_max]. If `label_id` is provided, it should
+                            be appended as the fifth element in the bbox.
+        - mask (np.ndarray): An optional mask that defines the non-rectangular region of the overlay image. If not
+                             provided, the entire overlay image is used.
+        - mask_id (int): An optional identifier for the mask. If provided, the regions specified by the mask will
+                         be labeled with this identifier in the output mask.
+        - bbox_id (int): An optional identifier for the bounding box. If provided and bbox length is 4, it will be
+                         appended to the bbox as the fifth element.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
+
     def __init__(
         self,
         p: float = 0.5,
@@ -3716,3 +3745,6 @@ class OverlayElements(DualTransform):
                 mask_section[overlay_mask > 0] = mask_id
 
         return mask
+
+    def get_transform_init_args_names(self) -> Tuple[()]:
+        return ()
