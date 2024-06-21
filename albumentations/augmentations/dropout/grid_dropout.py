@@ -3,9 +3,10 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from warnings import warn
 
 import numpy as np
-from pydantic import Field, model_validator
-from typing_extensions import Self
+from pydantic import AfterValidator, Field, model_validator
+from typing_extensions import Annotated, Self
 
+from albumentations.core.pydantic import check_0plus
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import PAIR, TWO, ColorType, Targets
 
@@ -52,18 +53,28 @@ class GridDropout(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         ratio: float = Field(description="The ratio of the mask holes to the unit_size.", ge=0, le=1)
+
         unit_size_min: Optional[int] = Field(None, description="Minimum size of the grid unit.", ge=2)
         unit_size_max: Optional[int] = Field(None, description="Maximum size of the grid unit.", ge=2)
+
         holes_number_x: Optional[int] = Field(None, description="The number of grid units in x direction.", ge=1)
         holes_number_y: Optional[int] = Field(None, description="The number of grid units in y direction.", ge=1)
+
         shift_x: Optional[int] = Field(0, description="Offsets of the grid start in x direction.", ge=0)
         shift_y: Optional[int] = Field(0, description="Offsets of the grid start in y direction.", ge=0)
+
         random_offset: bool = Field(False, description="Whether to offset the grid randomly.")
         fill_value: Optional[ColorType] = Field(0, description="Value for the dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(None, description="Value for the dropped pixels in mask.")
-        unit_size: Optional[Tuple[int, int]] = Field(None, description="Size of the grid unit.")
-        shift_xy: Tuple[int, int] = Field((0, 0), description="Offsets of the grid start in x and y directions.")
-        holes_number_xy: Optional[Tuple[int, int]] = Field(
+        unit_size_limit: Optional[Annotated[Tuple[int, int], AfterValidator(check_0plus)]] = Field(
+            None,
+            description="Size of the grid unit.",
+        )
+        shift_xy: Annotated[Tuple[int, int], AfterValidator(check_0plus)] = Field(
+            (0, 0),
+            description="Offsets of the grid start in x and y directions.",
+        )
+        holes_number_xy: Optional[Annotated[Tuple[int, int], AfterValidator(check_0plus)]] = Field(
             None,
             description="The number of grid units in x and y directions.",
         )
@@ -71,7 +82,7 @@ class GridDropout(DualTransform):
         @model_validator(mode="after")
         def validate_normalization(self) -> Self:
             if self.unit_size_min is not None and self.unit_size_max is not None:
-                self.unit_size = self.unit_size_min, self.unit_size_max
+                self.unit_size_limit = self.unit_size_min, self.unit_size_max
                 warn(
                     "unit_size_min and unit_size_max are deprecated. Use unit_size instead.",
                     DeprecationWarning,
@@ -90,7 +101,7 @@ class GridDropout(DualTransform):
                     stacklevel=2,
                 )
 
-            if self.unit_size and self.unit_size[0] < TWO:
+            if self.unit_size_limit and not TWO <= self.unit_size_limit[0] <= self.unit_size_limit[1]:
                 raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
 
             return self
@@ -147,7 +158,7 @@ class GridDropout(DualTransform):
 
     def _calculate_unit_dimensions(self, width: int, height: int) -> Tuple[int, int]:
         """Calculates the dimensions of the grid units."""
-        # if self.unit_size_min is not None and self.unit_size_max is not None:
+        # if self.unit_size is not None and self.unit_size is not None:
         if self.unit_size is not None:
             self._validate_unit_sizes(height, width)
             unit_size = random.randint(*self.unit_size)
@@ -172,7 +183,8 @@ class GridDropout(DualTransform):
         unit_height = self._calculate_dimension(height, holes_number_y, unit_width)
         return unit_width, unit_height
 
-    def _calculate_dimension(self, dimension: int, holes_number: Optional[int], fallback: int) -> int:
+    @staticmethod
+    def _calculate_dimension(dimension: int, holes_number: Optional[int], fallback: int) -> int:
         """Helper function to calculate unit width or height."""
         if holes_number is None:
             return max(2, dimension // fallback)
@@ -238,7 +250,7 @@ class GridDropout(DualTransform):
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "ratio",
-            "unit_size",
+            "unit_size_limit",
             "holes_number_xy",
             "shift_xy",
             "random_offset",
