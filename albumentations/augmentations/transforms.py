@@ -3725,7 +3725,8 @@ class OverlayElements(DualTransform):
             if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
                 bbox = [*bbox, metadata["bbox_id"]]
         else:
-            mask = np.ones_like(overlay_image, dtype=np.uint8)  # Use the entire image as the mask
+            mask = metadata["mask"] if "mask" in metadata else np.ones_like(overlay_image, dtype=np.uint8)
+
             max_y_offset = img_shape[0] - overlay_image.shape[0]
             max_x_offset = img_shape[1] - overlay_image.shape[1]
             offset = (random.randint(0, max_y_offset), random.randint(0, max_x_offset))
