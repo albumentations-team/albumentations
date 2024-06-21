@@ -657,12 +657,12 @@ def test_grid_dropout_mask(image):
         (0.00004, None, (2, 100), (0, 0)),
     ],
 )
-def test_grid_dropout_params(ratio, holes_number_xy, unit_size, shift_xy):
+def test_grid_dropout_params(ratio, holes_number_xy, unit_size_limit, shift_xy):
     img = np.random.randint(0, 256, [256, 320], np.uint8)
 
     aug = A.GridDropout(
         ratio=ratio,
-        unit_size=unit_size,
+        unit_size_limit=unit_size_limit,
         holes_number_xy=holes_number_xy,
         shift_xy=shift_xy,
         random_offset=False,
@@ -678,14 +678,14 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size, shift_xy):
     assert len(holes[0]) == 4
     # check grid offsets
     if shift_xy:
-        assert holes[0] == shift_xy
+        assert holes[0][:2] == shift_xy
 
     else:
         assert holes[0] == (0, 0)
 
     # for grid set with limits
-    if unit_size:
-        assert max(1, unit_size[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size[1] * ratio), 256)
+    if unit_size_limit:
+        assert max(1, unit_size_limit[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_limit[1] * ratio), 256)
     elif holes_number_xy:
         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_xy[0]))
         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_xy[1]))
@@ -705,7 +705,7 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size, shift_xy):
     ({"ratio": 0.3}, {"ratio": 0.3}),
     ({"shift_x": 1, "shift_y": 2}, {"shift_xy": (1, 2)}),
     ({"unit_size_min": 10, "unit_size_max": 20}, {"unit_size_limit": (10, 20)}),
-    ({"unit_size": (10, 20)}, {"unit_size_limit": (10, 20)}),
+    ({"unit_size_limit": (10, 20)}, {"unit_size_limit": (10, 20)}),
     ({"holes_number_x": 10, "holes_number_y": 20}, {"holes_number_xy": (10, 20)}),
     ({"holes_number_xy": (5, 5)}, {"holes_number_xy": (5, 5)}),
     ({"shift_xy": (5, 5)}, {"shift_xy": (5, 5)}),
@@ -751,7 +751,7 @@ def test_grid_dropout_holes_generation(params, expected_holes):
 
 @pytest.mark.parametrize("params", [
     # Test invalid shift values
-    ({"shift_xy": (100, 100), "unit_size": (10, 10), "ratio": 0.5}),
+    ({"shift_xy": (100, 100), "unit_size_limit": (10, 10), "ratio": 0.5}),
 ])
 def test_grid_dropout_invalid_shift(params):
     with pytest.raises(ValueError):
@@ -768,7 +768,6 @@ def test_grid_dropout_invalid_shift(params):
 )
 def test_unsharp_mask_limits(blur_limit, sigma, result_blur, result_sigma):
     img = np.zeros([100, 100, 3], dtype=np.uint8)
-
     aug = A.Compose([A.UnsharpMask(blur_limit=blur_limit, sigma_limit=sigma, p=1)])
 
     res = aug(image=img)["image"]

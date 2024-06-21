@@ -85,6 +85,7 @@ THREE_SIXTY = 360
 
 BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]
 MAX_RAIN_ANGLE = 45  # Maximum angle for rain augmentation in degrees
+MIN_UNIT_SIZE = 2
 
 
 PercentType = Union[
