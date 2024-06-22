@@ -126,7 +126,7 @@ class GridDropout(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.ratio = ratio
         self.unit_size_range = unit_size_range
         self.holes_number_xy = holes_number_xy

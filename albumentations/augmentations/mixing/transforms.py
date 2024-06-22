@@ -123,7 +123,7 @@ class MixUp(ReferenceBasedTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.mix_coef_return_name = mix_coef_return_name
 
         self.read_fn = read_fn
