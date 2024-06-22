@@ -129,7 +129,7 @@ class ElasticTransform(DualTransform):
         same_dxdy: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.alpha = alpha
         self.alpha_affine = alpha_affine
         self.sigma = sigma
@@ -285,7 +285,7 @@ class Perspective(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.scale = cast(Tuple[float, float], scale)
         self.keep_size = keep_size
         self.pad_mode = pad_mode
@@ -621,7 +621,7 @@ class Affine(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
 
         params = [scale, translate_percent, translate_px, rotate, shear]
         if all(p is None for p in params):
@@ -1121,7 +1121,7 @@ class PiecewiseAffine(DualTransform):
         keypoints_threshold: float = 0.01,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
 
         warn(
             "This augmenter is very slow. Try to use ``ElasticTransformation`` instead, which is at least 10x faster.",
@@ -1354,7 +1354,7 @@ class PadIfNeeded(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.min_height = min_height
         self.min_width = min_width
         self.pad_width_divisor = pad_width_divisor
@@ -1715,7 +1715,7 @@ class OpticalDistortion(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.shift_limit = cast(Tuple[float, float], shift_limit)
         self.distort_limit = cast(Tuple[float, float], distort_limit)
         self.interpolation = interpolation
@@ -1856,7 +1856,7 @@ class GridDistortion(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
 
         self.num_steps = num_steps
         self.distort_limit = cast(Tuple[float, float], distort_limit)
@@ -2017,7 +2017,7 @@ class D4(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
 
     def apply(self, img: np.ndarray, group_element: D4Type, **params: Any) -> np.ndarray:
         return fgeometric.d4(img, group_element)

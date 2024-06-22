@@ -68,8 +68,8 @@ class Blur(ImageOnlyTransform):
     class InitSchema(BlurInitSchema):
         pass
 
-    def __init__(self, blur_limit: ScaleIntType = 7, always_apply: Optional[bool] = None, p: float = 0.5):
-        super().__init__(always_apply, p)
+    def __init__(self, blur_limit: ScaleIntType = 7, p: float = 0.5, always_apply: Optional[bool] = None):
+        super().__init__(p, always_apply)
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
@@ -126,7 +126,7 @@ class MotionBlur(Blur):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(blur_limit=blur_limit, always_apply=always_apply, p=p)
+        super().__init__(blur_limit=blur_limit, p=p, always_apply=always_apply)
         self.allow_shifted = allow_shifted
         self.blur_limit = cast(Tuple[int, int], blur_limit)
 
@@ -191,8 +191,8 @@ class MedianBlur(Blur):
 
     """
 
-    def __init__(self, blur_limit: ScaleIntType = 7, always_apply: Optional[bool] = None, p: float = 0.5):
-        super().__init__(blur_limit, always_apply, p)
+    def __init__(self, blur_limit: ScaleIntType = 7, p: float = 0.5, always_apply: Optional[bool] = None):
+        super().__init__(blur_limit, p, always_apply)
 
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
         return fblur.median_blur(img, kernel)
@@ -257,7 +257,7 @@ class GaussianBlur(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.blur_limit = cast(Tuple[int, int], blur_limit)
         self.sigma_limit = cast(Tuple[float, float], sigma_limit)
 
@@ -313,7 +313,7 @@ class GlassBlur(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.sigma = sigma
         self.max_delta = max_delta
         self.iterations = iterations
@@ -434,7 +434,7 @@ class AdvancedBlur(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
 
         if sigmaX_limit is not None:
             warnings.warn("sigmaX_limit is deprecated; use sigma_x_limit instead.", DeprecationWarning, stacklevel=2)
@@ -529,7 +529,7 @@ class Defocus(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.radius = cast(Tuple[int, int], radius)
         self.alias_blur = cast(Tuple[float, float], alias_blur)
 
@@ -579,7 +579,7 @@ class ZoomBlur(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.max_factor = cast(Tuple[float, float], max_factor)
         self.step_factor = cast(Tuple[float, float], step_factor)
 

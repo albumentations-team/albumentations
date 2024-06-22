@@ -60,7 +60,7 @@ class MaskDropout(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.max_objects = cast(Tuple[int, int], max_objects)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
