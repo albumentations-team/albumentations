@@ -600,8 +600,7 @@ def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List
 @preserve_channel_dim
 def add_sun_flare(
     img: np.ndarray,
-    flare_center_x: float,
-    flare_center_y: float,
+    flare_center: Tuple[float, float],
     src_radius: int,
     src_color: ColorType,
     circles: List[Any],
@@ -610,8 +609,7 @@ def add_sun_flare(
 
     Args:
         img (np.ndarray): The input image.
-        flare_center_x (float): The x-coordinate of the flare center.
-        flare_center_y (float): The y-coordinate of the flare center.
+        flare_center (Tuple[float, float]): (x, y) coordinates of the flare center
         src_radius (int): The radius of the source of the flare.
         src_color (ColorType): The color of the flare, represented as a tuple of RGB values.
         circles (List[Any]): A list of tuples, each representing a circle that contributes to the flare effect.
@@ -639,7 +637,7 @@ def add_sun_flare(
         cv2.circle(overlay, (x, y), rad3, (r_color, g_color, b_color), -1)
         output = add_weighted(overlay, alpha, output, 1 - alpha)
 
-    point = (int(flare_center_x), int(flare_center_y))
+    point = [int(x) for x in flare_center]
 
     overlay = output.copy()
     num_times = src_radius // 10
