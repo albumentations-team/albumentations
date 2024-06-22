@@ -6,7 +6,7 @@ import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Self
 
-from albumentations.core.pydantic import check_0plus, check_1plus
+from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import MIN_UNIT_SIZE, PAIR, ColorType, Targets
 
@@ -66,7 +66,9 @@ class GridDropout(DualTransform):
         random_offset: bool = Field(False, description="Whether to offset the grid randomly.")
         fill_value: Optional[ColorType] = Field(0, description="Value for the dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(None, description="Value for the dropped pixels in mask.")
-        unit_size_range: Optional[Annotated[Tuple[int, int], AfterValidator(check_0plus)]] = Field(
+        unit_size_range: Optional[
+            Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
+        ] = Field(
             None,
             description="Size of the grid unit.",
         )
