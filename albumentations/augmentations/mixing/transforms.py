@@ -3,17 +3,19 @@ import types
 from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
+import cv2
 import numpy as np
 from albucore.functions import add_weighted
 from albucore.utils import is_grayscale_image
 from pydantic import Field
 from typing_extensions import Annotated
 
+from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
-from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
+from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, Targets
 from albumentations.random_utils import beta
 
-__all__ = ["MixUp"]
+__all__ = ["MixUp", "OverlayElements"]
 
 
 class MixUp(ReferenceBasedTransform):
@@ -25,7 +27,7 @@ class MixUp(ReferenceBasedTransform):
     smoothing decision boundaries.
 
     Reference:
-        Zhang, H., Cisse, M., Dauphin, Y.N., and Lopez-Paz, D. (2018). mixup: Beyond Empirical Risk Minimization.
+        - Zhang, H., Cisse, M., Dauphin, Y.N., and Lopez-Paz, D. (2018). mixup: Beyond Empirical Risk Minimization.
         In International Conference on Learning Representations. https://arxiv.org/abs/1710.09412
 
     Args:
@@ -222,3 +224,135 @@ class MixUp(ReferenceBasedTransform):
         if self.mix_coef_return_name:
             res[self.mix_coef_return_name] = params["mix_coef"]
         return res
+
+
+class OverlayElements(ReferenceBasedTransform):
+    """Apply overlay elements such as images and masks onto an input image. This transformation can be used to add
+    various objects (e.g., stickers, logos) to images with optional masks and bounding boxes for better placement
+    control.
+
+    Args:
+        p (float): Probability of applying the transformation. Default: 0.5.
+
+    Possible Metadata Fields:
+        - image (np.ndarray): The overlay image to be applied. This is a required field.
+        - bbox (List[int]): The bounding box specifying the region where the overlay should be applied. It should
+                            contain four integers: [y_min, x_min, y_max, x_max]. If `label_id` is provided, it should
+                            be appended as the fifth element in the bbox.
+        - mask (np.ndarray): An optional mask that defines the non-rectangular region of the overlay image. If not
+                             provided, the entire overlay image is used.
+        - mask_id (int): An optional identifier for the mask. If provided, the regions specified by the mask will
+                         be labeled with this identifier in the output mask.
+        - bbox_id (int): An optional identifier for the bounding box. If provided and bbox length is 4, it will be
+                         appended to the bbox as the fifth element.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
+
+    def __init__(
+        self,
+        p: float = 0.5,
+    ):
+        super().__init__(always_apply=None, p=p)
+
+    @property
+    def targets_as_params(self) -> List[str]:
+        return ["metadata", "image"]
+
+    @staticmethod
+    def preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int]) -> Dict[str, Any]:
+        overlay_image = metadata["image"]
+
+        if "bbox" in metadata:
+            bbox = metadata["bbox"]
+            y_min, x_min, y_max, x_max = bbox[:4]
+
+            if "mask" in metadata:
+                mask = metadata["mask"]
+                mask = cv2.resize(mask, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_NEAREST)
+            else:
+                mask = np.ones((y_max - y_min, x_max - x_min), dtype=np.uint8)
+
+            overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
+            offset = (y_min, x_min)
+
+            if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
+                bbox = [*bbox, metadata["bbox_id"]]
+        else:
+            mask = metadata["mask"] if "mask" in metadata else np.ones_like(overlay_image, dtype=np.uint8)
+
+            max_y_offset = img_shape[0] - overlay_image.shape[0]
+            max_x_offset = img_shape[1] - overlay_image.shape[1]
+            offset = (random.randint(0, max_y_offset), random.randint(0, max_x_offset))
+            bbox = [offset[1], offset[0], offset[1] + overlay_image.shape[1], offset[0] + overlay_image.shape[0]]
+            if "bbox_id" in metadata:
+                bbox = [*bbox, metadata["bbox_id"]]
+
+        result = {
+            "overlay_image": overlay_image,
+            "overlay_mask": mask,
+            "offset": offset,
+            "bbox": bbox,
+        }
+
+        if "mask_id" in metadata:
+            result["mask_id"] = metadata["mask_id"]
+
+        return result
+
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        metadata = params["metadata"]
+        img_shape = params["image"].shape
+
+        if isinstance(metadata, list):
+            overlay_data = [self.preprocess_metadata(md, img_shape) for md in metadata]
+        else:
+            overlay_data = [self.preprocess_metadata(metadata, img_shape)]
+
+        return {
+            "overlay_data": overlay_data,
+        }
+
+    def apply(
+        self,
+        img: np.ndarray,
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> np.ndarray:
+        for data in overlay_data:
+            overlay_image = data["overlay_image"]
+            overlay_mask = data["overlay_mask"]
+            offset = data["offset"]
+            img = fmixing.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=offset)
+        return img
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> np.ndarray:
+        for data in overlay_data:
+            if "mask_id" in data and data["mask_id"] is not None:
+                overlay_mask = data["overlay_mask"]
+                offset = data["offset"]
+                mask_id = data["mask_id"]
+
+                y_min, x_min = offset
+                y_max = y_min + overlay_mask.shape[0]
+                x_max = x_min + overlay_mask.shape[1]
+
+                mask_section = mask[y_min:y_max, x_min:x_max]
+                mask_section[overlay_mask > 0] = mask_id
+
+        return mask
+
+    def get_transform_init_args_names(self) -> Tuple[()]:
+        return ()
