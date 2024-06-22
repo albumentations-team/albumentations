@@ -1835,3 +1835,48 @@ def test_get_random_scale(scale, keep_ratio, balanced_scale, expected_x_range, e
     if balanced_scale:
         assert expected_x_range[0] <= result["x"] < 1 or 1 < result["x"] <= expected_x_range[1], "x should be in the balanced range"
         assert expected_y_range[0] <= result["y"] < 1 or 1 < result["y"] <= expected_x_range[1], "x should be in the balanced range"
+
+
+@pytest.mark.parametrize("params, expected", [
+    # Test default initialization values
+    ({}, {
+        "flare_roi": (0, 0, 1, 0.5),
+        "angle_range": (0, 1),
+        "num_flare_circles_range": (6, 10),
+        "src_radius": 400,
+        "src_color": (255, 255, 255)
+    }),
+    # Test custom initialization values
+    ({"flare_roi": (0.2, 0.3, 0.8, 0.9)}, {"flare_roi": (0.2, 0.3, 0.8, 0.9)}),
+    ({"angle_range": (0.3, 0.7)}, {"angle_range": (0.3, 0.7)}),
+    ({"angle_lower": 0.3, "angle_upper":0.7 }, {"angle_range": (0.3, 0.7)}),
+    ({"num_flare_circles_range": (4, 8)}, {"num_flare_circles_range": (4, 8)}),
+    ({"num_flare_circles_lower": 4, "num_flare_circles_upper": 8}, {"num_flare_circles_range": (4, 8)}),
+    ({"src_radius": 500}, {"src_radius": 500}),
+    ({"src_color": (200, 200, 200)}, {"src_color": (200, 200, 200)}),
+    ({"angle_lower": 0.2}, {"angle_range": (0.2, 1)}),
+    ({"angle_upper": 0.8}, {"angle_range": (0, 0.8)}),
+    ({"num_flare_circles_lower": 5}, {"num_flare_circles_range": (5, 10)}),
+    ({"num_flare_circles_upper": 9}, {"num_flare_circles_range": (6, 9)}),
+])
+def test_random_sun_flare_initialization(params, expected):
+    img_flare = A.RandomSunFlare(**params)
+    for key, value in expected.items():
+        assert getattr(img_flare, key) == value, f"Failed on {key} with value {value}"
+
+@pytest.mark.parametrize("params", [
+    ({"flare_roi": (1.2, 0.2, 0.8, 0.9)}),  # Invalid flare_roi -> x_min out of bounds
+    ({"flare_roi": (0.2, -0.1, 0.8, 0.9)}),  # Invalid flare_roi -> y_min out of bounds
+    ({"flare_roi": (0.2, 0.3, 1.2, 0.9)}),  # Invalid flare_roi -> x_max out of bounds
+    ({"flare_roi": (0.2, 0.3, 0.8, 1.1)}),  # Invalid flare_roi -> y_max out of bounds
+    ({"flare_roi": (0.8, 0.2, 0.4, 0.9)}),  # Invalid flare_roi -> x_min > x_max
+    ({"flare_roi": (0.2, 0.9, 0.8, 0.3)}),  # Invalid flare_roi -> y_min > y_max
+    ({"angle_range": (1.2, 0.5)}),  # Invalid angle range -> angle_upper out of bounds
+    ({"angle_range": (0.5, 1.2)}),  # Invalid angle range -> angle_upper out of bounds
+    ({"angle_range": (0.7, 0.5)}),  # Invalid angle range -> non-decreasing
+    ({"num_flare_circles_range": (12, 8)}),  # Invalid num_flare_circles_range -> non-decreasing
+    ({"num_flare_circles_range": (-1, 6)}),  # Invalid num_flare_circles_range -> lower bound negative
+])
+def test_random_sun_flare_invalid_input(params):
+    with pytest.raises(ValueError):
+        A.RandomSunFlare(**params)

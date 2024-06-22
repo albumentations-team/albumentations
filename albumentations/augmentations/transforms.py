@@ -939,26 +939,23 @@ class RandomSunFlare(ImageOnlyTransform):
     """Simulates Sun Flare for the image
 
     Args:
-        flare_roi: region of the image where flare will appear (x_min, y_min, x_max, y_max).
-            All values should be in range [0, 1].
-        angle_lower: should be in range [0, `angle_upper`].
-        angle_upper: should be in range [`angle_lower`, 1].
-        num_flare_circles_lower: lower limit for the number of flare circles.
-            Should be in range [0, `num_flare_circles_upper`].
-        num_flare_circles_upper: upper limit for the number of flare circles.
-            Should be in range [`num_flare_circles_lower`, inf].
-        src_radius:
-        src_color: color of the flare
+        flare_roi (Tuple[float, float, float, float]): Tuple specifying the region of the image where flare will
+            appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
+        src_radius (int): Radius of the source for the flare.
+        src_color (Tuple[int, int, int]): Color of the flare as an (R, G, B) tuple.
+        angle_range (Tuple[float, float]): Tuple specifying the range of angles for the flare.
+            Both ends of the range are in the [0, 1] interval.
+        num_flare_circles_range (Tuple[int, int]): Tuple specifying the range for the number of flare circles.
+        p (float): Probability of applying the transform.
 
     Targets:
         image
 
     Image types:
-        uint8, float32
+        uint8
 
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
-
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -966,16 +963,32 @@ class RandomSunFlare(ImageOnlyTransform):
             default=(0, 0, 1, 0.5),
             description="Region of the image where flare will appear",
         )
-        angle_lower: float = Field(default=0, description="Lower bound for the angle", ge=0, le=1)
-        angle_upper: float = Field(default=1, description="Upper bound for the angle", ge=0, le=1)
-        num_flare_circles_lower: int = Field(default=6, description="Lower limit for the number of flare circles", ge=0)
-        num_flare_circles_upper: int = Field(
+        angle_lower: Optional[float] = Field(default=None, description="Lower bound for the angle", ge=0, le=1)
+        angle_upper: Optional[float] = Field(default=None, description="Upper bound for the angle", ge=0, le=1)
+
+        num_flare_circles_lower: Optional[int] = Field(
+            default=6,
+            description="Lower limit for the number of flare circles",
+            ge=0,
+        )
+        num_flare_circles_upper: Optional[int] = Field(
             default=10,
             description="Upper limit for the number of flare circles",
             gt=0,
         )
         src_radius: int = Field(default=400, description="Source radius for the flare")
-        src_color: Tuple[int, int, int] = Field(default=(255, 255, 255), description="Color of the flare")
+        src_color: Tuple[int, ...] = Field(default=(255, 255, 255), description="Color of the flare")
+
+        angle_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = Field(
+            default=(0, 1),
+            description="Angle range",
+        )
+
+        num_flare_circles_range: Annotated[
+            Tuple[int, int],
+            AfterValidator(check_1plus),
+            AfterValidator(nondecreasing),
+        ] = Field(default=(6, 10), description="Number of flare circles range")
 
         @model_validator(mode="after")
         def validate_parameters(self) -> Self:
@@ -985,33 +998,72 @@ class RandomSunFlare(ImageOnlyTransform):
                 or not 0 <= flare_center_lower_y < flare_center_upper_y <= 1
             ):
                 raise ValueError(f"Invalid flare_roi. Got: {self.flare_roi}")
-            if self.angle_lower >= self.angle_upper:
-                raise ValueError(
-                    f"angle_upper must be greater than angle_lower. Got: {self.angle_lower}, {self.angle_upper}",
+
+            if self.angle_lower is not None or self.angle_upper is not None:
+                if self.angle_lower is not None:
+                    warn(
+                        "`angle_lower` deprecated. Use `angle_range` as tuple (angle_lower, angle_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.angle_upper is not None:
+                    warn(
+                        "`angle_upper` deprecated. Use `angle_range` as tuple(angle_lower, angle_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                lower = self.angle_lower if self.angle_lower is not None else self.angle_range[0]
+                upper = self.angle_upper if self.angle_upper is not None else self.angle_range[1]
+                self.angle_range = (lower, upper)
+
+            if self.num_flare_circles_lower is not None or self.num_flare_circles_upper is not None:
+                if self.num_flare_circles_lower is not None:
+                    warn(
+                        "`num_flare_circles_lower` deprecated. Use `num_flare_circles_range` as tuple"
+                        " (num_flare_circles_lower, num_flare_circles_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                if self.num_flare_circles_upper is not None:
+                    warn(
+                        "`num_flare_circles_upper` deprecated. Use `num_flare_circles_range` as tuple"
+                        " (num_flare_circles_lower, num_flare_circles_upper) instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                lower = (
+                    self.num_flare_circles_lower
+                    if self.num_flare_circles_lower is not None
+                    else self.num_flare_circles_range[0]
                 )
-            if self.num_flare_circles_lower >= self.num_flare_circles_upper:
-                msg = "num_flare_circles_upper must be greater than num_flare_circles_lower."
-                raise ValueError(msg)
+                upper = (
+                    self.num_flare_circles_upper
+                    if self.num_flare_circles_upper is not None
+                    else self.num_flare_circles_range[1]
+                )
+                self.num_flare_circles_range = (lower, upper)
+
             return self
 
     def __init__(
         self,
         flare_roi: Tuple[float, float, float, float] = (0, 0, 1, 0.5),
-        angle_lower: float = 0,
-        angle_upper: float = 1,
-        num_flare_circles_lower: int = 6,
-        num_flare_circles_upper: int = 10,
+        angle_lower: Optional[float] = None,
+        angle_upper: Optional[float] = None,
+        num_flare_circles_lower: Optional[int] = None,
+        num_flare_circles_upper: Optional[int] = None,
         src_radius: int = 400,
-        src_color: Tuple[int, int, int] = (255, 255, 255),
+        src_color: Tuple[int, ...] = (255, 255, 255),
+        angle_range: Tuple[float, float] = (0, 1),
+        num_flare_circles_range: Tuple[int, int] = (6, 10),
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
         super().__init__(always_apply=always_apply, p=p)
 
-        self.angle_lower = angle_lower
-        self.angle_upper = angle_upper
-        self.num_flare_circles_lower = num_flare_circles_lower
-        self.num_flare_circles_upper = num_flare_circles_upper
+        self.angle_range = angle_range
+        self.num_flare_circles_range = num_flare_circles_range
+
         self.src_radius = src_radius
         self.src_color = src_color
         self.flare_roi = flare_roi
@@ -1019,8 +1071,7 @@ class RandomSunFlare(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        flare_center_x: float,
-        flare_center_y: float,
+        flare_center: Tuple[float, float],
         circles: List[Any],
         **params: Any,
     ) -> np.ndarray:
@@ -1028,8 +1079,7 @@ class RandomSunFlare(ImageOnlyTransform):
             circles = []
         return fmain.add_sun_flare(
             img,
-            flare_center_x,
-            flare_center_y,
+            flare_center,
             self.src_radius,
             self.src_color,
             circles,
@@ -1043,7 +1093,7 @@ class RandomSunFlare(ImageOnlyTransform):
         img = params["image"]
         height, width = img.shape[:2]
 
-        angle = 2 * math.pi * random.uniform(self.angle_lower, self.angle_upper)
+        angle = 2 * math.pi * random.uniform(*self.angle_range)
 
         (flare_center_lower_x, flare_center_lower_y, flare_center_upper_x, flare_center_upper_y) = self.flare_roi
 
@@ -1053,7 +1103,7 @@ class RandomSunFlare(ImageOnlyTransform):
         flare_center_x = int(width * flare_center_x)
         flare_center_y = int(height * flare_center_y)
 
-        num_circles = random.randint(self.num_flare_circles_lower, self.num_flare_circles_upper)
+        num_circles = random.randint(*self.num_flare_circles_range)
 
         circles = []
 
@@ -1088,17 +1138,14 @@ class RandomSunFlare(ImageOnlyTransform):
 
         return {
             "circles": circles,
-            "flare_center_x": flare_center_x,
-            "flare_center_y": flare_center_y,
+            "flare_center": (flare_center_x, flare_center_y),
         }
 
     def get_transform_init_args(self) -> Dict[str, Any]:
         return {
             "flare_roi": self.flare_roi,
-            "angle_lower": self.angle_lower,
-            "angle_upper": self.angle_upper,
-            "num_flare_circles_lower": self.num_flare_circles_lower,
-            "num_flare_circles_upper": self.num_flare_circles_upper,
+            "angle_range": self.angle_range,
+            "num_flare_circles_range": self.num_flare_circles_range,
             "src_radius": self.src_radius,
             "src_color": self.src_color,
         }
