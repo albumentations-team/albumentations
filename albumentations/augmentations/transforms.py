@@ -1987,7 +1987,7 @@ class ToRGB(ImageOnlyTransform):
 
     """
 
-    def __init__(self, p: float = 1.0, always_apply: Optional[bool] = True):
+    def __init__(self, p: float = 1.0, always_apply: Optional[bool] = None):
         super().__init__(p=p, always_apply=always_apply)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
