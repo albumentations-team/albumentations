@@ -939,19 +939,19 @@ class RandomSunFlare(ImageOnlyTransform):
     """Simulates Sun Flare for the image
 
     Args:
-        flare_roi: Tuple specifying the region of the image where flare will appear (x_min, y_min, x_max, y_max).
-            All values should be in range [0, 1].
-        src_radius: Radius of the source for the flare.
-        src_color: Color of the flare as an (R, G, B) tuple.
-        angle_range: Tuple specifying the range of angles for the flare.
-        num_flare_circles_range: Tuple specifying the range for the number of flare circles.
-        p: Probability of applying the transform.
+        flare_roi (Tuple[float, float, float, float]): Tuple specifying the region of the image where flare will
+            appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
+        src_radius (int): Radius of the source for the flare.
+        src_color (Tuple[int, int, int]): Color of the flare as an (R, G, B) tuple.
+        angle_range (Tuple[float, float]): Tuple specifying the range of angles for the flare.
+        num_flare_circles_range (Tuple[int, int]): Tuple specifying the range for the number of flare circles.
+        p (float): Probability of applying the transform.
 
     Targets:
         image
 
     Image types:
-        uint8, float32
+        uint8
 
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
