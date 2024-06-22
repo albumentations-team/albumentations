@@ -181,6 +181,7 @@ class Compose(BaseCompose, HubMixin):
         p (float): probability of applying all list of transforms. Default: 1.0.
         is_check_shapes (bool): If True shapes consistency of images/mask/masks would be checked on each call. If you
             would like to disable this check - pass False (do it only if you are sure in your data consistency).
+        strict (bool): If True, unknown keys will raise an error. If False, unknown keys will be ignored. Default: True.
         return_params (bool): if True returns params of each applied transform
         save_key (str): key to save applied params, default is 'applied_params'
 
@@ -194,6 +195,7 @@ class Compose(BaseCompose, HubMixin):
         additional_targets: Optional[Dict[str, str]] = None,
         p: float = 1.0,
         is_check_shapes: bool = True,
+        strict: bool = True,
         return_params: bool = False,
         save_key: str = "applied_params",
     ):
@@ -227,6 +229,7 @@ class Compose(BaseCompose, HubMixin):
             self._available_keys.update(AVAILABLE_KEYS)
 
         self.is_check_args = True
+        self.strict = strict
         self._disable_check_args_for_transforms(self.transforms)
 
         self.is_check_shapes = is_check_shapes
@@ -251,6 +254,7 @@ class Compose(BaseCompose, HubMixin):
 
     def disable_check_args_private(self) -> None:
         self.is_check_args = False
+        self.strict = False
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
         if args:
@@ -295,6 +299,11 @@ class Compose(BaseCompose, HubMixin):
         return self.postprocess(data)
 
     def preprocess(self, data: Any) -> None:
+        if self.strict:
+            for data_name in data:
+                if data_name not in self._available_keys and data_name not in ["mask", "masks"]:
+                    msg = f"Key {data_name} is not in available keys."
+                    raise ValueError(msg)
         if self.is_check_args:
             self._check_args(**data)
         for p in self.processors.values():
@@ -356,9 +365,6 @@ class Compose(BaseCompose, HubMixin):
         shapes = []
 
         for data_name, data in kwargs.items():
-            if data_name not in self._available_keys and data_name not in ["mask", "masks"]:
-                msg = f"Key {data_name} is not in available keys."
-                raise ValueError(msg)
             internal_data_name = self._additional_targets.get(data_name, data_name)
             if internal_data_name in checked_single:
                 if not isinstance(data, np.ndarray):
