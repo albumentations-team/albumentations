@@ -142,10 +142,8 @@ AUGMENTATION_CLS_PARAMS = [
         A.RandomSunFlare,
         {
             "flare_roi": (0.1, 0.1, 0.9, 0.6),
-            "angle_lower": 0.1,
-            "angle_upper": 0.95,
-            "num_flare_circles_lower": 7,
-            "num_flare_circles_upper": 11,
+            "angle_range": (0.1, 0.95),
+            "num_flare_circles_range": (7, 11),
             "src_radius": 300,
             "src_color": (200, 200, 200),
         },
