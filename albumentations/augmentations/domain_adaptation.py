@@ -83,7 +83,7 @@ class HistogramMatching(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -182,7 +182,7 @@ class FDA(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.beta_limit = cast(Tuple[float, float], beta_limit)
@@ -277,7 +277,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
