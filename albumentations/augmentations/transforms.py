@@ -944,6 +944,7 @@ class RandomSunFlare(ImageOnlyTransform):
         src_radius (int): Radius of the source for the flare.
         src_color (Tuple[int, int, int]): Color of the flare as an (R, G, B) tuple.
         angle_range (Tuple[float, float]): Tuple specifying the range of angles for the flare.
+            Both ends of the range are in the [0, 1] interval.
         num_flare_circles_range (Tuple[int, int]): Tuple specifying the range for the number of flare circles.
         p (float): Probability of applying the transform.
 
