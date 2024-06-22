@@ -6,7 +6,7 @@ import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Self
 
-from albumentations.core.pydantic import check_0plus
+from albumentations.core.pydantic import check_0plus, check_1plus
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import MIN_UNIT_SIZE, PAIR, ColorType, Targets
 
@@ -26,7 +26,7 @@ class GridDropout(DualTransform):
         fill_value (Optional[ColorType]): Value for the dropped pixels. Default: 0.
         mask_fill_value (Optional[ColorType]): Value for the dropped pixels in mask.
             If None, transformation is not applied to the mask. Default: None.
-        unit_size_limit (Optional[Tuple[int, int]]): Range from which to sample grid size. Default: None.
+        unit_size_range (Optional[Tuple[int, int]]): Range from which to sample grid size. Default: None.
              Must be between 2 and the image shorter edge.
         holes_number_xy (Optional[Tuple[int, int]]): The number of grid units in x and y directions.
             First value should be between 1 and image width//2,
@@ -66,7 +66,7 @@ class GridDropout(DualTransform):
         random_offset: bool = Field(False, description="Whether to offset the grid randomly.")
         fill_value: Optional[ColorType] = Field(0, description="Value for the dropped pixels.")
         mask_fill_value: Optional[ColorType] = Field(None, description="Value for the dropped pixels in mask.")
-        unit_size_limit: Optional[Annotated[Tuple[int, int], AfterValidator(check_0plus)]] = Field(
+        unit_size_range: Optional[Annotated[Tuple[int, int], AfterValidator(check_0plus)]] = Field(
             None,
             description="Size of the grid unit.",
         )
@@ -74,7 +74,7 @@ class GridDropout(DualTransform):
             (0, 0),
             description="Offsets of the grid start in x and y directions.",
         )
-        holes_number_xy: Optional[Annotated[Tuple[int, int], AfterValidator(check_0plus)]] = Field(
+        holes_number_xy: Optional[Annotated[Tuple[int, int], AfterValidator(check_1plus)]] = Field(
             None,
             description="The number of grid units in x and y directions.",
         )
@@ -82,9 +82,9 @@ class GridDropout(DualTransform):
         @model_validator(mode="after")
         def validate_normalization(self) -> Self:
             if self.unit_size_min is not None and self.unit_size_max is not None:
-                self.unit_size_limit = self.unit_size_min, self.unit_size_max
+                self.unit_size_range = self.unit_size_min, self.unit_size_max
                 warn(
-                    "unit_size_min and unit_size_max are deprecated. Use unit_size_limit instead.",
+                    "unit_size_min and unit_size_max are deprecated. Use unit_size_range instead.",
                     DeprecationWarning,
                     stacklevel=2,
                 )
@@ -101,7 +101,7 @@ class GridDropout(DualTransform):
                     stacklevel=2,
                 )
 
-            if self.unit_size_limit and not MIN_UNIT_SIZE <= self.unit_size_limit[0] <= self.unit_size_limit[1]:
+            if self.unit_size_range and not MIN_UNIT_SIZE <= self.unit_size_range[0] <= self.unit_size_range[1]:
                 raise ValueError("Max unit size should be >= min size, both at least 2 pixels.")
 
             return self
@@ -118,7 +118,7 @@ class GridDropout(DualTransform):
         random_offset: bool = False,
         fill_value: ColorType = 0,
         mask_fill_value: Optional[ColorType] = None,
-        unit_size_limit: Optional[Tuple[int, int]] = None,
+        unit_size_range: Optional[Tuple[int, int]] = None,
         holes_number_xy: Optional[Tuple[int, int]] = None,
         shift_xy: Tuple[int, int] = (0, 0),
         always_apply: Optional[bool] = None,
@@ -126,7 +126,7 @@ class GridDropout(DualTransform):
     ):
         super().__init__(always_apply, p)
         self.ratio = ratio
-        self.unit_size_limit = unit_size_limit
+        self.unit_size_range = unit_size_range
         self.holes_number_xy = holes_number_xy
         self.random_offset = random_offset
         self.fill_value = fill_value
@@ -158,21 +158,21 @@ class GridDropout(DualTransform):
 
     def _calculate_unit_dimensions(self, width: int, height: int) -> Tuple[int, int]:
         """Calculates the dimensions of the grid units."""
-        if self.unit_size_limit is not None:
+        if self.unit_size_range is not None:
             self._validate_unit_sizes(height, width)
-            unit_size = random.randint(*self.unit_size_limit)
+            unit_size = random.randint(*self.unit_size_range)
             return unit_size, unit_size
 
         return self._calculate_dimensions_based_on_holes(width, height)
 
     def _validate_unit_sizes(self, height: int, width: int) -> None:
         """Validates the minimum and maximum unit sizes."""
-        if self.unit_size_limit is not None:
-            if self.unit_size_limit[1] > min(height, width):
+        if self.unit_size_range is not None:
+            if self.unit_size_range[1] > min(height, width):
                 msg = "Grid size limits must be within the shortest image edge."
                 raise ValueError(msg)
         else:
-            msg = "unit_size_limit must not be None."
+            msg = "unit_size_range must not be None."
             raise ValueError(msg)
 
     def _calculate_dimensions_based_on_holes(self, width: int, height: int) -> Tuple[int, int]:
@@ -249,7 +249,7 @@ class GridDropout(DualTransform):
     def get_transform_init_args_names(self) -> Tuple[str, ...]:
         return (
             "ratio",
-            "unit_size_limit",
+            "unit_size_range",
             "holes_number_xy",
             "shift_xy",
             "random_offset",

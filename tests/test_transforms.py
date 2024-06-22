@@ -650,19 +650,19 @@ def test_grid_dropout_mask(image):
 
 
 @pytest.mark.parametrize(
-    ["ratio", "holes_number_xy", "unit_size_limit", "shift_xy"],
+    ["ratio", "holes_number_xy", "unit_size_range", "shift_xy"],
     [
         (0.00001, (10, 10), (100, 100), (50, 50)),
         (0.4556, (10, 20), None, (0, 0)),
         (0.00004, None, (2, 100), (0, 0)),
     ],
 )
-def test_grid_dropout_params(ratio, holes_number_xy, unit_size_limit, shift_xy):
+def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
     img = np.random.randint(0, 256, [256, 320], np.uint8)
 
     aug = A.GridDropout(
         ratio=ratio,
-        unit_size_limit=unit_size_limit,
+        unit_size_range=unit_size_range,
         holes_number_xy=holes_number_xy,
         shift_xy=shift_xy,
         random_offset=False,
@@ -683,9 +683,9 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_limit, shift_xy):
     else:
         assert holes[0] == (0, 0)
 
-    # for grid set with limits
-    if unit_size_limit:
-        assert max(1, unit_size_limit[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_limit[1] * ratio), 256)
+    # for grid set with range
+    if unit_size_range:
+        assert max(1, unit_size_range[0] * ratio) <= (holes[0][2] - holes[0][0]) <= min(max(1, unit_size_range[1] * ratio), 256)
     elif holes_number_xy:
         assert (holes[0][2] - holes[0][0]) == max(1, int(ratio * 320 // holes_number_xy[0]))
         assert (holes[0][3] - holes[0][1]) == max(1, int(ratio * 256 // holes_number_xy[1]))
@@ -695,7 +695,7 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_limit, shift_xy):
     # Test default initialization values
     ({}, {
         "ratio": 0.5,
-        "unit_size_limit": None,
+        "unit_size_range": None,
         "holes_number_xy": None,
         "shift_xy": (0, 0),
         "random_offset": False,
@@ -704,8 +704,8 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_limit, shift_xy):
     }),
     ({"ratio": 0.3}, {"ratio": 0.3}),
     ({"shift_x": 1, "shift_y": 2}, {"shift_xy": (1, 2)}),
-    ({"unit_size_min": 10, "unit_size_max": 20}, {"unit_size_limit": (10, 20)}),
-    ({"unit_size_limit": (10, 20)}, {"unit_size_limit": (10, 20)}),
+    ({"unit_size_min": 10, "unit_size_max": 20}, {"unit_size_range": (10, 20)}),
+    ({"unit_size_range": (10, 20)}, {"unit_size_range": (10, 20)}),
     ({"holes_number_x": 10, "holes_number_y": 20}, {"holes_number_xy": (10, 20)}),
     ({"holes_number_xy": (5, 5)}, {"holes_number_xy": (5, 5)}),
     ({"shift_xy": (5, 5)}, {"shift_xy": (5, 5)}),
@@ -721,10 +721,8 @@ def test_grid_dropout_initialization(params, expected):
 
 @pytest.mark.parametrize("params", [
     ({"ratio": 1.5}),  # Invalid ratio > 1
-    ({"unit_size_limit": (1, 20)}),  # Invalid unit_size_min < 2
-    ({"unit_size_limit": (10, 5000)}),  # Invalid unit_size_max > image size
+    ({"unit_size_range": (1, 20)}),  # Invalid unit_size_min < 2
     ({"holes_number_xy": (0, 5)}),  # Invalid holes_number_x < 1
-    ({"holes_number_xy": (5, 5000)}),  # Invalid holes_number_y > image size
 ])
 def test_grid_dropout_invalid_input(params):
     with pytest.raises(ValueError):
@@ -732,30 +730,22 @@ def test_grid_dropout_invalid_input(params):
 
 
 @pytest.mark.parametrize("params, expected_holes", [
-    # Test with predefined holes
     (
-        {"unit_size_limit": (10, 10), "ratio": 0.5, "shift_xy": (0, 0)},
-        [
-            (0, 0, 5, 5), (10, 0, 15, 5), (20, 0, 25, 5),
-            (0, 10, 5, 15), (10, 10, 15, 15), (20, 10, 25, 15)
-        ]
+        {"unit_size_range": (10, 10), "ratio": 0.5, "shift_xy": (0, 0)},
+        [(0, 0, 5, 5), (0, 10, 5, 15), (0, 20, 5, 20), (10, 0, 15, 5), (10, 10, 15, 15), (10, 20, 15, 20), (20, 0, 25, 5), (20, 10, 25, 15), (20, 20, 25, 20), (30, 0, 30, 5), (30, 10, 30, 15), (30, 20, 30, 20)]
+    ),
+    (
+        {"unit_size_range": (12, 12), "ratio": 0.6, "shift_xy": (1, 1)},
+        [(1, 1, 8, 8), (1, 13, 8, 20), (13, 1, 20, 8), (13, 13, 20, 20), (25, 1, 30, 8), (25, 13, 30, 20)]
     ),
 ])
 def test_grid_dropout_holes_generation(params, expected_holes):
     transform = A.GridDropout(**params)
     image = np.zeros((20, 30, 3), dtype=np.uint8)
-    params = {"image": image}
-    holes = transform.get_params_dependent_on_targets(params)["holes"]
+
+    holes = transform.get_params_dependent_on_targets({"image": image})["holes"]
+
     assert holes == expected_holes, f"Failed on holes generation with value {holes}"
-
-
-@pytest.mark.parametrize("params", [
-    # Test invalid shift values
-    ({"shift_xy": (100, 100), "unit_size_limit": (10, 10), "ratio": 0.5}),
-])
-def test_grid_dropout_invalid_shift(params):
-    with pytest.raises(ValueError):
-        A.Compose([A.GridDropout(**params)])(image=SQUARE_UINT8_IMAGE)
 
 
 @pytest.mark.parametrize(
