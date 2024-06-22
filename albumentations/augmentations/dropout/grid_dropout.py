@@ -52,7 +52,7 @@ class GridDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK)
 
     class InitSchema(BaseTransformInitSchema):
-        ratio: float = Field(description="The ratio of the mask holes to the unit_size.", ge=0, le=1)
+        ratio: float = Field(description="The ratio of the mask holes to the unit_size.", gt=0, le=1)
 
         unit_size_min: Optional[int] = Field(None, description="Minimum size of the grid unit.", ge=2)
         unit_size_max: Optional[int] = Field(None, description="Maximum size of the grid unit.", ge=2)
@@ -169,12 +169,10 @@ class GridDropout(DualTransform):
 
     def _validate_unit_sizes(self, height: int, width: int) -> None:
         """Validates the minimum and maximum unit sizes."""
-        if self.unit_size_range is not None:
-            if self.unit_size_range[1] > min(height, width):
-                msg = "Grid size limits must be within the shortest image edge."
-                raise ValueError(msg)
-        else:
-            msg = "unit_size_range must not be None."
+        if self.unit_size_range is None:
+            raise ValueError("unit_size_range must not be None.")
+        if self.unit_size_range[1] > min(height, width):
+            msg = "Grid size limits must be within the shortest image edge."
             raise ValueError(msg)
 
     def _calculate_dimensions_based_on_holes(self, width: int, height: int) -> Tuple[int, int]:

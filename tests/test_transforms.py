@@ -714,19 +714,20 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
     ({"mask_fill_value": 100}, {"mask_fill_value": 100}),
 ])
 def test_grid_dropout_initialization(params, expected):
-    transform = A.GridDropout(**params)
+    transform = A.GridDropout(p=1, **params)
     for key, value in expected.items():
         assert getattr(transform, key) == value, f"Failed on {key} with value {value}"
 
 
 @pytest.mark.parametrize("params", [
     ({"ratio": 1.5}),  # Invalid ratio > 1
+    ({"ratio": 0}),
     ({"unit_size_range": (1, 20)}),  # Invalid unit_size_min < 2
     ({"holes_number_xy": (0, 5)}),  # Invalid holes_number_x < 1
 ])
 def test_grid_dropout_invalid_input(params):
     with pytest.raises(ValueError):
-        A.Compose([A.GridDropout(**params)])(image=SQUARE_UINT8_IMAGE)
+        A.Compose([A.GridDropout(p=1, **params)])(image=SQUARE_UINT8_IMAGE)
 
 
 @pytest.mark.parametrize("params, expected_holes", [
@@ -740,7 +741,7 @@ def test_grid_dropout_invalid_input(params):
     ),
 ])
 def test_grid_dropout_holes_generation(params, expected_holes):
-    transform = A.GridDropout(**params)
+    transform = A.GridDropout(p=1, **params)
     image = np.zeros((20, 30, 3), dtype=np.uint8)
 
     holes = transform.get_params_dependent_on_targets({"image": image})["holes"]
