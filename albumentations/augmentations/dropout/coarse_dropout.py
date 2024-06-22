@@ -166,7 +166,7 @@ class CoarseDropout(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.num_holes_range = num_holes_range
         self.hole_height_range = hole_height_range
         self.hole_width_range = hole_width_range

@@ -63,7 +63,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     class InitSchema(BaseTransformInitSchema):
         pass
 
-    def __init__(self, always_apply: Optional[bool] = None, p: float = 0.5):
+    def __init__(self, p: float = 0.5, always_apply: Optional[bool] = None):
         self.p = p
         if always_apply is not None:
             if always_apply:

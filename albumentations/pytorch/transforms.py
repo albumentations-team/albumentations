@@ -26,8 +26,8 @@ class ToTensorV2(BasicTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK)
 
-    def __init__(self, transpose_mask: bool = False, always_apply: Optional[bool] = None, p: float = 1.0):
-        super().__init__(always_apply=always_apply, p=p)
+    def __init__(self, transpose_mask: bool = False, p: float = 1.0, always_apply: Optional[bool] = None):
+        super().__init__(p=p, always_apply=always_apply)
         self.transpose_mask = transpose_mask
 
     @property

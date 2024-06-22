@@ -77,8 +77,8 @@ class RandomCrop(DualTransform):
     class InitSchema(CropInitSchema):
         pass
 
-    def __init__(self, height: int, width: int, always_apply: Optional[bool] = None, p: float = 1.0):
-        super().__init__(always_apply, p)
+    def __init__(self, height: int, width: int, p: float = 1.0, always_apply: Optional[bool] = None):
+        super().__init__(p, always_apply)
         self.height = height
         self.width = width
 
@@ -119,8 +119,8 @@ class CenterCrop(DualTransform):
     class InitSchema(CropInitSchema):
         pass
 
-    def __init__(self, height: int, width: int, always_apply: Optional[bool] = None, p: float = 1.0):
-        super().__init__(always_apply, p)
+    def __init__(self, height: int, width: int, p: float = 1.0, always_apply: Optional[bool] = None):
+        super().__init__(p, always_apply)
         self.height = height
         self.width = width
 
@@ -182,7 +182,7 @@ class Crop(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.x_min = x_min
         self.y_min = y_min
         self.x_max = x_max
@@ -239,7 +239,7 @@ class CropNonEmptyMaskIfExists(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
 
         self.height = height
         self.width = width
@@ -367,7 +367,7 @@ class _BaseRandomSizedCrop(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.size = size
         self.interpolation = interpolation
 
@@ -486,7 +486,7 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, always_apply=always_apply, p=p)
+        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
@@ -570,7 +570,7 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, always_apply=always_apply, p=p)
+        super().__init__(size=cast(Tuple[int, int], size), interpolation=interpolation, p=p, always_apply=always_apply)
         self.scale = scale
         self.ratio = ratio
 
@@ -668,7 +668,7 @@ class RandomCropNearBBox(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         # Check for deprecated parameter and issue warning
         if cropping_box_key is not None:
             warn(
@@ -762,8 +762,8 @@ class BBoxSafeRandomCrop(DualTransform):
         )
         p: ProbabilityType = 1
 
-    def __init__(self, erosion_rate: float = 0.0, always_apply: Optional[bool] = None, p: float = 1.0):
-        super().__init__(always_apply, p)
+    def __init__(self, erosion_rate: float = 0.0, p: float = 1.0, always_apply: Optional[bool] = None):
+        super().__init__(p, always_apply)
         self.erosion_rate = erosion_rate
 
     def apply(
@@ -873,7 +873,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(erosion_rate, always_apply, p)
+        super().__init__(erosion_rate, p, always_apply)
         self.height = height
         self.width = width
         self.interpolation = interpolation
@@ -1043,7 +1043,7 @@ class CropAndPad(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
 
         self.px = px
         self.percent = percent
@@ -1360,7 +1360,7 @@ class RandomCropFromBorders(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1.0,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.crop_left = crop_left
         self.crop_right = crop_right
         self.crop_top = crop_top

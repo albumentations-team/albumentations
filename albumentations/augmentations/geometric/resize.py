@@ -62,7 +62,7 @@ class RandomScale(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.scale_limit = cast(Tuple[float, float], scale_limit)
         self.interpolation = interpolation
 
@@ -142,7 +142,7 @@ class LongestMaxSize(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.interpolation = interpolation
         self.max_size = max_size
 
@@ -207,7 +207,7 @@ class SmallestMaxSize(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.interpolation = interpolation
         self.max_size = max_size
 
@@ -277,7 +277,7 @@ class Resize(DualTransform):
         always_apply: Optional[bool] = None,
         p: float = 1,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.height = height
         self.width = width
         self.interpolation = interpolation

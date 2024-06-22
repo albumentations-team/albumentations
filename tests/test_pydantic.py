@@ -354,8 +354,8 @@ def test_transform_without_schema() -> None:
 
 
 class CustomImageTransform(ImageOnlyTransform):
-    def __init__(self, custom_param: int, always_apply: Optional[bool] = None, p: float = 0.5):
-        super().__init__(always_apply=always_apply, p=p)
+    def __init__(self, custom_param: int, p: float = 0.5, always_apply: Optional[bool] = None):
+        super().__init__(p=p, always_apply=always_apply)
         self.custom_param = custom_param
 
 
