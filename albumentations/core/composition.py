@@ -229,10 +229,10 @@ class Compose(BaseCompose, HubMixin):
             self._available_keys.update(AVAILABLE_KEYS)
 
         self.is_check_args = True
+        self.strict = strict
         self._disable_check_args_for_transforms(self.transforms)
 
         self.is_check_shapes = is_check_shapes
-        self.strict = strict
         self._check_each_transform = tuple(  # processors that checks after each transform
             proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
         )
@@ -254,6 +254,7 @@ class Compose(BaseCompose, HubMixin):
 
     def disable_check_args_private(self) -> None:
         self.is_check_args = False
+        self.strict = False
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
         if args:
