@@ -457,6 +457,7 @@ class SomeOf(BaseCompose):
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
+                data = self.check_data_post_transform(data)
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
@@ -464,6 +465,7 @@ class SomeOf(BaseCompose):
             for i in idx:
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
+                data = self.check_data_post_transform(data)
         return data
 
     def to_dict_private(self) -> Dict[str, Any]:
