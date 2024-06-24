@@ -135,7 +135,7 @@ def test_dual_augmentations(augmentation_cls, params):
     mask = image[:, :, 0].copy()
     aug = A.Compose([augmentation_cls(p=1, **params)])
     if augmentation_cls == A.OverlayElements:
-        data = aug(image=image, mask=mask, metadata_oe=[])
+        data = aug(image=image, mask=mask, overlay_metadata=[])
     else:
         data = aug(image=image, mask=mask)
     assert data["image"].dtype == image.dtype
@@ -179,7 +179,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     mask = image.copy()[:, :, 0].astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
     if augmentation_cls == A.OverlayElements:
-        data = aug(image=image, mask=mask, metadata_oe=[])
+        data = aug(image=image, mask=mask, overlay_metadata=[])
     else:
         data = aug(image=image, mask=mask)
 
@@ -242,7 +242,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
     if augmentation_cls == A.OverlayElements:
-        aug(image=image, mask=mask, metadata_oe=[])
+        aug(image=image, mask=mask, overlay_metadata=[])
     else:
         aug(image=image, mask=mask)
     assert np.array_equal(image, image_copy)
@@ -313,7 +313,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
 
     aug = augmentation_cls(p=1, **params)
     if augmentation_cls == A.OverlayElements:
-        aug(image=image, metadata=[])
+        aug(image=image, overlay_metadata=[])
     else:
         aug(image=image)
 
@@ -398,7 +398,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata_oe": [],
+            "overlay_metadata": [],
             "mask": mask,
         }
     else:
@@ -476,7 +476,7 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image_3ch,
-            "metadata": [],
+            "overlay_metadata": [],
             "mask": mask_3ch,
         }
     else:
@@ -600,7 +600,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata": [],
+            "overlay_metadata": [],
         }
     else:
         data = {
@@ -688,7 +688,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata": [],
+            "overlay_metadata": [],
         }
     else:
         data = {
@@ -770,7 +770,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata_oe": [],
+            "overlay_metadata": [],
         }
     else:
         data = {
@@ -854,7 +854,7 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata": [],
+            "overlay_metadata": [],
         }
     else:
         data = {
@@ -1133,7 +1133,7 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
     elif augmentation_cls == A.OverlayElements:
         # requires "metadata" arg
         aug = A.Compose([augmentation_cls(p=1, **params)])
-        aug(image=image, metadata_oe=[], mask=mask)
+        aug(image=image, overlay_metadata=[], mask=mask)
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:

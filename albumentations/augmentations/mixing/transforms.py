@@ -125,7 +125,7 @@ class MixUp(ReferenceBasedTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.mix_coef_return_name = mix_coef_return_name
 
         self.read_fn = read_fn
@@ -369,5 +369,5 @@ class OverlayElements(ReferenceBasedTransform):
 
         return mask
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
-        return ()
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("metadata_key",)

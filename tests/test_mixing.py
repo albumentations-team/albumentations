@@ -356,7 +356,7 @@ def test_end_to_end(metadata, expected_output):
 
     img = np.zeros((100, 100, 3), dtype=np.uint8)
 
-    transformed = transform(image=img, metadata_oe=metadata)
+    transformed = transform(image=img, overlay_metadata=metadata)
 
     expected_img = np.zeros((100, 100, 3), dtype=np.uint8)
     y_min, x_min, y_max, x_max = expected_output["expected_bbox"][:4]

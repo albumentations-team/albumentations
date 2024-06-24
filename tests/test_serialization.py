@@ -492,7 +492,7 @@ def test_augmentations_serialization_with_custom_parameters(
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata_oe": [],
+            "overlay_metadata": [],
             "mask": mask
         }
     elif augmentation_cls == A.RandomCropNearBBox:
@@ -535,7 +535,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         if augmentation_cls == A.OverlayElements:
             data = {
                 "image": image,
-                "metadata_oe": [],
+                "overlay_metadata": [],
                 "mask": mask
             }
         elif augmentation_cls == A.RandomCropNearBBox:
