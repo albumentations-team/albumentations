@@ -42,6 +42,11 @@ TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = List[TransformType]
 
 AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints", "global_label")
+MASK_KEYS = ("mask", "masks")
+CHECKED_SINGLE = ("image", "mask")
+CHECKED_MULTI = ("masks",)
+CHECK_BBOX_PARAM = ("bboxes",)
+CHECK_KEYPOINTS_PARAM = ("keypoints",)
 
 
 def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransform]:
@@ -301,7 +306,7 @@ class Compose(BaseCompose, HubMixin):
     def preprocess(self, data: Any) -> None:
         if self.strict:
             for data_name in data:
-                if data_name not in self._available_keys and data_name not in ["mask", "masks"]:
+                if data_name not in self._available_keys and data_name not in MASK_KEYS:
                     msg = f"Key {data_name} is not in available keys."
                     raise ValueError(msg)
         if self.is_check_args:
@@ -358,27 +363,23 @@ class Compose(BaseCompose, HubMixin):
         return dictionary
 
     def _check_args(self, **kwargs: Any) -> None:
-        checked_single = ["image", "mask"]
-        checked_multi = ["masks"]
-        check_bbox_param = ["bboxes"]
-        check_keypoints_param = ["keypoints"]
         shapes = []
 
         for data_name, data in kwargs.items():
             internal_data_name = self._additional_targets.get(data_name, data_name)
-            if internal_data_name in checked_single:
+            if internal_data_name in CHECKED_SINGLE:
                 if not isinstance(data, np.ndarray):
                     raise TypeError(f"{data_name} must be numpy array type")
                 shapes.append(data.shape[:2])
-            if internal_data_name in checked_multi and data is not None and len(data):
+            if internal_data_name in CHECKED_MULTI and data is not None and len(data):
                 if not isinstance(data[0], np.ndarray):
                     raise TypeError(f"{data_name} must be list of numpy arrays")
                 shapes.append(data[0].shape[:2])
-            if internal_data_name in check_bbox_param and self.processors.get("bboxes") is None:
+            if internal_data_name in CHECK_BBOX_PARAM and self.processors.get("bboxes") is None:
                 msg = "bbox_params must be specified for bbox transformations"
                 raise ValueError(msg)
 
-            if internal_data_name in check_keypoints_param and self.processors.get("keypoints") is None:
+            if internal_data_name in CHECK_KEYPOINTS_PARAM and self.processors.get("keypoints") is None:
                 msg = "keypoints_params must be specified for keypoint transformations"
                 raise ValueError(msg)
 
