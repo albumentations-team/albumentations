@@ -12,7 +12,7 @@ from typing_extensions import Annotated
 
 from albumentations.augmentations.mixing import functional as fmixing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
-from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, Targets
+from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
 
 __all__ = ["MixUp", "OverlayElements"]
@@ -232,6 +232,7 @@ class OverlayElements(ReferenceBasedTransform):
     control.
 
     Args:
+        metadata_key (str): Additional target key for metadata. Default `overlay_metadata`.
         p (float): Probability of applying the transformation. Default: 0.5.
 
     Possible Metadata Fields:
@@ -256,18 +257,24 @@ class OverlayElements(ReferenceBasedTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK)
 
+    class InitSchema(BaseTransformInitSchema):
+        metadata_key: str
+
     def __init__(
         self,
+        metadata_key: str = "overlay_metadata",
         p: float = 0.5,
+        always_apply: Optional[bool] = None,
     ):
-        super().__init__(always_apply=None, p=p)
+        super().__init__(always_apply=always_apply, p=p)
+        self.metadata_key = metadata_key
 
     @property
     def targets_as_params(self) -> List[str]:
-        return ["metadata_oe", "image"]
+        return [self.metadata_key, "image"]
 
     @staticmethod
-    def preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int]) -> Dict[str, Any]:
+    def preprocess_metadata(metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
         overlay_image = metadata["image"]
 
         if "bbox" in metadata:
@@ -288,10 +295,18 @@ class OverlayElements(ReferenceBasedTransform):
         else:
             mask = metadata["mask"] if "mask" in metadata else np.ones_like(overlay_image, dtype=np.uint8)
 
-            max_y_offset = img_shape[0] - overlay_image.shape[0]
-            max_x_offset = img_shape[1] - overlay_image.shape[1]
-            offset = (random.randint(0, max_y_offset), random.randint(0, max_x_offset))
-            bbox = [offset[1], offset[0], offset[1] + overlay_image.shape[1], offset[0] + overlay_image.shape[0]]
+            overlay_height, overlay_width = overlay_image.shape[:2]
+
+            max_y_offset = img_shape[0] - overlay_height
+            max_x_offset = img_shape[1] - overlay_width
+
+            offset_y = random.randint(0, max_y_offset)
+            offset_x = random.randint(0, max_x_offset)
+
+            offset = (offset_y, offset_x)
+
+            bbox = [offset_x, offset_y, offset_x + overlay_width, offset_y + overlay_height]
+
             if "bbox_id" in metadata:
                 bbox = [*bbox, metadata["bbox_id"]]
 
@@ -308,7 +323,7 @@ class OverlayElements(ReferenceBasedTransform):
         return result
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        metadata = params["metadata_oe"]
+        metadata = params[self.metadata_key]
         img_shape = params["image"].shape
 
         if isinstance(metadata, list):

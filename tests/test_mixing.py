@@ -292,6 +292,22 @@ def mock_random(monkeypatch):
                 "bbox": [0, 0, 20, 20, 99],
             }
         ),
+        # Test case with triangular mask
+        (
+            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+             "bbox": [0, 0, 20, 20],
+             "mask": np.tri(20, 20, dtype=np.uint8) * 127,
+             "mask_id": 2,
+             "bbox_id": 100},
+            (100, 100),
+            {
+                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
+                "overlay_mask": np.tri(20, 20, dtype=np.uint8) * 127,
+                "offset": (0, 0),
+                "mask_id": 2,
+                "bbox": [0, 0, 20, 20, 100],
+            }
+        ),
     ]
 )
 def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int], expected_output: Dict[str, Any]):
@@ -340,7 +356,7 @@ def test_end_to_end(metadata, expected_output):
 
     img = np.zeros((100, 100, 3), dtype=np.uint8)
 
-    transformed = transform(image=img, metadata=metadata)
+    transformed = transform(image=img, metadata_oe=metadata)
 
     expected_img = np.zeros((100, 100, 3), dtype=np.uint8)
     y_min, x_min, y_max, x_max = expected_output["expected_bbox"][:4]

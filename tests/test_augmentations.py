@@ -135,7 +135,7 @@ def test_dual_augmentations(augmentation_cls, params):
     mask = image[:, :, 0].copy()
     aug = A.Compose([augmentation_cls(p=1, **params)])
     if augmentation_cls == A.OverlayElements:
-        data = aug(image=image, mask=mask, metadata=[])
+        data = aug(image=image, mask=mask, metadata_oe=[])
     else:
         data = aug(image=image, mask=mask)
     assert data["image"].dtype == image.dtype
@@ -179,7 +179,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     mask = image.copy()[:, :, 0].astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
     if augmentation_cls == A.OverlayElements:
-        data = aug(image=image, mask=mask, metadata=[])
+        data = aug(image=image, mask=mask, metadata_oe=[])
     else:
         data = aug(image=image, mask=mask)
 
@@ -242,7 +242,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
     if augmentation_cls == A.OverlayElements:
-        aug(image=image, mask=mask, metadata=[])
+        aug(image=image, mask=mask, metadata_oe=[])
     else:
         aug(image=image, mask=mask)
     assert np.array_equal(image, image_copy)
@@ -398,7 +398,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata": [],
+            "metadata_oe": [],
             "mask": mask,
         }
     else:
@@ -770,7 +770,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata": [],
+            "metadata_oe": [],
         }
     else:
         data = {
@@ -1133,7 +1133,7 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
     elif augmentation_cls == A.OverlayElements:
         # requires "metadata" arg
         aug = A.Compose([augmentation_cls(p=1, **params)])
-        aug(image=image, metadata=[], mask=mask)
+        aug(image=image, metadata_oe=[], mask=mask)
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:

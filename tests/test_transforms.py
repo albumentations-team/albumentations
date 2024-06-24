@@ -174,7 +174,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
         data = {
             "image": image,
             "mask": mask,
-            "metadata": []
+            "metadata_oe": []
         }
     else:
         data = {
@@ -1449,7 +1449,7 @@ def test_change_image(augmentation_cls, params):
     if augmentation_cls == A.OverlayElements:
         data = {
             "image": image,
-            "metadata": {
+            "metadata_oe": {
                 "image": clip(SQUARE_UINT8_IMAGE + 2, image.dtype),
                 "bbox": (10, 20, 30, 40)
             }
