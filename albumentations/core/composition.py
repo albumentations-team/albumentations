@@ -1,7 +1,7 @@
 import random
 import warnings
 from collections import OrderedDict, defaultdict
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Union, cast
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple, Union, cast
 
 import cv2
 import numpy as np
@@ -18,7 +18,7 @@ from .serialization import (
     instantiate_nonserializable,
 )
 from .transforms_interface import BasicTransform
-from .utils import format_args, get_shape
+from .utils import DataProcessor, format_args, get_shape
 
 __all__ = [
     "BaseCompose",
@@ -61,6 +61,8 @@ def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransfo
 
 class BaseCompose(Serializable):
     _transforms_dict: Optional[Dict[int, BasicTransform]] = None
+    check_each_transform: Optional[Tuple[DataProcessor, ...]] = None
+    main_compose: bool = True
 
     def __init__(self, transforms: TransformsSeqType, p: float):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
@@ -174,6 +176,19 @@ class BaseCompose(Serializable):
         for t in self.transforms:
             t.set_deterministic(flag, save_key)
 
+    def check_data_post_transform(self, data: Any) -> Dict[str, Any]:
+        if self.check_each_transform:
+            rows, cols = get_shape(data["image"])
+
+            for proc in self.check_each_transform:
+                for data_name in data:
+                    if data_name in proc.data_fields or (
+                        data_name in self._additional_targets
+                        and self._additional_targets[data_name] in proc.data_fields
+                    ):
+                        data[data_name] = proc.filter(data[data_name], rows, cols)
+        return data
+
 
 class Compose(BaseCompose, HubMixin):
     """Compose transforms and handle all transformations regarding bounding boxes
@@ -235,12 +250,12 @@ class Compose(BaseCompose, HubMixin):
 
         self.is_check_args = True
         self.strict = strict
-        self._disable_check_args_for_transforms(self.transforms)
 
         self.is_check_shapes = is_check_shapes
-        self._check_each_transform = tuple(  # processors that checks after each transform
+        self.check_each_transform = tuple(  # processors that checks after each transform
             proc for proc in self.processors.values() if getattr(proc.params, "check_each_transform", False)
         )
+        self._set_check_args_for_transforms(self.transforms)
 
         self.return_params = return_params
         if return_params:
@@ -249,17 +264,19 @@ class Compose(BaseCompose, HubMixin):
             self._transforms_dict = get_transforms_dict(self.transforms)
             self.set_deterministic(True, save_key=save_key)
 
-    @staticmethod
-    def _disable_check_args_for_transforms(transforms: TransformsSeqType) -> None:
+    def _set_check_args_for_transforms(self, transforms: TransformsSeqType) -> None:
         for transform in transforms:
             if isinstance(transform, BaseCompose):
-                Compose._disable_check_args_for_transforms(transform.transforms)
+                self._set_check_args_for_transforms(transform.transforms)
+                transform.check_each_transform = self.check_each_transform
+                transform.processors = self.processors
             if isinstance(transform, Compose):
                 transform.disable_check_args_private()
 
     def disable_check_args_private(self) -> None:
         self.is_check_args = False
         self.strict = False
+        self.main_compose = False
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
         if args:
@@ -270,7 +287,7 @@ class Compose(BaseCompose, HubMixin):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
 
-        if self.return_params:
+        if self.return_params and self.main_compose:
             data[self.save_key] = OrderedDict()
 
         need_to_run = force_apply or random.random() < self.p
@@ -281,9 +298,7 @@ class Compose(BaseCompose, HubMixin):
 
         for t in self.transforms:
             data = t(**data)
-
-            if self._check_each_transform:
-                data = self._check_data_post_transform(data)
+            data = self.check_data_post_transform(data)
 
         return self.postprocess(data)
 
@@ -297,9 +312,7 @@ class Compose(BaseCompose, HubMixin):
         for tr_id, param in params.items():
             tr = self._transforms_dict[tr_id]
             data = tr.apply_with_params(param, **data)
-
-            if self._check_each_transform:
-                data = self._check_data_post_transform(data)
+            data = self.check_data_post_transform(data)
 
         return self.postprocess(data)
 
@@ -311,26 +324,17 @@ class Compose(BaseCompose, HubMixin):
                     raise ValueError(msg)
         if self.is_check_args:
             self._check_args(**data)
-        for p in self.processors.values():
-            p.ensure_data_valid(data)
-        for p in self.processors.values():
-            p.preprocess(data)
+        if self.main_compose:
+            for p in self.processors.values():
+                p.ensure_data_valid(data)
+            for p in self.processors.values():
+                p.preprocess(data)
 
     def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
-        for p in self.processors.values():
-            p.postprocess(data)
-        return data
-
-    def _check_data_post_transform(self, data: Any) -> Dict[str, Any]:
-        rows, cols = get_shape(data["image"])
-
-        for p in self._check_each_transform:
-            for data_name in data:
-                if data_name in p.data_fields or (
-                    data_name in self._additional_targets and self._additional_targets[data_name] in p.data_fields
-                ):
-                    data[data_name] = p.filter(data[data_name], rows, cols)
+        if self.main_compose:
+            data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
+            for p in self.processors.values():
+                p.postprocess(data)
         return data
 
     def to_dict_private(self) -> Dict[str, Any]:
@@ -456,6 +460,7 @@ class SomeOf(BaseCompose):
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
+                data = self.check_data_post_transform(data)
             return data
 
         if self.transforms_ps and (force_apply or random.random() < self.p):
@@ -463,6 +468,7 @@ class SomeOf(BaseCompose):
             for i in idx:
                 t = self.transforms[i]
                 data = t(force_apply=True, **data)
+                data = self.check_data_post_transform(data)
         return data
 
     def to_dict_private(self) -> Dict[str, Any]:
@@ -676,4 +682,5 @@ class Sequential(BaseCompose):
         if self.replay_mode or force_apply or random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)
+                data = self.check_data_post_transform(data)
         return data
