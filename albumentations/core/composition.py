@@ -62,6 +62,7 @@ def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransfo
 class BaseCompose(Serializable):
     _transforms_dict: Optional[Dict[int, BasicTransform]] = None
     check_each_transform: Optional[Tuple[DataProcessor, ...]] = None
+    main_compose: bool = True
 
     def __init__(self, transforms: TransformsSeqType, p: float):
         if isinstance(transforms, (BaseCompose, BasicTransform)):
@@ -268,14 +269,14 @@ class Compose(BaseCompose, HubMixin):
             if isinstance(transform, BaseCompose):
                 self._set_check_args_for_transforms(transform.transforms)
                 transform.check_each_transform = self.check_each_transform
-                if not isinstance(transform, Compose):  # need fix compose.
-                    transform.processors = self.processors
+                transform.processors = self.processors
             if isinstance(transform, Compose):
                 transform.disable_check_args_private()
 
     def disable_check_args_private(self) -> None:
         self.is_check_args = False
         self.strict = False
+        self.main_compose = False
 
     def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
         if args:
@@ -286,7 +287,7 @@ class Compose(BaseCompose, HubMixin):
             msg = "force_apply must have bool or int type"
             raise TypeError(msg)
 
-        if self.return_params:
+        if self.return_params and self.main_compose:
             data[self.save_key] = OrderedDict()
 
         need_to_run = force_apply or random.random() < self.p
@@ -323,15 +324,17 @@ class Compose(BaseCompose, HubMixin):
                     raise ValueError(msg)
         if self.is_check_args:
             self._check_args(**data)
-        for p in self.processors.values():
-            p.ensure_data_valid(data)
-        for p in self.processors.values():
-            p.preprocess(data)
+        if self.main_compose:
+            for p in self.processors.values():
+                p.ensure_data_valid(data)
+            for p in self.processors.values():
+                p.preprocess(data)
 
     def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
-        for p in self.processors.values():
-            p.postprocess(data)
+        if self.main_compose:
+            data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
+            for p in self.processors.values():
+                p.postprocess(data)
         return data
 
     def to_dict_private(self) -> Dict[str, Any]:
