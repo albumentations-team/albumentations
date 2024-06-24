@@ -264,7 +264,7 @@ class OverlayElements(ReferenceBasedTransform):
 
     @property
     def targets_as_params(self) -> List[str]:
-        return ["metadata", "image"]
+        return ["metadata_oe", "image"]
 
     @staticmethod
     def preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int]) -> Dict[str, Any]:
@@ -308,7 +308,7 @@ class OverlayElements(ReferenceBasedTransform):
         return result
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        metadata = params["metadata"]
+        metadata = params["metadata_oe"]
         img_shape = params["image"].shape
 
         if isinstance(metadata, list):
