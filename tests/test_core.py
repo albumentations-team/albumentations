@@ -101,6 +101,7 @@ def test_sequential(target_as_params):
     augmentation(image=image)
     assert len([transform for transform in transforms if transform.called]) == len(transforms)
 
+
 @pytest.mark.parametrize("input,kwargs,expected", [
     (10, {}, (-10, 10)),
     (0.5, {}, (-0.5, 0.5)),
@@ -206,7 +207,7 @@ def test_get_transforms_dict(transforms: TransformsSeqType, len_expected: int) -
     assert aug._transforms_dict == transforms_dict
 
 
-def test_comose_run_with_params_exeption() -> None:
+def test_comose_run_with_params_exception() -> None:
     aug = Compose([NoOp()])
     aug_2 = Compose([NoOp()], return_params=True)
     res = aug_2(image=np.random.random((8, 8)))
@@ -583,7 +584,7 @@ def test_compose_image_mask_equal_size(targets):
     transforms(**targets)
 
 
-def test_additional_targets():
+def test_additional_targets_overwrite():
     """Check add_target rises error if trying add existing target."""
     transforms = Compose([], additional_targets={"image2": "image"})
     # add same name, same target, OK
@@ -607,6 +608,7 @@ def test_sequential_with_horizontal_flip_prob_1(image):
 
     assert np.array_equal(result['image'], expected['image'])
     assert np.array_equal(result['mask'], expected['mask'])
+
 
 # Test 2: Probability 0 with HorizontalFlip
 @pytest.mark.parametrize("image", IMAGES)
