@@ -3,17 +3,20 @@ import types
 from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
 from warnings import warn
 
+import cv2
 import numpy as np
 from albucore.functions import add_weighted
 from albucore.utils import is_grayscale_image
 from pydantic import Field
 from typing_extensions import Annotated
 
+from albumentations.augmentations.mixing import functional as fmixing
+from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
-from albumentations.core.types import BoxType, KeypointType, ReferenceImage, Targets
+from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
 
-__all__ = ["MixUp"]
+__all__ = ["MixUp", "OverlayElements"]
 
 
 class MixUp(ReferenceBasedTransform):
@@ -25,7 +28,7 @@ class MixUp(ReferenceBasedTransform):
     smoothing decision boundaries.
 
     Reference:
-        Zhang, H., Cisse, M., Dauphin, Y.N., and Lopez-Paz, D. (2018). mixup: Beyond Empirical Risk Minimization.
+        - Zhang, H., Cisse, M., Dauphin, Y.N., and Lopez-Paz, D. (2018). mixup: Beyond Empirical Risk Minimization.
         In International Conference on Learning Representations. https://arxiv.org/abs/1710.09412
 
     Args:
@@ -123,7 +126,7 @@ class MixUp(ReferenceBasedTransform):
         always_apply: Optional[bool] = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.mix_coef_return_name = mix_coef_return_name
 
         self.read_fn = read_fn
@@ -222,3 +225,164 @@ class MixUp(ReferenceBasedTransform):
         if self.mix_coef_return_name:
             res[self.mix_coef_return_name] = params["mix_coef"]
         return res
+
+
+class OverlayElements(ReferenceBasedTransform):
+    """Apply overlay elements such as images and masks onto an input image. This transformation can be used to add
+    various objects (e.g., stickers, logos) to images with optional masks and bounding boxes for better placement
+    control.
+
+    Args:
+        metadata_key (str): Additional target key for metadata. Default `overlay_metadata`.
+        p (float): Probability of applying the transformation. Default: 0.5.
+
+    Possible Metadata Fields:
+        - image (np.ndarray): The overlay image to be applied. This is a required field.
+        - bbox (List[int]): The bounding box specifying the region where the overlay should be applied. It should
+                            contain four floats: [y_min, x_min, y_max, x_max]. If `label_id` is provided, it should
+                            be appended as the fifth element in the bbox. BBox should be in Albumentations format,
+                            that is the same as normalized Pascal VOC format
+                            [x_min / width, y_min / height, x_max / width, y_max / height]
+        - mask (np.ndarray): An optional mask that defines the non-rectangular region of the overlay image. If not
+                             provided, the entire overlay image is used.
+        - mask_id (int): An optional identifier for the mask. If provided, the regions specified by the mask will
+                         be labeled with this identifier in the output mask.
+
+    Targets:
+        image, mask
+
+    Image types:
+        uint8, float32
+
+    """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
+
+    class InitSchema(BaseTransformInitSchema):
+        metadata_key: str
+
+    def __init__(
+        self,
+        metadata_key: str = "overlay_metadata",
+        p: float = 0.5,
+        always_apply: Optional[bool] = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.metadata_key = metadata_key
+
+    @property
+    def targets_as_params(self) -> List[str]:
+        return [self.metadata_key, "image"]
+
+    @staticmethod
+    def preprocess_metadata(metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
+        overlay_image = metadata["image"]
+        overlay_height, overlay_width = overlay_image.shape[:2]
+        image_height, image_width = img_shape[:2]
+
+        if "bbox" in metadata:
+            bbox = metadata["bbox"]
+            check_bbox(bbox)
+            denormalized_bbox = denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)
+
+            x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
+
+            if "mask" in metadata:
+                mask = metadata["mask"]
+                mask = cv2.resize(mask, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_NEAREST)
+            else:
+                mask = np.ones((y_max - y_min, x_max - x_min), dtype=np.uint8)
+
+            overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
+            offset = (y_min, x_min)
+
+            if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
+                bbox = [x_min, y_min, x_max, y_max, metadata["bbox_id"]]
+            else:
+                bbox = (x_min, y_min, x_max, y_max, *bbox[4:])
+        else:
+            if image_height < overlay_height or image_width < overlay_width:
+                overlay_image = cv2.resize(overlay_image, (image_width, image_height), interpolation=cv2.INTER_AREA)
+                overlay_height, overlay_width = overlay_image.shape[:2]
+
+            mask = metadata["mask"] if "mask" in metadata else np.ones_like(overlay_image, dtype=np.uint8)
+
+            max_x_offset = image_width - overlay_width
+            max_y_offset = image_height - overlay_height
+
+            offset_x = random.randint(0, max_x_offset)
+            offset_y = random.randint(0, max_y_offset)
+
+            offset = (offset_y, offset_x)
+
+            bbox = [
+                offset_x,
+                offset_y,
+                offset_x + overlay_width,
+                offset_y + overlay_height,
+            ]
+
+            if "bbox_id" in metadata:
+                bbox = [*bbox, metadata["bbox_id"]]
+
+        result = {
+            "overlay_image": overlay_image,
+            "overlay_mask": mask,
+            "offset": offset,
+            "bbox": bbox,
+        }
+
+        if "mask_id" in metadata:
+            result["mask_id"] = metadata["mask_id"]
+
+        return result
+
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        metadata = params[self.metadata_key]
+        img_shape = params["image"].shape
+
+        if isinstance(metadata, list):
+            overlay_data = [self.preprocess_metadata(md, img_shape) for md in metadata]
+        else:
+            overlay_data = [self.preprocess_metadata(metadata, img_shape)]
+
+        return {
+            "overlay_data": overlay_data,
+        }
+
+    def apply(
+        self,
+        img: np.ndarray,
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> np.ndarray:
+        for data in overlay_data:
+            overlay_image = data["overlay_image"]
+            overlay_mask = data["overlay_mask"]
+            offset = data["offset"]
+            img = fmixing.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=offset)
+        return img
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> np.ndarray:
+        for data in overlay_data:
+            if "mask_id" in data and data["mask_id"] is not None:
+                overlay_mask = data["overlay_mask"]
+                offset = data["offset"]
+                mask_id = data["mask_id"]
+
+                y_min, x_min = offset
+                y_max = y_min + overlay_mask.shape[0]
+                x_max = x_min + overlay_mask.shape[1]
+
+                mask_section = mask[y_min:y_max, x_min:x_max]
+                mask_section[overlay_mask > 0] = mask_id
+
+        return mask
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("metadata_key",)
