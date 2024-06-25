@@ -260,9 +260,10 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 Transforms that mix several images into one
 
-| Transform                                                                                                                                   | Image | Mask | BBoxes | Keypoints | Global Label |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :--: | :----: | :-------: | :----------: |
-| [MixUp](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.MixUp) | ✓     | ✓    |        |           | ✓            |
+| Transform                                                                                                                                                       | Image | Mask | BBoxes | Keypoints | Global Label |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :--: | :----: | :-------: | :----------: |
+| [MixUp](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.MixUp)                     | ✓     | ✓    |        |           | ✓            |
+| [OverlayElements](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.OverlayElements) | ✓     | ✓    |        |           |              |
 
 ## A few more examples of **augmentations**
 
