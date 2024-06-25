@@ -255,7 +255,7 @@ def mock_random(monkeypatch):
                 "overlay_mask": np.ones((20, 20), dtype=np.uint8) * 127,
                 "offset": (30, 30),
                 "mask_id": 1,
-                "bbox": [0.3, 0.3, 0.5, 0.5, 99],
+                "bbox": [30, 30, 50, 50, 99],
             }
         ),
         # Image + bbox with label + mask_id + no mask
@@ -267,7 +267,7 @@ def mock_random(monkeypatch):
                 "overlay_mask": np.ones((20, 20), dtype=np.uint8),
                 "offset": (30, 30),
                 "mask_id": 1,
-                "bbox": [0.3, 0.3, 0.5, 0.5, 99],
+                "bbox": [30, 30, 50, 50, 99],
             }
         ),
         # Image + no bbox, no mask_id, no label_id, no_mask
@@ -278,7 +278,7 @@ def mock_random(monkeypatch):
                 "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
                 "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8),
                 "offset": (0, 0),
-                "bbox": [0, 0, 0.2, 0.2],
+                "bbox": [0, 0, 20, 20],
             }
         ),
         # image + mask_id + label_id + no mask
@@ -290,7 +290,7 @@ def mock_random(monkeypatch):
                 "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8),
                 "offset": (0, 0),
                 "mask_id": 1,
-                "bbox": [0, 0, 0.2, 0.2, 99],
+                "bbox": [0, 0, 20, 20, 99],
             }
         ),
         # Test case with triangular mask
@@ -306,7 +306,7 @@ def mock_random(monkeypatch):
                 "overlay_mask": np.tri(20, 20, dtype=np.uint8) * 127,
                 "offset": (0, 0),
                 "mask_id": 2,
-                "bbox": [0, 0, 0.2, 0.2, 100],
+                "bbox": [0, 0, 20, 20, 100],
             }
         ),
          # Test case with overlay_image having the same size as img_shape
@@ -322,7 +322,7 @@ def mock_random(monkeypatch):
                 "overlay_mask": np.ones((100, 100), dtype=np.uint8) * 127,
                 "offset": (0, 0),
                 "mask_id": 3,
-                "bbox": [0, 0, 1, 1, 101],
+                "bbox": [0, 0, 100, 100, 101],
             }
         ),
     ]
@@ -330,7 +330,7 @@ def mock_random(monkeypatch):
 def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int], expected_output: Dict[str, Any]):
     result = A.OverlayElements.preprocess_metadata(metadata, img_shape)
 
-    assert DeepDiff(result, expected_output) == {}
+    assert DeepDiff(result, expected_output, ignore_type_in_groups=[(tuple, list)]) == {}
 
 
 @pytest.mark.parametrize(
@@ -343,7 +343,7 @@ def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int
             },
             {
                 "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
-                "expected_bbox": [0.1, 0.2, 0.2, 0.3]
+                "expected_bbox": [10, 20, 20, 30]
             }
         ),
         (
@@ -354,7 +354,7 @@ def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int
             },
             {
                 "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
-                "expected_bbox": [0.3, 0.4, 0.4, 0.5, 99]
+                "expected_bbox": [30, 40, 40, 50, 99]
             }
         ),
         (
@@ -363,7 +363,7 @@ def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int
             },
             {
                 "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
-                "expected_bbox": [0, 0, 0.1, 0.1]
+                "expected_bbox": [0, 0, 10, 10]
             }
         ),
     ]
@@ -372,14 +372,11 @@ def test_end_to_end(metadata, expected_output):
     transform = A.Compose([A.OverlayElements(p=1)])
 
     img = np.zeros((100, 100, 3), dtype=np.uint8)
-    image_height, image_width = img.shape[:2]
 
     transformed = transform(image=img, overlay_metadata=metadata)
 
     expected_img = np.zeros((100, 100, 3), dtype=np.uint8)
-    y_min, x_min, y_max, x_max = expected_output["expected_bbox"][:4]
-
-    y_min, x_min, y_max, x_max = (int(x) for x in denormalize_bbox(expected_output["expected_bbox"][:4], rows=image_height, cols=image_width)[:4])
+    x_min, y_min, x_max, y_max = expected_output["expected_bbox"][:4]
 
     expected_img[y_min:y_max, x_min:x_max] = expected_output["expected_overlay"]
 

@@ -283,9 +283,9 @@ class OverlayElements(ReferenceBasedTransform):
         if "bbox" in metadata:
             bbox = metadata["bbox"]
             check_bbox(bbox)
-            y_min, x_min, y_max, x_max = (
-                int(x) for x in denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)[:4]
-            )
+            denormalized_bbox = denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)
+
+            x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
 
             if "mask" in metadata:
                 mask = metadata["mask"]
@@ -297,7 +297,9 @@ class OverlayElements(ReferenceBasedTransform):
             offset = (y_min, x_min)
 
             if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
-                bbox = [*bbox, metadata["bbox_id"]]
+                bbox = [x_min, y_min, x_max, y_max, metadata["bbox_id"]]
+            else:
+                bbox = (x_min, y_min, x_max, y_max, *bbox[4:])
         else:
             if image_height < overlay_height or image_width < overlay_width:
                 overlay_image = cv2.resize(overlay_image, (image_width, image_height), interpolation=cv2.INTER_AREA)
@@ -305,19 +307,19 @@ class OverlayElements(ReferenceBasedTransform):
 
             mask = metadata["mask"] if "mask" in metadata else np.ones_like(overlay_image, dtype=np.uint8)
 
-            max_y_offset = image_height - overlay_height
             max_x_offset = image_width - overlay_width
+            max_y_offset = image_height - overlay_height
 
-            offset_y = random.randint(0, max_y_offset)
             offset_x = random.randint(0, max_x_offset)
+            offset_y = random.randint(0, max_y_offset)
 
             offset = (offset_y, offset_x)
 
             bbox = [
-                offset_x / image_width,
-                offset_y / image_height,
-                (offset_x + overlay_width) / image_width,
-                (offset_y + overlay_height) / image_height,
+                offset_x,
+                offset_y,
+                offset_x + overlay_width,
+                offset_y + overlay_height,
             ]
 
             if "bbox_id" in metadata:
