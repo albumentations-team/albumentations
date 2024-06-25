@@ -247,8 +247,6 @@ class OverlayElements(ReferenceBasedTransform):
                              provided, the entire overlay image is used.
         - mask_id (int): An optional identifier for the mask. If provided, the regions specified by the mask will
                          be labeled with this identifier in the output mask.
-        - bbox_id (int): An optional identifier for the bounding box. If provided and bbox length is 4, it will be
-                         appended to the bbox as the fifth element.
 
     Targets:
         image, mask
