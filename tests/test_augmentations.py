@@ -223,7 +223,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
+            A.MixUp: {
                 "reference_data": [{"image": SQUARE_UINT8_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
@@ -236,7 +236,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     ),
 )
 def test_augmentations_wont_change_input(augmentation_cls, params):
-    image = SQUARE_UINT8_IMAGE
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
     image_copy = image.copy()
     mask_copy = mask.copy()
@@ -393,7 +393,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     aug = augmentation_cls(p=1, **params)
 
     # Test for grayscale image
-    image = np.zeros(shape, dtype=np.uint8)
+    image = np.zeros(shape, dtype=np.float32) if augmentation_cls == A.FromFloat else np.zeros(shape, dtype=np.uint8)
     mask = np.zeros(shape)
     if augmentation_cls == A.OverlayElements:
         data = {
@@ -440,7 +440,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
+            A.MixUp: {
                 "reference_data": [{"image": SQUARE_UINT8_IMAGE,
                                     "mask": np.random.randint(0, 1, (100, 100, 3), dtype=np.uint8),
                                     }],
@@ -477,6 +477,11 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
         data = {
             "image": image_3ch,
             "overlay_metadata": [],
+            "mask": mask_3ch,
+        }
+    elif augmentation_cls == A.FromFloat:
+        data = {
+            "image": SQUARE_FLOAT_IMAGE,
             "mask": mask_3ch,
         }
     else:

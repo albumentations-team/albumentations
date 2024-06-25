@@ -14,7 +14,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from albumentations.core.types import ImageCompressionType
-from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES
+from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES, SQUARE_FLOAT_IMAGE
 
 
 from .utils import (
@@ -571,12 +571,12 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
-             A.PadIfNeeded: {
-            "min_height": 512,
-            "min_width": 512,
-            "border_mode": 0,
-            "value": [124, 116, 104],
-            "position": "top_left"
+            A.PadIfNeeded: {
+                "min_height": 512,
+                "min_width": 512,
+                "border_mode": 0,
+                "value": [124, 116, 104],
+                "position": "top_left"
             },
         },
         except_augmentations={
@@ -600,10 +600,10 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_for_bboxes_serialization(
-    augmentation_cls, params, p, seed, image, albumentations_bboxes
+    augmentation_cls, params, p, seed, albumentations_bboxes
 ):
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -635,12 +635,12 @@ def test_augmentations_for_bboxes_serialization(
                 "fill_value": 0,
                 "mask_fill_value": 1,
             },
-             A.PadIfNeeded: {
-            "min_height": 512,
-            "min_width": 512,
-            "border_mode": 0,
-            "value": [124, 116, 104],
-            "position": "top_left"
+            A.PadIfNeeded: {
+                "min_height": 512,
+                "min_width": 512,
+                "border_mode": 0,
+                "value": [124, 116, 104],
+                "position": "top_left"
             }
         },
         except_augmentations={
@@ -665,8 +665,8 @@ def test_augmentations_for_bboxes_serialization(
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", UINT8_IMAGES)
-def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, image, keypoints):
+def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, keypoints):
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -887,8 +887,8 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     ),
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", UINT8_IMAGES)
-def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
+def test_additional_targets_for_image_only_serialization(augmentation_cls, params, seed):
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = A.Compose(
         [augmentation_cls(p=1., **params)],
         additional_targets={"image2": "image"},

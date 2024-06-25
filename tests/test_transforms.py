@@ -265,7 +265,7 @@ def __test_multiprocessing_support_proc(args):
 )
 def test_multiprocessing_support(mp_pool, augmentation_cls, params):
     """Checks whether we can use augmentations in multiprocessing environments"""
-    image = SQUARE_UINT8_IMAGE
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=1, **params)
 
     mp_pool.map(__test_multiprocessing_support_proc, map(lambda x: (x, aug), [image] * 10))
@@ -332,7 +332,7 @@ def test_force_apply():
 def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(p=1, **params)], additional_targets={"image2": "image"})
     for _ in range(10):
-        image1 = SQUARE_UINT8_IMAGE
+        image1 = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
         image2 = image1.copy()
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
@@ -342,12 +342,13 @@ def test_additional_targets_for_image_only(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(p=1, **params)])
     aug.add_targets(additional_targets={"image2": "image"})
     for _ in range(10):
-        image1 = SQUARE_UINT8_IMAGE
+        image1 = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
         image2 = image1.copy()
         res = aug(image=image1, image2=image2)
         aug1 = res["image"]
         aug2 = res["image2"]
         assert np.array_equal(aug1, aug2)
+
 
 def test_image_invert():
     for _ in range(10):
@@ -1454,6 +1455,10 @@ def test_change_image(augmentation_cls, params):
                 "bbox": (0.1, 0.12, 0.6, 0.3)
             }
         }
+    elif augmentation_cls == A.FromFloat:
+        data = {
+            "image": SQUARE_FLOAT_IMAGE,
+        }
     else:
         data = {
             "image": image,
@@ -1513,7 +1518,8 @@ def test_change_image(augmentation_cls, params):
             A.RandomRotate90,
             A.FancyPCA,
             A.PlanckianJitter,
-            A.OverlayElements
+            A.OverlayElements,
+            A.FromFloat,
         },
     ),
 )
