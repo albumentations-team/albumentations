@@ -1451,7 +1451,7 @@ def test_change_image(augmentation_cls, params):
             "image": image,
             "overlay_metadata": {
                 "image": clip(SQUARE_UINT8_IMAGE + 2, image.dtype),
-                "bbox": (10, 20, 30, 40)
+                "bbox": (0.1, 0.12, 0.6, 0.3)
             }
         }
     else:

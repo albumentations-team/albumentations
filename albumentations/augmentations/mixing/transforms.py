@@ -11,6 +11,7 @@ from pydantic import Field
 from typing_extensions import Annotated
 
 from albumentations.augmentations.mixing import functional as fmixing
+from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
 from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
@@ -238,8 +239,10 @@ class OverlayElements(ReferenceBasedTransform):
     Possible Metadata Fields:
         - image (np.ndarray): The overlay image to be applied. This is a required field.
         - bbox (List[int]): The bounding box specifying the region where the overlay should be applied. It should
-                            contain four integers: [y_min, x_min, y_max, x_max]. If `label_id` is provided, it should
-                            be appended as the fifth element in the bbox.
+                            contain four floats: [y_min, x_min, y_max, x_max]. If `label_id` is provided, it should
+                            be appended as the fifth element in the bbox. BBox should be in Albumentations format,
+                            that is the same as normalized Pascal VOC format
+                            [x_min / width, y_min / height, x_max / width, y_max / height]
         - mask (np.ndarray): An optional mask that defines the non-rectangular region of the overlay image. If not
                              provided, the entire overlay image is used.
         - mask_id (int): An optional identifier for the mask. If provided, the regions specified by the mask will
@@ -266,7 +269,7 @@ class OverlayElements(ReferenceBasedTransform):
         p: float = 0.5,
         always_apply: Optional[bool] = None,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.metadata_key = metadata_key
 
     @property
@@ -276,10 +279,15 @@ class OverlayElements(ReferenceBasedTransform):
     @staticmethod
     def preprocess_metadata(metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
         overlay_image = metadata["image"]
+        overlay_height, overlay_width = overlay_image.shape[:2]
+        image_height, image_width = img_shape[:2]
 
         if "bbox" in metadata:
             bbox = metadata["bbox"]
-            y_min, x_min, y_max, x_max = bbox[:4]
+            check_bbox(bbox)
+            y_min, x_min, y_max, x_max = (
+                int(x) for x in denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)[:4]
+            )
 
             if "mask" in metadata:
                 mask = metadata["mask"]
@@ -293,19 +301,26 @@ class OverlayElements(ReferenceBasedTransform):
             if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
                 bbox = [*bbox, metadata["bbox_id"]]
         else:
+            if image_height < overlay_height or image_width < overlay_width:
+                overlay_image = cv2.resize(overlay_image, (image_width, image_height), interpolation=cv2.INTER_AREA)
+                overlay_height, overlay_width = overlay_image.shape[:2]
+
             mask = metadata["mask"] if "mask" in metadata else np.ones_like(overlay_image, dtype=np.uint8)
 
-            overlay_height, overlay_width = overlay_image.shape[:2]
-
-            max_y_offset = img_shape[0] - overlay_height
-            max_x_offset = img_shape[1] - overlay_width
+            max_y_offset = image_height - overlay_height
+            max_x_offset = image_width - overlay_width
 
             offset_y = random.randint(0, max_y_offset)
             offset_x = random.randint(0, max_x_offset)
 
             offset = (offset_y, offset_x)
 
-            bbox = [offset_x, offset_y, offset_x + overlay_width, offset_y + overlay_height]
+            bbox = [
+                offset_x / image_width,
+                offset_y / image_height,
+                (offset_x + overlay_width) / image_width,
+                (offset_y + overlay_height) / image_height,
+            ]
 
             if "bbox_id" in metadata:
                 bbox = [*bbox, metadata["bbox_id"]]
