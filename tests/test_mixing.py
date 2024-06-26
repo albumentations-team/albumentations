@@ -328,7 +328,10 @@ def mock_random(monkeypatch):
     ]
 )
 def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int], expected_output: Dict[str, Any]):
-    result = A.OverlayElements.preprocess_metadata(metadata, img_shape)
+    transform = A.OverlayElements()
+
+    # Call the instance method preprocess_metadata
+    result = transform.preprocess_metadata(metadata, img_shape)
 
     assert DeepDiff(result, expected_output, ignore_type_in_groups=[(tuple, list)]) == {}
 

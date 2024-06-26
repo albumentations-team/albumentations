@@ -274,56 +274,33 @@ class OverlayElements(ReferenceBasedTransform):
     def targets_as_params(self) -> List[str]:
         return [self.metadata_key, "image"]
 
-    @staticmethod
-    def preprocess_metadata(metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
+    def preprocess_metadata(self, metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
         overlay_image = metadata["image"]
-        overlay_height, overlay_width = overlay_image.shape[:2]
         image_height, image_width = img_shape[:2]
 
         if "bbox" in metadata:
-            bbox = metadata["bbox"]
-            check_bbox(bbox)
-            denormalized_bbox = denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)
+            return self._process_with_bbox(metadata, overlay_image, image_height, image_width)
 
-            x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
+        return self._process_without_bbox(metadata, overlay_image, image_height, image_width)
 
-            if "mask" in metadata:
-                mask = metadata["mask"]
-                mask = cv2.resize(mask, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_NEAREST)
-            else:
-                mask = np.ones((y_max - y_min, x_max - x_min), dtype=np.uint8)
+    def _process_with_bbox(
+        self,
+        metadata: Dict[str, Any],
+        overlay_image: np.ndarray,
+        image_height: int,
+        image_width: int,
+    ) -> Dict[str, Any]:
+        bbox = metadata["bbox"]
+        check_bbox(bbox)
+        denormalized_bbox = denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)
 
-            overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
-            offset = (y_min, x_min)
+        x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
 
-            if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
-                bbox = [x_min, y_min, x_max, y_max, metadata["bbox_id"]]
-            else:
-                bbox = (x_min, y_min, x_max, y_max, *bbox[4:])
-        else:
-            if image_height < overlay_height or image_width < overlay_width:
-                overlay_image = cv2.resize(overlay_image, (image_width, image_height), interpolation=cv2.INTER_AREA)
-                overlay_height, overlay_width = overlay_image.shape[:2]
+        mask = self._resize_mask(metadata, x_max - x_min, y_max - y_min)
+        overlay_image = cv2.resize(overlay_image, (x_max - x_min, y_max - y_min), interpolation=cv2.INTER_AREA)
+        offset = (y_min, x_min)
 
-            mask = metadata["mask"] if "mask" in metadata else np.ones_like(overlay_image, dtype=np.uint8)
-
-            max_x_offset = image_width - overlay_width
-            max_y_offset = image_height - overlay_height
-
-            offset_x = random.randint(0, max_x_offset)
-            offset_y = random.randint(0, max_y_offset)
-
-            offset = (offset_y, offset_x)
-
-            bbox = [
-                offset_x,
-                offset_y,
-                offset_x + overlay_width,
-                offset_y + overlay_height,
-            ]
-
-            if "bbox_id" in metadata:
-                bbox = [*bbox, metadata["bbox_id"]]
+        bbox = self._adjust_bbox(bbox, x_min, y_min, x_max, y_max, metadata)
 
         result = {
             "overlay_image": overlay_image,
@@ -336,6 +313,79 @@ class OverlayElements(ReferenceBasedTransform):
             result["mask_id"] = metadata["mask_id"]
 
         return result
+
+    def _process_without_bbox(
+        self,
+        metadata: Dict[str, Any],
+        overlay_image: np.ndarray,
+        image_height: int,
+        image_width: int,
+    ) -> Dict[str, Any]:
+        overlay_height, overlay_width = overlay_image.shape[:2]
+
+        if image_height < overlay_height or image_width < overlay_width:
+            overlay_image = cv2.resize(overlay_image, (image_width, image_height), interpolation=cv2.INTER_AREA)
+            overlay_height, overlay_width = overlay_image.shape[:2]
+
+        mask = metadata.get("mask", np.ones_like(overlay_image, dtype=np.uint8))
+
+        offset_x, offset_y = self._calculate_offsets(image_width, image_height, overlay_width, overlay_height)
+        offset = (offset_y, offset_x)
+
+        bbox = [
+            offset_x,
+            offset_y,
+            offset_x + overlay_width,
+            offset_y + overlay_height,
+        ]
+
+        if "bbox_id" in metadata:
+            bbox.append(metadata["bbox_id"])
+
+        result = {
+            "overlay_image": overlay_image,
+            "overlay_mask": mask,
+            "offset": offset,
+            "bbox": bbox,
+        }
+
+        if "mask_id" in metadata:
+            result["mask_id"] = metadata["mask_id"]
+
+        return result
+
+    @staticmethod
+    def _resize_mask(metadata: Dict[str, Any], width: int, height: int) -> np.ndarray:
+        if "mask" in metadata:
+            mask = metadata["mask"]
+            return cv2.resize(mask, (width, height), interpolation=cv2.INTER_NEAREST)
+        return np.ones((height, width), dtype=np.uint8)
+
+    @staticmethod
+    def _adjust_bbox(
+        bbox: List[float],
+        x_min: int,
+        y_min: int,
+        x_max: int,
+        y_max: int,
+        metadata: Dict[str, Any],
+    ) -> List[float]:
+        if len(bbox) == LENGTH_RAW_BBOX and "bbox_id" in metadata:
+            return [x_min, y_min, x_max, y_max, metadata["bbox_id"]]
+        return [x_min, y_min, x_max, y_max, *bbox[4:]]
+
+    @staticmethod
+    def _calculate_offsets(
+        image_width: int,
+        image_height: int,
+        overlay_width: int,
+        overlay_height: int,
+    ) -> Tuple[int, int]:
+        max_x_offset = image_width - overlay_width
+        max_y_offset = image_height - overlay_height
+        offset_x = random.randint(0, max_x_offset)
+        offset_y = random.randint(0, max_y_offset)
+        return offset_x, offset_y
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         metadata = params[self.metadata_key]
