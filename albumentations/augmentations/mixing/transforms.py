@@ -10,9 +10,10 @@ from albucore.utils import is_grayscale_image
 from pydantic import Field
 from typing_extensions import Annotated
 
+from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.augmentations.mixing import functional as fmixing
-from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
-from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
+from albumentations.core.bbox_utils import check_bbox, denormalize_bbox, normalize_bbox
+from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform, ReferenceBasedTransform
 from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
 
@@ -176,16 +177,16 @@ class MixUp(ReferenceBasedTransform):
             return mix_coef * label + (1 - mix_coef) * mix_label
         return label
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], mix_data: ReferenceImage, **params: Any) -> Sequence[BoxType]:
+    def apply_to_bboxes(self, bboxes: List[BoxType], mix_data: ReferenceImage, **params: Any) -> List[BoxType]:
         msg = "MixUp does not support bounding boxes yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 
     def apply_to_keypoints(
         self,
-        keypoints: Sequence[KeypointType],
+        keypoints: List[KeypointType],
         *args: Any,
         **params: Any,
-    ) -> Sequence[KeypointType]:
+    ) -> List[KeypointType]:
         msg = "MixUp does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 
@@ -303,8 +304,8 @@ class OverlayElements(ReferenceBasedTransform):
         bbox = self._adjust_bbox(bbox, x_min, y_min, x_max, y_max, metadata)
 
         result = {
-            "overlay_image": overlay_image,
-            "overlay_mask": mask,
+            "image": overlay_image,
+            "mask": mask,
             "offset": offset,
             "bbox": bbox,
         }
@@ -329,7 +330,7 @@ class OverlayElements(ReferenceBasedTransform):
 
         mask = metadata.get("mask", np.ones_like(overlay_image, dtype=np.uint8))
 
-        offset_x, offset_y = self._calculate_offsets(image_width, image_height, overlay_width, overlay_height)
+        offset_x, offset_y = fmixing.calculate_offsets((image_height, image_width), overlay_image.shape)
         offset = (offset_y, offset_x)
 
         bbox = [
@@ -343,8 +344,8 @@ class OverlayElements(ReferenceBasedTransform):
             bbox.append(metadata["bbox_id"])
 
         result = {
-            "overlay_image": overlay_image,
-            "overlay_mask": mask,
+            "image": overlay_image,
+            "mask": mask,
             "offset": offset,
             "bbox": bbox,
         }
@@ -374,18 +375,185 @@ class OverlayElements(ReferenceBasedTransform):
             return [x_min, y_min, x_max, y_max, metadata["bbox_id"]]
         return [x_min, y_min, x_max, y_max, *bbox[4:]]
 
-    @staticmethod
-    def _calculate_offsets(
-        image_width: int,
-        image_height: int,
-        overlay_width: int,
-        overlay_height: int,
-    ) -> Tuple[int, int]:
-        max_x_offset = image_width - overlay_width
-        max_y_offset = image_height - overlay_height
-        offset_x = random.randint(0, max_x_offset)
-        offset_y = random.randint(0, max_y_offset)
-        return offset_x, offset_y
+    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        metadata = params[self.metadata_key]
+        img_shape = params["image"].shape
+
+        if isinstance(metadata, list):
+            overlay_data = [self.preprocess_metadata(md, img_shape) for md in metadata]
+        else:
+            overlay_data = [self.preprocess_metadata(metadata, img_shape)]
+
+        return {
+            "overlay_data": overlay_data,
+        }
+
+    def apply(
+        self,
+        img: np.ndarray,
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> np.ndarray:
+        for data in overlay_data:
+            overlay_image = data["image"]
+            overlay_mask = data["mask"]
+            offset = data["offset"]
+            img = fmixing.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=offset)
+        return img
+
+    def apply_to_mask(
+        self,
+        mask: np.ndarray,
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> np.ndarray:
+        for data in overlay_data:
+            if "mask_id" in data and data["mask_id"] is not None:
+                overlay_mask = data["mask"]
+                offset = data["offset"]
+                mask_id = data["mask_id"]
+
+                y_min, x_min = offset
+                y_max = y_min + overlay_mask.shape[0]
+                x_max = x_min + overlay_mask.shape[1]
+
+                mask_section = mask[y_min:y_max, x_min:x_max]
+                mask_section[overlay_mask > 0] = mask_id
+
+        return mask
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("metadata_key",)
+
+
+class CopyPaste(DualTransform):
+    _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
+
+    class InitSchema(BaseTransformInitSchema):
+        metadata_key: str
+        add_object_id: bool
+
+    def __init__(
+        self,
+        add_object_id: bool = False,
+        metadata_key: str = "copypaste_metadata",
+        p: float = 0.5,
+        always_apply: Optional[bool] = None,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.metadata_key = metadata_key
+        self.add_object_id = add_object_id
+
+    @property
+    def targets_as_params(self) -> List[str]:
+        return [self.metadata_key, "image"]
+
+    def _process_with_masks(self, metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
+        """We have mask. Compute bbox coordinates from mask and crop image and mask to bbox size.
+        Generate random coordinates for pasting the cropped image and mask to the original image.
+
+        Args:
+            metadata (Dict[str, Any]): _description_
+            img_shape (SizeType): _description_
+
+        Returns:
+            Dict[str, Any]: _description_
+        """
+        image_height, image_width = img_shape[:2]
+
+        x_min, y_min, x_max, y_max = fmixing.mask2bbox(metadata["mask"])
+        mask = metadata["mask"][y_min:y_max, x_min:x_max]
+        overlay_image = metadata["image"][y_min:y_max, x_min:x_max]
+
+        overlay_height, overlay_width = overlay_image.shape[:2]
+
+        keypoints = metadata.get("keypoints")
+
+        if overlay_height > image_height or overlay_width > image_width:
+            if keypoints is not None:
+                scale_x = image_width / overlay_width
+                scale_y = image_height / overlay_height
+
+                keypoints = [fgeometric.keypoint_scale(keypoint, scale_x, scale_y) for keypoint in keypoints]
+
+            overlay_image = cv2.resize(metadata["image"], (image_width, image_height), interpolation=cv2.INTER_AREA)
+            overlay_height, overlay_width = overlay_image.shape[:2]
+        else:
+            overlay_image = metadata["image"]
+
+        offset_x, offset_y = fmixing.calculate_offsets(img_shape, overlay_image.shape)
+
+        bbox = normalize_bbox((x_min, y_min, x_max, y_max), image_height, image_width)
+        bbox = fgeometric.bbox_shift(bbox[:4], offset_x / image_width, offset_y / image_height)
+
+        result = {**metadata, "bbox": bbox, "image": overlay_image, "offset": (offset_x, offset_y), "mask": mask}
+
+        if keypoints is not None:
+            keypoints = [fgeometric.keypoint_shift(keypoint, offset_x, offset_y) for keypoint in keypoints]
+            result["keypoints"] = keypoints
+
+        return result
+
+    def _process_with_image(self, metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
+        """overlay_image, but no mask
+
+        Args:
+            metadata (Dict[str, Any]): _description_
+            img_shape (SizeType): _description_
+
+        Returns:
+            Dict[str, Any]: _description_
+        """
+        overlay_height, overlay_width = metadata["image"][:2]
+        image_height, image_width = img_shape[:2]
+
+        keypoints = metadata.get("keypoints")
+
+        if overlay_height > image_height or overlay_width > image_width:
+            if keypoints is not None:
+                scale_x = image_width / overlay_width
+                scale_y = image_height / overlay_height
+
+                keypoints = [fgeometric.keypoint_scale(keypoint, scale_x, scale_y) for keypoint in keypoints]
+
+            overlay_image = cv2.resize(metadata["image"], (image_width, image_height), interpolation=cv2.INTER_AREA)
+            overlay_height, overlay_width = overlay_image.shape[:2]
+        else:
+            overlay_image = metadata["image"]
+
+        offset_x, offset_y = fmixing.calculate_offsets(img_shape, (overlay_width, overlay_height))
+
+        bbox = normalize_bbox(
+            (offset_x, offset_y, offset_x + overlay_width, offset_y + overlay_height),
+            image_height,
+            image_width,
+        )
+        bbox = fgeometric.bbox_shift(bbox[:4], offset_x / image_width, offset_y / image_height)
+
+        if "class_id" in metadata:
+            bbox = (*bbox, metadata["class_id"])
+
+        result = {
+            **metadata,
+            "bbox": bbox,
+            "image": overlay_image,
+            "offset": (offset_x, offset_y),
+            "mask": np.ones_like(overlay_image, dtype=np.uint8),
+        }
+
+        if keypoints is not None:
+            keypoints = [fgeometric.keypoint_shift(keypoint, offset_x, offset_y) for keypoint in keypoints]
+            result["keypoints"] = keypoints
+
+        return result
+
+    def preprocess_metadata(self, metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
+        # mask in metadata, but bbox not in metadata and we compute bbox from mask
+        if "mask" in metadata:
+            return self._process_with_masks(metadata, img_shape)
+
+        # no mask, no bbox
+        return self._process_with_image(metadata, img_shape)
 
     def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
         metadata = params[self.metadata_key]
@@ -407,8 +575,8 @@ class OverlayElements(ReferenceBasedTransform):
         **params: Any,
     ) -> np.ndarray:
         for data in overlay_data:
-            overlay_image = data["overlay_image"]
-            overlay_mask = data["overlay_mask"]
+            overlay_image = data["image"]
+            overlay_mask = data.get("mask", np.ones_like(overlay_image, dtype=np.uint8))
             offset = data["offset"]
             img = fmixing.copy_and_paste_blend(img, overlay_image, overlay_mask, offset=offset)
         return img
@@ -417,11 +585,10 @@ class OverlayElements(ReferenceBasedTransform):
         self,
         mask: np.ndarray,
         overlay_data: List[Dict[str, Any]],
-        **params: Any,
     ) -> np.ndarray:
         for data in overlay_data:
             if "mask_id" in data and data["mask_id"] is not None:
-                overlay_mask = data["overlay_mask"]
+                overlay_mask = data["mask"]
                 offset = data["offset"]
                 mask_id = data["mask_id"]
 
@@ -434,5 +601,49 @@ class OverlayElements(ReferenceBasedTransform):
 
         return mask
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        return ("metadata_key",)
+    def apply_to_masks(
+        self,
+        masks: List[np.ndarray],
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> List[np.ndarray]:
+        height = params["rows"]
+        width = params["cols"]
+
+        for data in overlay_data:
+            if "mask" in data:
+                mask = data["mask"]
+                offset_x, offset_y = data["offset"]
+                mask_height, mask_width = mask.shape[:2]
+                result_mask = np.ones(size=(height, width), dtype=np.uint8)
+
+                result_mask[offset_y : offset_y + mask_height, offset_x : offset_x + mask_width] = mask
+
+                masks += [mask]
+
+        return masks
+
+    def apply_to_bboxes(
+        self,
+        bboxes: List[BoxType],
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> List[BoxType]:
+        for data in overlay_data:
+            if "bbox" in data:
+                bbox = data["bbox"]
+                bboxes += [bbox]
+
+        return bboxes
+
+    def apply_to_keypoints(
+        self,
+        keypoints: List[KeypointType],
+        overlay_data: List[Dict[str, Any]],
+        **params: Any,
+    ) -> List[KeypointType]:
+        for data in overlay_data:
+            if "keypoints" in data:
+                keypoints += data["keypoints"]
+
+        return keypoints
