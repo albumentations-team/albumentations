@@ -234,6 +234,39 @@ class MixUp(ReferenceBasedTransform):
 
 
 class OverlayElements(ImageOnlyTransform):
+    """Overlay elements on the image using metadata.
+
+    This transformation overlays elements on the input image based on metadata provided.
+    The metadata contains information about the overlay image and its bounding box.
+    The bounding box is in the Albumentations format, which is normalized Pascal VOC.
+
+    Attributes:
+        metadata_key (str): Key to retrieve overlay metadata from the input dictionary.
+        p (float): Probability of applying the transform. Default: 0.5.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Example:
+        >>> import numpy as np
+        >>> import albumentations as A
+        >>> from overlay_elements import OverlayElements
+        >>> base_image = np.zeros((100, 100, 3), dtype=np.uint8)
+        >>> overlay_image = np.ones((20, 20, 3), dtype=np.uint8) * 255
+        >>> metadata = {
+        >>>     "image": overlay_image,
+        >>>     "bbox": [0.1, 0.1, 0.3, 0.3]  # Normalized Pascal VOC format: [x_min, y_min, x_max, y_max]
+        >>> }
+        >>> transform = A.Compose([
+        >>>     OverlayElements(metadata_key="overlay_metadata", p=1.0)
+        >>> ], additional_targets={"overlay_metadata": "image"})
+        >>> result = transform(image=base_image, overlay_metadata=metadata)
+        >>> blended_image = result["image"]
+    """
+
     class InitSchema(BaseTransformInitSchema):
         metadata_key: str
 

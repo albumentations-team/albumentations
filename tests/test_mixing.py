@@ -210,8 +210,8 @@ def test_keypoint_error(image, global_label, keypoints):
 def test_pipeline(augmentation_cls, params, image, global_label):
     mask = image.copy()
 
-    reference_data =[{"image": np.random.randint(0, 256, image.shape, dtype=np.uint8).astype(image.dtype),
-                     "mask": np.random.randint(0, 256, mask.shape, dtype=np.uint8).astype(mask.dtype),
+    reference_data =[{"image": np.random.randint(0, 255, image.shape, dtype=np.uint8).astype(image.dtype),
+                     "mask": np.random.randint(0, 255, mask.shape, dtype=np.uint8).astype(mask.dtype),
                      "global_label": np.array([0, 0, 1])}]
 
     mix_up = A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)
@@ -228,7 +228,6 @@ def test_pipeline(augmentation_cls, params, image, global_label):
 
     assert math.isclose(mix_coef, mix_coeff_label, abs_tol=0.01)
     assert 0 <= mix_coeff_label <= 1
-
 
 
 # Mock random.randint to produce consistent results
