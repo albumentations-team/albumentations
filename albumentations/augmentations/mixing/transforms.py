@@ -381,7 +381,7 @@ class CopyPaste(DualTransform):
         Returns:
             Dict[str, Any]: _description_
         """
-        overlay_height, overlay_width = metadata["image"][:2]
+        overlay_height, overlay_width = metadata["image"].shape[:2]
         image_height, image_width = img_shape[:2]
 
         keypoints = metadata.get("keypoints")

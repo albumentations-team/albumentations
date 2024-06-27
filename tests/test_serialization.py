@@ -20,6 +20,7 @@ from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMA
 from .utils import (
     OpenMock,
     check_all_augs_exists,
+    get_dual_transforms,
     get_image_only_transforms,
     get_transforms,
     set_seed,
@@ -548,7 +549,7 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_dual_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
@@ -613,7 +614,7 @@ def test_augmentations_for_bboxes_serialization(
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
-    get_transforms(
+    get_dual_transforms(
         custom_arguments={
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},

@@ -1449,6 +1449,8 @@ def test_coarse_dropout_invalid_input(params):
 )
 def test_change_image(augmentation_cls, params):
     """Checks whether transform performs changes to the image."""
+    set_seed(42)
+
     aug = A.Compose([augmentation_cls(p=1, **params)])
 
     image = SQUARE_UINT8_IMAGE
@@ -1467,9 +1469,7 @@ def test_change_image(augmentation_cls, params):
                 "image": clip(SQUARE_UINT8_IMAGE + 2, image.dtype),
             }
     elif augmentation_cls == A.FromFloat:
-        data["image"] = {
-            "image": SQUARE_FLOAT_IMAGE,
-        }
+        data["image"] = SQUARE_FLOAT_IMAGE
 
     assert not np.array_equal(aug(**data)["image"], image)
 
