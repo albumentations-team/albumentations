@@ -22,7 +22,7 @@ from albumentations.core.transforms_interface import (
 from albumentations.core.types import BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
 
-__all__ = ["MixUp", "OverlayElements"]
+__all__ = ["MixUp", "OverlayElements", "CopyPaste"]
 
 
 class MixUp(ReferenceBasedTransform):
@@ -250,7 +250,8 @@ class OverlayElements(ImageOnlyTransform):
     def targets_as_params(self) -> List[str]:
         return [self.metadata_key, "image"]
 
-    def preprocess_metadata(self, metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
+    @staticmethod
+    def preprocess_metadata(metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
         overlay_image = metadata["image"]
         image_height, image_width = img_shape[:2]
 
@@ -300,22 +301,24 @@ class OverlayElements(ImageOnlyTransform):
 
 
 class CopyPaste(DualTransform):
+    """Targets:
+    image, mask, bboxes, keypoints
+
+    """
+
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
         metadata_key: str
-        add_object_id: bool
 
     def __init__(
         self,
-        add_object_id: bool = False,
         metadata_key: str = "copypaste_metadata",
         p: float = 0.5,
         always_apply: Optional[bool] = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.metadata_key = metadata_key
-        self.add_object_id = add_object_id
 
     @property
     def targets_as_params(self) -> List[str]:
@@ -395,7 +398,7 @@ class CopyPaste(DualTransform):
         else:
             overlay_image = metadata["image"]
 
-        offset_x, offset_y = fmixing.calculate_offsets(img_shape, (overlay_width, overlay_height))
+        offset_x, offset_y = fmixing.calculate_offsets(img_shape, (overlay_height, overlay_width))
 
         bbox = normalize_bbox(
             (offset_x, offset_y, offset_x + overlay_width, offset_y + overlay_height),
@@ -459,6 +462,7 @@ class CopyPaste(DualTransform):
         self,
         mask: np.ndarray,
         overlay_data: List[Dict[str, Any]],
+        **params: Any,
     ) -> np.ndarray:
         for data in overlay_data:
             if "mask_id" in data and data["mask_id"] is not None:
@@ -521,3 +525,6 @@ class CopyPaste(DualTransform):
                 keypoints += data["keypoints"]
 
         return keypoints
+
+    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+        return ("metadata_key",)

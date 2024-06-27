@@ -170,17 +170,17 @@ def test_binary_mask_interpolation(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
     image = SQUARE_UINT8_IMAGE
     mask = np.random.randint(low=0, high=2, size=(100, 100), dtype=np.uint8)
+
+    data = {
+        "image": image,
+        "mask": mask,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "mask": mask,
-            "overlay_metadata": []
-        }
-    else:
-        data = {
-            "image": image,
-            "mask": mask,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = []
+
     data = aug(**data)
     assert np.array_equal(np.unique(data["mask"]), np.array([0, 1]))
 
@@ -206,7 +206,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.PixelDropout,
             A.MixUp,
             A.XYMasking,
-            A.OverlayElements
+            A.CopyPaste
         },
     ),
 )
@@ -259,7 +259,8 @@ def __test_multiprocessing_support_proc(args):
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
-            A.OverlayElements
+            A.OverlayElements,
+            A.CopyPaste
         },
     ),
 )
@@ -327,6 +328,9 @@ def test_force_apply():
                 "templates": SQUARE_UINT8_IMAGE,
             },
         },
+        except_augmentations= {
+            A.OverlayElements
+        }
     ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
@@ -1446,23 +1450,27 @@ def test_coarse_dropout_invalid_input(params):
 def test_change_image(augmentation_cls, params):
     """Checks whether transform performs changes to the image."""
     aug = A.Compose([augmentation_cls(p=1, **params)])
+
     image = SQUARE_UINT8_IMAGE
+
+    data = {
+        "image": SQUARE_UINT8_IMAGE,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": {
+        data["overlay_metadata"] = {
                 "image": clip(SQUARE_UINT8_IMAGE + 2, image.dtype),
                 "bbox": (0.1, 0.12, 0.6, 0.3)
             }
-        }
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = {
+                "image": clip(SQUARE_UINT8_IMAGE + 2, image.dtype),
+            }
     elif augmentation_cls == A.FromFloat:
-        data = {
+        data["image"] = {
             "image": SQUARE_FLOAT_IMAGE,
         }
-    else:
-        data = {
-            "image": image,
-        }
+
     assert not np.array_equal(aug(**data)["image"], image)
 
 
@@ -1519,6 +1527,7 @@ def test_change_image(augmentation_cls, params):
             A.FancyPCA,
             A.PlanckianJitter,
             A.OverlayElements,
+            A.CopyPaste,
             A.FromFloat,
         },
     ),
@@ -1675,7 +1684,7 @@ def test_random_snow_invalid_input(params):
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
-            A.OverlayElements
+            A.CopyPaste
         },
     ),
 )
