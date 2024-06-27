@@ -16,6 +16,9 @@ def copy_and_paste_blend(
     offset: Tuple[int, int],
     overlay_mask: Optional[np.ndarray] = None,
 ) -> np.ndarray:
+    if overlay_image.size == 0:
+        return base_image
+
     x_offset, y_offset = offset
 
     blended_image = base_image.copy()
