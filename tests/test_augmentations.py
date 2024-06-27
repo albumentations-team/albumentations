@@ -44,7 +44,12 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image, mask=mask)
+
+    if augmentation_cls == A.OverlayElements:
+        data = aug(image=image, mask=mask, overlay_metadata=[])
+    else:
+        data = aug(image=image, mask=mask)
+
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
@@ -91,8 +96,14 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
 def test_image_only_augmentations(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image[:, :, 0].copy().astype(np.uint8)
+
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image, mask=mask)
+
+    if augmentation_cls == A.OverlayElements:
+        data = aug(image=image, mask=mask, overlay_metadata=[])
+    else:
+        data = aug(image=image, mask=mask)
+
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
@@ -134,8 +145,8 @@ def test_dual_augmentations(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
     aug = A.Compose([augmentation_cls(p=1, **params)])
-    if augmentation_cls == A.OverlayElements:
-        data = aug(image=image, mask=mask, overlay_metadata=[])
+    if augmentation_cls == A.CopyPaste:
+        data = aug(image=image, mask=mask, copypaste_metadata=[])
     else:
         data = aug(image=image, mask=mask)
     assert data["image"].dtype == image.dtype
@@ -178,8 +189,9 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image.copy()[:, :, 0].astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
-    if augmentation_cls == A.OverlayElements:
-        data = aug(image=image, mask=mask, overlay_metadata=[])
+
+    if augmentation_cls == A.CopyPaste:
+        data = aug(image=image, mask=mask, copypaste_metadata=[])
     else:
         data = aug(image=image, mask=mask)
 
@@ -243,6 +255,8 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
     if augmentation_cls == A.OverlayElements:
         aug(image=image, mask=mask, overlay_metadata=[])
+    elif augmentation_cls == A.CopyPaste:
+        aug(image=image, mask=mask, copypaste_metadata=[])
     else:
         aug(image=image, mask=mask)
     assert np.array_equal(image, image_copy)
@@ -314,6 +328,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
     aug = augmentation_cls(p=1, **params)
     if augmentation_cls == A.OverlayElements:
         aug(image=image, overlay_metadata=[])
+    elif augmentation_cls == A.CopyPaste:
+        aug(image=image, copypaste_metadata=[])
     else:
         aug(image=image)
 
@@ -395,17 +411,16 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     # Test for grayscale image
     image = np.zeros(shape, dtype=np.float32) if augmentation_cls == A.FromFloat else np.zeros(shape, dtype=np.uint8)
     mask = np.zeros(shape)
+    data = {
+        "image": image,
+        "mask": mask,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-            "mask": mask,
-        }
-    else:
-        data = {
-            "image": image,
-            "mask": mask,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = []
+
     result = aug(**data)
 
     assert np.array_equal(image.shape, result["image"].shape)
@@ -473,22 +488,18 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
 
     aug = augmentation_cls(p=1, **params)
 
+    data = {
+        "image": image_3ch,
+        "mask": mask_3ch,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image_3ch,
-            "overlay_metadata": [],
-            "mask": mask_3ch,
-        }
+        data["overlay_metadata"] = []
     elif augmentation_cls == A.FromFloat:
-        data = {
-            "image": SQUARE_FLOAT_IMAGE,
-            "mask": mask_3ch,
-        }
-    else:
-        data = {
-            "image": image_3ch,
-            "mask": mask_3ch,
-        }
+        data["image"] = SQUARE_FLOAT_IMAGE
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = []
+
     result = aug(**data)
 
     assert np.array_equal(image_3ch.shape, result["image"].shape)
@@ -602,15 +613,14 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     image = SQUARE_MULTI_UINT8_IMAGE
     aug = augmentation_cls(p=1, **params)
 
+    data = {
+        "image": image,
+    }
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = []
+
     data = aug(**data)
     assert data["image"].dtype == np.uint8
     assert data["image"].shape[2] == image.shape[-1]
@@ -690,15 +700,15 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
 def test_float_multichannel_image_augmentations(augmentation_cls, params):
     image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
+    data = {
+        "image": image,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = []
+
     data = aug(**data)
 
     assert data["image"].dtype == np.float32
@@ -772,15 +782,14 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
 
     aug = augmentation_cls(p=1, **params)
 
+    data = {
+        "image": image,
+    }
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = []
+
     data = aug(**data)
 
     assert data["image"].dtype == np.uint8
@@ -856,15 +865,14 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
     image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
 
+    data = {
+        "image": image,
+    }
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.CopyPaste:
+        data["copypaste_metadata"] = []
+
     data = aug(**data)
 
     assert data["image"].dtype == np.float32
@@ -1139,6 +1147,10 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         # requires "metadata" arg
         aug = A.Compose([augmentation_cls(p=1, **params)])
         aug(image=image, overlay_metadata=[], mask=mask)
+    elif augmentation_cls == A.CopyPaste:
+        # requires "metadata" arg
+        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug(image=image, copypaste_metadata=[], mask=mask)
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:

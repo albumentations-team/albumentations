@@ -10,7 +10,7 @@ ColorType = Union[float, Sequence[float]]
 SizeType = Sequence[int]
 
 BoxInternalType = Tuple[float, float, float, float]
-BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any], Tuple[float, float, float, float]]
+BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any]]
 KeypointInternalType = Tuple[float, float, float, float]
 KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]
 

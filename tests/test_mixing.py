@@ -210,8 +210,8 @@ def test_keypoint_error(image, global_label, keypoints):
 def test_pipeline(augmentation_cls, params, image, global_label):
     mask = image.copy()
 
-    reference_data =[{"image": np.random.randint(0, 256, image.shape, dtype=np.uint8).astype(image.dtype),
-                     "mask": np.random.randint(0, 256, mask.shape, dtype=np.uint8).astype(mask.dtype),
+    reference_data =[{"image": np.random.randint(0, 255, image.shape, dtype=np.uint8).astype(image.dtype),
+                     "mask": np.random.randint(0, 255, mask.shape, dtype=np.uint8).astype(mask.dtype),
                      "global_label": np.array([0, 0, 1])}]
 
     mix_up = A.MixUp(p=1, reference_data=reference_data, read_fn=lambda x: x)
@@ -230,7 +230,6 @@ def test_pipeline(augmentation_cls, params, image, global_label):
     assert 0 <= mix_coeff_label <= 1
 
 
-
 # Mock random.randint to produce consistent results
 @pytest.fixture(autouse=True)
 def mock_random(monkeypatch):
@@ -246,89 +245,47 @@ def mock_random(monkeypatch):
             # Image + bbox without label + mask + mask_id + label_id + no offset
             {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
              "bbox": [0.3, 0.3, 0.5, 0.5],
-             "mask": np.ones((20, 20), dtype=np.uint8) * 127,
-             "mask_id": 1,
-             "bbox_id": 99},
+             },
             (100, 100),
             {
-                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.ones((20, 20), dtype=np.uint8) * 127,
+                "image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
                 "offset": (30, 30),
-                "mask_id": 1,
-                "bbox": [30, 30, 50, 50, 99],
             }
         ),
         # Image + bbox with label + mask_id + no mask
         (
-            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255, "bbox": [0.3, 0.3, 0.5, 0.5, 99], "mask_id": 1},
+            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255, "bbox": [0.3, 0.3, 0.5, 0.5, 99]},
             (100, 100),
             {
-                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.ones((20, 20), dtype=np.uint8),
+                "image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
                 "offset": (30, 30),
-                "mask_id": 1,
-                "bbox": [30, 30, 50, 50, 99],
-            }
-        ),
-        # Image + no bbox, no mask_id, no label_id, no_mask
-        (
-            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255},
-            (100, 100),
-            {
-                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8),
-                "offset": (0, 0),
-                "bbox": [0, 0, 20, 20],
-            }
-        ),
-        # image + mask_id + label_id + no mask
-        (
-            {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255, "mask_id": 1, "bbox_id": 99},
-            (100, 100),
-            {
-                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.ones((20, 20, 3), dtype=np.uint8),
-                "offset": (0, 0),
-                "mask_id": 1,
-                "bbox": [0, 0, 20, 20, 99],
             }
         ),
         # Test case with triangular mask
         (
             {"image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-             "bbox": [0, 0, 0.2, 0.2],
-             "mask": np.tri(20, 20, dtype=np.uint8) * 127,
-             "mask_id": 2,
-             "bbox_id": 100},
+             "bbox": [0, 0, 0.2, 0.2] },
             (100, 100),
             {
-                "overlay_image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.tri(20, 20, dtype=np.uint8) * 127,
+                "image": np.ones((20, 20, 3), dtype=np.uint8) * 255,
                 "offset": (0, 0),
-                "mask_id": 2,
-                "bbox": [0, 0, 20, 20, 100],
             }
         ),
          # Test case with overlay_image having the same size as img_shape
         (
             {"image": np.ones((100, 100, 3), dtype=np.uint8) * 255,
              "bbox": [0, 0, 1, 1],
-             "mask": np.ones((100, 100), dtype=np.uint8) * 127,
-             "mask_id": 3,
-             "bbox_id": 101},
+             },
             (100, 100),
             {
-                "overlay_image": np.ones((100, 100, 3), dtype=np.uint8) * 255,
-                "overlay_mask": np.ones((100, 100), dtype=np.uint8) * 127,
+                "image": np.ones((100, 100, 3), dtype=np.uint8) * 255,
                 "offset": (0, 0),
-                "mask_id": 3,
-                "bbox": [0, 0, 100, 100, 101],
             }
         ),
     ]
 )
 def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int], expected_output: Dict[str, Any]):
-    result = A.OverlayElements.preprocess_metadata(metadata, img_shape)
+    result = A.OverlayElements().preprocess_metadata(metadata, img_shape)
 
     assert DeepDiff(result, expected_output, ignore_type_in_groups=[(tuple, list)]) == {}
 
@@ -355,15 +312,6 @@ def test_preprocess_metadata(metadata: Dict[str, Any], img_shape: Tuple[int, int
             {
                 "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
                 "expected_bbox": [30, 40, 40, 50, 99]
-            }
-        ),
-        (
-            {
-                "image": np.ones((10, 10, 3), dtype=np.uint8) * 255
-            },
-            {
-                "expected_overlay": np.ones((10, 10, 3), dtype=np.uint8) * 255,
-                "expected_bbox": [0, 0, 10, 10]
             }
         ),
     ]

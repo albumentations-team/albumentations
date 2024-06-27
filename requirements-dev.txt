@@ -1,5 +1,5 @@
 deepdiff>=6.7.1
-mypy>=1.10.0
+mypy>=1.10.1
 pre_commit>=3.5.0
 pytest>=8.2.2
 pytest_cov>=5.0.0

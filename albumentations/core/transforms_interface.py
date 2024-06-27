@@ -317,7 +317,7 @@ class DualTransform(BasicTransform):
         msg = f"Method apply_to_global_label is not implemented in class {self.__class__.__name__}"
         raise NotImplementedError(msg)
 
-    def apply_to_bboxes(self, bboxes: Sequence[BoxType], *args: Any, **params: Any) -> Sequence[BoxType]:
+    def apply_to_bboxes(self, bboxes: List[BoxType], *args: Any, **params: Any) -> List[BoxType]:
         return [
             self.apply_to_bbox(cast(BoxInternalType, tuple(cast(BoxInternalType, bbox[:4]))), **params)
             + tuple(bbox[4:])
@@ -326,7 +326,7 @@ class DualTransform(BasicTransform):
 
     def apply_to_keypoints(
         self,
-        keypoints: Sequence[KeypointType],
+        keypoints: List[KeypointType],
         *args: Any,
         **params: Any,
     ) -> Sequence[KeypointType]:
@@ -338,7 +338,7 @@ class DualTransform(BasicTransform):
     def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         return self.apply(mask, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
 
-    def apply_to_masks(self, masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+    def apply_to_masks(self, masks: List[np.ndarray], *args: Any, **params: Any) -> List[np.ndarray]:
         return [self.apply_to_mask(mask, **params) for mask in masks]
 
     def apply_to_global_labels(self, labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:

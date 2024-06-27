@@ -70,6 +70,8 @@ __all__ = [
     "d4",
     "bbox_d4",
     "keypoint_d4",
+    "bbox_shift",
+    "keypoint_shift",
 ]
 
 TWO = 2
@@ -1388,3 +1390,21 @@ def elastic_transform_approx(
         borderValue=value,
     )
     return remap_fn(img)
+
+
+def bbox_shift(
+    bbox: BoxInternalType,
+    shift_x: float,
+    shift_y: float,
+) -> BoxInternalType:
+    x_min, y_min, x_max, y_max = bbox[:4]
+    return cast(BoxInternalType, (x_min + shift_x, y_min + shift_y, x_max + shift_x, y_max + shift_y))
+
+
+def keypoint_shift(
+    keypoint: KeypointInternalType,
+    shift_x: int,
+    shift_y: int,
+) -> KeypointInternalType:
+    x, y, angle, scale = keypoint[:4]
+    return x + shift_x, y + shift_y, angle, scale

@@ -30,28 +30,51 @@ def find_mix_coef(r: np.ndarray, array1: np.ndarray, array2: np.ndarray) -> floa
 
     return mix_coef[valid].mean()
 
+@pytest.mark.parametrize(
+    "base_image, overlay_image, offset, overlay_mask, expected",
+    [
+        # Basic blending without a mask
+        (
+            np.zeros((5, 5, 3), dtype=np.uint8),
+            np.ones((2, 2, 3), dtype=np.uint8) * 255,
+            (1, 1),
+            None,
+            np.array([
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [255, 255, 255], [255, 255, 255], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [255, 255, 255], [255, 255, 255], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            ], dtype=np.uint8)
+        ),
+        # Blending with a mask
+        (
+            np.zeros((5, 5, 3), dtype=np.uint8),
+            np.ones((2, 2, 3), dtype=np.uint8) * 255,
+            (1, 1),
+            np.array([
+                [1, 0],
+                [0, 1],
+            ]),
+            np.array([
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [255, 255, 255], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [0, 0, 0], [255, 255, 255], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                [[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+            ], dtype=np.uint8)
+        ),
+        # Edge case: Empty overlay
+        (
+            np.zeros((5, 5, 3), dtype=np.uint8),
+            np.zeros((0, 0, 3), dtype=np.uint8),
+            (1, 1),
+            None,
+            np.zeros((5, 5, 3), dtype=np.uint8)
+        ),
+    ]
+)
 
-@pytest.mark.parametrize("base_image, overlay_image, mask, offset, expected_shape, expected_comparison", [
-    (
-        np.ones((200, 200, 3), dtype=np.uint8) * 255,
-        np.zeros((100, 100, 3), dtype=np.uint8),
-        np.ones((100, 100), dtype=np.uint8) * 255,
-        (50, 50),
-        (200, 200, 3),
-        lambda result, base_image, overlay_image, mask: np.array_equal(result[50:150, 50:150][mask > 0], overlay_image[mask > 0])
-    ),
-    (
-        np.ones((200, 200, 3), dtype=np.uint8) * 255,
-        np.zeros((100, 100, 3), dtype=np.uint8),
-        None,
-        (50, 50),
-        (200, 200, 3),
-        lambda result, base_image, overlay_image, _: np.all(result[50:150, 50:150] != base_image[50:150, 50:150])
-    ),
-])
-def test_copy_and_paste_blend(base_image, overlay_image, mask, offset, expected_shape, expected_comparison):
-    if mask is None:
-        mask = np.ones_like(overlay_image[:, :, 0])
-    result = fmixing.copy_and_paste_blend(base_image, overlay_image, mask, offset)
-    assert result.shape == expected_shape
-    assert expected_comparison(result, base_image, overlay_image, mask)
+def test_copy_and_paste_blend(base_image, overlay_image, offset, overlay_mask, expected):
+    result = fmixing.copy_and_paste_blend(base_image, overlay_image, offset, overlay_mask)
+    assert np.array_equal(result, expected), f"Expected:\n{expected}\nGot:\n{result}"
