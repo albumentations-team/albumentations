@@ -1,5 +1,5 @@
 import random
-from typing import Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 
 import numpy as np
 
@@ -13,16 +13,24 @@ __all__ = [
 def copy_and_paste_blend(
     base_image: np.ndarray,
     overlay_image: np.ndarray,
-    mask: np.ndarray,
     offset: Tuple[int, int],
+    overlay_mask: Optional[np.ndarray] = None,
 ) -> np.ndarray:
-    y_offset, x_offset = offset
+    x_offset, y_offset = offset
+
     blended_image = base_image.copy()
-    mask_indices = np.where(mask > 0)
-    blended_image[mask_indices[0] + y_offset, mask_indices[1] + x_offset] = overlay_image[
-        mask_indices[0],
-        mask_indices[1],
-    ]
+    overlay_height, overlay_width = overlay_image.shape[:2]
+
+    if overlay_mask is None:
+        x_min, y_min = x_offset, y_offset
+        x_max, y_max = x_min + overlay_width, y_min + overlay_height
+        blended_image[y_min:y_max, x_min:x_max] = overlay_image
+    else:
+        mask_indices = np.where(overlay_mask > 0)
+        blended_image[mask_indices[0] + y_offset, mask_indices[1] + x_offset] = overlay_image[
+            mask_indices[0],
+            mask_indices[1],
+        ]
     return blended_image
 
 
