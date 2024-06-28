@@ -73,10 +73,7 @@ class GridDropout(DualTransform):
         mask_fill_value: ColorType | None = Field(None, description="Value for the dropped pixels in mask.")
         unit_size_range: (
             Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
-        ) = Field(
-            None,
-            description="Size of the grid unit.",
-        )
+        ) = None
         shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)] = Field(
             (0, 0),
             description="Offsets of the grid start in x and y directions.",

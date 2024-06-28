@@ -23,13 +23,13 @@ class ValidatedTransformMeta(type):
                 full_kwargs: dict[str, Any] = dict(zip(param_names, args))
                 full_kwargs.update(kwargs)
 
-                for parameter_name, param in init_params.items():
+                for parameter_name, parameter in init_params.items():
                     if (
                         parameter_name != "self"
                         and parameter_name not in full_kwargs
-                        and param.default is not Parameter.empty
+                        and parameter.default is not Parameter.empty
                     ):
-                        full_kwargs[parameter_name] = param.default
+                        full_kwargs[parameter_name] = parameter.default
 
                 # No try-except block needed as we want the exception to propagate naturally
                 config = dct["InitSchema"](**full_kwargs)

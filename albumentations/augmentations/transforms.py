@@ -424,7 +424,7 @@ class ImageCompression(ImageOnlyTransform):
             raise TypeError(msg)
         return fmain.image_compression(img, quality, image_type)
 
-    def get_params(self) -> dict[str, Any]:
+    def get_params(self) -> dict[str, int | str]:
         if self.compression_type == ImageCompressionType.JPEG:
             image_type = ".jpg"
         elif self.compression_type == ImageCompressionType.WEBP:
