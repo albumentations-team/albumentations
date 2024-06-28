@@ -207,7 +207,9 @@ def convert_keypoint_to_albumentations(
     if angle_in_degrees:
         a = math.radians(a)
 
-    keypoint = (x, y, angle_to_2pi_range(a), s, *tail)
+    # if we do not truncate keypoints to integer values, they get into wrong positions after the rotation
+    # https://github.com/albumentations-team/albumentations/issues/1819
+    keypoint = (int(x), int(y), angle_to_2pi_range(a), s, *tail)
     if check_validity:
         check_keypoint(keypoint, rows, cols)
     return keypoint
