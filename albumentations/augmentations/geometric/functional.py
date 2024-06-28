@@ -6,7 +6,7 @@ from typing import Any, Callable, Sequence, cast
 import cv2
 import numpy as np
 import skimage.transform
-from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim
+from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim, contiguous
 from scipy.ndimage import gaussian_filter
 
 from albumentations import random_utils
@@ -80,7 +80,7 @@ ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
 
 
-def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:
+def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int | None = None, cols: int | None = None) -> BoxInternalType:
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
@@ -991,9 +991,9 @@ def transpose(img: np.ndarray) -> np.ndarray:
     return img.transpose(new_axes)
 
 
+@contiguous
 def rot90(img: np.ndarray, factor: int) -> np.ndarray:
-    img = np.rot90(img, factor)
-    return np.ascontiguousarray(img)
+    return np.rot90(img, factor)
 
 
 def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:

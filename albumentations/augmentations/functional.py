@@ -48,6 +48,8 @@ __all__ = [
     "adjust_hue_torchvision",
     "adjust_saturation_torchvision",
     "brightness_contrast_adjust",
+    "center",
+    "center_bbox",
     "channel_shuffle",
     "clahe",
     "convolve",
@@ -1430,6 +1432,19 @@ def center(width: NumericType, height: NumericType) -> tuple[float, float]:
         tuple[float, float]: The center coordinates of the rectangle.
     """
     return width / 2 - 0.5, height / 2 - 0.5
+
+
+def center_bbox(width: NumericType, height: NumericType) -> tuple[float, float]:
+    """Calculate the center coordinates of a rectangle.
+
+    Args:
+        width (NumericType): The width of the rectangle.
+        height (NumericType): The height of the rectangle.
+
+    Returns:
+        tuple[float, float]: The center coordinates of the rectangle.
+    """
+    return width / 2, height / 2
 
 
 PLANCKIAN_COEFFS = {
