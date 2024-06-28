@@ -106,7 +106,12 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int | None = None, cols
     return bbox
 
 
-def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -> BoxInternalType:
+def bbox_d4(
+    bbox: BoxInternalType,
+    group_member: D4Type,
+    rows: int | None = None,
+    cols: int | None = None,
+) -> BoxInternalType:
     """Applies a `D_4` symmetry group transformation to a bounding box.
 
     The function transforms a bounding box according to the specified group member from the `D_4` group.
@@ -134,13 +139,13 @@ def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -
     """
     transformations = {
         "e": lambda x: x,  # Identity transformation
-        "r90": lambda x: bbox_rot90(x, 1, rows, cols),  # Rotate 90 degrees
-        "r180": lambda x: bbox_rot90(x, 2, rows, cols),  # Rotate 180 degrees
-        "r270": lambda x: bbox_rot90(x, 3, rows, cols),  # Rotate 270 degrees
+        "r90": lambda x: bbox_rot90(x, 1),  # Rotate 90 degrees
+        "r180": lambda x: bbox_rot90(x, 2),  # Rotate 180 degrees
+        "r270": lambda x: bbox_rot90(x, 3),  # Rotate 270 degrees
         "v": lambda x: bbox_vflip(x, rows, cols),  # Vertical flip
-        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2, rows, cols), rows, cols),  # Reflect over anti-diagonal
-        "h": lambda x: bbox_hflip(x, rows, cols),  # Horizontal flip
-        "t": lambda x: bbox_transpose(x, rows, cols),  # Transpose (reflect over main diagonal)
+        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2)),  # Reflect over anti-diagonal
+        "h": lambda x: bbox_hflip(x),  # Horizontal flip
+        "t": lambda x: bbox_transpose(x),  # Transpose (reflect over main diagonal)
     }
 
     # Execute the appropriate transformation
@@ -996,7 +1001,7 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.rot90(img, factor)
 
 
-def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
+def bbox_vflip(bbox: BoxInternalType, rows: int | None = None, cols: int | None = None) -> BoxInternalType:
     """Flip a bounding box vertically around the x-axis.
 
     Args:
@@ -1012,7 +1017,7 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
+def bbox_hflip(bbox: BoxInternalType, rows: int | None = None, cols: int | None = None) -> BoxInternalType:
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
@@ -1028,7 +1033,7 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     return 1 - x_max, y_min, 1 - x_min, y_max
 
 
-def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInternalType:
+def bbox_flip(bbox: BoxInternalType, d: int, rows: int | None = None, cols: int | None = None) -> BoxInternalType:
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
     Args:
@@ -1045,18 +1050,22 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
 
     """
     if d == 0:
-        bbox = bbox_vflip(bbox, rows, cols)
+        bbox = bbox_vflip(bbox)
     elif d == 1:
-        bbox = bbox_hflip(bbox, rows, cols)
+        bbox = bbox_hflip(bbox)
     elif d == -1:
-        bbox = bbox_hflip(bbox, rows, cols)
-        bbox = bbox_vflip(bbox, rows, cols)
+        bbox = bbox_hflip(bbox)
+        bbox = bbox_vflip(bbox)
     else:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
     return bbox
 
 
-def bbox_transpose(bbox: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
+def bbox_transpose(
+    bbox: KeypointInternalType,
+    rows: int | None = None,
+    cols: int | None = None,
+) -> KeypointInternalType:
     """Transposes a bounding box along given axis.
 
     Args:
