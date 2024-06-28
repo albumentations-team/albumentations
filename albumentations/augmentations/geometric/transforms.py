@@ -747,13 +747,13 @@ class Affine(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        matrix_bbox: skimage.transform.ProjectiveTransform,
+        bbox_matrix: skimage.transform.ProjectiveTransform,
         rows: int,
         cols: int,
         output_shape: SizeType,
         **params: Any,
     ) -> BoxInternalType:
-        return fgeometric.bbox_affine(bbox, matrix_bbox, self.rotate_method, rows, cols, output_shape)
+        return fgeometric.bbox_affine(bbox, bbox_matrix, self.rotate_method, rows, cols, output_shape)
 
     def apply_to_keypoint(
         self,
@@ -846,7 +846,7 @@ class Affine(DualTransform):
         # Bounding box transformation matrix
         matrix_to_topleft_bbox = skimage.transform.SimilarityTransform(translation=[-shift_x_bbox, -shift_y_bbox])
         matrix_to_center_bbox = skimage.transform.SimilarityTransform(translation=[shift_x_bbox, shift_y_bbox])
-        matrix_bbox = (
+        bbox_matrix = (
             matrix_to_topleft_bbox
             + matrix_shear_y_rot
             + matrix_shear_y
@@ -864,7 +864,7 @@ class Affine(DualTransform):
             "rotate": rotate,
             "scale": scale,
             "matrix": matrix,
-            "matrix_bbox": matrix_bbox,
+            "bbox_matrix": bbox_matrix,
             "output_shape": output_shape,
         }
 
