@@ -1,7 +1,7 @@
 import random
 from functools import partial
 from typing import Any, Dict, Optional, Tuple, Type
-
+from deepdiff import DeepDiff
 import cv2
 import numpy as np
 
@@ -9,6 +9,7 @@ import pytest
 import warnings
 from torchvision import transforms as torch_transforms
 
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.pydantic import valid_interpolations, valid_border_modes
 
 from albucore.utils import clip
@@ -1915,3 +1916,36 @@ def test_random_sun_flare_initialization(params, expected):
 def test_random_sun_flare_invalid_input(params):
     with pytest.raises(ValueError):
         A.RandomSunFlare(**params)
+
+
+@pytest.mark.parametrize("angle", [90, 180, -90])
+def test_rot90(bboxes, angle, keypoints):
+    image = SQUARE_UINT8_IMAGE
+    mask = image.copy()
+
+    image_height, image_width = image.shape[:2]
+    normalized_bboxes = normalize_bboxes(bboxes, image_height, image_width)
+
+    angle2factor = { 90:1, 180: 2, -90:3}
+
+    transform = A.Compose([A.Affine(rotate=(angle, angle), p=1)], bbox_params=A.BboxParams(format="pascal_voc"), keypoint_params=A.KeypointParams(format="xyas"))
+
+    transformed = transform(image=image, mask=mask, bboxes=bboxes, keypoints=keypoints)
+
+    factor = angle2factor[angle]
+
+    image_rotated = FGeometric.rot90(image, factor)
+    mask_rotated = FGeometric.rot90(image, factor)
+    bboxes_rotated = [FGeometric.bbox_rot90(bbox, factor) for bbox in normalized_bboxes]
+    bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_height, image_width)
+    keypoints_rotated = [FGeometric.keypoint_rot90(keypoint[:4], factor, image_height, image_width) for keypoint in keypoints]
+
+    assert np.array_equal(transformed["image"], image_rotated)
+    assert np.array_equal(transformed["mask"], mask_rotated)
+
+    # Assert bounding boxes
+    for transformed_bbox, expected_bbox in zip(transformed["bboxes"], bboxes_rotated):
+        assert np.allclose(transformed_bbox[:4], expected_bbox, atol=1e-7), f"Bounding boxes do not match: {transformed_bbox} != {expected_bbox}"
+
+    for transformed_keypoint, expected_keypoint in zip(transformed["keypoints"], keypoints_rotated):
+        assert np.allclose(transformed_keypoint[:2], expected_keypoint[:2], atol=1e-7), f"Keypoints do not match: {transformed_keypoint} != {expected_keypoint}"

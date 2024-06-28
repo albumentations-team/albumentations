@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import random
 from enum import Enum
-from typing import Any, Callable, Literal, Sequence, Tuple, cast
+from typing import Any, Callable, Literal, Tuple, cast
 from warnings import warn
 
 import cv2
@@ -14,7 +14,7 @@ from pydantic import Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
-from albumentations.augmentations.functional import bbox_from_mask, center
+from albumentations.augmentations.functional import bbox_from_mask, center, center_bbox
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
@@ -747,13 +747,13 @@ class Affine(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        matrix: skimage.transform.ProjectiveTransform,
+        bbox_matrix: skimage.transform.ProjectiveTransform,
         rows: int,
         cols: int,
-        output_shape: Sequence[int],
+        output_shape: SizeType,
         **params: Any,
     ) -> BoxInternalType:
-        return fgeometric.bbox_affine(bbox, matrix, self.rotate_method, rows, cols, output_shape)
+        return fgeometric.bbox_affine(bbox, bbox_matrix, self.rotate_method, rows, cols, output_shape)
 
     def apply_to_keypoint(
         self,
@@ -814,16 +814,15 @@ class Affine(DualTransform):
         else:
             translate = {"x": 0, "y": 0}
 
-        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
         shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
 
         scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale)
-
-        # Look to issue https://github.com/albumentations-team/albumentations/issues/1079
         rotate = -random.uniform(*self.rotate)
 
         shift_x, shift_y = center(width, height)
+        shift_x_bbox, shift_y_bbox = center_bbox(width, height)
 
+        # Image transformation matrix
         matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
         matrix_shear_y_rot = skimage.transform.AffineTransform(rotation=-np.pi / 2)
         matrix_shear_y = skimage.transform.AffineTransform(shear=np.deg2rad(shear["y"]))
@@ -843,6 +842,19 @@ class Affine(DualTransform):
             + matrix_transforms
             + matrix_to_center
         )
+
+        # Bounding box transformation matrix
+        matrix_to_topleft_bbox = skimage.transform.SimilarityTransform(translation=[-shift_x_bbox, -shift_y_bbox])
+        matrix_to_center_bbox = skimage.transform.SimilarityTransform(translation=[shift_x_bbox, shift_y_bbox])
+        bbox_matrix = (
+            matrix_to_topleft_bbox
+            + matrix_shear_y_rot
+            + matrix_shear_y
+            + matrix_shear_y_rot_inv
+            + matrix_transforms
+            + matrix_to_center_bbox
+        )
+
         if self.fit_output:
             matrix, output_shape = self._compute_affine_warp_output_shape(matrix, params["image"].shape)
         else:
@@ -852,6 +864,7 @@ class Affine(DualTransform):
             "rotate": rotate,
             "scale": scale,
             "matrix": matrix,
+            "bbox_matrix": bbox_matrix,
             "output_shape": output_shape,
         }
 
