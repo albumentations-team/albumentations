@@ -1,16 +1,21 @@
-import random
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from __future__ import annotations
 
-import numpy as np
+import random
+from typing import TYPE_CHECKING, Any, Mapping
+
 from albucore.utils import is_grayscale_image
-from pydantic import Field
 from typing_extensions import Annotated
 
-from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import ColorType
 
 from .functional import channel_dropout
+
+if TYPE_CHECKING:
+    import numpy as np
+    from pydantic import Field
+
+    from albumentations.core.pydantic import OnePlusIntRangeType
+    from albumentations.core.types import ColorType
 
 __all__ = ["ChannelDropout"]
 
@@ -39,20 +44,20 @@ class ChannelDropout(ImageOnlyTransform):
 
     def __init__(
         self,
-        channel_drop_range: Tuple[int, int] = (1, 1),
+        channel_drop_range: tuple[int, int] = (1, 1),
         fill_value: float = 0,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
         self.channel_drop_range = channel_drop_range
         self.fill_value = fill_value
 
-    def apply(self, img: np.ndarray, channels_to_drop: Tuple[int, ...], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, channels_to_drop: tuple[int, ...], **params: Any) -> np.ndarray:
         return channel_dropout(img, channels_to_drop, self.fill_value)
 
-    def get_params_dependent_on_targets(self, params: Mapping[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: Mapping[str, Any]) -> dict[str, Any]:
         img = params["image"]
         num_channels = img.shape[-1]
 
@@ -70,9 +75,9 @@ class ChannelDropout(ImageOnlyTransform):
 
         return {"channels_to_drop": channels_to_drop}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "channel_drop_range", "fill_value"
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]

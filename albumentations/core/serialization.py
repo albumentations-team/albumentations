@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib.util
 import json
 import warnings
@@ -5,7 +7,7 @@ from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Optional, TextIO, Tuple, Type, Union
+from typing import Any, TextIO
 
 try:
     import yaml
@@ -20,8 +22,8 @@ from albumentations._version import __version__
 __all__ = ["to_dict", "from_dict", "save", "load"]
 
 
-SERIALIZABLE_REGISTRY: Dict[str, "SerializableMeta"] = {}
-NON_SERIALIZABLE_REGISTRY: Dict[str, "SerializableMeta"] = {}
+SERIALIZABLE_REGISTRY: dict[str, SerializableMeta] = {}
+NON_SERIALIZABLE_REGISTRY: dict[str, SerializableMeta] = {}
 
 
 def shorten_class_name(class_fullname: str) -> str:
@@ -39,7 +41,7 @@ class SerializableMeta(ABCMeta):
     so they can be found later while deserializing transformation pipeline using classes full names.
     """
 
-    def __new__(cls, name: str, bases: Tuple[type, ...], *args: Any, **kwargs: Any) -> "SerializableMeta":
+    def __new__(cls, name: str, bases: tuple[type, ...], *args: Any, **kwargs: Any) -> SerializableMeta:
         cls_obj = super().__new__(cls, name, bases, *args, **kwargs)
         if name != "Serializable" and ABC not in bases:
             if cls_obj.is_serializable():
@@ -57,7 +59,7 @@ class SerializableMeta(ABCMeta):
         return get_shortest_class_fullname(cls)
 
     @classmethod
-    def _to_dict(cls) -> Dict[str, Any]:
+    def _to_dict(cls) -> dict[str, Any]:
         return {}
 
 
@@ -73,10 +75,10 @@ class Serializable(metaclass=SerializableMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         raise NotImplementedError
 
-    def to_dict(self, on_not_implemented_error: str = "raise") -> Dict[str, Any]:
+    def to_dict(self, on_not_implemented_error: str = "raise") -> dict[str, Any]:
         """Take a transform pipeline and convert it to a serializable representation that uses only standard
         python data types: dictionaries, lists, strings, integers, and floats.
 
@@ -109,7 +111,7 @@ class Serializable(metaclass=SerializableMeta):
         return {"__version__": __version__, "transform": transform_dict}
 
 
-def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") -> Dict[str, Any]:
+def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") -> dict[str, Any]:
     """Take a transform pipeline and convert it to a serializable representation that uses only standard
     python data types: dictionaries, lists, strings, integers, and floats.
 
@@ -125,9 +127,9 @@ def to_dict(transform: Serializable, on_not_implemented_error: str = "raise") ->
 
 
 def instantiate_nonserializable(
-    transform: Dict[str, Any],
-    nonserializable: Optional[Dict[str, Any]] = None,
-) -> Optional[Serializable]:
+    transform: dict[str, Any],
+    nonserializable: dict[str, Any] | None = None,
+) -> Serializable | None:
     if transform.get("__class_fullname__") in NON_SERIALIZABLE_REGISTRY:
         name = transform["__name__"]
         if nonserializable is None:
@@ -142,9 +144,9 @@ def instantiate_nonserializable(
 
 
 def from_dict(
-    transform_dict: Dict[str, Any],
-    nonserializable: Optional[Dict[str, Any]] = None,
-) -> Optional[Serializable]:
+    transform_dict: dict[str, Any],
+    nonserializable: dict[str, Any] | None = None,
+) -> Serializable | None:
     """Args:
     transform_dict: A dictionary with serialized transform pipeline.
     nonserializable (dict): A dictionary that contains non-serializable transforms.
@@ -183,8 +185,8 @@ def serialize_enum(obj: Any) -> Any:
 
 
 def save(
-    transform: "Serializable",
-    filepath_or_buffer: Union[str, Path, TextIO],
+    transform: Serializable,
+    filepath_or_buffer: str | Path | TextIO,
     data_format: str = "json",
     on_not_implemented_error: str = "raise",
 ) -> None:
@@ -231,9 +233,9 @@ def save(
 
 
 def load(
-    filepath_or_buffer: Union[str, Path, TextIO],
+    filepath_or_buffer: str | Path | TextIO,
     data_format: str = "json",
-    nonserializable: Optional[Dict[str, Any]] = None,
+    nonserializable: dict[str, Any] | None = None,
 ) -> object:
     """Load a serialized pipeline from a file or file-like object and construct a transform pipeline.
 
@@ -244,7 +246,7 @@ def load(
             the serialized data will be read from it directly.
         data_format (str): The format of the serialized data. Valid options are 'json' and 'yaml'.
             Defaults to 'json'.
-        nonserializable (Optional[Dict[str, Any]]): A dictionary that contains non-serializable transforms.
+        nonserializable (Optional[dict[str, Any]]): A dictionary that contains non-serializable transforms.
             This dictionary is required when restoring a pipeline that contains non-serializable transforms.
             Keys in the dictionary should be named the same as the `name` arguments in respective transforms
             from the serialized pipeline. Defaults to None.
@@ -293,7 +295,7 @@ def register_additional_transforms() -> None:
             pass
 
 
-def get_shortest_class_fullname(cls: Type[Any]) -> str:
+def get_shortest_class_fullname(cls: type[Any]) -> str:
     """The function `get_shortest_class_fullname` takes a class object as input and returns its shortened
     full name.
 

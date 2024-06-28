@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Sequence
 from warnings import warn
 
 import cv2
@@ -230,7 +232,7 @@ def posterize(img: np.ndarray, bits: int) -> np.ndarray:
     return result_img
 
 
-def _equalize_pil(img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
+def _equalize_pil(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
     histogram = cv2.calcHist([img], [0], mask, [256], (0, 256)).ravel()
     h = [_f for _f in histogram if _f]
 
@@ -250,7 +252,7 @@ def _equalize_pil(img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndar
     return cv2.LUT(img, np.array(lut))
 
 
-def _equalize_cv(img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarray:
+def _equalize_cv(img: np.ndarray, mask: np.ndarray | None = None) -> np.ndarray:
     if mask is None:
         return cv2.equalizeHist(img)
 
@@ -278,7 +280,7 @@ def _equalize_cv(img: np.ndarray, mask: Optional[np.ndarray] = None) -> np.ndarr
     return cv2.LUT(img, lut)
 
 
-def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], by_channels: bool) -> None:
+def _check_preconditions(img: np.ndarray, mask: np.ndarray | None, by_channels: bool) -> None:
     if img.dtype != np.uint8:
         msg = "Image must have uint8 channel type"
         raise TypeError(msg)
@@ -292,11 +294,9 @@ def _check_preconditions(img: np.ndarray, mask: Optional[np.ndarray], by_channel
 
 
 def _handle_mask(
-    mask: Optional[np.ndarray],
-    img: np.ndarray,
-    by_channels: bool,
-    i: Optional[int] = None,
-) -> Optional[np.ndarray]:
+    mask: np.ndarray | None,
+    i: int | None = None,
+) -> np.ndarray | None:
     if mask is None:
         return None
     mask = mask.astype(np.uint8)
@@ -309,7 +309,7 @@ def _handle_mask(
 @preserve_channel_dim
 def equalize(
     img: np.ndarray,
-    mask: Optional[np.ndarray] = None,
+    mask: np.ndarray | None = None,
     mode: ImageMode = "cv",
     by_channels: bool = True,
 ) -> np.ndarray:
@@ -318,16 +318,16 @@ def equalize(
     function = _equalize_pil if mode == "pil" else _equalize_cv
 
     if is_grayscale_image(img):
-        return function(img, _handle_mask(mask, img, by_channels))
+        return function(img, _handle_mask(mask))
 
     if not by_channels:
         result_img = cv2.cvtColor(img, cv2.COLOR_RGB2YCrCb)
-        result_img[..., 0] = function(result_img[..., 0], _handle_mask(mask, img, by_channels))
+        result_img[..., 0] = function(result_img[..., 0], _handle_mask(mask))
         return cv2.cvtColor(result_img, cv2.COLOR_YCrCb2RGB)
 
     result_img = np.empty_like(img)
     for i in range(3):
-        _mask = _handle_mask(mask, img, by_channels, i)
+        _mask = _handle_mask(mask, i)
         result_img[..., i] = function(img[..., i], _mask)
 
     return result_img
@@ -376,7 +376,7 @@ def linear_transformation_rgb(img: np.ndarray, transformation_matrix: np.ndarray
 
 
 @preserve_channel_dim
-def clahe(img: np.ndarray, clip_limit: float = 2.0, tile_grid_size: Tuple[int, int] = (8, 8)) -> np.ndarray:
+def clahe(img: np.ndarray, clip_limit: float = 2.0, tile_grid_size: tuple[int, int] = (8, 8)) -> np.ndarray:
     if img.dtype != np.uint8:
         msg = "clahe supports only uint8 inputs"
         raise TypeError(msg)
@@ -404,7 +404,7 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
     elif image_type == ".webp":
         quality_flag = cv2.IMWRITE_WEBP_QUALITY
     else:
-        NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
+        raise NotImplementedError("Only '.jpg' and '.webp' compression transforms are implemented. ")
 
     input_dtype = img.dtype
     needs_float = False
@@ -483,10 +483,10 @@ def add_rain(
     slant: int,
     drop_length: int,
     drop_width: int,
-    drop_color: Tuple[int, int, int],
+    drop_color: tuple[int, int, int],
     blur_value: int,
     brightness_coefficient: float,
-    rain_drops: List[Tuple[int, int]],
+    rain_drops: list[tuple[int, int]],
 ) -> np.ndarray:
     """Adds rain drops to the image.
 
@@ -495,10 +495,10 @@ def add_rain(
         slant (int): The angle of the rain drops.
         drop_length (int): The length of each rain drop.
         drop_width (int): The width of each rain drop.
-        drop_color (Tuple[int, int, int]): The color of the rain drops in RGB format.
+        drop_color (tuple[int, int, int]): The color of the rain drops in RGB format.
         blur_value (int): The size of the kernel used to blur the image. Rainy views are blurry.
         brightness_coefficient (float): Coefficient to adjust the brightness of the image. Rainy days are usually shady.
-        rain_drops (List[Tuple[int, int]]): A list of tuples where each tuple represents the (x, y)
+        rain_drops (list[tuple[int, int]]): A list of tuples where each tuple represents the (x, y)
             coordinates of the starting point of a rain drop.
 
     Returns:
@@ -543,14 +543,14 @@ def add_rain(
 
 
 @preserve_channel_dim
-def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List[Tuple[int, int]]) -> np.ndarray:
+def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: list[tuple[int, int]]) -> np.ndarray:
     """Add fog to an image using the provided coefficients and haze points.
 
     Args:
         img (np.ndarray): The input image, expected to be a numpy array.
         fog_coef (float): The fog coefficient, used to determine the intensity of the fog.
         alpha_coef (float): The alpha coefficient, used to determine the transparency of the fog.
-        haze_list (List[Tuple[int, int]]): A list of tuples, where each tuple represents the x and y
+        haze_list (list[tuple[int, int]]): A list of tuples, where each tuple represents the x and y
             coordinates of a haze point.
 
     Returns:
@@ -600,19 +600,19 @@ def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: List
 @preserve_channel_dim
 def add_sun_flare(
     img: np.ndarray,
-    flare_center: Tuple[float, float],
+    flare_center: tuple[float, float],
     src_radius: int,
     src_color: ColorType,
-    circles: List[Any],
+    circles: list[Any],
 ) -> np.ndarray:
     """Add a sun flare effect to an image.
 
     Args:
         img (np.ndarray): The input image.
-        flare_center (Tuple[float, float]): (x, y) coordinates of the flare center
+        flare_center (tuple[float, float]): (x, y) coordinates of the flare center
         src_radius (int): The radius of the source of the flare.
         src_color (ColorType): The color of the flare, represented as a tuple of RGB values.
-        circles (List[Any]): A list of tuples, each representing a circle that contributes to the flare effect.
+        circles (list[Any]): A list of tuples, each representing a circle that contributes to the flare effect.
             Each tuple contains the alpha value, the center coordinates, the radius, and the color of the circle.
 
     Returns:
@@ -656,12 +656,12 @@ def add_sun_flare(
 
 @contiguous
 @preserve_channel_dim
-def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
+def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray]) -> np.ndarray:
     """Add shadows to the image by reducing the intensity of the RGB values in specified regions.
 
     Args:
         img (np.ndarray): Input image.
-        vertices_list (List[np.ndarray]): List of vertices for shadow polygons.
+        vertices_list (list[np.ndarray]): list of vertices for shadow polygons.
 
     Returns:
         np.ndarray: Image with shadows added.
@@ -697,7 +697,7 @@ def add_shadow(img: np.ndarray, vertices_list: List[np.ndarray]) -> np.ndarray:
 
 @contiguous
 @preserve_channel_dim
-def add_gravel(img: np.ndarray, gravels: List[Any]) -> np.ndarray:
+def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
     """Add gravel to the image.
 
     Args:
@@ -773,8 +773,7 @@ def iso_noise(
     image: np.ndarray,
     color_shift: float = 0.05,
     intensity: float = 0.5,
-    random_state: Optional[int] = None,
-    **kwargs: Any,
+    random_state: int | None = None,
 ) -> np.ndarray:
     """Apply poisson noise to an image to simulate camera sensor noise.
 
@@ -785,7 +784,6 @@ def iso_noise(
                            yet acceptable level of noise. Default is 0.5.
         random_state (Optional[int]): If specified, this will set the random seed for the noise generation,
                                       ensuring consistent results for the same input and seed.
-        **kwargs: Additional keyword arguments.
 
     Returns:
         np.ndarray: The noised image.
@@ -849,7 +847,7 @@ def downscale(
     return upscaled
 
 
-def to_float(img: np.ndarray, max_value: Optional[float] = None) -> np.ndarray:
+def to_float(img: np.ndarray, max_value: float | None = None) -> np.ndarray:
     if max_value is None:
         if img.dtype not in MAX_VALUES_BY_DTYPE:
             raise RuntimeError(f"Unsupported dtype {img.dtype}. Specify 'max_value' manually.")
@@ -858,7 +856,7 @@ def to_float(img: np.ndarray, max_value: Optional[float] = None) -> np.ndarray:
     return (img / max_value).astype(np.float32)
 
 
-def from_float(img: np.ndarray, dtype: np.dtype, max_value: Optional[float] = None) -> np.ndarray:
+def from_float(img: np.ndarray, dtype: np.dtype, max_value: float | None = None) -> np.ndarray:
     if max_value is None:
         if dtype not in MAX_VALUES_BY_DTYPE:
             msg = (
@@ -874,13 +872,13 @@ def noop(input_obj: Any, **params: Any) -> Any:
     return input_obj
 
 
-def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: Optional[List[int]] = None) -> np.ndarray:
+def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: list[int] | None = None) -> np.ndarray:
     """Swap tiles on the image according to the new format.
 
     Args:
         image: Input image.
         tiles: Array of tiles with each tile as [start_y, start_x, end_y, end_x].
-        mapping: List of new tile indices.
+        mapping: list of new tile indices.
 
     Returns:
         np.ndarray: Output image with tiles swapped according to the random shuffle.
@@ -900,7 +898,7 @@ def swap_tiles_on_image(image: np.ndarray, tiles: np.ndarray, mapping: Optional[
     return new_image
 
 
-def bbox_from_mask(mask: np.ndarray) -> Tuple[int, int, int, int]:
+def bbox_from_mask(mask: np.ndarray) -> tuple[int, int, int, int]:
     """Create bounding box from binary mask (fast version)
 
     Args:
@@ -919,7 +917,7 @@ def bbox_from_mask(mask: np.ndarray) -> Tuple[int, int, int, int]:
     return x_min, y_min, x_max + 1, y_max + 1
 
 
-def mask_from_bbox(img: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarray:
+def mask_from_bbox(img: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarray:
     """Create binary mask from bounding box
 
     Args:
@@ -938,7 +936,6 @@ def mask_from_bbox(img: np.ndarray, bbox: Tuple[int, int, int, int]) -> np.ndarr
 
 def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
     """Perform 'Fancy PCA' augmentation
-
 
     Args:
         img: numpy array with (h, w, rgb) shape, as ints between 0-255
@@ -1077,7 +1074,7 @@ def superpixels(
     image: np.ndarray,
     n_segments: int,
     replace_samples: Sequence[bool],
-    max_size: Optional[int],
+    max_size: int | None,
     interpolation: int,
 ) -> np.ndarray:
     if not np.any(replace_samples):
@@ -1120,7 +1117,7 @@ def superpixels(
                     # After rounding the value can end up slightly outside of the value_range. Hence, we need to clip.
                     # We do clip via min(max(...)) instead of np.clip because
                     # the latter one does not seem to keep dtypes for dtypes with large itemsizes (e.g. uint64).
-                    value: Union[int, float]
+                    value: int | float
                     value = int(np.round(mean_intensity))
                     value = min(max(value, min_value), max_value)
                 else:
@@ -1174,7 +1171,7 @@ def unsharp_mask(
 
 
 @preserve_channel_dim
-def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[float, Sequence[float]]) -> np.ndarray:
+def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: float | Sequence[float]) -> np.ndarray:
     if isinstance(drop_value, (int, float)) and drop_value == 0:
         drop_values = np.zeros_like(image)
     else:
@@ -1186,9 +1183,9 @@ def pixel_dropout(image: np.ndarray, drop_mask: np.ndarray, drop_value: Union[fl
 @preserve_channel_dim
 def spatter(
     img: np.ndarray,
-    non_mud: Optional[np.ndarray],
-    mud: Optional[np.ndarray],
-    rain: Optional[np.ndarray],
+    non_mud: np.ndarray | None,
+    mud: np.ndarray | None,
+    rain: np.ndarray | None,
     mode: SpatterMode,
 ) -> np.ndarray:
     non_rgb_warning(img)
@@ -1245,7 +1242,7 @@ def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
 def generate_shuffled_splits(
     size: int,
     divisions: int,
-    random_state: Optional[np.random.RandomState] = None,
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Generate shuffled splits for a given dimension size and number of divisions.
 
@@ -1263,15 +1260,15 @@ def generate_shuffled_splits(
 
 
 def split_uniform_grid(
-    image_shape: Tuple[int, int],
-    grid: Tuple[int, int],
-    random_state: Optional[np.random.RandomState] = None,
+    image_shape: tuple[int, int],
+    grid: tuple[int, int],
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Splits an image shape into a uniform grid specified by the grid dimensions.
 
     Args:
-        image_shape (Tuple[int, int]): The shape of the image as (height, width).
-        grid (Tuple[int, int]): The grid size as (rows, columns).
+        image_shape (tuple[int, int]): The shape of the image as (height, width).
+        grid (tuple[int, int]): The grid size as (rows, columns).
         random_state (Optional[np.random.RandomState]): The random state to use for shuffling the splits.
             If None, the splits are not shuffled.
 
@@ -1297,7 +1294,7 @@ def split_uniform_grid(
     return np.array(tiles)
 
 
-def create_shape_groups(tiles: np.ndarray) -> Dict[Tuple[int, int], List[int]]:
+def create_shape_groups(tiles: np.ndarray) -> dict[tuple[int, int], list[int]]:
     """Groups tiles by their shape and stores the indices for each shape."""
     shape_groups = defaultdict(list)
     for index, (start_y, start_x, end_y, end_x) in enumerate(tiles):
@@ -1307,18 +1304,18 @@ def create_shape_groups(tiles: np.ndarray) -> Dict[Tuple[int, int], List[int]]:
 
 
 def shuffle_tiles_within_shape_groups(
-    shape_groups: Dict[Tuple[int, int], List[int]],
-    random_state: Optional[np.random.RandomState] = None,
-) -> List[int]:
+    shape_groups: dict[tuple[int, int], list[int]],
+    random_state: np.random.RandomState | None = None,
+) -> list[int]:
     """Shuffles indices within each group of similar shapes and creates a list where each
     index points to the index of the tile it should be mapped to.
 
     Args:
-        shape_groups (Dict[Tuple[int, int], List[int]]): Groups of tile indices categorized by shape.
+        shape_groups (dict[tuple[int, int], list[int]]): Groups of tile indices categorized by shape.
         random_state (Optional[np.random.RandomState]): Seed for the random number generator for reproducibility.
 
     Returns:
-        List[int]: A list where each index is mapped to the new index of the tile after shuffling.
+        list[int]: A list where each index is mapped to the new index of the tile after shuffling.
     """
     # Initialize the output list with the same size as the total number of tiles, filled with -1
     num_tiles = sum(len(indices) for indices in shape_groups.values())
@@ -1422,7 +1419,7 @@ def morphology(img: np.ndarray, kernel: np.ndarray, operation: str) -> np.ndarra
     raise ValueError(f"Unsupported operation: {operation}")
 
 
-def center(width: NumericType, height: NumericType) -> Tuple[float, float]:
+def center(width: NumericType, height: NumericType) -> tuple[float, float]:
     """Calculate the center coordinates of a rectangle.
 
     Args:
@@ -1430,7 +1427,7 @@ def center(width: NumericType, height: NumericType) -> Tuple[float, float]:
         height (NumericType): The height of the rectangle.
 
     Returns:
-        Tuple[float, float]: The center coordinates of the rectangle.
+        tuple[float, float]: The center coordinates of the rectangle.
     """
     return width / 2 - 0.5, height / 2 - 0.5
 

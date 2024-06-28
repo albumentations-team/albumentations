@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import math
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Sequence, cast
 
 import cv2
 import numpy as np
@@ -78,14 +80,12 @@ ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
 
 
-def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:
+def bbox_rot90(bbox: BoxInternalType, factor: int) -> BoxInternalType:
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
         bbox: A bounding box tuple (x_min, y_min, x_max, y_max).
         factor: Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
-        rows: Image rows.
-        cols: Image cols.
 
     Returns:
         tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
@@ -104,7 +104,7 @@ def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxI
     return bbox
 
 
-def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -> BoxInternalType:
+def bbox_d4(bbox: BoxInternalType, group_member: D4Type) -> BoxInternalType:
     """Applies a `D_4` symmetry group transformation to a bounding box.
 
     The function transforms a bounding box according to the specified group member from the `D_4` group.
@@ -116,8 +116,6 @@ def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -
         like (xmin, ymin, xmax, ymax).
     - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hvt', 'h', 't'.
-    - rows (int): The number of rows in the image, used to adjust transformations that depend on image dimensions.
-    - cols (int): The number of columns in the image, used for the same purposes as rows.
 
     Returns:
     - BoxInternalType: The transformed bounding box.
@@ -132,13 +130,13 @@ def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -
     """
     transformations = {
         "e": lambda x: x,  # Identity transformation
-        "r90": lambda x: bbox_rot90(x, 1, rows, cols),  # Rotate 90 degrees
-        "r180": lambda x: bbox_rot90(x, 2, rows, cols),  # Rotate 180 degrees
-        "r270": lambda x: bbox_rot90(x, 3, rows, cols),  # Rotate 270 degrees
-        "v": lambda x: bbox_vflip(x, rows, cols),  # Vertical flip
-        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2, rows, cols), rows, cols),  # Reflect over anti-diagonal
-        "h": lambda x: bbox_hflip(x, rows, cols),  # Horizontal flip
-        "t": lambda x: bbox_transpose(x, rows, cols),  # Transpose (reflect over main diagonal)
+        "r90": lambda x: bbox_rot90(x, 1),  # Rotate 90 degrees
+        "r180": lambda x: bbox_rot90(x, 2),  # Rotate 180 degrees
+        "r270": lambda x: bbox_rot90(x, 3),  # Rotate 270 degrees
+        "v": lambda x: bbox_vflip(x),  # Vertical flip
+        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2)),  # Reflect over anti-diagonal
+        "h": lambda x: bbox_hflip(x),  # Horizontal flip
+        "t": lambda x: bbox_transpose(x),  # Transpose (reflect over main diagonal)
     }
 
     # Execute the appropriate transformation
@@ -154,7 +152,6 @@ def keypoint_rot90(
     factor: int,
     rows: int,
     cols: int,
-    **params: Any,
 ) -> KeypointInternalType:
     """Rotate a keypoint by 90 degrees counter-clockwise (CCW) a specified number of times.
 
@@ -191,7 +188,6 @@ def keypoint_d4(
     group_member: D4Type,
     rows: int,
     cols: int,
-    **params: Any,
 ) -> KeypointInternalType:
     """Applies a `D_4` symmetry group transformation to a keypoint.
 
@@ -225,10 +221,10 @@ def keypoint_d4(
         "r90": lambda x: keypoint_rot90(x, 1, rows, cols),  # Rotate 90 degrees
         "r180": lambda x: keypoint_rot90(x, 2, rows, cols),  # Rotate 180 degrees
         "r270": lambda x: keypoint_rot90(x, 3, rows, cols),  # Rotate 270 degrees
-        "v": lambda x: keypoint_vflip(x, rows, cols),  # Vertical flip
-        "hvt": lambda x: keypoint_transpose(keypoint_rot90(x, 2, rows, cols), rows, cols),  # Reflect over anti diagonal
-        "h": lambda x: keypoint_hflip(x, rows, cols),  # Horizontal flip
-        "t": lambda x: keypoint_transpose(x, rows, cols),  # Transpose (reflect over main diagonal)
+        "v": lambda x: keypoint_vflip(x, rows=rows),  # Vertical flip
+        "hvt": lambda x: keypoint_transpose(keypoint_rot90(x, 2, rows, cols)),  # Reflect over anti diagonal
+        "h": lambda x: keypoint_hflip(x, cols=cols),  # Horizontal flip
+        "t": lambda x: keypoint_transpose(x),  # Transpose (reflect over main diagonal)
     }
     # Execute the appropriate transformation
     if group_member in transformations:
@@ -243,7 +239,7 @@ def rotate(
     angle: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -309,7 +305,6 @@ def keypoint_rotate(
     angle: float,
     rows: int,
     cols: int,
-    **params: Any,
 ) -> KeypointInternalType:
     """Rotate a keypoint by a specified angle.
 
@@ -341,8 +336,8 @@ def elastic_transform(
     alpha_affine: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    value: ColorType | None = None,
+    random_state: np.random.RandomState | None = None,
     approximate: bool = False,
     same_dxdy: bool = False,
 ) -> np.ndarray:
@@ -485,7 +480,7 @@ def perspective(
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
-    border_val: Union[float, List[float], np.ndarray],
+    border_val: float | list[float] | np.ndarray,
     border_mode: int,
     keep_size: bool,
     interpolation: int,
@@ -584,7 +579,7 @@ def warp_affine(
     image: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
     interpolation: int,
-    cval: Union[float, Sequence[float]],
+    cval: ColorType,
     mode: int,
     output_shape: Sequence[int],
 ) -> np.ndarray:
@@ -607,7 +602,7 @@ def warp_affine(
 def keypoint_affine(
     keypoint: KeypointInternalType,
     matrix: skimage.transform.ProjectiveTransform,
-    scale: Dict[str, Any],
+    scale: dict[str, Any],
 ) -> KeypointInternalType:
     if _is_identity_matrix(matrix):
         return keypoint
@@ -662,7 +657,7 @@ def safe_rotate(
     img: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
     height, width = img.shape[:2]
@@ -693,7 +688,7 @@ def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows:
     y1 = points[:, 1].min()
     y2 = points[:, 1].max()
 
-    def fix_point(pt1: float, pt2: float, max_val: float) -> Tuple[float, float]:
+    def fix_point(pt1: float, pt2: float, max_val: float) -> tuple[float, float]:
         # In my opinion, these errors should be very low, around 1-2 pixels.
         if pt1 < 0:
             return 0, pt2 + pt1
@@ -732,7 +727,7 @@ def keypoint_safe_rotate(
 @clipped
 def piecewise_affine(
     img: np.ndarray,
-    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
+    matrix: skimage.transform.PiecewiseAffineTransform | None,
     interpolation: int,
     mode: str,
     cval: float,
@@ -751,7 +746,7 @@ def piecewise_affine(
 
 
 def to_distance_maps(
-    keypoints: Sequence[Tuple[float, float]],
+    keypoints: Sequence[tuple[float, float]],
     height: int,
     width: int,
     inverted: bool = False,
@@ -799,8 +794,8 @@ def to_distance_maps(
 
 
 def validate_if_not_found_coords(
-    if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
-) -> Tuple[bool, int, int]:
+    if_not_found_coords: Sequence[int] | dict[str, Any] | None,
+) -> tuple[bool, int, int]:
     """Validate and process `if_not_found_coords` parameter."""
     if if_not_found_coords is None:
         return True, -1, -1
@@ -817,11 +812,11 @@ def validate_if_not_found_coords(
 
 
 def find_keypoint(
-    position: Tuple[int, int],
+    position: tuple[int, int],
     distance_map: np.ndarray,
-    threshold: Optional[float],
+    threshold: float | None,
     inverted: bool,
-) -> Optional[Tuple[float, float]]:
+) -> tuple[float, float] | None:
     """Determine if a valid keypoint can be found at the given position."""
     y, x = position
     value = distance_map[y, x]
@@ -835,9 +830,9 @@ def find_keypoint(
 def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
-    if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
-    threshold: Optional[float],
-) -> List[Tuple[float, float]]:
+    if_not_found_coords: Sequence[int] | dict[str, Any] | None,
+    threshold: float | None,
+) -> list[tuple[float, float]]:
     """Convert outputs of `to_distance_maps` to `KeypointsOnImage`.
     This is the inverse of `to_distance_maps`.
     """
@@ -863,7 +858,7 @@ def from_distance_maps(
 
 def keypoint_piecewise_affine(
     keypoint: KeypointInternalType,
-    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
+    matrix: skimage.transform.PiecewiseAffineTransform | None,
     h: int,
     w: int,
     keypoints_threshold: float,
@@ -879,7 +874,7 @@ def keypoint_piecewise_affine(
 
 def bbox_piecewise_affine(
     bbox: BoxInternalType,
-    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
+    matrix: skimage.transform.PiecewiseAffineTransform | None,
     h: int,
     w: int,
     keypoints_threshold: float,
@@ -994,13 +989,11 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
-def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
+def bbox_vflip(bbox: BoxInternalType) -> BoxInternalType:
     """Flip a bounding box vertically around the x-axis.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image rows.
-        cols: Image cols.
 
     Returns:
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1010,13 +1003,11 @@ def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
+def bbox_hflip(bbox: BoxInternalType) -> BoxInternalType:
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image rows.
-        cols: Image cols.
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1026,14 +1017,13 @@ def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     return 1 - x_max, y_min, 1 - x_min, y_max
 
 
-def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInternalType:
+def bbox_flip(bbox: BoxInternalType, d: int) -> BoxInternalType:
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         d: dimension. 0 for vertical flip, 1 for horizontal, -1 for transpose
-        rows: Image rows.
-        cols: Image cols.
+
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1043,24 +1033,22 @@ def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInterna
 
     """
     if d == 0:
-        bbox = bbox_vflip(bbox, rows, cols)
+        bbox = bbox_vflip(bbox)
     elif d == 1:
-        bbox = bbox_hflip(bbox, rows, cols)
+        bbox = bbox_hflip(bbox)
     elif d == -1:
-        bbox = bbox_hflip(bbox, rows, cols)
-        bbox = bbox_vflip(bbox, rows, cols)
+        bbox = bbox_hflip(bbox)
+        bbox = bbox_vflip(bbox)
     else:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
     return bbox
 
 
-def bbox_transpose(bbox: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
+def bbox_transpose(bbox: KeypointInternalType) -> KeypointInternalType:
     """Transposes a bounding box along given axis.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
-        rows: Image rows.
-        cols: Image cols.
 
     Returns:
         A bounding box tuple `(x_min, y_min, x_max, y_max)`.
@@ -1074,13 +1062,12 @@ def bbox_transpose(bbox: KeypointInternalType, rows: int, cols: int) -> Keypoint
 
 
 @angle_2pi_range
-def keypoint_vflip(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
+def keypoint_vflip(keypoint: KeypointInternalType, rows: int) -> KeypointInternalType:
     """Flip a keypoint vertically around the x-axis.
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.
         rows: Image height.
-        cols: Image width.
 
     Returns:
         tuple: A keypoint `(x, y, angle, scale)`.
@@ -1092,12 +1079,11 @@ def keypoint_vflip(keypoint: KeypointInternalType, rows: int, cols: int) -> Keyp
 
 
 @angle_2pi_range
-def keypoint_hflip(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
+def keypoint_hflip(keypoint: KeypointInternalType, cols: int) -> KeypointInternalType:
     """Flip a keypoint horizontally around the y-axis.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
-        rows: Image height.
+        keypoint: A keypoint `(x, y, angle, scale)`
         cols: Image width.
 
     Returns:
@@ -1130,25 +1116,23 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
 
     """
     if d == 0:
-        keypoint = keypoint_vflip(keypoint, rows, cols)
+        keypoint = keypoint_vflip(keypoint, rows=rows)
     elif d == 1:
-        keypoint = keypoint_hflip(keypoint, rows, cols)
+        keypoint = keypoint_hflip(keypoint, cols=cols)
     elif d == -1:
-        keypoint = keypoint_hflip(keypoint, rows, cols)
-        keypoint = keypoint_vflip(keypoint, rows, cols)
+        keypoint = keypoint_hflip(keypoint, cols=cols)
+        keypoint = keypoint_vflip(keypoint, rows=rows)
     else:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
     return keypoint
 
 
 @angle_2pi_range
-def keypoint_transpose(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
+def keypoint_transpose(keypoint: KeypointInternalType) -> KeypointInternalType:
     """Transposes a keypoint along a specified axis: main diagonal
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.
-        rows: Total number of rows (height) in the image.
-        cols: Total number of columns (width) in the image.
 
     Returns:
         A transformed keypoint `(x, y, angle, scale)`.
@@ -1173,7 +1157,7 @@ def pad(
     min_height: int,
     min_width: int,
     border_mode: int,
-    value: Optional[ColorType],
+    value: ColorType | None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1209,7 +1193,7 @@ def pad_with_params(
     w_pad_left: int,
     w_pad_right: int,
     border_mode: int,
-    value: Optional[ColorType],
+    value: ColorType | None,
 ) -> np.ndarray:
     pad_fn = maybe_process_in_chunks(
         cv2.copyMakeBorder,
@@ -1231,7 +1215,7 @@ def optical_distortion(
     dy: int,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
 ) -> np.ndarray:
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -1260,11 +1244,11 @@ def optical_distortion(
 def grid_distortion(
     img: np.ndarray,
     num_steps: int,
-    xsteps: Tuple[()],
-    ysteps: Tuple[()],
+    xsteps: tuple[()],
+    ysteps: tuple[()],
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1323,8 +1307,8 @@ def elastic_transform_approx(
     alpha_affine: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    value: ColorType | None = None,
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5

@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import random
 import types
-from typing import Any, Callable, Dict, Generator, Iterable, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Iterator, Sequence
 from warnings import warn
 
 import cv2
 import numpy as np
 from albucore.functions import add_weighted
 from albucore.utils import is_grayscale_image
-from pydantic import Field
 from typing_extensions import Annotated
 
 from albumentations.augmentations.mixing import functional as fmixing
@@ -15,6 +16,9 @@ from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
 from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
+
+if TYPE_CHECKING:
+    from pydantic import Field
 
 __all__ = ["MixUp", "OverlayElements"]
 
@@ -35,7 +39,7 @@ class MixUp(ReferenceBasedTransform):
         reference_data (Optional[Union[Generator[ReferenceImage, None, None], Sequence[Any]]]):
             A sequence or generator of dictionaries containing the reference data for mixing
             If None or an empty sequence is provided, no operation is performed and a warning is issued.
-        read_fn (Callable[[ReferenceImage], Dict[str, Any]]):
+        read_fn (Callable[[ReferenceImage], dict[str, Any]]):
             A function to process items from reference_data. It should accept items from reference_data
             and return a dictionary containing processed data:
                 - The returned dictionary must include an 'image' key with a numpy array value.
@@ -112,18 +116,18 @@ class MixUp(ReferenceBasedTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.GLOBAL_LABEL)
 
     class InitSchema(BaseTransformInitSchema):
-        reference_data: Optional[Union[Generator[Any, None, None], Sequence[Any]]] = None
+        reference_data: Generator[Any, None, None] | Sequence[Any] | None = None
         read_fn: Callable[[ReferenceImage], Any]
         alpha: Annotated[float, Field(default=0.4, ge=0, le=1)]
         mix_coef_return_name: str = "mix_coef"
 
     def __init__(
         self,
-        reference_data: Optional[Union[Generator[Any, None, None], Sequence[Any]]] = None,
+        reference_data: Generator[Any, None, None] | Sequence[Any] | None = None,
         read_fn: Callable[[ReferenceImage], Any] = lambda x: {"image": x, "mask": None, "class_label": None},
         alpha: float = 0.4,
         mix_coef_return_name: str = "mix_coef",
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -135,7 +139,7 @@ class MixUp(ReferenceBasedTransform):
         if reference_data is None:
             warn("No reference data provided for MixUp. This transform will act as a no-op.", stacklevel=2)
             # Create an empty generator
-            self.reference_data: List[Any] = []
+            self.reference_data: list[Any] = []
         elif (
             isinstance(reference_data, types.GeneratorType)
             or isinstance(reference_data, Iterable)
@@ -189,10 +193,10 @@ class MixUp(ReferenceBasedTransform):
         msg = "MixUp does not support keypoints yet, feel free to submit pull request to https://github.com/albumentations-team/albumentations/."
         raise NotImplementedError(msg)
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "reference_data", "alpha"
 
-    def get_params(self) -> Dict[str, Union[None, float, Dict[str, Any]]]:
+    def get_params(self) -> dict[str, None | float | dict[str, Any]]:
         mix_data = None
         # Check if reference_data is not empty and is a sequence (list, tuple, np.array)
         if isinstance(self.reference_data, Sequence) and not isinstance(self.reference_data, (str, bytes)):
@@ -220,7 +224,7 @@ class MixUp(ReferenceBasedTransform):
         mix_coef = beta(self.alpha, self.alpha)  # Assuming beta is defined elsewhere
         return {"mix_data": self.read_fn(mix_data), "mix_coef": mix_coef}
 
-    def apply_with_params(self, params: Dict[str, Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
+    def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         res = super().apply_with_params(params, *args, **kwargs)
         if self.mix_coef_return_name:
             res[self.mix_coef_return_name] = params["mix_coef"]
@@ -238,7 +242,7 @@ class OverlayElements(ReferenceBasedTransform):
 
     Possible Metadata Fields:
         - image (np.ndarray): The overlay image to be applied. This is a required field.
-        - bbox (List[int]): The bounding box specifying the region where the overlay should be applied. It should
+        - bbox (list[int]): The bounding box specifying the region where the overlay should be applied. It should
                             contain four floats: [y_min, x_min, y_max, x_max]. If `label_id` is provided, it should
                             be appended as the fifth element in the bbox. BBox should be in Albumentations format,
                             that is the same as normalized Pascal VOC format
@@ -265,17 +269,17 @@ class OverlayElements(ReferenceBasedTransform):
         self,
         metadata_key: str = "overlay_metadata",
         p: float = 0.5,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.metadata_key = metadata_key
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return [self.metadata_key, "image"]
 
     @staticmethod
-    def preprocess_metadata(metadata: Dict[str, Any], img_shape: SizeType) -> Dict[str, Any]:
+    def preprocess_metadata(metadata: dict[str, Any], img_shape: SizeType) -> dict[str, Any]:
         overlay_image = metadata["image"]
         overlay_height, overlay_width = overlay_image.shape[:2]
         image_height, image_width = img_shape[:2]
@@ -337,7 +341,7 @@ class OverlayElements(ReferenceBasedTransform):
 
         return result
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         metadata = params[self.metadata_key]
         img_shape = params["image"].shape
 
@@ -353,7 +357,7 @@ class OverlayElements(ReferenceBasedTransform):
     def apply(
         self,
         img: np.ndarray,
-        overlay_data: List[Dict[str, Any]],
+        overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
         for data in overlay_data:
@@ -366,7 +370,7 @@ class OverlayElements(ReferenceBasedTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        overlay_data: List[Dict[str, Any]],
+        overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
         for data in overlay_data:
@@ -384,5 +388,5 @@ class OverlayElements(ReferenceBasedTransform):
 
         return mask
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("metadata_key",)

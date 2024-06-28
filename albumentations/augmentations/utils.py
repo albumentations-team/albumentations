@@ -1,9 +1,9 @@
+from __future__ import annotations
+
 from functools import wraps
-from pathlib import Path
-from typing import Callable, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable
 
 import cv2
-import numpy as np
 from albucore.utils import (
     is_grayscale_image,
     is_multispectral_image,
@@ -12,9 +12,13 @@ from albucore.utils import (
 from typing_extensions import Concatenate, ParamSpec
 
 from albumentations.core.keypoints_utils import angle_to_2pi_range
-from albumentations.core.types import (
-    KeypointInternalType,
-)
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import numpy as np
+
+    from albumentations.core.types import KeypointInternalType
 
 __all__ = [
     "read_bgr_image",
@@ -27,16 +31,16 @@ __all__ = [
 P = ParamSpec("P")
 
 
-def read_bgr_image(path: Union[str, Path]) -> np.ndarray:
+def read_bgr_image(path: str | Path) -> np.ndarray:
     return cv2.imread(str(path), cv2.IMREAD_COLOR)
 
 
-def read_rgb_image(path: Union[str, Path]) -> np.ndarray:
+def read_rgb_image(path: str | Path) -> np.ndarray:
     image = read_bgr_image(path)
     return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
 
-def read_grayscale(path: Union[str, Path]) -> np.ndarray:
+def read_grayscale(path: str | Path) -> np.ndarray:
     return cv2.imread(str(path), cv2.IMREAD_GRAYSCALE)
 
 
@@ -62,7 +66,7 @@ def non_rgb_warning(image: np.ndarray) -> None:
         raise ValueError(message)
 
 
-def check_range(value: Tuple[float, float], lower_bound: float, upper_bound: float, name: Optional[str]) -> None:
+def check_range(value: tuple[float, float], lower_bound: float, upper_bound: float, name: str | None) -> None:
     """Checks if the given value is within the specified bounds
 
     Args:

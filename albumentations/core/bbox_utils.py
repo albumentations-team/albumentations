@@ -1,4 +1,6 @@
-from typing import Any, Dict, List, Optional, Sequence, Tuple, cast
+from __future__ import annotations
+
+from typing import Any, Sequence, cast
 
 import numpy as np
 
@@ -61,8 +63,8 @@ class BboxParams(Params):
 
     def __init__(
         self,
-        format: str,
-        label_fields: Optional[Sequence[Any]] = None,
+        format: str,  # noqa: A002
+        label_fields: Sequence[Any] | None = None,
         min_area: float = 0.0,
         min_visibility: float = 0.0,
         min_width: float = 0.0,
@@ -78,7 +80,7 @@ class BboxParams(Params):
         self.check_each_transform = check_each_transform
         self.clip = clip
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         data = super().to_dict_private()
         data.update(
             {
@@ -102,14 +104,14 @@ class BboxParams(Params):
 
 
 class BboxProcessor(DataProcessor):
-    def __init__(self, params: BboxParams, additional_targets: Optional[Dict[str, str]] = None):
+    def __init__(self, params: BboxParams, additional_targets: dict[str, str] | None = None):
         super().__init__(params, additional_targets)
 
     @property
     def default_data_name(self) -> str:
         return "bboxes"
 
-    def ensure_data_valid(self, data: Dict[str, Any]) -> None:
+    def ensure_data_valid(self, data: dict[str, Any]) -> None:
         for data_name in self.data_fields:
             data_exists = data_name in data and len(data[data_name])
             if data_exists and len(data[data_name][0]) < BBOX_WITH_LABEL_SHAPE and self.params.label_fields is None:
@@ -122,7 +124,7 @@ class BboxProcessor(DataProcessor):
             msg = "Your 'label_fields' are not valid - them must have same names as params in dict"
             raise ValueError(msg)
 
-    def filter(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
+    def filter(self, data: Sequence[BoxType], rows: int, cols: int) -> list[BoxType]:
         self.params: BboxParams
         return filter_bboxes(
             data,
@@ -137,10 +139,10 @@ class BboxProcessor(DataProcessor):
     def check(self, data: Sequence[BoxType], rows: int, cols: int) -> None:
         check_bboxes(data)
 
-    def convert_from_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
+    def convert_from_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> list[BoxType]:
         return convert_bboxes_from_albumentations(data, self.params.format, rows, cols, check_validity=True)
 
-    def convert_to_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
+    def convert_to_albumentations(self, data: Sequence[BoxType], rows: int, cols: int) -> list[BoxType]:
         if self.params.clip:
             data = convert_bboxes_to_albumentations(data, self.params.format, rows, cols, check_validity=False)
             data = filter_bboxes(data, rows, cols, min_area=0, min_visibility=0, min_width=0, min_height=0)
@@ -174,7 +176,7 @@ def normalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
         msg = "Argument cols must be positive integer"
         raise ValueError(msg)
 
-    tail: Tuple[Any, ...]
+    tail: tuple[Any, ...]
     (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
     x_min /= cols
     x_max /= cols
@@ -200,7 +202,7 @@ def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
         ValueError: If rows or cols is less or equal zero
 
     """
-    tail: Tuple[Any, ...]
+    tail: tuple[Any, ...]
     (x_min, y_min, x_max, y_max), tail = bbox[:4], tuple(bbox[4:])
 
     if rows <= 0:
@@ -216,7 +218,7 @@ def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     return cast(BoxType, (x_min, y_min, x_max, y_max, *tail))
 
 
-def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
+def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> list[BoxType]:
     """Normalize a list of bounding boxes.
 
     Args:
@@ -231,7 +233,7 @@ def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[Bo
     return [normalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
-def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[BoxType]:
+def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> list[BoxType]:
     """Denormalize a list of bounding boxes.
 
     Args:
@@ -240,7 +242,7 @@ def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> List[
         cols: Image width.
 
     Returns:
-        List: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        list: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
 
     """
     return [denormalize_bbox(bbox, rows, cols) for bbox in bboxes]
@@ -270,7 +272,7 @@ def filter_bboxes_by_visibility(
     transformed_bboxes: Sequence[BoxType],
     threshold: float = 0.0,
     min_area: float = 0.0,
-) -> List[BoxType]:
+) -> list[BoxType]:
     """Filter bounding boxes and return only those boxes whose visibility after transformation is above
     the threshold and minimal area of bounding box in pixels is more then min_area.
 
@@ -428,7 +430,7 @@ def convert_bboxes_to_albumentations(
     rows: int,
     cols: int,
     check_validity: bool = False,
-) -> List[BoxType]:
+) -> list[BoxType]:
     """Convert a list bounding boxes from a format specified in `source_format` to the format used by albumentations"""
     return [convert_bbox_to_albumentations(bbox, source_format, rows, cols, check_validity) for bbox in bboxes]
 
@@ -439,19 +441,19 @@ def convert_bboxes_from_albumentations(
     rows: int,
     cols: int,
     check_validity: bool = False,
-) -> List[BoxType]:
+) -> list[BoxType]:
     """Convert a list of bounding boxes from the format used by albumentations to a format, specified
     in `target_format`.
 
     Args:
-        bboxes: List of albumentations bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: list of albumentations bounding box `(x_min, y_min, x_max, y_max)`.
         target_format: required format of the output bounding box. Should be 'coco', 'pascal_voc' or 'yolo'.
         rows: Image height.
         cols: Image width.
         check_validity: Check if all boxes are valid boxes.
 
     Returns:
-        List of bounding boxes.
+        list of bounding boxes.
 
     """
     return [convert_bbox_from_albumentations(bbox, target_format, rows, cols, check_validity) for bbox in bboxes]
@@ -523,12 +525,12 @@ def filter_bboxes(
     min_visibility: float = 0.0,
     min_width: float = 0.0,
     min_height: float = 0.0,
-) -> List[BoxType]:
+) -> list[BoxType]:
     """Remove bounding boxes that either lie outside of the visible area by more then min_visibility
     or whose area in pixels is under the threshold set by `min_area`. Also it crops boxes to final image size.
 
     Args:
-        bboxes: List of albumentations bounding box `(x_min, y_min, x_max, y_max)`.
+        bboxes: list of albumentations bounding box `(x_min, y_min, x_max, y_max)`.
         rows: Image height.
         cols: Image width.
         min_area: Minimum area of a bounding box. All bounding boxes whose visible area in pixels.
@@ -540,10 +542,10 @@ def filter_bboxes(
             less than this value will be removed. Default: 0.0.
 
     Returns:
-        List of bounding boxes.
+        list of bounding boxes.
 
     """
-    resulting_boxes: List[BoxType] = []
+    resulting_boxes: list[BoxType] = []
     for i in range(len(bboxes)):
         bbox = bboxes[i]
         # Calculate areas of bounding box before and after clipping.
@@ -575,7 +577,7 @@ def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_
     Args:
         height (float): Height of image or space.
         width (float): Width of image or space.
-        bboxes (List[tuple]): List like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
+        bboxes (list[tuple]): list like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
         erosion_rate (float): How much each bounding box can be shrunk, useful for erosive cropping.
             Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox to lose its volume.
 

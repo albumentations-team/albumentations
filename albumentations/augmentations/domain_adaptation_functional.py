@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import abc
 from copy import deepcopy
-from typing import Optional, Tuple
 
 import cv2
 import numpy as np
@@ -26,10 +27,10 @@ class TransformerInterface(Protocol):
     def inverse_transform(self, x: np.ndarray) -> np.ndarray: ...
 
     @abc.abstractmethod
-    def fit(self, x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray: ...
+    def fit(self, x: np.ndarray, y: np.ndarray | None = None) -> np.ndarray: ...
 
     @abc.abstractmethod
-    def transform(self, x: np.ndarray, y: Optional[np.ndarray] = None) -> np.ndarray: ...
+    def transform(self, x: np.ndarray, y: np.ndarray | None = None) -> np.ndarray: ...
 
 
 class DomainAdapter:
@@ -39,7 +40,7 @@ class DomainAdapter:
         self,
         transformer: TransformerInterface,
         ref_img: np.ndarray,
-        color_conversions: Tuple[None, None] = (None, None),
+        color_conversions: tuple[None, None] = (None, None),
     ):
         self.color_in, self.color_out = color_conversions
         self.source_transformer = deepcopy(transformer)

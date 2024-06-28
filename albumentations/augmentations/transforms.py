@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import math
 import numbers
 import random
 import warnings
 from types import LambdaType
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Sequence, Union, cast
 from warnings import warn
 
 import albucore
@@ -20,19 +22,6 @@ from albumentations import random_utils
 from albumentations.augmentations.blur.functional import blur
 from albumentations.augmentations.blur.transforms import BlurInitSchema, process_blur_limit
 from albumentations.augmentations.utils import check_range
-from albumentations.core.pydantic import (
-    InterpolationType,
-    NonNegativeFloatRangeType,
-    OnePlusFloatRangeType,
-    OnePlusIntRangeType,
-    ProbabilityType,
-    SymmetricRangeType,
-    ZeroOneRangeType,
-    check_0plus,
-    check_01,
-    check_1plus,
-    nondecreasing,
-)
 from albumentations.core.transforms_interface import (
     BaseTransformInitSchema,
     DualTransform,
@@ -63,6 +52,21 @@ from albumentations.core.types import (
 from albumentations.core.utils import format_args, to_tuple
 
 from . import functional as fmain
+
+if TYPE_CHECKING:
+    from albumentations.core.pydantic import (
+        InterpolationType,
+        NonNegativeFloatRangeType,
+        OnePlusFloatRangeType,
+        OnePlusIntRangeType,
+        ProbabilityType,
+        SymmetricRangeType,
+        ZeroOneRangeType,
+        check_0plus,
+        check_01,
+        check_1plus,
+        nondecreasing,
+    )
 
 __all__ = [
     "Normalize",
@@ -122,7 +126,7 @@ class RandomGridShuffle(DualTransform):
 
 
     Args:
-        grid (Tuple[int, int]): Size of the grid for splitting the image into cells. Each cell is shuffled randomly.
+        grid (tuple[int, int]): Size of the grid for splitting the image into cells. Each cell is shuffled randomly.
         p (float): Probability that the transform will be applied.
 
     Targets:
@@ -154,21 +158,21 @@ class RandomGridShuffle(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
-    def __init__(self, grid: Tuple[int, int] = (3, 3), p: float = 0.5, always_apply: Optional[bool] = None):
+    def __init__(self, grid: tuple[int, int] = (3, 3), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.grid = grid
 
-    def apply(self, img: np.ndarray, tiles: np.ndarray, mapping: List[int], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, tiles: np.ndarray, mapping: list[int], **params: Any) -> np.ndarray:
         return fmain.swap_tiles_on_image(img, tiles, mapping)
 
-    def apply_to_mask(self, mask: np.ndarray, tiles: np.ndarray, mapping: List[int], **params: Any) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, tiles: np.ndarray, mapping: list[int], **params: Any) -> np.ndarray:
         return fmain.swap_tiles_on_image(mask, tiles, mapping)
 
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
         tiles: np.ndarray,
-        mapping: List[int],
+        mapping: list[int],
         **params: Any,
     ) -> KeypointInternalType:
         x, y = keypoint[:2]
@@ -195,7 +199,7 @@ class RandomGridShuffle(DualTransform):
         )
         return keypoint
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["image"].shape[:2]
         random_state = random_utils.get_random_state()
         original_tiles = fmain.split_uniform_grid(
@@ -209,14 +213,14 @@ class RandomGridShuffle(DualTransform):
         return {"tiles": original_tiles, "mapping": mapping}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("grid",)
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
@@ -235,13 +239,13 @@ class Normalize(ImageOnlyTransform):
         or scale pixel values to a specified range.
 
     Args:
-        mean (Optional[ColorType]): Mean values for standard normalization.
+        mean (ColorType | None): Mean values for standard normalization.
             For "standard" normalization, the default values are ImageNet mean values: (0.485, 0.456, 0.406).
             For "inception" normalization, use mean values of (0.5, 0.5, 0.5).
-        std (Optional[ColorType]): Standard deviation values for standard normalization.
+        std (ColorType | None): Standard deviation values for standard normalization.
             For "standard" normalization, the default values are ImageNet standard deviation :(0.229, 0.224, 0.225).
             For "inception" normalization, use standard deviation values of (0.5, 0.5, 0.5).
-        max_pixel_value (Optional[float]): Maximum possible pixel value, used for scaling in standard normalization.
+        max_pixel_value (float | None): Maximum possible pixel value, used for scaling in standard normalization.
             Defaults to 255.0.
         normalization (Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel", "inception"])
             Specifies the normalization technique to apply. Defaults to "standard".
@@ -268,15 +272,15 @@ class Normalize(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        mean: Optional[ColorType] = Field(
+        mean: ColorType | None = Field(
             default=(0.485, 0.456, 0.406),
             description="Mean values for normalization, defaulting to ImageNet mean values.",
         )
-        std: Optional[ColorType] = Field(
+        std: ColorType | None = Field(
             default=(0.229, 0.224, 0.225),
             description="Standard deviation values for normalization, defaulting to ImageNet std values.",
         )
-        max_pixel_value: Optional[float] = Field(default=255.0, description="Maximum possible pixel value.")
+        max_pixel_value: float | None = Field(default=255.0, description="Maximum possible pixel value.")
         normalization: Literal[
             "standard",
             "image",
@@ -299,11 +303,11 @@ class Normalize(ImageOnlyTransform):
 
     def __init__(
         self,
-        mean: Optional[ColorType] = (0.485, 0.456, 0.406),
-        std: Optional[ColorType] = (0.229, 0.224, 0.225),
-        max_pixel_value: Optional[float] = 255.0,
+        mean: ColorType | None = (0.485, 0.456, 0.406),
+        std: ColorType | None = (0.229, 0.224, 0.225),
+        max_pixel_value: float | None = 255.0,
         normalization: Literal["standard", "image", "image_per_channel", "min_max", "min_max_per_channel"] = "standard",
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 1.0,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -327,7 +331,7 @@ class Normalize(ImageOnlyTransform):
             )
         return normalize_per_image(img, self.normalization)
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "mean", "std", "max_pixel_value", "normalization"
 
 
@@ -349,18 +353,18 @@ class ImageCompression(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        quality_range: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
+        quality_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
             99,
             100,
         )
 
-        quality_lower: Optional[int] = Field(
+        quality_lower: int | None = Field(
             default=None,
             description="Lower bound on the image quality",
             ge=1,
             le=100,
         )
-        quality_upper: Optional[int] = Field(
+        quality_upper: int | None = Field(
             default=None,
             description="Upper bound on the image quality",
             ge=1,
@@ -404,11 +408,11 @@ class ImageCompression(ImageOnlyTransform):
 
     def __init__(
         self,
-        quality_lower: Optional[int] = None,
-        quality_upper: Optional[int] = None,
+        quality_lower: int | None = None,
+        quality_upper: int | None = None,
         compression_type: ImageCompressionType = ImageCompressionType.JPEG,
-        quality_range: Tuple[int, int] = (99, 100),
-        always_apply: Optional[bool] = None,
+        quality_range: tuple[int, int] = (99, 100),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
@@ -421,7 +425,7 @@ class ImageCompression(ImageOnlyTransform):
             raise TypeError(msg)
         return fmain.image_compression(img, quality, image_type)
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         if self.compression_type == ImageCompressionType.JPEG:
             image_type = ".jpg"
         elif self.compression_type == ImageCompressionType.WEBP:
@@ -434,7 +438,7 @@ class ImageCompression(ImageOnlyTransform):
             "image_type": image_type,
         }
 
-    def get_transform_init_args(self) -> Dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         return {
             "quality_range": self.quality_range,
             "compression_type": self.compression_type.value,
@@ -445,7 +449,7 @@ class RandomSnow(ImageOnlyTransform):
     """Bleach out some pixel values imitating snow.
 
     Args:
-        snow_point_range (tuple): Tuple of bounds on the amount of snow i.e. (snow_point_lower, snow_point_upper).
+        snow_point_range (tuple): tuple of bounds on the amount of snow i.e. (snow_point_lower, snow_point_upper).
             Both values should be in the (0, 1) range. Default: (0.1, 0.3).
         brightness_coeff (float): Coefficient applied to increase the brightness of pixels
             below the snow_point threshold. Larger values lead to more pronounced snow effects.
@@ -464,19 +468,19 @@ class RandomSnow(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        snow_point_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
+        snow_point_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
             Field(
                 default=(0.1, 0.3),
                 description="lower and upper bound on the amount of snow as tuple (snow_point_lower, snow_point_upper)",
             )
         )
-        snow_point_lower: Optional[float] = Field(
+        snow_point_lower: float | None = Field(
             default=None,
             description="Lower bound of the amount of snow",
             gt=0,
             lt=1,
         )
-        snow_point_upper: Optional[float] = Field(
+        snow_point_upper: float | None = Field(
             default=None,
             description="Upper bound of the amount of snow",
             gt=0,
@@ -515,11 +519,11 @@ class RandomSnow(ImageOnlyTransform):
 
     def __init__(
         self,
-        snow_point_lower: Optional[float] = None,
-        snow_point_upper: Optional[float] = None,
+        snow_point_lower: float | None = None,
+        snow_point_upper: float | None = None,
         brightness_coeff: float = 2.5,
-        snow_point_range: Tuple[float, float] = (0.1, 0.3),
-        always_apply: Optional[bool] = None,
+        snow_point_range: tuple[float, float] = (0.1, 0.3),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
@@ -530,10 +534,10 @@ class RandomSnow(ImageOnlyTransform):
     def apply(self, img: np.ndarray, snow_point: float, **params: Any) -> np.ndarray:
         return fmain.add_snow(img, snow_point, self.brightness_coeff)
 
-    def get_params(self) -> Dict[str, np.ndarray]:
+    def get_params(self) -> dict[str, np.ndarray]:
         return {"snow_point": random.uniform(*self.snow_point_range)}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return "snow_point_range", "brightness_coeff"
 
 
@@ -557,7 +561,7 @@ class RandomGravel(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        gravel_roi: Tuple[float, float, float, float] = Field(
+        gravel_roi: tuple[float, float, float, float] = Field(
             default=(0.1, 0.4, 0.9, 0.9),
             description="Region of interest for gravel placement",
         )
@@ -572,16 +576,16 @@ class RandomGravel(ImageOnlyTransform):
 
     def __init__(
         self,
-        gravel_roi: Tuple[float, float, float, float] = (0.1, 0.4, 0.9, 0.9),
+        gravel_roi: tuple[float, float, float, float] = (0.1, 0.4, 0.9, 0.9),
         number_of_patches: int = 2,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
         self.gravel_roi = gravel_roi
         self.number_of_patches = number_of_patches
 
-    def generate_gravel_patch(self, rectangular_roi: Tuple[int, int, int, int]) -> np.ndarray:
+    def generate_gravel_patch(self, rectangular_roi: tuple[int, int, int, int]) -> np.ndarray:
         x1, y1, x2, y2 = rectangular_roi
         area = abs((x2 - x1) * (y2 - y1))
         count = area // 10
@@ -590,16 +594,16 @@ class RandomGravel(ImageOnlyTransform):
         gravels[:, 1] = random_utils.randint(y1, y2, count)
         return gravels
 
-    def apply(self, img: np.ndarray, gravels_infos: List[Any], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, gravels_infos: list[Any], **params: Any) -> np.ndarray:
         if gravels_infos is None:
             gravels_infos = []
         return fmain.add_gravel(img, gravels_infos)
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
         img = params["image"]
         height, width = img.shape[:2]
 
@@ -653,7 +657,7 @@ class RandomGravel(ImageOnlyTransform):
             ),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return "gravel_roi", "number_of_patches"
 
 
@@ -661,11 +665,11 @@ class RandomRain(ImageOnlyTransform):
     """Adds rain effects to an image.
 
     Args:
-        slant_range (Tuple[int, int]): Tuple of type (slant_lower, slant_upper) representing the range for
+        slant_range (tuple[int, int]): tuple of type (slant_lower, slant_upper) representing the range for
             rain slant angle.
         drop_length (int): Length of the raindrops.
         drop_width (int): Width of the raindrops.
-        drop_color (Tuple[int, int, int]): Color of the rain drops in RGB format.
+        drop_color (tuple[int, int, int]): Color of the rain drops in RGB format.
         blur_value (int): Blur value for simulating rain effect. Rainy views are blurry.
         brightness_coefficient (float): Coefficient to adjust the brightness of the image.
             Rainy days are usually shady. Should be in the range (0, 1].
@@ -684,21 +688,21 @@ class RandomRain(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        slant_lower: Optional[int] = Field(
+        slant_lower: int | None = Field(
             default=None,
             description="Lower bound for rain slant angle",
         )
-        slant_upper: Optional[int] = Field(
+        slant_upper: int | None = Field(
             default=None,
             description="Upper bound for rain slant angle",
         )
-        slant_range: Annotated[Tuple[float, float], AfterValidator(nondecreasing)] = Field(
+        slant_range: Annotated[tuple[float, float], AfterValidator(nondecreasing)] = Field(
             default=(-10, 10),
-            description="Tuple like (slant_lower, slant_upper) for rain slant angle",
+            description="tuple like (slant_lower, slant_upper) for rain slant angle",
         )
         drop_length: int = Field(default=20, description="Length of raindrops", ge=1)
         drop_width: int = Field(default=1, description="Width of raindrops", ge=1)
-        drop_color: Tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
+        drop_color: tuple[int, int, int] = Field(default=(200, 200, 200), description="Color of raindrops")
         blur_value: int = Field(default=7, description="Blur value for simulating rain effect", ge=1)
         brightness_coefficient: float = Field(
             default=0.7,
@@ -706,7 +710,7 @@ class RandomRain(ImageOnlyTransform):
             gt=0,
             le=1,
         )
-        rain_type: Optional[RainMode] = Field(default=None, description="Type of rain to simulate")
+        rain_type: RainMode | None = Field(default=None, description="Type of rain to simulate")
 
         @model_validator(mode="after")
         def validate_ranges(self) -> Self:
@@ -738,16 +742,16 @@ class RandomRain(ImageOnlyTransform):
 
     def __init__(
         self,
-        slant_lower: Optional[int] = None,
-        slant_upper: Optional[int] = None,
-        slant_range: Tuple[int, int] = (-10, 10),
+        slant_lower: int | None = None,
+        slant_upper: int | None = None,
+        slant_range: tuple[int, int] = (-10, 10),
         drop_length: int = 20,
         drop_width: int = 1,
-        drop_color: Tuple[int, int, int] = (200, 200, 200),
+        drop_color: tuple[int, int, int] = (200, 200, 200),
         blur_value: int = 7,
         brightness_coefficient: float = 0.7,
-        rain_type: Optional[RainMode] = None,
-        always_apply: Optional[bool] = None,
+        rain_type: RainMode | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -764,7 +768,7 @@ class RandomRain(ImageOnlyTransform):
         img: np.ndarray,
         slant: int,
         drop_length: int,
-        rain_drops: List[Tuple[int, int]],
+        rain_drops: list[tuple[int, int]],
         **params: Any,
     ) -> np.ndarray:
         return fmain.add_rain(
@@ -779,10 +783,10 @@ class RandomRain(ImageOnlyTransform):
         )
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         slant = int(random.uniform(*self.slant_range))
 
@@ -813,7 +817,7 @@ class RandomRain(ImageOnlyTransform):
 
         return {"drop_length": drop_length, "slant": slant, "rain_drops": rain_drops}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "slant_range",
             "drop_length",
@@ -829,7 +833,7 @@ class RandomFog(ImageOnlyTransform):
     """Simulates fog for the image.
 
     Args:
-        fog_coef_range (tuple): Tuple of bounds on the fog intensity coefficient (fog_coef_lower, fog_coef_upper).
+        fog_coef_range (tuple): tuple of bounds on the fog intensity coefficient (fog_coef_lower, fog_coef_upper).
             Default: (0.3, 1).
         alpha_coef (float): Transparency of the fog circles. Should be in [0, 1] range. Default: 0.08.
         p (float): Probability of applying the transform. Default: 0.5.
@@ -845,19 +849,19 @@ class RandomFog(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        fog_coef_lower: Optional[float] = Field(
+        fog_coef_lower: float | None = Field(
             default=None,
             description="Lower limit for fog intensity coefficient",
             ge=0,
             le=1,
         )
-        fog_coef_upper: Optional[float] = Field(
+        fog_coef_upper: float | None = Field(
             default=None,
             description="Upper limit for fog intensity coefficient",
             ge=0,
             le=1,
         )
-        fog_coef_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
+        fog_coef_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
             0.3,
             1,
         )
@@ -882,11 +886,11 @@ class RandomFog(ImageOnlyTransform):
 
     def __init__(
         self,
-        fog_coef_lower: Optional[float] = None,
-        fog_coef_upper: Optional[float] = None,
+        fog_coef_lower: float | None = None,
+        fog_coef_upper: float | None = None,
         alpha_coef: float = 0.08,
-        fog_coef_range: Tuple[float, float] = (0.3, 1),
-        always_apply: Optional[bool] = None,
+        fog_coef_range: tuple[float, float] = (0.3, 1),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -897,16 +901,16 @@ class RandomFog(ImageOnlyTransform):
         self,
         img: np.ndarray,
         fog_coef: np.ndarray,
-        haze_list: List[Tuple[int, int]],
+        haze_list: list[tuple[int, int]],
         **params: Any,
     ) -> np.ndarray:
         return fmain.add_fog(img, fog_coef, self.alpha_coef, haze_list)
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         fog_coef = random.uniform(*self.fog_coef_range)
 
@@ -931,7 +935,7 @@ class RandomFog(ImageOnlyTransform):
 
         return {"haze_list": haze_list, "fog_coef": fog_coef}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return "fog_coef_range", "alpha_coef"
 
 
@@ -939,13 +943,13 @@ class RandomSunFlare(ImageOnlyTransform):
     """Simulates Sun Flare for the image
 
     Args:
-        flare_roi (Tuple[float, float, float, float]): Tuple specifying the region of the image where flare will
+        flare_roi (tuple[float, float, float, float]): Tuple specifying the region of the image where flare will
             appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
         src_radius (int): Radius of the source for the flare.
-        src_color (Tuple[int, int, int]): Color of the flare as an (R, G, B) tuple.
-        angle_range (Tuple[float, float]): Tuple specifying the range of angles for the flare.
+        src_color (tuple[int, int, int]): Color of the flare as an (R, G, B) tuple.
+        angle_range (tuple[float, float]): tuple specifying the range of angles for the flare.
             Both ends of the range are in the [0, 1] interval.
-        num_flare_circles_range (Tuple[int, int]): Tuple specifying the range for the number of flare circles.
+        num_flare_circles_range (tuple[int, int]): tuple specifying the range for the number of flare circles.
         p (float): Probability of applying the transform.
 
     Targets:
@@ -959,33 +963,33 @@ class RandomSunFlare(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        flare_roi: Tuple[float, float, float, float] = Field(
+        flare_roi: tuple[float, float, float, float] = Field(
             default=(0, 0, 1, 0.5),
             description="Region of the image where flare will appear",
         )
-        angle_lower: Optional[float] = Field(default=None, description="Lower bound for the angle", ge=0, le=1)
-        angle_upper: Optional[float] = Field(default=None, description="Upper bound for the angle", ge=0, le=1)
+        angle_lower: float | None = Field(default=None, description="Lower bound for the angle", ge=0, le=1)
+        angle_upper: float | None = Field(default=None, description="Upper bound for the angle", ge=0, le=1)
 
-        num_flare_circles_lower: Optional[int] = Field(
+        num_flare_circles_lower: int | None = Field(
             default=6,
             description="Lower limit for the number of flare circles",
             ge=0,
         )
-        num_flare_circles_upper: Optional[int] = Field(
+        num_flare_circles_upper: int | None = Field(
             default=10,
             description="Upper limit for the number of flare circles",
             gt=0,
         )
         src_radius: int = Field(default=400, description="Source radius for the flare")
-        src_color: Tuple[int, ...] = Field(default=(255, 255, 255), description="Color of the flare")
+        src_color: tuple[int, ...] = Field(default=(255, 255, 255), description="Color of the flare")
 
-        angle_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = Field(
+        angle_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = Field(
             default=(0, 1),
             description="Angle range",
         )
 
         num_flare_circles_range: Annotated[
-            Tuple[int, int],
+            tuple[int, int],
             AfterValidator(check_1plus),
             AfterValidator(nondecreasing),
         ] = Field(default=(6, 10), description="Number of flare circles range")
@@ -1047,16 +1051,16 @@ class RandomSunFlare(ImageOnlyTransform):
 
     def __init__(
         self,
-        flare_roi: Tuple[float, float, float, float] = (0, 0, 1, 0.5),
-        angle_lower: Optional[float] = None,
-        angle_upper: Optional[float] = None,
-        num_flare_circles_lower: Optional[int] = None,
-        num_flare_circles_upper: Optional[int] = None,
+        flare_roi: tuple[float, float, float, float] = (0, 0, 1, 0.5),
+        angle_lower: float | None = None,
+        angle_upper: float | None = None,
+        num_flare_circles_lower: int | None = None,
+        num_flare_circles_upper: int | None = None,
         src_radius: int = 400,
-        src_color: Tuple[int, ...] = (255, 255, 255),
-        angle_range: Tuple[float, float] = (0, 1),
-        num_flare_circles_range: Tuple[int, int] = (6, 10),
-        always_apply: Optional[bool] = None,
+        src_color: tuple[int, ...] = (255, 255, 255),
+        angle_range: tuple[float, float] = (0, 1),
+        num_flare_circles_range: tuple[int, int] = (6, 10),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -1071,8 +1075,8 @@ class RandomSunFlare(ImageOnlyTransform):
     def apply(
         self,
         img: np.ndarray,
-        flare_center: Tuple[float, float],
-        circles: List[Any],
+        flare_center: tuple[float, float],
+        circles: list[Any],
         **params: Any,
     ) -> np.ndarray:
         if circles is None:
@@ -1086,10 +1090,10 @@ class RandomSunFlare(ImageOnlyTransform):
         )
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
 
@@ -1110,7 +1114,7 @@ class RandomSunFlare(ImageOnlyTransform):
         x = []
         y = []
 
-        def line(t: float) -> Tuple[float, float]:
+        def line(t: float) -> tuple[float, float]:
             return (flare_center_x + t * math.cos(angle), flare_center_y + t * math.sin(angle))
 
         for t_val in range(-flare_center_x, width - flare_center_x, 10):
@@ -1141,7 +1145,7 @@ class RandomSunFlare(ImageOnlyTransform):
             "flare_center": (flare_center_x, flare_center_y),
         }
 
-    def get_transform_init_args(self) -> Dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         return {
             "flare_roi": self.flare_roi,
             "angle_range": self.angle_range,
@@ -1171,19 +1175,19 @@ class RandomShadow(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        shadow_roi: Tuple[float, float, float, float] = Field(
+        shadow_roi: tuple[float, float, float, float] = Field(
             default=(0, 0.5, 1, 1),
             description="Region of the image where shadows will appear",
         )
-        num_shadows_limit: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
+        num_shadows_limit: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (
             1,
             2,
         )
-        num_shadows_lower: Optional[int] = Field(
+        num_shadows_lower: int | None = Field(
             default=None,
             description="Lower limit for the possible number of shadows",
         )
-        num_shadows_upper: Optional[int] = Field(
+        num_shadows_upper: int | None = Field(
             default=None,
             description="Upper limit for the possible number of shadows",
         )
@@ -1226,12 +1230,12 @@ class RandomShadow(ImageOnlyTransform):
 
     def __init__(
         self,
-        shadow_roi: Tuple[float, float, float, float] = (0, 0.5, 1, 1),
-        num_shadows_limit: Tuple[int, int] = (1, 2),
-        num_shadows_lower: Optional[int] = None,
-        num_shadows_upper: Optional[int] = None,
+        shadow_roi: tuple[float, float, float, float] = (0, 0.5, 1, 1),
+        num_shadows_limit: tuple[int, int] = (1, 2),
+        num_shadows_lower: int | None = None,
+        num_shadows_upper: int | None = None,
         shadow_dimension: int = 5,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -1240,14 +1244,14 @@ class RandomShadow(ImageOnlyTransform):
         self.shadow_dimension = shadow_dimension
         self.num_shadows_limit = num_shadows_limit
 
-    def apply(self, img: np.ndarray, vertices_list: List[np.ndarray], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, vertices_list: list[np.ndarray], **params: Any) -> np.ndarray:
         return fmain.add_shadow(img, vertices_list)
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, List[np.ndarray]]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, list[np.ndarray]]:
         img = params["image"]
         height, width = img.shape[:2]
 
@@ -1273,7 +1277,7 @@ class RandomShadow(ImageOnlyTransform):
 
         return {"vertices_list": vertices_list}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "shadow_roi",
             "num_shadows_limit",
@@ -1308,7 +1312,7 @@ class RandomToneCurve(ImageOnlyTransform):
     def __init__(
         self,
         scale: float = 0.1,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -1317,13 +1321,13 @@ class RandomToneCurve(ImageOnlyTransform):
     def apply(self, img: np.ndarray, low_y: float, high_y: float, **params: Any) -> np.ndarray:
         return fmain.move_tone_curve(img, low_y, high_y)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {
             "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1),
             "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
+    def get_transform_init_args_names(self) -> tuple[str]:
         return ("scale",)
 
 
@@ -1357,13 +1361,13 @@ class HueSaturationValue(ImageOnlyTransform):
         hue_shift_limit: ScaleIntType = 20,
         sat_shift_limit: ScaleIntType = 30,
         val_shift_limit: ScaleIntType = 20,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.hue_shift_limit = cast(Tuple[float, float], hue_shift_limit)
-        self.sat_shift_limit = cast(Tuple[float, float], sat_shift_limit)
-        self.val_shift_limit = cast(Tuple[float, float], val_shift_limit)
+        self.hue_shift_limit = cast(tuple[float, float], hue_shift_limit)
+        self.sat_shift_limit = cast(tuple[float, float], sat_shift_limit)
+        self.val_shift_limit = cast(tuple[float, float], val_shift_limit)
 
     def apply(
         self,
@@ -1378,14 +1382,14 @@ class HueSaturationValue(ImageOnlyTransform):
             raise TypeError(msg)
         return fmain.shift_hsv(img, hue_shift, sat_shift, val_shift)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {
             "hue_shift": random.uniform(self.hue_shift_limit[0], self.hue_shift_limit[1]),
             "sat_shift": random.uniform(self.sat_shift_limit[0], self.sat_shift_limit[1]),
             "val_shift": random.uniform(self.val_shift_limit[0], self.val_shift_limit[1]),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("hue_shift_limit", "sat_shift_limit", "val_shift_limit")
 
 
@@ -1408,17 +1412,17 @@ class Solarize(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         threshold: OnePlusFloatRangeType = (128, 128)
 
-    def __init__(self, threshold: ScaleType = (128, 128), p: float = 0.5, always_apply: Optional[bool] = None):
+    def __init__(self, threshold: ScaleType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
-        self.threshold = cast(Tuple[float, float], threshold)
+        self.threshold = cast(tuple[float, float], threshold)
 
     def apply(self, img: np.ndarray, threshold: int, **params: Any) -> np.ndarray:
         return fmain.solarize(img, threshold)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {"threshold": random.uniform(self.threshold[0], self.threshold[1])}
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
+    def get_transform_init_args_names(self) -> tuple[str]:
         return ("threshold",)
 
 
@@ -1443,38 +1447,38 @@ class Posterize(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         num_bits: Annotated[
-            Union[int, Tuple[int, int], Tuple[int, int, int]],
+            int | tuple[int, int] | tuple[int, int, int],
             Field(default=4, description="Number of high bits"),
         ]
 
         @field_validator("num_bits")
         @classmethod
-        def validate_num_bits(cls, num_bits: Any) -> Union[Tuple[int, int], List[Tuple[int, int]]]:
+        def validate_num_bits(cls, num_bits: Any) -> tuple[int, int] | list[tuple[int, int]]:
             if isinstance(num_bits, int):
-                return cast(Tuple[int, int], to_tuple(num_bits, num_bits))
+                return cast(tuple[int, int], to_tuple(num_bits, num_bits))
             if isinstance(num_bits, Sequence) and len(num_bits) == NUM_BITS_ARRAY_LENGTH:
-                return [cast(Tuple[int, int], to_tuple(i, 0)) for i in num_bits]
-            return cast(Tuple[int, int], to_tuple(num_bits, 0))
+                return [cast(tuple[int, int], to_tuple(i, 0)) for i in num_bits]
+            return cast(tuple[int, int], to_tuple(num_bits, 0))
 
     def __init__(
         self,
-        num_bits: Union[int, Tuple[int, int], Tuple[int, int, int]] = 4,
-        always_apply: Optional[bool] = None,
+        num_bits: int | tuple[int, int] | tuple[int, int, int] = 4,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.num_bits = cast(Union[Tuple[int, ...], List[Tuple[int, ...]]], num_bits)
+        self.num_bits = cast(Union[tuple[int, ...], list[tuple[int, ...]]], num_bits)
 
     def apply(self, img: np.ndarray, num_bits: int, **params: Any) -> np.ndarray:
         return fmain.posterize(img, num_bits)
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         if len(self.num_bits) == NUM_BITS_ARRAY_LENGTH:
             return {"num_bits": [random.randint(int(i[0]), int(i[1])) for i in self.num_bits]}  # type: ignore[index]
         num_bits = self.num_bits
         return {"num_bits": random.randint(int(num_bits[0]), int(num_bits[1]))}  # type: ignore[arg-type]
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
+    def get_transform_init_args_names(self) -> tuple[str]:
         return ("num_bits",)
 
 
@@ -1502,7 +1506,7 @@ class Equalize(ImageOnlyTransform):
         mode: ImageMode = "cv"
         by_channels: Annotated[bool, Field(default=True, description="Equalize channels separately if True")]
         mask: Annotated[
-            Optional[Union[np.ndarray, Callable[..., Any]]],
+            np.ndarray | Callable[..., Any] | None,
             Field(default=None, description="Mask to apply for equalization"),
         ]
         mask_params: Annotated[Sequence[str], Field(default=[], description="Parameters for mask function")]
@@ -1511,9 +1515,9 @@ class Equalize(ImageOnlyTransform):
         self,
         mode: ImageMode = "cv",
         by_channels: bool = True,
-        mask: Optional[Union[np.ndarray, Callable[..., Any]]] = None,
+        mask: np.ndarray | Callable[..., Any] | None = None,
         mask_params: Sequence[str] = (),
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -1526,17 +1530,17 @@ class Equalize(ImageOnlyTransform):
     def apply(self, img: np.ndarray, mask: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.equalize(img, mode=self.mode, by_channels=self.by_channels, mask=mask)
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         if not callable(self.mask):
             return {"mask": self.mask}
 
         return {"mask": self.mask(**params)}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image", *list(self.mask_params)]
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("mode", "by_channels", "mask", "mask_params")
 
 
@@ -1570,13 +1574,13 @@ class RGBShift(ImageOnlyTransform):
         r_shift_limit: ScaleIntType = (-20, 20),
         g_shift_limit: ScaleIntType = (-20, 20),
         b_shift_limit: ScaleIntType = (-20, 20),
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.r_shift_limit = cast(Tuple[float, float], r_shift_limit)
-        self.g_shift_limit = cast(Tuple[float, float], g_shift_limit)
-        self.b_shift_limit = cast(Tuple[float, float], b_shift_limit)
+        self.r_shift_limit = cast(tuple[float, float], r_shift_limit)
+        self.g_shift_limit = cast(tuple[float, float], g_shift_limit)
+        self.b_shift_limit = cast(tuple[float, float], b_shift_limit)
 
     def apply(self, img: np.ndarray, shift: np.ndarray, **params: Any) -> np.ndarray:
         if not is_rgb_image(img):
@@ -1585,7 +1589,7 @@ class RGBShift(ImageOnlyTransform):
 
         return albucore.add_vector(img, shift)
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "shift": np.array(
                 [
@@ -1596,7 +1600,7 @@ class RGBShift(ImageOnlyTransform):
             ),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "r_shift_limit", "g_shift_limit", "b_shift_limit"
 
 
@@ -1630,24 +1634,24 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         brightness_limit: ScaleFloatType = (-0.2, 0.2),
         contrast_limit: ScaleFloatType = (-0.2, 0.2),
         brightness_by_max: bool = True,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.brightness_limit = cast(Tuple[float, float], brightness_limit)
-        self.contrast_limit = cast(Tuple[float, float], contrast_limit)
+        self.brightness_limit = cast(tuple[float, float], brightness_limit)
+        self.contrast_limit = cast(tuple[float, float], contrast_limit)
         self.brightness_by_max = brightness_by_max
 
     def apply(self, img: np.ndarray, alpha: float, beta: float, **params: Any) -> np.ndarray:
         return fmain.brightness_contrast_adjust(img, alpha, beta, self.brightness_by_max)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {
             "alpha": 1.0 + random.uniform(self.contrast_limit[0], self.contrast_limit[1]),
             "beta": 0.0 + random.uniform(self.brightness_limit[0], self.brightness_limit[1]),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str]:
         return ("brightness_limit", "contrast_limit", "brightness_by_max")
 
 
@@ -1655,7 +1659,7 @@ class GaussNoise(ImageOnlyTransform):
     """Apply Gaussian noise to the input image.
 
     Args:
-        var_limit (Union[float, Tuple[float, float]]): Variance range for noise.
+        var_limit (Union[float, tuple[float, float]]): Variance range for noise.
             If var_limit is a single float, the range will be (0, var_limit). Default: (10.0, 50.0).
         mean (float): Mean of the noise. Default: 0
         per_channel (bool): If set to True, noise will be sampled for each channel independently.
@@ -1687,11 +1691,11 @@ class GaussNoise(ImageOnlyTransform):
         mean: float = 0,
         per_channel: bool = True,
         noise_scale_factor: float = 1,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.var_limit = cast(Tuple[float, float], var_limit)
+        self.var_limit = cast(tuple[float, float], var_limit)
         self.mean = mean
         self.per_channel = per_channel
         self.noise_scale_factor = noise_scale_factor
@@ -1699,7 +1703,7 @@ class GaussNoise(ImageOnlyTransform):
     def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.add_noise(img, gauss)
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, float]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, float]:
         image = params["image"]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
         sigma = math.sqrt(var)
@@ -1723,10 +1727,10 @@ class GaussNoise(ImageOnlyTransform):
         return {"gauss": gauss}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "var_limit", "per_channel", "mean", "noise_scale_factor"
 
 
@@ -1749,22 +1753,22 @@ class ISONoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        color_shift: Tuple[float, float] = Field(
+        color_shift: tuple[float, float] = Field(
             default=(0.01, 0.05),
             description=(
                 "Variance range for color hue change. Measured as a fraction of 360 degree Hue angle in HLS colorspace."
             ),
         )
-        intensity: Tuple[float, float] = Field(
+        intensity: tuple[float, float] = Field(
             default=(0.1, 0.5),
             description="Multiplicative factor that control strength of color and luminance noise.",
         )
 
     def __init__(
         self,
-        color_shift: Tuple[float, float] = (0.01, 0.05),
-        intensity: Tuple[float, float] = (0.1, 0.5),
-        always_apply: Optional[bool] = None,
+        color_shift: tuple[float, float] = (0.01, 0.05),
+        intensity: tuple[float, float] = (0.1, 0.5),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -1781,14 +1785,14 @@ class ISONoise(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.iso_noise(img, color_shift, intensity, np.random.RandomState(random_seed))
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "color_shift": random.uniform(self.color_shift[0], self.color_shift[1]),
             "intensity": random.uniform(self.intensity[0], self.intensity[1]),
             "random_seed": random_utils.get_random_seed(),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("intensity", "color_shift")
 
 
@@ -1816,12 +1820,12 @@ class CLAHE(ImageOnlyTransform):
     def __init__(
         self,
         clip_limit: ScaleFloatType = 4.0,
-        tile_grid_size: Tuple[int, int] = (8, 8),
-        always_apply: Optional[bool] = None,
+        tile_grid_size: tuple[int, int] = (8, 8),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.clip_limit = cast(Tuple[float, float], clip_limit)
+        self.clip_limit = cast(tuple[float, float], clip_limit)
         self.tile_grid_size = tile_grid_size
 
     def apply(self, img: np.ndarray, clip_limit: float, **params: Any) -> np.ndarray:
@@ -1831,10 +1835,10 @@ class CLAHE(ImageOnlyTransform):
 
         return fmain.clahe(img, clip_limit, self.tile_grid_size)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {"clip_limit": random.uniform(self.clip_limit[0], self.clip_limit[1])}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("clip_limit", "tile_grid_size")
 
 
@@ -1853,19 +1857,19 @@ class ChannelShuffle(ImageOnlyTransform):
     """
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def apply(self, img: np.ndarray, channels_shuffled: Tuple[int, ...], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, channels_shuffled: tuple[int, ...], **params: Any) -> np.ndarray:
         return fmain.channel_shuffle(img, channels_shuffled)
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         ch_arr = list(range(img.shape[2]))
         ch_arr = random_utils.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1887,7 +1891,7 @@ class InvertImg(ImageOnlyTransform):
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.invert(img)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1899,7 +1903,7 @@ class RandomGamma(ImageOnlyTransform):
     conditions, potentially enhancing model generalization.
 
     Attributes:
-        gamma_limit (Union[int, Tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
+        gamma_limit (Union[int, tuple[int, int]]): The range for gamma adjustment. If `gamma_limit` is a single
             int, the range will be interpreted as (-gamma_limit, gamma_limit), defining how much
             to adjust the image's gamma. Default is (80, 120).
         always_apply: Depreciated. Use `p=1` instead.
@@ -1922,19 +1926,19 @@ class RandomGamma(ImageOnlyTransform):
     def __init__(
         self,
         gamma_limit: ScaleIntType = (80, 120),
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
-        self.gamma_limit = cast(Tuple[float, float], gamma_limit)
+        self.gamma_limit = cast(tuple[float, float], gamma_limit)
 
     def apply(self, img: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
         return fmain.gamma_transform(img, gamma=gamma)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {"gamma": random.uniform(self.gamma_limit[0], self.gamma_limit[1]) / 100.0}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("gamma_limit",)
 
 
@@ -1969,7 +1973,7 @@ class ToGray(ImageOnlyTransform):
 
         return fmain.to_gray(img)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1987,7 +1991,7 @@ class ToRGB(ImageOnlyTransform):
 
     """
 
-    def __init__(self, p: float = 1.0, always_apply: Optional[bool] = None):
+    def __init__(self, p: float = 1.0, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
@@ -2000,7 +2004,7 @@ class ToRGB(ImageOnlyTransform):
 
         return fmain.gray_to_rgb(img)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -2018,7 +2022,7 @@ class ToSepia(ImageOnlyTransform):
 
     """
 
-    def __init__(self, p: float = 0.5, always_apply: Optional[bool] = None):
+    def __init__(self, p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p, always_apply)
         self.sepia_transformation_matrix = np.array(
             [[0.393, 0.769, 0.189], [0.349, 0.686, 0.168], [0.272, 0.534, 0.131]],
@@ -2030,7 +2034,7 @@ class ToSepia(ImageOnlyTransform):
             raise TypeError(msg)
         return fmain.linear_transformation_rgb(img, self.sepia_transformation_matrix)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -2055,17 +2059,17 @@ class ToFloat(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        max_value: Optional[float] = Field(default=None, description="Maximum possible input value.")
+        max_value: float | None = Field(default=None, description="Maximum possible input value.")
         p: ProbabilityType = 1
 
-    def __init__(self, max_value: Optional[float] = None, p: float = 1.0, always_apply: Optional[bool] = None):
+    def __init__(self, max_value: float | None = None, p: float = 1.0, always_apply: bool | None = None):
         super().__init__(p, always_apply)
         self.max_value = max_value
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.to_float(img, self.max_value)
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
+    def get_transform_init_args_names(self) -> tuple[str]:
         return ("max_value",)
 
 
@@ -2095,14 +2099,14 @@ class FromFloat(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         dtype: Literal["uint8", "uint16", "float32", "float64"]
-        max_value: Optional[float] = Field(default=None, description="Maximum possible input value.")
+        max_value: float | None = Field(default=None, description="Maximum possible input value.")
         p: ProbabilityType = 1
 
     def __init__(
         self,
         dtype: Literal["uint8", "uint16", "float32", "float64"] = "uint16",
-        max_value: Optional[float] = None,
-        always_apply: Optional[bool] = None,
+        max_value: float | None = None,
+        always_apply: bool | None = None,
         p: float = 1.0,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -2112,7 +2116,7 @@ class FromFloat(ImageOnlyTransform):
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.from_float(img, self.dtype, self.max_value)
 
-    def get_transform_init_args(self) -> Dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         return {"dtype": self.dtype.name, "max_value": self.max_value}
 
 
@@ -2130,7 +2134,7 @@ class Downscale(ImageOnlyTransform):
     """Decreases image quality by downscaling and then upscaling it back to its original size.
 
     Args:
-        scale_range (Tuple[float, float]): A tuple defining the minimum and maximum scale to which the image
+        scale_range (tuple[float, float]): A tuple defining the minimum and maximum scale to which the image
             will be downscaled. The range should be between 0 and 1, inclusive at minimum and exclusive at maximum.
             The first value should be less than or equal to the second value.
         interpolation_pair (InterpolationDict): A dictionary specifying the interpolation methods to use for
@@ -2151,25 +2155,25 @@ class Downscale(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        scale_min: Optional[float] = Field(
+        scale_min: float | None = Field(
             default=None,
             ge=0,
             le=1,
             description="Lower bound on the image scale.",
         )
-        scale_max: Optional[float] = Field(
+        scale_max: float | None = Field(
             default=None,
             ge=0,
             lt=1,
             description="Upper bound on the image scale.",
         )
 
-        interpolation: Optional[Union[int, Interpolation, InterpolationDict]] = Field(
+        interpolation: int | Interpolation | InterpolationDict | None = Field(
             default_factory=lambda: Interpolation(downscale=cv2.INTER_NEAREST, upscale=cv2.INTER_NEAREST),
         )
         interpolation_pair: InterpolationPydantic
 
-        scale_range: Annotated[Tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
+        scale_range: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = (
             0.25,
             0.25,
         )
@@ -2212,14 +2216,14 @@ class Downscale(ImageOnlyTransform):
 
     def __init__(
         self,
-        scale_min: Optional[float] = None,
-        scale_max: Optional[float] = None,
-        interpolation: Optional[Union[int, Interpolation, InterpolationDict]] = None,
-        scale_range: Tuple[float, float] = (0.25, 0.25),
+        scale_min: float | None = None,
+        scale_max: float | None = None,
+        interpolation: int | Interpolation | InterpolationDict | None = None,
+        scale_range: tuple[float, float] = (0.25, 0.25),
         interpolation_pair: InterpolationDict = InterpolationDict(
             {"upscale": cv2.INTER_NEAREST, "downscale": cv2.INTER_NEAREST},
         ),
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -2234,10 +2238,10 @@ class Downscale(ImageOnlyTransform):
             up_interpolation=self.interpolation_pair["upscale"],
         )
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         return {"scale": random.uniform(self.scale_range[0], self.scale_range[1])}
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("scale_range", "interpolation_pair")
 
 
@@ -2263,13 +2267,13 @@ class Lambda(NoOp):
 
     def __init__(
         self,
-        image: Optional[Callable[..., Any]] = None,
-        mask: Optional[Callable[..., Any]] = None,
-        keypoint: Optional[Callable[..., Any]] = None,
-        bbox: Optional[Callable[..., Any]] = None,
-        global_label: Optional[Callable[..., Any]] = None,
-        name: Optional[str] = None,
-        always_apply: Optional[bool] = None,
+        image: Callable[..., Any] | None = None,
+        mask: Callable[..., Any] | None = None,
+        keypoint: Callable[..., Any] | None = None,
+        bbox: Callable[..., Any] | None = None,
+        global_label: Callable[..., Any] | None = None,
+        name: str | None = None,
+        always_apply: bool | None = None,
         p: float = 1.0,
     ):
         super().__init__(p, always_apply)
@@ -2319,7 +2323,7 @@ class Lambda(NoOp):
     def is_serializable(cls) -> bool:
         return False
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         if self.name is None:
             msg = (
                 "To make a Lambda transform serializable you should provide the `name` argument, "
@@ -2355,11 +2359,11 @@ class MultiplicativeNoise(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        multiplier: Annotated[Tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = (
+        multiplier: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = (
             0.9,
             1.1,
         )
-        per_channel: Optional[bool] = Field(
+        per_channel: bool | None = Field(
             default=False,
             description="Apply multiplier per channel.",
             deprecated="Does not have any effect. Will be removed in future releases.",
@@ -2369,24 +2373,24 @@ class MultiplicativeNoise(ImageOnlyTransform):
     def __init__(
         self,
         multiplier: ScaleFloatType = (0.9, 1.1),
-        per_channel: Optional[bool] = None,
+        per_channel: bool | None = None,
         elementwise: bool = False,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.multiplier = cast(Tuple[float, float], multiplier)
+        self.multiplier = cast(tuple[float, float], multiplier)
         self.elementwise = elementwise
 
     def apply(
         self,
         img: np.ndarray,
-        multiplier: Union[float, np.ndarray],
+        multiplier: float | np.ndarray,
         **kwargs: Any,
     ) -> np.ndarray:
         return multiply(img, multiplier)
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         if self.multiplier[0] == self.multiplier[1]:
             return {"multiplier": self.multiplier[0]}
 
@@ -2401,10 +2405,10 @@ class MultiplicativeNoise(ImageOnlyTransform):
         return {"multiplier": multiplier}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "multiplier", "elementwise"
 
 
@@ -2432,17 +2436,17 @@ class FancyPCA(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         alpha: float = Field(default=0.1, description="Scale for perturbing the eigen vectors and values", ge=0)
 
-    def __init__(self, alpha: float = 0.1, p: float = 0.5, always_apply: Optional[bool] = None):
+    def __init__(self, alpha: float = 0.1, p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
         self.alpha = alpha
 
     def apply(self, img: np.ndarray, alpha: float, **params: Any) -> np.ndarray:
         return fmain.fancy_pca(img, alpha)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {"alpha": random.gauss(0, self.alpha)}
 
-    def get_transform_init_args_names(self) -> Tuple[str]:
+    def get_transform_init_args_names(self) -> tuple[str]:
         return ("alpha",)
 
 
@@ -2456,19 +2460,19 @@ class ColorJitter(ImageOnlyTransform):
         brightness (float or tuple of float (min, max)): How much to jitter brightness.
             If float:
                 brightness_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            If Tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
+            If tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
         contrast (float or tuple of float (min, max)): How much to jitter contrast.
             If float:
                 contrast_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            If Tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
+            If tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
         saturation (float or tuple of float (min, max)): How much to jitter saturation.
             If float:
                saturation_factor is chosen uniformly from [max(0, 1 - brightness), 1 + brightness]
-            If Tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
+            If tuple[float, float]] will be sampled from that range. Both values should be non negative numbers.
         hue (float or tuple of float (min, max)): How much to jitter hue.
             If float:
                saturation_factor is chosen uniformly from [-hue, hue]. Should have 0 <= hue <= 0.5.
-            If Tuple[float, float]] will be sampled from that range. Both values should be in range [-0.5, 0.5].
+            If tuple[float, float]] will be sampled from that range. Both values should be in range [-0.5, 0.5].
 
     """
 
@@ -2480,7 +2484,7 @@ class ColorJitter(ImageOnlyTransform):
 
         @field_validator("brightness", "contrast", "saturation", "hue")
         @classmethod
-        def check_ranges(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        def check_ranges(cls, value: ScaleFloatType, info: ValidationInfo) -> tuple[float, float]:
             if info.field_name == "hue":
                 bounds = -0.5, 0.5
                 bias = 0
@@ -2499,7 +2503,7 @@ class ColorJitter(ImageOnlyTransform):
             elif isinstance(value, (tuple, list)) and len(value) == PAIR:
                 check_range(value, *bounds, info.field_name)
 
-            return cast(Tuple[float, float], value)
+            return cast(tuple[float, float], value)
 
     def __init__(
         self,
@@ -2507,15 +2511,15 @@ class ColorJitter(ImageOnlyTransform):
         contrast: ScaleFloatType = (0.8, 1),
         saturation: ScaleFloatType = (0.8, 1),
         hue: ScaleFloatType = (-0.5, 0.5),
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
 
-        self.brightness = cast(Tuple[float, float], brightness)
-        self.contrast = cast(Tuple[float, float], contrast)
-        self.saturation = cast(Tuple[float, float], saturation)
-        self.hue = cast(Tuple[float, float], hue)
+        self.brightness = cast(tuple[float, float], brightness)
+        self.contrast = cast(tuple[float, float], contrast)
+        self.saturation = cast(tuple[float, float], saturation)
+        self.hue = cast(tuple[float, float], hue)
 
         self.transforms = [
             fmain.adjust_brightness_torchvision,
@@ -2524,7 +2528,7 @@ class ColorJitter(ImageOnlyTransform):
             fmain.adjust_hue_torchvision,
         ]
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         brightness = random.uniform(self.brightness[0], self.brightness[1])
         contrast = random.uniform(self.contrast[0], self.contrast[1])
         saturation = random.uniform(self.saturation[0], self.saturation[1])
@@ -2548,7 +2552,7 @@ class ColorJitter(ImageOnlyTransform):
         contrast: float,
         saturation: float,
         hue: float,
-        order: List[int],
+        order: list[int],
         **params: Any,
     ) -> np.ndarray:
         if order is None:
@@ -2561,7 +2565,7 @@ class ColorJitter(ImageOnlyTransform):
             img = self.transforms[i](img, color_transforms[i])
         return img
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return ("brightness", "contrast", "saturation", "hue")
 
 
@@ -2585,9 +2589,9 @@ class Sharpen(ImageOnlyTransform):
 
     def __init__(
         self,
-        alpha: Tuple[float, float] = (0.2, 0.5),
-        lightness: Tuple[float, float] = (0.5, 1.0),
-        always_apply: Optional[bool] = None,
+        alpha: tuple[float, float] = (0.2, 0.5),
+        lightness: tuple[float, float] = (0.5, 1.0),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -2604,7 +2608,7 @@ class Sharpen(ImageOnlyTransform):
 
         return (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
 
-    def get_params(self) -> Dict[str, np.ndarray]:
+    def get_params(self) -> dict[str, np.ndarray]:
         alpha = random.uniform(*self.alpha)
         lightness = random.uniform(*self.lightness)
         sharpening_matrix = self.__generate_sharpening_matrix(alpha_sample=alpha, lightness_sample=lightness)
@@ -2613,7 +2617,7 @@ class Sharpen(ImageOnlyTransform):
     def apply(self, img: np.ndarray, sharpening_matrix: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.convolve(img, sharpening_matrix)
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("alpha", "lightness")
 
 
@@ -2637,9 +2641,9 @@ class Emboss(ImageOnlyTransform):
 
     def __init__(
         self,
-        alpha: Tuple[float, float] = (0.2, 0.5),
-        strength: Tuple[float, float] = (0.2, 0.7),
-        always_apply: Optional[bool] = None,
+        alpha: tuple[float, float] = (0.2, 0.5),
+        strength: tuple[float, float] = (0.2, 0.7),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -2659,7 +2663,7 @@ class Emboss(ImageOnlyTransform):
         )
         return (1 - alpha_sample) * matrix_nochange + alpha_sample * matrix_effect
 
-    def get_params(self) -> Dict[str, np.ndarray]:
+    def get_params(self) -> dict[str, np.ndarray]:
         alpha = random.uniform(*self.alpha)
         strength = random.uniform(*self.strength)
         emboss_matrix = self.__generate_emboss_matrix(alpha_sample=alpha, strength_sample=strength)
@@ -2668,7 +2672,7 @@ class Emboss(ImageOnlyTransform):
     def apply(self, img: np.ndarray, emboss_matrix: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.convolve(img, emboss_matrix)
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("alpha", "strength")
 
 
@@ -2719,28 +2723,28 @@ class Superpixels(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         p_replace: ZeroOneRangeType = (0, 0.1)
         n_segments: OnePlusIntRangeType = (100, 100)
-        max_size: Optional[int] = Field(default=128, ge=1, description="Maximum image size for the transformation.")
+        max_size: int | None = Field(default=128, ge=1, description="Maximum image size for the transformation.")
         interpolation: InterpolationType = cv2.INTER_LINEAR
 
     def __init__(
         self,
         p_replace: ScaleFloatType = (0, 0.1),
         n_segments: ScaleIntType = (100, 100),
-        max_size: Optional[int] = 128,
+        max_size: int | None = 128,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.p_replace = cast(Tuple[float, float], p_replace)
-        self.n_segments = cast(Tuple[int, int], n_segments)
+        self.p_replace = cast(tuple[float, float], p_replace)
+        self.n_segments = cast(tuple[int, int], n_segments)
         self.max_size = max_size
         self.interpolation = interpolation
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return ("p_replace", "n_segments", "max_size", "interpolation")
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         n_segments = random.randint(self.n_segments[0], self.n_segments[1])
         p = random.uniform(*self.p_replace)
         return {"replace_samples": random_utils.random(n_segments) < p, "n_segments": n_segments}
@@ -2778,18 +2782,18 @@ class TemplateTransform(ImageOnlyTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        templates: Union[np.ndarray, Sequence[np.ndarray]] = Field(..., description="Images as template for transform.")
+        templates: np.ndarray | Sequence[np.ndarray] = Field(..., description="Images as template for transform.")
         img_weight: ZeroOneRangeType = (0.5, 0.5)
         template_weight: ZeroOneRangeType = (0.5, 0.5)
-        template_transform: Optional[Callable[..., Any]] = Field(
+        template_transform: Callable[..., Any] | None = Field(
             default=None,
             description="Transformation object applied to template.",
         )
-        name: Optional[str] = Field(default=None, description="Name of transform, used only for deserialization.")
+        name: str | None = Field(default=None, description="Name of transform, used only for deserialization.")
 
         @field_validator("templates")
         @classmethod
-        def validate_templates(cls, v: Union[np.ndarray, List[np.ndarray]]) -> List[np.ndarray]:
+        def validate_templates(cls, v: np.ndarray | list[np.ndarray]) -> list[np.ndarray]:
             if isinstance(v, np.ndarray):
                 return [v]
             if isinstance(v, list):
@@ -2802,18 +2806,18 @@ class TemplateTransform(ImageOnlyTransform):
 
     def __init__(
         self,
-        templates: Union[np.ndarray, List[np.ndarray]],
+        templates: np.ndarray | list[np.ndarray],
         img_weight: ScaleFloatType = (0.5, 0.5),
         template_weight: ScaleFloatType = (0.5, 0.5),
-        template_transform: Optional[Callable[..., Any]] = None,
-        name: Optional[str] = None,
-        always_apply: Optional[bool] = None,
+        template_transform: Callable[..., Any] | None = None,
+        name: str | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.templates = templates
-        self.img_weight = cast(Tuple[float, float], img_weight)
-        self.template_weight = cast(Tuple[float, float], template_weight)
+        self.img_weight = cast(tuple[float, float], img_weight)
+        self.template_weight = cast(tuple[float, float], template_weight)
         self.template_transform = template_transform
         self.name = name
 
@@ -2827,13 +2831,13 @@ class TemplateTransform(ImageOnlyTransform):
     ) -> np.ndarray:
         return add_weighted(img, img_weight, template, template_weight)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {
             "img_weight": random.uniform(self.img_weight[0], self.img_weight[1]),
             "template_weight": random.uniform(self.template_weight[0], self.template_weight[1]),
         }
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         template = random.choice(self.templates)
 
@@ -2868,10 +2872,10 @@ class TemplateTransform(ImageOnlyTransform):
         return False
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         if self.name is None:
             msg = (
                 "To make a TemplateTransform serializable you should provide the `name` argument, "
@@ -2907,7 +2911,7 @@ class RingingOvershoot(ImageOnlyTransform):
 
         @field_validator("cutoff")
         @classmethod
-        def check_cutoff(cls, v: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        def check_cutoff(cls, v: ScaleFloatType, info: ValidationInfo) -> tuple[float, float]:
             bounds = 0, np.pi
             result = to_tuple(v, v)
             check_range(result, *bounds, info.field_name)
@@ -2917,14 +2921,14 @@ class RingingOvershoot(ImageOnlyTransform):
         self,
         blur_limit: ScaleIntType = (7, 15),
         cutoff: ScaleFloatType = (np.pi / 4, np.pi / 2),
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.blur_limit = cast(Tuple[int, int], blur_limit)
-        self.cutoff = cast(Tuple[float, float], cutoff)
+        self.blur_limit = cast(tuple[int, int], blur_limit)
+        self.cutoff = cast(tuple[float, float], cutoff)
 
-    def get_params(self) -> Dict[str, np.ndarray]:
+    def get_params(self) -> dict[str, np.ndarray]:
         ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
         if ksize % 2 == 0:
             raise ValueError(f"Kernel size must be odd. Got: {ksize}")
@@ -2949,7 +2953,7 @@ class RingingOvershoot(ImageOnlyTransform):
     def apply(self, img: np.ndarray, kernel: int, **params: Any) -> np.ndarray:
         return fmain.convolve(img, kernel)
 
-    def get_transform_init_args_names(self) -> Tuple[str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str]:
         return ("blur_limit", "cutoff")
 
 
@@ -2993,7 +2997,7 @@ class UnsharpMask(ImageOnlyTransform):
 
         @field_validator("blur_limit")
         @classmethod
-        def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> Tuple[int, int]:
+        def process_blur(cls, value: ScaleIntType, info: ValidationInfo) -> tuple[int, int]:
             return process_blur_limit(value, info, min_value=3)
 
     def __init__(
@@ -3002,16 +3006,16 @@ class UnsharpMask(ImageOnlyTransform):
         sigma_limit: ScaleFloatType = 0.0,
         alpha: ScaleFloatType = (0.2, 0.5),
         threshold: int = 10,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.blur_limit = cast(Tuple[int, int], blur_limit)
-        self.sigma_limit = cast(Tuple[float, float], sigma_limit)
-        self.alpha = cast(Tuple[float, float], alpha)
+        self.blur_limit = cast(tuple[int, int], blur_limit)
+        self.sigma_limit = cast(tuple[float, float], sigma_limit)
+        self.alpha = cast(tuple[float, float], alpha)
         self.threshold = threshold
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "ksize": random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2),
             "sigma": random.uniform(*self.sigma_limit),
@@ -3021,7 +3025,7 @@ class UnsharpMask(ImageOnlyTransform):
     def apply(self, img: np.ndarray, ksize: int, sigma: int, alpha: float, **params: Any) -> np.ndarray:
         return fmain.unsharp_mask(img, ksize, sigma=sigma, alpha=alpha, threshold=self.threshold)
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "blur_limit", "sigma_limit", "alpha", "threshold"
 
 
@@ -3053,11 +3057,11 @@ class PixelDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         dropout_prob: ProbabilityType = 0.01
         per_channel: bool = Field(default=False, description="Sample drop mask per channel.")
-        drop_value: Optional[ScaleFloatType] = Field(
+        drop_value: ScaleFloatType | None = Field(
             default=0,
             description="Value to set in dropped pixels. None for random sampling.",
         )
-        mask_drop_value: Optional[ScaleFloatType] = Field(
+        mask_drop_value: ScaleFloatType | None = Field(
             default=None,
             description="Value to set in dropped pixels in masks. None to leave masks unchanged.",
         )
@@ -3075,9 +3079,9 @@ class PixelDropout(DualTransform):
         self,
         dropout_prob: float = 0.01,
         per_channel: bool = False,
-        drop_value: Optional[ScaleFloatType] = 0,
-        mask_drop_value: Optional[ScaleFloatType] = None,
-        always_apply: Optional[bool] = None,
+        drop_value: ScaleFloatType | None = 0,
+        mask_drop_value: ScaleFloatType | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -3090,7 +3094,7 @@ class PixelDropout(DualTransform):
         self,
         img: np.ndarray,
         drop_mask: np.ndarray,
-        drop_value: Union[float, Sequence[float]],
+        drop_value: float | Sequence[float],
         **params: Any,
     ) -> np.ndarray:
         return fmain.pixel_dropout(img, drop_mask, drop_value)
@@ -3110,7 +3114,7 @@ class PixelDropout(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return keypoint
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         shape = img.shape if self.per_channel else img.shape[:2]
 
@@ -3118,7 +3122,7 @@ class PixelDropout(DualTransform):
         # Use choice to create boolean matrix, if we will use binomial after that we will need type conversion
         drop_mask = rnd.choice([True, False], shape, p=[self.dropout_prob, 1 - self.dropout_prob])
 
-        drop_value: Union[float, Sequence[float], np.ndarray]
+        drop_value: float | Sequence[float] | np.ndarray
         if drop_mask.ndim != img.ndim:
             drop_mask = np.expand_dims(drop_mask, -1)
         if self.drop_value is None:
@@ -3136,10 +3140,10 @@ class PixelDropout(DualTransform):
         return {"drop_mask": drop_mask, "drop_value": drop_value}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return ("dropout_prob", "per_channel", "drop_value", "mask_drop_value")
 
 
@@ -3199,15 +3203,15 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: NonNegativeFloatRangeType = (2, 2)
         cutout_threshold: ZeroOneRangeType = (0.68, 0.68)
         intensity: ZeroOneRangeType = (0.6, 0.6)
-        mode: Union[SpatterMode, Sequence[SpatterMode]] = Field(
+        mode: SpatterMode | Sequence[SpatterMode] = Field(
             default="rain",
             description="Type of corruption ('rain', 'mud').",
         )
-        color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None
+        color: Sequence[int] | dict[str, Sequence[int]] | None = None
 
         @field_validator("mode")
         @classmethod
-        def check_mode(cls, mode: Union[SpatterMode, Sequence[SpatterMode]]) -> Sequence[SpatterMode]:
+        def check_mode(cls, mode: SpatterMode | Sequence[SpatterMode]) -> Sequence[SpatterMode]:
             if isinstance(mode, str):
                 return [mode]
             return mode
@@ -3242,19 +3246,19 @@ class Spatter(ImageOnlyTransform):
         gauss_sigma: ScaleFloatType = (2, 2),
         cutout_threshold: ScaleFloatType = (0.68, 0.68),
         intensity: ScaleFloatType = (0.6, 0.6),
-        mode: Union[SpatterMode, Sequence[SpatterMode]] = "rain",
-        color: Optional[Union[Sequence[int], Dict[str, Sequence[int]]]] = None,
-        always_apply: Optional[bool] = None,
+        mode: SpatterMode | Sequence[SpatterMode] = "rain",
+        color: Sequence[int] | dict[str, Sequence[int]] | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.mean = cast(Tuple[float, float], mean)
-        self.std = cast(Tuple[float, float], std)
-        self.gauss_sigma = cast(Tuple[float, float], gauss_sigma)
-        self.cutout_threshold = cast(Tuple[float, float], cutout_threshold)
-        self.intensity = cast(Tuple[float, float], intensity)
+        self.mean = cast(tuple[float, float], mean)
+        self.std = cast(tuple[float, float], std)
+        self.gauss_sigma = cast(tuple[float, float], gauss_sigma)
+        self.cutout_threshold = cast(tuple[float, float], cutout_threshold)
+        self.intensity = cast(tuple[float, float], intensity)
         self.mode = mode
-        self.color = cast(Dict[str, Sequence[int]], color)
+        self.color = cast(dict[str, Sequence[int]], color)
 
     def apply(
         self,
@@ -3263,15 +3267,15 @@ class Spatter(ImageOnlyTransform):
         mud: np.ndarray,
         drops: np.ndarray,
         mode: SpatterMode,
-        **params: Dict[str, Any],
+        **params: dict[str, Any],
     ) -> np.ndarray:
         return fmain.spatter(img, non_mud, mud, drops, mode)
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         height, width = params["image"].shape[:2]
 
         mean = random.uniform(self.mean[0], self.mean[1])
@@ -3321,7 +3325,7 @@ class Spatter(ImageOnlyTransform):
             "mode": mode,
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str, str, str, str]:
         return "mean", "std", "gauss_sigma", "intensity", "cutout_threshold", "mode", "color"
 
 
@@ -3371,12 +3375,12 @@ class ChromaticAberration(ImageOnlyTransform):
         secondary_distortion_limit: ScaleFloatType = (-0.05, 0.05),
         mode: ChromaticAberrationMode = "green_purple",
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.primary_distortion_limit = cast(Tuple[float, float], primary_distortion_limit)
-        self.secondary_distortion_limit = cast(Tuple[float, float], secondary_distortion_limit)
+        self.primary_distortion_limit = cast(tuple[float, float], primary_distortion_limit)
+        self.secondary_distortion_limit = cast(tuple[float, float], secondary_distortion_limit)
         self.mode = mode
         self.interpolation = interpolation
 
@@ -3398,7 +3402,7 @@ class ChromaticAberration(ImageOnlyTransform):
             self.interpolation,
         )
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         primary_distortion_red = random.uniform(*self.primary_distortion_limit)
         secondary_distortion_red = random.uniform(*self.secondary_distortion_limit)
         primary_distortion_blue = random.uniform(*self.primary_distortion_limit)
@@ -3437,7 +3441,7 @@ class ChromaticAberration(ImageOnlyTransform):
             return -b
         return b
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return "primary_distortion_limit", "secondary_distortion_limit", "mode", "interpolation"
 
 
@@ -3489,29 +3493,29 @@ class Morphological(DualTransform):
         self,
         scale: ScaleIntType = (2, 3),
         operation: MorphologyMode = "dilation",
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
-        self.scale = cast(Tuple[int, int], scale)
+        self.scale = cast(tuple[int, int], scale)
         self.operation = operation
 
-    def apply(self, img: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, kernel: tuple[int, int], **params: Any) -> np.ndarray:
         return fmain.morphology(img, kernel, self.operation)
 
-    def apply_to_mask(self, mask: np.ndarray, kernel: Tuple[int, int], **params: Any) -> np.ndarray:
+    def apply_to_mask(self, mask: np.ndarray, kernel: tuple[int, int], **params: Any) -> np.ndarray:
         return fmain.morphology(mask, kernel, self.operation)
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {
             "kernel": cv2.getStructuringElement(cv2.MORPH_ELLIPSE, self.scale),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("scale", "operation")
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
@@ -3537,7 +3541,7 @@ class PlanckianJitter(ImageOnlyTransform):
     Args:
         mode (Literal["blackbody", "cied"]): The mode of the transformation. `blackbody` simulates blackbody radiation,
             and `cied` uses the CIED illuminant series.
-        temperature_limit (Tuple[int, int]): Temperature range to sample from. For `blackbody` mode, the range should
+        temperature_limit (tuple[int, int]): Temperature range to sample from. For `blackbody` mode, the range should
             be within `[3000K, 15000K]`. For "cied" mode, the range should be within `[4000K, 15000K]`. Range should
             include white temperature `6000`
             Higher temperatures produce cooler (bluish) images. If not defined, it defaults to:
@@ -3566,7 +3570,7 @@ class PlanckianJitter(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         mode: PlanckianJitterMode = "blackbody"
-        temperature_limit: Optional[Annotated[Tuple[int, int], AfterValidator(nondecreasing)]] = None
+        temperature_limit: Annotated[tuple[int, int], AfterValidator(nondecreasing)] | None = None
         sampling_method: Literal["uniform", "gaussian"] = "uniform"
 
         @model_validator(mode="after")
@@ -3598,15 +3602,15 @@ class PlanckianJitter(ImageOnlyTransform):
     def __init__(
         self,
         mode: PlanckianJitterMode = "blackbody",
-        temperature_limit: Optional[Tuple[int, int]] = None,
+        temperature_limit: tuple[int, int] | None = None,
         sampling_method: Literal["uniform", "gaussian"] = "uniform",
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ) -> None:
         super().__init__(p=p, always_apply=always_apply)
 
         self.mode = mode
-        self.temperature_limit = cast(Tuple[int, int], temperature_limit)
+        self.temperature_limit = cast(tuple[int, int], temperature_limit)
         self.sampling_method = sampling_method
 
     def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:
@@ -3614,7 +3618,7 @@ class PlanckianJitter(ImageOnlyTransform):
             raise TypeError("PlanckianJitter transformation expects 3-channel images.")
         return fmain.planckian_jitter(img, temperature, mode=self.mode)
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         sampling_prob_boundary = PLANKIAN_JITTER_CONST["SAMPLING_TEMP_PROB"]
         sampling_temp_boundary = PLANKIAN_JITTER_CONST["WHITE_TEMP"]
 
@@ -3659,5 +3663,5 @@ class PlanckianJitter(ImageOnlyTransform):
 
         return {"temperature": int(np.clip(temperature, self.temperature_limit[0], self.temperature_limit[1]))}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "mode", "temperature_limit", "sampling_method"

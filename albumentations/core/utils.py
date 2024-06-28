@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
 from typing_extensions import Literal
@@ -11,7 +13,7 @@ if TYPE_CHECKING:
     import torch
 
 
-def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
+def get_shape(img: np.ndarray | torch.Tensor) -> SizeType:
     if isinstance(img, np.ndarray):
         return img.shape[:2]
 
@@ -28,7 +30,7 @@ def get_shape(img: Union["np.ndarray", "torch.Tensor"]) -> SizeType:
     )
 
 
-def format_args(args_dict: Dict[str, Any]) -> str:
+def format_args(args_dict: dict[str, Any]) -> str:
     formatted_args = []
     for k, v in args_dict.items():
         v_formatted = f"'{v}'" if isinstance(v, str) else str(v)
@@ -37,16 +39,16 @@ def format_args(args_dict: Dict[str, Any]) -> str:
 
 
 class Params(Serializable, ABC):
-    def __init__(self, format: str, label_fields: Optional[Sequence[str]] = None):
+    def __init__(self, format: str, label_fields: Sequence[str] | None = None):  # noqa: A002
         self.format = format
         self.label_fields = label_fields
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         return {"format": self.format, "label_fields": self.label_fields}
 
 
 class DataProcessor(ABC):
-    def __init__(self, params: Params, additional_targets: Optional[Dict[str, str]] = None):
+    def __init__(self, params: Params, additional_targets: dict[str, str] | None = None):
         self.params = params
         self.data_fields = [self.default_data_name]
         if additional_targets is not None:
@@ -57,19 +59,19 @@ class DataProcessor(ABC):
     def default_data_name(self) -> str:
         raise NotImplementedError
 
-    def add_targets(self, additional_targets: Dict[str, str]) -> None:
-        """Add targets to transform them the same way as one of existing targets"""
+    def add_targets(self, additional_targets: dict[str, str]) -> None:
+        """Add targets to transform them the same way as one of existing targets."""
         for k, v in additional_targets.items():
             if v == self.default_data_name and k not in self.data_fields:
                 self.data_fields.append(k)
 
-    def ensure_data_valid(self, data: Dict[str, Any]) -> None:
+    def ensure_data_valid(self, data: dict[str, Any]) -> None:
         pass
 
     def ensure_transforms_valid(self, transforms: Sequence[object]) -> None:
         pass
 
-    def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
         rows, cols = get_shape(data["image"])
 
         for data_name in self.data_fields:
@@ -79,7 +81,7 @@ class DataProcessor(ABC):
 
         return self.remove_label_fields_from_data(data)
 
-    def preprocess(self, data: Dict[str, Any]) -> None:
+    def preprocess(self, data: dict[str, Any]) -> None:
         data = self.add_label_fields_to_data(data)
 
         rows, cols = data["image"].shape[:2]
@@ -89,11 +91,11 @@ class DataProcessor(ABC):
 
     def check_and_convert(
         self,
-        data: List[BoxOrKeypointType],
+        data: list[BoxOrKeypointType],
         rows: int,
         cols: int,
         direction: Literal["to", "from"] = "to",
-    ) -> List[BoxOrKeypointType]:
+    ) -> list[BoxOrKeypointType]:
         if self.params.format == "albumentations":
             self.check(data, rows, cols)
             return data
@@ -111,23 +113,23 @@ class DataProcessor(ABC):
         pass
 
     @abstractmethod
-    def check(self, data: List[BoxOrKeypointType], rows: int, cols: int) -> None:
+    def check(self, data: list[BoxOrKeypointType], rows: int, cols: int) -> None:
         pass
 
     @abstractmethod
-    def convert_to_albumentations(self, data: List[BoxOrKeypointType], rows: int, cols: int) -> List[BoxOrKeypointType]:
+    def convert_to_albumentations(self, data: list[BoxOrKeypointType], rows: int, cols: int) -> list[BoxOrKeypointType]:
         pass
 
     @abstractmethod
     def convert_from_albumentations(
         self,
-        data: List[BoxOrKeypointType],
+        data: list[BoxOrKeypointType],
         rows: int,
         cols: int,
-    ) -> List[BoxOrKeypointType]:
+    ) -> list[BoxOrKeypointType]:
         pass
 
-    def add_label_fields_to_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def add_label_fields_to_data(self, data: dict[str, Any]) -> dict[str, Any]:
         if self.params.label_fields is None:
             return data
         for data_name in self.data_fields:
@@ -145,7 +147,7 @@ class DataProcessor(ABC):
                     data[data_name] = data_with_added_field
         return data
 
-    def remove_label_fields_from_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def remove_label_fields_from_data(self, data: dict[str, Any]) -> dict[str, Any]:
         if not self.params.label_fields:
             return data
         label_fields_len = len(self.params.label_fields)
@@ -159,9 +161,9 @@ class DataProcessor(ABC):
 
 def to_tuple(
     param: ScaleType,
-    low: Optional[ScaleType] = None,
-    bias: Optional[ScalarType] = None,
-) -> Union[Tuple[int, int], Tuple[float, float]]:
+    low: ScaleType | None = None,
+    bias: ScalarType | None = None,
+) -> tuple[int, int] | tuple[float, float]:
     """Convert input argument to a min-max tuple.
 
     Args:

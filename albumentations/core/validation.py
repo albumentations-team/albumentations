@@ -1,14 +1,16 @@
+from __future__ import annotations
+
 from inspect import Parameter, signature
-from typing import Any, Callable, Dict, Optional, Tuple, Type
+from typing import Any, Callable
 from warnings import warn
 
 from pydantic import BaseModel
 
 
 class ValidatedTransformMeta(type):
-    def __new__(cls: Type[Any], name: str, bases: Tuple[type, ...], dct: Dict[str, Any]) -> Type[Any]:
+    def __new__(cls: type[Any], name: str, bases: tuple[type, ...], dct: dict[str, Any]) -> type[Any]:
         if "InitSchema" in dct and issubclass(dct["InitSchema"], BaseModel):
-            original_init: Optional[Callable[..., Any]] = dct.get("__init__")
+            original_init: Callable[..., Any] | None = dct.get("__init__")
             if original_init is None:
                 msg = "__init__ not found in class definition"
                 raise ValueError(msg)
@@ -18,12 +20,16 @@ class ValidatedTransformMeta(type):
             def custom_init(self: Any, *args: Any, **kwargs: Any) -> None:
                 init_params = signature(original_init).parameters
                 param_names = list(init_params.keys())[1:]  # Exclude 'self'
-                full_kwargs: Dict[str, Any] = dict(zip(param_names, args))
+                full_kwargs: dict[str, Any] = dict(zip(param_names, args))
                 full_kwargs.update(kwargs)
 
-                for name, param in init_params.items():
-                    if name != "self" and name not in full_kwargs and param.default is not Parameter.empty:
-                        full_kwargs[name] = param.default
+                for parameter_name, param in init_params.items():
+                    if (
+                        parameter_name != "self"
+                        and parameter_name not in full_kwargs
+                        and param.default is not Parameter.empty
+                    ):
+                        full_kwargs[parameter_name] = param.default
 
                 # No try-except block needed as we want the exception to propagate naturally
                 config = dct["InitSchema"](**full_kwargs)
