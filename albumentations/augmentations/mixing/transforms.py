@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 import types
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Iterator, Sequence
+from typing import Any, Callable, Generator, Iterable, Iterator, Sequence
 from warnings import warn
 
 import cv2
@@ -17,8 +17,7 @@ from albumentations.core.transforms_interface import BaseTransformInitSchema, Re
 from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
 
-if TYPE_CHECKING:
-    from pydantic import Field
+from pydantic import Field
 
 __all__ = ["MixUp", "OverlayElements"]
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, Tuple, cast
 
 import cv2
 import numpy as np
@@ -22,8 +22,8 @@ from albumentations.core.types import (
 
 from . import functional as fgeometric
 
-if TYPE_CHECKING:
-    from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
+
+from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 
 __all__ = ["Rotate", "RandomRotate90", "SafeRotate"]
 
@@ -131,7 +131,7 @@ class Rotate(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
-        self.limit = cast(tuple[float, float], limit)
+        self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value
@@ -300,8 +300,8 @@ class SafeRotate(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
-        self.limit = cast(tuple[float, float], limit)
+        super().__init__(p=p, always_apply=always_apply)
+        self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
         self.value = value

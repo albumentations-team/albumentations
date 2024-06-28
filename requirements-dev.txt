@@ -1,4 +1,5 @@
 deepdiff>=6.7.1
+eval-type-backport
 mypy>=1.10.1
 pre_commit>=3.5.0
 pytest>=8.2.2

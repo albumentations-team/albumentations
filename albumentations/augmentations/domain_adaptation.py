@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence, cast
+from typing import Any, Callable, Literal, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
@@ -16,9 +16,10 @@ from albumentations.augmentations.domain_adaptation_functional import (
 from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 
-if TYPE_CHECKING:
-    from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
-    from albumentations.core.types import ScaleFloatType
+
+from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
+from albumentations.core.types import ScaleFloatType
+
 
 __all__ = [
     "HistogramMatching",
@@ -189,7 +190,7 @@ class FDA(ImageOnlyTransform):
         super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
-        self.beta_limit = cast(tuple[float, float], beta_limit)
+        self.beta_limit = cast(Tuple[float, float], beta_limit)
 
     def apply(
         self,

@@ -80,12 +80,14 @@ ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
 
 
-def bbox_rot90(bbox: BoxInternalType, factor: int) -> BoxInternalType:
+def bbox_rot90(bbox: BoxInternalType, factor: int, rows: int, cols: int) -> BoxInternalType:
     """Rotates a bounding box by 90 degrees CCW (see np.rot90)
 
     Args:
         bbox: A bounding box tuple (x_min, y_min, x_max, y_max).
         factor: Number of CCW rotations. Must be in set {0, 1, 2, 3} See np.rot90.
+        rows: Image rows.
+        cols: Image cols.
 
     Returns:
         tuple: A bounding box tuple (x_min, y_min, x_max, y_max).
@@ -104,7 +106,7 @@ def bbox_rot90(bbox: BoxInternalType, factor: int) -> BoxInternalType:
     return bbox
 
 
-def bbox_d4(bbox: BoxInternalType, group_member: D4Type) -> BoxInternalType:
+def bbox_d4(bbox: BoxInternalType, group_member: D4Type, rows: int, cols: int) -> BoxInternalType:
     """Applies a `D_4` symmetry group transformation to a bounding box.
 
     The function transforms a bounding box according to the specified group member from the `D_4` group.
@@ -116,6 +118,8 @@ def bbox_d4(bbox: BoxInternalType, group_member: D4Type) -> BoxInternalType:
         like (xmin, ymin, xmax, ymax).
     - group_member (D4Type): A string identifier for the `D_4` group transformation to apply.
         Valid values are 'e', 'r90', 'r180', 'r270', 'v', 'hvt', 'h', 't'.
+    - rows (int): The number of rows in the image, used to adjust transformations that depend on image dimensions.
+    - cols (int): The number of columns in the image, used for the same purposes as rows.
 
     Returns:
     - BoxInternalType: The transformed bounding box.
@@ -130,13 +134,13 @@ def bbox_d4(bbox: BoxInternalType, group_member: D4Type) -> BoxInternalType:
     """
     transformations = {
         "e": lambda x: x,  # Identity transformation
-        "r90": lambda x: bbox_rot90(x, 1),  # Rotate 90 degrees
-        "r180": lambda x: bbox_rot90(x, 2),  # Rotate 180 degrees
-        "r270": lambda x: bbox_rot90(x, 3),  # Rotate 270 degrees
-        "v": lambda x: bbox_vflip(x),  # Vertical flip
-        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2)),  # Reflect over anti-diagonal
-        "h": lambda x: bbox_hflip(x),  # Horizontal flip
-        "t": lambda x: bbox_transpose(x),  # Transpose (reflect over main diagonal)
+        "r90": lambda x: bbox_rot90(x, 1, rows, cols),  # Rotate 90 degrees
+        "r180": lambda x: bbox_rot90(x, 2, rows, cols),  # Rotate 180 degrees
+        "r270": lambda x: bbox_rot90(x, 3, rows, cols),  # Rotate 270 degrees
+        "v": lambda x: bbox_vflip(x, rows, cols),  # Vertical flip
+        "hvt": lambda x: bbox_transpose(bbox_rot90(x, 2, rows, cols), rows, cols),  # Reflect over anti-diagonal
+        "h": lambda x: bbox_hflip(x, rows, cols),  # Horizontal flip
+        "t": lambda x: bbox_transpose(x, rows, cols),  # Transpose (reflect over main diagonal)
     }
 
     # Execute the appropriate transformation
@@ -152,6 +156,7 @@ def keypoint_rot90(
     factor: int,
     rows: int,
     cols: int,
+    **params: Any,
 ) -> KeypointInternalType:
     """Rotate a keypoint by 90 degrees counter-clockwise (CCW) a specified number of times.
 
@@ -188,6 +193,7 @@ def keypoint_d4(
     group_member: D4Type,
     rows: int,
     cols: int,
+    **params: Any,
 ) -> KeypointInternalType:
     """Applies a `D_4` symmetry group transformation to a keypoint.
 
@@ -221,10 +227,10 @@ def keypoint_d4(
         "r90": lambda x: keypoint_rot90(x, 1, rows, cols),  # Rotate 90 degrees
         "r180": lambda x: keypoint_rot90(x, 2, rows, cols),  # Rotate 180 degrees
         "r270": lambda x: keypoint_rot90(x, 3, rows, cols),  # Rotate 270 degrees
-        "v": lambda x: keypoint_vflip(x, rows=rows),  # Vertical flip
-        "hvt": lambda x: keypoint_transpose(keypoint_rot90(x, 2, rows, cols)),  # Reflect over anti diagonal
-        "h": lambda x: keypoint_hflip(x, cols=cols),  # Horizontal flip
-        "t": lambda x: keypoint_transpose(x),  # Transpose (reflect over main diagonal)
+        "v": lambda x: keypoint_vflip(x, rows, cols),  # Vertical flip
+        "hvt": lambda x: keypoint_transpose(keypoint_rot90(x, 2, rows, cols), rows, cols),  # Reflect over anti diagonal
+        "h": lambda x: keypoint_hflip(x, rows, cols),  # Horizontal flip
+        "t": lambda x: keypoint_transpose(x, rows, cols),  # Transpose (reflect over main diagonal)
     }
     # Execute the appropriate transformation
     if group_member in transformations:
@@ -305,6 +311,7 @@ def keypoint_rotate(
     angle: float,
     rows: int,
     cols: int,
+    **params: Any,
 ) -> KeypointInternalType:
     """Rotate a keypoint by a specified angle.
 
@@ -989,11 +996,13 @@ def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.ascontiguousarray(img)
 
 
-def bbox_vflip(bbox: BoxInternalType) -> BoxInternalType:
+def bbox_vflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box vertically around the x-axis.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows: Image rows.
+        cols: Image cols.
 
     Returns:
         tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1003,11 +1012,13 @@ def bbox_vflip(bbox: BoxInternalType) -> BoxInternalType:
     return x_min, 1 - y_max, x_max, 1 - y_min
 
 
-def bbox_hflip(bbox: BoxInternalType) -> BoxInternalType:
+def bbox_hflip(bbox: BoxInternalType, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box horizontally around the y-axis.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows: Image rows.
+        cols: Image cols.
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1017,13 +1028,14 @@ def bbox_hflip(bbox: BoxInternalType) -> BoxInternalType:
     return 1 - x_max, y_min, 1 - x_min, y_max
 
 
-def bbox_flip(bbox: BoxInternalType, d: int) -> BoxInternalType:
+def bbox_flip(bbox: BoxInternalType, d: int, rows: int, cols: int) -> BoxInternalType:
     """Flip a bounding box either vertically, horizontally or both depending on the value of `d`.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
         d: dimension. 0 for vertical flip, 1 for horizontal, -1 for transpose
-
+        rows: Image rows.
+        cols: Image cols.
 
     Returns:
         A bounding box `(x_min, y_min, x_max, y_max)`.
@@ -1033,22 +1045,24 @@ def bbox_flip(bbox: BoxInternalType, d: int) -> BoxInternalType:
 
     """
     if d == 0:
-        bbox = bbox_vflip(bbox)
+        bbox = bbox_vflip(bbox, rows, cols)
     elif d == 1:
-        bbox = bbox_hflip(bbox)
+        bbox = bbox_hflip(bbox, rows, cols)
     elif d == -1:
-        bbox = bbox_hflip(bbox)
-        bbox = bbox_vflip(bbox)
+        bbox = bbox_hflip(bbox, rows, cols)
+        bbox = bbox_vflip(bbox, rows, cols)
     else:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
     return bbox
 
 
-def bbox_transpose(bbox: KeypointInternalType) -> KeypointInternalType:
+def bbox_transpose(bbox: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Transposes a bounding box along given axis.
 
     Args:
         bbox: A bounding box `(x_min, y_min, x_max, y_max)`.
+        rows: Image rows.
+        cols: Image cols.
 
     Returns:
         A bounding box tuple `(x_min, y_min, x_max, y_max)`.
@@ -1062,12 +1076,13 @@ def bbox_transpose(bbox: KeypointInternalType) -> KeypointInternalType:
 
 
 @angle_2pi_range
-def keypoint_vflip(keypoint: KeypointInternalType, rows: int) -> KeypointInternalType:
+def keypoint_vflip(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Flip a keypoint vertically around the x-axis.
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.
         rows: Image height.
+        cols: Image width.
 
     Returns:
         tuple: A keypoint `(x, y, angle, scale)`.
@@ -1079,11 +1094,12 @@ def keypoint_vflip(keypoint: KeypointInternalType, rows: int) -> KeypointInterna
 
 
 @angle_2pi_range
-def keypoint_hflip(keypoint: KeypointInternalType, cols: int) -> KeypointInternalType:
+def keypoint_hflip(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Flip a keypoint horizontally around the y-axis.
 
     Args:
-        keypoint: A keypoint `(x, y, angle, scale)`
+        keypoint: A keypoint `(x, y, angle, scale)`.
+        rows: Image height.
         cols: Image width.
 
     Returns:
@@ -1116,23 +1132,25 @@ def keypoint_flip(keypoint: KeypointInternalType, d: int, rows: int, cols: int) 
 
     """
     if d == 0:
-        keypoint = keypoint_vflip(keypoint, rows=rows)
+        keypoint = keypoint_vflip(keypoint, rows, cols)
     elif d == 1:
-        keypoint = keypoint_hflip(keypoint, cols=cols)
+        keypoint = keypoint_hflip(keypoint, rows, cols)
     elif d == -1:
-        keypoint = keypoint_hflip(keypoint, cols=cols)
-        keypoint = keypoint_vflip(keypoint, rows=rows)
+        keypoint = keypoint_hflip(keypoint, rows, cols)
+        keypoint = keypoint_vflip(keypoint, rows, cols)
     else:
         raise ValueError(f"Invalid d value {d}. Valid values are -1, 0 and 1")
     return keypoint
 
 
 @angle_2pi_range
-def keypoint_transpose(keypoint: KeypointInternalType) -> KeypointInternalType:
+def keypoint_transpose(keypoint: KeypointInternalType, rows: int, cols: int) -> KeypointInternalType:
     """Transposes a keypoint along a specified axis: main diagonal
 
     Args:
         keypoint: A keypoint `(x, y, angle, scale)`.
+        rows: Total number of rows (height) in the image.
+        cols: Total number of columns (width) in the image.
 
     Returns:
         A transformed keypoint `(x, y, angle, scale)`.

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
+from typing import Any, Callable, Sequence, cast
 from warnings import warn
 
 import cv2
@@ -22,8 +22,7 @@ from .types import (
 )
 from .utils import format_args
 
-if TYPE_CHECKING:
-    import numpy as np
+import numpy as np
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 

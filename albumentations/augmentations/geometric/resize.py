@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Sequence, Union, cast
+from typing import Any, List, Sequence, Tuple, Union, cast
 
 import cv2
 from pydantic import Field, ValidationInfo, field_validator
@@ -17,10 +17,10 @@ from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
 
-if TYPE_CHECKING:
-    import numpy as np
 
-    from albumentations.core.pydantic import InterpolationType, ProbabilityType
+import numpy as np
+
+from albumentations.core.pydantic import InterpolationType, ProbabilityType
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
 
@@ -68,7 +68,7 @@ class RandomScale(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
-        self.scale_limit = cast(tuple[float, float], scale_limit)
+        self.scale_limit = cast(Tuple[float, float], scale_limit)
         self.interpolation = interpolation
 
     def get_params(self) -> dict[str, float]:
@@ -115,7 +115,7 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
             if not value >= 1:
                 raise ValueError(f"{info.field_name} must be bigger or equal to 1.")
 
-        return cast(Union[int, list[int]], result)
+        return cast(Union[int, List[int]], result)
 
 
 class LongestMaxSize(DualTransform):

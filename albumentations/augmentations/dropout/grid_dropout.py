@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import Any, Iterable, Sequence
 from warnings import warn
 
 from pydantic import AfterValidator, Field, model_validator
@@ -12,10 +12,10 @@ from albumentations.core.types import MIN_UNIT_SIZE, PAIR, ColorType, Targets
 
 from . import functional as fdropout
 
-if TYPE_CHECKING:
-    import numpy as np
 
-    from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
+import numpy as np
+
+from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
 
 __all__ = ["GridDropout"]
 

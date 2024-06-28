@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any, Sequence
 
 from .utils import DataProcessor, Params
 
-if TYPE_CHECKING:
-    from .types import KeypointType
+from .types import KeypointType
 
 __all__ = [
     "angle_to_2pi_range",

@@ -5,7 +5,7 @@ import numbers
 import random
 import warnings
 from types import LambdaType
-from typing import TYPE_CHECKING, Any, Callable, Sequence, Union, cast
+from typing import Any, Callable, Dict, List, Sequence, Tuple, Union, cast
 from warnings import warn
 
 import albucore
@@ -53,20 +53,19 @@ from albumentations.core.utils import format_args, to_tuple
 
 from . import functional as fmain
 
-if TYPE_CHECKING:
-    from albumentations.core.pydantic import (
-        InterpolationType,
-        NonNegativeFloatRangeType,
-        OnePlusFloatRangeType,
-        OnePlusIntRangeType,
-        ProbabilityType,
-        SymmetricRangeType,
-        ZeroOneRangeType,
-        check_0plus,
-        check_01,
-        check_1plus,
-        nondecreasing,
-    )
+from albumentations.core.pydantic import (
+    InterpolationType,
+    NonNegativeFloatRangeType,
+    OnePlusFloatRangeType,
+    OnePlusIntRangeType,
+    ProbabilityType,
+    SymmetricRangeType,
+    ZeroOneRangeType,
+    check_0plus,
+    check_01,
+    check_1plus,
+    nondecreasing,
+)
 
 __all__ = [
     "Normalize",
@@ -1365,9 +1364,9 @@ class HueSaturationValue(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.hue_shift_limit = cast(tuple[float, float], hue_shift_limit)
-        self.sat_shift_limit = cast(tuple[float, float], sat_shift_limit)
-        self.val_shift_limit = cast(tuple[float, float], val_shift_limit)
+        self.hue_shift_limit = cast(Tuple[float, float], hue_shift_limit)
+        self.sat_shift_limit = cast(Tuple[float, float], sat_shift_limit)
+        self.val_shift_limit = cast(Tuple[float, float], val_shift_limit)
 
     def apply(
         self,
@@ -1414,7 +1413,7 @@ class Solarize(ImageOnlyTransform):
 
     def __init__(self, threshold: ScaleType = (128, 128), p: float = 0.5, always_apply: bool | None = None):
         super().__init__(p=p, always_apply=always_apply)
-        self.threshold = cast(tuple[float, float], threshold)
+        self.threshold = cast(Tuple[float, float], threshold)
 
     def apply(self, img: np.ndarray, threshold: int, **params: Any) -> np.ndarray:
         return fmain.solarize(img, threshold)
@@ -1455,10 +1454,10 @@ class Posterize(ImageOnlyTransform):
         @classmethod
         def validate_num_bits(cls, num_bits: Any) -> tuple[int, int] | list[tuple[int, int]]:
             if isinstance(num_bits, int):
-                return cast(tuple[int, int], to_tuple(num_bits, num_bits))
+                return cast(Tuple[int, int], to_tuple(num_bits, num_bits))
             if isinstance(num_bits, Sequence) and len(num_bits) == NUM_BITS_ARRAY_LENGTH:
-                return [cast(tuple[int, int], to_tuple(i, 0)) for i in num_bits]
-            return cast(tuple[int, int], to_tuple(num_bits, 0))
+                return [cast(Tuple[int, int], to_tuple(i, 0)) for i in num_bits]
+            return cast(Tuple[int, int], to_tuple(num_bits, 0))
 
     def __init__(
         self,
@@ -1467,7 +1466,7 @@ class Posterize(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.num_bits = cast(Union[tuple[int, ...], list[tuple[int, ...]]], num_bits)
+        self.num_bits = cast(Union[Tuple[int, ...], List[Tuple[int, ...]]], num_bits)
 
     def apply(self, img: np.ndarray, num_bits: int, **params: Any) -> np.ndarray:
         return fmain.posterize(img, num_bits)
@@ -1578,9 +1577,9 @@ class RGBShift(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.r_shift_limit = cast(tuple[float, float], r_shift_limit)
-        self.g_shift_limit = cast(tuple[float, float], g_shift_limit)
-        self.b_shift_limit = cast(tuple[float, float], b_shift_limit)
+        self.r_shift_limit = cast(Tuple[float, float], r_shift_limit)
+        self.g_shift_limit = cast(Tuple[float, float], g_shift_limit)
+        self.b_shift_limit = cast(Tuple[float, float], b_shift_limit)
 
     def apply(self, img: np.ndarray, shift: np.ndarray, **params: Any) -> np.ndarray:
         if not is_rgb_image(img):
@@ -1638,8 +1637,8 @@ class RandomBrightnessContrast(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.brightness_limit = cast(tuple[float, float], brightness_limit)
-        self.contrast_limit = cast(tuple[float, float], contrast_limit)
+        self.brightness_limit = cast(Tuple[float, float], brightness_limit)
+        self.contrast_limit = cast(Tuple[float, float], contrast_limit)
         self.brightness_by_max = brightness_by_max
 
     def apply(self, img: np.ndarray, alpha: float, beta: float, **params: Any) -> np.ndarray:
@@ -1695,7 +1694,7 @@ class GaussNoise(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.var_limit = cast(tuple[float, float], var_limit)
+        self.var_limit = cast(Tuple[float, float], var_limit)
         self.mean = mean
         self.per_channel = per_channel
         self.noise_scale_factor = noise_scale_factor
@@ -1825,7 +1824,7 @@ class CLAHE(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.clip_limit = cast(tuple[float, float], clip_limit)
+        self.clip_limit = cast(Tuple[float, float], clip_limit)
         self.tile_grid_size = tile_grid_size
 
     def apply(self, img: np.ndarray, clip_limit: float, **params: Any) -> np.ndarray:
@@ -1930,7 +1929,7 @@ class RandomGamma(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
-        self.gamma_limit = cast(tuple[float, float], gamma_limit)
+        self.gamma_limit = cast(Tuple[float, float], gamma_limit)
 
     def apply(self, img: np.ndarray, gamma: float, **params: Any) -> np.ndarray:
         return fmain.gamma_transform(img, gamma=gamma)
@@ -2379,7 +2378,7 @@ class MultiplicativeNoise(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.multiplier = cast(tuple[float, float], multiplier)
+        self.multiplier = cast(Tuple[float, float], multiplier)
         self.elementwise = elementwise
 
     def apply(
@@ -2503,7 +2502,7 @@ class ColorJitter(ImageOnlyTransform):
             elif isinstance(value, (tuple, list)) and len(value) == PAIR:
                 check_range(value, *bounds, info.field_name)
 
-            return cast(tuple[float, float], value)
+            return cast(Tuple[float, float], value)
 
     def __init__(
         self,
@@ -2516,10 +2515,10 @@ class ColorJitter(ImageOnlyTransform):
     ):
         super().__init__(p=p, always_apply=always_apply)
 
-        self.brightness = cast(tuple[float, float], brightness)
-        self.contrast = cast(tuple[float, float], contrast)
-        self.saturation = cast(tuple[float, float], saturation)
-        self.hue = cast(tuple[float, float], hue)
+        self.brightness = cast(Tuple[float, float], brightness)
+        self.contrast = cast(Tuple[float, float], contrast)
+        self.saturation = cast(Tuple[float, float], saturation)
+        self.hue = cast(Tuple[float, float], hue)
 
         self.transforms = [
             fmain.adjust_brightness_torchvision,
@@ -2736,8 +2735,8 @@ class Superpixels(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.p_replace = cast(tuple[float, float], p_replace)
-        self.n_segments = cast(tuple[int, int], n_segments)
+        self.p_replace = cast(Tuple[float, float], p_replace)
+        self.n_segments = cast(Tuple[int, int], n_segments)
         self.max_size = max_size
         self.interpolation = interpolation
 
@@ -2816,8 +2815,8 @@ class TemplateTransform(ImageOnlyTransform):
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.templates = templates
-        self.img_weight = cast(tuple[float, float], img_weight)
-        self.template_weight = cast(tuple[float, float], template_weight)
+        self.img_weight = cast(Tuple[float, float], img_weight)
+        self.template_weight = cast(Tuple[float, float], template_weight)
         self.template_transform = template_transform
         self.name = name
 
@@ -2925,8 +2924,8 @@ class RingingOvershoot(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.blur_limit = cast(tuple[int, int], blur_limit)
-        self.cutoff = cast(tuple[float, float], cutoff)
+        self.blur_limit = cast(Tuple[int, int], blur_limit)
+        self.cutoff = cast(Tuple[float, float], cutoff)
 
     def get_params(self) -> dict[str, np.ndarray]:
         ksize = random.randrange(self.blur_limit[0], self.blur_limit[1] + 1, 2)
@@ -3010,9 +3009,9 @@ class UnsharpMask(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.blur_limit = cast(tuple[int, int], blur_limit)
-        self.sigma_limit = cast(tuple[float, float], sigma_limit)
-        self.alpha = cast(tuple[float, float], alpha)
+        self.blur_limit = cast(Tuple[int, int], blur_limit)
+        self.sigma_limit = cast(Tuple[float, float], sigma_limit)
+        self.alpha = cast(Tuple[float, float], alpha)
         self.threshold = threshold
 
     def get_params(self) -> dict[str, Any]:
@@ -3252,13 +3251,13 @@ class Spatter(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.mean = cast(tuple[float, float], mean)
-        self.std = cast(tuple[float, float], std)
-        self.gauss_sigma = cast(tuple[float, float], gauss_sigma)
-        self.cutout_threshold = cast(tuple[float, float], cutout_threshold)
-        self.intensity = cast(tuple[float, float], intensity)
+        self.mean = cast(Tuple[float, float], mean)
+        self.std = cast(Tuple[float, float], std)
+        self.gauss_sigma = cast(Tuple[float, float], gauss_sigma)
+        self.cutout_threshold = cast(Tuple[float, float], cutout_threshold)
+        self.intensity = cast(Tuple[float, float], intensity)
         self.mode = mode
-        self.color = cast(dict[str, Sequence[int]], color)
+        self.color = cast(Dict[str, Sequence[int]], color)
 
     def apply(
         self,
@@ -3379,8 +3378,8 @@ class ChromaticAberration(ImageOnlyTransform):
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.primary_distortion_limit = cast(tuple[float, float], primary_distortion_limit)
-        self.secondary_distortion_limit = cast(tuple[float, float], secondary_distortion_limit)
+        self.primary_distortion_limit = cast(Tuple[float, float], primary_distortion_limit)
+        self.secondary_distortion_limit = cast(Tuple[float, float], secondary_distortion_limit)
         self.mode = mode
         self.interpolation = interpolation
 
@@ -3497,7 +3496,7 @@ class Morphological(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
-        self.scale = cast(tuple[int, int], scale)
+        self.scale = cast(Tuple[int, int], scale)
         self.operation = operation
 
     def apply(self, img: np.ndarray, kernel: tuple[int, int], **params: Any) -> np.ndarray:
@@ -3610,7 +3609,7 @@ class PlanckianJitter(ImageOnlyTransform):
         super().__init__(p=p, always_apply=always_apply)
 
         self.mode = mode
-        self.temperature_limit = cast(tuple[int, int], temperature_limit)
+        self.temperature_limit = cast(Tuple[int, int], temperature_limit)
         self.sampling_method = sampling_method
 
     def apply(self, img: np.ndarray, temperature: int, **params: Any) -> np.ndarray:

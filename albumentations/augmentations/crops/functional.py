@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import Sequence, cast
 
 import cv2
 from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
@@ -9,8 +9,8 @@ from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import BoxInternalType, KeypointInternalType
 
-if TYPE_CHECKING:
-    import numpy as np
+
+import numpy as np
 
 __all__ = [
     "get_random_crop_coords",

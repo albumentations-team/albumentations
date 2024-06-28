@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
+from typing import Any, Callable, Sequence, Tuple, cast
 
 from pydantic import Field, model_validator
 from typing_extensions import Self
@@ -11,10 +11,10 @@ from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Tar
 
 from .functional import cutout, keypoint_in_hole
 
-if TYPE_CHECKING:
-    import numpy as np
 
-    from albumentations.core.pydantic import NonNegativeIntRangeType
+import numpy as np
+
+from albumentations.core.pydantic import NonNegativeIntRangeType
 
 __all__ = ["XYMasking"]
 
@@ -91,11 +91,11 @@ class XYMasking(DualTransform):
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
-        self.num_masks_x = cast(tuple[int, int], num_masks_x)
-        self.num_masks_y = cast(tuple[int, int], num_masks_y)
+        self.num_masks_x = cast(Tuple[int, int], num_masks_x)
+        self.num_masks_y = cast(Tuple[int, int], num_masks_y)
 
-        self.mask_x_length = cast(tuple[int, int], mask_x_length)
-        self.mask_y_length = cast(tuple[int, int], mask_y_length)
+        self.mask_x_length = cast(Tuple[int, int], mask_x_length)
+        self.mask_y_length = cast(Tuple[int, int], mask_y_length)
         self.fill_value = fill_value
         self.mask_fill_value = mask_fill_value
 

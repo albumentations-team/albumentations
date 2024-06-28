@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Iterable, Sequence
 from warnings import warn
 
 from pydantic import AfterValidator, Field, model_validator
@@ -12,10 +12,10 @@ from albumentations.core.types import ColorType, KeypointType, NumericType, Scal
 
 from .functional import cutout, keypoint_in_hole
 
-if TYPE_CHECKING:
-    import numpy as np
 
-    from albumentations.core.pydantic import check_1plus, nondecreasing
+import numpy as np
+
+from albumentations.core.pydantic import check_1plus, nondecreasing
 
 __all__ = ["CoarseDropout"]
 

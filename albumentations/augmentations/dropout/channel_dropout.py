@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import Any, Mapping
 
 from albucore.utils import is_grayscale_image
 from typing_extensions import Annotated
@@ -10,12 +10,12 @@ from albumentations.core.transforms_interface import BaseTransformInitSchema, Im
 
 from .functional import channel_dropout
 
-if TYPE_CHECKING:
-    import numpy as np
-    from pydantic import Field
 
-    from albumentations.core.pydantic import OnePlusIntRangeType
-    from albumentations.core.types import ColorType
+import numpy as np
+from pydantic import Field
+
+from albumentations.core.pydantic import OnePlusIntRangeType
+from albumentations.core.types import ColorType
 
 __all__ = ["ChannelDropout"]
 

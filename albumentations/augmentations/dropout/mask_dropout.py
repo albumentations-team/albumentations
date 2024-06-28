@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import Any, Callable, Tuple, cast
 
 import cv2
 import numpy as np
@@ -12,8 +12,8 @@ from typing_extensions import Literal
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ScalarType, ScaleIntType, Targets
 
-if TYPE_CHECKING:
-    from albumentations.core.pydantic import OnePlusIntRangeType
+
+from albumentations.core.pydantic import OnePlusIntRangeType
 
 __all__ = ["MaskDropout"]
 
@@ -64,8 +64,8 @@ class MaskDropout(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
-        self.max_objects = cast(tuple[int, int], max_objects)
+        super().__init__(p=p, always_apply=always_apply)
+        self.max_objects = cast(Tuple[int, int], max_objects)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
 
