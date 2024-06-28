@@ -6,10 +6,11 @@ from pkg_resources import DistributionNotFound, get_distribution
 from setuptools import find_packages, setup
 
 INSTALL_REQUIRES = [
-    "numpy>=1.24.4,<2", "scipy>=1.10.0", "scikit-image>=0.21.0",
+    "numpy>=1.24.4", "scipy>=1.10.0", "scikit-image>=0.21.0",
     "PyYAML", "typing-extensions>=4.9.0", "scikit-learn>=1.3.2",
     "pydantic>=2.7.0",
-    "albucore>=0.0.11"
+    "albucore>=0.0.11",
+    "eval-type-backport"
 ]
 
 MIN_OPENCV_VERSION = "4.9.0.80"

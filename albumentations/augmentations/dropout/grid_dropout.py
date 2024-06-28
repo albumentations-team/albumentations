@@ -1,16 +1,21 @@
+from __future__ import annotations
+
 import random
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Iterable, Sequence
 from warnings import warn
 
-import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Self
 
-from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import MIN_UNIT_SIZE, PAIR, ColorType, Targets
 
 from . import functional as fdropout
+
+
+import numpy as np
+
+from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
 
 __all__ = ["GridDropout"]
 
@@ -26,13 +31,13 @@ class GridDropout(DualTransform):
         fill_value (Optional[ColorType]): Value for the dropped pixels. Default: 0.
         mask_fill_value (Optional[ColorType]): Value for the dropped pixels in mask.
             If None, transformation is not applied to the mask. Default: None.
-        unit_size_range (Optional[Tuple[int, int]]): Range from which to sample grid size. Default: None.
+        unit_size_range (Optional[tuple[int, int]]): Range from which to sample grid size. Default: None.
              Must be between 2 and the image shorter edge.
-        holes_number_xy (Optional[Tuple[int, int]]): The number of grid units in x and y directions.
+        holes_number_xy (Optional[tuple[int, int]]): The number of grid units in x and y directions.
             First value should be between 1 and image width//2,
             Second value should be between 1 and image height//2.
             Default: None.
-        shift_xy (Tuple[int, int]): Offsets of the grid start in x and y directions.
+        shift_xy (tuple[int, int]): Offsets of the grid start in x and y directions.
             Offsets of the grid start in x and y directions from (0,0) coordinate.
             Default: (0, 0).
 
@@ -54,29 +59,26 @@ class GridDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         ratio: float = Field(description="The ratio of the mask holes to the unit_size.", gt=0, le=1)
 
-        unit_size_min: Optional[int] = Field(None, description="Minimum size of the grid unit.", ge=2)
-        unit_size_max: Optional[int] = Field(None, description="Maximum size of the grid unit.", ge=2)
+        unit_size_min: int | None = Field(None, description="Minimum size of the grid unit.", ge=2)
+        unit_size_max: int | None = Field(None, description="Maximum size of the grid unit.", ge=2)
 
-        holes_number_x: Optional[int] = Field(None, description="The number of grid units in x direction.", ge=1)
-        holes_number_y: Optional[int] = Field(None, description="The number of grid units in y direction.", ge=1)
+        holes_number_x: int | None = Field(None, description="The number of grid units in x direction.", ge=1)
+        holes_number_y: int | None = Field(None, description="The number of grid units in y direction.", ge=1)
 
-        shift_x: Optional[int] = Field(0, description="Offsets of the grid start in x direction.", ge=0)
-        shift_y: Optional[int] = Field(0, description="Offsets of the grid start in y direction.", ge=0)
+        shift_x: int | None = Field(0, description="Offsets of the grid start in x direction.", ge=0)
+        shift_y: int | None = Field(0, description="Offsets of the grid start in y direction.", ge=0)
 
         random_offset: bool = Field(False, description="Whether to offset the grid randomly.")
-        fill_value: Optional[ColorType] = Field(0, description="Value for the dropped pixels.")
-        mask_fill_value: Optional[ColorType] = Field(None, description="Value for the dropped pixels in mask.")
-        unit_size_range: Optional[
-            Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)]
-        ] = Field(
-            None,
-            description="Size of the grid unit.",
-        )
-        shift_xy: Annotated[Tuple[int, int], AfterValidator(check_0plus)] = Field(
+        fill_value: ColorType | None = Field(0, description="Value for the dropped pixels.")
+        mask_fill_value: ColorType | None = Field(None, description="Value for the dropped pixels in mask.")
+        unit_size_range: (
+            Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] | None
+        ) = None
+        shift_xy: Annotated[tuple[int, int], AfterValidator(check_0plus)] = Field(
             (0, 0),
             description="Offsets of the grid start in x and y directions.",
         )
-        holes_number_xy: Optional[Annotated[Tuple[int, int], AfterValidator(check_1plus)]] = Field(
+        holes_number_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)] | None = Field(
             None,
             description="The number of grid units in x and y directions.",
         )
@@ -111,19 +113,19 @@ class GridDropout(DualTransform):
     def __init__(
         self,
         ratio: float = 0.5,
-        unit_size_min: Optional[int] = None,
-        unit_size_max: Optional[int] = None,
-        holes_number_x: Optional[int] = None,
-        holes_number_y: Optional[int] = None,
-        shift_x: Optional[int] = None,
-        shift_y: Optional[int] = None,
+        unit_size_min: int | None = None,
+        unit_size_max: int | None = None,
+        holes_number_x: int | None = None,
+        holes_number_y: int | None = None,
+        shift_x: int | None = None,
+        shift_y: int | None = None,
         random_offset: bool = False,
         fill_value: ColorType = 0,
-        mask_fill_value: Optional[ColorType] = None,
-        unit_size_range: Optional[Tuple[int, int]] = None,
-        holes_number_xy: Optional[Tuple[int, int]] = None,
-        shift_xy: Tuple[int, int] = (0, 0),
-        always_apply: Optional[bool] = None,
+        mask_fill_value: ColorType | None = None,
+        unit_size_range: tuple[int, int] | None = None,
+        holes_number_xy: tuple[int, int] | None = None,
+        shift_xy: tuple[int, int] = (0, 0),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
@@ -135,13 +137,13 @@ class GridDropout(DualTransform):
         self.mask_fill_value = mask_fill_value
         self.shift_xy = shift_xy
 
-    def apply(self, img: np.ndarray, holes: Iterable[Tuple[int, int, int, int]], **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, holes: Iterable[tuple[int, int, int, int]], **params: Any) -> np.ndarray:
         return fdropout.cutout(img, holes, self.fill_value)
 
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        holes: Iterable[Tuple[int, int, int, int]],
+        holes: Iterable[tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         if self.mask_fill_value is None:
@@ -149,7 +151,7 @@ class GridDropout(DualTransform):
 
         return fdropout.cutout(mask, holes, self.mask_fill_value)
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
         unit_width, unit_height = self._calculate_unit_dimensions(width, height)
@@ -158,7 +160,7 @@ class GridDropout(DualTransform):
         holes = self._generate_holes(width, height, unit_width, unit_height, hole_width, hole_height, shift_x, shift_y)
         return {"holes": holes}
 
-    def _calculate_unit_dimensions(self, width: int, height: int) -> Tuple[int, int]:
+    def _calculate_unit_dimensions(self, width: int, height: int) -> tuple[int, int]:
         """Calculates the dimensions of the grid units."""
         if self.unit_size_range is not None:
             self._validate_unit_sizes(height, width)
@@ -175,7 +177,7 @@ class GridDropout(DualTransform):
             msg = "Grid size limits must be within the shortest image edge."
             raise ValueError(msg)
 
-    def _calculate_dimensions_based_on_holes(self, width: int, height: int) -> Tuple[int, int]:
+    def _calculate_dimensions_based_on_holes(self, width: int, height: int) -> tuple[int, int]:
         """Calculates dimensions based on the number of holes specified."""
         holes_number_x, holes_number_y = self.holes_number_xy or (None, None)
         unit_width = self._calculate_dimension(width, holes_number_x, 10)
@@ -183,7 +185,7 @@ class GridDropout(DualTransform):
         return unit_width, unit_height
 
     @staticmethod
-    def _calculate_dimension(dimension: int, holes_number: Optional[int], fallback: int) -> int:
+    def _calculate_dimension(dimension: int, holes_number: int | None, fallback: int) -> int:
         """Helper function to calculate unit width or height."""
         if holes_number is None:
             return max(2, dimension // fallback)
@@ -192,7 +194,7 @@ class GridDropout(DualTransform):
             raise ValueError(f"The number of holes must be between 1 and {dimension // 2}.")
         return dimension // holes_number
 
-    def _calculate_hole_dimensions(self, unit_width: int, unit_height: int) -> Tuple[int, int]:
+    def _calculate_hole_dimensions(self, unit_width: int, unit_height: int) -> tuple[int, int]:
         """Calculates the dimensions of the holes to be dropped out."""
         hole_width = int(unit_width * self.ratio)
         hole_height = int(unit_height * self.ratio)
@@ -206,7 +208,7 @@ class GridDropout(DualTransform):
         unit_height: int,
         hole_width: int,
         hole_height: int,
-    ) -> Tuple[int, int]:
+    ) -> tuple[int, int]:
         """Calculates the shifts for the grid start."""
         if self.random_offset:
             shift_x = random.randint(0, unit_width - hole_width)
@@ -230,7 +232,7 @@ class GridDropout(DualTransform):
         hole_height: int,
         shift_x: int,
         shift_y: int,
-    ) -> List[Tuple[int, int, int, int]]:
+    ) -> list[tuple[int, int, int, int]]:
         """Generates the list of holes to be dropped out."""
         holes = []
         for i in range(width // unit_width + 1):
@@ -243,10 +245,10 @@ class GridDropout(DualTransform):
         return holes
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "ratio",
             "unit_size_range",

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import random
 import warnings
 from collections import OrderedDict, defaultdict
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Set, Tuple, Union, cast
+from typing import Any, Iterator, List, Sequence, Union, cast
 
 import cv2
 import numpy as np
@@ -49,7 +51,7 @@ CHECK_BBOX_PARAM = ("bboxes",)
 CHECK_KEYPOINTS_PARAM = ("keypoints",)
 
 
-def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransform]:
+def get_transforms_dict(transforms: TransformsSeqType) -> dict[int, BasicTransform]:
     result = {}
     for transform in transforms:
         if isinstance(transform, BaseCompose):
@@ -60,8 +62,8 @@ def get_transforms_dict(transforms: TransformsSeqType) -> Dict[int, BasicTransfo
 
 
 class BaseCompose(Serializable):
-    _transforms_dict: Optional[Dict[int, BasicTransform]] = None
-    check_each_transform: Optional[Tuple[DataProcessor, ...]] = None
+    _transforms_dict: dict[int, BasicTransform] | None = None
+    check_each_transform: tuple[DataProcessor, ...] | None = None
     main_compose: bool = True
 
     def __init__(self, transforms: TransformsSeqType, p: float):
@@ -77,9 +79,9 @@ class BaseCompose(Serializable):
 
         self.replay_mode = False
         self.applied_in_replay = False
-        self._additional_targets: Dict[str, str] = {}
-        self._available_keys: Set[str] = set()
-        self.processors: Dict[str, Union[BboxProcessor, KeypointsProcessor]] = {}
+        self._additional_targets: dict[str, str] = {}
+        self._available_keys: set[str] = set()
+        self.processors: dict[str, BboxProcessor | KeypointsProcessor] = {}
         self._set_keys()
 
     def __iter__(self) -> Iterator[TransformType]:
@@ -88,7 +90,7 @@ class BaseCompose(Serializable):
     def __len__(self) -> int:
         return len(self.transforms)
 
-    def __call__(self, *args: Any, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, **data: Any) -> dict[str, Any]:
         raise NotImplementedError
 
     def __getitem__(self, item: int) -> TransformType:
@@ -98,11 +100,11 @@ class BaseCompose(Serializable):
         return self.indented_repr()
 
     @property
-    def additional_targets(self) -> Dict[str, str]:
+    def additional_targets(self) -> dict[str, str]:
         return self._additional_targets
 
     @property
-    def available_keys(self) -> Set[str]:
+    def available_keys(self) -> set[str]:
         return self._available_keys
 
     def indented_repr(self, indent: int = REPR_INDENT_STEP) -> str:
@@ -123,14 +125,14 @@ class BaseCompose(Serializable):
     def is_serializable(cls) -> bool:
         return True
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         return {
             "__class_fullname__": self.get_class_fullname(),
             "p": self.p,
             "transforms": [t.to_dict_private() for t in self.transforms],
         }
 
-    def get_dict_with_id(self) -> Dict[str, Any]:
+    def get_dict_with_id(self) -> dict[str, Any]:
         return {
             "__class_fullname__": self.get_class_fullname(),
             "id": id(self),
@@ -138,7 +140,7 @@ class BaseCompose(Serializable):
             "transforms": [t.get_dict_with_id() for t in self.transforms],
         }
 
-    def add_targets(self, additional_targets: Optional[Dict[str, str]]) -> None:
+    def add_targets(self, additional_targets: dict[str, str] | None) -> None:
         if additional_targets:
             for k, v in additional_targets.items():
                 if k in self._additional_targets and v != self._additional_targets[k]:
@@ -176,7 +178,7 @@ class BaseCompose(Serializable):
         for t in self.transforms:
             t.set_deterministic(flag, save_key)
 
-    def check_data_post_transform(self, data: Any) -> Dict[str, Any]:
+    def check_data_post_transform(self, data: Any) -> dict[str, Any]:
         if self.check_each_transform:
             rows, cols = get_shape(data["image"])
 
@@ -210,9 +212,9 @@ class Compose(BaseCompose, HubMixin):
     def __init__(
         self,
         transforms: TransformsSeqType,
-        bbox_params: Optional[Union[Dict[str, Any], "BboxParams"]] = None,
-        keypoint_params: Optional[Union[Dict[str, Any], "KeypointParams"]] = None,
-        additional_targets: Optional[Dict[str, str]] = None,
+        bbox_params: dict[str, Any] | BboxParams | None = None,
+        keypoint_params: dict[str, Any] | KeypointParams | None = None,
+        additional_targets: dict[str, str] | None = None,
         p: float = 1.0,
         is_check_shapes: bool = True,
         strict: bool = True,
@@ -278,7 +280,7 @@ class Compose(BaseCompose, HubMixin):
         self.strict = False
         self.main_compose = False
 
-    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
@@ -302,7 +304,7 @@ class Compose(BaseCompose, HubMixin):
 
         return self.postprocess(data)
 
-    def run_with_params(self, *, params: Dict[int, Dict[str, Any]], **data: Any) -> Dict[str, Any]:
+    def run_with_params(self, *, params: dict[int, dict[str, Any]], **data: Any) -> dict[str, Any]:
         """Run transforms with given parameters. Available only for Compose with `return_params=True`."""
         if self._transforms_dict is None:
             raise RuntimeError("`run_with_params` is not available for Compose with `return_params=False`.")
@@ -330,14 +332,14 @@ class Compose(BaseCompose, HubMixin):
             for p in self.processors.values():
                 p.preprocess(data)
 
-    def postprocess(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
         if self.main_compose:
             data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
             for p in self.processors.values():
                 p.postprocess(data)
         return data
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         dictionary = super().to_dict_private()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
@@ -351,7 +353,7 @@ class Compose(BaseCompose, HubMixin):
         )
         return dictionary
 
-    def get_dict_with_id(self) -> Dict[str, Any]:
+    def get_dict_with_id(self) -> dict[str, Any]:
         dictionary = super().get_dict_with_id()
         bbox_processor = self.processors.get("bboxes")
         keypoints_processor = self.processors.get("keypoints")
@@ -396,7 +398,7 @@ class Compose(BaseCompose, HubMixin):
             raise ValueError(msg)
 
     @staticmethod
-    def _make_targets_contiguous(data: Any) -> Dict[str, Any]:
+    def _make_targets_contiguous(data: Any) -> dict[str, Any]:
         result = {}
         for key, value in data.items():
             if isinstance(value, np.ndarray):
@@ -423,7 +425,7 @@ class OneOf(BaseCompose):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -456,7 +458,7 @@ class SomeOf(BaseCompose):
         s = sum(transforms_ps)
         self.transforms_ps = [t / s for t in transforms_ps]
 
-    def __call__(self, *arg: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *arg: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -471,7 +473,7 @@ class SomeOf(BaseCompose):
                 data = self.check_data_post_transform(data)
         return data
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         dictionary = super().to_dict_private()
         dictionary.update({"n": self.n, "replace": self.replace})
         return dictionary
@@ -482,9 +484,9 @@ class OneOrOther(BaseCompose):
 
     def __init__(
         self,
-        first: Optional[TransformType] = None,
-        second: Optional[TransformType] = None,
-        transforms: Optional[TransformsSeqType] = None,
+        first: TransformType | None = None,
+        second: TransformType | None = None,
+        transforms: TransformsSeqType | None = None,
         p: float = 0.5,
     ):
         if transforms is None:
@@ -496,7 +498,7 @@ class OneOrOther(BaseCompose):
         if len(self.transforms) != NUM_ONEOF_TRANSFORMS:
             warnings.warn("Length of transforms is not equal to 2.", stacklevel=2)
 
-    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode:
             for t in self.transforms:
                 data = t(**data)
@@ -529,7 +531,7 @@ class SelectiveChannelTransform(BaseCompose):
             The input data should include 'image' key with the image array.
 
     Returns:
-        Dict[str, Any]: The transformed data dictionary, which includes the transformed 'image' key.
+        dict[str, Any]: The transformed data dictionary, which includes the transformed 'image' key.
     """
 
     def __init__(
@@ -541,7 +543,7 @@ class SelectiveChannelTransform(BaseCompose):
         super().__init__(transforms, p)
         self.channels = channels
 
-    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if force_apply or random.random() < self.p:
             image = data["image"]
 
@@ -566,9 +568,9 @@ class ReplayCompose(Compose):
     def __init__(
         self,
         transforms: TransformsSeqType,
-        bbox_params: Optional[Union[Dict[str, Any], "BboxParams"]] = None,
-        keypoint_params: Optional[Union[Dict[str, Any], "KeypointParams"]] = None,
-        additional_targets: Optional[Dict[str, str]] = None,
+        bbox_params: dict[str, Any] | BboxParams | None = None,
+        keypoint_params: dict[str, Any] | KeypointParams | None = None,
+        additional_targets: dict[str, str] | None = None,
         p: float = 1.0,
         is_check_shapes: bool = True,
         save_key: str = "replay",
@@ -578,7 +580,7 @@ class ReplayCompose(Compose):
         self.save_key = save_key
         self._available_keys.add(save_key)
 
-    def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> dict[str, Any]:
         kwargs[self.save_key] = defaultdict(dict)
         result = super().__call__(force_apply=force_apply, **kwargs)
         serialized = self.get_dict_with_id()
@@ -588,14 +590,14 @@ class ReplayCompose(Compose):
         return result
 
     @staticmethod
-    def replay(saved_augmentations: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+    def replay(saved_augmentations: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         augs = ReplayCompose._restore_for_replay(saved_augmentations)
         return augs(force_apply=True, **kwargs)
 
     @staticmethod
     def _restore_for_replay(
-        transform_dict: Dict[str, Any],
-        lambda_transforms: Optional[Dict[str, Any]] = None,
+        transform_dict: dict[str, Any],
+        lambda_transforms: dict[str, Any] | None = None,
     ) -> TransformType:
         """Args:
         lambda_transforms (dict): A dictionary that contains lambda transforms, that
@@ -628,14 +630,14 @@ class ReplayCompose(Compose):
         transform.applied_in_replay = applied
         return transform
 
-    def fill_with_params(self, serialized: Dict[str, Any], all_params: Any) -> None:
+    def fill_with_params(self, serialized: dict[str, Any], all_params: Any) -> None:
         params = all_params.get(serialized.get("id"))
         serialized["params"] = params
         del serialized["id"]
         for transform in serialized.get("transforms", []):
             self.fill_with_params(transform, all_params)
 
-    def fill_applied(self, serialized: Dict[str, Any]) -> bool:
+    def fill_applied(self, serialized: dict[str, Any]) -> bool:
         if "transforms" in serialized:
             applied = [self.fill_applied(t) for t in serialized["transforms"]]
             serialized["applied"] = any(applied)
@@ -643,7 +645,7 @@ class ReplayCompose(Compose):
             serialized["applied"] = serialized.get("params") is not None
         return serialized["applied"]
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         dictionary = super().to_dict_private()
         dictionary.update({"save_key": self.save_key})
         return dictionary
@@ -678,7 +680,7 @@ class Sequential(BaseCompose):
     def __init__(self, transforms: TransformsSeqType, p: float = 0.5):
         super().__init__(transforms, p)
 
-    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> Dict[str, Any]:
+    def __call__(self, *args: Any, force_apply: bool = False, **data: Any) -> dict[str, Any]:
         if self.replay_mode or force_apply or random.random() < self.p:
             for t in self.transforms:
                 data = t(**data)

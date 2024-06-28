@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import random as py_random
-from typing import Any, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 import numpy as np
-from numpy.typing import DTypeLike
 
-from .core.types import FloatNumType, IntNumType, NumType, SizeType
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike
+
+    from .core.types import FloatNumType, IntNumType, NumType, SizeType
 
 
 def get_random_seed() -> int:
@@ -18,8 +22,8 @@ def get_random_state() -> np.random.RandomState:
 def uniform(
     low: NumType = 0.0,
     high: NumType = 1.0,
-    size: Optional[Union[SizeType, int]] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    size: SizeType | int | None = None,
+    random_state: np.random.RandomState | None = None,
 ) -> FloatNumType:
     if random_state is None:
         random_state = get_random_state()
@@ -29,7 +33,7 @@ def uniform(
 def beta(
     alpha: NumType = 0.5,
     beta: NumType = 0.5,
-    random_state: Optional[np.random.RandomState] = None,
+    random_state: np.random.RandomState | None = None,
 ) -> FloatNumType:
     if random_state is None:
         random_state = get_random_state()
@@ -40,7 +44,7 @@ def rand(
     d0: NumType,
     d1: NumType,
     *more: Any,
-    random_state: Optional[np.random.RandomState] = None,
+    random_state: np.random.RandomState | None = None,
     **kwargs: Any,
 ) -> np.ndarray:
     if random_state is None:
@@ -52,7 +56,7 @@ def randn(
     d0: NumType,
     d1: NumType,
     *more: Any,
-    random_state: Optional[np.random.RandomState] = None,
+    random_state: np.random.RandomState | None = None,
     **kwargs: Any,
 ) -> np.ndarray:
     if random_state is None:
@@ -63,8 +67,8 @@ def randn(
 def normal(
     loc: NumType = 0.0,
     scale: NumType = 1.0,
-    size: Optional[SizeType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    size: SizeType | None = None,
+    random_state: np.random.RandomState | None = None,
 ) -> FloatNumType:
     if random_state is None:
         random_state = get_random_state()
@@ -73,8 +77,8 @@ def normal(
 
 def poisson(
     lam: NumType = 1.0,
-    size: Optional[SizeType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    size: SizeType | None = None,
+    random_state: np.random.RandomState | None = None,
 ) -> IntNumType:
     if random_state is None:
         random_state = get_random_state()
@@ -82,8 +86,8 @@ def poisson(
 
 
 def permutation(
-    x: Union[int, Sequence[float], np.ndarray],
-    random_state: Optional[np.random.RandomState] = None,
+    x: int | Sequence[float] | np.ndarray,
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     if random_state is None:
         random_state = get_random_state()
@@ -92,17 +96,17 @@ def permutation(
 
 def randint(
     low: IntNumType,
-    high: Optional[IntNumType] = None,
-    size: Optional[Union[SizeType, int]] = None,
+    high: IntNumType | None = None,
+    size: SizeType | int | None = None,
     dtype: DTypeLike = np.int32,
-    random_state: Optional[np.random.RandomState] = None,
+    random_state: np.random.RandomState | None = None,
 ) -> IntNumType:
     if random_state is None:
         random_state = get_random_state()
     return random_state.randint(low, high, size, dtype)
 
 
-def random(size: Optional[NumType] = None, random_state: Optional[np.random.RandomState] = None) -> FloatNumType:
+def random(size: NumType | None = None, random_state: np.random.RandomState | None = None) -> FloatNumType:
     if random_state is None:
         random_state = get_random_state()
     return random_state.random(size)
@@ -110,10 +114,10 @@ def random(size: Optional[NumType] = None, random_state: Optional[np.random.Rand
 
 def choice(
     a: NumType,
-    size: Optional[Union[SizeType, int]] = None,
+    size: SizeType | int | None = None,
     replace: bool = True,
-    p: Optional[Union[Sequence[float], np.ndarray]] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    p: Sequence[float] | np.ndarray | None = None,
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     if random_state is None:
         random_state = get_random_state()
@@ -122,7 +126,7 @@ def choice(
 
 def shuffle(
     a: np.ndarray,
-    random_state: Optional[np.random.RandomState] = None,
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Shuffles an array in-place, using a specified random state or creating a new one if not provided.
 

@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import random
 from copy import deepcopy
-from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple, Union, cast
+from typing import Any, Callable, Sequence, cast
 from warnings import warn
 
 import cv2
-import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 from typing_extensions import Annotated
 
@@ -21,6 +22,8 @@ from .types import (
 )
 from .utils import format_args
 
+import numpy as np
+
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 
 
@@ -32,7 +35,7 @@ class Interpolation:
 
 class BaseTransformInitSchema(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
-    always_apply: Optional[bool] = Field(
+    always_apply: bool | None = Field(
         default=None,
         deprecated="Deprecated. Use `p=1` instead to always apply the transform",
     )
@@ -44,16 +47,16 @@ class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
 
 
 class BasicTransform(Serializable, metaclass=CombinedMeta):
-    _targets: Union[Tuple[Targets, ...], Targets]  # targets that this transform can work on
-    _available_keys: Set[str]  # targets that this transform, as string, lower-cased
-    _key2func: Dict[
+    _targets: tuple[Targets, ...] | Targets  # targets that this transform can work on
+    _available_keys: set[str]  # targets that this transform, as string, lower-cased
+    _key2func: dict[
         str,
         Callable[..., Any],
     ]  # mapping for targets (plus additional targets) and methods for which they depend
     call_backup = None
     interpolation: int
     fill_value: ColorType
-    mask_fill_value: Optional[ColorType]
+    mask_fill_value: ColorType | None
     # replay mode params
     deterministic: bool = False
     save_key = "replay"
@@ -63,7 +66,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     class InitSchema(BaseTransformInitSchema):
         pass
 
-    def __init__(self, p: float = 0.5, always_apply: Optional[bool] = None):
+    def __init__(self, p: float = 0.5, always_apply: bool | None = None):
         self.p = p
         if always_apply is not None:
             if always_apply:
@@ -80,9 +83,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                     DeprecationWarning,
                     stacklevel=2,
                 )
-        self._additional_targets: Dict[str, str] = {}
+        self._additional_targets: dict[str, str] = {}
         # replay mode params
-        self.params: Dict[Any, Any] = {}
+        self.params: dict[Any, Any] = {}
         self._key2func = {}
         self._set_keys()
 
@@ -113,7 +116,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         return kwargs
 
-    def apply_with_params(self, params: Dict[str, Any], *args: Any, **kwargs: Any) -> Dict[str, Any]:
+    def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Apply transforms with parameters."""
         params = self.update_params(params, **kwargs)
         res = {}
@@ -125,7 +128,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 res[key] = arg
         return res
 
-    def set_deterministic(self, flag: bool, save_key: str = "replay") -> "BasicTransform":
+    def set_deterministic(self, flag: bool, save_key: str = "replay") -> BasicTransform:
         """Set transform to be deterministic."""
         if save_key == "params":
             msg = "params save_key is reserved"
@@ -150,12 +153,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on image."""
         raise NotImplementedError
 
-    def get_params(self) -> Dict[str, Any]:
-        """Returns parameters independent of input"""
+    def get_params(self) -> dict[str, Any]:
+        """Returns parameters independent of input."""
         return {}
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         # mapping for targets and methods for which they depend
         # for example:
         # >>  {"image": self.apply}
@@ -163,7 +166,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         raise NotImplementedError
 
     def _set_keys(self) -> None:
-        """Set _available_keys"""
+        """Set _available_keys."""
         if not hasattr(self, "_targets"):
             self._available_keys = set()
         else:
@@ -175,12 +178,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._key2func = {key: self.targets[key] for key in self._available_keys if key in self.targets}
 
     @property
-    def available_keys(self) -> Set[str]:
-        """Returns set of available keys"""
+    def available_keys(self) -> set[str]:
+        """Returns set of available keys."""
         return self._available_keys
 
-    def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
-        """Update parameters with transform specific params"""
+    def update_params(self, params: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
+        """Update parameters with transform specific params."""
         if hasattr(self, "interpolation"):
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
@@ -190,7 +193,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
         return params
 
-    def add_targets(self, additional_targets: Dict[str, str]) -> None:
+    def add_targets(self, additional_targets: dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
@@ -212,11 +215,11 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
                 self._available_keys.add(k)
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         """Targets used to get params"""
         return []
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         """Returns parameters dependent on targets.
         Dependent target is defined in `self.targets_as_params`
         """
@@ -232,29 +235,29 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
     def is_serializable(cls) -> bool:
         return True
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
-        """Returns names of arguments that are used in __init__ method of the transform"""
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        """Returns names of arguments that are used in __init__ method of the transform."""
         msg = (
             f"Class {self.get_class_fullname()} is not serializable because the `get_transform_init_args_names` "
             "method is not implemented"
         )
         raise NotImplementedError(msg)
 
-    def get_base_init_args(self) -> Dict[str, Any]:
+    def get_base_init_args(self) -> dict[str, Any]:
         """Returns base init args - p"""
         return {"p": self.p}
 
-    def get_transform_init_args(self) -> Dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         return {k: getattr(self, k) for k in self.get_transform_init_args_names()}
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         state = {"__class_fullname__": self.get_class_fullname()}
         state.update(self.get_base_init_args())
         state.update(self.get_transform_init_args())
 
         return state
 
-    def get_dict_with_id(self) -> Dict[str, Any]:
+    def get_dict_with_id(self) -> dict[str, Any]:
         d = self.to_dict_private()
         d["id"] = id(self)
         return d
@@ -266,7 +269,7 @@ class DualTransform(BasicTransform):
     all associated entities are transformed accordingly to maintain consistency between the image and its annotations.
 
     Properties:
-        targets (Dict[str, Callable[..., Any]]): Defines the types of targets (e.g., image, mask, bboxes, keypoints)
+        targets (dict[str, Callable[..., Any]]): Defines the types of targets (e.g., image, mask, bboxes, keypoints)
             that the transform should be applied to and maps them to the corresponding methods.
 
     Methods:
@@ -285,7 +288,7 @@ class DualTransform(BasicTransform):
         apply_to_mask(mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
             Applies the transform specifically to a single mask.
 
-        apply_to_masks(masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+        apply_to_masks(masks: Sequence[np.ndarray], **params: Any) -> list[np.ndarray]:
             Applies the transform to a list of masks. Delegates to `apply_to_mask` for each mask.
 
     Note:
@@ -296,7 +299,7 @@ class DualTransform(BasicTransform):
     """
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
@@ -338,10 +341,10 @@ class DualTransform(BasicTransform):
     def apply_to_mask(self, mask: np.ndarray, *args: Any, **params: Any) -> np.ndarray:
         return self.apply(mask, **{k: cv2.INTER_NEAREST if k == "interpolation" else v for k, v in params.items()})
 
-    def apply_to_masks(self, masks: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+    def apply_to_masks(self, masks: Sequence[np.ndarray], **params: Any) -> list[np.ndarray]:
         return [self.apply_to_mask(mask, **params) for mask in masks]
 
-    def apply_to_global_labels(self, labels: Sequence[np.ndarray], **params: Any) -> List[np.ndarray]:
+    def apply_to_global_labels(self, labels: Sequence[np.ndarray], **params: Any) -> list[np.ndarray]:
         return [self.apply_to_global_label(label, **params) for label in labels]
 
 
@@ -351,7 +354,7 @@ class ImageOnlyTransform(BasicTransform):
     _targets = Targets.IMAGE
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {"image": self.apply}
 
 
@@ -379,13 +382,13 @@ class NoOp(DualTransform):
     def apply_to_global_label(self, label: np.ndarray, **params: Any) -> np.ndarray:
         return label
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ()
 
 
 class ReferenceBasedTransform(DualTransform):
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "global_label": self.apply_to_global_label,
             "image": self.apply,

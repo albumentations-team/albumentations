@@ -1,4 +1,4 @@
-from typing import Tuple
+from __future__ import annotations
 
 import numpy as np
 
@@ -7,7 +7,7 @@ def copy_and_paste_blend(
     base_image: np.ndarray,
     overlay_image: np.ndarray,
     mask: np.ndarray,
-    offset: Tuple[int, int],
+    offset: tuple[int, int],
 ) -> np.ndarray:
     y_offset, x_offset = offset
     blended_image = base_image.copy()

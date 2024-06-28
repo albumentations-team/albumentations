@@ -2,11 +2,13 @@
 It includes utility functions and classes to enhance the core capabilities.
 """
 
+from __future__ import annotations
+
 import functools
 import logging
 import os
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Union
+from typing import Any, Callable
 
 from albumentations.core.serialization import load as load_transform
 from albumentations.core.serialization import save as save_transform
@@ -39,7 +41,7 @@ class HubMixin:
     _CONFIG_KEYS = ("train", "eval")
     _CONFIG_FILE_NAME_TEMPLATE = "albumentations_config_{}.json"
 
-    def _save_pretrained(self, save_directory: Union[str, Path], filename: str) -> Path:
+    def _save_pretrained(self, save_directory: str | Path, filename: str) -> Path:
         """Save the transform to a specified directory.
 
         Args:
@@ -62,7 +64,7 @@ class HubMixin:
         return save_path
 
     @classmethod
-    def _from_pretrained(cls, save_directory: Union[str, Path], filename: str) -> object:
+    def _from_pretrained(cls, save_directory: str | Path, filename: str) -> object:
         """Load a transform from a specified directory.
 
         Args:
@@ -79,14 +81,14 @@ class HubMixin:
 
     def save_pretrained(
         self,
-        save_directory: Union[str, Path],
+        save_directory: str | Path,
         *,
         key: str = "eval",
         allow_custom_keys: bool = False,
-        repo_id: Optional[str] = None,
+        repo_id: str | None = None,
         push_to_hub: bool = False,
         **push_to_hub_kwargs: Any,
-    ) -> Optional[str]:
+    ) -> str | None:
         """Save the transform and optionally push it to the Huggingface Hub.
 
         Args:
@@ -128,15 +130,15 @@ class HubMixin:
     @classmethod
     def from_pretrained(
         cls: Any,
-        directory_or_repo_id: Union[str, Path],
+        directory_or_repo_id: str | Path,
         *,
         key: str = "eval",
         force_download: bool = False,
-        proxies: Optional[Dict[str, str]] = None,
-        token: Optional[Union[str, bool]] = None,
-        cache_dir: Optional[Union[str, Path]] = None,
+        proxies: dict[str, str] | None = None,
+        token: str | bool | None = None,
+        cache_dir: str | Path | None = None,
         local_files_only: bool = False,
-        revision: Optional[str] = None,
+        revision: str | None = None,
     ) -> object:
         """Load a transform from the Huggingface Hub or a local directory.
 
@@ -153,7 +155,7 @@ class HubMixin:
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether to force (re-)downloading the transform configuration files from the Hub, overriding
                 the existing cache.
-            proxies (`Dict[str, str]`, *optional*):
+            proxies (`dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, e.g., `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on every request.
             token (`str` or `bool`, *optional*):
@@ -178,8 +180,8 @@ class HubMixin:
                 )
             else:
                 raise FileNotFoundError(
-                    f"{filename} not found in {Path(directory_or_repo_id).resolve()}. "
-                    "Please install `huggingface_hub` to load from the Hub.",
+                    f"{filename} not found in {Path(directory_or_repo_id).resolve()}."
+                    " Please install `huggingface_hub` to load from the Hub.",
                 )
         if transform is not None:
             return transform
@@ -211,9 +213,9 @@ class HubMixin:
         allow_custom_keys: bool = False,
         commit_message: str = "Push transform using huggingface_hub.",
         private: bool = False,
-        token: Optional[str] = None,
-        branch: Optional[str] = None,
-        create_pr: Optional[bool] = None,
+        token: str | None = None,
+        branch: str | None = None,
+        create_pr: bool | None = None,
     ) -> str:
         """Push the transform to the Huggingface Hub.
 

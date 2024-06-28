@@ -1,12 +1,16 @@
-from typing import Optional, Sequence, Tuple, cast
+from __future__ import annotations
+
+from typing import Sequence, cast
 
 import cv2
-import numpy as np
 from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import BoxInternalType, KeypointInternalType
+
+
+import numpy as np
 
 __all__ = [
     "get_random_crop_coords",
@@ -35,7 +39,7 @@ def get_random_crop_coords(
     crop_width: int,
     h_start: float,
     w_start: float,
-) -> Tuple[int, int, int, int]:
+) -> tuple[int, int, int, int]:
     # h_start is [0, 1) and should map to [0, (height - crop_height)]  (note inclusive)
     # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
     # See: https://github.com/albumentations-team/albumentations/pull/1080
@@ -58,7 +62,7 @@ def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: flo
 
 def crop_bbox_by_coords(
     bbox: BoxInternalType,
-    crop_coords: Tuple[int, int, int, int],
+    crop_coords: tuple[int, int, int, int],
     crop_height: int,
     crop_width: int,
     rows: int,
@@ -68,7 +72,7 @@ def crop_bbox_by_coords(
 
     Args:
         bbox (BoxInternalType): A bounding box in the format `(x_min, y_min, x_max, y_max)`.
-        crop_coords (Tuple[int, int, int, int]): The coordinates of the crop area in the format `(x1, y1, x2, y2)`.
+        crop_coords (tuple[int, int, int, int]): The coordinates of the crop area in the format `(x1, y1, x2, y2)`.
         crop_height (int): The height of the crop area in pixels.
         crop_width (int): The width of the crop area in pixels.
         rows (int): The number of rows (height) in the original image.
@@ -99,7 +103,7 @@ def bbox_random_crop(
 
 def crop_keypoint_by_coords(
     keypoint: KeypointInternalType,
-    crop_coords: Tuple[int, int, int, int],
+    crop_coords: tuple[int, int, int, int],
 ) -> KeypointInternalType:
     """Crop a keypoint using the provided coordinates of bottom-left and top-right corners in pixels and the
     required height and width of the crop.
@@ -145,7 +149,7 @@ def keypoint_random_crop(
     return crop_keypoint_by_coords(keypoint, crop_coords)
 
 
-def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width: int) -> Tuple[int, int, int, int]:
+def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width: int) -> tuple[int, int, int, int]:
     y1 = (height - crop_height) // 2
     y2 = y1 + crop_height
     x1 = (width - crop_width) // 2
@@ -255,9 +259,9 @@ def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: in
 @preserve_channel_dim
 def crop_and_pad(
     img: np.ndarray,
-    crop_params: Optional[Sequence[int]],
-    pad_params: Optional[Sequence[int]],
-    pad_value: Optional[float],
+    crop_params: Sequence[int] | None,
+    pad_params: Sequence[int] | None,
+    pad_value: float | None,
     rows: int,
     cols: int,
     interpolation: int,
@@ -286,8 +290,8 @@ def crop_and_pad(
 
 def crop_and_pad_bbox(
     bbox: BoxInternalType,
-    crop_params: Optional[Sequence[int]],
-    pad_params: Optional[Sequence[int]],
+    crop_params: Sequence[int] | None,
+    pad_params: Sequence[int] | None,
     rows: int,
     cols: int,
     result_rows: int,
@@ -317,8 +321,8 @@ def crop_and_pad_bbox(
 
 def crop_and_pad_keypoint(
     keypoint: KeypointInternalType,
-    crop_params: Optional[Sequence[int]],
-    pad_params: Optional[Sequence[int]],
+    crop_params: Sequence[int] | None,
+    pad_params: Sequence[int] | None,
     rows: int,
     cols: int,
     result_rows: int,

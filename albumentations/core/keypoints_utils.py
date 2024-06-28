@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import math
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Sequence
+
+from .utils import DataProcessor, Params
 
 from .types import KeypointType
-from .utils import DataProcessor, Params
 
 __all__ = [
     "angle_to_2pi_range",
@@ -46,8 +49,8 @@ class KeypointParams(Params):
 
     def __init__(
         self,
-        format: str,
-        label_fields: Optional[Sequence[str]] = None,
+        format: str,  # noqa: A002
+        label_fields: Sequence[str] | None = None,
         remove_invisible: bool = True,
         angle_in_degrees: bool = True,
         check_each_transform: bool = True,
@@ -57,7 +60,7 @@ class KeypointParams(Params):
         self.angle_in_degrees = angle_in_degrees
         self.check_each_transform = check_each_transform
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         data = super().to_dict_private()
         data.update(
             {
@@ -78,14 +81,14 @@ class KeypointParams(Params):
 
 
 class KeypointsProcessor(DataProcessor):
-    def __init__(self, params: KeypointParams, additional_targets: Optional[Dict[str, str]] = None):
+    def __init__(self, params: KeypointParams, additional_targets: dict[str, str] | None = None):
         super().__init__(params, additional_targets)
 
     @property
     def default_data_name(self) -> str:
         return "keypoints"
 
-    def ensure_data_valid(self, data: Dict[str, Any]) -> None:
+    def ensure_data_valid(self, data: dict[str, Any]) -> None:
         if self.params.label_fields and not all(i in data for i in self.params.label_fields):
             msg = "Your 'label_fields' are not valid - them must have same names as params in 'keypoint_params' dict"
             raise ValueError(msg)
@@ -111,7 +114,7 @@ class KeypointsProcessor(DataProcessor):
     def check(self, data: Sequence[KeypointType], rows: int, cols: int) -> None:
         check_keypoints(data, rows, cols)
 
-    def convert_from_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> List[KeypointType]:
+    def convert_from_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> list[KeypointType]:
         params = self.params
         return convert_keypoints_from_albumentations(
             data,
@@ -122,7 +125,7 @@ class KeypointsProcessor(DataProcessor):
             angle_in_degrees=params.angle_in_degrees,
         )
 
-    def convert_to_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> List[KeypointType]:
+    def convert_to_albumentations(self, data: Sequence[KeypointType], rows: int, cols: int) -> list[KeypointType]:
         params = self.params
         return convert_keypoints_to_albumentations(
             data,
@@ -251,7 +254,7 @@ def convert_keypoints_to_albumentations(
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> List[KeypointType]:
+) -> list[KeypointType]:
     return [
         convert_keypoint_to_albumentations(kp, source_format, rows, cols, check_validity, angle_in_degrees)
         for kp in keypoints
@@ -265,7 +268,7 @@ def convert_keypoints_from_albumentations(
     cols: int,
     check_validity: bool = False,
     angle_in_degrees: bool = True,
-) -> List[KeypointType]:
+) -> list[KeypointType]:
     return [
         convert_keypoint_from_albumentations(kp, target_format, rows, cols, check_validity, angle_in_degrees)
         for kp in keypoints

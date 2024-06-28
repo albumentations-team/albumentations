@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 import random
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, List, Sequence, Tuple, Union, cast
 
 import cv2
-import numpy as np
 from pydantic import Field, ValidationInfo, field_validator
 
-from albumentations.core.pydantic import InterpolationType, ProbabilityType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
@@ -16,6 +16,11 @@ from albumentations.core.types import (
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
+
+
+import numpy as np
+
+from albumentations.core.pydantic import InterpolationType, ProbabilityType
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
 
@@ -52,21 +57,21 @@ class RandomScale(DualTransform):
 
         @field_validator("scale_limit")
         @classmethod
-        def check_scale_limit(cls, v: ScaleFloatType) -> Tuple[float, float]:
+        def check_scale_limit(cls, v: ScaleFloatType) -> tuple[float, float]:
             return to_tuple(v, bias=1.0)
 
     def __init__(
         self,
         scale_limit: ScaleFloatType = 0.1,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
         self.scale_limit = cast(Tuple[float, float], scale_limit)
         self.interpolation = interpolation
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {"scale": random.uniform(self.scale_limit[0], self.scale_limit[1])}
 
     def apply(
@@ -90,12 +95,12 @@ class RandomScale(DualTransform):
     ) -> KeypointInternalType:
         return fgeometric.keypoint_scale(keypoint, scale, scale)
 
-    def get_transform_init_args(self) -> Dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         return {"interpolation": self.interpolation, "scale_limit": to_tuple(self.scale_limit, bias=-1.0)}
 
 
 class MaxSizeInitSchema(BaseTransformInitSchema):
-    max_size: Union[int, List[int]] = Field(
+    max_size: int | list[int] = Field(
         default=1024,
         description="Maximum size of the smallest side of the image after the transformation.",
     )
@@ -104,7 +109,7 @@ class MaxSizeInitSchema(BaseTransformInitSchema):
 
     @field_validator("max_size")
     @classmethod
-    def check_scale_limit(cls, v: ScaleFloatType, info: ValidationInfo) -> Union[int, List[int]]:
+    def check_scale_limit(cls, v: ScaleFloatType, info: ValidationInfo) -> int | list[int]:
         result = v if isinstance(v, (list, tuple)) else [v]
         for value in result:
             if not value >= 1:
@@ -137,9 +142,9 @@ class LongestMaxSize(DualTransform):
 
     def __init__(
         self,
-        max_size: Union[int, Sequence[int]] = 1024,
+        max_size: int | Sequence[int] = 1024,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 1,
     ):
         super().__init__(p, always_apply)
@@ -171,10 +176,10 @@ class LongestMaxSize(DualTransform):
         scale = max_size / max([height, width])
         return fgeometric.keypoint_scale(keypoint, scale, scale)
 
-    def get_params(self) -> Dict[str, int]:
+    def get_params(self) -> dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("max_size", "interpolation")
 
 
@@ -202,9 +207,9 @@ class SmallestMaxSize(DualTransform):
 
     def __init__(
         self,
-        max_size: Union[int, Sequence[int]] = 1024,
+        max_size: int | Sequence[int] = 1024,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 1,
     ):
         super().__init__(p, always_apply)
@@ -235,10 +240,10 @@ class SmallestMaxSize(DualTransform):
         scale = max_size / min([height, width])
         return fgeometric.keypoint_scale(keypoint, scale, scale)
 
-    def get_params(self) -> Dict[str, int]:
+    def get_params(self) -> dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("max_size", "interpolation")
 
 
@@ -274,7 +279,7 @@ class Resize(DualTransform):
         height: int,
         width: int,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 1,
     ):
         super().__init__(p, always_apply)
@@ -296,5 +301,5 @@ class Resize(DualTransform):
         scale_y = self.height / height
         return fgeometric.keypoint_scale(keypoint, scale_x, scale_y)
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("height", "width", "interpolation")

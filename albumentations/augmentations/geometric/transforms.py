@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import math
 import random
 from enum import Enum
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Literal, Sequence, Tuple, cast
 from warnings import warn
 
 import cv2
@@ -15,13 +17,6 @@ from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask, center
 from albumentations.augmentations.utils import check_range
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
-from albumentations.core.pydantic import (
-    BorderModeType,
-    InterpolationType,
-    NonNegativeFloatRangeType,
-    ProbabilityType,
-    SymmetricRangeType,
-)
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BIG_INTEGER,
@@ -40,6 +35,15 @@ from albumentations.core.types import (
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
+
+
+from albumentations.core.pydantic import (
+    BorderModeType,
+    InterpolationType,
+    NonNegativeFloatRangeType,
+    ProbabilityType,
+    SymmetricRangeType,
+)
 
 __all__ = [
     "ShiftScaleRotate",
@@ -104,11 +108,11 @@ class ElasticTransform(DualTransform):
         alpha_affine: Annotated[float, Field(default=50, description="Alpha affine parameter.", ge=0)]
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: Optional[Union[int, float, List[int], List[float]]] = Field(
+        value: int | float | list[int] | list[float] | None = Field(
             default=None,
             description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
-        mask_value: Optional[Union[float, List[int], List[float]]] = Field(
+        mask_value: float | list[int] | list[float] | None = Field(
             default=None,
             description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.",
         )
@@ -122,9 +126,9 @@ class ElasticTransform(DualTransform):
         alpha_affine: float = 50,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[Union[int, float, List[int], List[float]]] = None,
-        mask_value: Optional[Union[int, float, List[int], List[float]]] = None,
-        always_apply: Optional[bool] = None,
+        value: int | float | list[int] | list[float] | None = None,  # noqa: PYI041
+        mask_value: int | float | list[int] | list[float] | None = None,  # noqa: PYI041
+        always_apply: bool | None = None,
         approximate: bool = False,
         same_dxdy: bool = False,
         p: float = 0.5,
@@ -200,10 +204,10 @@ class ElasticTransform(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, rows, cols))
 
-    def get_params(self) -> Dict[str, int]:
+    def get_params(self) -> dict[str, int]:
         return {"random_seed": random_utils.get_random_seed()}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "alpha",
             "sigma",
@@ -217,7 +221,7 @@ class ElasticTransform(DualTransform):
         )
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
@@ -262,11 +266,11 @@ class Perspective(DualTransform):
         scale: NonNegativeFloatRangeType = (0.05, 0.1)
         keep_size: Annotated[bool, Field(default=True, description="Keep size after transform.")]
         pad_mode: BorderModeType = cv2.BORDER_CONSTANT
-        pad_val: Optional[ColorType] = Field(
+        pad_val: ColorType | None = Field(
             default=0,
             description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
-        mask_pad_val: Optional[ColorType] = Field(
+        mask_pad_val: ColorType | None = Field(
             default=0,
             description="Mask padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
@@ -278,11 +282,11 @@ class Perspective(DualTransform):
         scale: ScaleFloatType = (0.05, 0.1),
         keep_size: bool = True,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_val: Union[ColorType] = 0,
-        mask_pad_val: Union[ColorType] = 0,
+        pad_val: ColorType = 0,
+        mask_pad_val: ColorType = 0,
         fit_output: bool = False,
         interpolation: int = cv2.INTER_LINEAR,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
@@ -350,10 +354,10 @@ class Perspective(DualTransform):
         )
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         height, width = params["image"].shape[:2]
 
         scale = random.uniform(*self.scale)
@@ -427,7 +431,7 @@ class Perspective(DualTransform):
         return {"matrix": m, "max_height": max_height, "max_width": max_width, "interpolation": self.interpolation}
 
     @classmethod
-    def _expand_transform(cls, matrix: np.ndarray, shape: SizeType) -> Tuple[np.ndarray, int, int]:
+    def _expand_transform(cls, matrix: np.ndarray, shape: SizeType) -> tuple[np.ndarray, int, int]:
         height, width = shape[:2]
         # do not use width-1 or height-1 here, as for e.g. width=3, height=2, max_height
         # the bottom right coordinate is at (3.0, 2.0) and not (2.0, 1.0)
@@ -461,7 +465,7 @@ class Perspective(DualTransform):
 
         return np.array([tl, tr, br, bl], dtype=np.float32)
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "scale", "keep_size", "pad_mode", "pad_val", "mask_pad_val", "fit_output", "interpolation"
 
 
@@ -574,20 +578,20 @@ class Affine(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        scale: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
+        scale: ScaleFloatType | dict[str, Any] | None = Field(
             default=None,
             description="Scaling factor or dictionary for independent axis scaling.",
         )
-        translate_percent: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
+        translate_percent: ScaleFloatType | dict[str, Any] | None = Field(
             default=None,
             description="Translation as a fraction of the image dimension.",
         )
-        translate_px: Optional[Union[ScaleIntType, Dict[str, Any]]] = Field(
+        translate_px: ScaleIntType | dict[str, Any] | None = Field(
             default=None,
             description="Translation in pixels.",
         )
-        rotate: Optional[ScaleFloatType] = Field(default=None, description="Rotation angle in degrees.")
-        shear: Optional[Union[ScaleFloatType, Dict[str, Any]]] = Field(
+        rotate: ScaleFloatType | None = Field(default=None, description="Rotation angle in degrees.")
+        shear: ScaleFloatType | dict[str, Any] | None = Field(
             default=None,
             description="Shear angle in degrees.",
         )
@@ -604,11 +608,11 @@ class Affine(DualTransform):
 
     def __init__(
         self,
-        scale: Optional[Union[ScaleFloatType, Dict[str, Any]]] = None,
-        translate_percent: Optional[Union[ScaleFloatType, Dict[str, Any]]] = None,
-        translate_px: Optional[Union[ScaleIntType, Dict[str, Any]]] = None,
-        rotate: Optional[ScaleFloatType] = None,
-        shear: Optional[Union[ScaleFloatType, Dict[str, Any]]] = None,
+        scale: ScaleFloatType | dict[str, Any] | None = None,
+        translate_percent: ScaleFloatType | dict[str, Any] | None = None,
+        translate_px: ScaleIntType | dict[str, Any] | None = None,
+        rotate: ScaleFloatType | None = None,
+        shear: ScaleFloatType | dict[str, Any] | None = None,
         interpolation: int = cv2.INTER_LINEAR,
         mask_interpolation: int = cv2.INTER_NEAREST,
         cval: ColorType = 0,
@@ -618,7 +622,7 @@ class Affine(DualTransform):
         keep_ratio: bool = False,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         balanced_scale: bool = False,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
@@ -651,7 +655,7 @@ class Affine(DualTransform):
         if self.keep_ratio and self.scale["x"] != self.scale["y"]:
             raise ValueError(f"When keep_ratio is True, the x and y scale range should be identical. got {self.scale}")
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "interpolation",
             "mask_interpolation",
@@ -671,10 +675,10 @@ class Affine(DualTransform):
 
     @staticmethod
     def _handle_dict_arg(
-        val: Union[float, Tuple[float, float], Dict[str, Any]],
+        val: float | tuple[float, float] | dict[str, Any],
         name: str,
         default: float = 1.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         if isinstance(val, dict):
             if "x" not in val and "y" not in val:
                 raise ValueError(
@@ -688,8 +692,8 @@ class Affine(DualTransform):
     @classmethod
     def _handle_translate_arg(
         cls,
-        translate_px: Optional[Union[ScaleFloatType, Dict[str, Any]]],
-        translate_percent: Optional[Union[ScaleFloatType, Dict[str, Any]]],
+        translate_px: ScaleFloatType | dict[str, Any] | None,
+        translate_percent: ScaleFloatType | dict[str, Any] | None,
     ) -> Any:
         if translate_percent is None and translate_px is None:
             translate_px = 0
@@ -755,7 +759,7 @@ class Affine(DualTransform):
         self,
         keypoint: KeypointInternalType,
         matrix: skimage.transform.ProjectiveTransform,
-        scale: Dict[str, Any],
+        scale: dict[str, Any],
         **params: Any,
     ) -> KeypointInternalType:
         if scale is None:
@@ -768,11 +772,11 @@ class Affine(DualTransform):
         return fgeometric.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
     @staticmethod
-    def get_scale(scale: Dict[str, Tuple[float, float]], keep_ratio: bool, balanced_scale: bool) -> Dict[str, float]:
+    def get_scale(scale: dict[str, tuple[float, float]], keep_ratio: bool, balanced_scale: bool) -> dict[str, float]:
         result_scale = {}
         if balanced_scale:
             for key, value in scale.items():
@@ -797,10 +801,10 @@ class Affine(DualTransform):
 
         return result_scale
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         height, width = params["image"].shape[:2]
 
-        translate: Dict[str, Union[int, float]]
+        translate: dict[str, int | float]
         if self.translate_px is not None:
             translate = {key: random.randint(*value) for key, value in self.translate_px.items()}
         elif self.translate_percent is not None:
@@ -855,7 +859,7 @@ class Affine(DualTransform):
     def _compute_affine_warp_output_shape(
         matrix: skimage.transform.ProjectiveTransform,
         input_shape: SizeType,
-    ) -> Tuple[skimage.transform.ProjectiveTransform, SizeType]:
+    ) -> tuple[skimage.transform.ProjectiveTransform, SizeType]:
         height, width = input_shape[:2]
 
         if height == 0 or width == 0:
@@ -939,8 +943,8 @@ class ShiftScaleRotate(Affine):
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: ColorType = 0
         mask_value: ColorType = 0
-        shift_limit_x: Optional[ScaleFloatType] = Field(default=None)
-        shift_limit_y: Optional[ScaleFloatType] = Field(default=None)
+        shift_limit_x: ScaleFloatType | None = Field(default=None)
+        shift_limit_y: ScaleFloatType | None = Field(default=None)
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box"
 
         @model_validator(mode="after")
@@ -969,10 +973,10 @@ class ShiftScaleRotate(Affine):
         border_mode: int = cv2.BORDER_REFLECT_101,
         value: ColorType = 0,
         mask_value: ColorType = 0,
-        shift_limit_x: Optional[ScaleFloatType] = None,
-        shift_limit_y: Optional[ScaleFloatType] = None,
+        shift_limit_x: ScaleFloatType | None = None,
+        shift_limit_y: ScaleFloatType | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(
@@ -1004,7 +1008,7 @@ class ShiftScaleRotate(Affine):
         self.value = value
         self.mask_value = mask_value
 
-    def get_transform_init_args(self) -> Dict[str, Any]:
+    def get_transform_init_args(self) -> dict[str, Any]:
         return {
             "shift_limit_x": self.shift_limit_x,
             "shift_limit_y": self.shift_limit_y,
@@ -1100,7 +1104,7 @@ class PiecewiseAffine(DualTransform):
 
         @field_validator("nb_rows", "nb_cols")
         @classmethod
-        def process_range(cls, value: ScaleFloatType, info: ValidationInfo) -> Tuple[float, float]:
+        def process_range(cls, value: ScaleFloatType, info: ValidationInfo) -> tuple[float, float]:
             bounds = 2, BIG_INTEGER
             result = to_tuple(value, value)
             check_range(result, *bounds, info.field_name)
@@ -1117,7 +1121,7 @@ class PiecewiseAffine(DualTransform):
         cval_mask: int = 0,
         mode: Literal["constant", "edge", "symmetric", "reflect", "wrap"] = "constant",
         absolute_scale: bool = False,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         keypoints_threshold: float = 0.01,
         p: float = 0.5,
     ):
@@ -1139,7 +1143,7 @@ class PiecewiseAffine(DualTransform):
         self.absolute_scale = absolute_scale
         self.keypoints_threshold = keypoints_threshold
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "scale",
             "nb_rows",
@@ -1154,10 +1158,10 @@ class PiecewiseAffine(DualTransform):
         )
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         height, width = params["image"].shape[:2]
 
         nb_rows = np.clip(random.randint(*self.nb_rows), 2, None)
@@ -1302,22 +1306,22 @@ class PadIfNeeded(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        min_height: Optional[int] = Field(default=None, ge=1, description="Minimal result image height.")
-        min_width: Optional[int] = Field(default=None, ge=1, description="Minimal result image width.")
-        pad_height_divisor: Optional[int] = Field(
+        min_height: int | None = Field(default=None, ge=1, description="Minimal result image height.")
+        min_width: int | None = Field(default=None, ge=1, description="Minimal result image width.")
+        pad_height_divisor: int | None = Field(
             default=None,
             ge=1,
             description="Ensures image height is divisible by this value.",
         )
-        pad_width_divisor: Optional[int] = Field(
+        pad_width_divisor: int | None = Field(
             default=None,
             ge=1,
             description="Ensures image width is divisible by this value.",
         )
         position: str = Field(default="center", description="Position of the padded image.")
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: Optional[ColorType] = Field(default=None, description="Value for border if BORDER_CONSTANT is used.")
-        mask_value: Optional[ColorType] = Field(
+        value: ColorType | None = Field(default=None, description="Value for border if BORDER_CONSTANT is used.")
+        mask_value: ColorType | None = Field(
             default=None,
             description="Value for mask border if BORDER_CONSTANT is used.",
         )
@@ -1343,15 +1347,15 @@ class PadIfNeeded(DualTransform):
 
     def __init__(
         self,
-        min_height: Optional[int] = 1024,
-        min_width: Optional[int] = 1024,
-        pad_height_divisor: Optional[int] = None,
-        pad_width_divisor: Optional[int] = None,
-        position: Union[PositionType, str] = PositionType.CENTER,
+        min_height: int | None = 1024,
+        min_width: int | None = 1024,
+        pad_height_divisor: int | None = None,
+        pad_width_divisor: int | None = None,
+        position: PositionType | str = PositionType.CENTER,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[ColorType] = None,
-        mask_value: Optional[ColorType] = None,
-        always_apply: Optional[bool] = None,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
+        always_apply: bool | None = None,
         p: float = 1.0,
     ):
         super().__init__(p, always_apply)
@@ -1364,7 +1368,7 @@ class PadIfNeeded(DualTransform):
         self.value = value
         self.mask_value = mask_value
 
-    def update_params(self, params: Dict[str, Any], **kwargs: Any) -> Dict[str, Any]:
+    def update_params(self, params: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         params = super().update_params(params, **kwargs)
         rows = params["rows"]
         cols = params["cols"]
@@ -1479,7 +1483,7 @@ class PadIfNeeded(DualTransform):
         x, y, angle, scale = keypoint[:4]
         return x + pad_left, y + pad_top, angle, scale
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "min_height",
             "min_width",
@@ -1497,7 +1501,7 @@ class PadIfNeeded(DualTransform):
         h_bottom: int,
         w_left: int,
         w_right: int,
-    ) -> Tuple[int, int, int, int]:
+    ) -> tuple[int, int, int, int]:
         if self.position == PadIfNeeded.PositionType.TOP_LEFT:
             h_bottom += h_top
             w_right += w_left
@@ -1558,7 +1562,7 @@ class VerticalFlip(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return fgeometric.keypoint_vflip(keypoint, **params)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1592,7 +1596,7 @@ class HorizontalFlip(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return fgeometric.keypoint_hflip(keypoint, **params)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1620,7 +1624,7 @@ class Flip(DualTransform):
         """
         return fgeometric.random_flip(img, d)
 
-    def get_params(self) -> Dict[str, int]:
+    def get_params(self) -> dict[str, int]:
         # Random int in the range [-1, 1]
         return {"d": random.randint(-1, 1)}
 
@@ -1630,7 +1634,7 @@ class Flip(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return fgeometric.keypoint_flip(keypoint, **params)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1659,7 +1663,7 @@ class Transpose(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return fgeometric.keypoint_transpose(keypoint, **params)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -1695,11 +1699,11 @@ class OpticalDistortion(DualTransform):
         shift_limit: SymmetricRangeType = (-0.05, 0.05)
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: Optional[ColorType] = Field(
+        value: ColorType | None = Field(
             default=None,
             description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
-        mask_value: Optional[ColorType] = Field(
+        mask_value: ColorType | None = Field(
             default=None,
             description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT.",
         )
@@ -1710,9 +1714,9 @@ class OpticalDistortion(DualTransform):
         shift_limit: ScaleFloatType = (-0.05, 0.05),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[ColorType] = None,
-        mask_value: Optional[ColorType] = None,
-        always_apply: Optional[bool] = None,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
@@ -1755,14 +1759,14 @@ class OpticalDistortion(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, rows, cols))
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "k": random.uniform(self.distort_limit[0], self.distort_limit[1]),
             "dx": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
             "dy": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "distort_limit",
             "shift_limit",
@@ -1773,7 +1777,7 @@ class OpticalDistortion(DualTransform):
         )
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
@@ -1823,11 +1827,11 @@ class GridDistortion(DualTransform):
         distort_limit: SymmetricRangeType = (-0.03, 0.03)
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
-        value: Optional[ColorType] = Field(
+        value: ColorType | None = Field(
             default=None,
             description="Padding value if border_mode is cv2.BORDER_CONSTANT.",
         )
-        mask_value: Optional[ColorType] = Field(
+        mask_value: ColorType | None = Field(
             default=None,
             description="Padding value for mask if border_mode is cv2.BORDER_CONSTANT.",
         )
@@ -1838,7 +1842,7 @@ class GridDistortion(DualTransform):
 
         @field_validator("distort_limit")
         @classmethod
-        def check_limits(cls, v: Tuple[float, float], info: ValidationInfo) -> Tuple[float, float]:
+        def check_limits(cls, v: tuple[float, float], info: ValidationInfo) -> tuple[float, float]:
             bounds = -1, 1
             result = to_tuple(v)
             check_range(result, *bounds, info.field_name)
@@ -1850,10 +1854,10 @@ class GridDistortion(DualTransform):
         distort_limit: ScaleFloatType = (-0.3, 0.3),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[ColorType] = None,
-        mask_value: Optional[ColorType] = None,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
         normalized: bool = False,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p, always_apply)
@@ -1869,8 +1873,8 @@ class GridDistortion(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        stepsx: Tuple[()],
-        stepsy: Tuple[()],
+        stepsx: tuple[()],
+        stepsy: tuple[()],
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
@@ -1887,8 +1891,8 @@ class GridDistortion(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        stepsx: Tuple[()],
-        stepsy: Tuple[()],
+        stepsx: tuple[()],
+        stepsy: tuple[()],
         **params: Any,
     ) -> np.ndarray:
         return fgeometric.grid_distortion(
@@ -1904,8 +1908,8 @@ class GridDistortion(DualTransform):
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
-        stepsx: Tuple[()],
-        stepsy: Tuple[()],
+        stepsx: tuple[()],
+        stepsy: tuple[()],
         **params: Any,
     ) -> BoxInternalType:
         rows, cols = params["rows"], params["cols"]
@@ -1926,7 +1930,7 @@ class GridDistortion(DualTransform):
         bbox_returned = bbox_from_mask(mask)
         return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, rows, cols))
 
-    def _normalize(self, h: int, w: int, xsteps: List[float], ysteps: List[float]) -> Dict[str, Any]:
+    def _normalize(self, h: int, w: int, xsteps: list[float], ysteps: list[float]) -> dict[str, Any]:
         # compensate for smaller last steps in source image.
         x_step = w // self.num_steps
         last_x_step = min(w, ((self.num_steps + 1) * x_step)) - (self.num_steps * x_step)
@@ -1945,10 +1949,10 @@ class GridDistortion(DualTransform):
         return {"stepsx": xsteps, "stepsy": ysteps}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         height, width = params["image"].shape[:2]
 
         stepsx = [1 + random.uniform(self.distort_limit[0], self.distort_limit[1]) for _ in range(self.num_steps + 1)]
@@ -1959,11 +1963,11 @@ class GridDistortion(DualTransform):
 
         return {"stepsx": stepsx, "stepsy": stepsy}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "num_steps", "distort_limit", "interpolation", "border_mode", "value", "mask_value", "normalized"
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,
@@ -2014,7 +2018,7 @@ class D4(DualTransform):
 
     def __init__(
         self,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 1,
     ):
         super().__init__(p, always_apply)
@@ -2033,10 +2037,10 @@ class D4(DualTransform):
     ) -> KeypointInternalType:
         return fgeometric.keypoint_d4(keypoint, group_element, **params)
 
-    def get_params(self) -> Dict[str, D4Type]:
+    def get_params(self) -> dict[str, D4Type]:
         return {
             "group_element": random_utils.choice(d4_group_elements),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()

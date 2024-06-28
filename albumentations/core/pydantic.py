@@ -1,4 +1,6 @@
-from typing import Optional, Tuple
+from __future__ import annotations
+
+from typing import Tuple
 
 import cv2
 from pydantic import Field
@@ -48,7 +50,7 @@ BorderModeType = Annotated[int, Field(description="Border Mode"), AfterValidator
 ProbabilityType = Annotated[float, Field(description="Probability of applying the transform", ge=0, le=1)]
 
 
-def process_non_negative_range(value: Optional[ScaleType]) -> Tuple[float, float]:
+def process_non_negative_range(value: ScaleType | None) -> tuple[float, float]:
     result = to_tuple(value if value is not None else 0, 0)
     if not all(x >= 0 for x in result):
         msg = "All values in the non negative range should be non negative"
@@ -56,7 +58,7 @@ def process_non_negative_range(value: Optional[ScaleType]) -> Tuple[float, float
     return result
 
 
-def float2int(value: Tuple[float, float]) -> Tuple[int, int]:
+def float2int(value: tuple[float, float]) -> tuple[int, int]:
     return int(value[0]), int(value[1])
 
 
@@ -64,30 +66,30 @@ NonNegativeFloatRangeType = Annotated[ScaleType, AfterValidator(process_non_nega
 NonNegativeIntRangeType = Annotated[ScaleType, AfterValidator(process_non_negative_range), AfterValidator(float2int)]
 
 
-def create_symmetric_range(value: ScaleType) -> Tuple[float, float]:
+def create_symmetric_range(value: ScaleType) -> tuple[float, float]:
     return to_tuple(value)
 
 
 SymmetricRangeType = Annotated[ScaleType, AfterValidator(create_symmetric_range)]
 
 
-def convert_to_1plus_range(value: ScaleType) -> Tuple[float, float]:
+def convert_to_1plus_range(value: ScaleType) -> tuple[float, float]:
     return to_tuple(value, low=1)
 
 
-def check_1plus(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
+def check_1plus(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
     if any(x < 1 for x in value):
         raise ValueError(f"All values should be >= 1, got {value} instead")
     return value
 
 
-def check_0plus(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
+def check_0plus(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
     if any(x < 0 for x in value):
         raise ValueError(f"All values should be >= 0, got {value} instead")
     return value
 
 
-def nondecreasing(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
+def nondecreasing(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
     if not value[0] <= value[1]:
         raise ValueError(f"First value should be less than the second value, got {value} instead")
     return value
@@ -109,11 +111,11 @@ OnePlusIntNonDecreasingRangeType = Annotated[
 ]
 
 
-def convert_to_0plus_range(value: ScaleType) -> Tuple[float, float]:
+def convert_to_0plus_range(value: ScaleType) -> tuple[float, float]:
     return to_tuple(value, low=0)
 
 
-def check_01(value: Tuple[NumericType, NumericType]) -> Tuple[NumericType, NumericType]:
+def check_01(value: tuple[NumericType, NumericType]) -> tuple[NumericType, NumericType]:
     if not all(0 <= x <= 1 for x in value):
         raise ValueError(f"All values should be in [0, 1], got {value} instead")
     return value

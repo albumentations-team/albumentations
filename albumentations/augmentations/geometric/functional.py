@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import math
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union, cast
+from typing import Any, Callable, Sequence, cast
 
 import cv2
 import numpy as np
@@ -243,7 +245,7 @@ def rotate(
     angle: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -341,8 +343,8 @@ def elastic_transform(
     alpha_affine: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    value: ColorType | None = None,
+    random_state: np.random.RandomState | None = None,
     approximate: bool = False,
     same_dxdy: bool = False,
 ) -> np.ndarray:
@@ -485,7 +487,7 @@ def perspective(
     matrix: np.ndarray,
     max_width: int,
     max_height: int,
-    border_val: Union[float, List[float], np.ndarray],
+    border_val: float | list[float] | np.ndarray,
     border_mode: int,
     keep_size: bool,
     interpolation: int,
@@ -584,7 +586,7 @@ def warp_affine(
     image: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
     interpolation: int,
-    cval: Union[float, Sequence[float]],
+    cval: ColorType,
     mode: int,
     output_shape: Sequence[int],
 ) -> np.ndarray:
@@ -607,7 +609,7 @@ def warp_affine(
 def keypoint_affine(
     keypoint: KeypointInternalType,
     matrix: skimage.transform.ProjectiveTransform,
-    scale: Dict[str, Any],
+    scale: dict[str, Any],
 ) -> KeypointInternalType:
     if _is_identity_matrix(matrix):
         return keypoint
@@ -662,7 +664,7 @@ def safe_rotate(
     img: np.ndarray,
     matrix: np.ndarray,
     interpolation: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
     border_mode: int = cv2.BORDER_REFLECT_101,
 ) -> np.ndarray:
     height, width = img.shape[:2]
@@ -693,7 +695,7 @@ def bbox_safe_rotate(bbox: BoxInternalType, matrix: np.ndarray, cols: int, rows:
     y1 = points[:, 1].min()
     y2 = points[:, 1].max()
 
-    def fix_point(pt1: float, pt2: float, max_val: float) -> Tuple[float, float]:
+    def fix_point(pt1: float, pt2: float, max_val: float) -> tuple[float, float]:
         # In my opinion, these errors should be very low, around 1-2 pixels.
         if pt1 < 0:
             return 0, pt2 + pt1
@@ -732,7 +734,7 @@ def keypoint_safe_rotate(
 @clipped
 def piecewise_affine(
     img: np.ndarray,
-    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
+    matrix: skimage.transform.PiecewiseAffineTransform | None,
     interpolation: int,
     mode: str,
     cval: float,
@@ -751,7 +753,7 @@ def piecewise_affine(
 
 
 def to_distance_maps(
-    keypoints: Sequence[Tuple[float, float]],
+    keypoints: Sequence[tuple[float, float]],
     height: int,
     width: int,
     inverted: bool = False,
@@ -799,8 +801,8 @@ def to_distance_maps(
 
 
 def validate_if_not_found_coords(
-    if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
-) -> Tuple[bool, int, int]:
+    if_not_found_coords: Sequence[int] | dict[str, Any] | None,
+) -> tuple[bool, int, int]:
     """Validate and process `if_not_found_coords` parameter."""
     if if_not_found_coords is None:
         return True, -1, -1
@@ -817,11 +819,11 @@ def validate_if_not_found_coords(
 
 
 def find_keypoint(
-    position: Tuple[int, int],
+    position: tuple[int, int],
     distance_map: np.ndarray,
-    threshold: Optional[float],
+    threshold: float | None,
     inverted: bool,
-) -> Optional[Tuple[float, float]]:
+) -> tuple[float, float] | None:
     """Determine if a valid keypoint can be found at the given position."""
     y, x = position
     value = distance_map[y, x]
@@ -835,9 +837,9 @@ def find_keypoint(
 def from_distance_maps(
     distance_maps: np.ndarray,
     inverted: bool,
-    if_not_found_coords: Optional[Union[Sequence[int], Dict[str, Any]]],
-    threshold: Optional[float],
-) -> List[Tuple[float, float]]:
+    if_not_found_coords: Sequence[int] | dict[str, Any] | None,
+    threshold: float | None,
+) -> list[tuple[float, float]]:
     """Convert outputs of `to_distance_maps` to `KeypointsOnImage`.
     This is the inverse of `to_distance_maps`.
     """
@@ -863,7 +865,7 @@ def from_distance_maps(
 
 def keypoint_piecewise_affine(
     keypoint: KeypointInternalType,
-    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
+    matrix: skimage.transform.PiecewiseAffineTransform | None,
     h: int,
     w: int,
     keypoints_threshold: float,
@@ -879,7 +881,7 @@ def keypoint_piecewise_affine(
 
 def bbox_piecewise_affine(
     bbox: BoxInternalType,
-    matrix: Optional[skimage.transform.PiecewiseAffineTransform],
+    matrix: skimage.transform.PiecewiseAffineTransform | None,
     h: int,
     w: int,
     keypoints_threshold: float,
@@ -1173,7 +1175,7 @@ def pad(
     min_height: int,
     min_width: int,
     border_mode: int,
-    value: Optional[ColorType],
+    value: ColorType | None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1209,7 +1211,7 @@ def pad_with_params(
     w_pad_left: int,
     w_pad_right: int,
     border_mode: int,
-    value: Optional[ColorType],
+    value: ColorType | None,
 ) -> np.ndarray:
     pad_fn = maybe_process_in_chunks(
         cv2.copyMakeBorder,
@@ -1231,7 +1233,7 @@ def optical_distortion(
     dy: int,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
 ) -> np.ndarray:
     """Barrel / pincushion distortion. Unconventional augment.
 
@@ -1260,11 +1262,11 @@ def optical_distortion(
 def grid_distortion(
     img: np.ndarray,
     num_steps: int,
-    xsteps: Tuple[()],
-    ysteps: Tuple[()],
+    xsteps: tuple[()],
+    ysteps: tuple[()],
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
+    value: ColorType | None = None,
 ) -> np.ndarray:
     height, width = img.shape[:2]
 
@@ -1323,8 +1325,8 @@ def elastic_transform_approx(
     alpha_affine: float,
     interpolation: int,
     border_mode: int,
-    value: Optional[ColorType] = None,
-    random_state: Optional[np.random.RandomState] = None,
+    value: ColorType | None = None,
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Elastic deformation of images as described in [Simard2003]_ (with modifications for speed).
     Based on https://gist.github.com/ernestum/601cdf56d2b424757de5
