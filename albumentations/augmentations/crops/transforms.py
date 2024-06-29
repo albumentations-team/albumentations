@@ -382,8 +382,8 @@ class _BaseRandomSizedCrop(DualTransform):
 
         crop_height = crop_coords[3] - crop_coords[1]
         crop_width = crop_coords[2] - crop_coords[0]
-        scale_y = self.size[0] / crop_height
-        scale_x = self.size[1] / crop_width
+        scale_x = self.size[0] / crop_width
+        scale_y = self.size[1] / crop_height
         return fgeometric.keypoint_scale(keypoint, scale_x, scale_y)
 
 
@@ -664,8 +664,9 @@ class RandomCropNearBBox(_BaseCrop):
         x_min, y_min, x_max, y_max = bbox
         x_min = np.clip(x_min, 0, width)
         y_min = np.clip(y_min, 0, height)
-        x_max = np.clip(x_max, 0, width)
-        y_max = np.clip(y_max, 0, height)
+
+        x_max = np.clip(x_max, x_min, width)
+        y_max = np.clip(y_max, y_min, height)
         return x_min, y_min, x_max, y_max
 
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[float, ...]]:
@@ -685,6 +686,9 @@ class RandomCropNearBBox(_BaseCrop):
         y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
 
         crop_coords = self._clip_bbox((x_min, y_min, x_max, y_max), height, width)
+
+        if crop_coords[0] == crop_coords[2] or crop_coords[1] == crop_coords[3]:
+            crop_coords = fcrops.get_center_crop_coords(height, width, bbox[3] - bbox[1], bbox[2] - bbox[0])
 
         return {"crop_coords": crop_coords}
 
@@ -728,11 +732,13 @@ class BBoxSafeRandomCrop(_BaseCrop):
 
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
         image_height, image_width = params["image"].shape[:2]
+
         if len(params["bboxes"]) == 0:  # less likely, this class is for use with bboxes.
             erosive_h = int(image_height * (1.0 - self.erosion_rate))
             crop_height = image_height if erosive_h >= image_height else random.randint(erosive_h, image_height)
 
             crop_width = int(crop_height * image_width / image_height)
+
             h_start = random.random()
             w_start = random.random()
 
@@ -741,15 +747,15 @@ class BBoxSafeRandomCrop(_BaseCrop):
             return {"crop_coords": crop_coords}
 
         # get union of all bboxes
-        x, y, x2, y2 = union_of_bboxes(
+        x_min, y_min, x_max, y_max = union_of_bboxes(
             width=image_width,
             height=image_height,
             bboxes=params["bboxes"],
             erosion_rate=self.erosion_rate,
         )
         # find bigger region
-        bx, by = x * random.random(), y * random.random()
-        bx2, by2 = x2 + (1 - x2) * random.random(), y2 + (1 - y2) * random.random()
+        bx, by = x_min * random.random(), y_min * random.random()
+        bx2, by2 = x_max + (1 - x_max) * random.random(), y_max + (1 - y_max) * random.random()
 
         bbox_width, bbox_height = bx2 - bx, by2 - by
 
