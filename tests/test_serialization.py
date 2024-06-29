@@ -35,7 +35,7 @@ TEST_SEEDS = (42, )
     ["augmentation_cls", "params"],
     get_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.Crop: {"y_min": 0, "x_min": 0, "y_max": 10, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},

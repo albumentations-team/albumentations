@@ -55,7 +55,7 @@ def extract_targets_from_docstring(cls):
 
 DUAL_TARGETS = {
     A.Affine: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.BBoxSafeRandomCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
+    A.BBoxSafeRandomCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.CenterCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomCropFromBorders: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
@@ -90,7 +90,7 @@ DUAL_TARGETS = {
     A.XYMasking: (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS),
     A.RandomCropNearBBox: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Perspective: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.RandomSizedBBoxSafeCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
+    A.RandomSizedBBoxSafeCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.MixUp: (Targets.IMAGE, Targets.MASK, Targets.GLOBAL_LABEL),
     A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
     A.D4: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
