@@ -13,26 +13,17 @@ from albumentations.core.types import BoxInternalType, KeypointInternalType
 import numpy as np
 
 __all__ = [
-    "get_random_crop_coords",
-    "random_crop",
+    "get_crop_coords",
     "crop_bbox_by_coords",
-    "bbox_random_crop",
     "crop_keypoint_by_coords",
-    "keypoint_random_crop",
-    "get_center_crop_coords",
-    "center_crop",
-    "bbox_center_crop",
-    "keypoint_center_crop",
     "crop",
-    "bbox_crop",
-    "clamping_crop",
     "crop_and_pad",
     "crop_and_pad_bbox",
     "crop_and_pad_keypoint",
 ]
 
 
-def get_random_crop_coords(
+def get_crop_coords(
     height: int,
     width: int,
     crop_height: int,
@@ -50,55 +41,21 @@ def get_random_crop_coords(
     return x1, y1, x2, y2
 
 
-def random_crop(img: np.ndarray, crop_height: int, crop_width: int, h_start: float, w_start: float) -> np.ndarray:
-    height, width = img.shape[:2]
-    if height < crop_height or width < crop_width:
-        raise ValueError(
-            f"Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})",
-        )
-    x1, y1, x2, y2 = get_random_crop_coords(height, width, crop_height, crop_width, h_start, w_start)
-    return img[y1:y2, x1:x2]
-
-
 def crop_bbox_by_coords(
     bbox: BoxInternalType,
     crop_coords: tuple[int, int, int, int],
-    crop_height: int,
-    crop_width: int,
     rows: int,
     cols: int,
 ) -> BoxInternalType:
-    """Crop a bounding box using the provided coordinates of the crop area and the original image dimensions.
+    denormalized_bbox = denormalize_bbox(bbox, rows, cols)
 
-    Args:
-        bbox (BoxInternalType): A bounding box in the format `(x_min, y_min, x_max, y_max)`.
-        crop_coords (tuple[int, int, int, int]): The coordinates of the crop area in the format `(x1, y1, x2, y2)`.
-        crop_height (int): The height of the crop area in pixels.
-        crop_width (int): The width of the crop area in pixels.
-        rows (int): The number of rows (height) in the original image.
-        cols (int): The number of columns (width) in the original image.
-
-    Returns:
-        BoxInternalType: A cropped bounding box in the format `(x_min, y_min, x_max, y_max)`.
-    """
-    normalized_bbox = denormalize_bbox(bbox, rows, cols)
-    x_min, y_min, x_max, y_max = normalized_bbox[:4]
+    x_min, y_min, x_max, y_max = denormalized_bbox[:4]
     x1, y1 = crop_coords[:2]
     cropped_bbox = x_min - x1, y_min - y1, x_max - x1, y_max - y1
+    crop_height = crop_coords[3] - crop_coords[1]
+    crop_width = crop_coords[2] - crop_coords[0]
+
     return cast(BoxInternalType, normalize_bbox(cropped_bbox, crop_height, crop_width))
-
-
-def bbox_random_crop(
-    bbox: BoxInternalType,
-    crop_height: int,
-    crop_width: int,
-    h_start: float,
-    w_start: float,
-    rows: int,
-    cols: int,
-) -> BoxInternalType:
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
 
 
 def crop_keypoint_by_coords(
@@ -121,79 +78,12 @@ def crop_keypoint_by_coords(
     return x - x1, y - y1, angle, scale
 
 
-def keypoint_random_crop(
-    keypoint: KeypointInternalType,
-    crop_height: int,
-    crop_width: int,
-    h_start: float,
-    w_start: float,
-    rows: int,
-    cols: int,
-) -> KeypointInternalType:
-    """Keypoint random crop.
-
-    Args:
-        keypoint: (tuple): A keypoint `(x, y, angle, scale)`.
-        crop_height (int): Crop height.
-        crop_width (int): Crop width.
-        h_start (int): Crop height start.
-        w_start (int): Crop width start.
-        rows (int): Image height.
-        cols (int): Image width.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    crop_coords = get_random_crop_coords(rows, cols, crop_height, crop_width, h_start, w_start)
-    return crop_keypoint_by_coords(keypoint, crop_coords)
-
-
 def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width: int) -> tuple[int, int, int, int]:
-    y1 = (height - crop_height) // 2
-    y2 = y1 + crop_height
-    x1 = (width - crop_width) // 2
-    x2 = x1 + crop_width
-    return x1, y1, x2, y2
-
-
-def center_crop(img: np.ndarray, crop_height: int, crop_width: int) -> np.ndarray:
-    height, width = img.shape[:2]
-    if height < crop_height or width < crop_width:
-        raise ValueError(
-            f"Requested crop size ({crop_height}, {crop_width}) is larger than the image size ({height}, {width})",
-        )
-    x1, y1, x2, y2 = get_center_crop_coords(height, width, crop_height, crop_width)
-    return img[y1:y2, x1:x2]
-
-
-def bbox_center_crop(bbox: BoxInternalType, crop_height: int, crop_width: int, rows: int, cols: int) -> BoxInternalType:
-    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def keypoint_center_crop(
-    keypoint: KeypointInternalType,
-    crop_height: int,
-    crop_width: int,
-    rows: int,
-    cols: int,
-) -> KeypointInternalType:
-    """Keypoint center crop.
-
-    Args:
-        keypoint: A keypoint `(x, y, angle, scale)`.
-        crop_height: Crop height.
-        crop_width: Crop width.
-        rows: Image height.
-        cols: Image width.
-
-    Returns:
-        A keypoint `(x, y, angle, scale)`.
-
-    """
-    crop_coords = get_center_crop_coords(rows, cols, crop_height, crop_width)
-    return crop_keypoint_by_coords(keypoint, crop_coords)
+    y_min = (height - crop_height) // 2
+    y_max = y_min + crop_height
+    x_min = (width - crop_width) // 2
+    x_max = x_min + crop_width
+    return x_min, y_min, x_max, y_max
 
 
 def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.ndarray:
@@ -212,48 +102,6 @@ def crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.
         )
 
     return img[y_min:y_max, x_min:x_max]
-
-
-def bbox_crop(
-    bbox: BoxInternalType,
-    x_min: int,
-    y_min: int,
-    x_max: int,
-    y_max: int,
-    rows: int,
-    cols: int,
-) -> BoxInternalType:
-    """Crop a bounding box using the provided coordinates.
-
-    Args:
-        bbox (BoxInternalType): A bounding box in the format `(x_min, y_min, x_max, y_max)`.
-        x_min (int): The minimum x-coordinate of the crop area.
-        y_min (int): The minimum y-coordinate of the crop area.
-        x_max (int): The maximum x-coordinate of the crop area.
-        y_max (int): The maximum y-coordinate of the crop area.
-        rows (int): The number of rows (height) in the original image.
-        cols (int): The number of columns (width) in the original image.
-
-    Returns:
-        BoxInternalType: A cropped bounding box in the format `(x_min, y_min, x_max, y_max)`.
-    """
-    crop_coords = x_min, y_min, x_max, y_max
-    crop_height = y_max - y_min
-    crop_width = x_max - x_min
-    return crop_bbox_by_coords(bbox, crop_coords, crop_height, crop_width, rows, cols)
-
-
-def clamping_crop(img: np.ndarray, x_min: int, y_min: int, x_max: int, y_max: int) -> np.ndarray:
-    h, w = img.shape[:2]
-    if x_min < 0:
-        x_min = 0
-    if y_min < 0:
-        y_min = 0
-    if y_max >= h:
-        y_max = h - 1
-    if x_max >= w:
-        x_max = w - 1
-    return img[int(y_min) : int(y_max), int(x_min) : int(x_max)]
 
 
 @preserve_channel_dim

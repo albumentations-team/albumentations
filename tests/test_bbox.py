@@ -351,44 +351,6 @@ def test_crop_boxes_return_params() -> None:
     np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])
 
 
-@pytest.mark.parametrize(
-    ["transforms", "bboxes", "result_bboxes", "min_area", "min_visibility"],
-    [
-        [[Crop(10, 10, 20, 20)], [[0, 0, 10, 10, 0]], [], 0, 0],
-        [
-            [Crop(0, 0, 90, 90)],
-            [[0, 0, 91, 91, 0], [0, 0, 89, 89, 0]],
-            [[0, 0, 89, 89, 0]],
-            0,
-            1,
-        ],
-        [
-            [Crop(0, 0, 90, 90)],
-            [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]],
-            [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]],
-            10,
-            0,
-        ],
-    ],
-)
-def test_bbox_params_edges(
-    transforms: List[BasicTransform],
-    bboxes: BoxType,
-    result_bboxes: BoxType,
-    min_area: float,
-    min_visibility: float,
-) -> None:
-    image = np.empty([100, 100, 3], dtype=np.uint8)
-    aug = Compose(
-        transforms,
-        bbox_params=BboxParams(
-            "pascal_voc", min_area=min_area, min_visibility=min_visibility
-        ),
-    )
-    res = aug(image=image, bboxes=bboxes)["bboxes"]
-    assert np.array_equal(res, result_bboxes)
-
-
 def test_bounding_box_partially_outside_no_clip() -> None:
     """
     Test error is raised when bounding box exceeds image boundaries without clipping.

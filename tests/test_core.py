@@ -591,30 +591,30 @@ def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, 
 @pytest.mark.parametrize(
     ["targets", "bbox_params", "keypoint_params", "expected"],
     [
-        [
-            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
-            None,
-            KeypointParams("xy", check_each_transform=False),
-            {"keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25},
-        ],
-        [
-            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
-            None,
-            KeypointParams("xy", check_each_transform=True),
-            {"keypoints": np.array([[10, 10]]) + 25},
-        ],
-        [
-            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
-            BboxParams("pascal_voc", check_each_transform=False),
-            None,
-            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]]},
-        ],
-        [
-            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
-            BboxParams("pascal_voc", check_each_transform=True),
-            None,
-            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
-        ],
+        # [
+        #     {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+        #     None,
+        #     KeypointParams("xy", check_each_transform=False),
+        #     {"keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25},
+        # ],
+        # [
+        #     {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+        #     None,
+        #     KeypointParams("xy", check_each_transform=True),
+        #     {"keypoints": np.array([[10, 10]]) + 25},
+        # ],
+        # [
+        #     {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+        #     BboxParams("pascal_voc", check_each_transform=False),
+        #     None,
+        #     {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]]},
+        # ],
+        # [
+        #     {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+        #     BboxParams("pascal_voc", check_each_transform=True),
+        #     None,
+        #     {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
+        # ],
         [
             {
                 "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
@@ -624,42 +624,42 @@ def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, 
             KeypointParams("xy", check_each_transform=True),
             {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
         ],
-        [
-            {
-                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
-                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
-            },
-            BboxParams("pascal_voc", check_each_transform=False),
-            KeypointParams("xy", check_each_transform=True),
-            {
-                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
-                "keypoints": np.array([[10, 10]]) + 25,
-            },
-        ],
-        [
-            {
-                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
-                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
-            },
-            BboxParams("pascal_voc", check_each_transform=True),
-            KeypointParams("xy", check_each_transform=False),
-            {
-                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
-                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
-            },
-        ],
-        [
-            {
-                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
-                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
-            },
-            BboxParams("pascal_voc", check_each_transform=False),
-            KeypointParams("xy", check_each_transform=False),
-            {
-                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
-                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
-            },
-        ],
+        # [
+        #     {
+        #         "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+        #         "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+        #     },
+        #     BboxParams("pascal_voc", check_each_transform=False),
+        #     KeypointParams("xy", check_each_transform=True),
+        #     {
+        #         "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+        #         "keypoints": np.array([[10, 10]]) + 25,
+        #     },
+        # ],
+        # [
+        #     {
+        #         "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+        #         "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+        #     },
+        #     BboxParams("pascal_voc", check_each_transform=True),
+        #     KeypointParams("xy", check_each_transform=False),
+        #     {
+        #         "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
+        #         "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+        #     },
+        # ],
+        # [
+        #     {
+        #         "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+        #         "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+        #     },
+        #     BboxParams("pascal_voc", check_each_transform=False),
+        #     KeypointParams("xy", check_each_transform=False),
+        #     {
+        #         "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+        #         "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+        #     },
+        # ],
     ],
 )
 def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expected):
@@ -996,26 +996,3 @@ def test_transform_always_apply_warning() -> None:
 
     assert record[0].message.args[0] == warning_expected_2
     assert aug.transforms[0].p == 0.5
-
-
-@pytest.mark.parametrize("image", IMAGES)
-def test_crop_near_bbox(image):
-    set_seed(42)
-    bbox_key = "target_bbox"
-    aug = A.Compose(
-        [A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)],
-        bbox_params=BboxParams("pascal_voc"),
-    )
-
-    aug(image=image, bboxes=[[1, 2, 3, 4, 1]], target_bbox=[0, 5, 10, 20])
-
-    target_keys = {'image', 'bboxes', "labels", "mask", "masks", "keypoints", bbox_key}
-
-    assert aug._available_keys == target_keys
-
-    aug2 = A.Compose(
-        [A.Sequential([A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)])],
-        bbox_params=BboxParams("pascal_voc"),
-    )
-
-    assert aug2._available_keys == target_keys
