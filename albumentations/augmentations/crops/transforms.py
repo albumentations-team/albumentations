@@ -316,7 +316,7 @@ class CropNonEmptyMaskIfExists(_BaseCrop):
 
         crop_coords = x_min, y_min, x_max, y_max
 
-        params.update({"crop_coords": crop_coords})
+        params["crop_coords"] = crop_coords
         return params
 
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, int | float]:
