@@ -66,7 +66,11 @@ class _BaseCrop(DualTransform):
         super().__init__(p, always_apply)
 
     def apply(self, img: np.ndarray, crop_coords: tuple[int, int, int, int], **params: Any) -> np.ndarray:
-        return fcrops.crop(img, *crop_coords)
+        x_min = crop_coords[0]
+        y_min = crop_coords[1]
+        x_max = crop_coords[2]
+        y_max = crop_coords[3]
+        return fcrops.crop(img, x_min=x_min, y_min=y_min, x_max=x_max, y_max=y_max)
 
     @property
     def targets_as_params(self) -> list[str]:
@@ -727,47 +731,49 @@ class BBoxSafeRandomCrop(_BaseCrop):
         p: ProbabilityType = 1
 
     def __init__(self, erosion_rate: float = 0.0, p: float = 1.0, always_apply: bool | None = None):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.erosion_rate = erosion_rate
+
+    def _get_coords_no_bbox(self, image_height: int, image_width: int) -> tuple[int, int, int, int]:
+        erosive_h = int(image_height * (1.0 - self.erosion_rate))
+        crop_height = image_height if erosive_h >= image_height else random.randint(erosive_h, image_height)
+
+        crop_width = int(crop_height * image_width / image_height)
+
+        h_start = random.random()
+        w_start = random.random()
+
+        return fcrops.get_crop_coords(image_height, image_width, crop_height, crop_width, h_start, w_start)
 
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
         image_height, image_width = params["image"].shape[:2]
 
         if len(params["bboxes"]) == 0:  # less likely, this class is for use with bboxes.
-            erosive_h = int(image_height * (1.0 - self.erosion_rate))
-            crop_height = image_height if erosive_h >= image_height else random.randint(erosive_h, image_height)
-
-            crop_width = int(crop_height * image_width / image_height)
-
-            h_start = random.random()
-            w_start = random.random()
-
-            crop_coords = fcrops.get_crop_coords(image_height, image_width, crop_height, crop_width, h_start, w_start)
-
+            crop_coords = self._get_coords_no_bbox(image_height, image_width)
             return {"crop_coords": crop_coords}
 
-        # get union of all bboxes
-        x_min, y_min, x_max, y_max = union_of_bboxes(
-            width=image_width,
-            height=image_height,
-            bboxes=params["bboxes"],
-            erosion_rate=self.erosion_rate,
-        )
-        # find bigger region
-        bx, by = x_min * random.random(), y_min * random.random()
-        bx2, by2 = x_max + (1 - x_max) * random.random(), y_max + (1 - y_max) * random.random()
+        bbox_union = union_of_bboxes(bboxes=params["bboxes"], erosion_rate=self.erosion_rate)
 
-        bbox_width, bbox_height = bx2 - bx, by2 - by
+        if bbox_union is None:
+            crop_coords = self._get_coords_no_bbox(image_height, image_width)
+            return {"crop_coords": crop_coords}
 
-        crop_height = image_height if bbox_height >= 1.0 else int(image_height * bbox_height)
-        crop_width = image_width if bbox_width >= 1.0 else int(image_width * bbox_width)
+        x_min, y_min, x_max, y_max = bbox_union
 
-        h_start = np.clip(0.0 if bbox_height >= 1.0 else by / (1.0 - bbox_height), 0.0, 1.0)
-        w_start = np.clip(0.0 if bbox_width >= 1.0 else bx / (1.0 - bbox_width), 0.0, 1.0)
+        x_min = np.clip(x_min, 0, 1)
+        y_min = np.clip(y_min, 0, 1)
+        x_max = np.clip(x_max, x_min, 1)
+        y_max = np.clip(y_max, y_min, 1)
 
-        crop_coords = fcrops.get_crop_coords(image_height, image_width, crop_height, crop_width, h_start, w_start)
+        crop_x_min = int(x_min * random.random() * image_width)
+        crop_y_min = int(y_min * random.random() * image_height)
 
-        return {"crop_coords": crop_coords}
+        bbox_xmax = x_max + (1 - x_max) * random.random()
+        bbox_ymax = y_max + (1 - y_max) * random.random()
+        crop_x_max = int(bbox_xmax * image_width)
+        crop_y_max = int(bbox_ymax * image_height)
+
+        return {"crop_coords": (crop_x_min, crop_y_min, crop_x_max, crop_y_max)}
 
     @property
     def targets_as_params(self) -> list[str]:

@@ -571,27 +571,49 @@ def filter_bboxes(
     return resulting_boxes
 
 
-def union_of_bboxes(height: int, width: int, bboxes: Sequence[BoxType], erosion_rate: float = 0.0) -> BoxInternalType:
-    """Calculate union of bounding boxes.
+def union_of_bboxes(bboxes: Sequence[BoxType], erosion_rate: float) -> BoxInternalType | None:
+    """Calculate union of bounding boxes in the normalized domain.
 
     Args:
-        height (float): Height of image or space.
-        width (float): Width of image or space.
-        bboxes (list[tuple]): list like bounding boxes. Format is `[(x_min, y_min, x_max, y_max)]`.
+        bboxes (list[tuple]): List-like bounding boxes in `[(x_min, y_min, x_max, y_max)]`.
+            Could be albu, could be pascal_voc
         erosion_rate (float): How much each bounding box can be shrunk, useful for erosive cropping.
-            Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox to lose its volume.
+            Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox lose its volume.
 
     Returns:
-        tuple: A bounding box `(x_min, y_min, x_max, y_max)`.
-
+        Optional[tuple]: A bounding box `(x_min, y_min, x_max, y_max)` or None if no bboxes are given or if
+                         the bounding boxes become invalid after erosion.
     """
-    x1, y1 = width, height
-    x2, y2 = 0, 0
-    for bbox in bboxes:
-        x_min, y_min, x_max, y_max = bbox[:4]
-        bbox_width, bbox_height = x_max - x_min, y_max - y_min
-        lim_x1, lim_y1 = x_min + erosion_rate * bbox_width, y_min + erosion_rate * bbox_height
-        lim_x2, lim_y2 = x_max - erosion_rate * bbox_width, y_max - erosion_rate * bbox_height
-        x1, y1 = np.min([x1, lim_x1]), np.min([y1, lim_y1])
-        x2, y2 = np.max([x2, lim_x2]), np.max([y2, lim_y2])
+    if not bboxes:
+        return None
+
+    if len(bboxes) == 1:
+        if erosion_rate == 1:
+            return None
+        if erosion_rate == 0:
+            return bboxes[0][:4]
+
+    bboxes_np = np.array([bbox[:4] for bbox in bboxes])
+    x_min = bboxes_np[:, 0]
+    y_min = bboxes_np[:, 1]
+    x_max = bboxes_np[:, 2]
+    y_max = bboxes_np[:, 3]
+
+    bbox_width = x_max - x_min
+    bbox_height = y_max - y_min
+
+    # Adjust erosion rate to shrink bounding boxes accordingly
+    lim_x1 = x_min + erosion_rate * 0.5 * bbox_width
+    lim_y1 = y_min + erosion_rate * 0.5 * bbox_height
+    lim_x2 = x_max - erosion_rate * 0.5 * bbox_width
+    lim_y2 = y_max - erosion_rate * 0.5 * bbox_height
+
+    x1 = np.min(lim_x1)
+    y1 = np.min(lim_y1)
+    x2 = np.max(lim_x2)
+    y2 = np.max(lim_y2)
+
+    if x1 == x2 or y1 == y2:
+        return None
+
     return x1, y1, x2, y2
