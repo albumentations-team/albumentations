@@ -1288,16 +1288,33 @@ class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-        scale: standard deviation of the normal distribution.
-            Used to sample random distances to move two control points that modify the image's curve.
-            Values should be in range [0, 1]. Default: 0.1
+        scale (float): Standard deviation of the normal distribution used to sample random distances
+            to move two control points that modify the image's curve. Values should be in range [0, 1]. Default: 0.1
+        per_channel (bool): If `True`, the tone curve will be applied to each channel of the input image separately,
+            which can lead to color distortion. Default: False.
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
 
     Image types:
-        uint8
+        uint8, float32
 
+    Reference:
+        - "What Else Can Fool Deep Learning? Addressing Color Constancy Errors on Deep Neural Network Performance"
+          by Mahmoud Afifi and Michael S. Brown, ICCV 2019.
+        - GitHub repository: https://github.com/mahmoudnafifi/WB_color_augmenter
+
+    Example:
+        >>> import numpy as np
+        >>> from albumentations import RandomToneCurve
+        >>> img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = RandomToneCurve(scale=0.1, per_channel=True, p=1.0)
+        >>> transformed_img = transform(image=img)['image']
+
+    This transform applies a random tone curve to the input image by adjusting the relationship between bright and
+    dark areas. When `per_channel` is set to True, each channel is adjusted separately, potentially causing color
+    distortions. Otherwise, the same adjustment is applied to all channels, preserving the original color relationships.
     """
 
     class InitSchema(BaseTransformInitSchema):
@@ -1307,27 +1324,50 @@ class RandomToneCurve(ImageOnlyTransform):
             ge=0,
             le=1,
         )
+        per_channel: bool = Field(default=False, description="Apply the tone curve to each channel separately")
 
     def __init__(
         self,
         scale: float = 0.1,
+        per_channel: bool = False,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
         super().__init__(p=p, always_apply=always_apply)
         self.scale = scale
+        self.per_channel = per_channel
 
-    def apply(self, img: np.ndarray, low_y: float, high_y: float, **params: Any) -> np.ndarray:
+    def apply(
+        self,
+        img: np.ndarray,
+        low_y: float | np.ndarray,
+        high_y: float | np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
         return fmain.move_tone_curve(img, low_y, high_y)
 
-    def get_params(self) -> dict[str, float]:
-        return {
-            "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1),
-            "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1),
-        }
+    @property
+    def targets_as_params(self) -> list[str]:
+        return ["image"]
 
-    def get_transform_init_args_names(self) -> tuple[str]:
-        return ("scale",)
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+        image = params["image"]
+
+        num_channels = get_num_channels(image)
+
+        if self.per_channel and num_channels != 1:
+            return {
+                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=[num_channels]), 0, 1),
+                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=[num_channels]), 0, 1),
+            }
+        # Same values for all channels
+        low_y = np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1)
+        high_y = np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1)
+
+        return {"low_y": low_y, "high_y": high_y}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "scale", "per_channel"
 
 
 class HueSaturationValue(ImageOnlyTransform):

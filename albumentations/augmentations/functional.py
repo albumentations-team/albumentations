@@ -17,6 +17,7 @@ from albucore.utils import (
     is_rgb_image,
     maybe_process_in_chunks,
     preserve_channel_dim,
+    get_num_channels,
 )
 from typing_extensions import Literal
 
@@ -336,40 +337,48 @@ def equalize(
 
 
 @preserve_channel_dim
-def move_tone_curve(img: np.ndarray, low_y: float, high_y: float) -> np.ndarray:
+def move_tone_curve(
+    img: np.ndarray,
+    low_y: float | np.ndarray,
+    high_y: float | np.ndarray,
+) -> np.ndarray:
     """Rescales the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-        img: RGB or grayscale image.
-        low_y: y-position of a Bezier control point used
+        img: np.ndarray. Any number of channels
+        low_y: per-channel or single y-position of a Bezier control point used
             to adjust the tone curve, must be in range [0, 1]
-        high_y: y-position of a Bezier control point used
+        high_y: per-channel or single y-position of a Bezier control point used
             to adjust image tone curve, must be in range [0, 1]
 
     """
     input_dtype = img.dtype
+    needs_float = False
 
-    if not 0 <= low_y <= 1:
-        msg = "low_shift must be in range [0, 1]"
-        raise ValueError(msg)
-    if not 0 <= high_y <= 1:
-        msg = "high_shift must be in range [0, 1]"
-        raise ValueError(msg)
-
-    if input_dtype != np.uint8:
-        raise ValueError(f"Unsupported image type {input_dtype}")
+    if input_dtype in [np.float32, np.float64, np.float16]:
+        img = from_float(img, dtype=np.uint8)
+        needs_float = True
 
     t = np.linspace(0.0, 1.0, 256)
 
-    # Defines response of a four-point Bezier curve
-    def evaluate_bez(t: np.ndarray) -> np.ndarray:
-        return 3 * (1 - t) ** 2 * t * low_y + 3 * (1 - t) * t**2 * high_y + t**3
+    def evaluate_bez(t: np.ndarray, low_y: float | np.ndarray, high_y: float | np.ndarray) -> np.ndarray:
+        one_minus_t = 1 - t
+        return (3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3) * 255
 
-    evaluate_bez = np.vectorize(evaluate_bez)
-    remapping = np.rint(evaluate_bez(t) * 255).astype(np.uint8)
+    num_channels = get_num_channels(img)
 
-    lut_fn = maybe_process_in_chunks(cv2.LUT, lut=remapping)
-    return lut_fn(img)
+    if np.isscalar(low_y) and np.isscalar(high_y):
+        lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8)
+        output = cv2.LUT(img, lut)
+    elif isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
+        luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8)
+        output = cv2.merge([cv2.LUT(img[:, :, i], luts[i]) for i in range(num_channels)])
+    else:
+        raise TypeError(
+            f"low_y and high_y must both be of type float or np.ndarray. Got {type(low_y)} and {type(high_y)}",
+        )
+
+    return to_float(output, max_value=255) if needs_float else output
 
 
 @clipped
