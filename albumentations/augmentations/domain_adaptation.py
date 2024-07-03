@@ -15,6 +15,7 @@ from albumentations.augmentations.domain_adaptation_functional import (
 )
 from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
+from albumentations.augmentations import functional as fmain
 
 
 from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
@@ -108,8 +109,8 @@ class HistogramMatching(ImageOnlyTransform):
             "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        return ("reference_images", "blend_ratio", "read_fn")
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "reference_images", "blend_ratio", "read_fn"
 
     def to_dict_private(self) -> dict[str, Any]:
         msg = "HistogramMatching can not be serialized."
@@ -318,9 +319,8 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             weight=blend_ratio,
             transform_type=self.transform_type,
         )
-        if needs_reconvert:
-            adapted = adapted.astype("float32") * (1 / 255)
-        return adapted
+
+        return fmain.to_float(adapted) if needs_reconvert else adapted
 
     def get_params(self) -> dict[str, Any]:
         return {

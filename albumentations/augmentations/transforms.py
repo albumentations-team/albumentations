@@ -1787,18 +1787,21 @@ class ISONoise(ImageOnlyTransform):
         image
 
     Image types:
-        uint8
+        uint8, float32
+
+    Raises:
+        TypeError: If the input image is not RGB.
 
     """
 
     class InitSchema(BaseTransformInitSchema):
-        color_shift: tuple[float, float] = Field(
+        color_shift: Annotated[tuple[float, float], AfterValidator(check_01), AfterValidator(nondecreasing)] = Field(
             default=(0.01, 0.05),
             description=(
                 "Variance range for color hue change. Measured as a fraction of 360 degree Hue angle in HLS colorspace."
             ),
         )
-        intensity: tuple[float, float] = Field(
+        intensity: Annotated[tuple[float, float], AfterValidator(check_0plus), AfterValidator(nondecreasing)] = Field(
             default=(0.1, 0.5),
             description="Multiplicative factor that control strength of color and luminance noise.",
         )
@@ -1832,7 +1835,7 @@ class ISONoise(ImageOnlyTransform):
         }
 
     def get_transform_init_args_names(self) -> tuple[str, str]:
-        return ("intensity", "color_shift")
+        return "intensity", "color_shift"
 
 
 class CLAHE(ImageOnlyTransform):

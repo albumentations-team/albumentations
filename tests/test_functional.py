@@ -6,12 +6,13 @@ from numpy.testing import assert_array_almost_equal_nulp, assert_almost_equal
 import skimage
 
 import albumentations as A
+from albumentations import random_utils
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels
 
 from albumentations.core.types import d4_group_elements
-from tests.conftest import IMAGES, RECTANGULAR_IMAGES
+from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, UINT8_IMAGES
 from tests.utils import convert_2d_to_target_format, set_seed
 
 
@@ -276,7 +277,7 @@ def test_to_float_with_max_value_for_unsupported_dtypes(dtype):
     ],
 )
 def test_from_float(dtype, multiplier, max_value):
-    img = np.random.rand(100, 100, 3).astype(np.float32)  # Use random data for more robust testing
+    img = RECTANGULAR_UINT8_IMAGE.astype(np.float32)  # Use random data for more robust testing
     expected_multiplier = multiplier if max_value is None else max_value
     expected = (img * expected_multiplier).astype(dtype)
     actual = F.from_float(img, dtype=np.dtype(dtype), max_value=max_value)
@@ -285,7 +286,7 @@ def test_from_float(dtype, multiplier, max_value):
 
 @pytest.mark.parametrize("dtype", [np.int64])
 def test_from_float_unsupported_dtype_without_max_value(dtype):
-    img = np.random.rand(100, 100, 3).astype(np.float32)
+    img = RECTANGULAR_UINT8_IMAGE.astype(np.float32)
     with pytest.raises(RuntimeError) as exc_info:
         F.from_float(img, dtype=dtype)
     expected_part_of_message = "Can't infer the maximum value for dtype"
@@ -329,6 +330,13 @@ def test_scale(target):
     img, expected = convert_2d_to_target_format([img, expected], target=target)
     scaled = FGeometric.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
+
+
+def test_to_from_float():
+    image = RECTANGULAR_UINT8_IMAGE
+    float_image = F.to_float(image)
+    uint8_image = F.from_float(float_image, dtype=np.uint8)
+    assert np.array_equal(image, uint8_image)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
@@ -1031,3 +1039,23 @@ def test_random_tone_curve(image):
 
     assert result_float_value.dtype == image.dtype
     assert result_float_value.shape == image.shape
+
+
+@pytest.mark.parametrize("image", UINT8_IMAGES)
+@pytest.mark.parametrize("color_shift, intensity", [(0, 0), (0.5, 0.5), (1, 1)])
+def test_iso_noise(image, color_shift, intensity):
+    image = RECTANGULAR_UINT8_IMAGE
+
+    # Convert image to float and back
+    float_image = F.to_float(image)
+
+    # Generate noise using the same random state instance
+    set_seed(42)
+    result_uint8 = F.iso_noise(image, color_shift=color_shift, intensity=intensity)
+
+    set_seed(42)
+    result_float = F.iso_noise(float_image, color_shift=color_shift, intensity=intensity)
+
+    result_float = F.from_float(result_float, dtype=np.uint8)  # Convert the float result back to uint8
+
+    assert np.array_equal(result_uint8, result_float)

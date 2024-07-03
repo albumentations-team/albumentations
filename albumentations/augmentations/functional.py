@@ -436,9 +436,7 @@ def image_compression(img: np.ndarray, quality: int, image_type: Literal[".jpg",
     _, encoded_img = cv2.imencode(image_type, img, (int(quality_flag), quality))
     img = cv2.imdecode(encoded_img, cv2.IMREAD_UNCHANGED)
 
-    if needs_float:
-        img = to_float(img, max_value=255)
-    return img
+    return to_float(img, max_value=255) if needs_float else img
 
 
 @preserve_channel_dim
@@ -482,10 +480,7 @@ def add_snow(img: np.ndarray, snow_point: float, brightness_coeff: float) -> np.
 
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
-    if needs_float:
-        image_rgb = to_float(image_rgb, max_value=255)
-
-    return image_rgb
+    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
 
 
 @preserve_channel_dim
@@ -547,10 +542,7 @@ def add_rain(
 
     image_rgb = cv2.cvtColor(image_hsv.astype(np.uint8), cv2.COLOR_HSV2RGB)
 
-    if needs_float:
-        return to_float(image_rgb, max_value=255)
-
-    return image_rgb
+    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
 
 
 @preserve_channel_dim
@@ -602,10 +594,7 @@ def add_fog(img: np.ndarray, fog_coef: float, alpha_coef: float, haze_list: list
 
     image_rgb = cv2.blur(img, (hw // 10, hw // 10))
 
-    if needs_float:
-        image_rgb = to_float(image_rgb, max_value=255)
-
-    return image_rgb
+    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
 
 
 @preserve_channel_dim
@@ -659,10 +648,7 @@ def add_sun_flare(
         alp = alpha[num_times - i - 1] * alpha[num_times - i - 1] * alpha[num_times - i - 1]
         output = add_weighted(overlay, alp, output, 1 - alp)
 
-    if needs_float:
-        return to_float(output, max_value=255)
-
-    return output
+    return to_float(output, max_value=255) if needs_float else output
 
 
 @contiguous
@@ -740,10 +726,7 @@ def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
 
     image_rgb = cv2.cvtColor(image_hls, cv2.COLOR_HLS2RGB)
 
-    if needs_float:
-        image_rgb = to_float(image_rgb, max_value=255)
-
-    return image_rgb
+    return to_float(image_rgb, max_value=255) if needs_float else image_rgb
 
 
 def invert(img: np.ndarray) -> np.ndarray:
@@ -784,33 +767,35 @@ def iso_noise(
     image: np.ndarray,
     color_shift: float = 0.05,
     intensity: float = 0.5,
-    random_state: int | None = None,
+    random_state: np.random.RandomState | None = None,
 ) -> np.ndarray:
     """Apply poisson noise to an image to simulate camera sensor noise.
 
     Args:
-        image (np.ndarray): Input image. Currently, only RGB, uint8 images are supported.
+        image (np.ndarray): Input image. Currently, only RGB images are supported.
         color_shift (float): The amount of color shift to apply. Default is 0.05.
         intensity (float): Multiplication factor for noise values. Values of ~0.5 produce a noticeable,
                            yet acceptable level of noise. Default is 0.5.
-        random_state (Optional[int]): If specified, this will set the random seed for the noise generation,
-                                      ensuring consistent results for the same input and seed.
+        random_state (Optional[np.random.RandomState]): If specified, this will be random state used
+            for noise generation.
 
     Returns:
         np.ndarray: The noised image.
 
     Raises:
-        TypeError: If the input image's dtype is not uint8 or if the image is not RGB.
+        TypeError: If the input image's dtype is not RGB.
     """
-    if image.dtype != np.uint8:
-        msg = "Image must have uint8 channel type"
-        raise TypeError(msg)
     if not is_rgb_image(image):
         msg = "Image must be RGB"
         raise TypeError(msg)
 
-    one_over_255 = float(1.0 / 255.0)
-    image = multiply(image, one_over_255).astype(np.float32)
+    input_dtype = image.dtype
+    factor = 1
+
+    if input_dtype == np.uint8:
+        image = to_float(image)
+        factor = MAX_VALUES_BY_DTYPE[input_dtype]
+
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
@@ -824,8 +809,7 @@ def iso_noise(
     luminance = hls[..., 1]
     luminance += (luminance_noise / 255) * (1.0 - luminance)
 
-    image = cv2.cvtColor(hls, cv2.COLOR_HLS2RGB) * 255
-    return image.astype(np.uint8)
+    return cv2.cvtColor(hls, cv2.COLOR_HLS2RGB) * factor
 
 
 def to_gray(img: np.ndarray) -> np.ndarray:
@@ -945,6 +929,7 @@ def mask_from_bbox(img: np.ndarray, bbox: tuple[int, int, int, int]) -> np.ndarr
     return mask
 
 
+@clipped
 def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
     """Perform 'Fancy PCA' augmentation
 
@@ -965,7 +950,7 @@ def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
 
     orig_img = img.astype(float).copy()
 
-    img = img / 255.0  # rescale to 0 to 1 range
+    img = to_float(img)  # rescale to 0 to 1 range
 
     # flatten image to columns of RGB
     img_rs = img.reshape(-1, 3)
@@ -1005,8 +990,7 @@ def fancy_pca(img: np.ndarray, alpha: float = 0.1) -> np.ndarray:
 
     # for image processing it was found that working with float 0.0 to 1.0
     # was easier than integers between 0-255
-    # > orig_img /= 255.0
-    return clip(orig_img, np.uint8)
+    return orig_img
 
 
 @preserve_channel_dim
@@ -1201,8 +1185,9 @@ def spatter(
 ) -> np.ndarray:
     non_rgb_warning(img)
 
-    coef = MAX_VALUES_BY_DTYPE[img.dtype]
-    img = img.astype(np.float32) * (1 / coef)
+    dtype = img.dtype
+
+    img = to_float(img)
 
     if mode == "rain":
         if rain is None:
@@ -1222,7 +1207,7 @@ def spatter(
     else:
         raise ValueError("Unsupported spatter mode: " + str(mode))
 
-    return img * 255
+    return from_float(img, dtype=dtype)
 
 
 def almost_equal_intervals(n: int, parts: int) -> np.ndarray:
@@ -1525,16 +1510,13 @@ def planckian_jitter(img: np.ndarray, temperature: int, mode: PlanckianJitterMod
 
     coeffs = w_left * np.array(PLANCKIAN_COEFFS[mode][t_left]) + w_right * np.array(PLANCKIAN_COEFFS[mode][t_right])
 
-    image = img / 255.0 if img.dtype == np.uint8 else img
+    image = to_float(img) if img.dtype == np.uint8 else img
 
     image[:, :, 0] = image[:, :, 0] * (coeffs[0] / coeffs[1])
     image[:, :, 2] = image[:, :, 2] * (coeffs[2] / coeffs[1])
     image[image > 1] = 1
 
-    if img.dtype == np.uint8:
-        return image * 255.0
-
-    return image
+    return from_float(image, dtype=img.dtype) if img.dtype == np.uint8 else image
 
 
 def generate_approx_gaussian_noise(

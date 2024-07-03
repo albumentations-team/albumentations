@@ -1949,3 +1949,49 @@ def test_rot90(bboxes, angle, keypoints):
 
     for transformed_keypoint, expected_keypoint in zip(transformed["keypoints"], keypoints_rotated):
         assert np.allclose(transformed_keypoint[:2], expected_keypoint[:2], atol=1e-7), f"Keypoints do not match: {transformed_keypoint} != {expected_keypoint}"
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.TemplateTransform: {
+                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+            },
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+        },
+        except_augmentations={
+            A.RandomCropNearBBox,
+            A.RandomSizedBBoxSafeCrop,
+            A.BBoxSafeRandomCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.MaskDropout,
+            A.MixUp,
+            A.OverlayElements
+        },
+    ),
+)
+def test_return_nonzero(augmentation_cls, params):
+    """Checks whether we can use augmentations in multiprocessing environments"""
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+    aug = A.Compose([augmentation_cls(p=1, **params)])
+
+    assert not np.array_equal(aug(image=image)["image"], np.zeros_like(image))
