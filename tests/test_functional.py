@@ -8,7 +8,7 @@ import skimage
 import albumentations as A
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
-from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE
+from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels
 
 from albumentations.core.types import d4_group_elements
 from tests.conftest import IMAGES, RECTANGULAR_IMAGES
@@ -1015,3 +1015,16 @@ def test_planckian_jitter_cied():
 
     cied_plankian_jitter = F.planckian_jitter(img, temperature=4500, mode="cied")
     assert np.allclose(cied_plankian_jitter, expected_cied_plankian_jitter, atol=1e-4)
+
+
+@pytest.mark.parametrize("image", IMAGES)
+def test_random_tone_curve(image):
+    low_y = 0.1
+    high_y = 0.9
+
+    num_channels = get_num_channels(image)
+
+    result_float = F.move_tone_curve(image, low_y, high_y)
+    result_array = F.move_tone_curve(image, np.array([low_y] * num_channels), np.array([high_y] * num_channels))
+
+    assert np.array_equal(result_float, result_array)

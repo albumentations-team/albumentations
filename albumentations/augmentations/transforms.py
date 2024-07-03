@@ -1288,18 +1288,33 @@ class RandomToneCurve(ImageOnlyTransform):
     """Randomly change the relationship between bright and dark areas of the image by manipulating its tone curve.
 
     Args:
-        scale: standard deviation of the normal distribution.
-            Used to sample random distances to move two control points that modify the image's curve.
-            Values should be in range [0, 1]. Default: 0.1
-        per_channel: If `True`, the tone curve will be applied to each channel of the input image separately.
-            This will lead to color distortion. Default: False.
+        scale (float): Standard deviation of the normal distribution used to sample random distances
+            to move two control points that modify the image's curve. Values should be in range [0, 1]. Default: 0.1
+        per_channel (bool): If `True`, the tone curve will be applied to each channel of the input image separately,
+            which can lead to color distortion. Default: False.
+        p (float): Probability of applying the transform. Default: 0.5
 
     Targets:
         image
 
     Image types:
-        uint8
+        uint8, float32
 
+    Reference:
+        - "What Else Can Fool Deep Learning? Addressing Color Constancy Errors on Deep Neural Network Performance"
+          by Mahmoud Afifi and Michael S. Brown, ICCV 2019.
+        - GitHub repository: https://github.com/mahmoudnafifi/WB_color_augmenter
+
+    Example:
+        >>> import numpy as np
+        >>> from albumentations import RandomToneCurve
+        >>> img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> transform = RandomToneCurve(scale=0.1, per_channel=True, p=1.0)
+        >>> transformed_img = transform(image=img)['image']
+
+    This transform applies a random tone curve to the input image by adjusting the relationship between bright and
+    dark areas. When `per_channel` is set to True, each channel is adjusted separately, potentially causing color
+    distortions. Otherwise, the same adjustment is applied to all channels, preserving the original color relationships.
     """
 
     class InitSchema(BaseTransformInitSchema):

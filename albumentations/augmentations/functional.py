@@ -363,23 +363,20 @@ def move_tone_curve(
 
     def evaluate_bez(t: np.ndarray, low_y: float | np.ndarray, high_y: float | np.ndarray) -> np.ndarray:
         one_minus_t = 1 - t
-        return 3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3
+        return (3 * one_minus_t**2 * t * low_y + 3 * one_minus_t * t**2 * high_y + t**3) * 255
 
     num_channels = get_num_channels(img)
 
     if isinstance(low_y, float) and isinstance(high_y, float):
-        lut = clip(np.rint(np.vectorize(evaluate_bez)(t, low_y, high_y) * 255), np.uint8)
+        lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8)
         output = cv2.LUT(img, lut)
     elif isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
-        luts = clip(np.rint(evaluate_bez(t[:, None], low_y, high_y) * 255), np.uint8)
+        luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8)
         output = cv2.merge([cv2.LUT(img[:, :, i], luts[i]) for i in range(num_channels)])
     else:
         raise TypeError(f"low_y and high_y must be float or np.ndarray. Got {type(low_y)} and {type(high_y)}")
 
-    if needs_float:
-        return to_float(output, max_value=255)
-
-    return output
+    return to_float(output, max_value=255) if needs_float else output
 
 
 @clipped

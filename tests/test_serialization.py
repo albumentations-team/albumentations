@@ -294,7 +294,8 @@ AUGMENTATION_CLS_PARAMS = [
     ],
     [A.Sharpen, {"alpha": [0.2, 0.5], "lightness": [0.5, 1.0]}],
     [A.Emboss, {"alpha": [0.2, 0.5], "strength": [0.5, 1.0]}],
-    [A.RandomToneCurve, {"scale": 0.2, "per_channel": False}],
+    [A.RandomToneCurve, {"scale": 0.2, "per_channel": False}, ],
+    [A.RandomToneCurve, {"scale": 0.3, "per_channel": True}],
     [
         A.CropAndPad,
         {
