@@ -355,7 +355,7 @@ def move_tone_curve(
     input_dtype = img.dtype
     needs_float = False
 
-    if input_dtype == np.float32:
+    if input_dtype in [np.float32, np.float64, np.float16]:
         img = from_float(img, dtype=np.uint8)
         needs_float = True
 
@@ -367,14 +367,16 @@ def move_tone_curve(
 
     num_channels = get_num_channels(img)
 
-    if isinstance(low_y, float) and isinstance(high_y, float):
+    if np.isscalar(low_y) and np.isscalar(high_y):
         lut = clip(np.rint(evaluate_bez(t, low_y, high_y)), np.uint8)
         output = cv2.LUT(img, lut)
     elif isinstance(low_y, np.ndarray) and isinstance(high_y, np.ndarray):
         luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8)
         output = cv2.merge([cv2.LUT(img[:, :, i], luts[i]) for i in range(num_channels)])
     else:
-        raise TypeError(f"low_y and high_y must be both float or np.ndarray. Got {type(low_y)} and {type(high_y)}")
+        raise TypeError(
+            f"low_y and high_y must both be of type float or np.ndarray. Got {type(low_y)} and {type(high_y)}",
+        )
 
     return to_float(output, max_value=255) if needs_float else output
 
