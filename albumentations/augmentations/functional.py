@@ -801,7 +801,7 @@ def iso_noise(
         raise TypeError(msg)
 
     one_over_255 = float(1.0 / 255.0)
-    image = multiply(image, one_over_255).astype(np.float32)
+    image = multiply(image.astype(np.float32), one_over_255)
     hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
     _, stddev = cv2.meanStdDev(hls)
 
