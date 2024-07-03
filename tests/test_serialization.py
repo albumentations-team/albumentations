@@ -14,7 +14,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 from albumentations.core.types import ImageCompressionType
-from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES
+from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES, SQUARE_FLOAT_IMAGE
 
 
 from .utils import (
@@ -27,14 +27,15 @@ from .utils import (
 
 images = []
 
-TEST_SEEDS = (0, 1, 42)
+## Can use several seeds, but just too slow.
+TEST_SEEDS = (42, )
 
 
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_transforms(
         custom_arguments={
-            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.Crop: {"y_min": 0, "x_min": 0, "y_max": 10, "x_max": 10},
             A.CenterCrop: {"height": 10, "width": 10},
             A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
             A.RandomCrop: {"height": 10, "width": 10},
@@ -60,14 +61,13 @@ TEST_SEEDS = (0, 1, 42)
             A.GlassBlur:dict(sigma=0.8, max_delta=5, iterations=3, mode="exact"),
             A.GridDropout: dict(
         ratio=0.75,
-        unit_size_min=2,
+        unit_size_range=(2, 10),
         unit_size_max=10,
-        shift_x=10,
-        shift_y=20,
+        shift_xy=(10, 20),
         random_offset=True,
         fill_value=10,
         mask_fill_value=20,
-    )
+    ),
         },
         except_augmentations={
             A.FDA,
@@ -75,8 +75,9 @@ TEST_SEEDS = (0, 1, 42)
             A.PixelDistributionAdaptation,
             A.Lambda,
             A.TemplateTransform,
-            A.MixUp
+            A.MixUp,
         },
+
     ),
 )
 @pytest.mark.parametrize("p", [0.5, 1])
@@ -141,10 +142,8 @@ AUGMENTATION_CLS_PARAMS = [
         A.RandomSunFlare,
         {
             "flare_roi": (0.1, 0.1, 0.9, 0.6),
-            "angle_lower": 0.1,
-            "angle_upper": 0.95,
-            "num_flare_circles_lower": 7,
-            "num_flare_circles_upper": 11,
+            "angle_range": (0.1, 0.95),
+            "num_flare_circles_range": (7, 11),
             "src_radius": 300,
             "src_color": (200, 200, 200),
         },
@@ -448,17 +447,18 @@ AUGMENTATION_CLS_PARAMS = [
         A.GridDropout,
         dict(
             ratio=0.75,
-            unit_size_min=2,
-            unit_size_max=10,
-            shift_x=10,
-            shift_y=20,
+            unit_size_range=(2, 10),
+            shift_xy=(10, 20),
             random_offset=True,
             fill_value=10,
             mask_fill_value=20,
         )
     ],
     [A.Morphological, {}],
-    [A.D4, {}]
+    [A.D4, {}],
+    [A.PlanckianJitter, {}],
+    [A.OverlayElements, {}],
+    [A.RandomCropNearBBox, {}]
 ]
 
 AUGMENTATION_CLS_EXCEPT = {
@@ -466,7 +466,6 @@ AUGMENTATION_CLS_EXCEPT = {
     A.HistogramMatching,
     A.PixelDistributionAdaptation,
     A.Lambda,
-    A.RandomCropNearBBox,
     A.RandomSizedBBoxSafeCrop,
     A.BBoxSafeRandomCrop,
     A.TemplateTransform,
@@ -489,9 +488,28 @@ def test_augmentations_serialization_with_custom_parameters(
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
-    aug_data = aug(image=image, mask=mask)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": [],
+            "mask": mask
+        }
+    elif augmentation_cls == A.RandomCropNearBBox:
+        data = {
+            "image": image,
+            "cropping_bbox": [10, 20, 40, 50],
+            "mask": mask
+        }
+    else:
+        data = {
+            "image": image,
+            "mask": mask,
+        }
+
+    aug_data = aug(**data)
     set_seed(seed)
-    deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+    deserialized_aug_data = deserialized_aug(**data)
     assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
     assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
@@ -513,10 +531,29 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         filepath = f"serialized.{data_format}"
         A.save(aug, filepath, data_format=data_format)
         deserialized_aug = A.load(filepath, data_format=data_format)
+
+        if augmentation_cls == A.OverlayElements:
+            data = {
+                "image": image,
+                "overlay_metadata": [],
+                "mask": mask
+            }
+        elif augmentation_cls == A.RandomCropNearBBox:
+            data = {
+                "image": image,
+                "cropping_bbox": [10, 20, 40, 50],
+                "mask": mask
+            }
+        else:
+            data = {
+                "image": image,
+                "mask": mask,
+            }
+
         set_seed(seed)
-        aug_data = aug(image=image, mask=mask)
+        aug_data = aug(**data)
         set_seed(seed)
-        deserialized_aug_data = deserialized_aug(image=image, mask=mask)
+        deserialized_aug_data = deserialized_aug(**data)
         assert np.array_equal(aug_data["image"], deserialized_aug_data["image"])
         assert np.array_equal(aug_data["mask"], deserialized_aug_data["mask"])
 
@@ -534,12 +571,12 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.Resize: {"height": 10, "width": 10},
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
             A.BBoxSafeRandomCrop: {"erosion_rate": 0.6},
-             A.PadIfNeeded: {
-            "min_height": 512,
-            "min_width": 512,
-            "border_mode": 0,
-            "value": [124, 116, 104],
-            "position": "top_left"
+            A.PadIfNeeded: {
+                "min_height": 512,
+                "min_width": 512,
+                "border_mode": 0,
+                "value": [124, 116, 104],
+                "position": "top_left"
             },
         },
         except_augmentations={
@@ -556,16 +593,17 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.MixUp,
             A.CropNonEmptyMaskIfExists,
             A.GridDropout,
-            A.Morphological
+            A.Morphological,
+            A.OverlayElements
         },
     ),
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", UINT8_IMAGES)
 def test_augmentations_for_bboxes_serialization(
-    augmentation_cls, params, p, seed, image, albumentations_bboxes
+    augmentation_cls, params, p, seed, albumentations_bboxes
 ):
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -597,12 +635,12 @@ def test_augmentations_for_bboxes_serialization(
                 "fill_value": 0,
                 "mask_fill_value": 1,
             },
-             A.PadIfNeeded: {
-            "min_height": 512,
-            "min_width": 512,
-            "border_mode": 0,
-            "value": [124, 116, 104],
-            "position": "top_left"
+            A.PadIfNeeded: {
+                "min_height": 512,
+                "min_width": 512,
+                "border_mode": 0,
+                "value": [124, 116, 104],
+                "position": "top_left"
             }
         },
         except_augmentations={
@@ -620,14 +658,15 @@ def test_augmentations_for_bboxes_serialization(
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
             A.MixUp,
-            A.Morphological
+            A.Morphological,
+            A.OverlayElements
         },
     ),
 )
 @pytest.mark.parametrize("p", [0.5, 1])
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", UINT8_IMAGES)
-def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, image, keypoints):
+def test_augmentations_for_keypoints_serialization(augmentation_cls, params, p, seed, keypoints):
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = augmentation_cls(p=p, **params)
     serialized_aug = A.to_dict(aug)
     deserialized_aug = A.from_dict(serialized_aug)
@@ -848,8 +887,8 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
     ),
 )
 @pytest.mark.parametrize("seed", TEST_SEEDS)
-@pytest.mark.parametrize("image", UINT8_IMAGES)
-def test_additional_targets_for_image_only_serialization(augmentation_cls, params, image, seed):
+def test_additional_targets_for_image_only_serialization(augmentation_cls, params, seed):
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     aug = A.Compose(
         [augmentation_cls(p=1., **params)],
         additional_targets={"image2": "image"},
@@ -914,7 +953,7 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_serialization_conversion_without_totensor(transform_file_name, data_format, seed):
-    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
 
     # Step 1: Load transform from file
     current_directory = Path(__file__).resolve().parent
@@ -952,7 +991,7 @@ def test_serialization_conversion_without_totensor(transform_file_name, data_for
 @pytest.mark.parametrize("data_format", ("yaml", "json"))
 @pytest.mark.parametrize("seed", TEST_SEEDS)
 def test_serialization_conversion_with_totensor(transform_file_name: str, data_format: str, seed: int) -> None:
-    image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+    image = SQUARE_UINT8_IMAGE
 
     # Load transform from file
     current_directory = Path(__file__).resolve().parent

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from itertools import product
 from math import ceil
-from typing import Sequence, Union
+from typing import Literal, Sequence
 
 import cv2
 import numpy as np
@@ -42,15 +44,15 @@ def glass_blur(
     max_delta: int,
     iterations: int,
     dxy: np.ndarray,
-    mode: str,
+    mode: Literal["fast", "exact"],
 ) -> np.ndarray:
     x = cv2.GaussianBlur(np.array(img), sigmaX=sigma, ksize=(0, 0))
 
     if mode == "fast":
         hs = np.arange(img.shape[0] - max_delta, max_delta, -1)
         ws = np.arange(img.shape[1] - max_delta, max_delta, -1)
-        h: Union[int, np.ndarray] = np.tile(hs, ws.shape[0])
-        w: Union[int, np.ndarray] = np.repeat(ws, hs.shape[0])
+        h: int | np.ndarray = np.tile(hs, ws.shape[0])
+        w: int | np.ndarray = np.repeat(ws, hs.shape[0])
 
         for i in range(iterations):
             dy = dxy[:, i, 0]
@@ -70,7 +72,7 @@ def glass_blur(
             dx = dxy[idx, i, 1]
             x[h, w], x[h + dy, w + dx] = x[h + dy, w + dx], x[h, w]
     else:
-        ValueError(f"Unsupported mode `{mode}`. Supports only `fast` and `exact`.")
+        raise ValueError(f"Unsupported mode `{mode}`. Supports only `fast` and `exact`.")
 
     return cv2.GaussianBlur(x, sigmaX=sigma, ksize=(0, 0))
 
@@ -98,10 +100,10 @@ def central_zoom(img: np.ndarray, zoom_factor: int) -> np.ndarray:
 
 
 @clipped
-def zoom_blur(img: np.ndarray, zoom_factors: Union[np.ndarray, Sequence[int]]) -> np.ndarray:
+def zoom_blur(img: np.ndarray, zoom_factors: np.ndarray | Sequence[int]) -> np.ndarray:
     out = np.zeros_like(img, dtype=np.float32)
 
     for zoom_factor in zoom_factors:
         out += central_zoom(img, zoom_factor)
 
-    return ((img + out) / (len(zoom_factors) + 1)).astype(img.dtype)
+    return (img + out) / (len(zoom_factors) + 1)

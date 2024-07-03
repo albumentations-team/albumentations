@@ -9,7 +9,8 @@ INSTALL_REQUIRES = [
     "numpy>=1.24.4", "scipy>=1.10.0", "scikit-image>=0.21.0",
     "PyYAML", "typing-extensions>=4.9.0", "scikit-learn>=1.3.2",
     "pydantic>=2.7.0",
-    "albucore>=0.0.9"
+    "albucore>=0.0.11",
+    "eval-type-backport"
 ]
 
 MIN_OPENCV_VERSION = "4.9.0.80"
@@ -23,7 +24,9 @@ CHOOSE_INSTALL_REQUIRES = [
 
 def get_version() -> str:
     current_dir = Path(__file__).parent
-    version_file = current_dir / "albumentations" / "__init__.py"
+    version_file = current_dir / "albumentations" / "_version.py"
+    if not version_file.is_file():
+        raise FileNotFoundError(f"Version file not found: {version_file}")
     with open(version_file, encoding="utf-8") as f:
         version_match = re.search(r'^__version__ = [\'"]([^\'"]*)[\'"]', f.read(), re.M)
         if version_match:

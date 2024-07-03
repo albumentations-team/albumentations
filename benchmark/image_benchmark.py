@@ -13,7 +13,7 @@ import augly.image as imaugs
 import cv2
 import kornia as K
 import kornia.augmentation as Kaug
-import numpy as np
+
 import pandas as pd
 import pkg_resources
 import torch
@@ -44,6 +44,8 @@ os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 os.environ["NUMEXPR_NUM_THREADS"] = "1"
 
+import numpy as np
+
 
 DEFAULT_BENCHMARKING_LIBRARIES = ["albumentations", "torchvision", "kornia", "augly", "imgaug"]
 
@@ -63,10 +65,16 @@ def parse_args() -> argparse.Namespace:
         "-r", "--runs", default=5, type=int, metavar="N", help="number of runs for each benchmark (default: 5)"
     )
     parser.add_argument(
-        "--show-std", dest="show_std", action="store_true", help="show standard deviation for benchmark runs"
+        "-s", "--show-std", dest="show_std", action="store_true", help="show standard deviation for benchmark runs"
     )
     parser.add_argument("-p", "--print-package-versions", action="store_true", help="print versions of packages")
     parser.add_argument("-m", "--markdown", action="store_true", help="print benchmarking results as a markdown table")
+    parser.add_argument(
+        "--warmup-images", default=10, type=int, metavar="N", help="number of images for warm-up runs (default: 10)"
+    )
+    parser.add_argument(
+        "-t", "--threshold-time", default=0.1, type=float, metavar="T", help="threshold time per image in seconds (default: 0.1)"
+    )
     return parser.parse_args()
 
 
@@ -302,7 +310,7 @@ class RandomResizedCrop(BenchmarkTest):
 class ShiftRGB(BenchmarkTest):
     def __init__(self, pixel_shift: int = 100):
         self.pixel_shift = pixel_shift
-        self.imgaug_transform = iaa.Add((pixel_shift, pixel_shift), per_channel=True)
+        self.imgaug_transform = iaa.Add((-pixel_shift, pixel_shift), per_channel=True)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
         return A.RGBShift(
@@ -489,15 +497,15 @@ class JpegCompression(BenchmarkTest):
 class GaussianNoise(BenchmarkTest):
     def __init__(self, mean: float = 127, var: float = 0.010):
         self.mean = mean
-        self.var = var
-        self.imgaug_transform = iaa.AdditiveGaussianNoise(loc=self.mean, scale=(0, self.var * 255))
+        self.var = var * 255
+        self.imgaug_transform = iaa.AdditiveGaussianNoise(loc=self.mean, scale=(0, self.var), per_channel=True)
 
     def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
-        transform = A.GaussNoise(var_limit=self.var * 255, mean=self.mean, p=1)
+        transform = A.GaussNoise(var_limit=self.var, mean=self.mean, p=1, per_channel=True)
         return transform(image=img)["image"]
 
     def augly_transform(self, img: Image.Image) -> Image.Image:
-        return imaugs.RandomNoise(mean=self.mean, var=self.var * 255)(img)
+        return imaugs.RandomNoise(mean=self.mean, var=self.var)(img)
 
 
 class Elastic(BenchmarkTest):
@@ -521,44 +529,31 @@ class Elastic(BenchmarkTest):
         return v2.ElasticTransform(alpha=self.alpha, sigma=self.sigma, interpolation=InterpolationMode.BILINEAR)(img)
 
 
-def main() -> None:
-    args = parse_args()
-    package_versions = get_package_versions()
-    if args.print_package_versions:
-        print(get_markdown_table(package_versions))
+class Normalize(BenchmarkTest):
+    def __init__(self):
+        self.mean = (0.485, 0.456, 0.406)
+        self.std=(0.229, 0.224, 0.225)
 
+    def albumentations_transform(self, img: torch.Tensor) -> np.ndarray:
+        transform = A.Normalize(mean=self.mean, std=self.std, p=1)
+        return transform(image=img)["image"]
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.Normalize(mean=self.mean, std=self.std, p=1)(img)
+
+    def torchvision_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return v2.Normalize(mean=self.mean, std=self.std)(img.float())
+
+
+def run_benchmarks(benchmarks: List[BenchmarkTest], args: argparse.Namespace, libraries: List[str], data_dir: Path) -> Dict[str, Dict[str, Any]]:
     images_per_second: Dict[str, Dict[str, Any]] = defaultdict(dict)
-    libraries = args.libraries
-    data_dir = Path(args.data_dir)
-    paths = sorted(data_dir.glob("*.*"))
-    paths = paths[: args.images]
-    imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths)]
-    imgs_pillow = [read_img_pillow(path) for path in tqdm(paths)]
-    imgs_torch = [read_img_torch(path) for path in tqdm(paths)]
-    imgs_kornia = [read_img_kornia(path) for path in tqdm(paths)]
 
-    benchmarks = [
-        HorizontalFlip(),
-        VerticalFlip(),
-        Rotate(),
-        Affine(),
-        Equalize(),
-        RandomCrop64(),
-        RandomResizedCrop(),
-        ShiftRGB(),
-        Resize(512),
-        RandomGamma(),
-        Grayscale(),
-        ColorJitter(),
-        RandomPerspective(),
-        GaussianBlur(),
-        MedianBlur(),
-        MotionBlur(),
-        Posterize(),
-        JpegCompression(),
-        GaussianNoise(),
-        Elastic(),
-    ]
+    paths = sorted(data_dir.glob("*.*"))
+    paths = paths[:args.images]
+    imgs_cv2 = [read_img_cv2(path) for path in tqdm(paths, desc="Loading images for OpenCV")]
+    imgs_pillow = [read_img_pillow(path) for path in tqdm(paths, desc="Loading images for Pillow")]
+    imgs_torch = [read_img_torch(path) for path in tqdm(paths, desc="Loading images for Torch")]
+    imgs_kornia = [read_img_kornia(path) for path in tqdm(paths, desc="Loading images for Kornia")]
 
     def get_imgs(library: str) -> list:
         if library == "augly":
@@ -582,13 +577,61 @@ def main() -> None:
             benchmark_images_per_second = None
 
             if benchmark.is_supported_by(library):
-                timer = Timer(lambda: benchmark.run(library, imgs))
-                run_times = timer.repeat(number=1, repeat=args.runs)
-                benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
+                # Warm-up run with a subset of images
+                warmup_imgs = imgs[:args.warmup_images]
+                warmup_timer = Timer(lambda: benchmark.run(library, warmup_imgs))
+                warmup_time = warmup_timer.timeit(number=1)
+                avg_warmup_time = warmup_time / args.warmup_images
+
+                if avg_warmup_time > args.threshold_time:
+                    benchmark_images_per_second = [1 / avg_warmup_time] * args.runs
+                else:
+                    full_timer = Timer(lambda: benchmark.run(library, imgs))
+                    run_times = full_timer.repeat(number=1, repeat=args.runs)
+                    benchmark_images_per_second = [1 / (run_time / args.images) for run_time in run_times]
+
             images_per_second[library][str(benchmark)] = benchmark_images_per_second
 
         pbar.update(1)
     pbar.close()
+
+    return images_per_second
+
+
+def main() -> None:
+    benchmarks = [
+        HorizontalFlip(),
+        VerticalFlip(),
+        Rotate(),
+        Affine(),
+        Equalize(),
+        RandomCrop64(),
+        RandomResizedCrop(),
+        ShiftRGB(),
+        Resize(512),
+        RandomGamma(),
+        Grayscale(),
+        ColorJitter(),
+        RandomPerspective(),
+        GaussianBlur(),
+        MedianBlur(),
+        MotionBlur(),
+        Posterize(),
+        JpegCompression(),
+        GaussianNoise(),
+        Elastic(),
+        Normalize()
+    ]
+
+    args = parse_args()
+    package_versions = get_package_versions()
+    if args.print_package_versions:
+        print(get_markdown_table(package_versions))
+
+    libraries = args.libraries
+    data_dir = Path(args.data_dir)
+
+    images_per_second = run_benchmarks(benchmarks, args, libraries, data_dir)
 
     pd.set_option("display.width", 1000)
     df = pd.DataFrame.from_dict(images_per_second)
@@ -600,7 +643,7 @@ def main() -> None:
         makedown_generator = MarkdownGenerator(df, package_versions)
         makedown_generator.print()
     else:
-        pass
+        print(df)
 
 
 if __name__ == "__main__":

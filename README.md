@@ -185,6 +185,7 @@ Pixel-level transforms will change just an input image and will leave any additi
 - [MultiplicativeNoise](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.MultiplicativeNoise)
 - [Normalize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Normalize)
 - [PixelDistributionAdaptation](https://albumentations.ai/docs/api_reference/augmentations/domain_adaptation/#albumentations.augmentations.domain_adaptation.PixelDistributionAdaptation)
+- [PlanckianJitter](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.PlanckianJitter)
 - [Posterize](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.Posterize)
 - [RGBShift](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RGBShift)
 - [RandomBrightnessContrast](https://albumentations.ai/docs/api_reference/augmentations/transforms/#albumentations.augmentations.transforms.RandomBrightnessContrast)
@@ -216,7 +217,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | Transform                                                                                                                                                                       | Image | Mask | BBoxes | Keypoints |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :--: | :----: | :-------: |
 | [Affine](https://albumentations.ai/docs/api_reference/augmentations/geometric/transforms/#albumentations.augmentations.geometric.transforms.Affine)                             | ✓     | ✓    | ✓      | ✓         |
-| [BBoxSafeRandomCrop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.BBoxSafeRandomCrop)             | ✓     | ✓    | ✓      |           |
+| [BBoxSafeRandomCrop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.BBoxSafeRandomCrop)             | ✓     | ✓    | ✓      | ✓         |
 | [CenterCrop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.CenterCrop)                             | ✓     | ✓    | ✓      | ✓         |
 | [CoarseDropout](https://albumentations.ai/docs/api_reference/augmentations/dropout/coarse_dropout/#albumentations.augmentations.dropout.coarse_dropout.CoarseDropout)           | ✓     | ✓    |        | ✓         |
 | [Crop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.Crop)                                         | ✓     | ✓    | ✓      | ✓         |
@@ -244,7 +245,7 @@ Spatial-level transforms will simultaneously change both an input image as well 
 | [RandomResizedCrop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.RandomResizedCrop)               | ✓     | ✓    | ✓      | ✓         |
 | [RandomRotate90](https://albumentations.ai/docs/api_reference/augmentations/geometric/rotate/#albumentations.augmentations.geometric.rotate.RandomRotate90)                     | ✓     | ✓    | ✓      | ✓         |
 | [RandomScale](https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/#albumentations.augmentations.geometric.resize.RandomScale)                           | ✓     | ✓    | ✓      | ✓         |
-| [RandomSizedBBoxSafeCrop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.RandomSizedBBoxSafeCrop)   | ✓     | ✓    | ✓      |           |
+| [RandomSizedBBoxSafeCrop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.RandomSizedBBoxSafeCrop)   | ✓     | ✓    | ✓      | ✓         |
 | [RandomSizedCrop](https://albumentations.ai/docs/api_reference/augmentations/crops/transforms/#albumentations.augmentations.crops.transforms.RandomSizedCrop)                   | ✓     | ✓    | ✓      | ✓         |
 | [Resize](https://albumentations.ai/docs/api_reference/augmentations/geometric/resize/#albumentations.augmentations.geometric.resize.Resize)                                     | ✓     | ✓    | ✓      | ✓         |
 | [Rotate](https://albumentations.ai/docs/api_reference/augmentations/geometric/rotate/#albumentations.augmentations.geometric.rotate.Rotate)                                     | ✓     | ✓    | ✓      | ✓         |
@@ -259,9 +260,10 @@ Spatial-level transforms will simultaneously change both an input image as well 
 
 Transforms that mix several images into one
 
-| Transform                                                                                                                                   | Image | Mask | BBoxes | Keypoints | Global Label |
-| ------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :--: | :----: | :-------: | :----------: |
-| [MixUp](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.MixUp) | ✓     | ✓    |        |           | ✓            |
+| Transform                                                                                                                                                       | Image | Mask | BBoxes | Keypoints | Global Label |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---: | :--: | :----: | :-------: | :----------: |
+| [MixUp](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.MixUp)                     | ✓     | ✓    |        |           | ✓            |
+| [OverlayElements](https://albumentations.ai/docs/api_reference/augmentations/mixing/transforms/#albumentations.augmentations.mixing.transforms.OverlayElements) | ✓     | ✓    |        |           |              |
 
 ## A few more examples of **augmentations**
 
@@ -288,42 +290,43 @@ To run the benchmark yourself, follow the instructions in [benchmark/README.md](
 Results for running the benchmark on the first 2000 images from the ImageNet validation set using an AMD Ryzen Threadripper 3970X CPU.
 The table shows how many images per second can be processed on a single core; higher is better.
 
-| Library | Version |
-|---------|---------|
-| Python | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
-| albumentations | 1.4.1 |
-| imgaug | 0.4.0 |
-| torchvision | 0.17.1+rocm5.7 |
-| numpy | 1.26.4 |
-| opencv-python-headless | 4.9.0.80 |
-| scikit-image | 0.22.0 |
-| scipy | 1.12.0 |
-| pillow | 10.2.0 |
-| kornia | 0.7.2 |
-| augly | 1.0.0 |
+| Library                | Version                                            |
+| ---------------------- | -------------------------------------------------- |
+| Python                 | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
+| albumentations         | 1.4.9                                              |
+| imgaug                 | 0.4.0                                              |
+| torchvision            | 0.18.1+rocm6.0                                     |
+| numpy                  | 1.26.4                                             |
+| opencv-python-headless | 4.10.0.82                                          |
+| scikit-image           | 0.23.2                                             |
+| scipy                  | 1.13.1                                             |
+| pillow                 | 10.3.0                                             |
+| kornia                 | 0.7.2                                              |
+| augly                  | 1.0.0                                              |
 
-|                 |albumentations<br><small>1.4.0</small>|torchvision<br><small>0.17.1+rocm5.7</small>|kornia<br><small>0.7.2</small>|augly<br><small>1.0.0</small>|imgaug<br><small>0.4.0</small>|
-|-----------------|--------------------------------------|--------------------------------------------|------------------------------|-----------------------------|------------------------------|
-|HorizontalFlip   |**9843 ± 2135**                       |2436 ± 29                                   |1014 ± 3                      |3663 ± 18                    |4884 ± 51                     |
-|VerticalFlip     |**9898 ± 18**                         |2570 ± 37                                   |1024 ± 4                      |5325 ± 13                    |8683 ± 5                      |
-|Rotate           |610 ± 4                               |153 ± 2                                     |204 ± 1                       |**626 ± 3**                  |499 ± 5                       |
-|Affine           |**1705 ± 67**                         |159 ± 1                                     |200 ± 1                       |-                            |663 ± 24                      |
-|Equalize         |**1061 ± 14**                         |337 ± 1                                     |77 ± 1                        |-                            |845 ± 33                      |
-|RandomCrop64     |**203197 ± 2105**                     |15931 ± 27                                  |837 ± 2                       |21858 ± 362                  |5681 ± 96                     |
-|RandomResizedCrop|**2998 ± 30**                         |1160 ± 4                                    |190 ± 1                       |-                            |-                             |
-|ShiftRGB         |1400 ± 3                              |-                                           |435 ± 1                       |-                            |**1528 ± 6**                  |
-|Resize           |**2581 ± 3**                          |1239 ± 1                                    |197 ± 1                       |431 ± 1                      |1728 ± 1                      |
-|RandomGamma      |**4556 ± 3**                          |230 ± 1                                     |205 ± 1                       |-                            |2282 ± 110                    |
-|Grayscale        |**7234 ± 4**                          |1539 ± 7                                    |444 ± 3                       |2606 ± 2                     |918 ± 42                      |
-|ColorJitter      |**452 ± 43**                          |51 ± 1                                      |50 ± 1                        |221 ± 1                      |-                             |
-|RandomPerspective|**465 ± 1**                           |121 ± 1                                     |115 ± 1                       |-                            |433 ± 16                      |
-|GaussianBlur     |**2315 ± 9**                          |106 ± 2                                     |72 ± 1                        |161 ± 1                      |1213 ± 3                      |
-|MedianBlur       |**3711 ± 2**                          |-                                           |2 ± 1                         |-                            |566 ± 3                       |
-|MotionBlur       |**2763 ± 25**                         |-                                           |101 ± 4                       |-                            |508 ± 2                       |
-|Posterize        |**4238 ± 51**                         |2581 ± 20                                   |284 ± 4                       |-                            |1893 ± 9                      |
-|JpegCompression  |208 ± 1                               |-                                           |-                             |**692 ± 4**                  |435 ± 1                       |
-|GaussianNoise    |64 ± 9                                |-                                           |-                             |67 ± 1                       |**212 ± 16**                  |
-|Elastic          |**129 ± 1**                           |3 ± 1                                       |1 ± 1                         |-                            |128 ± 1                       |
+|                   | albumentations<br><small>1.4.9</small> | torchvision<br><small>0.18.1+rocm6.0</small> | kornia<br><small>0.7.2</small> | augly<br><small>1.0.0</small> | imgaug<br><small>0.4.0</small> |
+| ----------------- | -------------------------------------- | -------------------------------------------- | ------------------------------ | ----------------------------- | ------------------------------ |
+| HorizontalFlip    | **8084 ± 30**                          | 2422 ± 16                                    | 940 ± 10                       | 3633 ± 7                      | 4869 ± 10                      |
+| VerticalFlip      | 7330 ± 11                              | 2541 ± 2                                     | 945 ± 4                        | 4807 ± 4                      | **8400 ± 11**                  |
+| Rotate            | 535 ± 5                                | 144 ± 2                                      | 202 ± 1                        | **572 ± 2**                   | 494 ± 1                        |
+| Affine            | **1504 ± 46**                          | 153 ± 1                                      | 197 ± 1                        | -                             | 671 ± 2                        |
+| Equalize          | 1005 ± 1                               | 328 ± 2                                      | 76 ± 1                         | -                             | **1165 ± 1**                   |
+| RandomCrop64      | 20880 ± 170                            | 15792 ± 23                                   | 833 ± 1                        | **21313 ± 603**               | 5547 ± 2                       |
+| RandomResizedCrop | **2272 ± 6**                           | 1113 ± 5                                     | 189 ± 1                        | -                             | -                              |
+| ShiftRGB          | **1708 ± 2**                           | -                                            | 425 ± 1                        | -                             | 1480 ± 11                      |
+| Resize            | **2209 ± 1**                           | 1285 ± 3                                     | 200 ± 1                        | 430 ± 1                       | 1690 ± 1                       |
+| RandomGamma       | **3638 ± 7**                           | 229 ± 1                                      | 213 ± 1                        | -                             | 2307 ± 3                       |
+| Grayscale         | **7234 ± 4**                           | 1628 ± 6                                     | 447 ± 1                        | 2535 ± 1                      | 1052 ± 6                       |
+| ColorJitter       | **438 ± 1**                            | 50 ± 1                                       | 47 ± 1                         | 214 ± 1                       | -                              |
+| RandomPerspective | 457 ± 2                                | 122 ± 1                                      | 115 ± 1                        | -                             | **460 ± 2**                    |
+| GaussianBlur      | **2073 ± 1**                           | 110 ± 2                                      | 74 ± 2                         | 162 ± 1                       | 1271 ± 1                       |
+| MedianBlur        | 536 ± 1                                | -                                            | 3 ± 0                          | -                             | **564 ± 1**                    |
+| MotionBlur        | **2156 ± 8**                           | -                                            | 98 ± 1                         | -                             | 503 ± 1                        |
+| Posterize         | **3435 ± 2**                           | 2574 ± 2                                     | 312 ± 9                        | -                             | 1894 ± 1                       |
+| JpegCompression   | **805 ± 1**                            | -                                            | -                              | 679 ± 16                      | 427 ± 1                        |
+| GaussianNoise     | **239 ± 1**                            | -                                            | -                              | 67 ± 1                        | 124 ± 1                        |
+| Elastic           | 126 ± 1                                | 4 ± 0                                        | 1 ± 0                          | -                             | **128 ± 1**                    |
+| Normalize         | **1056 ± 1**                           | 429 ± 1                                      | 398 ± 1                        | -                             | -                              |
 
 ## Contributing
 

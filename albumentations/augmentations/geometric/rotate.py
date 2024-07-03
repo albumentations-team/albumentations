@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import math
 import random
-from typing import Any, Dict, List, Optional, Tuple, cast
+from typing import Any, Tuple, cast
 
 import cv2
 import numpy as np
@@ -9,7 +11,6 @@ from typing_extensions import Literal
 
 from albumentations.augmentations.crops import functional as fcrops
 from albumentations.augmentations.functional import center
-from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
@@ -20,6 +21,9 @@ from albumentations.core.types import (
 )
 
 from . import functional as fgeometric
+
+
+from albumentations.core.pydantic import BorderModeType, InterpolationType, SymmetricRangeType
 
 __all__ = ["Rotate", "RandomRotate90", "SafeRotate"]
 
@@ -43,13 +47,9 @@ class RandomRotate90(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
     def apply(self, img: np.ndarray, factor: float, **params: Any) -> np.ndarray:
-        """Args:
-        factor (int): number of times the input will be rotated by 90 degrees.
+        return fgeometric.rot90(img, factor)
 
-        """
-        return np.ascontiguousarray(np.rot90(img, factor))
-
-    def get_params(self) -> Dict[str, int]:
+    def get_params(self) -> dict[str, int]:
         # Random int in the range [0, 3]
         return {"factor": random.randint(0, 3)}
 
@@ -59,7 +59,7 @@ class RandomRotate90(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, factor: int, **params: Any) -> BoxInternalType:
         return fgeometric.keypoint_rot90(keypoint, factor, **params)
 
-    def get_transform_init_args_names(self) -> Tuple[()]:
+    def get_transform_init_args_names(self) -> tuple[()]:
         return ()
 
 
@@ -69,8 +69,8 @@ class RotateInitSchema(BaseTransformInitSchema):
     interpolation: InterpolationType = cv2.INTER_LINEAR
     border_mode: BorderModeType = cv2.BORDER_CONSTANT
 
-    value: Optional[ColorType] = Field(default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT.")
-    mask_value: Optional[ColorType] = Field(
+    value: ColorType | None = Field(default=None, description="Padding value if border_mode is cv2.BORDER_CONSTANT.")
+    mask_value: ColorType | None = Field(
         default=None,
         description="Padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.",
     )
@@ -119,14 +119,14 @@ class Rotate(DualTransform):
         limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[ColorType] = None,
-        mask_value: Optional[ColorType] = None,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
         rotate_method: Literal["largest_box", "ellipse"] = "largest_box",
         crop_border: bool = False,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p=p, always_apply=always_apply)
         self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -180,7 +180,7 @@ class Rotate(DualTransform):
     ) -> np.ndarray:
         bbox_out = fgeometric.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
         if self.crop_border:
-            return fcrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
+            return fcrops.crop_bbox_by_coords(bbox_out, (x_min, y_min, x_max, y_max), rows, cols)
         return bbox_out
 
     def apply_to_keypoint(
@@ -201,7 +201,7 @@ class Rotate(DualTransform):
         return keypoint_out
 
     @staticmethod
-    def _rotated_rect_with_max_area(height: int, width: int, angle: float) -> Dict[str, int]:
+    def _rotated_rect_with_max_area(height: int, width: int, angle: float) -> dict[str, int]:
         """Given a rectangle of size wxh that has been rotated by 'angle' (in
         degrees), computes the width and height of the largest possible
         axis-aligned rectangle (maximal area) within the rotated rectangle.
@@ -234,10 +234,10 @@ class Rotate(DualTransform):
         }
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         out_params = {"angle": random.uniform(self.limit[0], self.limit[1])}
         if self.crop_border:
             height, width = params["image"].shape[:2]
@@ -247,7 +247,7 @@ class Rotate(DualTransform):
 
         return out_params
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border")
 
 
@@ -291,12 +291,12 @@ class SafeRotate(DualTransform):
         limit: ScaleFloatType = (-90, 90),
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: Optional[ColorType] = None,
-        mask_value: Optional[ColorType] = None,
-        always_apply: Optional[bool] = None,
+        value: ColorType | None = None,
+        mask_value: ColorType | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p=p, always_apply=always_apply)
         self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -325,10 +325,10 @@ class SafeRotate(DualTransform):
         return fgeometric.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         angle = random.uniform(self.limit[0], self.limit[1])
 
         image = params["image"]
@@ -366,5 +366,5 @@ class SafeRotate(DualTransform):
 
         return {"matrix": rotation_mat, "angle": angle, "scale_x": scale_x, "scale_y": scale_y}
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "limit", "interpolation", "border_mode", "value", "mask_value"

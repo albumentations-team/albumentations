@@ -13,6 +13,7 @@ from albumentations.core.bbox_utils import (
     filter_bboxes,
     normalize_bbox,
     normalize_bboxes,
+    union_of_bboxes,
 )
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp, BasicTransform
@@ -351,44 +352,6 @@ def test_crop_boxes_return_params() -> None:
     np.testing.assert_almost_equal(transformed["bboxes"], transformed2["bboxes"])
 
 
-@pytest.mark.parametrize(
-    ["transforms", "bboxes", "result_bboxes", "min_area", "min_visibility"],
-    [
-        [[Crop(10, 10, 20, 20)], [[0, 0, 10, 10, 0]], [], 0, 0],
-        [
-            [Crop(0, 0, 90, 90)],
-            [[0, 0, 91, 91, 0], [0, 0, 89, 89, 0]],
-            [[0, 0, 89, 89, 0]],
-            0,
-            1,
-        ],
-        [
-            [Crop(0, 0, 90, 90)],
-            [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]],
-            [[0, 0, 1, 10, 0], [0, 0, 1, 11, 0]],
-            10,
-            0,
-        ],
-    ],
-)
-def test_bbox_params_edges(
-    transforms: List[BasicTransform],
-    bboxes: BoxType,
-    result_bboxes: BoxType,
-    min_area: float,
-    min_visibility: float,
-) -> None:
-    image = np.empty([100, 100, 3], dtype=np.uint8)
-    aug = Compose(
-        transforms,
-        bbox_params=BboxParams(
-            "pascal_voc", min_area=min_area, min_visibility=min_visibility
-        ),
-    )
-    res = aug(image=image, bboxes=bboxes)["bboxes"]
-    assert np.array_equal(res, result_bboxes)
-
-
 def test_bounding_box_partially_outside_no_clip() -> None:
     """
     Test error is raised when bounding box exceeds image boundaries without clipping.
@@ -612,3 +575,43 @@ def test_bbox_clipping_perspective() -> None:
     bboxes = np.array([[0, 0, 100, 100, 1]])
     res = transform(image=image, bboxes=bboxes)["bboxes"]
     assert len(res) == 0
+
+
+@pytest.mark.parametrize(
+    "bboxes, erosion_rate, expected",
+    [
+        # No bboxes
+        ([], 0.0, None),
+
+        # Single bbox, no erosion
+        ([(0.1, 0.1, 0.3, 0.3)], 0.0, (0.1, 0.1, 0.3, 0.3)),
+        ([(0.0, 0.0, 0.16759776536312848, 0.8333333333333334, 1)], 0, (0.0, 0.0, 0.16759776536312848, 0.8333333333333334) ),
+
+        # Multiple bboxes, no erosion
+        ([(0.1, 0.1, 0.3, 0.3), (0.2, 0.2, 0.4, 0.4)], 0.0, (0.1, 0.1, 0.4, 0.4)),
+
+        # Single bbox with erosion
+        ([(0.1, 0.1, 0.3, 0.3)], 0.5, (0.15, 0.15, 0.25, 0.25)),
+
+        # Multiple bboxes with erosion
+        ([(0.1, 0.1, 0.3, 0.3), (0.2, 0.2, 0.4, 0.4)], 0.5, (0.15, 0.15, 0.35, 0.35)),
+
+        # Edge case with maximum erosion
+        ([(0.1, 0.1, 0.3, 0.3), (0.2, 0.2, 0.4, 0.4)], 1.0, (0.2, 0.2, 0.3, 0.3)),
+
+        # Bboxes touching edges of normalized space
+        ([(0.0, 0.0, 0.5, 0.5), (0.5, 0.5, 1.0, 1.0)], 0.0, (0.0, 0.0, 1.0, 1.0)),
+
+        # Mixed size bboxes with no erosion
+        ([(0.1, 0.1, 0.2, 0.2), (0.2, 0.2, 0.4, 0.4), (0.3, 0.3, 0.5, 0.5)], 0.0, (0.1, 0.1, 0.5, 0.5)),
+
+        # Mixed size bboxes with erosion
+        ([(0.1, 0.1, 0.2, 0.2), (0.2, 0.2, 0.4, 0.4), (0.3, 0.3, 0.5, 0.5)], 0.3, (0.115, 0.115, 0.47, 0.47)),
+
+        # Single bbox with maximum erosion
+        ([(0.0, 0.0, 0.16759776536312848, 0.8333333333333334)], 1.0, None),
+    ],
+)
+def test_union_of_bboxes(bboxes, erosion_rate, expected):
+    result = union_of_bboxes(bboxes, erosion_rate)
+    assert result == expected or np.testing.assert_almost_equal(result, expected, decimal=6) is None

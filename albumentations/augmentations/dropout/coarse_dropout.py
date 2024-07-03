@@ -1,16 +1,21 @@
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+import random
+from typing import Any, Callable, Iterable, Sequence
 from warnings import warn
 
-import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
-from albumentations import random_utils
-from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, NumericType, ScalarType, Targets
 
 from .functional import cutout, keypoint_in_hole
+
+
+import numpy as np
+
+from albumentations.core.pydantic import check_1plus, nondecreasing
 
 __all__ = ["CoarseDropout"]
 
@@ -23,17 +28,17 @@ class CoarseDropout(DualTransform):
     number of dropout regions, and fill values.
 
     Args:
-        num_holes_range (Tuple[int, int]): Specifies the range (minimum and maximum)
+        num_holes_range (tuple[int, int]): Specifies the range (minimum and maximum)
             of the number of rectangular regions to zero out. This allows for dynamic
             variation in the number of regions removed per transformation instance.
-        hole_height_range (Tuple[ScalarType, ScalarType]): Defines the minimum and
+        hole_height_range (tuple[ScalarType, ScalarType]): Defines the minimum and
             maximum heights of the dropout regions, providing variability in their vertical dimensions.
-        hole_width_range (Tuple[ScalarType, ScalarType]): Defines the minimum and
+        hole_width_range (tuple[ScalarType, ScalarType]): Defines the minimum and
             maximum widths of the dropout regions, providing variability in their horizontal dimensions.
         fill_value (ColorType, Literal["random"]): Specifies the value used to fill the dropout regions.
             This can be a constant value, a tuple specifying pixel intensity across channels, or 'random'
             which fills the region with random noise.
-        mask_fill_value (Optional[ColorType]): Specifies the fill value for dropout regions in the mask.
+        mask_fill_value (ColorType | None): Specifies the fill value for dropout regions in the mask.
             If set to `None`, the mask regions corresponding to the image dropout regions are left unchanged.
 
 
@@ -53,51 +58,51 @@ class CoarseDropout(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 
     class InitSchema(BaseTransformInitSchema):
-        min_holes: Optional[int] = Field(
+        min_holes: int | None = Field(
             default=None,
             ge=0,
             description="Minimum number of regions to zero out.",
         )
-        max_holes: Optional[int] = Field(
+        max_holes: int | None = Field(
             default=8,
             ge=0,
             description="Maximum number of regions to zero out.",
         )
-        num_holes_range: Annotated[Tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (1, 1)
+        num_holes_range: Annotated[tuple[int, int], AfterValidator(check_1plus), AfterValidator(nondecreasing)] = (1, 1)
 
-        min_height: Optional[ScalarType] = Field(
+        min_height: ScalarType | None = Field(
             default=None,
             ge=0,
             description="Minimum height of the hole.",
         )
-        max_height: Optional[ScalarType] = Field(
+        max_height: ScalarType | None = Field(
             default=8,
             ge=0,
             description="Maximum height of the hole.",
         )
-        hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8)
+        hole_height_range: tuple[ScalarType, ScalarType] = (8, 8)
 
-        min_width: Optional[ScalarType] = Field(
+        min_width: ScalarType | None = Field(
             default=None,
             ge=0,
             description="Minimum width of the hole.",
         )
-        max_width: Optional[ScalarType] = Field(
+        max_width: ScalarType | None = Field(
             default=8,
             ge=0,
             description="Maximum width of the hole.",
         )
-        hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8)
+        hole_width_range: tuple[ScalarType, ScalarType] = (8, 8)
 
-        fill_value: Union[ColorType, Literal["random"]] = Field(default=0, description="Value for dropped pixels.")
-        mask_fill_value: Optional[ColorType] = Field(default=None, description="Fill value for dropped pixels in mask.")
+        fill_value: ColorType | Literal["random"] = Field(default=0, description="Value for dropped pixels.")
+        mask_fill_value: ColorType | None = Field(default=None, description="Fill value for dropped pixels in mask.")
 
         @staticmethod
         def update_range(
-            min_value: Optional[NumericType],
-            max_value: Optional[NumericType],
-            default_range: Tuple[NumericType, NumericType],
-        ) -> Tuple[NumericType, NumericType]:
+            min_value: NumericType | None,
+            max_value: NumericType | None,
+            default_range: tuple[NumericType, NumericType],
+        ) -> tuple[NumericType, NumericType]:
             if max_value is not None:
                 return (min_value or max_value, max_value)
 
@@ -105,7 +110,7 @@ class CoarseDropout(DualTransform):
 
         @staticmethod
         # Validation for hole dimensions ranges
-        def validate_range(range_value: Tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
+        def validate_range(range_value: tuple[ScalarType, ScalarType], range_name: str, minimum: float = 0) -> None:
             if not minimum <= range_value[0] <= range_value[1]:
                 raise ValueError(
                     f"First value in {range_name} should be less or equal than the second value "
@@ -152,21 +157,21 @@ class CoarseDropout(DualTransform):
 
     def __init__(
         self,
-        max_holes: Optional[int] = None,
-        max_height: Optional[ScalarType] = None,
-        max_width: Optional[ScalarType] = None,
-        min_holes: Optional[int] = None,
-        min_height: Optional[ScalarType] = None,
-        min_width: Optional[ScalarType] = None,
-        fill_value: Union[ColorType, Literal["random"]] = 0,
-        mask_fill_value: Optional[ColorType] = None,
-        num_holes_range: Tuple[int, int] = (1, 1),
-        hole_height_range: Tuple[ScalarType, ScalarType] = (8, 8),
-        hole_width_range: Tuple[ScalarType, ScalarType] = (8, 8),
-        always_apply: Optional[bool] = None,
+        max_holes: int | None = None,
+        max_height: ScalarType | None = None,
+        max_width: ScalarType | None = None,
+        min_holes: int | None = None,
+        min_height: ScalarType | None = None,
+        min_width: ScalarType | None = None,
+        fill_value: ColorType | Literal["random"] = 0,
+        mask_fill_value: ColorType | None = None,
+        num_holes_range: tuple[int, int] = (1, 1),
+        hole_height_range: tuple[ScalarType, ScalarType] = (8, 8),
+        hole_width_range: tuple[ScalarType, ScalarType] = (8, 8),
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.num_holes_range = num_holes_range
         self.hole_height_range = hole_height_range
         self.hole_width_range = hole_width_range
@@ -177,8 +182,8 @@ class CoarseDropout(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        fill_value: Union[ColorType, Literal["random"]],
-        holes: Iterable[Tuple[int, int, int, int]],
+        fill_value: ColorType | Literal["random"],
+        holes: Iterable[tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         return cutout(img, holes, fill_value)
@@ -187,7 +192,7 @@ class CoarseDropout(DualTransform):
         self,
         mask: np.ndarray,
         mask_fill_value: ScalarType,
-        holes: Iterable[Tuple[int, int, int, int]],
+        holes: Iterable[tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         if mask_fill_value is None:
@@ -198,9 +203,9 @@ class CoarseDropout(DualTransform):
     def calculate_hole_dimensions(
         height: int,
         width: int,
-        height_range: Tuple[ScalarType, ScalarType],
-        width_range: Tuple[ScalarType, ScalarType],
-    ) -> Tuple[int, int]:
+        height_range: tuple[ScalarType, ScalarType],
+        width_range: tuple[ScalarType, ScalarType],
+    ) -> tuple[int, int]:
         """Calculate random hole dimensions based on the provided ranges."""
         if isinstance(height_range[0], int):
             min_height = height_range[0]
@@ -210,20 +215,20 @@ class CoarseDropout(DualTransform):
             max_width = width_range[1]
             max_height = min(max_height, height)
             max_width = min(max_width, width)
-            hole_height = random_utils.randint(min_height, max_height + 1)
-            hole_width = random_utils.randint(min_width, max_width + 1)
+            hole_height = random.randint(int(min_height), int(max_height))
+            hole_width = random.randint(int(min_width), int(max_width))
 
         else:  # Assume float
-            hole_height = int(height * random_utils.uniform(height_range[0], height_range[1]))
-            hole_width = int(width * random_utils.uniform(width_range[0], width_range[1]))
+            hole_height = int(height * random.uniform(height_range[0], height_range[1]))
+            hole_width = int(width * random.uniform(width_range[0], width_range[1]))
         return hole_height, hole_width
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         img = params["image"]
         height, width = img.shape[:2]
 
         holes = []
-        num_holes = random_utils.randint(self.num_holes_range[0], self.num_holes_range[1] + 1)
+        num_holes = random.randint(self.num_holes_range[0], self.num_holes_range[1])
 
         for _ in range(num_holes):
             hole_height, hole_width = self.calculate_hole_dimensions(
@@ -233,8 +238,8 @@ class CoarseDropout(DualTransform):
                 self.hole_width_range,
             )
 
-            y1 = random_utils.randint(0, height - hole_height + 1)
-            x1 = random_utils.randint(0, width - hole_width + 1)
+            y1 = random.randint(0, height - hole_height)
+            x1 = random.randint(0, width - hole_width)
             y2 = y1 + hole_height
             x2 = x1 + hole_width
             holes.append((x1, y1, x2, y2))
@@ -242,18 +247,18 @@ class CoarseDropout(DualTransform):
         return {"holes": holes}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
     def apply_to_keypoints(
         self,
         keypoints: Sequence[KeypointType],
-        holes: Iterable[Tuple[int, int, int, int]],
+        holes: Iterable[tuple[int, int, int, int]],
         **params: Any,
-    ) -> List[KeypointType]:
+    ) -> list[KeypointType]:
         return [keypoint for keypoint in keypoints if not any(keypoint_in_hole(keypoint, hole) for hole in holes)]
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "num_holes_range",
             "hole_height_range",
@@ -263,7 +268,7 @@ class CoarseDropout(DualTransform):
         )
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,

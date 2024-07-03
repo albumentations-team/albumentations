@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -15,23 +15,23 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
     get_image_only_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                "templates": SQUARE_UINT8_IMAGE,
             },
             A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)}],
+                "reference_data": [{"image": SQUARE_UINT8_IMAGE}],
                 "read_fn": lambda x: x,
             }
         },
@@ -55,25 +55,25 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
     get_image_only_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
             A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
-                "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
+                "templates": SQUARE_FLOAT_IMAGE,
             },
             A.RingingOvershoot: {"blur_limit": (3, 5)},
             A.MixUp: {
-                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32)}],
+                "reference_data": [{"image": SQUARE_FLOAT_IMAGE}],
                 "read_fn": lambda x: x,
             }
         },
@@ -119,14 +119,14 @@ def test_image_only_augmentations(augmentation_cls, params):
                 "mask_fill_value": 1,
             },
             A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
             },
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
@@ -134,7 +134,10 @@ def test_dual_augmentations(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
     aug = A.Compose([augmentation_cls(p=1, **params)])
-    data = aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        data = aug(image=image, mask=mask, overlay_metadata=[])
+    else:
+        data = aug(image=image, mask=mask)
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
 
@@ -160,14 +163,14 @@ def test_dual_augmentations(augmentation_cls, params):
                 "fill_value": 0,
             },
              A.MixUp: {
-                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32),
+                "reference_data": [{"image": SQUARE_FLOAT_IMAGE,
                                     "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
                                     }],
                 "read_fn": lambda x: x,
             }
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
@@ -175,7 +178,11 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image.copy()[:, :, 0].astype(np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        data = aug(image=image, mask=mask, overlay_metadata=[])
+    else:
+        data = aug(image=image, mask=mask)
+
     assert data["image"].dtype == np.float32
     assert data["mask"].dtype == np.uint8
 
@@ -185,15 +192,15 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
@@ -206,7 +213,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
+                "templates": SQUARE_UINT8_IMAGE,
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -216,25 +223,28 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+            A.MixUp: {
+                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
             }
         },
         except_augmentations={
-            A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
+            A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
             },
     ),
 )
 def test_augmentations_wont_change_input(augmentation_cls, params):
-    image = np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)
+    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
     mask = image[:, :, 0].copy()
     image_copy = image.copy()
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
-    aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        aug(image=image, mask=mask, overlay_metadata=[])
+    else:
+        aug(image=image, mask=mask)
     assert np.array_equal(image, image_copy)
     assert np.array_equal(mask, mask_copy)
 
@@ -244,15 +254,15 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
@@ -266,7 +276,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
-                "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32),
+                "templates": SQUARE_FLOAT_IMAGE,
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -277,7 +287,7 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
                 "fill_value": 0,
             },
              A.MixUp: {
-                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32),
+                "reference_data": [{"image": SQUARE_FLOAT_IMAGE,
                                     "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
                                     }],
                 "read_fn": lambda x: x,
@@ -290,7 +300,6 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
             A.ISONoise,
             A.Posterize,
             A.RandomToneCurve,
-            A.RandomCropNearBBox,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.CropNonEmptyMaskIfExists,
@@ -299,10 +308,15 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     ),
 )
 def test_augmentations_wont_change_float_input(augmentation_cls, params):
-    image = np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.float32)
+    image = SQUARE_FLOAT_IMAGE
     float_image_copy = image.copy()
+
     aug = augmentation_cls(p=1, **params)
-    aug(image=image)
+    if augmentation_cls == A.OverlayElements:
+        aug(image=image, overlay_metadata=[])
+    else:
+        aug(image=image)
+
     assert np.array_equal(image, float_image_copy)
 
 
@@ -311,16 +325,16 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)],
+                "reference_images": [np.random.randint(0, 255, [100, 100], dtype=np.uint8)],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100], dtype=np.uint8)],
+                "reference_images": [np.random.randint(0, 255, [100, 100], dtype=np.uint8)],
                 "read_fn": lambda x: x,
             },
             A.Normalize: {"mean": 0, "std": 1},
             A.TemplateTransform: {
-                "templates": np.random.randint(low=0, high=256, size=(224, 224), dtype=np.uint8),
+                "templates": np.random.randint(low=0, high=255, size=(100, 100), dtype=np.uint8),
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -331,8 +345,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                 "fill_value": 0,
             },
             A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, (224, 224), dtype=np.uint8),
-                                    "mask": np.random.randint(0, 1, (224, 224), dtype=np.uint8),
+                "reference_data": [{"image": np.random.randint(0, 255, (100, 100), dtype=np.uint8),
+                                    "mask": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
             }
@@ -361,7 +375,6 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomGravel,
             A.RandomRain,
             A.RandomScale,
-            A.RandomShadow,
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToRGB,
@@ -371,20 +384,32 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
             A.RandomCropFromBorders,
             A.Spatter,
             A.ChromaticAberration,
+            A.PlanckianJitter
         },
     ),
 )
-@pytest.mark.parametrize("shape", [(224, 224), (224, 224, 1)])
+@pytest.mark.parametrize("shape", [(100, 100), (100, 100, 1)])
 def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, shape):
     aug = augmentation_cls(p=1, **params)
 
     # Test for grayscale image
-    image = np.zeros(shape, dtype=np.uint8)
+    image = np.zeros(shape, dtype=np.float32) if augmentation_cls == A.FromFloat else np.zeros(shape, dtype=np.uint8)
     mask = np.zeros(shape)
-    result = aug(image=image, mask=mask)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": [],
+            "mask": mask,
+        }
+    else:
+        data = {
+            "image": image,
+            "mask": mask,
+        }
+    result = aug(**data)
+
     assert np.array_equal(image.shape, result["image"].shape)
     assert np.array_equal(mask.shape, result["mask"].shape)
-
 
 
 @pytest.mark.parametrize(
@@ -392,20 +417,20 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
             A.TemplateTransform: {
-                "templates": np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8),
+                "templates": SQUARE_UINT8_IMAGE,
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -415,9 +440,9 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, (224, 224, 3), dtype=np.uint8),
-                                    "mask": np.random.randint(0, 1, (224, 224, 3), dtype=np.uint8),
+            A.MixUp: {
+                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
+                                    "mask": np.random.randint(0, 1, (100, 100, 3), dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
             }
@@ -443,14 +468,29 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     ),
 )
 def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
-    shape = (224, 224, 3)
+    image_3ch = SQUARE_UINT8_IMAGE
+    mask_3ch = np.zeros_like(image_3ch)
+
     aug = augmentation_cls(p=1, **params)
 
-    # Test for RGB image
-    image_3ch = np.zeros(shape, dtype=np.uint8)
-    mask_3ch = np.zeros(shape)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image_3ch,
+            "overlay_metadata": [],
+            "mask": mask_3ch,
+        }
+    elif augmentation_cls == A.FromFloat:
+        data = {
+            "image": SQUARE_FLOAT_IMAGE,
+            "mask": mask_3ch,
+        }
+    else:
+        data = {
+            "image": image_3ch,
+            "mask": mask_3ch,
+        }
+    result = aug(**data)
 
-    result = aug(image=image_3ch, mask=mask_3ch)
     assert np.array_equal(image_3ch.shape, result["image"].shape)
     assert np.array_equal(mask_3ch.shape, result["mask"].shape)
 
@@ -495,11 +535,11 @@ def test_mask_fill_value(augmentation_cls, params):
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
+                "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
+                "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
@@ -510,7 +550,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.CropAndPad: {"px": 10},
             A.Resize: {"height": 10, "width": 10},
             A.TemplateTransform: {
-                "templates": np.random.randint(0, 256, (100, 100, 6), dtype=np.uint8),
+                "templates": SQUARE_MULTI_UINT8_IMAGE,
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -521,7 +561,7 @@ def test_mask_fill_value(augmentation_cls, params):
                 "fill_value": 0,
             },
              A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8),
+                "reference_data": [{"image": SQUARE_MULTI_UINT8_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
@@ -542,7 +582,6 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -555,15 +594,26 @@ def test_mask_fill_value(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
+            A.PlanckianJitter
         },
     ),
 )
 def test_multichannel_image_augmentations(augmentation_cls, params):
-    image = np.zeros((100, 100, 6), dtype=np.uint8)
+    image = SQUARE_MULTI_UINT8_IMAGE
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
     assert data["image"].dtype == np.uint8
-    assert data["image"].shape[2] == 6
+    assert data["image"].shape[2] == image.shape[-1]
 
 
 @pytest.mark.parametrize(
@@ -571,11 +621,11 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     get_transforms(
         custom_arguments={
             A.HistogramMatching: {
-                "reference_images": [np.random.uniform(0.0, 1.0, (100, 100, 6)).astype(np.float32)],
+                "reference_images": [SQUARE_MULTI_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.randint(0, 256, [100, 100, 6], dtype=np.uint8)],
+                "reference_images": [SQUARE_MULTI_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
@@ -588,7 +638,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.Normalize: {"mean": 0, "std": 1},
             A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
-                "templates": np.random.uniform(0.0, 1.0, (100, 100, 6)).astype(np.float32),
+                "templates": SQUARE_MULTI_FLOAT_IMAGE,
             },
             A.XYMasking: {
                 "num_masks_x": (1, 3),
@@ -599,7 +649,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
                 "fill_value": 0,
             },
             A.MixUp: {
-                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 6)).astype(np.float32),
+                "reference_data": [{"image": SQUARE_MULTI_FLOAT_IMAGE,
                                     "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
                                     }],
                 "read_fn": lambda x: x,
@@ -619,7 +669,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -634,15 +683,26 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
+            A.PlanckianJitter
         },
     ),
 )
 def test_float_multichannel_image_augmentations(augmentation_cls, params):
-    image = np.zeros((100, 100, 6), dtype=np.float32)
+    image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
+
     assert data["image"].dtype == np.float32
-    assert data["image"].shape[2] == 6
+    assert data["image"].shape[-1] == image.shape[-1]
 
 
 @pytest.mark.parametrize(
@@ -668,7 +728,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
                 "fill_value": 0,
             },
              A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 7], dtype=np.uint8),
+                "reference_data": [{"image": SQUARE_MULTI_UINT8_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
@@ -689,7 +749,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -704,17 +763,28 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
+            A.PlanckianJitter
         },
     ),
 )
 def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
-    num_channels = 7
+    image = SQUARE_MULTI_UINT8_IMAGE
 
-    image = np.zeros((100, 100, num_channels), dtype=np.uint8)
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
+
     assert data["image"].dtype == np.uint8
-    assert data["image"].shape[2] == num_channels
+    assert data["image"].shape[-1] == image.shape[-1]
 
 
 @pytest.mark.parametrize(
@@ -742,7 +812,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
                 "fill_value": 0,
             },
              A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 5], dtype=np.uint8),
+                "reference_data": [{"image": SQUARE_MULTI_FLOAT_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
@@ -762,7 +832,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.RandomFog,
             A.RandomGravel,
             A.RandomRain,
-            A.RandomShadow,
             A.RandomSizedBBoxSafeCrop,
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
@@ -779,17 +848,27 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
+            A.PlanckianJitter
         },
     ),
 )
 def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, params):
-    num_channels = 5
-
-    image = np.zeros((100, 100, num_channels), dtype=np.float32)
+    image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
-    data = aug(image=image)
+
+    if augmentation_cls == A.OverlayElements:
+        data = {
+            "image": image,
+            "overlay_metadata": [],
+        }
+    else:
+        data = {
+            "image": image,
+        }
+    data = aug(**data)
+
     assert data["image"].dtype == np.float32
-    assert data["image"].shape[2] == num_channels
+    assert data["image"].shape[2] == image.shape[-1]
 
 
 @pytest.mark.parametrize(
@@ -995,21 +1074,21 @@ def test_pixel_domain_adaptation(kind: str) -> None:
         custom_arguments={
             # only image
             A.HistogramMatching: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8)],
+                "reference_images": [SQUARE_UINT8_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.FDA: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
             },
             A.PixelDistributionAdaptation: {
-                "reference_images": [np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8)],
+                "reference_images": [SQUARE_FLOAT_IMAGE],
                 "read_fn": lambda x: x,
                 "transform_type": "standard",
             },
             A.MedianBlur: {"blur_limit": (3, 5)},
             A.TemplateTransform: {
-                "templates": np.random.uniform(low=0.0, high=1.0, size=(100, 100, 3)).astype(np.uint8),
+                "templates": SQUARE_UINT8_IMAGE,
             },
             A.RingingOvershoot: {"blur_limit": (3, 5)},
             # dual
@@ -1032,7 +1111,7 @@ def test_pixel_domain_adaptation(kind: str) -> None:
                 "fill_value": 0,
             },
              A.MixUp: {
-                "reference_data": [{"image": np.random.randint(0, 256, [100, 100, 3], dtype=np.uint8),
+                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 3], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
@@ -1056,6 +1135,10 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         # requires "bboxes" arg
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
         aug(image=image, mask=mask, bboxes=bboxes)
+    elif augmentation_cls == A.OverlayElements:
+        # requires "metadata" arg
+        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug(image=image, overlay_metadata=[], mask=mask)
     else:
         # standard args: image and mask
         if augmentation_cls == A.FromFloat:

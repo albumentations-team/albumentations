@@ -35,6 +35,8 @@ RainMode = Literal["drizzle", "heavy", "torrential"]
 
 MorphologyMode = Literal["erosion", "dilation"]
 
+PlanckianJitterMode = Literal["blackbody", "cied"]
+
 d4_group_elements = ["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 D4Type = Literal["e", "r90", "r180", "r270", "v", "hvt", "h", "t"]
 
@@ -83,7 +85,9 @@ THREE_SIXTY = 360
 
 BIG_INTEGER = MAX_VALUES_BY_DTYPE[np.uint32]
 MAX_RAIN_ANGLE = 45  # Maximum angle for rain augmentation in degrees
+MIN_UNIT_SIZE = 2
 
+LENGTH_RAW_BBOX = 4
 
 PercentType = Union[
     float,

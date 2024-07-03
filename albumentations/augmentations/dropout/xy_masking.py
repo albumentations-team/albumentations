@@ -1,16 +1,20 @@
-import random
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, cast
+from __future__ import annotations
 
-import numpy as np
+import random
+from typing import Any, Callable, Sequence, Tuple, cast
+
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
-from albumentations import random_utils
-from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
 
 from .functional import cutout, keypoint_in_hole
+
+
+import numpy as np
+
+from albumentations.core.pydantic import NonNegativeIntRangeType
 
 __all__ = ["XYMasking"]
 
@@ -25,20 +29,20 @@ class XYMasking(DualTransform):
     maximum size along each axis.
 
     Args:
-        num_masks_x (Union[int, Tuple[int, int]]): Number or range of horizontal regions to mask. Defaults to 0.
-        num_masks_y (Union[int, Tuple[int, int]]): Number or range of vertical regions to mask. Defaults to 0.
-        mask_x_length ([Union[int, Tuple[int, int]]): Specifies the length of the masks along
+        num_masks_x (Union[int, tuple[int, int]]): Number or range of horizontal regions to mask. Defaults to 0.
+        num_masks_y (Union[int, tuple[int, int]]): Number or range of vertical regions to mask. Defaults to 0.
+        mask_x_length ([Union[int, tuple[int, int]]): Specifies the length of the masks along
             the X (horizontal) axis. If an integer is provided, it sets a fixed mask length.
             If a tuple of two integers (min, max) is provided,
             the mask length is randomly chosen within this range for each mask.
             This allows for variable-length masks in the horizontal direction.
-        mask_y_length (Union[int, Tuple[int, int]]): Specifies the height of the masks along
+        mask_y_length (Union[int, tuple[int, int]]): Specifies the height of the masks along
             the Y (vertical) axis. Similar to `mask_x_length`, an integer sets a fixed mask height,
             while a tuple (min, max) allows for variable-height masks, chosen randomly
             within the specified range for each mask. This flexibility facilitates creating masks of various
             sizes in the vertical direction.
-        fill_value (Union[int, float, List[int], List[float]]): Value to fill image masks. Defaults to 0.
-        mask_fill_value (Optional[Union[int, float, List[int], List[float]]]): Value to fill masks in the mask.
+        fill_value (Union[int, float, list[int], list[float]]): Value to fill image masks. Defaults to 0.
+        mask_fill_value (Optional[Union[int, float, list[int], list[float]]]): Value to fill masks in the mask.
             If `None`, uses mask is not affected. Default: `None`.
         p (float): Probability of applying the transform. Defaults to 0.5.
 
@@ -83,10 +87,10 @@ class XYMasking(DualTransform):
         mask_y_length: ScaleIntType = 0,
         fill_value: ColorType = 0,
         mask_fill_value: ColorType = 0,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p, always_apply)
         self.num_masks_x = cast(Tuple[int, int], num_masks_x)
         self.num_masks_y = cast(Tuple[int, int], num_masks_y)
 
@@ -98,8 +102,8 @@ class XYMasking(DualTransform):
     def apply(
         self,
         img: np.ndarray,
-        masks_x: List[Tuple[int, int, int, int]],
-        masks_y: List[Tuple[int, int, int, int]],
+        masks_x: list[tuple[int, int, int, int]],
+        masks_y: list[tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         return cutout(img, masks_x + masks_y, self.fill_value)
@@ -107,8 +111,8 @@ class XYMasking(DualTransform):
     def apply_to_mask(
         self,
         mask: np.ndarray,
-        masks_x: List[Tuple[int, int, int, int]],
-        masks_y: List[Tuple[int, int, int, int]],
+        masks_x: list[tuple[int, int, int, int]],
+        masks_y: list[tuple[int, int, int, int]],
         **params: Any,
     ) -> np.ndarray:
         if self.mask_fill_value is None:
@@ -117,14 +121,14 @@ class XYMasking(DualTransform):
 
     def validate_mask_length(
         self,
-        mask_length: Optional[Tuple[int, int]],
+        mask_length: tuple[int, int] | None,
         dimension_size: int,
         dimension_name: str,
     ) -> None:
         """Validate the mask length against the corresponding image dimension size.
 
         Args:
-            mask_length (Optional[Tuple[int, int]]): The length of the mask to be validated.
+            mask_length (Optional[tuple[int, int]]): The length of the mask to be validated.
             dimension_size (int): The size of the image dimension (width or height)
                 against which to validate the mask length.
             dimension_name (str): The name of the dimension ('width' or 'height') for error messaging.
@@ -139,7 +143,7 @@ class XYMasking(DualTransform):
             elif mask_length < 0 or mask_length > dimension_size:
                 raise ValueError(f"{dimension_name} {mask_length} exceeds image {dimension_name} {dimension_size}")
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, List[Tuple[int, int, int, int]]]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, list[tuple[int, int, int, int]]]:
         img = params["image"]
         height, width = img.shape[:2]
 
@@ -153,25 +157,23 @@ class XYMasking(DualTransform):
         return {"masks_x": masks_x, "masks_y": masks_y}
 
     @staticmethod
-    def generate_mask_size(mask_length: Tuple[int, int]) -> int:
+    def generate_mask_size(mask_length: tuple[int, int]) -> int:
         return random.randint(mask_length[0], mask_length[1])
 
     def generate_masks(
         self,
-        num_masks: Tuple[int, int],
+        num_masks: tuple[int, int],
         width: int,
         height: int,
-        max_length: Optional[Tuple[int, int]],
+        max_length: tuple[int, int] | None,
         axis: str,
-    ) -> List[Tuple[int, int, int, int]]:
+    ) -> list[tuple[int, int, int, int]]:
         if max_length is None or max_length == 0 or isinstance(num_masks, (int, float)) and num_masks == 0:
             return []
 
         masks = []
 
-        num_masks_integer = (
-            num_masks if isinstance(num_masks, int) else random_utils.randint(num_masks[0], num_masks[1])
-        )
+        num_masks_integer = num_masks if isinstance(num_masks, int) else random.randint(num_masks[0], num_masks[1])
 
         for _ in range(num_masks_integer):
             length = self.generate_mask_size(max_length)
@@ -189,23 +191,23 @@ class XYMasking(DualTransform):
         return masks
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
     def apply_to_keypoints(
         self,
         keypoints: Sequence[KeypointType],
-        masks_x: List[Tuple[int, int, int, int]],
-        masks_y: List[Tuple[int, int, int, int]],
+        masks_x: list[tuple[int, int, int, int]],
+        masks_y: list[tuple[int, int, int, int]],
         **params: Any,
-    ) -> List[KeypointType]:
+    ) -> list[KeypointType]:
         return [
             keypoint
             for keypoint in keypoints
             if not any(keypoint_in_hole(keypoint, hole) for hole in masks_x + masks_y)
         ]
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "num_masks_x",
             "num_masks_y",
@@ -216,7 +218,7 @@ class XYMasking(DualTransform):
         )
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,

@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import random
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Callable, Tuple, cast
 
 import cv2
 import numpy as np
@@ -7,9 +9,11 @@ from pydantic import Field
 from skimage.measure import label
 from typing_extensions import Literal
 
-from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ScalarType, ScaleIntType, Targets
+
+
+from albumentations.core.pydantic import OnePlusIntRangeType
 
 __all__ = ["MaskDropout"]
 
@@ -43,7 +47,7 @@ class MaskDropout(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         max_objects: OnePlusIntRangeType = (1, 1)
 
-        image_fill_value: Union[float, Literal["inpaint"]] = Field(
+        image_fill_value: float | Literal["inpaint"] = Field(
             default=0,
             description=(
                 "Fill value to use when filling image. "
@@ -55,21 +59,21 @@ class MaskDropout(DualTransform):
     def __init__(
         self,
         max_objects: ScaleIntType = (1, 1),
-        image_fill_value: Union[float, Literal["inpaint"]] = 0,
+        image_fill_value: float | Literal["inpaint"] = 0,
         mask_fill_value: ScalarType = 0,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply, p)
+        super().__init__(p=p, always_apply=always_apply)
         self.max_objects = cast(Tuple[int, int], max_objects)
         self.image_fill_value = image_fill_value
         self.mask_fill_value = mask_fill_value
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["mask"]
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         mask = params["mask"]
 
         label_image, num_labels = label(mask, return_num=True)
@@ -115,11 +119,11 @@ class MaskDropout(DualTransform):
         mask[dropout_mask] = self.mask_fill_value
         return mask
 
-    def get_transform_init_args_names(self) -> Tuple[str, ...]:
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_objects", "image_fill_value", "mask_fill_value"
 
     @property
-    def targets(self) -> Dict[str, Callable[..., Any]]:
+    def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
             "mask": self.apply_to_mask,

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import random
-from typing import Any, Callable, Dict, List, Literal, Optional, Sequence, Tuple, cast
+from typing import Any, Callable, Literal, Sequence, Tuple, cast
 
 import cv2
 import numpy as np
-from albucore.utils import is_grayscale_image, is_multispectral_image
+from albucore.utils import clip, is_grayscale_image, is_multispectral_image
 from pydantic import field_validator
 
 from albumentations.augmentations.domain_adaptation_functional import (
@@ -12,9 +14,12 @@ from albumentations.augmentations.domain_adaptation_functional import (
     fourier_domain_adaptation,
 )
 from albumentations.augmentations.utils import read_rgb_image
-from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
+
+
+from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
 from albumentations.core.types import ScaleFloatType
+
 
 __all__ = [
     "HistogramMatching",
@@ -40,7 +45,7 @@ class HistogramMatching(ImageOnlyTransform):
     Args:
         reference_images (Sequence[Any]): A sequence of objects to be converted into images by `read_fn`.
             Typically, this is a sequence of image paths.
-        blend_ratio (Tuple[float, float]): Specifies the minimum and maximum blend ratio for blending the matched
+        blend_ratio (tuple[float, float]): Specifies the minimum and maximum blend ratio for blending the matched
             image with the original image. A random blend factor within this range is chosen for each image to
             increase the diversity of the output images.
         read_fn (Callable[[Any], np.ndarray]): A user-defined function for reading images, which accepts an
@@ -78,12 +83,12 @@ class HistogramMatching(ImageOnlyTransform):
     def __init__(
         self,
         reference_images: Sequence[Any],
-        blend_ratio: Tuple[float, float] = (0.5, 1.0),
+        blend_ratio: tuple[float, float] = (0.5, 1.0),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -97,16 +102,16 @@ class HistogramMatching(ImageOnlyTransform):
     ) -> np.ndarray:
         return apply_histogram(img, reference_image, blend_ratio)
 
-    def get_params(self) -> Dict[str, np.ndarray]:
+    def get_params(self) -> dict[str, np.ndarray]:
         return {
             "reference_image": self.read_fn(random.choice(self.reference_images)),
             "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str]:
         return ("reference_images", "blend_ratio", "read_fn")
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         msg = "HistogramMatching can not be serialized."
         raise NotImplementedError(msg)
 
@@ -168,7 +173,7 @@ class FDA(ImageOnlyTransform):
 
         @field_validator("beta_limit")
         @classmethod
-        def check_ranges(cls, value: Tuple[float, float]) -> Tuple[float, float]:
+        def check_ranges(cls, value: tuple[float, float]) -> tuple[float, float]:
             bounds = 0, MAX_BETA_LIMIT
             if not bounds[0] <= value[0] <= value[1] <= bounds[1]:
                 raise ValueError(f"Values should be in the range {bounds} got {value} ")
@@ -179,10 +184,10 @@ class FDA(ImageOnlyTransform):
         reference_images: Sequence[Any],
         beta_limit: ScaleFloatType = (0, 0.1),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.beta_limit = cast(Tuple[float, float], beta_limit)
@@ -196,24 +201,24 @@ class FDA(ImageOnlyTransform):
     ) -> np.ndarray:
         return fourier_domain_adaptation(img, target_image, beta)
 
-    def get_params_dependent_on_targets(self, params: Dict[str, Any]) -> Dict[str, np.ndarray]:
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
         img = params["image"]
         target_img = self.read_fn(random.choice(self.reference_images))
         target_img = cv2.resize(target_img, dsize=(img.shape[1], img.shape[0]))
 
         return {"target_image": target_img}
 
-    def get_params(self) -> Dict[str, float]:
+    def get_params(self) -> dict[str, float]:
         return {"beta": random.uniform(self.beta_limit[0], self.beta_limit[1])}
 
     @property
-    def targets_as_params(self) -> List[str]:
+    def targets_as_params(self) -> list[str]:
         return ["image"]
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str]:
         return "reference_images", "beta_limit", "read_fn"
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         msg = "FDA can not be serialized."
         raise NotImplementedError(msg)
 
@@ -238,7 +243,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     Args:
         reference_images (Sequence[Any]): A sequence of objects (typically image paths) that will be
             converted into images by `read_fn`. These images serve as references for the domain adaptation.
-        blend_ratio (Tuple[float, float]): Specifies the minimum and maximum blend ratio for mixing
+        blend_ratio (tuple[float, float]): Specifies the minimum and maximum blend ratio for mixing
             the adapted image with the original, enhancing the diversity of the output images.
         read_fn (Callable): A user-defined function for reading and converting the objects in
             `reference_images` into numpy arrays. By default, it assumes these objects are image paths.
@@ -271,13 +276,13 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
     def __init__(
         self,
         reference_images: Sequence[Any],
-        blend_ratio: Tuple[float, float] = (0.25, 1.0),
+        blend_ratio: tuple[float, float] = (0.25, 1.0),
         read_fn: Callable[[Any], np.ndarray] = read_rgb_image,
         transform_type: Literal["pca", "standard", "minmax"] = "pca",
-        always_apply: Optional[bool] = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(always_apply=always_apply, p=p)
+        super().__init__(p=p, always_apply=always_apply)
         self.reference_images = reference_images
         self.read_fn = read_fn
         self.blend_ratio = blend_ratio
@@ -291,7 +296,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
                 f"Is it a grayscale or multispectral image? It's not supported for now.",
             )
 
-    def ensure_uint8(self, img: np.ndarray) -> Tuple[np.ndarray, bool]:
+    def ensure_uint8(self, img: np.ndarray) -> tuple[np.ndarray, bool]:
         if img.dtype == np.float32:
             if img.min() < 0 or img.max() > 1:
                 message = (
@@ -299,7 +304,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
                     "Can not do it automatically when the image is out of [0..1] range."
                 )
                 raise TypeError(message)
-            return (img * 255).astype("uint8"), True
+            return clip(img * 255, np.uint8), True
         return img, False
 
     def apply(self, img: np.ndarray, reference_image: np.ndarray, blend_ratio: float, **params: Any) -> np.ndarray:
@@ -317,15 +322,15 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             adapted = adapted.astype("float32") * (1 / 255)
         return adapted
 
-    def get_params(self) -> Dict[str, Any]:
+    def get_params(self) -> dict[str, Any]:
         return {
             "reference_image": self.read_fn(random.choice(self.reference_images)),
             "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
         }
 
-    def get_transform_init_args_names(self) -> Tuple[str, str, str, str]:
+    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return "reference_images", "blend_ratio", "read_fn", "transform_type"
 
-    def to_dict_private(self) -> Dict[str, Any]:
+    def to_dict_private(self) -> dict[str, Any]:
         msg = "PixelDistributionAdaptation can not be serialized."
         raise NotImplementedError(msg)

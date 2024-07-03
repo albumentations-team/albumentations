@@ -1,3 +1,4 @@
+from tests.conftest import SQUARE_FLOAT_IMAGE
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
 import pytest
 from albumentations.core.types import Targets
@@ -54,7 +55,7 @@ def extract_targets_from_docstring(cls):
 
 DUAL_TARGETS = {
     A.Affine: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.BBoxSafeRandomCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
+    A.BBoxSafeRandomCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.CenterCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.RandomCropFromBorders: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
@@ -89,10 +90,11 @@ DUAL_TARGETS = {
     A.XYMasking: (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS),
     A.RandomCropNearBBox: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.Perspective: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
-    A.RandomSizedBBoxSafeCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES),
+    A.RandomSizedBBoxSafeCrop: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.MixUp: (Targets.IMAGE, Targets.MASK, Targets.GLOBAL_LABEL),
     A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
     A.D4: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
+    A.OverlayElements: (Targets.IMAGE, Targets.MASK),
 }
 
 str2target = {
@@ -149,7 +151,7 @@ def test_image_only(augmentation_cls, params):
                 "fill_value": 0,
             },
              A.MixUp: {
-                "reference_data": [{"image": np.random.uniform(low=0, high=1, size=(100, 100, 3)).astype(np.float32),
+                "reference_data": [{"image": SQUARE_FLOAT_IMAGE,
                                     "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
                                     }],
                 "read_fn": lambda x: x,

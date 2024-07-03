@@ -1,7 +1,6 @@
 import numpy as np
 import pytest
-from albumentations.augmentations.functional import add_weighted
-
+from albumentations.augmentations.mixing import functional as fmixing
 
 def find_mix_coef(r: np.ndarray, array1: np.ndarray, array2: np.ndarray) -> float:
     """
@@ -30,3 +29,29 @@ def find_mix_coef(r: np.ndarray, array1: np.ndarray, array2: np.ndarray) -> floa
     mix_coef[valid] = (r[valid] - array2[valid]) / denominator[valid]
 
     return mix_coef[valid].mean()
+
+
+@pytest.mark.parametrize("base_image, overlay_image, mask, offset, expected_shape, expected_comparison", [
+    (
+        np.ones((200, 200, 3), dtype=np.uint8) * 255,
+        np.zeros((100, 100, 3), dtype=np.uint8),
+        np.ones((100, 100), dtype=np.uint8) * 255,
+        (50, 50),
+        (200, 200, 3),
+        lambda result, base_image, overlay_image, mask: np.array_equal(result[50:150, 50:150][mask > 0], overlay_image[mask > 0])
+    ),
+    (
+        np.ones((200, 200, 3), dtype=np.uint8) * 255,
+        np.zeros((100, 100, 3), dtype=np.uint8),
+        None,
+        (50, 50),
+        (200, 200, 3),
+        lambda result, base_image, overlay_image, _: np.all(result[50:150, 50:150] != base_image[50:150, 50:150])
+    ),
+])
+def test_copy_and_paste_blend(base_image, overlay_image, mask, offset, expected_shape, expected_comparison):
+    if mask is None:
+        mask = np.ones_like(overlay_image[:, :, 0])
+    result = fmixing.copy_and_paste_blend(base_image, overlay_image, mask, offset)
+    assert result.shape == expected_shape
+    assert expected_comparison(result, base_image, overlay_image, mask)

@@ -42,7 +42,7 @@ from albumentations.core.transforms_interface import (
 from albumentations.core.utils import to_tuple
 from tests.conftest import IMAGES
 
-from .utils import get_filtered_transforms
+from .utils import get_filtered_transforms, set_seed
 
 
 def test_one_or_other():
@@ -71,8 +71,9 @@ def oneof_always_apply_crash():
     assert data
 
 
-def test_one_of():
-    transforms = [Mock(p=1, available_keys={"image"}) for _ in range(10)]
+@pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
+def test_one_of(target_as_params):
+    transforms = [Mock(p=1, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
     augmentation = OneOf(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -81,8 +82,9 @@ def test_one_of():
 
 @pytest.mark.parametrize("N", [1, 2, 5, 10])
 @pytest.mark.parametrize("replace", [True, False])
-def test_n_of(N, replace):
-    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}) for _ in range(10)]
+@pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
+def test_n_of(N, replace, target_as_params):
+    transforms = [Mock(p=1, side_effect=lambda **kw: {"image": kw["image"]}, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
     augmentation = SomeOf(transforms, N, p=1, replace=replace)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -91,8 +93,9 @@ def test_n_of(N, replace):
     assert sum([transform.call_count for transform in transforms]) == N
 
 
-def test_sequential():
-    transforms = [Mock(side_effect=lambda **kw: kw, available_keys={"image"}) for _ in range(10)]
+@pytest.mark.parametrize("target_as_params", ([], ["image"], ["image", "mask"], ["image", "mask", "keypoints"]))
+def test_sequential(target_as_params):
+    transforms = [Mock(side_effect=lambda **kw: kw, available_keys={"image"}, targets_as_params=target_as_params) for _ in range(10)]
     augmentation = Sequential(transforms, p=1)
     image = np.ones((8, 8))
     augmentation(image=image)
@@ -204,7 +207,7 @@ def test_get_transforms_dict(transforms: TransformsSeqType, len_expected: int) -
     assert aug._transforms_dict == transforms_dict
 
 
-def test_comose_run_with_params_exeption() -> None:
+def test_comose_run_with_params_exception() -> None:
     aug = Compose([NoOp()])
     aug_2 = Compose([NoOp()], return_params=True)
     res = aug_2(image=np.random.random((8, 8)))
@@ -406,6 +409,277 @@ def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
     for key, item in expected.items():
         assert np.all(np.array(item) == np.array(res[key]))
 
+
+@pytest.mark.parametrize(
+    ["targets", "bbox_params", "keypoint_params", "expected"],
+    [
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=False),
+            {"keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25},
+        ],
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=True),
+            {"keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=False),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]]},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=True),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=True),
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=True),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+    ],
+)
+def test_check_each_transform_compose(targets, bbox_params, keypoint_params, expected):
+    """test if compose inside compose"""
+    image = np.empty([100, 100], dtype=np.uint8)
+
+    augs = Compose(
+        [Compose([Crop(0, 0, 50, 50), PadIfNeeded(100, 100)])],
+        bbox_params=bbox_params,
+        keypoint_params=keypoint_params,
+    )
+    res = augs(image=image, **targets)
+
+    for key, item in expected.items():
+        assert np.all(np.array(item) == np.array(res[key]))
+
+
+@pytest.mark.parametrize(
+    ["targets", "bbox_params", "keypoint_params", "expected"],
+    [
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=False),
+            {"keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25},
+        ],
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=True),
+            {"keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=False),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]]},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=True),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=True),
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=True),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+    ],
+)
+def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, expected):
+    """test if sequential inside compose"""
+    image = np.empty([100, 100], dtype=np.uint8)
+
+    augs = Compose(
+        [Sequential([Crop(0, 0, 50, 50), PadIfNeeded(100, 100)], p=1.0)],
+        bbox_params=bbox_params,
+        keypoint_params=keypoint_params,
+    )
+    res = augs(image=image, **targets)
+
+    for key, item in expected.items():
+        assert np.all(np.array(item) == np.array(res[key]))
+
+
+@pytest.mark.parametrize(
+    ["targets", "bbox_params", "keypoint_params", "expected"],
+    [
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=False),
+            {"keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25},
+        ],
+        [
+            {"keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]]},
+            None,
+            KeypointParams("xy", check_each_transform=True),
+            {"keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=False),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]]},
+        ],
+        [
+            {"bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]]},
+            BboxParams("pascal_voc", check_each_transform=True),
+            None,
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]]},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=True),
+            {"bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]], "keypoints": np.array([[10, 10]]) + 25},
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=True),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=True),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 75, 75, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+        [
+            {
+                "bboxes": [[0, 0, 10, 10, 0], [5, 5, 70, 70, 0], [60, 60, 70, 70, 0]],
+                "keypoints": [[10, 10], [70, 70], [10, 70], [70, 10]],
+            },
+            BboxParams("pascal_voc", check_each_transform=False),
+            KeypointParams("xy", check_each_transform=False),
+            {
+                "bboxes": [[25, 25, 35, 35, 0], [30, 30, 95, 95, 0], [85, 85, 95, 95, 0]],
+                "keypoints": np.array([[10, 10], [70, 70], [10, 70], [70, 10]]) + 25,
+            },
+        ],
+    ],
+)
+def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expected):
+    """test if someof inside compose"""
+    image = np.empty([100, 100], dtype=np.uint8)
+
+    augs = Compose(
+        [
+            SomeOf([Crop(0, 0, 50, 50)], n=1, replace=False, p=1.0),
+            SomeOf([PadIfNeeded(100, 100)], n=1, replace=False, p=1.0),
+        ],
+        bbox_params=bbox_params,
+        keypoint_params=keypoint_params,
+    )
+    res = augs(image=image, **targets)
+
+    for key, item in expected.items():
+        assert np.all(np.array(item) == np.array(res[key]))
+
+
 @pytest.mark.parametrize("image", IMAGES)
 def test_bbox_params_is_not_set(image, bboxes):
     t = Compose([A.NoOp(p=1.0)])
@@ -491,7 +765,7 @@ def test_compose_image_mask_equal_size(targets):
     transforms(**targets)
 
 
-def test_additional_targets():
+def test_additional_targets_overwrite():
     """Check add_target rises error if trying add existing target."""
     transforms = Compose([], additional_targets={"image2": "image"})
     # add same name, same target, OK
@@ -515,6 +789,7 @@ def test_sequential_with_horizontal_flip_prob_1(image):
 
     assert np.array_equal(result['image'], expected['image'])
     assert np.array_equal(result['mask'], expected['mask'])
+
 
 # Test 2: Probability 0 with HorizontalFlip
 @pytest.mark.parametrize("image", IMAGES)
@@ -643,13 +918,23 @@ def test_compose_non_available_keys() -> None:
     )
     image = np.empty([10, 10, 3], dtype=np.uint8)
     mask = np.empty([10, 10], dtype=np.uint8)
-    _res = transform(image=image, mask=mask)
-    _res = transform(image=image, masks=[mask])
+    _ = transform(image=image, mask=mask)
+    _ = transform(image=image, masks=[mask])
     with pytest.raises(ValueError) as exc_info:
-        _res = transform(image=image, image_2=mask)
+        _ = transform(image=image, image_2=mask)
 
     expected_msg = "Key image_2 is not in available keys."
     assert str(exc_info.value) == expected_msg
+
+    # strict=False should not raise error
+    transform = A.Compose(
+        [MagicMock(available_keys={"image"}),],
+        strict=False,
+    )
+    _ = transform(image=image, mask=mask)
+    _ = transform(image=image, masks=[mask])
+    _ = transform(image=image, image_2=mask)
+
 
 def test_compose_additional_targets_in_available_keys() -> None:
     """Check whether `available_keys` always contains everything in `additional_targets`"""
@@ -658,15 +943,21 @@ def test_compose_additional_targets_in_available_keys() -> None:
     image = np.ones((8, 8))
 
     # non-empty `transforms`
-    augmentation = Compose([first, second], p=1, 
+    augmentation = Compose([first, second], p=1,
                            additional_targets={"additional_target_1": "image", "additional_target_2": "image"})
-    augmentation(image=image, additional_target_1=image, additional_target_2=image) # will raise exception if not
+    augmentation(image=image, additional_target_1=image, additional_target_2=image)  # will raise exception if not
+    # strict=False should not raise error without additional_targets
+    augmentation = Compose([first, second], p=1, strict=False)
+    augmentation(image=image, additional_target_1=image, additional_target_2=image)
 
     # empty `transforms`
-    augmentation = Compose([], p=1, 
+    augmentation = Compose([], p=1,
                            additional_targets={"additional_target_1": "image", "additional_target_2": "image"})
-    augmentation(image=image, additional_target_1=image, additional_target_2=image) # will raise exception if not
-    
+    augmentation(image=image, additional_target_1=image, additional_target_2=image)  # will raise exception if not
+    # strict=False should not raise error without additional_targets
+    augmentation = Compose([], p=1, strict=False)
+    augmentation(image=image, additional_target_1=image, additional_target_2=image)
+
 
 def test_transform_always_apply_warning() -> None:
     """Check that warning is raised if always_apply argument is used"""

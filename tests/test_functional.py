@@ -139,70 +139,6 @@ def test_compare_rotate_and_affine(image):
     # Assert that the two rotated images are equal
     assert np.array_equal(rotated_img_1, rotated_img_2), "Rotated images should be identical."
 
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_center_crop(target):
-    img = np.array([[1, 1, 1, 1], [0, 1, 1, 1], [0, 0, 1, 1], [0, 0, 0, 1]], dtype=np.uint8)
-    expected = np.array([[1, 1], [0, 1]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.center_crop(img, 2, 2)
-    assert np.array_equal(cropped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_center_crop_float(target):
-    img = np.array(
-        [[0.4, 0.4, 0.4, 0.4], [0.0, 0.4, 0.4, 0.4], [0.0, 0.0, 0.4, 0.4], [0.0, 0.0, 0.0, 0.4]], dtype=np.float32
-    )
-    expected = np.array([[0.4, 0.4], [0.0, 0.4]], dtype=np.float32)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.center_crop(img, 2, 2)
-    assert_array_almost_equal_nulp(cropped_img, expected)
-
-
-def test_center_crop_with_incorrectly_large_crop_size():
-    img = np.ones((4, 4), dtype=np.uint8)
-    with pytest.raises(ValueError) as exc_info:
-        A.center_crop(img, 8, 8)
-    assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_random_crop(target):
-    img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[5, 6], [9, 10]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
-    assert np.array_equal(cropped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_random_crop_float(target):
-    img = np.array(
-        [[0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08], [0.09, 0.10, 0.11, 0.12], [0.13, 0.14, 0.15, 0.16]],
-        dtype=np.float32,
-    )
-    expected = np.array([[0.05, 0.06], [0.09, 0.10]], dtype=np.float32)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
-    assert_array_almost_equal_nulp(cropped_img, expected)
-
-
-def test_random_crop_with_incorrectly_large_crop_size():
-    img = np.ones((4, 4), dtype=np.uint8)
-    with pytest.raises(ValueError) as exc_info:
-        A.random_crop(img, crop_height=8, crop_width=8, h_start=0, w_start=0)
-    assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
-
-
-def test_random_crop_extrema():
-    img = np.indices((4, 4), dtype=np.uint8).transpose([1, 2, 0])
-    expected1 = np.indices((2, 2), dtype=np.uint8).transpose([1, 2, 0])
-    expected2 = expected1 + 2
-    cropped_img1 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.0, w_start=0.0)
-    cropped_img2 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.9999, w_start=0.9999)
-    assert np.array_equal(cropped_img1, expected1)
-    assert np.array_equal(cropped_img2, expected2)
-
 
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_pad(target):
@@ -516,26 +452,6 @@ def test_bbox_flip(code, func):
     rows, cols = 100, 200
     bbox = [0.1, 0.2, 0.6, 0.5]
     assert FGeometric.bbox_flip(bbox, code, rows, cols) == func(bbox, rows, cols)
-
-
-def test_crop_bbox_by_coords():
-    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
-
-
-def test_bbox_center_crop():
-    cropped_bbox = A.bbox_center_crop((0.5, 0.2, 0.9, 0.7), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
-
-
-def test_bbox_crop():
-    cropped_bbox = A.bbox_crop((0.5, 0.2, 0.9, 0.7), 24, 24, 64, 64, 100, 100)
-    assert cropped_bbox == (0.65, -0.1, 1.65, 1.15)
-
-
-def test_bbox_random_crop():
-    cropped_bbox = A.bbox_random_crop((0.5, 0.2, 0.9, 0.7), 80, 80, 0.2, 0.1, 100, 100)
-    assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
 
 
 @pytest.mark.parametrize("factor, expected_positions", [
@@ -1061,3 +977,41 @@ def test_transpose(shape):
     assert np.array_equal(FGeometric.transpose(img), expected_main)
     transposed_axis1 = FGeometric.transpose(FGeometric.rot90(img, 2))
     assert np.array_equal(transposed_axis1, expected_second)
+
+
+def test_planckian_jitter_blackbody():
+    img = np.array([[
+        [0.4963, 0.6977, 0.1759], [0.7682, 0.8   , 0.2698], [0.0885, 0.161 , 0.1507], [0.132 , 0.2823, 0.0317]],
+        [[0.3074, 0.6816, 0.2081], [0.6341, 0.9152, 0.9298], [0.4901, 0.3971, 0.7231],[0.8964, 0.8742, 0.7423]],
+        [[0.4556, 0.4194, 0.5263], [0.6323, 0.5529, 0.2437], [0.3489, 0.9527, 0.5846], [0.4017, 0.0362, 0.0332]],
+        [[0.0223, 0.1852, 0.1387], [0.1689, 0.3734, 0.2422], [0.2939, 0.3051, 0.8155], [0.5185, 0.932 , 0.7932]]]
+    )
+
+    expected_blackbody_plankian_jitter = np.array([
+        [[0.735 , 0.6977, 0.0691], [1.    , 0.8   , 0.1059], [0.1311, 0.161 , 0.0592], [0.1955, 0.2823, 0.0124]],
+        [[0.4553, 0.6816, 0.0817], [0.9391, 0.9152, 0.365 ], [0.7258, 0.3971, 0.2839], [1.    , 0.8742, 0.2914]],
+        [[0.6748, 0.4194, 0.2066], [0.9364, 0.5529, 0.0957], [0.5167, 0.9527, 0.2295], [0.5949, 0.0362, 0.013 ]],
+        [[0.033 , 0.1852, 0.0545], [0.2501, 0.3734, 0.0951], [0.4353, 0.3051, 0.3202], [0.7679, 0.932 , 0.3114]]]
+    )
+
+    blackbody_plankian_jitter = F.planckian_jitter(img, temperature=3500, mode="blackbody")
+    assert np.allclose(blackbody_plankian_jitter, expected_blackbody_plankian_jitter, atol=1e-4)
+
+
+def test_planckian_jitter_cied():
+    img = np.array([
+        [[0.4963, 0.6977, 0.1759], [0.7682, 0.8   , 0.2698], [0.0885, 0.161 , 0.1507], [0.132 , 0.2823, 0.0317]],
+        [[0.3074, 0.6816, 0.2081], [0.6341, 0.9152, 0.9298], [0.4901, 0.3971, 0.7231], [0.8964, 0.8742, 0.7423]],
+        [[0.4556, 0.4194, 0.5263], [0.6323, 0.5529, 0.2437], [0.3489, 0.9527, 0.5846], [0.4017, 0.0362, 0.0332]],
+        [[0.0223, 0.1852, 0.1387], [0.1689, 0.3734, 0.2422], [0.2939, 0.3051, 0.8155], [0.5185, 0.932 , 0.7932]]]
+    )
+
+    expected_cied_plankian_jitter = np.array([
+        [[0.6058, 0.6977, 0.1149], [0.9377, 0.8000, 0.1762], [0.1080, 0.1610, 0.0984], [0.1611, 0.2823, 0.0207]],
+        [[0.3752, 0.6816, 0.1359], [0.7740, 0.9152, 0.6072], [0.5982, 0.3971, 0.4722], [1.0000, 0.8742, 0.4848]],
+        [[0.5561, 0.4194, 0.3437], [0.7718, 0.5529, 0.1592], [0.4259, 0.9527, 0.3818], [0.4903, 0.0362, 0.0217]],
+        [[0.0272, 0.1852, 0.0906], [0.2062, 0.3734, 0.1582], [0.3587, 0.3051, 0.5326], [0.6329, 0.9320, 0.5180]]]
+    )
+
+    cied_plankian_jitter = F.planckian_jitter(img, temperature=4500, mode="cied")
+    assert np.allclose(cied_plankian_jitter, expected_cied_plankian_jitter, atol=1e-4)
