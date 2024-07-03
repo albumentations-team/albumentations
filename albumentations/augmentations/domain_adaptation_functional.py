@@ -14,6 +14,7 @@ from typing_extensions import Protocol
 
 from albumentations.augmentations.functional import center
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
+import albumentations.augmentations.functional as fmain
 
 __all__ = [
     "fourier_domain_adaptation",
@@ -57,7 +58,7 @@ class DomainAdapter:
 
     def flatten(self, img: np.ndarray) -> np.ndarray:
         img = self.to_colorspace(img)
-        img = img.astype("float32") / 255.0
+        img = fmain.to_float(img)
         return img.reshape(-1, 3)
 
     def reconstruct(self, pixels: np.ndarray, height: int, width: int) -> np.ndarray:

@@ -15,6 +15,7 @@ from albumentations.augmentations.domain_adaptation_functional import (
 )
 from albumentations.augmentations.utils import read_rgb_image
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
+from albumentations.augmentations import functional as fmain
 
 
 from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
@@ -319,7 +320,7 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             transform_type=self.transform_type,
         )
         if needs_reconvert:
-            adapted = adapted.astype("float32") * (1 / 255)
+            return fmain.to_float(adapted)
         return adapted
 
     def get_params(self) -> dict[str, Any]:
