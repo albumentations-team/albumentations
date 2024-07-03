@@ -1041,8 +1041,9 @@ def test_random_tone_curve(image):
     assert result_float_value.shape == image.shape
 
 
-# @pytest.mark.parametrize("image", UINT8_IMAGES)
-def test_iso_noise():
+@pytest.mark.parametrize("image", UINT8_IMAGES)
+@pytest.mark.parametrize("color_shift, intensity", [(0, 0), (0.5, 0.5), (1, 1)])
+def test_iso_noise(image, color_shift, intensity):
     image = RECTANGULAR_UINT8_IMAGE
 
     # Convert image to float and back
@@ -1050,10 +1051,11 @@ def test_iso_noise():
 
     # Generate noise using the same random state instance
     set_seed(42)
-    result_uint8 = F.iso_noise(image)
+    result_uint8 = F.iso_noise(image, color_shift=color_shift, intensity=intensity)
 
     set_seed(42)
-    result_float = F.iso_noise(float_image)
+    result_float = F.iso_noise(float_image, color_shift=color_shift, intensity=intensity)
+
     result_float = F.from_float(result_float, dtype=np.uint8)  # Convert the float result back to uint8
 
     assert np.array_equal(result_uint8, result_float)
