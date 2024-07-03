@@ -374,7 +374,7 @@ def move_tone_curve(
         luts = clip(np.rint(evaluate_bez(t[:, np.newaxis], low_y, high_y).T), np.uint8)
         output = cv2.merge([cv2.LUT(img[:, :, i], luts[i]) for i in range(num_channels)])
     else:
-        raise TypeError(f"low_y and high_y must be float or np.ndarray. Got {type(low_y)} and {type(high_y)}")
+        raise TypeError(f"low_y and high_y must be both float or np.ndarray. Got {type(low_y)} and {type(high_y)}")
 
     return to_float(output, max_value=255) if needs_float else output
 
