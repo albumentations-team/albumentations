@@ -1322,22 +1322,37 @@ class RandomToneCurve(ImageOnlyTransform):
         self.scale = scale
         self.per_channel = per_channel
 
-    def apply(self, img: np.ndarray, low_y: float, high_y: float, **params: Any) -> np.ndarray:
+    def apply(
+        self,
+        img: np.ndarray,
+        low_y: float | np.ndarray,
+        high_y: float | np.ndarray,
+        **params: Any,
+    ) -> np.ndarray:
         return fmain.move_tone_curve(img, low_y, high_y)
 
-    def get_params(self) -> dict[str, tuple[float, float, float]]:
-        if self.per_channel:
+    @property
+    def targets_as_params(self) -> list[str]:
+        return ["image"]
+
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+        image = params["image"]
+
+        num_channels = get_num_channels(image)
+
+        if self.per_channel and num_channels != 1:
             return {
-                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=[3]), 0, 1),
-                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=[3]), 0, 1),
+                "low_y": np.clip(random_utils.normal(loc=0.25, scale=self.scale, size=[num_channels]), 0, 1),
+                "high_y": np.clip(random_utils.normal(loc=0.75, scale=self.scale, size=[num_channels]), 0, 1),
             }
         # Same values for all channels
         low_y = np.clip(random_utils.normal(loc=0.25, scale=self.scale), 0, 1)
         high_y = np.clip(random_utils.normal(loc=0.75, scale=self.scale), 0, 1)
-        return {"low_y": (low_y, low_y, low_y), "high_y": (high_y, high_y, high_y)}
 
-    def get_transform_init_args_names(self) -> tuple[str]:
-        return ("scale",)
+        return {"low_y": low_y, "high_y": high_y}
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "scale", "per_channel"
 
 
 class HueSaturationValue(ImageOnlyTransform):
