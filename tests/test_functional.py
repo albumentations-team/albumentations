@@ -1045,8 +1045,6 @@ def test_random_tone_curve(image):
 def test_iso_noise():
     image = RECTANGULAR_UINT8_IMAGE
 
-    # random_state = np.random.RandomState(42)  # Create a single random state instance
-
     # Convert image to float and back
     float_image = F.to_float(image)
 

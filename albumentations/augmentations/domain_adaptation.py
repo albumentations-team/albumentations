@@ -109,8 +109,8 @@ class HistogramMatching(ImageOnlyTransform):
             "blend_ratio": random.uniform(self.blend_ratio[0], self.blend_ratio[1]),
         }
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        return ("reference_images", "blend_ratio", "read_fn")
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "reference_images", "blend_ratio", "read_fn"
 
     def to_dict_private(self) -> dict[str, Any]:
         msg = "HistogramMatching can not be serialized."
@@ -319,9 +319,8 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
             weight=blend_ratio,
             transform_type=self.transform_type,
         )
-        if needs_reconvert:
-            return fmain.to_float(adapted)
-        return adapted
+
+        return fmain.to_float(adapted) if needs_reconvert else adapted
 
     def get_params(self) -> dict[str, Any]:
         return {
