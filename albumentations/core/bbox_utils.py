@@ -572,11 +572,10 @@ def filter_bboxes(
 
 
 def union_of_bboxes(bboxes: Sequence[BoxType], erosion_rate: float) -> BoxInternalType | None:
-    """Calculate union of bounding boxes in the normalized domain.
+    """Calculate union of bounding boxes. Boxes could be in albumentations or Pascal Voc format.
 
     Args:
-        bboxes (list[tuple]): List-like bounding boxes in `[(x_min, y_min, x_max, y_max)]`.
-            Could be albu, could be pascal_voc
+        bboxes (list[tuple]): List of bounding boxes
         erosion_rate (float): How much each bounding box can be shrunk, useful for erosive cropping.
             Set this in range [0, 1]. 0 will not be erosive at all, 1.0 can make any bbox lose its volume.
 
