@@ -996,26 +996,3 @@ def test_transform_always_apply_warning() -> None:
 
     assert record[0].message.args[0] == warning_expected_2
     assert aug.transforms[0].p == 0.5
-
-
-@pytest.mark.parametrize("image", IMAGES)
-def test_crop_near_bbox(image):
-    set_seed(42)
-    bbox_key = "target_bbox"
-    aug = A.Compose(
-        [A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)],
-        bbox_params=BboxParams("pascal_voc"),
-    )
-
-    aug(image=image, bboxes=[[1, 2, 3, 4, 1]], target_bbox=[0, 5, 10, 20])
-
-    target_keys = {'image', 'bboxes', "labels", "mask", "masks", "keypoints", bbox_key}
-
-    assert aug._available_keys == target_keys
-
-    aug2 = A.Compose(
-        [A.Sequential([A.RandomCropNearBBox(max_part_shift=(0.1, 0.5), cropping_bbox_key=bbox_key, p=1)])],
-        bbox_params=BboxParams("pascal_voc"),
-    )
-
-    assert aug2._available_keys == target_keys

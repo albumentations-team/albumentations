@@ -126,7 +126,7 @@ class Rotate(DualTransform):
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.limit = cast(Tuple[float, float], limit)
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -180,7 +180,7 @@ class Rotate(DualTransform):
     ) -> np.ndarray:
         bbox_out = fgeometric.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
         if self.crop_border:
-            return fcrops.bbox_crop(bbox_out, x_min, y_min, x_max, y_max, rows, cols)
+            return fcrops.crop_bbox_by_coords(bbox_out, (x_min, y_min, x_max, y_max), rows, cols)
         return bbox_out
 
     def apply_to_keypoint(

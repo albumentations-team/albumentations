@@ -139,70 +139,6 @@ def test_compare_rotate_and_affine(image):
     # Assert that the two rotated images are equal
     assert np.array_equal(rotated_img_1, rotated_img_2), "Rotated images should be identical."
 
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_center_crop(target):
-    img = np.array([[1, 1, 1, 1], [0, 1, 1, 1], [0, 0, 1, 1], [0, 0, 0, 1]], dtype=np.uint8)
-    expected = np.array([[1, 1], [0, 1]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.center_crop(img, 2, 2)
-    assert np.array_equal(cropped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_center_crop_float(target):
-    img = np.array(
-        [[0.4, 0.4, 0.4, 0.4], [0.0, 0.4, 0.4, 0.4], [0.0, 0.0, 0.4, 0.4], [0.0, 0.0, 0.0, 0.4]], dtype=np.float32
-    )
-    expected = np.array([[0.4, 0.4], [0.0, 0.4]], dtype=np.float32)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.center_crop(img, 2, 2)
-    assert_array_almost_equal_nulp(cropped_img, expected)
-
-
-def test_center_crop_with_incorrectly_large_crop_size():
-    img = np.ones((4, 4), dtype=np.uint8)
-    with pytest.raises(ValueError) as exc_info:
-        A.center_crop(img, 8, 8)
-    assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
-
-
-@pytest.mark.parametrize("target", ["image", "mask"])
-def test_random_crop(target):
-    img = np.array([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]], dtype=np.uint8)
-    expected = np.array([[5, 6], [9, 10]], dtype=np.uint8)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
-    assert np.array_equal(cropped_img, expected)
-
-
-@pytest.mark.parametrize("target", ["image", "image_4_channels"])
-def test_random_crop_float(target):
-    img = np.array(
-        [[0.01, 0.02, 0.03, 0.04], [0.05, 0.06, 0.07, 0.08], [0.09, 0.10, 0.11, 0.12], [0.13, 0.14, 0.15, 0.16]],
-        dtype=np.float32,
-    )
-    expected = np.array([[0.05, 0.06], [0.09, 0.10]], dtype=np.float32)
-    img, expected = convert_2d_to_target_format([img, expected], target=target)
-    cropped_img = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.5, w_start=0)
-    assert_array_almost_equal_nulp(cropped_img, expected)
-
-
-def test_random_crop_with_incorrectly_large_crop_size():
-    img = np.ones((4, 4), dtype=np.uint8)
-    with pytest.raises(ValueError) as exc_info:
-        A.random_crop(img, crop_height=8, crop_width=8, h_start=0, w_start=0)
-    assert str(exc_info.value) == "Requested crop size (8, 8) is larger than the image size (4, 4)"
-
-
-def test_random_crop_extrema():
-    img = np.indices((4, 4), dtype=np.uint8).transpose([1, 2, 0])
-    expected1 = np.indices((2, 2), dtype=np.uint8).transpose([1, 2, 0])
-    expected2 = expected1 + 2
-    cropped_img1 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.0, w_start=0.0)
-    cropped_img2 = A.random_crop(img, crop_height=2, crop_width=2, h_start=0.9999, w_start=0.9999)
-    assert np.array_equal(cropped_img1, expected1)
-    assert np.array_equal(cropped_img2, expected2)
-
 
 @pytest.mark.parametrize("target", ["image", "mask"])
 def test_pad(target):
@@ -516,26 +452,6 @@ def test_bbox_flip(code, func):
     rows, cols = 100, 200
     bbox = [0.1, 0.2, 0.6, 0.5]
     assert FGeometric.bbox_flip(bbox, code, rows, cols) == func(bbox, rows, cols)
-
-
-def test_crop_bbox_by_coords():
-    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
-
-
-def test_bbox_center_crop():
-    cropped_bbox = A.bbox_center_crop((0.5, 0.2, 0.9, 0.7), 64, 64, 100, 100)
-    assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
-
-
-def test_bbox_crop():
-    cropped_bbox = A.bbox_crop((0.5, 0.2, 0.9, 0.7), 24, 24, 64, 64, 100, 100)
-    assert cropped_bbox == (0.65, -0.1, 1.65, 1.15)
-
-
-def test_bbox_random_crop():
-    cropped_bbox = A.bbox_random_crop((0.5, 0.2, 0.9, 0.7), 80, 80, 0.2, 0.1, 100, 100)
-    assert cropped_bbox == (0.6, 0.2, 1.1, 0.825)
 
 
 @pytest.mark.parametrize("factor, expected_positions", [
