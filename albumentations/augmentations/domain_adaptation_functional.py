@@ -158,6 +158,7 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
     return src_in_trg
 
 
+@clipped
 @preserve_channel_dim
 def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
     # Resize reference image only if necessary
