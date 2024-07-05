@@ -8,9 +8,9 @@
 --find-links https://download.pytorch.org/whl/torch_stable.html
 --trusted-host pypi.ngc.nvidia.com
 
-albucore==0.0.9
+albucore==0.0.11
     # via albumentations
-albumentations==1.4.8
+albumentations==1.4.10
     # via -r requirements.in
 annotated-types==0.7.0
     # via pydantic

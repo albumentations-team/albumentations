@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import copy
 import os
@@ -75,6 +77,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-t", "--threshold-time", default=0.1, type=float, metavar="T", help="threshold time per image in seconds (default: 0.1)"
     )
+    parser.add_argument("-o", "--output_path", type=Path, help="Path to save resulting dataframe.")
     return parser.parse_args()
 
 
@@ -318,7 +321,7 @@ class ShiftRGB(BenchmarkTest):
         )(image=img)["image"]
 
     def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
-        return Kaug.RandomRGBShift(self.pixel_shift / 255, self.pixel_shift / 255, self.pixel_shift / 255, p=1)(img)
+        return Kaug.RandomRGBShift(self.pixel_shift / 255.0, self.pixel_shift / 255.0, self.pixel_shift / 255.0, p=1)(img)
 
 
 class Resize(BenchmarkTest):
@@ -399,6 +402,17 @@ class ColorJitter(BenchmarkTest):
         return imaugs.ColorJitter(
             brightness_factor=self.brightness, contrast_factor=self.contrast, saturation_factor=self.saturation, p=1
         )(img)
+
+
+class PlankianJitter(BenchmarkTest):
+    def __init__(self):
+        self.mode = "blackbody"
+
+    def albumentations_transform(self, img: np.ndarray) -> np.ndarray:
+        return A.PlanckianJitter(mode=self.mode,p=1 )(image=img)["image"]
+
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomPlanckianJitter(mode=self.mode, p=1)(img)
 
 
 class RandomPerspective(BenchmarkTest):
@@ -493,6 +507,9 @@ class JpegCompression(BenchmarkTest):
     def augly_transform(self, img: Image.Image) -> Image.Image:
         return imaugs.EncodingQuality(quality=self.quality, p=1)(img)
 
+    def kornia_transform(self, img: torch.Tensor) -> torch.Tensor:
+        return Kaug.RandomJPEG(jpeg_quality=self.quality, p=1)(img)
+
 
 class GaussianNoise(BenchmarkTest):
     def __init__(self, mean: float = 127, var: float = 0.010):
@@ -555,6 +572,7 @@ def run_benchmarks(benchmarks: List[BenchmarkTest], args: argparse.Namespace, li
     imgs_torch = [read_img_torch(path) for path in tqdm(paths, desc="Loading images for Torch")]
     imgs_kornia = [read_img_kornia(path) for path in tqdm(paths, desc="Loading images for Kornia")]
 
+
     def get_imgs(library: str) -> list:
         if library == "augly":
             return imgs_pillow
@@ -612,6 +630,7 @@ def main() -> None:
         RandomGamma(),
         Grayscale(),
         ColorJitter(),
+        PlankianJitter(),
         RandomPerspective(),
         GaussianBlur(),
         MedianBlur(),
@@ -639,11 +658,17 @@ def main() -> None:
     df = df[libraries]
     augmentations = [str(i) for i in benchmarks]
     df = df.reindex(augmentations)
+
+    if args.output_path:
+        df.to_csv(args.output_path, index=False)
+
     if args.markdown:
         makedown_generator = MarkdownGenerator(df, package_versions)
         makedown_generator.print()
     else:
-        print(df)
+        print(df.to_markdown())
+
+    return df
 
 
 if __name__ == "__main__":
