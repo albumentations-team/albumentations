@@ -53,6 +53,10 @@ __all__ = [
 ]
 
 
+class CropSizeError(Exception):
+    pass
+
+
 class CropInitSchema(BaseTransformInitSchema):
     height: int | None = Field(description="Height of the crop", ge=1)
     width: int | None = Field(description="Width of the crop", ge=1)
@@ -121,6 +125,12 @@ class RandomCrop(_BaseCrop):
         img = params["image"]
 
         image_height, image_width = img.shape[:2]
+
+        if self.height > image_height or self.width > image_width:
+            raise CropSizeError(
+                f"Crop size (height, width) exceeds image dimensions (height, width):"
+                f" {(self.height, self.width)} vs {img.shape[:2]}",
+            )
 
         h_start = random.random()
         w_start = random.random()

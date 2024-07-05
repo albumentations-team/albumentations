@@ -34,6 +34,7 @@ def get_crop_coords(
     # h_start is [0, 1) and should map to [0, (height - crop_height)]  (note inclusive)
     # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
     # See: https://github.com/albumentations-team/albumentations/pull/1080
+    # We want range for coordinated to be [0, image_size], right side is included
     y_min = int((height - crop_height + 1) * h_start)
     y_max = y_min + crop_height
     x_min = int((width - crop_width + 1) * w_start)
