@@ -12,3 +12,4 @@ tqdm
 kornia
 torch
 augly
+seaborn
