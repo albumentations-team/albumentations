@@ -304,7 +304,7 @@ The table shows how many images per second can be processed on a single core; hi
 | kornia | 0.7.3 |
 | augly | 1.0.0 |
 
-|                 |albumentations<br><small>1.4.8</small>|torchvision<br><small>0.18.1+rocm6.0</small>|kornia<br><small>0.7.3</small>|augly<br><small>1.0.0</small>|imgaug<br><small>0.4.0</small>|
+|                 |albumentations<br><small>1.4.11</small>|torchvision<br><small>0.18.1+rocm6.0</small>|kornia<br><small>0.7.3</small>|augly<br><small>1.0.0</small>|imgaug<br><small>0.4.0</small>|
 |-----------------|--------------------------------------|--------------------------------------------|------------------------------|-----------------------------|------------------------------|
 |HorizontalFlip   |**8017 ± 12**                         |2436 ± 2                                    |935 ± 3                       |3575 ± 4                     |4806 ± 7                      |
 |VerticalFlip     |7366 ± 7                              |2563 ± 8                                    |943 ± 1                       |4949 ± 5                     |**8159 ± 21**                 |
