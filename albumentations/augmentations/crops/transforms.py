@@ -122,6 +122,9 @@ class RandomCrop(_BaseCrop):
 
         image_height, image_width = img.shape[:2]
 
+        if self.height > image_height or self.width > image_width:
+            raise ValueError(f"Crop is larger than image {(self.height, self.width)} vs {img.shape}")
+
         h_start = random.random()
         w_start = random.random()
         crop_coords = fcrops.get_crop_coords(image_height, image_width, self.height, self.width, h_start, w_start)
