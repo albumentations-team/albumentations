@@ -290,19 +290,19 @@ To run the benchmark yourself, follow the instructions in [benchmark/README.md](
 Results for running the benchmark on the first 2000 images from the ImageNet validation set using an AMD Ryzen Threadripper 3970X CPU.
 The table shows how many images per second can be processed on a single core; higher is better.
 
-| Library                | Version                                            |
-| ---------------------- | -------------------------------------------------- |
-| Python                 | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
-| albumentations         | 1.4.9                                              |
-| imgaug                 | 0.4.0                                              |
-| torchvision            | 0.18.1+rocm6.0                                     |
-| numpy                  | 1.26.4                                             |
-| opencv-python-headless | 4.10.0.82                                          |
-| scikit-image           | 0.23.2                                             |
-| scipy                  | 1.13.1                                             |
-| pillow                 | 10.3.0                                             |
-| kornia                 | 0.7.2                                              |
-| augly                  | 1.0.0                                              |
+| Library | Version |
+|---------|---------|
+| Python | 3.10.13 (main, Sep 11 2023, 13:44:35) [GCC 11.2.0] |
+| albumentations | 1.4.11 |
+| imgaug | 0.4.0 |
+| torchvision | 0.18.1+rocm6.0 |
+| numpy | 1.26.4 |
+| opencv-python-headless | 4.10.0.84 |
+| scikit-image | 0.24.0 |
+| scipy | 1.14.0 |
+| pillow | 10.4.0 |
+| kornia | 0.7.3 |
+| augly | 1.0.0 |
 
 |                 |albumentations<br><small>1.4.8</small>|torchvision<br><small>0.18.1+rocm6.0</small>|kornia<br><small>0.7.3</small>|augly<br><small>1.0.0</small>|imgaug<br><small>0.4.0</small>|
 |-----------------|--------------------------------------|--------------------------------------------|------------------------------|-----------------------------|------------------------------|
