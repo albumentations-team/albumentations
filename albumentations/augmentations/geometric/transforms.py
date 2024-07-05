@@ -1807,7 +1807,7 @@ class GridDistortion(DualTransform):
     Args:
         num_steps (int): Number of grid cells on each side (minimum 1).
         distort_limit (float, (float, float)): Range of distortion limits. If a single float is provided,
-            the range will be from (-distort_limit, distort_limit). Default: (-0.03, 0.03).
+            the range will be from (-distort_limit, distort_limit). Default: (-0.3, 0.3).
         interpolation (OpenCV flag): Interpolation algorithm used for image transformation. Options are:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
             Default: cv2.INTER_LINEAR.
@@ -1837,7 +1837,7 @@ class GridDistortion(DualTransform):
 
     class InitSchema(BaseTransformInitSchema):
         num_steps: Annotated[int, Field(ge=1, description="Count of grid cells on each side.")]
-        distort_limit: SymmetricRangeType = (-0.03, 0.03)
+        distort_limit: SymmetricRangeType = (-0.3, 0.3)
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: ColorType | None = Field(
