@@ -5,8 +5,6 @@ import pytest
 from numpy.testing import assert_array_almost_equal_nulp, assert_almost_equal
 import skimage
 
-import albumentations as A
-from albumentations import random_utils
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as FGeometric
 from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels
@@ -121,7 +119,9 @@ def test_compare_rotate_and_affine(image):
     rotation_matrix = generate_rotation_matrix(image, 60)
 
     # Apply rotation using FGeometric.rotate
-    rotated_img_1 = FGeometric.rotate(image, angle=60, border_mode = cv2.BORDER_CONSTANT, value = 0, interpolation=cv2.INTER_LINEAR)
+    rotated_img_1 = FGeometric.rotate(
+        image, angle=60, border_mode=cv2.BORDER_CONSTANT, value=0, interpolation=cv2.INTER_LINEAR
+    )
 
     # Convert 2x3 cv2 matrix to 3x3 for skimage's ProjectiveTransform
     full_matrix = np.vstack([rotation_matrix, [0, 0, 1]])
@@ -464,7 +464,7 @@ def test_bbox_flip(code, func):
 
 @pytest.mark.parametrize("factor, expected_positions", [
     (1, (199, 150)),  # Rotated 90 degrees CCW
-    (2, (249, 199)), # Rotated 180 degrees
+    (2, (249, 199)),  # Rotated 180 degrees
     (3, (100, 249)),  # Rotated 270 degrees CCW
 ])
 def test_keypoint_image_rot90_match(factor, expected_positions):
@@ -482,8 +482,8 @@ def test_keypoint_image_rot90_match(factor, expected_positions):
 
     # Assert that the rotated keypoint lands where expected
     assert rotated_img[rotated_keypoint[1], rotated_keypoint[0]] == 1, \
-           f"Key point after rotation factor {factor} is not at the expected position {expected_positions}, but at {rotated_keypoint}"
-
+        f"Key point after rotation factor {factor} is not at the expected position {expected_positions}, "\
+        f"but at {rotated_keypoint}"
 
 
 def test_bbox_rot90():
@@ -498,6 +498,7 @@ def test_bbox_transpose():
     rot90 = FGeometric.bbox_rot90((0.7, 0.1, 0.8, 0.4), 2, 100, 200)
     reflected_anti_diagonal = FGeometric.bbox_transpose(rot90, 100, 200)
     assert np.allclose(reflected_anti_diagonal, (0.6, 0.2, 0.9, 0.3))
+
 
 def test_fun_max_size():
     target_width = 256
@@ -812,9 +813,13 @@ def test_split_uniform_grid(image_shape, grid, expected):
     (7, 3, 41, [0, 2, 4, 7]),  # Irregular intervals, specific seed
 ])
 def test_generate_shuffled_splits(size, divisions, random_state, expected):
-    result = F.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state) if random_state else None)
+    result = F.generate_shuffled_splits(
+        size, divisions, random_state=np.random.RandomState(random_state) if random_state else None
+    )
     assert len(result) == divisions + 1
-    assert np.array_equal(result, expected), f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
+    assert np.array_equal(result, expected), \
+        f"Failed for size={size}, divisions={divisions}, random_state={random_state}"
+
 
 @pytest.mark.parametrize("size, divisions, random_state", [
     (10, 2, 42),
@@ -824,10 +829,10 @@ def test_generate_shuffled_splits(size, divisions, random_state, expected):
 ])
 def test_consistent_shuffling(size, divisions, random_state):
     set_seed(random_state)
-    result1 = F.generate_shuffled_splits(size, divisions, random_state = np.random.RandomState(random_state))
+    result1 = F.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state))
     assert len(result1) == divisions + 1
     set_seed(random_state)
-    result2 = F.generate_shuffled_splits(size, divisions, random_state = np.random.RandomState(random_state))
+    result2 = F.generate_shuffled_splits(size, divisions, random_state=np.random.RandomState(random_state))
     assert len(result2) == divisions + 1
     assert np.array_equal(result1, result2), "Shuffling is not consistent with the given random state"
 
@@ -886,11 +891,13 @@ def test_d4_transformations(group_member, expected):
     transformed_img = FGeometric.d4(img, group_member)
     assert np.array_equal(transformed_img, expected), f"Failed for transformation {group_member}"
 
+
 def get_md5_hash(image):
     image_bytes = image.tobytes()
     hash_md5 = hashlib.md5()
     hash_md5.update(image_bytes)
     return hash_md5.hexdigest()
+
 
 @pytest.mark.parametrize("image", IMAGES)
 def test_d4_unique(image):
@@ -900,9 +907,10 @@ def test_d4_unique(image):
 
     assert len(hashes) == len(set(hashes)), "d4 should generate unique images for all group elements"
 
+
 @pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
 @pytest.mark.parametrize("group_member", d4_group_elements)
-def test_d4_output_shape(image, group_member):
+def test_d4_output_shape_with_group(image, group_member):
     result = FGeometric.d4(image, group_member)
     if group_member in ['r90', 'r270', 't', 'hvt']:
         assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
@@ -911,20 +919,19 @@ def test_d4_output_shape(image, group_member):
 
 
 @pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
-def test_d4_output_shape(image):
+def test_transpose_output_shape(image):
     result = FGeometric.transpose(image)
     assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
 
 
 @pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
 @pytest.mark.parametrize("factor", [0, 1, 2, 3])
-def test_d4_output_shape(image, factor):
+def test_d4_output_shape_with_factor(image, factor):
     result = FGeometric.rot90(image, factor)
     if factor in {1, 3}:
         assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
     else:
         assert result.shape == image.shape, "Output shape should match input shape"
-
 
 
 @pytest.mark.parametrize("bbox, group_member, rows, cols, expected", [
@@ -935,7 +942,7 @@ def test_d4_output_shape(image, factor):
     ((0.05, 0.1, 0.55, 0.6), 'v', 200, 200, (0.05, 0.4, 0.55, 0.9)),  # Vertical flip
     ((0.05, 0.1, 0.55, 0.6), 't', 200, 200, (0.1, 0.05, 0.6, 0.55)),  # Transpose around main diagonal
     ((0.05, 0.1, 0.55, 0.6), 'h', 200, 200, (0.45, 0.1, 0.95, 0.6)),  # Horizontal flip
-    ((0.05, 0.1, 0.55, 0.6), 'hvt', 200, 200, (1 - 0.6, 1 - 0.55, 1 - 0.1, 1 - 0.05)), # Transpose around second diagonal
+    ((0.05, 0.1, 0.55, 0.6), 'hvt', 200, 200, (1 - 0.6, 1 - 0.55, 1 - 0.1, 1 - 0.05)),  # Transpose around second diagonal
 ])
 def test_bbox_d4(bbox, group_member, rows, cols, expected):
     result = FGeometric.bbox_d4(bbox, group_member, rows, cols)
@@ -956,8 +963,11 @@ def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
     vflipped_keypoint = FGeometric.keypoint_vflip(keypoint, rows, cols)
     hvflipped_keypoint = FGeometric.keypoint_hflip(vflipped_keypoint, rows, cols)
 
-    assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), "Sequential vflip + hflip not equivalent to hflip + vflip"
-    assert vhflipped_keypoint == pytest.approx(FGeometric.keypoint_rot90(keypoint, 2, rows, cols)), "rot180 not equivalent to vflip + hflip"
+    assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), \
+        "Sequential vflip + hflip not equivalent to hflip + vflip"
+    assert vhflipped_keypoint == pytest.approx(FGeometric.keypoint_rot90(keypoint, 2, rows, cols)), \
+        "rot180 not equivalent to vflip + hflip"
+
 
 base_matrix = np.array([[1, 2, 3],
                         [4, 5, 6],
@@ -969,6 +979,7 @@ expected_second_diagonal = np.array([[9, 6, 3],
                                      [8, 5, 2],
                                      [7, 4, 1]])
 
+
 def create_test_matrix(matrix, shape):
     if len(shape) == 2:
         return matrix
@@ -977,7 +988,7 @@ def create_test_matrix(matrix, shape):
 
 
 @pytest.mark.parametrize("shape", [(3, 3), (3, 3, 1), (3, 3, 3), (3, 3, 7)])
-def test_transpose(shape):
+def test_transpose_2(shape):
     img = create_test_matrix(base_matrix, shape)
     expected_main = create_test_matrix(expected_main_diagonal, shape)
     expected_second = create_test_matrix(expected_second_diagonal, shape)
