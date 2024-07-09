@@ -977,7 +977,7 @@ def create_test_matrix(matrix, shape):
 
 
 @pytest.mark.parametrize("shape", [(3, 3), (3, 3, 1), (3, 3, 3), (3, 3, 7)])
-def test_transpose(shape):
+def test_transpose_2(shape):
     img = create_test_matrix(base_matrix, shape)
     expected_main = create_test_matrix(expected_main_diagonal, shape)
     expected_second = create_test_matrix(expected_second_diagonal, shape)
