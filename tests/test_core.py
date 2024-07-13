@@ -40,9 +40,9 @@ from albumentations.core.transforms_interface import (
     NoOp
 )
 from albumentations.core.utils import to_tuple
-from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, RECTANGULAR_FLOAT_IMAGE, RECTANGULAR_UINT8_IMAGE
 
-from .utils import get_filtered_transforms, get_image_only_transforms, get_transforms, set_seed
+from .utils import get_filtered_transforms, get_transforms
 
 
 def test_one_or_other():
@@ -1041,8 +1041,8 @@ def test_transform_always_apply_warning() -> None:
         },
     ),
 )
-def test_additional_targets_vs_images(augmentation_cls, params):
-    image = SQUARE_FLOAT_IMAGE if augmentation_cls == A.FromFloat else SQUARE_UINT8_IMAGE
+def test_images_as_target(augmentation_cls, params):
+    image = RECTANGULAR_FLOAT_IMAGE if augmentation_cls == A.FromFloat else RECTANGULAR_UINT8_IMAGE
     image2 = image.copy()
 
     aug = A.Compose(

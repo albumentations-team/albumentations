@@ -44,7 +44,11 @@ TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = List[TransformType]
 
 AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints", "global_label")
-MASK_KEYS = ("mask", "masks")
+MASK_KEYS = (
+    "mask",
+    "masks",
+)
+# Keys related to image data
 IMAGE_KEYS = ("image", "images")
 CHECKED_SINGLE = ("image", "mask")
 CHECKED_MULTI = ("masks", "images")
