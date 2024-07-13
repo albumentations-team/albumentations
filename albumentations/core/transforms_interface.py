@@ -199,12 +199,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
 
-        if "image" in kwargs:
-            params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
-        elif "images" in kwargs:
-            params.update({"cols": kwargs["images"][0].shape[1], "rows": kwargs["images"][0].shape[0]})
-        else:
-            raise ValueError("You must provide 'image' or 'images' to augment")
+        params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
 
         return params
 
