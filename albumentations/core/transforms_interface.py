@@ -7,11 +7,12 @@ from warnings import warn
 
 import cv2
 from pydantic import BaseModel, ConfigDict, Field
-from typing_extensions import Annotated
+
 
 from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
+from albumentations.core.pydantic import ProbabilityType
 from .types import (
     BoxInternalType,
     BoxType,
@@ -39,7 +40,7 @@ class BaseTransformInitSchema(BaseModel):
         default=None,
         deprecated="Deprecated. Use `p=1` instead to always apply the transform",
     )
-    p: Annotated[float, Field(default=0.5, description="Probability of applying the transform", ge=0, le=1)]
+    p: ProbabilityType = 0.5
 
 
 class CombinedMeta(SerializableMeta, ValidatedTransformMeta):
@@ -90,6 +91,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._set_keys()
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
+        if "images" in kwargs and "image" not in kwargs:
+            kwargs["image"] = kwargs["images"][0]
+
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
@@ -153,6 +157,10 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Apply transform on image."""
         raise NotImplementedError
 
+    def apply_to_images(self, images: np.ndarray, **params: Any) -> np.ndarray:
+        """Apply transform on images."""
+        return [self.apply(image, **params) for image in images]
+
     def get_params(self) -> dict[str, Any]:
         """Returns parameters independent of input."""
         return {}
@@ -190,7 +198,14 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params["fill_value"] = self.fill_value
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
-        params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
+
+        if "image" in kwargs:
+            params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
+        elif "images" in kwargs:
+            params.update({"cols": kwargs["images"][0].shape[1], "rows": kwargs["images"][0].shape[0]})
+        else:
+            raise ValueError("You must provide 'image' or 'images' to augment")
+
         return params
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
@@ -302,6 +317,7 @@ class DualTransform(BasicTransform):
     def targets(self) -> dict[str, Callable[..., Any]]:
         return {
             "image": self.apply,
+            "images": self.apply_to_images,
             "mask": self.apply_to_mask,
             "masks": self.apply_to_masks,
             "bboxes": self.apply_to_bboxes,
@@ -355,7 +371,7 @@ class ImageOnlyTransform(BasicTransform):
 
     @property
     def targets(self) -> dict[str, Callable[..., Any]]:
-        return {"image": self.apply}
+        return {"image": self.apply, "images": self.apply_to_images}
 
 
 class NoOp(DualTransform):
