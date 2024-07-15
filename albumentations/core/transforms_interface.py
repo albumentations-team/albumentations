@@ -91,9 +91,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._set_keys()
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
-        if "images" in kwargs and "image" not in kwargs:
-            kwargs["image"] = kwargs["images"][0]
-
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
@@ -107,11 +104,14 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params = self.get_params()
 
             if self.targets_as_params:
-                if not all(key in kwargs for key in self.targets_as_params):
-                    msg = f"{self.__class__.__name__} requires {self.targets_as_params}"
+                missing_keys = set(self.targets_as_params).difference(kwargs.keys())
+                if missing_keys and not (missing_keys == {"image"} and "images" in kwargs):
+                    msg = f"{self.__class__.__name__} requires {self.targets_as_params} missing keys: {missing_keys}"
                     raise ValueError(msg)
 
-                targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
+                targets_as_params = {k: kwargs.get(k, None) for k in self.targets_as_params}
+                if missing_keys:  # here we expecting case when missing_keys == {"image"} and "images" in kwargs
+                    targets_as_params["image"] = kwargs["images"][0]
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
             if self.deterministic:
@@ -199,8 +199,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
 
-        params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
-
+        # here we expects `image` or `images` in kwargs. it's checked at Compose._check_args
+        shape = kwargs["image"].shape if "image" in kwargs else kwargs["images"][0].shape
+        params.update({"cols": shape[1], "rows": shape[0]})
         return params
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
