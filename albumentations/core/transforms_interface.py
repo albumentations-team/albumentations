@@ -105,14 +105,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
             if self.targets_as_params:
                 missing_keys = set(self.targets_as_params).difference(kwargs.keys())
-                if missing_keys:
-                    if missing_keys == {"image"} and "images" in kwargs:
-                        pass
-                    else:
-                        msg = (
-                            f"{self.__class__.__name__} requires {self.targets_as_params} missing keys: {missing_keys}"
-                        )
-                        raise ValueError(msg)
+                if missing_keys and not (missing_keys == {"image"} and "images" in kwargs):
+                    msg = f"{self.__class__.__name__} requires {self.targets_as_params} missing keys: {missing_keys}"
+                    raise ValueError(msg)
 
                 targets_as_params = {k: kwargs.get(k, None) for k in self.targets_as_params}
                 if missing_keys:  # here we expecting case when missing_keys == {"image"} and "images" in kwargs
@@ -210,11 +205,9 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def get_image_shape(self, data: dict[str, Any]) -> tuple[int, int]:
         """Get image shape from data. If no `image` key in data, uses `images` first element."""
-        if "image" in data:
+        if "image" in data:  # expecting `image` or `images`, else will raise KeyError
             return data["image"].shape[:2]
-        if "images" in data:
-            return data["images"][0].shape[:2]
-        return 0, 0
+        return data["images"][0].shape[:2]
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets
