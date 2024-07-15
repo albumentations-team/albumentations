@@ -91,9 +91,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         self._set_keys()
 
     def __call__(self, *args: Any, force_apply: bool = False, **kwargs: Any) -> Any:
-        if "images" in kwargs and "image" not in kwargs:
-            kwargs["image"] = kwargs["images"][0]
-
         if args:
             msg = "You have to pass data to augmentations as named arguments, for example: aug(image=image)"
             raise KeyError(msg)
@@ -107,11 +104,19 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params = self.get_params()
 
             if self.targets_as_params:
-                if not all(key in kwargs for key in self.targets_as_params):
-                    msg = f"{self.__class__.__name__} requires {self.targets_as_params}"
-                    raise ValueError(msg)
+                missing_keys = set(self.targets_as_params).difference(kwargs.keys())
+                if missing_keys:
+                    if missing_keys == {"image"} and "images" in kwargs:
+                        pass
+                    else:
+                        msg = (
+                            f"{self.__class__.__name__} requires {self.targets_as_params} missing keys: {missing_keys}"
+                        )
+                        raise ValueError(msg)
 
-                targets_as_params = {k: kwargs[k] for k in self.targets_as_params}
+                targets_as_params = {k: kwargs.get(k, None) for k in self.targets_as_params}
+                if missing_keys:  # here we expecting case when missing_keys == {"image"} and "images" in kwargs
+                    targets_as_params["image"] = kwargs["images"][0]
                 params_dependent_on_targets = self.get_params_dependent_on_targets(targets_as_params)
                 params.update(params_dependent_on_targets)
             if self.deterministic:
@@ -199,9 +204,17 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
 
-        params.update({"cols": kwargs["image"].shape[1], "rows": kwargs["image"].shape[0]})
-
+        image_shape = self.get_image_shape(kwargs)
+        params.update({"cols": image_shape[1], "rows": image_shape[0]})
         return params
+
+    def get_image_shape(self, data: dict[str, Any]) -> tuple[int, int]:
+        """Get image shape from data. If no `image` key in data, uses `images` first element."""
+        if "image" in data:
+            return data["image"].shape[:2]
+        if "images" in data:
+            return data["images"][0].shape[:2]
+        return 0, 0
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
         """Add targets to transform them the same way as one of existing targets
