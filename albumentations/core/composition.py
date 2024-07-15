@@ -44,9 +44,14 @@ TransformType = Union[BasicTransform, "BaseCompose"]
 TransformsSeqType = List[TransformType]
 
 AVAILABLE_KEYS = ("image", "mask", "masks", "bboxes", "keypoints", "global_label")
-MASK_KEYS = ("mask", "masks")
+MASK_KEYS = (
+    "mask",
+    "masks",
+)
+# Keys related to image data
+IMAGE_KEYS = ("image", "images")
 CHECKED_SINGLE = ("image", "mask")
-CHECKED_MULTI = ("masks",)
+CHECKED_MULTI = ("masks", "images")
 CHECK_BBOX_PARAM = ("bboxes",)
 CHECK_KEYPOINTS_PARAM = ("keypoints",)
 
@@ -321,7 +326,7 @@ class Compose(BaseCompose, HubMixin):
     def preprocess(self, data: Any) -> None:
         if self.strict:
             for data_name in data:
-                if data_name not in self._available_keys and data_name not in MASK_KEYS:
+                if data_name not in self._available_keys and data_name not in MASK_KEYS and data_name not in IMAGE_KEYS:
                     msg = f"Key {data_name} is not in available keys."
                     raise ValueError(msg)
         if self.is_check_args:
