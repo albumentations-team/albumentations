@@ -199,18 +199,13 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         if hasattr(self, "mask_fill_value"):
             params["mask_fill_value"] = self.mask_fill_value
 
-        image_shape = self.get_image_shape(kwargs)
-        params.update({"cols": image_shape[1], "rows": image_shape[0]})
+        # here we expects `image` or `images` in kwargs. it's checked at Compose._check_args
+        shape = kwargs["image"].shape if "image" in kwargs else kwargs["images"][0].shape
+        params.update({"cols": shape[1], "rows": shape[0]})
         return params
 
-    def get_image_shape(self, data: dict[str, Any]) -> tuple[int, int]:
-        """Get image shape from data. If no `image` key in data, uses `images` first element."""
-        if "image" in data:  # expecting `image` or `images`, else will raise KeyError
-            return data["image"].shape[:2]
-        return data["images"][0].shape[:2]
-
     def add_targets(self, additional_targets: dict[str, str]) -> None:
-        """Add targets to transform them the same way as one of existing targets
+        """Add targets to transform them the same way as one of existing targetss
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
         by the way you must have at least one object with key 'image'
