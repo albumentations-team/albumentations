@@ -13,16 +13,16 @@ if TYPE_CHECKING:
     from rake_nltk import Rake
 
 
-def delete_random_words(sentence: str, p: float = 0.2) -> str:
-    words = sentence.split()
+def delete_random_words(text: str, p: float = 0.2) -> str:
+    words = text.split()
     if len(words) <= 1:
-        return sentence
+        return text
     new_words = [word for word in words if random.random() > p]
     return " ".join(new_words)
 
 
-def swap_random_words(sentence: str, n: int = 1) -> str:
-    words = sentence.split()
+def swap_random_words(text: str, n: int = 1) -> str:
+    words = text.split()
     for _ in range(n):
         if len(words) < PAIR:
             break
@@ -31,11 +31,11 @@ def swap_random_words(sentence: str, n: int = 1) -> str:
     return " ".join(words)
 
 
-def insert_random_stopwords(sentence: str, num_insertions: int = 1, stopwords: list[str] | None = None) -> str:
+def insert_random_stopwords(text: str, num_insertions: int = 1, stopwords: list[str] | None = None) -> str:
     if stopwords is None:
         stopwords = ["and", "the", "is", "in", "at", "of"]  # Default stopwords if none provided
 
-    words = sentence.split()
+    words = text.split()
     for _ in range(num_insertions):
         idx = random.randint(0, len(words))
         words.insert(idx, random.choice(stopwords))
@@ -106,16 +106,16 @@ def select_and_replace_keywords(
     return chosen_keywords_lst, chosen_replacements_lst
 
 
-def augment_sentence_with_synonyms(
-    prompt: str,
+def augment_text_with_synonyms(
+    text: str,
     nums_lst: list[int],
     pos_tagger: StanfordPOSTagger,
     rake: Rake,
     synsets_fn: Callable[[str, str], list[Synset]],
 ) -> str:
-    """Generate a new sentence by replacing chosen keywords with synonyms."""
-    synonyms_prompt_str = ""
-    keywords_dict = extract_keywords_and_pos(prompt, pos_tagger, rake)
+    """Generate a new text by replacing chosen keywords with synonyms."""
+    synonyms_text_str = ""
+    keywords_dict = extract_keywords_and_pos(text, pos_tagger, rake)
     if not keywords_dict:
         return ""
     keywords_lst = list(keywords_dict.keys())
@@ -127,7 +127,7 @@ def augment_sentence_with_synonyms(
         synsets_fn,
     )
     for chosen_word, chosen_synonym in zip(chosen_keywords, chosen_synonyms):
-        prompt = re.sub(rf"\b{chosen_word}\b", chosen_synonym, prompt)
+        text = re.sub(rf"\b{chosen_word}\b", chosen_synonym, text)
         if chosen_keywords.index(chosen_word) + 1 in nums_lst:
-            synonyms_prompt_str += re.sub("_", " ", prompt) + " "
-    return synonyms_prompt_str.strip()
+            synonyms_text_str += re.sub("_", " ", text) + " "
+    return synonyms_text_str.strip()
