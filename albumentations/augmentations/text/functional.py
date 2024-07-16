@@ -70,9 +70,9 @@ def get_synonyms(word: str, part_of_speech: str, synsets_fn: Callable[..., list[
         synsets = synsets_fn(word, part_of_speech)
     except TypeError:
         # If synsets_fn does not accept part_of_speech, call without it
-        synsets = synsets_fn(word)
+        synsets = []
 
-    # If no synsets found with part_of_speech, try without it
+    # If no synsets found with part_of_speech or TypeError was raised, try without part_of_speech
     if not synsets:
         synsets = synsets_fn(word)
 
