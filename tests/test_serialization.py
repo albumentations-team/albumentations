@@ -919,10 +919,10 @@ def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
         return FGeometric.vflip(mask)
 
     def vflip_bbox(bbox, **kwargs):
-        return FGeometric.bbox_vflip(bbox, **kwargs)
+        return FGeometric.bbox_vflip(bbox, kwargs["shape"][0], kwargs["shape"][1])
 
     def vflip_keypoint(keypoint, **kwargs):
-        return FGeometric.keypoint_vflip(keypoint, **kwargs)
+        return FGeometric.keypoint_vflip(keypoint, kwargs["shape"][0], kwargs["shape"][1])
 
     mask = image.copy()
 

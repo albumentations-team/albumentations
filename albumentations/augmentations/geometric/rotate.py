@@ -54,10 +54,10 @@ class RandomRotate90(DualTransform):
         return {"factor": random.randint(0, 3)}
 
     def apply_to_bbox(self, bbox: BoxInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_rot90(bbox, factor, **params)
+        return fgeometric.bbox_rot90(bbox, factor, params["shape"][0], params["shape"][1])
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.keypoint_rot90(keypoint, factor, **params)
+        return fgeometric.keypoint_rot90(keypoint, factor, params["shape"][0], params["shape"][1])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()

@@ -201,6 +201,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         # here we expects `image` or `images` in kwargs. it's checked at Compose._check_args
         shape = kwargs["image"].shape if "image" in kwargs else kwargs["images"][0].shape
+        params["shape"] = shape
         params.update({"cols": shape[1], "rows": shape[0]})
         return params
 
