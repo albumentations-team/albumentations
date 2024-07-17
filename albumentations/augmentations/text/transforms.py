@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, cast, TYPE_CHECKING
+from typing import Any, Callable, Literal, Sequence, cast
 import random
 import numpy as np
 from PIL import ImageFont
 from pydantic import AfterValidator, model_validator
+from albucore.utils import get_num_channels
 
 from albumentations.augmentations.mixing.functional import copy_and_paste_blend
 import albumentations.augmentations.text.functional as ftext
@@ -14,30 +15,35 @@ from typing_extensions import Annotated, Self
 from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
 from albumentations.core.pydantic import check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import BoxType, SizeType
+from albumentations.core.types import BoxType, ColorType, SizeType
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
+from pathlib import Path
 
 try:
     from rake_nltk import Rake
+    import nltk
+
+    nltk.download("stopwords")
 
     RAKE_AVAILABLE = True
 except ImportError:
     RAKE_AVAILABLE = False
 
 
-class TextAugmenter(ImageOnlyTransform):
+class TextImage(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         font_path: Path
-        stopwords: list[str] | None = None
-        pos_tagger: Callable[[str], list[str]] | None = None
-        augmentations: tuple[str, ...] | list[str] = ("insertion", "swap", "deletion", "kreplacement")
-        fraction_range: Annotated[tuple[int, int], AfterValidator(nondecreasing), AfterValidator(check_01)]
-        font_size_fraction_range: Annotated[tuple[int, int], AfterValidator(nondecreasing), AfterValidator(check_01)]
-
-        metadata_key: str = "textaug_metadata"
+        stopwords: list[str] | None
+        pos_tagger: Callable[[str], list[str]] | None
+        augmentations: tuple[str, ...] | list[str]
+        fraction_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
+        font_size_fraction_range: Annotated[
+            tuple[float, float],
+            AfterValidator(nondecreasing),
+            AfterValidator(check_01),
+        ]
+        font_color: list[ColorType | str] | ColorType | str
+        metadata_key: str
 
         @model_validator(mode="after")
         def validate_input(self) -> Self:
@@ -59,11 +65,12 @@ class TextAugmenter(ImageOnlyTransform):
         augmentations: tuple[str, ...] = ("insertion", "swap", "deletion", "kreplacement"),
         fraction_range: tuple[float, float] = (0.1, 0.9),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
+        font_color: list[ColorType | str] | ColorType | str = "black",
         metadata_key: str = "textaug_metadata",
-        alway_apply: bool | None = None,
+        always_apply: bool | None = None,
         p: float = 0.5,
     ) -> None:
-        super().__init__(p=p, always_apply=alway_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.metadata_key = metadata_key
         self.font_path = font_path
         self.fraction_range = fraction_range
@@ -71,18 +78,28 @@ class TextAugmenter(ImageOnlyTransform):
         self.pos_tagger = pos_tagger
         self.augmentations = list(augmentations)
         self.font_size_fraction_range = font_size_fraction_range
+        self.font_color = font_color
 
         if RAKE_AVAILABLE:
-            if self.stopwords:
-                self.rake = Rake(self.stopwords)
-            else:
-                self.rake = Rake()
+            self.rake = Rake(self.stopwords)
         else:
             self.rake = None
 
     @property
     def targets_as_params(self) -> list[str]:
         return [self.metadata_key, "image"]
+
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return (
+            "font_path",
+            " stopwords",
+            "pos_tagger",
+            "augmentations",
+            "fraction_range",
+            "font_size_fraction_range",
+            "font_color",
+            "metadata_key",
+        )
 
     def random_aug(
         self,
@@ -110,6 +127,11 @@ class TextAugmenter(ImageOnlyTransform):
         return result_sentence if result_sentence != text else ""
 
     def preprocess_metadata(self, img_shape: SizeType, bbox: BoxType, text: str) -> dict[str, Any]:
+        num_channels = get_num_channels(img_shape)
+
+        if num_channels not in {1, 3}:
+            raise TypeError("Image must be either 1 or 3 channels.")
+
         image_height, image_width = img_shape[:2]
 
         check_bbox(bbox)
@@ -133,7 +155,9 @@ class TextAugmenter(ImageOnlyTransform):
                 choice=cast(Literal["insertion", "swap", "deletion", "kreplacement"], augmentation),
             )
 
-        overlay_image = ftext.render_text((bbox_height, bbox_width), augmented_text, font)
+        font_color = random.choice(self.font_color) if isinstance(self.font_color, Sequence) else self.font_color
+
+        overlay_image = ftext.render_text((bbox_height, bbox_width), augmented_text, font, font_color, num_channels)
         offset = (y_min, x_min)
 
         return {
@@ -144,6 +168,7 @@ class TextAugmenter(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         metadata = params[self.metadata_key]
         img_shape = params["rows"], params["cols"]
+
         bboxes = metadata["bboxes"]
         texts = metadata["texts"]
         fraction = random.uniform(*self.fraction_range)

@@ -6,12 +6,13 @@ import re
 
 import numpy as np
 
-from albumentations.core.types import PAIR
+from albumentations.core.types import NUM_RGB_CHANNELS, PAIR, ColorType
 
 # Importing wordnet and other dependencies only for type checking
 if TYPE_CHECKING:
     from nltk.tag import StanfordPOSTagger
     from rake_nltk import Rake
+    from PIL import ImageFont
 
 
 # Try to import wordnet, handle if not available
@@ -21,13 +22,6 @@ try:
     nltk_available = True
 except ImportError:
     nltk_available = False
-
-try:
-    from PIL import Image, ImageDraw, ImageFont
-
-    PIL_AVAILABLE = True
-except ImportError:
-    PIL_AVAILABLE = False
 
 
 def delete_random_words(words: list[str], num_words: int) -> str:
@@ -144,18 +138,37 @@ def augment_text_with_synonyms(
 def render_text(
     bbox_shape: tuple[int, int],
     text: str,
-    font: ImageFont,
+    font: ImageFont.ImageFont,
+    font_color: ColorType | str,
+    num_channels: int,
 ) -> np.ndarray:
-    if not PIL_AVAILABLE:
-        raise ImportError("Pillow is not installed. Please install it to use the render_text function.")
+    # Check if Pillow is available
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        raise ImportError(
+            "Pillow is not installed. Please install it to use the render_text function.",
+        ) from ImportError
 
     bbox_height, bbox_width = bbox_shape
 
-    # Create an empty RGB image with the size of the bounding box
-    bbox_img = Image.new("RGB", (bbox_width, bbox_height), color="white")
+    background_color: int | str
+
+    # Determine the image mode based on the number of channels
+    if num_channels == 1:
+        mode = "L"  # Grayscale image
+        background_color = 255  # White background for grayscale
+    elif num_channels == NUM_RGB_CHANNELS:
+        mode = "RGB"  # RGB image
+        background_color = "white"  # White background for RGB
+    else:
+        raise ValueError("num_channels must be either 1 (grayscale) or 3 (RGB).")
+
+    # Create an empty image with the specified mode and background color
+    bbox_img = Image.new(mode, (bbox_width, bbox_height), color=background_color)
     draw = ImageDraw.Draw(bbox_img)
 
-    # Draw the text in red
-    draw.text((0, 0), text, fill="red", font=font)
+    # Draw the text with the specified color
+    draw.text((0, 0), text, fill=font_color, font=font)
 
     return np.array(bbox_img)

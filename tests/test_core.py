@@ -1035,6 +1035,7 @@ def test_transform_always_apply_warning() -> None:
                 "value": [124, 116, 104],
                 "position": "top_left"
             },
+            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.FDA,

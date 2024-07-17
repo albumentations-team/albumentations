@@ -1529,6 +1529,7 @@ def test_change_image(augmentation_cls, params):
             A.PlanckianJitter,
             A.OverlayElements,
             A.FromFloat,
+            A.TextImage
         },
     ),
 )
@@ -1673,6 +1674,7 @@ def test_random_snow_invalid_input(params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1982,6 +1984,7 @@ def test_rot90(bboxes, angle, keypoints):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.RandomCropNearBBox,
