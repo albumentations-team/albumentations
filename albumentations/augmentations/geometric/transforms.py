@@ -1642,7 +1642,7 @@ class Flip(DualTransform):
         return {"d": random.randint(-1, 1)}
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_flip(bbox, params["d"], (params["shape"][0], params["shape"][1]))
+        return fgeometric.bbox_flip(bbox, params["d"], params["shape"][0], params["shape"][1])
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return fgeometric.keypoint_flip(keypoint, params["d"], params["shape"][0], params["shape"][1])
