@@ -35,6 +35,8 @@ class TextAugmenter(ImageOnlyTransform):
         pos_tagger: Callable[[str], list[str]] | None = None
         augmentations: tuple[str, ...] | list[str] = ("insertion", "swap", "deletion", "kreplacement")
         fraction_range: Annotated[tuple[int, int], AfterValidator(nondecreasing), AfterValidator(check_01)]
+        font_size_fraction_range: Annotated[tuple[int, int], AfterValidator(nondecreasing), AfterValidator(check_01)]
+
         metadata_key: str = "textaug_metadata"
 
         @model_validator(mode="after")
@@ -56,6 +58,7 @@ class TextAugmenter(ImageOnlyTransform):
         pos_tagger: Callable[[str], list[str]] | None = None,
         augmentations: tuple[str, ...] = ("insertion", "swap", "deletion", "kreplacement"),
         fraction_range: tuple[float, float] = (0.1, 0.9),
+        font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
         metadata_key: str = "textaug_metadata",
         alway_apply: bool | None = None,
         p: float = 0.5,
@@ -67,6 +70,7 @@ class TextAugmenter(ImageOnlyTransform):
         self.stopwords = stopwords
         self.pos_tagger = pos_tagger
         self.augmentations = list(augmentations)
+        self.font_size_fraction_range = font_size_fraction_range
 
         if RAKE_AVAILABLE:
             if self.stopwords:
@@ -115,14 +119,19 @@ class TextAugmenter(ImageOnlyTransform):
         bbox_height = y_max - y_min
         bbox_width = x_max - x_min
 
-        font = ImageFont.truetype(str(self.font_path), int(0.90 * bbox_height))
+        font_size_fraction = random.uniform(*self.font_size_fraction_range)
 
-        augmentation = random.choice(self.augmentations)
-        augmented_text = self.random_aug(
-            text,
-            0.5,
-            choice=cast(Literal["insertion", "swap", "deletion", "kreplacement"], augmentation),
-        )
+        font = ImageFont.truetype(str(self.font_path), int(font_size_fraction * bbox_height))
+
+        if not self.augmentations:
+            augmented_text = text
+        else:
+            augmentation = random.choice(self.augmentations)
+            augmented_text = self.random_aug(
+                text,
+                0.5,
+                choice=cast(Literal["insertion", "swap", "deletion", "kreplacement"], augmentation),
+            )
 
         overlay_image = ftext.render_text((bbox_height, bbox_width), augmented_text, font)
         offset = (y_min, x_min)
