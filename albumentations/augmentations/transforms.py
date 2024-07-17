@@ -153,7 +153,7 @@ class RandomGridShuffle(DualTransform):
     """
 
     class InitSchema(BaseTransformInitSchema):
-        grid: OnePlusIntRangeType = (3, 3)
+        grid: Annotated[tuple[int, int], AfterValidator(check_1plus)] = (3, 3)
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.KEYPOINTS)
 

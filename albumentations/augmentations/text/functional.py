@@ -1,29 +1,48 @@
 from __future__ import annotations
 import random
-from typing import Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import re
+
+import numpy as np
 
 from albumentations.core.types import PAIR
 
 # Importing wordnet and other dependencies only for type checking
 if TYPE_CHECKING:
-    from nltk.corpus.reader.wordnet import Synset
     from nltk.tag import StanfordPOSTagger
     from rake_nltk import Rake
 
 
-def delete_random_words(text: str, p: float = 0.2) -> str:
-    words = text.split()
-    if len(words) <= 1:
-        return text
-    new_words = [word for word in words if random.random() > p]
+# Try to import wordnet, handle if not available
+try:
+    from nltk.corpus import wordnet
+
+    nltk_available = True
+except ImportError:
+    nltk_available = False
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
+
+
+def delete_random_words(words: list[str], num_words: int) -> str:
+    if len(words) <= 1 or num_words <= 0:
+        return words[0]
+    if num_words >= len(words):
+        return ""
+
+    indices_to_delete = random.sample(range(len(words)), num_words)
+    new_words = [word for idx, word in enumerate(words) if idx not in indices_to_delete]
     return " ".join(new_words)
 
 
-def swap_random_words(text: str, n: int = 1) -> str:
-    words = text.split()
-    for _ in range(n):
+def swap_random_words(words: list[str], num_words: int = 1) -> str:
+    for _ in range(num_words):
         if len(words) < PAIR:
             break
         idx1, idx2 = random.sample(range(len(words)), 2)
@@ -31,29 +50,28 @@ def swap_random_words(text: str, n: int = 1) -> str:
     return " ".join(words)
 
 
-def insert_random_stopwords(text: str, num_insertions: int = 1, stopwords: list[str] | None = None) -> str:
+def insert_random_stopwords(words: list[str], num_insertions: int = 1, stopwords: list[str] | None = None) -> str:
     if stopwords is None:
         stopwords = ["and", "the", "is", "in", "at", "of"]  # Default stopwords if none provided
 
-    words = text.split()
     for _ in range(num_insertions):
         idx = random.randint(0, len(words))
         words.insert(idx, random.choice(stopwords))
     return " ".join(words)
 
 
-def extract_keywords_and_pos(prompt: str, pos_tagger: StanfordPOSTagger, rake: Rake) -> dict[str, str]:
+def extract_keywords_and_pos(text: str, pos_tagger: StanfordPOSTagger, rake: Rake) -> dict[str, str]:
     """Extract keywords and their POS tags from the prompt."""
     pos_dict = {}
     try:
-        tagged_prompt = pos_tagger.tag(prompt.split())
+        tagged_prompt = pos_tagger.tag(text.split())
     except Exception as e:
-        raise RuntimeError(f"Error processing prompt '{prompt}': {e}") from e
+        raise RuntimeError(f"Error processing prompt '{text}': {e}") from e
 
     pos_dict = dict(tagged_prompt)
 
     keywords_dict = {}
-    keywords = rake.run(prompt)
+    keywords = rake.run(text)
     for pair in keywords:
         words = pair[0].split()
         for word in words:
@@ -63,18 +81,12 @@ def extract_keywords_and_pos(prompt: str, pos_tagger: StanfordPOSTagger, rake: R
     return keywords_dict
 
 
-def get_synonyms(word: str, part_of_speech: str, synsets_fn: Callable[..., list[Synset]]) -> list[str]:
-    """Get synonyms for a given word and part of speech using the provided synsets function."""
-    try:
-        # Try fetching synsets with part_of_speech if available
-        synsets = synsets_fn(word, part_of_speech)
-    except TypeError:
-        # If synsets_fn does not accept part_of_speech, call without it
-        synsets = []
+def get_synonyms(word: str, part_of_speech: str) -> list[str]:
+    """Get synonyms for a given word and part of speech using wordnet."""
+    if not nltk_available:
+        return []
 
-    # If no synsets found with part_of_speech or TypeError was raised, try without part_of_speech
-    if not synsets:
-        synsets = synsets_fn(word)
+    synsets = wordnet.synsets(word, part_of_speech)
 
     return list({lemma.name().lower() for syn in synsets for lemma in syn.lemmas() if lemma.name().lower() != word})
 
@@ -82,9 +94,7 @@ def get_synonyms(word: str, part_of_speech: str, synsets_fn: Callable[..., list[
 def select_and_replace_keywords(
     keywords_lst: list[str],
     keywords_dict: dict[str, str],
-    get_synonyms_fn: Callable[[str, str, Callable[[str, str], list[Synset]]], list[str]],
     chosen_nums: list[int],
-    synsets_fn: Callable[[str, str], list[Synset]],
 ) -> tuple[list[str], list[str]]:
     """Select and replace keywords with synonyms."""
     counter = 1
@@ -95,7 +105,7 @@ def select_and_replace_keywords(
             part_of_speech = keywords_dict[keyword][0].lower()
             if part_of_speech == "j":  # Adjust part_of_speech tag if necessary
                 part_of_speech = "a"  # Example: 'j' for adjective to 'a'
-            candidates = get_synonyms_fn(keyword, part_of_speech, synsets_fn)
+            candidates = get_synonyms(keyword, part_of_speech)
             if candidates:
                 counter += 1
                 chosen_keywords_lst.append(keyword)
@@ -111,7 +121,6 @@ def augment_text_with_synonyms(
     nums_lst: list[int],
     pos_tagger: StanfordPOSTagger,
     rake: Rake,
-    synsets_fn: Callable[[str, str], list[Synset]],
 ) -> str:
     """Generate a new text by replacing chosen keywords with synonyms."""
     synonyms_text_str = ""
@@ -122,12 +131,30 @@ def augment_text_with_synonyms(
     chosen_keywords, chosen_synonyms = select_and_replace_keywords(
         keywords_lst,
         keywords_dict,
-        get_synonyms,
         nums_lst,
-        synsets_fn,
     )
     for chosen_word, chosen_synonym in zip(chosen_keywords, chosen_synonyms):
         text = re.sub(rf"\b{chosen_word}\b", chosen_synonym, text)
         if chosen_keywords.index(chosen_word) + 1 in nums_lst:
             synonyms_text_str += re.sub("_", " ", text) + " "
     return synonyms_text_str.strip()
+
+
+def render_text(
+    bbox_shape: tuple[int, int],
+    text: str,
+    font: ImageFont,
+) -> np.ndarray:
+    if not PIL_AVAILABLE:
+        raise ImportError("Pillow is not installed. Please install it to use the render_text function.")
+
+    bbox_height, bbox_width = bbox_shape
+
+    # Create an empty RGB image with the size of the bounding box
+    bbox_img = Image.new("RGB", (bbox_width, bbox_height), color="white")
+    draw = ImageDraw.Draw(bbox_img)
+
+    # Draw the text in red
+    draw.text((0, 0), text, fill="red", font=font)
+
+    return np.array(bbox_img)
