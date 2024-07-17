@@ -201,11 +201,12 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         # here we expects `image` or `images` in kwargs. it's checked at Compose._check_args
         shape = kwargs["image"].shape if "image" in kwargs else kwargs["images"][0].shape
+        params["shape"] = shape
         params.update({"cols": shape[1], "rows": shape[0]})
         return params
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
-        """Add targets to transform them the same way as one of existing targetss
+        """Add targets to transform them the same way as one of existing targets.
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
         by the way you must have at least one object with key 'image'

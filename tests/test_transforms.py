@@ -371,10 +371,10 @@ def test_lambda_transform():
         return new_mask
 
     def vflip_bbox(bbox, **kwargs):
-        return FGeometric.bbox_vflip(bbox, **kwargs)
+        return FGeometric.bbox_vflip(bbox, kwargs["shape"][0], kwargs["shape"][1])
 
     def vflip_keypoint(keypoint, **kwargs):
-        return FGeometric.keypoint_vflip(keypoint, **kwargs)
+        return FGeometric.keypoint_vflip(keypoint, kwargs["shape"][0], kwargs["shape"][1])
 
     aug = A.Lambda(
         image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
@@ -1168,6 +1168,7 @@ def test_rotate_equal(img, aug_cls, angle):
     assert diff[:, :2].max() <= 2
     assert (diff[:, -1] % 360).max() <= 1
 
+
 @pytest.mark.parametrize("seed", list(range(10)))
 def test_motion_blur_allow_shifted(seed):
     set_seed(seed)
@@ -1258,6 +1259,7 @@ def test_random_crop_interfaces_vs_torchvision(height, width, scale, ratio):
     assert transformed_image_albu.shape == transformed_image_pt_np.shape
     assert transform_albu_height_is_size.shape == transformed_image_pt_np.shape
 
+
 @pytest.mark.parametrize("num_shadows_limit, num_shadows_lower, num_shadows_upper, expected_warning", [
     ((1, 1), None, None, None),
     ((1, 2), None, None, None),
@@ -1295,6 +1297,7 @@ def test_deprecation_warnings_random_shadow(
         else:
             assert not w, "Unexpected warnings raised"
 
+
 @pytest.mark.parametrize("image", IMAGES)
 @pytest.mark.parametrize("grid", [
     (3, 3), (4, 4), (5, 7)
@@ -1320,14 +1323,19 @@ def test_grid_shuffle(image, grid):
     np.testing.assert_allclose(res["image"].sum(axis=(0, 1)), image.sum(axis=(0, 1)), atol=0.04)
     np.testing.assert_allclose(res["mask"].sum(axis=(0, 1)), mask.sum(axis=(0, 1)), atol=0.03)
 
+
 @pytest.mark.parametrize("image", IMAGES)
-@pytest.mark.parametrize("crop_left, crop_right, crop_top, crop_bottom", [
-    (0, 0, 0, 0),
-    (0, 1, 0, 1),
-    (1, 0, 1, 0),
-    (0.5, 0.5, 0.5, 0.5),
-    ( 0.1, 0.1, 0.1, 0.1 ),
-                                                                          ( 0.3, 0.3, 0.3, 0.3 )])
+@pytest.mark.parametrize(
+    "crop_left, crop_right, crop_top, crop_bottom",
+    [
+        (0, 0, 0, 0),
+        (0, 1, 0, 1),
+        (1, 0, 1, 0),
+        (0.5, 0.5, 0.5, 0.5),
+        ( 0.1, 0.1, 0.1, 0.1 ),
+        ( 0.3, 0.3, 0.3, 0.3 ),
+    ]
+)
 def test_random_crop_from_borders(image, bboxes, keypoints, crop_left, crop_right, crop_top, crop_bottom):
     set_seed(0)
     aug = A.Compose([A.RandomCropFromBorders(crop_left=crop_left,
@@ -1421,8 +1429,8 @@ def test_coarse_dropout_invalid_input(params):
                 "fill_value": 0,
             },
             A.Superpixels: {"p_replace": (1, 1),
-                             "n_segments": (10, 10),
-                             "max_size": 10
+                            "n_segments": (10, 10),
+                            "max_size": 10
                             },
             A.ZoomBlur: {"max_factor": (1.05, 3)},
         },

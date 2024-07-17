@@ -124,7 +124,9 @@ def test_image_only_transform(image):
         with mock.patch.object(ImageOnlyTransform, "get_params", return_value={"interpolation": cv2.INTER_LINEAR}):
             aug = ImageOnlyTransform(p=1)
             data = aug(image=image, mask=mask)
-            mocked_apply.assert_called_once_with(image, interpolation=cv2.INTER_LINEAR, cols=width, rows=height)
+            mocked_apply.assert_called_once_with(
+                image, interpolation=cv2.INTER_LINEAR, cols=width, rows=height, shape=image.shape
+            )
             assert np.array_equal(data["mask"], mask)
 
 
@@ -140,8 +142,12 @@ def test_compose_doesnt_pass_force_apply(image: np.ndarray) -> None:
 @pytest.mark.parametrize("image", IMAGES)
 def test_dual_transform(image):
     mask = image.copy()
-    image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
-    mask_call = call(mask, interpolation=cv2.INTER_NEAREST, cols=mask.shape[1], rows=mask.shape[0])
+    image_call = call(
+        image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0], shape=image.shape
+    )
+    mask_call = call(
+        mask, interpolation=cv2.INTER_NEAREST, cols=mask.shape[1], rows=mask.shape[0], shape=mask.shape
+    )
     with mock.patch.object(DualTransform, "apply") as mocked_apply:
         with mock.patch.object(DualTransform, "get_params", return_value={"interpolation": cv2.INTER_LINEAR}):
             aug = DualTransform(p=1)
@@ -152,8 +158,12 @@ def test_dual_transform(image):
 @pytest.mark.parametrize("image", IMAGES)
 def test_additional_targets(image):
     mask = image.copy()
-    image_call = call(image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0])
-    image2_call = call(mask, interpolation=cv2.INTER_LINEAR, cols=mask.shape[1], rows=mask.shape[0])
+    image_call = call(
+        image, interpolation=cv2.INTER_LINEAR, cols=image.shape[1], rows=image.shape[0], shape=image.shape
+    )
+    image2_call = call(
+        mask, interpolation=cv2.INTER_LINEAR, cols=mask.shape[1], rows=mask.shape[0], shape=mask.shape
+    )
     with mock.patch.object(DualTransform, "apply") as mocked_apply:
         with mock.patch.object(DualTransform, "get_params", return_value={"interpolation": cv2.INTER_LINEAR}):
             aug = DualTransform(p=1)

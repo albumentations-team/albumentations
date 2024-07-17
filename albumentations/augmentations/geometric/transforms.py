@@ -1570,10 +1570,10 @@ class VerticalFlip(DualTransform):
         return fgeometric.vflip(img)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_vflip(bbox, **params)
+        return fgeometric.bbox_vflip(bbox, params["shape"][0], params["shape"][1])
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_vflip(keypoint, **params)
+        return fgeometric.keypoint_vflip(keypoint, params["shape"][0], params["shape"][1])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1604,10 +1604,10 @@ class HorizontalFlip(DualTransform):
         return fgeometric.hflip(img)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_hflip(bbox, **params)
+        return fgeometric.bbox_hflip(bbox, params["shape"][0], params["shape"][1])
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_hflip(keypoint, **params)
+        return fgeometric.keypoint_hflip(keypoint, params["shape"][0], params["shape"][1])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1642,10 +1642,10 @@ class Flip(DualTransform):
         return {"d": random.randint(-1, 1)}
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_flip(bbox, **params)
+        return fgeometric.bbox_flip(bbox, params["d"], params["shape"][0], params["shape"][1])
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_flip(keypoint, **params)
+        return fgeometric.keypoint_flip(keypoint, params["d"], params["shape"][0], params["shape"][1])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1671,10 +1671,10 @@ class Transpose(DualTransform):
         return fgeometric.transpose(img)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_transpose(bbox, **params)
+        return fgeometric.bbox_transpose(bbox, params["shape"][0], params["shape"][1])
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_transpose(keypoint, **params)
+        return fgeometric.keypoint_transpose(keypoint, params["shape"][0], params["shape"][1])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -2040,7 +2040,7 @@ class D4(DualTransform):
         return fgeometric.d4(img, group_element)
 
     def apply_to_bbox(self, bbox: BoxInternalType, group_element: D4Type, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_d4(bbox, group_element, **params)
+        return fgeometric.bbox_d4(bbox, group_element, params["shape"][0], params["shape"][1])
 
     def apply_to_keypoint(
         self,
@@ -2048,7 +2048,7 @@ class D4(DualTransform):
         group_element: D4Type,
         **params: Any,
     ) -> KeypointInternalType:
-        return fgeometric.keypoint_d4(keypoint, group_element, **params)
+        return fgeometric.keypoint_d4(keypoint, group_element, params["shape"][0], params["shape"][1])
 
     def get_params(self) -> dict[str, D4Type]:
         return {
