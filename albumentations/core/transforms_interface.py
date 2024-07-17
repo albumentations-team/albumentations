@@ -205,7 +205,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return params
 
     def add_targets(self, additional_targets: dict[str, str]) -> None:
-        """Add targets to transform them the same way as one of existing targetss
+        """Add targets to transform them the same way as one of existing targets.
         ex: {'target_image': 'image'}
         ex: {'obj1_mask': 'mask', 'obj2_mask': 'mask'}
         by the way you must have at least one object with key 'image'
