@@ -31,8 +31,6 @@ except ImportError:
 
 
 def delete_random_words(words: list[str], num_words: int) -> str:
-    if len(words) <= 1 or num_words <= 0:
-        return words[0]
     if num_words >= len(words):
         return ""
 
@@ -42,9 +40,12 @@ def delete_random_words(words: list[str], num_words: int) -> str:
 
 
 def swap_random_words(words: list[str], num_words: int = 1) -> str:
+    if num_words == 0 or len(words) < PAIR:
+        return " ".join(words)
+
+    words = words.copy()
+
     for _ in range(num_words):
-        if len(words) < PAIR:
-            break
         idx1, idx2 = random.sample(range(len(words)), 2)
         words[idx1], words[idx2] = words[idx2], words[idx1]
     return " ".join(words)
