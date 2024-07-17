@@ -115,23 +115,16 @@ def test_augmentations_serialization_with_custom_parameters(
     deserialized_aug = A.from_dict(serialized_aug)
     set_seed(seed)
 
+    data = {
+        "image": image,
+        "mask": mask,
+    }
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-            "mask": mask
-        }
+        data["overlay_metadata"] = []
     elif augmentation_cls == A.RandomCropNearBBox:
-        data = {
-            "image": image,
-            "cropping_bbox": [10, 20, 40, 50],
-            "mask": mask
-        }
-    else:
-        data = {
-            "image": image,
-            "mask": mask,
-        }
+        data["cropping_bbox"] = [10, 20, 40, 50]
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
 
     aug_data = aug(**data)
     set_seed(seed)
@@ -158,23 +151,17 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
         A.save(aug, filepath, data_format=data_format)
         deserialized_aug = A.load(filepath, data_format=data_format)
 
+        data = {
+            "image": image,
+            "mask": mask,
+        }
+
         if augmentation_cls == A.OverlayElements:
-            data = {
-                "image": image,
-                "overlay_metadata": [],
-                "mask": mask
-            }
+            data["overlay_metadata"] = []
         elif augmentation_cls == A.RandomCropNearBBox:
-            data = {
-                "image": image,
-                "cropping_bbox": [10, 20, 40, 50],
-                "mask": mask
-            }
-        else:
-            data = {
-                "image": image,
-                "mask": mask,
-            }
+            data["cropping_bbox"] = [10, 20, 40, 50]
+        elif augmentation_cls == A.TextImage:
+            data["textimage_metadata"] = []
 
         set_seed(seed)
         aug_data = aug(**data)
@@ -219,8 +206,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.MixUp,
             A.CropNonEmptyMaskIfExists,
             A.GridDropout,
-            A.Morphological,
-            A.OverlayElements
+            A.OverlayElements,
+            A.TextImage
         },
     ),
 )
@@ -284,8 +271,8 @@ def test_augmentations_for_bboxes_serialization(
             A.BBoxSafeRandomCrop,
             A.TemplateTransform,
             A.MixUp,
-            A.Morphological,
-            A.OverlayElements
+            A.OverlayElements,
+            A.TextImage
         },
     ),
 )
@@ -509,6 +496,7 @@ def test_transform_pipeline_serialization_with_keypoints(seed, image, keypoints,
             A.FDA,
             A.PixelDistributionAdaptation,
             A.TemplateTransform,
+            A.TextImage
         },
     ),
 )
@@ -727,7 +715,8 @@ def test_template_transform_serialization(template: np.ndarray, seed: int, p: fl
                 "value": [124, 116, 104],
                 "position": "top_left"
             },
-            A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10}
+            A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.FDA,

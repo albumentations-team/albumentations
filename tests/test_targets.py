@@ -1,5 +1,5 @@
 from tests.conftest import SQUARE_FLOAT_IMAGE
-from .utils import get_dual_transforms, get_image_only_transforms, get_transforms
+from .utils import get_dual_transforms, get_image_only_transforms
 import pytest
 from albumentations.core.types import Targets
 import albumentations as A
@@ -121,6 +121,7 @@ str2target = {
             A.TemplateTransform: {
                 "templates": np.random.randint(low=0, high=256, size=(100, 100, 3), dtype=np.uint8),
             },
+            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
         },
     ),
 )

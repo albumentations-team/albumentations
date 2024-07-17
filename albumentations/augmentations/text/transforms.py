@@ -17,13 +17,8 @@ from albumentations.core.pydantic import check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import BoxType, ColorType, SizeType
 
-from pathlib import Path
-
 try:
     from rake_nltk import Rake
-    import nltk
-
-    nltk.download("stopwords")
 
     RAKE_AVAILABLE = True
 except ImportError:
@@ -32,7 +27,7 @@ except ImportError:
 
 class TextImage(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
-        font_path: Path
+        font_path: str
         stopwords: list[str] | None
         pos_tagger: Callable[[str], list[str]] | None
         augmentations: tuple[str, ...] | list[str]
@@ -53,20 +48,20 @@ class TextImage(ImageOnlyTransform):
             if not self.pos_tagger:
                 self.augmentations = [aug for aug in self.augmentations if aug != "kreplacement"]
 
-            self.stopwords = self.stopwords or []
+            self.stopwords = self.stopwords or ["the", "is", "in", "at", "of"]
 
             return self
 
     def __init__(
         self,
-        font_path: Path,
+        font_path: str,
         stopwords: list[str] | None = None,
         pos_tagger: Callable[[str], list[str]] | None = None,
         augmentations: tuple[str, ...] = ("insertion", "swap", "deletion", "kreplacement"),
         fraction_range: tuple[float, float] = (0.1, 0.9),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
         font_color: list[ColorType | str] | ColorType | str = "black",
-        metadata_key: str = "textaug_metadata",
+        metadata_key: str = "textimage_metadata",
         always_apply: bool | None = None,
         p: float = 0.5,
     ) -> None:
@@ -92,7 +87,7 @@ class TextImage(ImageOnlyTransform):
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "font_path",
-            " stopwords",
+            "stopwords",
             "pos_tagger",
             "augmentations",
             "fraction_range",
@@ -167,7 +162,13 @@ class TextImage(ImageOnlyTransform):
 
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         metadata = params[self.metadata_key]
-        img_shape = params["rows"], params["cols"]
+
+        img_shape = params["image"].shape
+
+        if metadata == []:
+            return {
+                "overlay_data": [],
+            }
 
         bboxes = metadata["bboxes"]
         texts = metadata["texts"]
