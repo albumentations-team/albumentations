@@ -103,7 +103,6 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         if force_apply or (random.random() < self.p):
             params = self.get_params()
             params = self.update_params_shape(params=params, data=kwargs)
-            params = self.update_params(params, **kwargs)  # remove after move parameters like interpolation
 
             if self.targets_as_params:
                 missing_keys = set(self.targets_as_params).difference(kwargs.keys())
@@ -124,6 +123,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Apply transforms with parameters."""
+        params = self.update_params(params, **kwargs)  # remove after move parameters like interpolation
         res = {}
         for key, arg in kwargs.items():
             if key in self._key2func and arg is not None:
