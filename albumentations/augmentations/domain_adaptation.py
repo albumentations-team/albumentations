@@ -202,19 +202,14 @@ class FDA(ImageOnlyTransform):
     ) -> np.ndarray:
         return fourier_domain_adaptation(img, target_image, beta)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         target_img = self.read_fn(random.choice(self.reference_images))
-        target_img = cv2.resize(target_img, dsize=(img.shape[1], img.shape[0]))
+        target_img = cv2.resize(target_img, dsize=(params["shape"][1], params["shape"][0]))
 
         return {"target_image": target_img}
 
     def get_params(self) -> dict[str, float]:
         return {"beta": random.uniform(self.beta_limit[0], self.beta_limit[1])}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, str, str]:
         return "reference_images", "beta_limit", "read_fn"
