@@ -104,12 +104,16 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
             params = self.get_params()
             params = self.update_params_shape(params=params, data=kwargs)
 
-            if self.targets_as_params:
+            if self.targets_as_params:  # check if all required targets are in kwargs.
                 missing_keys = set(self.targets_as_params).difference(kwargs.keys())
                 if missing_keys and not (missing_keys == {"image"} and "images" in kwargs):
                     msg = f"{self.__class__.__name__} requires {self.targets_as_params} missing keys: {missing_keys}"
                     raise ValueError(msg)
 
+            params_dependent_on_data = self.get_params_dependent_on_data(params=params, data=kwargs)
+            params.update(params_dependent_on_data)
+
+            if self.targets_as_params:  # this block will be removed after removing `get_params_dependent_on_targets`
                 targets_as_params = {k: kwargs.get(k, None) for k in self.targets_as_params}
                 if missing_keys:  # here we expecting case when missing_keys == {"image"} and "images" in kwargs
                     targets_as_params["image"] = kwargs["images"][0]
