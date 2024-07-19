@@ -34,7 +34,7 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
                 "reference_data": [{"image": SQUARE_UINT8_IMAGE}],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.FromFloat, A.Normalize, A.ToFloat
@@ -82,7 +82,7 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
                 "reference_data": [{"image": SQUARE_FLOAT_IMAGE}],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.CLAHE,
@@ -238,7 +238,7 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
@@ -361,7 +361,7 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.ChannelDropout,
@@ -456,7 +456,7 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1135,7 +1135,7 @@ def test_pixel_domain_adaptation(kind: str) -> None:
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
     ),
 )

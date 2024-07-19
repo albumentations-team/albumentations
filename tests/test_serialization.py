@@ -716,7 +716,7 @@ def test_template_transform_serialization(template: np.ndarray, seed: int, p: fl
                 "position": "top_left"
             },
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
-            A.TextImage: dict(font_path="./tests/filesLiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.FDA,

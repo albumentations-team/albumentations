@@ -6,7 +6,7 @@ import re
 
 import numpy as np
 
-from albumentations.core.types import NUM_RGB_CHANNELS, PAIR, ColorType
+from albumentations.core.types import PAIR
 
 # Importing wordnet and other dependencies only for type checking
 if TYPE_CHECKING:
@@ -135,16 +135,41 @@ def augment_text_with_synonyms(
     return synonyms_text_str.strip()
 
 
+def compute_temp_background_color(font_color: int | tuple[int, ...]) -> int | tuple[int, ...]:
+    """Compute a background color that contrasts with the given font color.
+
+    Args:
+        font_color (int | tuple[int, ...]): The color of the font as an RGB tuple or a grayscale value.
+
+    Returns:
+        int | tuple[int, ...]: A contrasting background color as an RGB tuple or a grayscale value.
+    """
+    if isinstance(font_color, int):
+        return 255 - font_color
+    return tuple(255 - c for c in font_color)
+
+
 def render_text(
     bbox_shape: tuple[int, int],
     text: str,
     font: ImageFont.ImageFont,
-    font_color: ColorType | str,
-    num_channels: int,
-) -> np.ndarray:
-    # Check if Pillow is available
+    font_color: int | tuple[int, int, int] | str,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Render text within a bounding box and create a mask for non-background pixels.
+
+    Args:
+        bbox_shape (tuple[int, int]): The shape of the bounding box as (height, width).
+        text (str): The text to render.
+        font (ImageFont.ImageFont): The font to use for rendering the text.
+        font_color (int | tuple[int, int, int] | str): The color of the font. Can be a string, RGB tuple, or an integer.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing:
+            - The final image with the text rendered as a NumPy array.
+            - A mask of non-background pixels as a NumPy array.
+    """
     try:
-        from PIL import Image, ImageDraw
+        from PIL import Image, ImageDraw, ImageColor
     except ImportError:
         raise ImportError(
             "Pillow is not installed. Please install it to use the render_text function.",
@@ -152,23 +177,40 @@ def render_text(
 
     bbox_height, bbox_width = bbox_shape
 
-    background_color: int | str
-
-    # Determine the image mode based on the number of channels
-    if num_channels == 1:
+    # Determine the image mode based on the font color type
+    if isinstance(font_color, int):
         mode = "L"  # Grayscale image
-        background_color = 255  # White background for grayscale
-    elif num_channels == NUM_RGB_CHANNELS:
+        background_color = compute_temp_background_color(font_color)
+    elif isinstance(font_color, tuple):
         mode = "RGB"  # RGB image
-        background_color = "white"  # White background for RGB
+        background_color = compute_temp_background_color(font_color)
+    elif isinstance(font_color, str):
+        # Convert font_color to RGB tuple if it is a string
+        background_color = compute_temp_background_color(ImageColor.getrgb(font_color))
+        mode = "RGB"
     else:
-        raise ValueError("num_channels must be either 1 (grayscale) or 3 (RGB).")
+        raise TypeError("font_color must be an int (grayscale), tuple (RGB), or string.")
 
-    # Create an empty image with the specified mode and background color
-    bbox_img = Image.new(mode, (bbox_width, bbox_height), color=background_color)
-    draw = ImageDraw.Draw(bbox_img)
+    # Create an empty image with the temporary background color
+    temp_bbox_img = Image.new(mode, (bbox_width, bbox_height), color=background_color)
+    draw = ImageDraw.Draw(temp_bbox_img)
 
     # Draw the text with the specified color
     draw.text((0, 0), text, fill=font_color, font=font)
 
-    return np.array(bbox_img)
+    # Convert the temporary image to a NumPy array
+    temp_bbox_img_np = np.array(temp_bbox_img)
+
+    # Create a mask of non-background pixels in the temporary image
+    if mode == "L":
+        mask = (temp_bbox_img_np != background_color).astype(np.uint8)
+    else:
+        mask = np.logical_not(np.all(temp_bbox_img_np == np.array(background_color), axis=-1)).astype(np.uint8)
+
+    # Create the final image with the original background color
+    final_bbox_img = Image.new(mode, (bbox_width, bbox_height), color=background_color)
+    draw = ImageDraw.Draw(final_bbox_img)
+    draw.text((0, 0), text, fill=font_color, font=font)
+    final_bbox_img_np = np.array(final_bbox_img)
+
+    return final_bbox_img_np, mask

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, Sequence, cast
+from typing import Any, Callable, Literal, cast
 import random
 import numpy as np
 from PIL import ImageFont
@@ -150,9 +150,9 @@ class TextImage(ImageOnlyTransform):
                 choice=cast(Literal["insertion", "swap", "deletion", "kreplacement"], augmentation),
             )
 
-        font_color = random.choice(self.font_color) if isinstance(self.font_color, Sequence) else self.font_color
+        font_color = random.choice(self.font_color) if isinstance(self.font_color, list) else self.font_color
 
-        overlay_image = ftext.render_text((bbox_height, bbox_width), augmented_text, font, font_color, num_channels)
+        overlay_image = ftext.render_text((bbox_height, bbox_width), augmented_text, font, font_color)
         offset = (y_min, x_min)
 
         return {
@@ -163,22 +163,24 @@ class TextImage(ImageOnlyTransform):
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
         metadata = params[self.metadata_key]
 
-        img_shape = params["image"].shape
-
         if metadata == []:
             return {
                 "overlay_data": [],
             }
 
-        bboxes = metadata["bboxes"]
-        texts = metadata["texts"]
+        if isinstance(metadata, dict):
+            metadata = [metadata]
+
+        img_shape = params["image"].shape
+
         fraction = random.uniform(*self.fraction_range)
 
-        num_lines_to_modify = int(len(texts) * fraction)
-        bbox_indices_to_update = random.sample(range(len(texts)), num_lines_to_modify)
+        num_lines_to_modify = int(len(metadata) * fraction)
+        bbox_indices_to_update = random.sample(range(len(metadata)), num_lines_to_modify)
 
         overlay_data = [
-            self.preprocess_metadata(img_shape, bboxes[index], texts[index]) for index in bbox_indices_to_update
+            self.preprocess_metadata(img_shape, metadata[index]["bbox"], metadata[index]["text"])
+            for index in bbox_indices_to_update
         ]
 
         return {
