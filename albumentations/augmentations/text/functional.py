@@ -1,6 +1,7 @@
 from __future__ import annotations
 import random
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from albucore.utils import preserve_channel_dim, MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS, NUM_RGB_CHANNELS
 
 import re
 
@@ -8,11 +9,12 @@ import numpy as np
 
 from albumentations.core.types import PAIR
 
+import albumentations.augmentations.functional as fmain
+
 # Importing wordnet and other dependencies only for type checking
 if TYPE_CHECKING:
     from nltk.tag import StanfordPOSTagger
     from rake_nltk import Rake
-    from PIL import ImageFont
 
 
 # Try to import wordnet, handle if not available
@@ -135,82 +137,54 @@ def augment_text_with_synonyms(
     return synonyms_text_str.strip()
 
 
-def compute_temp_background_color(font_color: int | tuple[int, ...]) -> int | tuple[int, ...]:
-    """Compute a background color that contrasts with the given font color.
+@preserve_channel_dim
+def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.ndarray:
+    """Render multiple text elements using metadata information on an image.
 
     Args:
-        font_color (int | tuple[int, ...]): The color of the font as an RGB tuple or a grayscale value.
+        image (np.ndarray): The base image to render the text on.
+        metadata_list (list[dict[str, Any]]): A list of dictionaries containing text rendering metadata.
 
     Returns:
-        int | tuple[int, ...]: A contrasting background color as an RGB tuple or a grayscale value.
-    """
-    if isinstance(font_color, int):
-        return 255 - font_color
-    return tuple(255 - c for c in font_color)
-
-
-def render_text(
-    bbox_shape: tuple[int, int],
-    text: str,
-    font: ImageFont.ImageFont,
-    font_color: int | tuple[int, int, int] | str,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Render text within a bounding box and create a mask for non-background pixels.
-
-    Args:
-        bbox_shape (tuple[int, int]): The shape of the bounding box as (height, width).
-        text (str): The text to render.
-        font (ImageFont.ImageFont): The font to use for rendering the text.
-        font_color (int | tuple[int, int, int] | str): The color of the font. Can be a string, RGB tuple, or an integer.
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]: A tuple containing:
-            - The final image with the text rendered as a NumPy array.
-            - A mask of non-background pixels as a NumPy array.
+        np.ndarray: The image with the text rendered as a NumPy array.
     """
     try:
-        from PIL import Image, ImageDraw, ImageColor
+        from PIL import Image, ImageDraw
     except ImportError:
         raise ImportError(
             "Pillow is not installed. Please install it to use the render_text function.",
         ) from ImportError
 
-    bbox_height, bbox_width = bbox_shape
+    original_dtype = image.dtype
 
-    # Determine the image mode based on the font color type
-    if isinstance(font_color, int):
-        mode = "L"  # Grayscale image
-        background_color = compute_temp_background_color(font_color)
-    elif isinstance(font_color, tuple):
-        mode = "RGB"  # RGB image
-        background_color = compute_temp_background_color(font_color)
-    elif isinstance(font_color, str):
-        # Convert font_color to RGB tuple if it is a string
-        background_color = compute_temp_background_color(ImageColor.getrgb(font_color))
-        mode = "RGB"
+    if original_dtype == np.float32:
+        image = fmain.from_float(image, dtype=np.uint8)
+
+    # Check if the image has a single channel (grayscale)
+    if len(image.shape) == MONO_CHANNEL_DIMENSIONS:  # (height, width)
+        pil_image = Image.fromarray(image)
+    elif len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == 1:  # (height, width, 1)
+        pil_image = Image.fromarray(image[:, :, 0], mode="L")
+    elif len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == NUM_RGB_CHANNELS:  # (height, width, 3)
+        pil_image = Image.fromarray(image)
     else:
-        raise TypeError("font_color must be an int (grayscale), tuple (RGB), or string.")
+        raise ValueError(f"Unsupported image shape: {image.shape}")
 
-    # Create an empty image with the temporary background color
-    temp_bbox_img = Image.new(mode, (bbox_width, bbox_height), color=background_color)
-    draw = ImageDraw.Draw(temp_bbox_img)
+    # Create a drawing context
+    draw = ImageDraw.Draw(pil_image)
 
-    # Draw the text with the specified color
-    draw.text((0, 0), text, fill=font_color, font=font)
+    for metadata in metadata_list:
+        bbox_coords = metadata["bbox_coords"]
+        text = metadata["text"]
+        font = metadata["font"]
+        font_color = metadata["font_color"]
 
-    # Convert the temporary image to a NumPy array
-    temp_bbox_img_np = np.array(temp_bbox_img)
+        position = bbox_coords[:2]
 
-    # Create a mask of non-background pixels in the temporary image
-    if mode == "L":
-        mask = (temp_bbox_img_np != background_color).astype(np.uint8)
-    else:
-        mask = np.logical_not(np.all(temp_bbox_img_np == np.array(background_color), axis=-1)).astype(np.uint8)
+        # Draw the text on the image
+        draw.text(position, text, font=font, fill=font_color)
 
-    # Create the final image with the original background color
-    final_bbox_img = Image.new(mode, (bbox_width, bbox_height), color=background_color)
-    draw = ImageDraw.Draw(final_bbox_img)
-    draw.text((0, 0), text, fill=font_color, font=font)
-    final_bbox_img_np = np.array(final_bbox_img)
+    # Convert the PIL image back to a NumPy array
+    result = np.array(pil_image)
 
-    return final_bbox_img_np, mask
+    return fmain.to_float(result) if original_dtype == np.float32 else result

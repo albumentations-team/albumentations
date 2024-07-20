@@ -47,6 +47,28 @@ def check_valid_border_modes(value: int) -> int:
 
 BorderModeType = Annotated[int, Field(description="Border Mode"), AfterValidator(check_valid_border_modes)]
 
+
+valid_font_types = [
+    cv2.FONT_HERSHEY_SIMPLEX,
+    cv2.FONT_HERSHEY_PLAIN,
+    cv2.FONT_HERSHEY_DUPLEX,
+    cv2.FONT_HERSHEY_COMPLEX,
+    cv2.FONT_HERSHEY_TRIPLEX,
+    cv2.FONT_HERSHEY_COMPLEX_SMALL,
+    cv2.FONT_HERSHEY_SCRIPT_SIMPLEX,
+    cv2.FONT_HERSHEY_SCRIPT_COMPLEX,
+    cv2.FONT_ITALIC,
+]
+
+
+def check_valid_font_types(value: int) -> int:
+    if value not in valid_font_types:
+        raise ValueError(f"Font type should be one of {valid_font_types}, got {value} instead")
+    return value
+
+
+FontType = Annotated[int, Field(description="Font type"), AfterValidator(check_valid_border_modes)]
+
 ProbabilityType = Annotated[float, Field(description="Probability of applying the transform", ge=0, le=1)]
 
 

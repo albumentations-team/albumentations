@@ -7,7 +7,6 @@ from PIL import ImageFont
 from pydantic import AfterValidator, model_validator
 from albucore.utils import get_num_channels
 
-from albumentations.augmentations.mixing.functional import copy_and_paste_blend
 import albumentations.augmentations.text.functional as ftext
 import re
 from typing_extensions import Annotated, Self
@@ -15,7 +14,7 @@ from typing_extensions import Annotated, Self
 from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
 from albumentations.core.pydantic import check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.core.types import BoxType, ColorType, SizeType
+from albumentations.core.types import BoxType, ColorType
 
 try:
     from rake_nltk import Rake
@@ -30,7 +29,7 @@ class TextImage(ImageOnlyTransform):
         font_path: str
         stopwords: list[str] | None
         pos_tagger: Callable[[str], list[str]] | None
-        augmentations: tuple[str, ...] | list[str]
+        augmentations: tuple[str, ...] | list[str] | None
         fraction_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
         font_size_fraction_range: Annotated[
             tuple[float, float],
@@ -42,6 +41,8 @@ class TextImage(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_input(self) -> Self:
+            if self.augmentations is None:
+                self.augmentations = ()
             if not self.stopwords:
                 self.augmentations = [aug for aug in self.augmentations if aug not in {"kreplacement", "insertion"}]
 
@@ -57,8 +58,8 @@ class TextImage(ImageOnlyTransform):
         font_path: str,
         stopwords: list[str] | None = None,
         pos_tagger: Callable[[str], list[str]] | None = None,
-        augmentations: tuple[str, ...] = ("insertion", "swap", "deletion", "kreplacement"),
-        fraction_range: tuple[float, float] = (0.1, 0.9),
+        augmentations: tuple[str, ...] = (),
+        fraction_range: tuple[float, float] = (1.0, 1.0),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
         font_color: list[ColorType | str] | ColorType | str = "black",
         metadata_key: str = "textimage_metadata",
@@ -121,20 +122,19 @@ class TextImage(ImageOnlyTransform):
         result_sentence = re.sub(" +", " ", result_sentence).strip()
         return result_sentence if result_sentence != text else ""
 
-    def preprocess_metadata(self, img_shape: SizeType, bbox: BoxType, text: str) -> dict[str, Any]:
-        num_channels = get_num_channels(img_shape)
+    def preprocess_metadata(self, image: np.ndarray, bbox: BoxType, text: str) -> dict[str, Any]:
+        num_channels = get_num_channels(image)
 
         if num_channels not in {1, 3}:
             raise TypeError("Image must be either 1 or 3 channels.")
 
-        image_height, image_width = img_shape[:2]
+        image_height, image_width = image.shape[:2]
 
         check_bbox(bbox)
         denormalized_bbox = denormalize_bbox(bbox[:4], rows=image_height, cols=image_width)
 
         x_min, y_min, x_max, y_max = (int(x) for x in denormalized_bbox[:4])
         bbox_height = y_max - y_min
-        bbox_width = x_max - x_min
 
         font_size_fraction = random.uniform(*self.font_size_fraction_range)
 
@@ -152,12 +152,11 @@ class TextImage(ImageOnlyTransform):
 
         font_color = random.choice(self.font_color) if isinstance(self.font_color, list) else self.font_color
 
-        overlay_image = ftext.render_text((bbox_height, bbox_width), augmented_text, font, font_color)
-        offset = (y_min, x_min)
-
         return {
-            "overlay_image": overlay_image,
-            "offset": offset,
+            "bbox_coords": (x_min, y_min, x_max, y_max),
+            "text": augmented_text,
+            "font": font,
+            "font_color": font_color,
         }
 
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
@@ -171,15 +170,16 @@ class TextImage(ImageOnlyTransform):
         if isinstance(metadata, dict):
             metadata = [metadata]
 
-        img_shape = params["image"].shape
+        image = params["image"]
 
         fraction = random.uniform(*self.fraction_range)
 
-        num_lines_to_modify = int(len(metadata) * fraction)
-        bbox_indices_to_update = random.sample(range(len(metadata)), num_lines_to_modify)
+        num_bboxes_to_modify = int(len(metadata) * fraction)
+
+        bbox_indices_to_update = random.sample(range(len(metadata)), num_bboxes_to_modify)
 
         overlay_data = [
-            self.preprocess_metadata(img_shape, metadata[index]["bbox"], metadata[index]["text"])
+            self.preprocess_metadata(image, metadata[index]["bbox"], metadata[index]["text"])
             for index in bbox_indices_to_update
         ]
 
@@ -193,8 +193,4 @@ class TextImage(ImageOnlyTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
-        for data in overlay_data:
-            overlay_image = data["overlay_image"]
-            offset = data["offset"]
-            img = copy_and_paste_blend(img, overlay_image, offset=offset)
-        return img
+        return ftext.render_text(img, overlay_data)
