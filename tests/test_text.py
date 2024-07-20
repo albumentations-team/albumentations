@@ -1,7 +1,8 @@
 import pytest
 import albumentations.augmentations.text.functional as ftext
 from tests.utils import set_seed
-from PIL import ImageFont
+from albucore.utils import get_num_channels
+from PIL import Image, ImageFont
 import numpy as np
 
 
@@ -129,3 +130,68 @@ def test_extract_keywords_and_pos(mocker, prompt, pos_tags, rake_keywords, expec
 
     result = ftext.extract_keywords_and_pos(prompt, pos_tagger, rake)
     assert result == expected_output, f"For prompt '{prompt}', expected {expected_output} but got {result}"
+
+
+@pytest.mark.parametrize(
+    "image_shape",
+    [
+        (100, 100),  # Grayscale image
+        (100, 100, 1),  # Single channel image
+        (100, 100, 3),  # RGB image
+    ]
+)
+def test_convert_image_to_pil(image_shape):
+    image = np.random.randint(0, 255, size=image_shape, dtype=np.uint8)
+    pil_image = ftext.convert_image_to_pil(image)
+    assert isinstance(pil_image, Image.Image)
+
+font = ImageFont.truetype("./tests/files/LiberationSerif-Bold.ttf", size=12)
+
+dummy_metadata = {
+    "bbox_coords": (10, 10, 100, 50),
+    "text": "Test",
+    "font": font,
+    "font_color": (255, 0, 0)  # Red color
+}
+
+@pytest.mark.parametrize(
+    "image_shape, metadata_list",
+    [((100, 100), [{
+    "bbox_coords": (10, 10, 100, 50),
+    "text": "Test",
+    "font": font,
+    "font_color": 127  # Red color
+}]),  # Grayscale image
+    ((100, 100, 1), [{
+    "bbox_coords": (10, 10, 100, 50),
+    "text": "Test",
+    "font": font,
+    "font_color": 127  # Red color
+}]),  # Single channel image
+    ((100, 100, 3), [{
+    "bbox_coords": (10, 10, 100, 50),
+    "text": "Test",
+    "font": font,
+    "font_color": (127, 127, 127)  # Red color
+}, {
+    "bbox_coords": (20, 20, 110, 60),
+    "text": "Test",
+    "font": font,
+    "font_color": "red"  # Red color
+}]),  # RGB image with tuple and string font color
+    ((100, 100, 5), [{
+    "bbox_coords": (20, 20, 110, 60),
+    "text": "Test",
+    "font": font,
+    "font_color": (127, 127, 127, 127, 127)
+}])])
+def test_draw_text_on_pil_image(image_shape, metadata_list):
+    image = np.random.randint(0, 255, size=image_shape, dtype=np.uint8)
+
+    if get_num_channels(image) in {1, 3}:
+        pil_image = ftext.convert_image_to_pil(image)
+        result = ftext.draw_text_on_pil_image(pil_image, metadata_list)
+        assert isinstance(result, Image.Image)
+    else:
+        result = ftext.draw_text_on_multi_channel_image(image, metadata_list)
+        assert isinstance(result, np.ndarray)

@@ -15,6 +15,7 @@ import albumentations.augmentations.functional as fmain
 if TYPE_CHECKING:
     from nltk.tag import StanfordPOSTagger
     from rake_nltk import Rake
+    from PIL import Image
 
 
 # Try to import wordnet, handle if not available
@@ -137,6 +138,64 @@ def augment_text_with_synonyms(
     return synonyms_text_str.strip()
 
 
+def convert_image_to_pil(image: np.ndarray) -> Image:
+    """Convert a NumPy array image to a PIL image."""
+    try:
+        from PIL import Image
+    except ImportError:
+        raise ImportError("Pillow is not installed") from ImportError
+
+    if len(image.shape) == MONO_CHANNEL_DIMENSIONS:  # (height, width)
+        return Image.fromarray(image)
+    if len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == 1:  # (height, width, 1)
+        return Image.fromarray(image[:, :, 0], mode="L")
+    if len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == NUM_RGB_CHANNELS:  # (height, width, 3)
+        return Image.fromarray(image)
+
+    raise TypeError(f"Unsupported image shape: {image.shape}")
+
+
+def draw_text_on_pil_image(pil_image: Image, metadata_list: list[dict[str, Any]]) -> Image:
+    """Draw text on a PIL image using metadata information."""
+    try:
+        from PIL import ImageDraw
+    except ImportError:
+        raise ImportError("Pillow is not installed") from ImportError
+
+    draw = ImageDraw.Draw(pil_image)
+    for metadata in metadata_list:
+        bbox_coords = metadata["bbox_coords"]
+        text = metadata["text"]
+        font = metadata["font"]
+        font_color = metadata["font_color"]
+        position = bbox_coords[:2]
+        draw.text(position, text, font=font, fill=font_color)
+    return pil_image
+
+
+def draw_text_on_multi_channel_image(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.ndarray:
+    """Draw text on a multi-channel image with more than three channels."""
+    try:
+        from PIL import ImageDraw, Image
+    except ImportError:
+        raise ImportError("Pillow is not installed") from ImportError
+
+    channels = [Image.fromarray(image[:, :, i]) for i in range(image.shape[2])]
+    pil_images = [ImageDraw.Draw(channel) for channel in channels]
+
+    for metadata in metadata_list:
+        bbox_coords = metadata["bbox_coords"]
+        text = metadata["text"]
+        font = metadata["font"]
+        font_color = metadata["font_color"]
+        position = bbox_coords[:2]
+
+        for channel_id, pil_image in enumerate(pil_images):
+            pil_image.text(position, text, font=font, fill=font_color[channel_id])
+
+    return np.stack([np.array(channel) for channel in channels], axis=2)
+
+
 @preserve_channel_dim
 def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.ndarray:
     """Render multiple text elements using metadata information on an image.
@@ -148,43 +207,18 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.nd
     Returns:
         np.ndarray: The image with the text rendered as a NumPy array.
     """
-    try:
-        from PIL import Image, ImageDraw
-    except ImportError:
-        raise ImportError(
-            "Pillow is not installed. Please install it to use the render_text function.",
-        ) from ImportError
-
     original_dtype = image.dtype
 
     if original_dtype == np.float32:
         image = fmain.from_float(image, dtype=np.uint8)
 
-    # Check if the image has a single channel (grayscale)
-    if len(image.shape) == MONO_CHANNEL_DIMENSIONS:  # (height, width)
-        pil_image = Image.fromarray(image)
-    elif len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == 1:  # (height, width, 1)
-        pil_image = Image.fromarray(image[:, :, 0], mode="L")
-    elif len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] == NUM_RGB_CHANNELS:  # (height, width, 3)
-        pil_image = Image.fromarray(image)
+    if len(image.shape) == MONO_CHANNEL_DIMENSIONS or (
+        len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] in {1, NUM_RGB_CHANNELS}
+    ):
+        pil_image = convert_image_to_pil(image)
+        pil_image = draw_text_on_pil_image(pil_image, metadata_list)
+        result = np.array(pil_image)
     else:
-        raise ValueError(f"Unsupported image shape: {image.shape}")
-
-    # Create a drawing context
-    draw = ImageDraw.Draw(pil_image)
-
-    for metadata in metadata_list:
-        bbox_coords = metadata["bbox_coords"]
-        text = metadata["text"]
-        font = metadata["font"]
-        font_color = metadata["font_color"]
-
-        position = bbox_coords[:2]
-
-        # Draw the text on the image
-        draw.text(position, text, font=font, fill=font_color)
-
-    # Convert the PIL image back to a NumPy array
-    result = np.array(pil_image)
+        result = draw_text_on_multi_channel_image(image, metadata_list)
 
     return fmain.to_float(result) if original_dtype == np.float32 else result
