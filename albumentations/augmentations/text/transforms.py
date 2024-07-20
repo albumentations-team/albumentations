@@ -5,7 +5,6 @@ import random
 import numpy as np
 from PIL import ImageFont
 from pydantic import AfterValidator, model_validator
-from albucore.utils import get_num_channels
 
 import albumentations.augmentations.text.functional as ftext
 import re
@@ -35,7 +34,13 @@ class TextImage(ImageOnlyTransform):
         font_path (str): Path to the font file to use for rendering text.
         stopwords (list[str] | None): List of stopwords for text augmentation.
         pos_tagger (Callable[[str], list[str]] | None): Part-of-speech tagger for text augmentation.
-        augmentations (tuple[str, ...] | list[str] | None): List of text augmentations to apply.
+        augmentations (tuple[str | None, ...] | list[str | None]): List of text augmentations to apply.
+            None: text is printed as is
+            "insertion": insert random stop words into the text.
+            "swap": swap random words in the text.
+            "deletion": delete random words from the text.
+            "kreplacement": replace random words with synonyms.
+
         fraction_range (tuple[float, float]): Range for selecting a fraction of bounding boxes to modify.
         font_size_fraction_range (tuple[float, float]): Range for selecting the font size as a fraction of
             bounding box height.
@@ -73,7 +78,7 @@ class TextImage(ImageOnlyTransform):
         font_path: str
         stopwords: list[str] | None
         pos_tagger: Callable[[str], list[str]] | None
-        augmentations: tuple[str, ...] | list[str] | None
+        augmentations: tuple[str | None, ...] | list[str | None]
         fraction_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
         font_size_fraction_range: Annotated[
             tuple[float, float],
@@ -85,8 +90,6 @@ class TextImage(ImageOnlyTransform):
 
         @model_validator(mode="after")
         def validate_input(self) -> Self:
-            if self.augmentations is None:
-                self.augmentations = ()
             if not self.stopwords:
                 self.augmentations = [aug for aug in self.augmentations if aug not in {"kreplacement", "insertion"}]
 
@@ -102,7 +105,7 @@ class TextImage(ImageOnlyTransform):
         font_path: str,
         stopwords: list[str] | None = None,
         pos_tagger: Callable[[str], list[str]] | None = None,
-        augmentations: tuple[str, ...] = (),
+        augmentations: tuple[str | None, ...] = (),
         fraction_range: tuple[float, float] = (1.0, 1.0),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
         font_color: list[ColorType | str] | ColorType | str = "black",
@@ -167,11 +170,6 @@ class TextImage(ImageOnlyTransform):
         return result_sentence if result_sentence != text else ""
 
     def preprocess_metadata(self, image: np.ndarray, bbox: BoxType, text: str) -> dict[str, Any]:
-        num_channels = get_num_channels(image)
-
-        if num_channels not in {1, 3}:
-            raise TypeError("Image must be either 1 or 3 channels.")
-
         image_height, image_width = image.shape[:2]
 
         check_bbox(bbox)
@@ -184,7 +182,7 @@ class TextImage(ImageOnlyTransform):
 
         font = ImageFont.truetype(str(self.font_path), int(font_size_fraction * bbox_height))
 
-        if not self.augmentations:
+        if not self.augmentations or self.augmentations is None:
             augmented_text = text
         else:
             augmentation = random.choice(self.augmentations)
