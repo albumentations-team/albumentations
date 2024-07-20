@@ -25,6 +25,50 @@ except ImportError:
 
 
 class TextImage(ImageOnlyTransform):
+    """Apply text rendering transformations on images.
+
+    This class supports rendering text directly onto images using a variety of configurations,
+    such as custom fonts, font sizes, colors, and augmentation methods. The text can be placed
+    inside specified bounding boxes.
+
+    Args:
+        font_path (str): Path to the font file to use for rendering text.
+        stopwords (list[str] | None): List of stopwords for text augmentation.
+        pos_tagger (Callable[[str], list[str]] | None): Part-of-speech tagger for text augmentation.
+        augmentations (tuple[str, ...] | list[str] | None): List of text augmentations to apply.
+        fraction_range (tuple[float, float]): Range for selecting a fraction of bounding boxes to modify.
+        font_size_fraction_range (tuple[float, float]): Range for selecting the font size as a fraction of
+            bounding box height.
+        font_color (list[ColorType | str] | ColorType | str): List of possible font colors or a single font color.
+        metadata_key (str): Key to access metadata in the parameters.
+        p (float): Probability of applying the transform.
+
+    Targets:
+        image
+
+    Image types:
+        uint8, float32
+
+    Examples:
+        >>> import albumentations as A
+        >>> transform = A.Compose([
+            A.TextImage(
+                font_path="/path/to/font.ttf",
+                stopwords=["the", "is", "in"],
+                pos_tagger=my_pos_tagger,
+                augmentations=("insertion", "deletion"),
+                fraction_range=(0.5, 1.0),
+                font_size_fraction_range=(0.5, 0.9),
+                font_color=["red", "green", "blue"],
+                metadata_key="text_metadata",
+                p=0.5
+            )
+        ])
+        >>> transformed = transform(image=my_image, text_metadata=my_metadata)
+        >>> image = transformed['image']
+        # This will render text on `my_image` based on the metadata provided in `my_metadata`.
+    """
+
     class InitSchema(BaseTransformInitSchema):
         font_path: str
         stopwords: list[str] | None
