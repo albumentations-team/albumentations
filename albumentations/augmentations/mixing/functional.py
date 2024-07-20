@@ -7,7 +7,7 @@ def copy_and_paste_blend(
     base_image: np.ndarray,
     overlay_image: np.ndarray,
     overlay_mask: np.ndarray,
-    offset: tuple[int, int] = (0, 0),
+    offset: tuple[int, int],
 ) -> np.ndarray:
     y_offset, x_offset = offset
 
