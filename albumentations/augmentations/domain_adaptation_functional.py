@@ -9,7 +9,6 @@ from albucore.functions import add_weighted
 from albucore.utils import clip, clipped, is_multispectral_image, preserve_channel_dim
 from skimage.exposure import match_histograms
 from sklearn.decomposition import PCA
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from typing_extensions import Protocol
 
 from albumentations.augmentations.functional import center
@@ -21,6 +20,89 @@ __all__ = [
     "apply_histogram",
     "adapt_pixel_distribution",
 ]
+
+
+class BaseScaler:
+    def __init__(self) -> None:
+        self.data_min: np.ndarray | None = None
+        self.data_max: np.ndarray | None = None
+        self.mean: np.ndarray | None = None
+        self.var: np.ndarray | None = None
+        self.scale: np.ndarray | None = None
+
+    def fit(self, x: np.ndarray) -> None:
+        raise NotImplementedError
+
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+    def fit_transform(self, x: np.ndarray) -> np.ndarray:
+        self.fit(x)
+        return self.transform(x)
+
+    def inverse_transform(self, x: np.ndarray) -> np.ndarray:
+        raise NotImplementedError
+
+
+class MinMaxScaler(BaseScaler):
+    def __init__(self, feature_range: tuple[float, float] = (0.0, 1.0)) -> None:
+        super().__init__()
+        self.min: float = feature_range[0]
+        self.max: float = feature_range[1]
+        self.data_range: np.ndarray | None = None
+
+    def fit(self, x: np.ndarray) -> None:
+        self.data_min = np.min(x, axis=0)
+        self.data_max = np.max(x, axis=0)
+        self.data_range = self.data_max - self.data_min
+        # Handle case where data_min equals data_max
+        self.data_range[self.data_range == 0] = 1
+
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        if self.data_min is None or self.data_max is None or self.data_range is None:
+            raise ValueError(
+                "This MinMaxScaler instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using this estimator.",
+            )
+        x_std = (x - self.data_min) / self.data_range
+        return x_std * (self.max - self.min) + self.min
+
+    def inverse_transform(self, x: np.ndarray) -> np.ndarray:
+        if self.data_min is None or self.data_max is None or self.data_range is None:
+            raise ValueError(
+                "This MinMaxScaler instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using this estimator.",
+            )
+        x_std = (x - self.min) / (self.max - self.min)
+        return x_std * self.data_range + self.data_min
+
+
+class StandardScaler(BaseScaler):
+    def __init__(self) -> None:
+        super().__init__()
+
+    def fit(self, x: np.ndarray) -> None:
+        self.mean = np.mean(x, axis=0)
+        self.var = np.var(x, axis=0)
+        self.scale = np.sqrt(self.var)
+        # Handle case where variance is zero
+        self.scale[self.scale == 0] = 1
+
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        if self.mean is None or self.scale is None:
+            raise ValueError(
+                "This StandardScaler instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using this estimator.",
+            )
+        return (x - self.mean) / self.scale
+
+    def inverse_transform(self, x: np.ndarray) -> np.ndarray:
+        if self.mean is None or self.scale is None:
+            raise ValueError(
+                "This StandardScaler instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using this estimator.",
+            )
+        return (x * self.scale) + self.mean
 
 
 class TransformerInterface(Protocol):
