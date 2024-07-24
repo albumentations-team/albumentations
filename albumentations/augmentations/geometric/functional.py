@@ -1141,9 +1141,7 @@ def pad(
 
 
 def extend_value(value: ColorType, num_channels: int) -> Sequence[ScalarType]:
-    if isinstance(value, (int, float)):
-        return [value] * num_channels
-    return value
+    return [value] * num_channels if isinstance(value, (int, float)) else value
 
 
 def copy_make_border_with_value_extension(
