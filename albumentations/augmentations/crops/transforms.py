@@ -1112,10 +1112,6 @@ class CropAndPad(DualTransform):
             self.keep_size,
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
     @staticmethod
     def __prevent_zero(val1: int, val2: int, max_val: int) -> tuple[int, int]:
         regain = abs(max_val) + 1
