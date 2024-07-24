@@ -44,7 +44,7 @@ def test_check_for_updates_new_version_available(mocker):
     log_mock = mocker.patch('logging.Logger.info')
     check_for_updates()
     log_mock.assert_called_once_with(
-        "A new version of Albumentations is available: 1.0.2 (you have 1.0.1). Upgrade using: pip install --upgrade albumentations"
+        'A new version of Albumentations is available: 1.0.2 (you have 1.0.1). Upgrade using: pip install -U albumentations. To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.'
     )
 
 def test_check_for_updates_no_update_needed(mocker):
@@ -58,7 +58,7 @@ def test_check_for_updates_exception_handling(mocker):
     mocker.patch('albumentations.check_version.fetch_version_info', side_effect=Exception("Error"))
     log_mock = mocker.patch('logging.Logger.info')
     check_for_updates()
-    log_mock.assert_called_once_with("Failed to check for updates due to an unexpected error: Error")
+    log_mock.assert_called_once_with("Failed to check for updates due to an unexpected error: Error. To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.")
 
 def test_parse_version_correct_input():
     json_input = '{"info": {"version": "1.0.2"}}'

@@ -59,8 +59,12 @@ def check_for_updates() -> None:
         latest_version = parse_version(data)
         if latest_version and latest_version != current_version:
             logger.info(
-                f"A new version of Albumentations is available: {latest_version} (you have {current_version})."
-                " Upgrade using: pip install --upgrade albumentations",
+                f"A new version of Albumentations is available: {latest_version} (you have {current_version})."  # noqa: S608
+                " Upgrade using: pip install -U albumentations."
+                " To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
             )
     except Exception as e:  # General exception catch to ensure silent failure  # noqa: BLE001
-        logger.info(f"Failed to check for updates due to an unexpected error: {e}")
+        logger.info(
+            f"Failed to check for updates due to an unexpected error: {e}. "  # noqa: S608
+            "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
+        )
