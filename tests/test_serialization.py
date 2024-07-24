@@ -239,7 +239,6 @@ AUGMENTATION_CLS_PARAMS = [
         {
             "alpha": 2,
             "sigma": 25,
-            "alpha_affine": 40,
             "interpolation": cv2.INTER_CUBIC,
             "border_mode": cv2.BORDER_CONSTANT,
             "value": (10, 10, 10),

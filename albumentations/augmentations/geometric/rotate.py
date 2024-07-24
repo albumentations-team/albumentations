@@ -248,7 +248,7 @@ class Rotate(DualTransform):
         return out_params
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border")
+        return "limit", "interpolation", "border_mode", "value", "mask_value", "rotate_method", "crop_border"
 
 
 class SafeRotate(DualTransform):
@@ -324,15 +324,10 @@ class SafeRotate(DualTransform):
     ) -> KeypointInternalType:
         return fgeometric.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        angle = random.uniform(self.limit[0], self.limit[1])
-
-        image = params["image"]
-        height, width = image.shape[:2]
+        angle = random.uniform(*self.limit)
 
         # https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
         image_center = center(width, height)
