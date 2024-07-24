@@ -1284,6 +1284,43 @@ def grid_distortion(
     return remap_fn(img)
 
 
+def elastic_transform_helper(
+    img: np.ndarray,
+    alpha: float,
+    sigma: float,
+    interpolation: int,
+    border_mode: int,
+    value: ColorType | None,
+    random_state: np.random.RandomState | None,
+    same_dxdy: bool,
+    kernel_size: tuple[int, int],
+) -> np.ndarray:
+    height, width = img.shape[:2]
+
+    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
+    cv2.GaussianBlur(dx, kernel_size, sigma, dst=dx)
+    dx *= alpha
+
+    dy = dx if same_dxdy else random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
+    if not same_dxdy:
+        cv2.GaussianBlur(dy, kernel_size, sigma, dst=dy)
+        dy *= alpha
+
+    x, y = np.meshgrid(np.arange(width), np.arange(height))
+    map_x = np.float32(x + dx)
+    map_y = np.float32(y + dy)
+
+    remap_fn = maybe_process_in_chunks(
+        cv2.remap,
+        map1=map_x,
+        map2=map_y,
+        interpolation=interpolation,
+        borderMode=border_mode,
+        borderValue=value,
+    )
+    return remap_fn(img)
+
+
 def elastic_transform_precise(
     img: np.ndarray,
     alpha: float,
@@ -1313,34 +1350,17 @@ def elastic_transform_precise(
     Returns:
         np.ndarray: Transformed image with precise elastic deformation applied.
     """
-    height, width = img.shape[:2]
-
-    # Generate random displacement fields
-    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-    cv2.GaussianBlur(dx, (0, 0), sigma, dst=dx)
-    dx *= alpha
-
-    if same_dxdy:
-        dy = dx
-    else:
-        dy = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-        cv2.GaussianBlur(dy, (0, 0), sigma, dst=dy)
-        dy *= alpha
-
-    # Create meshgrid for remapping
-    x, y = np.meshgrid(np.arange(width), np.arange(height))
-    map_x = np.float32(x + dx)
-    map_y = np.float32(y + dy)
-
-    remap_fn = maybe_process_in_chunks(
-        cv2.remap,
-        map1=map_x,
-        map2=map_y,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
+    return elastic_transform_helper(
+        img,
+        alpha,
+        sigma,
+        interpolation,
+        border_mode,
+        value,
+        random_state,
+        same_dxdy,
+        kernel_size=(0, 0),
     )
-    return remap_fn(img)
 
 
 def elastic_transform_approximate(
@@ -1353,49 +1373,18 @@ def elastic_transform_approximate(
     random_state: np.random.RandomState | None,
     same_dxdy: bool = False,
 ) -> np.ndarray:
-    """Apply an approximate elastic transformation to an image.
-
-    This function applies an elastic deformation to the input image using an approximate method.
-    The transformation involves creating random displacement fields, smoothing them using Gaussian blur,
-    and then remapping the image according to the smoothed displacement fields.
-
-    Args:
-        img (np.ndarray): Input image.
-        alpha (float): Scaling factor for the random displacement fields.
-        sigma (float): Standard deviation for Gaussian blur applied to the displacement fields.
-        interpolation (int): Interpolation method to be used (e.g., cv2.INTER_LINEAR).
-        border_mode (int): Pixel extrapolation method (e.g., cv2.BORDER_CONSTANT).
-        value (ColorType | None): Border value if border_mode is cv2.BORDER_CONSTANT.
-        random_state (np.random.RandomState | None): Random state for reproducibility.
-        same_dxdy (bool, optional): If True, use the same displacement field for both x and y directions.
-
-    Returns:
-        np.ndarray: Transformed image with approximate elastic deformation applied.
-    """
-    height, width = img.shape[:2]
-
-    dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-    cv2.GaussianBlur(dx, (17, 17), sigma, dst=dx)
-    dx *= alpha
-
-    dy = dx if same_dxdy else random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-    if not same_dxdy:
-        cv2.GaussianBlur(dy, (17, 17), sigma, dst=dy)
-        dy *= alpha
-
-    x, y = np.meshgrid(np.arange(width), np.arange(height))
-    map_x = np.float32(x + dx)
-    map_y = np.float32(y + dy)
-
-    remap_fn = maybe_process_in_chunks(
-        cv2.remap,
-        map1=map_x,
-        map2=map_y,
-        interpolation=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
+    """Apply an approximate elastic transformation to an image."""
+    return elastic_transform_helper(
+        img,
+        alpha,
+        sigma,
+        interpolation,
+        border_mode,
+        value,
+        random_state,
+        same_dxdy,
+        kernel_size=(17, 17),
     )
-    return remap_fn(img)
 
 
 @preserve_channel_dim
@@ -1410,25 +1399,7 @@ def elastic_transform(
     approximate: bool = False,
     same_dxdy: bool = False,
 ) -> np.ndarray:
-    """Apply an elastic transformation to an image.
-
-    This function applies elastic deformation as described in the paper by Simard, Steinkraus, and Platt (2003).
-    The transformation can be either precise or approximate, depending on the `approximate` parameter.
-
-    Args:
-        img (np.ndarray): Input image.
-        alpha (float): Scaling factor for the random displacement fields.
-        sigma (float): Standard deviation for Gaussian smoothing of the displacement fields.
-        interpolation (int): Interpolation method to be used (e.g., cv2.INTER_LINEAR).
-        border_mode (int): Pixel extrapolation method (e.g., cv2.BORDER_CONSTANT).
-        value (ColorType | None, optional): Border value if border_mode is cv2.BORDER_CONSTANT.
-        random_state (np.random.RandomState | None, optional): Random state for reproducibility.
-        approximate (bool, optional): If True, use an approximate method for faster but less precise transformation.
-        same_dxdy (bool, optional): If True, use the same displacement field for both x and y directions.
-
-    Returns:
-        np.ndarray: Transformed image.
-    """
+    """Apply an elastic transformation to an image."""
     if approximate:
         return elastic_transform_approximate(
             img,
@@ -1440,5 +1411,13 @@ def elastic_transform(
             random_state,
             same_dxdy,
         )
-
-    return elastic_transform_precise(img, alpha, sigma, interpolation, border_mode, value, random_state, same_dxdy)
+    return elastic_transform_precise(
+        img,
+        alpha,
+        sigma,
+        interpolation,
+        border_mode,
+        value,
+        random_state,
+        same_dxdy,
+    )
