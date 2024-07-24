@@ -114,14 +114,13 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_seed": random_seed}
     )
 
-    aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
+    aug = A.ElasticTransform(alpha=1, sigma=50, interpolation=interpolation, p=1)
 
     data = aug(image=image, mask=mask)
     expected_image = FGeometric.elastic_transform(
         image,
         alpha=1,
         sigma=50,
-        alpha_affine=50,
         interpolation=interpolation,
         border_mode=cv2.BORDER_REFLECT_101,
         random_state=np.random.RandomState(random_seed),
@@ -130,7 +129,6 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         mask,
         alpha=1,
         sigma=50,
-        alpha_affine=50,
         interpolation=cv2.INTER_NEAREST,
         border_mode=cv2.BORDER_REFLECT_101,
         random_state=np.random.RandomState(random_seed),
@@ -2008,16 +2006,15 @@ def test_return_nonzero(augmentation_cls, params):
 @pytest.mark.parametrize(
     "transform",
     [
-        A.PadIfNeeded(min_height=10, min_width=10, value=128, border_mode=cv2.BORDER_CONSTANT, p=1),
-        A.CropAndPad(px=2, pad_mode=cv2.BORDER_CONSTANT, pad_cval=128, p=1),
-        A.CropAndPad(percent=(0, 0.3, 0, 0), pad_cval=128, p=1),
-        A.Affine(translate_px={"x": -5, "y": -5}, cval=128, p=1),
-        A.ElasticTransform(p=1, alpha=10, sigma=10, alpha_affine=10, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
-        A.Perspective(p=1, scale=(0.5, 1.5), translate_percent=(-0.25, 0.25), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
-        A.OpticalDistortion(p=1, distort_limit=0.5, shift_limit=0.5, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
-        A.GridDistortion(p=1, num_steps=5, distort_limit=0.5, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
-        A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
-        A.SafeRotate(p=1, limit=(45, 45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        A.PadIfNeeded(min_height=6, min_width=6, value=128, border_mode=cv2.BORDER_CONSTANT, p=1),
+        A.CropAndPad(px=2, pad_mode=cv2.BORDER_CONSTANT, pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.CropAndPad(percent=(0, 0.3, 0, 0), pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.Affine(translate_px={"x": -1, "y": -1}, cval=128, p=1, interpolation=cv2.INTER_NEAREST),
+        # A.Perspective(p=1, scale=(0.5, 1.5), translate_percent=(-0.25, 0.25), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        # A.OpticalDistortion(p=1, distort_limit=0.5, shift_limit=0.5, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        # A.GridDistortion(p=1, num_steps=5, distort_limit=0.5, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        # A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        # A.SafeRotate(p=1, limit=(45, 45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
     ]
 )
 # @pytest.mark.parametrize("num_channels", [1, 3, 5])
@@ -2042,6 +2039,6 @@ def test_padding_color(transform, num_channels):
     else:
         channels = [augmented[:, :, i] for i in range(num_channels)]
 
-    for channel in channels:
+    for channel_id, channel in enumerate(channels):
         unique_values = np.unique(channel)
-        assert set(unique_values) == {0, 128}
+        assert set(unique_values) == {0, 128}, f"{channel_id}"

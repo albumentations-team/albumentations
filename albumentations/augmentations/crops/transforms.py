@@ -10,7 +10,6 @@ import numpy as np
 from pydantic import AfterValidator, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
-from albucore.utils import get_num_channels
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import union_of_bboxes
@@ -1147,7 +1146,6 @@ class CropAndPad(DualTransform):
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
-        num_channels = get_num_channels(data["image"])
 
         if self.px is not None:
             new_params = self._get_px_params()
@@ -1179,27 +1177,11 @@ class CropAndPad(DualTransform):
         else:
             pad_params = []
 
-        if pad_params is not None:
-            pad_value_single = self._get_pad_value(self.pad_cval)
-            pad_value = [pad_value_single] * num_channels if num_channels != 1 else pad_value_single
-
-            if "mask" in data:
-                pad_value_mask_single = self._get_pad_value(self.pad_cval_mask)
-                num_mask_channels = get_num_channels(data["mask"])
-                pad_value_mask = (
-                    [pad_value_mask_single] * num_mask_channels if num_mask_channels != 1 else pad_value_mask_single
-                )
-            else:
-                pad_value_mask = None
-        else:
-            pad_value = None
-            pad_value_mask = None
-
         return {
             "crop_params": crop_params or None,
             "pad_params": pad_params or None,
-            "pad_value": pad_value,
-            "pad_value_mask": pad_value_mask,
+            "pad_value": None if pad_params is None else self._get_pad_value(self.pad_cval),
+            "pad_value_mask": None if pad_params is None else self._get_pad_value(self.pad_cval_mask),
             "result_rows": result_rows,
             "result_cols": result_cols,
         }

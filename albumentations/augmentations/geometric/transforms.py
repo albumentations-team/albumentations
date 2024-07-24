@@ -26,6 +26,7 @@ from albumentations.core.types import (
     ColorType,
     D4Type,
     KeypointInternalType,
+    ScalarType,
     ScaleFloatType,
     ScaleIntType,
     SizeType,
@@ -63,31 +64,28 @@ __all__ = [
 
 
 class ElasticTransform(DualTransform):
-    """Elastic deformation of images as described in [Simard2003]_ (with modifications).
+    """Apply elastic deformation to images, masks, and bounding boxes as described in [Simard2003]_.
 
-    .. [Simard2003] Simard, Steinkraus and Platt, "Best Practices for
-         Convolutional Neural Networks applied to Visual Document Analysis", in
-         Proc. of the International Conference on Document Analysis and
-         Recognition, 2003.
+    This transformation introduces random elastic distortions to images, which can be useful for data augmentation
+    in training convolutional neural networks. The transformation can be applied in an approximate or precise manner,
+    with an option to use the same displacement field for both x and y directions to speed up the process.
 
     Args:
-        alpha (float):
-        sigma (float): Gaussian filter parameter.
-        alpha_affine (float): The range will be (-alpha_affine, alpha_affine)
-        interpolation (OpenCV flag): flag that is used to specify the interpolation algorithm. Should be one of:
+        alpha (float): Scaling factor for the random displacement fields.
+        sigma (float): Standard deviation for Gaussian filter applied to the displacement fields.
+        interpolation (int): Interpolation method to be used. Should be one of:
             cv2.INTER_NEAREST, cv2.INTER_LINEAR, cv2.INTER_CUBIC, cv2.INTER_AREA, cv2.INTER_LANCZOS4.
-            Default: cv2.INTER_LINEAR.
-        border_mode (OpenCV flag): flag that is used to specify the pixel extrapolation method. Should be one of:
+            Default is cv2.INTER_LINEAR.
+        border_mode (int): Pixel extrapolation method. Should be one of:
             cv2.BORDER_CONSTANT, cv2.BORDER_REPLICATE, cv2.BORDER_REFLECT, cv2.BORDER_WRAP, cv2.BORDER_REFLECT_101.
-            Default: cv2.BORDER_REFLECT_101
-        value (int, float, list of ints, list of float): padding value if border_mode is cv2.BORDER_CONSTANT.
-        mask_value (int, float,
-                    list of ints,
-                    list of float): padding value if border_mode is cv2.BORDER_CONSTANT applied for masks.
-        approximate (boolean): Whether to smooth displacement map with fixed kernel size.
-                               Enabling this option gives ~2X speedup on large images.
-        same_dxdy (boolean): Whether to use same random generated shift for x and y.
-                             Enabling this option gives ~2X speedup.
+            Default is cv2.BORDER_REFLECT_101.
+        value (int, float, list of int, list of float, optional): Padding value if border_mode is cv2.BORDER_CONSTANT.
+        mask_value (int, float, list of int, list of float, optional): Padding value if border_mode is
+            cv2.BORDER_CONSTANT, applied to masks.
+        approximate (bool, optional): Whether to smooth displacement map with a fixed kernel size.
+            Enabling this option gives ~2X speedup on large images. Default is False.
+        same_dxdy (bool, optional): Whether to use the same random displacement for x and y directions.
+            Enabling this option gives ~2X speedup. Default is False.
 
     Targets:
         image, mask, bboxes
@@ -96,8 +94,9 @@ class ElasticTransform(DualTransform):
         uint8, float32
 
     Reference:
+        Simard, Steinkraus and Platt, "Best Practices for Convolutional Neural Networks applied to
+        Visual Document Analysis", in Proc. of the International Conference on Document Analysis and Recognition, 2003.
         https://gist.github.com/ernestum/601cdf56d2b424757de5
-
     """
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
@@ -105,7 +104,10 @@ class ElasticTransform(DualTransform):
     class InitSchema(BaseTransformInitSchema):
         alpha: Annotated[float, Field(default=1, description="Alpha parameter.", ge=0)]
         sigma: Annotated[float, Field(default=50, description="Sigma parameter for Gaussian filter.", ge=0)]
-        alpha_affine: Annotated[float, Field(default=50, description="Alpha affine parameter.", ge=0)]
+        alpha_affine: None = Field(
+            description="Alpha affine parameter.",
+            deprecated="Use Affine transform to get affine effects",
+        )
         interpolation: InterpolationType = cv2.INTER_LINEAR
         border_mode: BorderModeType = cv2.BORDER_REFLECT_101
         value: int | float | list[int] | list[float] | None = Field(
@@ -123,19 +125,18 @@ class ElasticTransform(DualTransform):
         self,
         alpha: float = 1,
         sigma: float = 50,
-        alpha_affine: float = 50,
+        alpha_affine: None = None,
         interpolation: int = cv2.INTER_LINEAR,
         border_mode: int = cv2.BORDER_REFLECT_101,
-        value: int | float | list[int] | list[float] | None = None,  # noqa: PYI041
-        mask_value: int | float | list[int] | list[float] | None = None,  # noqa: PYI041
+        value: ScalarType | list[ScalarType] | None = None,
+        mask_value: ScalarType | list[ScalarType] | None = None,
         always_apply: bool | None = None,
         approximate: bool = False,
         same_dxdy: bool = False,
         p: float = 0.5,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
         self.alpha = alpha
-        self.alpha_affine = alpha_affine
         self.sigma = sigma
         self.interpolation = interpolation
         self.border_mode = border_mode
@@ -155,7 +156,6 @@ class ElasticTransform(DualTransform):
             img,
             self.alpha,
             self.sigma,
-            self.alpha_affine,
             interpolation,
             self.border_mode,
             self.value,
@@ -169,7 +169,6 @@ class ElasticTransform(DualTransform):
             mask,
             self.alpha,
             self.sigma,
-            self.alpha_affine,
             cv2.INTER_NEAREST,
             self.border_mode,
             self.mask_value,
@@ -194,7 +193,6 @@ class ElasticTransform(DualTransform):
             mask,
             self.alpha,
             self.sigma,
-            self.alpha_affine,
             cv2.INTER_NEAREST,
             self.border_mode,
             self.mask_value,
@@ -211,7 +209,6 @@ class ElasticTransform(DualTransform):
         return (
             "alpha",
             "sigma",
-            "alpha_affine",
             "interpolation",
             "border_mode",
             "value",
