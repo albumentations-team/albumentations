@@ -10,6 +10,7 @@ import numpy as np
 from pydantic import AfterValidator, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
+
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (
@@ -973,11 +974,11 @@ class CropAndPad(DualTransform):
             description="Fraction of image size to crop (negative) or pad (positive).",
         )
         pad_mode: BorderModeType = cv2.BORDER_CONSTANT
-        pad_cval: ColorType = Field(
+        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = Field(
             default=0,
             description="Padding value if pad_mode is BORDER_CONSTANT.",
         )
-        pad_cval_mask: ColorType = Field(
+        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = Field(
             default=0,
             description="Padding value for masks if pad_mode is BORDER_CONSTANT.",
         )
@@ -1007,8 +1008,8 @@ class CropAndPad(DualTransform):
         px: int | list[int] | None = None,
         percent: float | list[float] | None = None,
         pad_mode: int = cv2.BORDER_CONSTANT,
-        pad_cval: ColorType = 0,
-        pad_cval_mask: ColorType = 0,
+        pad_cval: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
+        pad_cval_mask: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType] = 0,
         keep_size: bool = True,
         sample_independently: bool = True,
         interpolation: int = cv2.INTER_LINEAR,
@@ -1034,7 +1035,7 @@ class CropAndPad(DualTransform):
         img: np.ndarray,
         crop_params: Sequence[int],
         pad_params: Sequence[int],
-        pad_value: float,
+        pad_value: ColorType,
         rows: int,
         cols: int,
         interpolation: int,
@@ -1110,10 +1111,6 @@ class CropAndPad(DualTransform):
             self.keep_size,
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
     @staticmethod
     def __prevent_zero(val1: int, val2: int, max_val: int) -> tuple[int, int]:
         regain = abs(max_val) + 1
@@ -1147,8 +1144,8 @@ class CropAndPad(DualTransform):
 
         return [max(top, 0), max(right, 0), max(bottom, 0), max(left, 0)]
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         if self.px is not None:
             new_params = self._get_px_params()
@@ -1235,7 +1232,7 @@ class CropAndPad(DualTransform):
 
     @staticmethod
     def _get_pad_value(
-        pad_value: ColorType,
+        pad_value: ScalarType | tuple[ScalarType, ScalarType] | list[ScalarType],
     ) -> ScalarType:
         if isinstance(pad_value, (int, float)):
             return pad_value

@@ -102,13 +102,18 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
         if force_apply or (random.random() < self.p):
             params = self.get_params()
+            params = self.update_params_shape(params=params, data=kwargs)
 
-            if self.targets_as_params:
+            if self.targets_as_params:  # check if all required targets are in kwargs.
                 missing_keys = set(self.targets_as_params).difference(kwargs.keys())
                 if missing_keys and not (missing_keys == {"image"} and "images" in kwargs):
                     msg = f"{self.__class__.__name__} requires {self.targets_as_params} missing keys: {missing_keys}"
                     raise ValueError(msg)
 
+            params_dependent_on_data = self.get_params_dependent_on_data(params=params, data=kwargs)
+            params.update(params_dependent_on_data)
+
+            if self.targets_as_params:  # this block will be removed after removing `get_params_dependent_on_targets`
                 targets_as_params = {k: kwargs.get(k, None) for k in self.targets_as_params}
                 if missing_keys:  # here we expecting case when missing_keys == {"image"} and "images" in kwargs
                     targets_as_params["image"] = kwargs["images"][0]
@@ -122,7 +127,7 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Apply transforms with parameters."""
-        params = self.update_params(params, **kwargs)
+        params = self.update_params(params, **kwargs)  # remove after move parameters like interpolation
         res = {}
         for key, arg in kwargs.items():
             if key in self._key2func and arg is not None:
@@ -165,6 +170,18 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         """Returns parameters independent of input."""
         return {}
 
+    def update_params_shape(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Updates parameters with input image shape."""
+        # here we expects `image` or `images` in kwargs. it's checked at Compose._check_args
+        shape = data["image"].shape if "image" in data else data["images"][0].shape
+        params["shape"] = shape
+        params.update({"cols": shape[1], "rows": shape[0]})
+        return params
+
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        """Returns parameters dependent on input."""
+        return params
+
     @property
     def targets(self) -> dict[str, Callable[..., Any]]:
         # mapping for targets and methods for which they depend
@@ -191,7 +208,11 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         return self._available_keys
 
     def update_params(self, params: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
-        """Update parameters with transform specific params."""
+        """Update parameters with transform specific params.
+        This method is deprecated, use:
+        - `get_params` for transform specific params like interpolation and
+        - `update_params_shape` for data like shape.
+        """
         if hasattr(self, "interpolation"):
             params["interpolation"] = self.interpolation
         if hasattr(self, "fill_value"):
@@ -228,16 +249,18 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
 
     @property
     def targets_as_params(self) -> list[str]:
-        """Targets used to get params"""
+        """Targets used to get params dependent on targets.
+        This is used to check input has all required targets.
+        """
         return []
 
     def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        """Returns parameters dependent on targets.
+        """This method is deprecated.
+        Use `get_params_dependent_on_data` instead.
+        Returns parameters dependent on targets.
         Dependent target is defined in `self.targets_as_params`
         """
-        raise NotImplementedError(
-            "Method get_params_dependent_on_targets is not implemented in class " + self.__class__.__name__,
-        )
+        return {}
 
     @classmethod
     def get_class_fullname(cls) -> str:

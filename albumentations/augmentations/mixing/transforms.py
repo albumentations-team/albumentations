@@ -275,7 +275,7 @@ class OverlayElements(ReferenceBasedTransform):
 
     @property
     def targets_as_params(self) -> list[str]:
-        return [self.metadata_key, "image"]
+        return [self.metadata_key]
 
     @staticmethod
     def preprocess_metadata(metadata: dict[str, Any], img_shape: SizeType) -> dict[str, Any]:
@@ -340,9 +340,9 @@ class OverlayElements(ReferenceBasedTransform):
 
         return result
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        metadata = params[self.metadata_key]
-        img_shape = params["image"].shape
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        metadata = data[self.metadata_key]
+        img_shape = params["shape"]
 
         if isinstance(metadata, list):
             overlay_data = [self.preprocess_metadata(md, img_shape) for md in metadata]

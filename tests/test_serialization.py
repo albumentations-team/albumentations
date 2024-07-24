@@ -99,6 +99,7 @@ def test_augmentations_serialization(augmentation_cls, params, p, seed, image):
 
 
 
+
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     check_all_augs_exists(AUGMENTATION_CLS_PARAMS, AUGMENTATION_CLS_EXCEPT),

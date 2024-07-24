@@ -113,14 +113,13 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         "albumentations.augmentations.geometric.ElasticTransform.get_params", lambda *_: {"random_seed": random_seed}
     )
 
-    aug = A.ElasticTransform(alpha=1, sigma=50, alpha_affine=50, interpolation=interpolation, p=1)
+    aug = A.ElasticTransform(alpha=1, sigma=50, interpolation=interpolation, p=1)
 
     data = aug(image=image, mask=mask)
     expected_image = FGeometric.elastic_transform(
         image,
         alpha=1,
         sigma=50,
-        alpha_affine=50,
         interpolation=interpolation,
         border_mode=cv2.BORDER_REFLECT_101,
         random_state=np.random.RandomState(random_seed),
@@ -129,7 +128,6 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
         mask,
         alpha=1,
         sigma=50,
-        alpha_affine=50,
         interpolation=cv2.INTER_NEAREST,
         border_mode=cv2.BORDER_REFLECT_101,
         random_state=np.random.RandomState(random_seed),
@@ -1451,8 +1449,7 @@ def test_coarse_dropout_invalid_input(params):
             A.NoOp,
             A.Lambda,
             A.ToRGB,
-            A.RandomRotate90,
-            A.FancyPCA,
+            A.RandomRotate90,            
             A.TextImage
         },
     ),
@@ -1530,7 +1527,6 @@ def test_change_image(augmentation_cls, params):
             A.ChannelShuffle,
             A.ChromaticAberration,
             A.RandomRotate90,
-            A.FancyPCA,
             A.PlanckianJitter,
             A.OverlayElements,
             A.FromFloat,
@@ -2011,3 +2007,37 @@ def test_return_nonzero(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(p=1, **params)])
 
     assert not np.array_equal(aug(image=image)["image"], np.zeros_like(image))
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        A.PadIfNeeded(min_height=6, min_width=6, value=128, border_mode=cv2.BORDER_CONSTANT, p=1),
+        A.CropAndPad(px=2, pad_mode=cv2.BORDER_CONSTANT, pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.CropAndPad(percent=(0, 0.3, 0, 0), pad_cval=128, p=1, interpolation=cv2.INTER_NEAREST_EXACT),
+        A.Affine(translate_px={"x": -1, "y": -1}, cval=128, p=1, interpolation=cv2.INTER_NEAREST),
+        A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_NEAREST, border_mode=cv2.BORDER_CONSTANT, value=128),
+    ]
+)
+@pytest.mark.parametrize("num_channels", [1, 3, 5])
+def test_padding_color(transform, num_channels):
+    # Create an image with zeros
+    if num_channels == 1:
+        image = np.zeros((4, 4), dtype=np.uint8)
+    else:
+        image = np.zeros((4, 4, num_channels), dtype=np.uint8)
+
+    pipeline = A.Compose([transform])
+
+    # Apply the transform
+    augmented = pipeline(image=image)["image"]
+
+    # Check the unique values in each channel of the padded image
+    if num_channels == 1:
+        channels = [augmented]
+    else:
+        channels = [augmented[:, :, i] for i in range(num_channels)]
+
+    for channel_id, channel in enumerate(channels):
+        unique_values = np.unique(channel)
+        assert set(unique_values) == {0, 128}, f"{channel_id}"
