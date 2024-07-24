@@ -259,12 +259,12 @@ def rotate(
     matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
 
     warp_fn = maybe_process_in_chunks(
-        cv2.warpAffine,
-        M=matrix,
+        warp_affine_with_value_extension,
+        matrix=matrix,
         dsize=(width, height),
         flags=interpolation,
-        borderMode=border_mode,
-        borderValue=value,
+        border_mode=border_mode,
+        border_value=value,
     )
     return warp_fn(img)
 
