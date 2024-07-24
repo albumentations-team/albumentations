@@ -102,8 +102,8 @@ class ElasticTransform(DualTransform):
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES)
 
     class InitSchema(BaseTransformInitSchema):
-        alpha: Annotated[float, Field(default=1, description="Alpha parameter.", ge=0)]
-        sigma: Annotated[float, Field(default=50, description="Sigma parameter for Gaussian filter.", ge=0)]
+        alpha: Annotated[float, Field(description="Alpha parameter.", ge=0)]
+        sigma: Annotated[float, Field(default=50, description="Sigma parameter for Gaussian filter.", ge=1)]
         alpha_affine: None = Field(
             description="Alpha affine parameter.",
             deprecated="Use Affine transform to get affine effects",
@@ -123,7 +123,7 @@ class ElasticTransform(DualTransform):
 
     def __init__(
         self,
-        alpha: float = 1,
+        alpha: float = 3,
         sigma: float = 50,
         alpha_affine: None = None,
         interpolation: int = cv2.INTER_LINEAR,

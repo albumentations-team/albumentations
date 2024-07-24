@@ -1315,15 +1315,19 @@ def elastic_transform_precise(
     """
     height, width = img.shape[:2]
 
+    # Generate random displacement fields
     dx = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
     cv2.GaussianBlur(dx, (0, 0), sigma, dst=dx)
     dx *= alpha
 
-    dy = dx if same_dxdy else random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
-    if not same_dxdy:
+    if same_dxdy:
+        dy = dx
+    else:
+        dy = random_utils.rand(height, width, random_state=random_state).astype(np.float32) * 2 - 1
         cv2.GaussianBlur(dy, (0, 0), sigma, dst=dy)
         dy *= alpha
 
+    # Create meshgrid for remapping
     x, y = np.meshgrid(np.arange(width), np.arange(height))
     map_x = np.float32(x + dx)
     map_y = np.float32(y + dy)
