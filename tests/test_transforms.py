@@ -2003,3 +2003,45 @@ def test_return_nonzero(augmentation_cls, params):
     aug = A.Compose([augmentation_cls(p=1, **params)])
 
     assert not np.array_equal(aug(image=image)["image"], np.zeros_like(image))
+
+
+@pytest.mark.parametrize(
+    "transform",
+    [
+        A.PadIfNeeded(min_height=10, min_width=10, value=128, border_mode=cv2.BORDER_CONSTANT, p=1),
+        A.CropAndPad(px=2, pad_mode=cv2.BORDER_CONSTANT, pad_cval=128, p=1),
+        A.CropAndPad(percent=(0, 0.3, 0, 0), pad_cval=128, p=1),
+        A.Affine(translate_px={"x": -5, "y": -5}, cval=128, p=1),
+        A.ElasticTransform(p=1, alpha=10, sigma=10, alpha_affine=10, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        A.Perspective(p=1, scale=(0.5, 1.5), translate_percent=(-0.25, 0.25), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        A.OpticalDistortion(p=1, distort_limit=0.5, shift_limit=0.5, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        A.GridDistortion(p=1, num_steps=5, distort_limit=0.5, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        A.Rotate(p=1, limit=(45, 45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+        A.SafeRotate(p=1, limit=(45, 45), interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_CONSTANT, value=128),
+    ]
+)
+# @pytest.mark.parametrize("num_channels", [1, 3, 5])
+@pytest.mark.parametrize("num_channels", [3])
+def test_padding_color(transform, num_channels):
+    # Create an image with zeros
+    if num_channels == 1:
+        image = np.zeros((4, 4), dtype=np.uint8)
+    else:
+        image = np.zeros((4, 4, num_channels), dtype=np.uint8)
+
+    pipeline = A.Compose([transform])
+
+    # Apply the transform
+    augmented = pipeline(image=image)["image"]
+
+    print("Augmented", augmented)
+
+    # Check the unique values in each channel of the padded image
+    if num_channels == 1:
+        channels = [augmented]
+    else:
+        channels = [augmented[:, :, i] for i in range(num_channels)]
+
+    for channel in channels:
+        unique_values = np.unique(channel)
+        assert set(unique_values) == {0, 128}
