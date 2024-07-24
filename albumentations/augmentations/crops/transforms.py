@@ -1189,6 +1189,8 @@ class CropAndPad(DualTransform):
                 pad_value_mask = (
                     [pad_value_mask_single] * num_mask_channels if num_mask_channels != 1 else pad_value_mask_single
                 )
+            else:
+                pad_value_mask = None
         else:
             pad_value = None
             pad_value_mask = None

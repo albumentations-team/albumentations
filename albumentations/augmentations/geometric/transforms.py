@@ -353,12 +353,8 @@ class Perspective(DualTransform):
             self.keep_size,
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         scale = random.uniform(*self.scale)
         points = random_utils.normal(0, scale, [4, 2])
