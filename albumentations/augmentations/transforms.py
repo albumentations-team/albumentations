@@ -3102,8 +3102,8 @@ class PixelDropout(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return keypoint
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        img = data["image"] if "image" in data else data["images"][0]
         shape = img.shape if self.per_channel else img.shape[:2]
 
         rnd = np.random.RandomState(random.randint(0, 1 << 31))
@@ -3126,10 +3126,6 @@ class PixelDropout(DualTransform):
             drop_value = self.drop_value
 
         return {"drop_mask": drop_mask, "drop_value": drop_value}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return ("dropout_prob", "per_channel", "drop_value", "mask_drop_value")
