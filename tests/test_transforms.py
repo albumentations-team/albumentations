@@ -1228,6 +1228,7 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
     message = "This transformation expects 3-channel images"
     assert str(exc_info.value).startswith(message)
 
+
 @pytest.mark.parametrize("height, width", [(100, 200), (200, 100)])
 @pytest.mark.parametrize("scale", [(0.08, 1.0), (0.5, 1.0)])
 @pytest.mark.parametrize("ratio", [(0.75, 1.33), (1.0, 1.0)])
@@ -1575,6 +1576,7 @@ def test_downscale_functionality(params, expected):
     for key, value in expected.items():
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
 
+
 @pytest.mark.parametrize("params", [
     ({"scale_range": (0.9, 0.1)}),  # Invalid range, max < min
     ({"scale_range": (1.1, 1.2)}),  # Values outside valid scale range (0, 1)
@@ -1609,6 +1611,7 @@ def test_pad_if_needed_functionality(params, expected):
     # Assert each expected key/value pair
     for key, value in expected.items():
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
+
 
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values
@@ -1839,6 +1842,7 @@ def test_random_fog_initialization(params, expected):
     for key, value in expected.items():
         assert getattr(img_fog, key) == value, f"Failed on {key} with value {value}"
 
+
 @pytest.mark.parametrize("params", [
     ({"fog_coef_range": (1.2, 1.5)}),  # Invalid fog coefficient range -> upper bound
     ({"fog_coef_range": (0.9, 0.7)}),  # Invalid range  -> decreasing
@@ -1854,7 +1858,10 @@ def test_gauss_noise(mean, image):
     set_seed(42)
     aug = A.GaussNoise(p=1, noise_scale_factor=1.0, mean=mean)
 
-    apply_params = aug.get_params_dependent_on_targets(params = {"image":image })
+    apply_params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
 
     assert np.abs(mean - apply_params["gauss"].mean()) < 0.5
     result = A.Compose([aug])(image=image)

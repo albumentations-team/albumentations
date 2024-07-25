@@ -1707,32 +1707,28 @@ class GaussNoise(ImageOnlyTransform):
     def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.add_noise(img, gauss)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, float]:
-        image = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
+        shape = params["shape"]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
         sigma = math.sqrt(var)
 
         if self.per_channel:
-            target_shape = image.shape
+            target_shape = shape
             if self.noise_scale_factor == 1:
                 gauss = random_utils.normal(self.mean, sigma, target_shape)
             else:
                 gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
         else:
-            target_shape = image.shape[:2]
+            target_shape = shape[:2]
             if self.noise_scale_factor == 1:
                 gauss = random_utils.normal(self.mean, sigma, target_shape)
             else:
                 gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
 
-            if image.ndim > MONO_CHANNEL_DIMENSIONS:
+            if shape[-1] > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
 
         return {"gauss": gauss}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "var_limit", "per_channel", "mean", "noise_scale_factor"
