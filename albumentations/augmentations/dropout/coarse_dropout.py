@@ -223,9 +223,8 @@ class CoarseDropout(DualTransform):
             hole_width = int(width * random.uniform(width_range[0], width_range[1]))
         return hole_height, hole_width
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         holes = []
         num_holes = random.randint(self.num_holes_range[0], self.num_holes_range[1])
@@ -245,10 +244,6 @@ class CoarseDropout(DualTransform):
             holes.append((x1, y1, x2, y2))
 
         return {"holes": holes}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def apply_to_keypoints(
         self,
