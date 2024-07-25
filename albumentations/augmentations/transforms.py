@@ -1859,16 +1859,11 @@ class ChannelShuffle(ImageOnlyTransform):
 
     """
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
     def apply(self, img: np.ndarray, channels_shuffled: tuple[int, ...], **params: Any) -> np.ndarray:
         return fmain.channel_shuffle(img, channels_shuffled)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
-        ch_arr = list(range(img.shape[2]))
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        ch_arr = list(range(params["shape"][2]))
         ch_arr = random_utils.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
