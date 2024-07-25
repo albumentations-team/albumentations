@@ -4,6 +4,7 @@ from tests.utils import set_seed
 from albucore.utils import get_num_channels
 from PIL import Image, ImageFont
 import numpy as np
+import cv2
 
 
 @pytest.mark.parametrize(
@@ -195,3 +196,33 @@ def test_draw_text_on_pil_image(image_shape, metadata_list):
     else:
         result = ftext.draw_text_on_multi_channel_image(image, metadata_list)
         assert isinstance(result, np.ndarray)
+
+
+@pytest.fixture
+def test_image():
+    # Create a simple image for testing
+    image = np.ones((100, 100, 3), dtype=np.uint8) * 255  # White image
+    cv2.rectangle(image, (30, 30), (70, 70), (0, 0, 255), -1)  # Red square in the center
+    return image
+
+@pytest.mark.parametrize("metadata_list, expected_unchanged_regions", [
+    ([{"bbox_coords": (30, 30, 70, 70)}], [(slice(None, 30), slice(None)), (slice(70, None), slice(None)), (slice(None), slice(None, 30)), (slice(None), slice(70, None))]),
+    ([], [slice(None)]),
+    ([{"bbox_coords": (30, 30, 70, 70)}, {"bbox_coords": (10, 10, 20, 20)}], [(slice(None, 10), slice(None)), (slice(20, 30), slice(None)), (slice(70, None), slice(None)), (slice(None), slice(None, 10)), (slice(None), slice(20, 30)), (slice(None), slice(70, None))])
+])
+def test_seamless_clone(test_image, metadata_list, expected_unchanged_regions):
+    original_image = test_image.copy()
+
+    # Perform seamless cloning
+    result_image = ftext.seamless_clone_text_background(test_image, metadata_list)
+
+    # Check that the regions specified in metadata_list have been cloned seamlessly
+    for metadata in metadata_list:
+        x_min, y_min, x_max, y_max = metadata["bbox_coords"]
+        region_before = original_image[y_min:y_max, x_min:x_max]
+        region_after = result_image[y_min:y_max, x_min:x_max]
+        assert not np.array_equal(region_before, region_after), "Region should have been cloned but it is not."
+
+    # Check that the rest of the image remains unchanged
+    for unchanged_region in expected_unchanged_regions:
+        assert np.array_equal(original_image[unchanged_region], result_image[unchanged_region]), "Region should remain unchanged but it is not."

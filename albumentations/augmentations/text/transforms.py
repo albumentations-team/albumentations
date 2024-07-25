@@ -204,8 +204,8 @@ class TextImage(ImageOnlyTransform):
             "font_color": font_color,
         }
 
-    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        image = data["image"]
+    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+        image = params["image"]
 
         metadata = params[self.metadata_key]
 

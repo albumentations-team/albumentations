@@ -240,6 +240,6 @@ def seamless_clone_text_background(image: np.ndarray, metadata_list: list[dict[s
         cloned_region = cv2.seamlessClone(region_to_clone, result_image, mask, center, cv2.NORMAL_CLONE)
 
         # Place the cloned region back into the result image
-        result_image[y_min:y_max, x_min:x_max] = cloned_region
+        result_image[y_min:y_max, x_min:x_max] = cloned_region[y_min:y_max, x_min:x_max]
 
     return result_image
