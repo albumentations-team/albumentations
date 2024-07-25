@@ -1317,14 +1317,8 @@ class RandomToneCurve(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.move_tone_curve(img, low_y, high_y)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        image = params["image"]
-
-        num_channels = get_num_channels(image)
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        num_channels = params["shape"][-1]
 
         if self.per_channel and num_channels != 1:
             return {
