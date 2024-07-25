@@ -151,9 +151,8 @@ class GridDropout(DualTransform):
 
         return fdropout.cutout(mask, holes, self.mask_fill_value)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
         unit_width, unit_height = self._calculate_unit_dimensions(width, height)
         hole_width, hole_height = self._calculate_hole_dimensions(unit_width, unit_height)
         shift_x, shift_y = self._calculate_shifts(unit_width, unit_height, hole_width, hole_height)
@@ -243,10 +242,6 @@ class GridDropout(DualTransform):
                 y2 = min(y1 + hole_height, height)
                 holes.append((x1, y1, x2, y2))
         return holes
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (

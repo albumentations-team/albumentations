@@ -686,7 +686,10 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
     # with fill_value = 0 the sum of pixels is smaller
     assert result.sum() < img.sum()
     assert result.shape == img.shape
-    params = aug.get_params_dependent_on_targets({"image": img})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": img.shape},
+        data={"image": img},
+    )
     holes = params["holes"]
     assert len(holes[0]) == 4
     # check grid offsets
@@ -757,7 +760,10 @@ def test_grid_dropout_holes_generation(params, expected_holes):
     transform = A.GridDropout(p=1, **params)
     image = np.zeros((20, 30, 3), dtype=np.uint8)
 
-    holes = transform.get_params_dependent_on_targets({"image": image})["holes"]
+    holes = transform.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )["holes"]
 
     assert holes == expected_holes, f"Failed on holes generation with value {holes}"
 
