@@ -86,6 +86,7 @@ class TextImage(ImageOnlyTransform):
             AfterValidator(check_01),
         ]
         font_color: list[ColorType | str] | ColorType | str
+        clear_bg: bool
         metadata_key: str
 
         @model_validator(mode="after")
@@ -109,6 +110,7 @@ class TextImage(ImageOnlyTransform):
         fraction_range: tuple[float, float] = (1.0, 1.0),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
         font_color: list[ColorType | str] | ColorType | str = "black",
+        clear_bg: bool = False,
         metadata_key: str = "textimage_metadata",
         always_apply: bool | None = None,
         p: float = 0.5,
@@ -122,6 +124,7 @@ class TextImage(ImageOnlyTransform):
         self.augmentations = list(augmentations)
         self.font_size_fraction_range = font_size_fraction_range
         self.font_color = font_color
+        self.clear_bg = clear_bg
 
         if RAKE_AVAILABLE:
             self.rake = Rake(self.stopwords)
@@ -201,7 +204,9 @@ class TextImage(ImageOnlyTransform):
             "font_color": font_color,
         }
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image = data["image"]
+
         metadata = params[self.metadata_key]
 
         if metadata == []:
@@ -211,8 +216,6 @@ class TextImage(ImageOnlyTransform):
 
         if isinstance(metadata, dict):
             metadata = [metadata]
-
-        image = params["image"]
 
         fraction = random.uniform(*self.fraction_range)
 
@@ -235,4 +238,4 @@ class TextImage(ImageOnlyTransform):
         overlay_data: list[dict[str, Any]],
         **params: Any,
     ) -> np.ndarray:
-        return ftext.render_text(img, overlay_data)
+        return ftext.render_text(img, overlay_data, clear_bg=self.clear_bg)

@@ -2,6 +2,7 @@ from __future__ import annotations
 import random
 from typing import TYPE_CHECKING, Any
 from albucore.utils import preserve_channel_dim, MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS, NUM_RGB_CHANNELS
+import cv2
 
 import re
 
@@ -197,20 +198,15 @@ def draw_text_on_multi_channel_image(image: np.ndarray, metadata_list: list[dict
 
 
 @preserve_channel_dim
-def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.ndarray:
-    """Render multiple text elements using metadata information on an image.
-
-    Args:
-        image (np.ndarray): The base image to render the text on.
-        metadata_list (list[dict[str, Any]]): A list of dictionaries containing text rendering metadata.
-
-    Returns:
-        np.ndarray: The image with the text rendered as a NumPy array.
-    """
+def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg: bool) -> np.ndarray:
     original_dtype = image.dtype
 
     if original_dtype == np.float32:
         image = fmain.from_float(image, dtype=np.uint8)
+
+    # First clean background under boxes using seamless clone if clear_bg is True
+    if clear_bg:
+        image = seamless_clone_text_background(image, metadata_list)
 
     if len(image.shape) == MONO_CHANNEL_DIMENSIONS or (
         len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] in {1, NUM_RGB_CHANNELS}
@@ -222,3 +218,28 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.nd
         result = draw_text_on_multi_channel_image(image, metadata_list)
 
     return fmain.to_float(result) if original_dtype == np.float32 else result
+
+
+def seamless_clone_text_background(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.ndarray:
+    result_image = image.copy()
+
+    for metadata in metadata_list:
+        x_min, y_min, x_max, y_max = metadata["bbox_coords"]
+
+        # Create a mask for the text area
+        mask = np.zeros((y_max - y_min, x_max - x_min), dtype=np.uint8)
+        mask.fill(255)
+
+        # Coordinates for seamless cloning
+        center = ((x_min + x_max) // 2, (y_min + y_max) // 2)
+
+        # Extract the region from the original image
+        region_to_clone = result_image[y_min:y_max, x_min:x_max]
+
+        # Perform seamless cloning
+        cloned_region = cv2.seamlessClone(region_to_clone, result_image, mask, center, cv2.NORMAL_CLONE)
+
+        # Place the cloned region back into the result image
+        result_image[y_min:y_max, x_min:x_max] = cloned_region
+
+    return result_image
