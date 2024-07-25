@@ -158,17 +158,16 @@ class TextImage(ImageOnlyTransform):
         num_words_to_modify = max(1, int(fraction * num_words))
 
         if choice == "insertion":
-            augmented_words = ftext.insert_random_stopwords(words, num_words_to_modify, self.stopwords)
+            result_sentence = ftext.insert_random_stopwords(words, num_words_to_modify, self.stopwords)
         elif choice == "swap":
-            augmented_words = ftext.swap_random_words(words, num_words_to_modify)
+            result_sentence = ftext.swap_random_words(words, num_words_to_modify)
         elif choice == "deletion":
-            augmented_words = ftext.delete_random_words(words, num_words_to_modify)
+            result_sentence = ftext.delete_random_words(words, num_words_to_modify)
         elif choice == "kreplacement":
             return ftext.augment_text_with_synonyms(text, [3], self.pos_tagger, self.rake)
         else:
             raise ValueError("Invalid choice. Choose from 'insertion', 'kreplacement', 'swap', or 'deletion'.")
 
-        result_sentence = " ".join(augmented_words)
         result_sentence = re.sub(" +", " ", result_sentence).strip()
         return result_sentence if result_sentence != text else ""
 

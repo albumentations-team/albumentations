@@ -1,6 +1,6 @@
 from __future__ import annotations
 import random
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 from albucore.utils import preserve_channel_dim, MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS, NUM_RGB_CHANNELS
 import cv2
 
@@ -169,6 +169,10 @@ def draw_text_on_pil_image(pil_image: Image, metadata_list: list[dict[str, Any]]
         text = metadata["text"]
         font = metadata["font"]
         font_color = metadata["font_color"]
+        if isinstance(font_color, (list, tuple)):
+            font_color = tuple(int(c) for c in font_color)
+        elif isinstance(font_color, float):
+            font_color = int(font_color)
         position = bbox_coords[:2]
         draw.text(position, text, font=font, fill=font_color)
     return pil_image
@@ -189,6 +193,8 @@ def draw_text_on_multi_channel_image(image: np.ndarray, metadata_list: list[dict
         text = metadata["text"]
         font = metadata["font"]
         font_color = metadata["font_color"]
+        if isinstance(font_color, Sequence):
+            font_color = tuple(int(c) for c in font_color)
         position = bbox_coords[:2]
 
         for channel_id, pil_image in enumerate(pil_images):
@@ -206,7 +212,7 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg
 
     # First clean background under boxes using seamless clone if clear_bg is True
     if clear_bg:
-        image = seamless_clone_text_background(image, metadata_list)
+        image = inpaint_text_background(image, metadata_list)
 
     if len(image.shape) == MONO_CHANNEL_DIMENSIONS or (
         len(image.shape) == NUM_MULTI_CHANNEL_DIMENSIONS and image.shape[2] in {1, NUM_RGB_CHANNELS}
@@ -220,26 +226,22 @@ def render_text(image: np.ndarray, metadata_list: list[dict[str, Any]], clear_bg
     return fmain.to_float(result) if original_dtype == np.float32 else result
 
 
-def seamless_clone_text_background(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.ndarray:
+def inpaint_text_background(
+    image: np.ndarray,
+    metadata_list: list[dict[str, Any]],
+    method: int = cv2.INPAINT_TELEA,
+) -> np.ndarray:
     result_image = image.copy()
+    mask = np.zeros((image.shape[0], image.shape[1]), dtype=np.uint8)
 
     for metadata in metadata_list:
         x_min, y_min, x_max, y_max = metadata["bbox_coords"]
 
-        # Create a mask for the text area
-        mask = np.zeros((y_max - y_min, x_max - x_min), dtype=np.uint8)
-        mask.fill(255)
+        # Black out the region
+        result_image[y_min:y_max, x_min:x_max] = 0
 
-        # Coordinates for seamless cloning
-        center = ((x_min + x_max) // 2, (y_min + y_max) // 2)
+        # Update the mask to indicate the region to inpaint
+        mask[y_min:y_max, x_min:x_max] = 255
 
-        # Extract the region from the original image
-        region_to_clone = result_image[y_min:y_max, x_min:x_max]
-
-        # Perform seamless cloning
-        cloned_region = cv2.seamlessClone(region_to_clone, result_image, mask, center, cv2.NORMAL_CLONE)
-
-        # Place the cloned region back into the result image
-        result_image[y_min:y_max, x_min:x_max] = cloned_region[y_min:y_max, x_min:x_max]
-
-    return result_image
+    # Inpaint the blacked-out regions
+    return cv2.inpaint(result_image, mask, inpaintRadius=3, flags=method)
