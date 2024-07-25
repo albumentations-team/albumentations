@@ -1015,8 +1015,12 @@ def test_affine_scale_ratio(params):
     set_seed(0)
     aug = A.Affine(**params, p=1.0)
     image = SQUARE_UINT8_IMAGE
-    target = {"image": image}
-    apply_params = aug.get_params_dependent_on_targets(target)
+
+    data = {"image": image}
+    call_params = aug.get_params()
+    call_params = aug.update_params_shape(call_params, data)
+
+    apply_params = aug.get_params_dependent_on_data(params=call_params, data=data)
 
     if "keep_ratio" not in params:
         # default(keep_ratio=False)

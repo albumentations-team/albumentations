@@ -764,10 +764,6 @@ class Affine(DualTransform):
 
         return fgeometric.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
     @staticmethod
     def get_scale(scale: dict[str, tuple[float, float]], keep_ratio: bool, balanced_scale: bool) -> dict[str, float]:
         result_scale = {}
@@ -794,8 +790,8 @@ class Affine(DualTransform):
 
         return result_scale
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         translate: dict[str, int | float]
         if self.translate_px is not None:
@@ -849,9 +845,9 @@ class Affine(DualTransform):
         )
 
         if self.fit_output:
-            matrix, output_shape = self._compute_affine_warp_output_shape(matrix, params["image"].shape)
+            matrix, output_shape = self._compute_affine_warp_output_shape(matrix, params["shape"])
         else:
-            output_shape = params["image"].shape
+            output_shape = params["shape"]
 
         return {
             "rotate": rotate,
@@ -1163,12 +1159,8 @@ class PiecewiseAffine(DualTransform):
             "keypoints_threshold",
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         nb_rows = np.clip(random.randint(*self.nb_rows), 2, None)
         nb_cols = np.clip(random.randint(*self.nb_cols), 2, None)
