@@ -594,7 +594,7 @@ class RandomGravel(ImageOnlyTransform):
             gravels_infos = []
         return fmain.add_gravel(img, gravels_infos)
 
-    def get_params_dependent_on_dat(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
         height, width = params["shape"][:2]
 
         x_min, y_min, x_max, y_max = self.gravel_roi
@@ -772,15 +772,10 @@ class RandomRain(ImageOnlyTransform):
             rain_drops,
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         slant = int(random.uniform(*self.slant_range))
 
-        height, width = img.shape[:2]
+        height, width = params["shape"][:2]
         area = height * width
 
         if self.rain_type == "drizzle":
@@ -896,15 +891,10 @@ class RandomFog(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.add_fog(img, fog_coef, self.alpha_coef, haze_list)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         fog_coef = random.uniform(*self.fog_coef_range)
 
-        height, width = imshape = img.shape[:2]
+        height, width = imshape = params["shape"][:2]
 
         hw = max(1, int(width // 3 * fog_coef))
 
