@@ -198,8 +198,8 @@ class RandomGridShuffle(DualTransform):
         )
         return keypoint
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+        height, width = params["shape"][:2]
         random_state = random_utils.get_random_state()
         original_tiles = fmain.split_uniform_grid(
             (height, width),
@@ -210,10 +210,6 @@ class RandomGridShuffle(DualTransform):
         mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups, random_state=random_state)
 
         return {"tiles": original_tiles, "mapping": mapping}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("grid",)
