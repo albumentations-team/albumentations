@@ -2388,23 +2388,17 @@ class MultiplicativeNoise(ImageOnlyTransform):
     ) -> np.ndarray:
         return multiply(img, multiplier)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         if self.multiplier[0] == self.multiplier[1]:
             return {"multiplier": self.multiplier[0]}
 
-        img = params["image"]
+        img_shape = params["shape"]
 
-        num_channels = get_num_channels(img)
-
-        shape = img.shape if self.elementwise else [num_channels]
+        shape = img_shape if self.elementwise else [img_shape[-1]]
 
         multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
         return {"multiplier": multiplier}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "multiplier", "elementwise"

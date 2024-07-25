@@ -567,7 +567,10 @@ def test_resize_keypoints():
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
     aug = A.MultiplicativeNoise((m, m), elementwise=False, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
     assert m == params["multiplier"]
     result_e = aug(image=image)["image"]
 
@@ -576,24 +579,31 @@ def test_multiplicative_noise_grayscale(image):
     assert np.allclose(clip(expected, image.dtype), result_e)
 
     aug = A.MultiplicativeNoise((m, m), elementwise=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
     result_ne = aug.apply(image, params["multiplier"])
 
     expected = image.astype(np.float32) * params["multiplier"]
 
     assert np.allclose(clip(expected, image.dtype), result_ne)
 
+
 @pytest.mark.parametrize(
     "image", IMAGES
 )
 @pytest.mark.parametrize(
-    "elementwise", ( True, False )
+    "elementwise", (True, False)
 )
 def test_multiplicative_noise_rgb(image, elementwise):
     dtype = image.dtype
 
     aug = A.MultiplicativeNoise(multiplier=(0.9, 1.1), elementwise=elementwise, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
     mul = params["multiplier"]
 
     if elementwise:
