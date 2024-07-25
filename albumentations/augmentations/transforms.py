@@ -1069,13 +1069,8 @@ class RandomSunFlare(ImageOnlyTransform):
             circles,
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         angle = 2 * math.pi * random.uniform(*self.angle_range)
 
@@ -1227,13 +1222,8 @@ class RandomShadow(ImageOnlyTransform):
     def apply(self, img: np.ndarray, vertices_list: list[np.ndarray], **params: Any) -> np.ndarray:
         return fmain.add_shadow(img, vertices_list)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, list[np.ndarray]]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[np.ndarray]]:
+        height, width = params["shape"][:2]
 
         num_shadows = random.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
 
