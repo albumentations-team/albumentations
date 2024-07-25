@@ -2829,8 +2829,8 @@ class TemplateTransform(ImageOnlyTransform):
             "template_weight": random.uniform(self.template_weight[0], self.template_weight[1]),
         }
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        img = data["image"] if "image" in data else data["images"][0]
         template = random.choice(self.templates)
 
         if self.template_transform is not None:
@@ -2862,10 +2862,6 @@ class TemplateTransform(ImageOnlyTransform):
     @classmethod
     def is_serializable(cls) -> bool:
         return False
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def to_dict_private(self) -> dict[str, Any]:
         if self.name is None:

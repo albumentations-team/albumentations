@@ -987,7 +987,10 @@ def test_template_transform(img_weight, template_weight, template_transform, ima
 
     assert result.shape == img.shape
 
-    params = aug.get_params_dependent_on_targets({"image": img})
+    params = aug.get_params_dependent_on_data(
+        params={},
+        data={"image": img},
+    )
     template = params["template"]
     assert template.shape == img.shape
     assert template.dtype == img.dtype
