@@ -594,13 +594,8 @@ class RandomGravel(ImageOnlyTransform):
             gravels_infos = []
         return fmain.add_gravel(img, gravels_infos)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_dat(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+        height, width = params["shape"][:2]
 
         x_min, y_min, x_max, y_max = self.gravel_roi
         x_min = int(x_min * width)
