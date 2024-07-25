@@ -3255,12 +3255,8 @@ class Spatter(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.spatter(img, non_mud, mud, drops, mode)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         mean = random.uniform(self.mean[0], self.mean[1])
         std = random.uniform(self.std[0], self.std[1])
