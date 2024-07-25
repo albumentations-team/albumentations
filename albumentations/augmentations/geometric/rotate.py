@@ -233,14 +233,10 @@ class Rotate(DualTransform):
             "y_max": min(height, int(height / 2 + hr / 2)),
         }
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         out_params = {"angle": random.uniform(self.limit[0], self.limit[1])}
         if self.crop_border:
-            height, width = params["image"].shape[:2]
+            height, width = params["shape"][:2]
             out_params.update(self._rotated_rect_with_max_area(height, width, out_params["angle"]))
         else:
             out_params.update({"x_min": -1, "x_max": -1, "y_min": -1, "y_max": -1})
