@@ -571,7 +571,10 @@ def test_resize_keypoints():
 def test_multiplicative_noise_grayscale(image):
     m = 0.5
     aug = A.MultiplicativeNoise((m, m), elementwise=False, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
     assert m == params["multiplier"]
     result_e = aug(image=image)["image"]
 
@@ -580,24 +583,31 @@ def test_multiplicative_noise_grayscale(image):
     assert np.allclose(clip(expected, image.dtype), result_e)
 
     aug = A.MultiplicativeNoise((m, m), elementwise=True, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
     result_ne = aug.apply(image, params["multiplier"])
 
     expected = image.astype(np.float32) * params["multiplier"]
 
     assert np.allclose(clip(expected, image.dtype), result_ne)
 
+
 @pytest.mark.parametrize(
     "image", IMAGES
 )
 @pytest.mark.parametrize(
-    "elementwise", ( True, False )
+    "elementwise", (True, False)
 )
 def test_multiplicative_noise_rgb(image, elementwise):
     dtype = image.dtype
 
     aug = A.MultiplicativeNoise(multiplier=(0.9, 1.1), elementwise=elementwise, p=1)
-    params = aug.get_params_dependent_on_targets({"image": image})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
     mul = params["multiplier"]
 
     if elementwise:
@@ -690,7 +700,10 @@ def test_grid_dropout_params(ratio, holes_number_xy, unit_size_range, shift_xy):
     # with fill_value = 0 the sum of pixels is smaller
     assert result.sum() < img.sum()
     assert result.shape == img.shape
-    params = aug.get_params_dependent_on_targets({"image": img})
+    params = aug.get_params_dependent_on_data(
+        params={"shape": img.shape},
+        data={"image": img},
+    )
     holes = params["holes"]
     assert len(holes[0]) == 4
     # check grid offsets
@@ -761,7 +774,10 @@ def test_grid_dropout_holes_generation(params, expected_holes):
     transform = A.GridDropout(p=1, **params)
     image = np.zeros((20, 30, 3), dtype=np.uint8)
 
-    holes = transform.get_params_dependent_on_targets({"image": image})["holes"]
+    holes = transform.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )["holes"]
 
     assert holes == expected_holes, f"Failed on holes generation with value {holes}"
 
@@ -975,7 +991,10 @@ def test_template_transform(img_weight, template_weight, template_transform, ima
 
     assert result.shape == img.shape
 
-    params = aug.get_params_dependent_on_targets({"image": img})
+    params = aug.get_params_dependent_on_data(
+        params={},
+        data={"image": img},
+    )
     template = params["template"]
     assert template.shape == img.shape
     assert template.dtype == img.dtype
@@ -1019,8 +1038,12 @@ def test_affine_scale_ratio(params):
     set_seed(0)
     aug = A.Affine(**params, p=1.0)
     image = SQUARE_UINT8_IMAGE
-    target = {"image": image}
-    apply_params = aug.get_params_dependent_on_targets(target)
+
+    data = {"image": image}
+    call_params = aug.get_params()
+    call_params = aug.update_params_shape(call_params, data)
+
+    apply_params = aug.get_params_dependent_on_data(params=call_params, data=data)
 
     if "keep_ratio" not in params:
         # default(keep_ratio=False)
@@ -1221,6 +1244,7 @@ def test_non_rgb_transform_warning(augmentation, img_channels):
 
     message = "This transformation expects 3-channel images"
     assert str(exc_info.value).startswith(message)
+
 
 @pytest.mark.parametrize("height, width", [(100, 200), (200, 100)])
 @pytest.mark.parametrize("scale", [(0.08, 1.0), (0.5, 1.0)])
@@ -1571,6 +1595,7 @@ def test_downscale_functionality(params, expected):
     for key, value in expected.items():
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
 
+
 @pytest.mark.parametrize("params", [
     ({"scale_range": (0.9, 0.1)}),  # Invalid range, max < min
     ({"scale_range": (1.1, 1.2)}),  # Values outside valid scale range (0, 1)
@@ -1605,6 +1630,7 @@ def test_pad_if_needed_functionality(params, expected):
     # Assert each expected key/value pair
     for key, value in expected.items():
         assert aug_dict[key] == value, f"Failed on {key} with value {value}"
+
 
 @pytest.mark.parametrize("params, expected", [
     # Test default initialization values
@@ -1836,6 +1862,7 @@ def test_random_fog_initialization(params, expected):
     for key, value in expected.items():
         assert getattr(img_fog, key) == value, f"Failed on {key} with value {value}"
 
+
 @pytest.mark.parametrize("params", [
     ({"fog_coef_range": (1.2, 1.5)}),  # Invalid fog coefficient range -> upper bound
     ({"fog_coef_range": (0.9, 0.7)}),  # Invalid range  -> decreasing
@@ -1851,7 +1878,10 @@ def test_gauss_noise(mean, image):
     set_seed(42)
     aug = A.GaussNoise(p=1, noise_scale_factor=1.0, mean=mean)
 
-    apply_params = aug.get_params_dependent_on_targets(params = {"image":image })
+    apply_params = aug.get_params_dependent_on_data(
+        params={"shape": image.shape},
+        data={"image": image},
+    )
 
     assert np.abs(mean - apply_params["gauss"].mean()) < 0.5
     result = A.Compose([aug])(image=image)

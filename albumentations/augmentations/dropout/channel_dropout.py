@@ -3,9 +3,9 @@ from __future__ import annotations
 import random
 from typing import Any, Mapping
 
-from albucore.utils import is_grayscale_image
 from typing_extensions import Annotated
 
+from albucore import get_num_channels
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 
 from .functional import channel_dropout
@@ -57,11 +57,11 @@ class ChannelDropout(ImageOnlyTransform):
     def apply(self, img: np.ndarray, channels_to_drop: tuple[int, ...], **params: Any) -> np.ndarray:
         return channel_dropout(img, channels_to_drop, self.fill_value)
 
-    def get_params_dependent_on_targets(self, params: Mapping[str, Any]) -> dict[str, Any]:
-        img = params["image"]
-        num_channels = img.shape[-1]
+    def get_params_dependent_on_data(self, params: Mapping[str, Any], data: Mapping[str, Any]) -> dict[str, Any]:
+        image = data["image"] if "image" in data else data["images"][0]
+        num_channels = get_num_channels(image)
 
-        if is_grayscale_image(img):
+        if num_channels == 1:
             msg = "Images has one channel. ChannelDropout is not defined."
             raise NotImplementedError(msg)
 
@@ -77,7 +77,3 @@ class ChannelDropout(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "channel_drop_range", "fill_value"
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]

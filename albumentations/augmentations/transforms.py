@@ -198,8 +198,8 @@ class RandomGridShuffle(DualTransform):
         )
         return keypoint
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+        height, width = params["shape"][:2]
         random_state = random_utils.get_random_state()
         original_tiles = fmain.split_uniform_grid(
             (height, width),
@@ -210,10 +210,6 @@ class RandomGridShuffle(DualTransform):
         mapping = fmain.shuffle_tiles_within_shape_groups(shape_groups, random_state=random_state)
 
         return {"tiles": original_tiles, "mapping": mapping}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("grid",)
@@ -598,13 +594,8 @@ class RandomGravel(ImageOnlyTransform):
             gravels_infos = []
         return fmain.add_gravel(img, gravels_infos)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+        height, width = params["shape"][:2]
 
         x_min, y_min, x_max, y_max = self.gravel_roi
         x_min = int(x_min * width)
@@ -781,15 +772,10 @@ class RandomRain(ImageOnlyTransform):
             rain_drops,
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         slant = int(random.uniform(*self.slant_range))
 
-        height, width = img.shape[:2]
+        height, width = params["shape"][:2]
         area = height * width
 
         if self.rain_type == "drizzle":
@@ -905,15 +891,10 @@ class RandomFog(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.add_fog(img, fog_coef, self.alpha_coef, haze_list)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         fog_coef = random.uniform(*self.fog_coef_range)
 
-        height, width = imshape = img.shape[:2]
+        height, width = imshape = params["shape"][:2]
 
         hw = max(1, int(width // 3 * fog_coef))
 
@@ -1088,13 +1069,8 @@ class RandomSunFlare(ImageOnlyTransform):
             circles,
         )
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         angle = 2 * math.pi * random.uniform(*self.angle_range)
 
@@ -1246,13 +1222,8 @@ class RandomShadow(ImageOnlyTransform):
     def apply(self, img: np.ndarray, vertices_list: list[np.ndarray], **params: Any) -> np.ndarray:
         return fmain.add_shadow(img, vertices_list)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, list[np.ndarray]]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[np.ndarray]]:
+        height, width = params["shape"][:2]
 
         num_shadows = random.randint(self.num_shadows_limit[0], self.num_shadows_limit[1])
 
@@ -1346,13 +1317,8 @@ class RandomToneCurve(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.move_tone_curve(img, low_y, high_y)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        image = params["image"]
-
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image = data["image"] if "image" in data else data["images"][0]
         num_channels = get_num_channels(image)
 
         if self.per_channel and num_channels != 1:
@@ -1742,8 +1708,8 @@ class GaussNoise(ImageOnlyTransform):
     def apply(self, img: np.ndarray, gauss: np.ndarray, **params: Any) -> np.ndarray:
         return fmain.add_noise(img, gauss)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, float]:
-        image = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
+        image = data["image"] if "image" in data else data["images"][0]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
         sigma = math.sqrt(var)
 
@@ -1764,10 +1730,6 @@ class GaussNoise(ImageOnlyTransform):
                 gauss = np.expand_dims(gauss, -1)
 
         return {"gauss": gauss}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "var_limit", "per_channel", "mean", "noise_scale_factor"
@@ -1898,16 +1860,11 @@ class ChannelShuffle(ImageOnlyTransform):
 
     """
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
     def apply(self, img: np.ndarray, channels_shuffled: tuple[int, ...], **params: Any) -> np.ndarray:
         return fmain.channel_shuffle(img, channels_shuffled)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
-        ch_arr = list(range(img.shape[2]))
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        ch_arr = list(range(params["shape"][2]))
         ch_arr = random_utils.shuffle(ch_arr)
         return {"channels_shuffled": ch_arr}
 
@@ -2432,23 +2389,16 @@ class MultiplicativeNoise(ImageOnlyTransform):
     ) -> np.ndarray:
         return multiply(img, multiplier)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         if self.multiplier[0] == self.multiplier[1]:
             return {"multiplier": self.multiplier[0]}
 
-        img = params["image"]
-
-        num_channels = get_num_channels(img)
-
-        shape = img.shape if self.elementwise else [num_channels]
+        img = data["image"] if "image" in data else data["images"][0]
+        shape = img.shape if self.elementwise else get_num_channels(img)
 
         multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
         return {"multiplier": multiplier}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "multiplier", "elementwise"
@@ -2879,8 +2829,8 @@ class TemplateTransform(ImageOnlyTransform):
             "template_weight": random.uniform(self.template_weight[0], self.template_weight[1]),
         }
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        img = data["image"] if "image" in data else data["images"][0]
         template = random.choice(self.templates)
 
         if self.template_transform is not None:
@@ -2912,10 +2862,6 @@ class TemplateTransform(ImageOnlyTransform):
     @classmethod
     def is_serializable(cls) -> bool:
         return False
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def to_dict_private(self) -> dict[str, Any]:
         if self.name is None:
@@ -3156,8 +3102,8 @@ class PixelDropout(DualTransform):
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
         return keypoint
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        img = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        img = data["image"] if "image" in data else data["images"][0]
         shape = img.shape if self.per_channel else img.shape[:2]
 
         rnd = np.random.RandomState(random.randint(0, 1 << 31))
@@ -3180,10 +3126,6 @@ class PixelDropout(DualTransform):
             drop_value = self.drop_value
 
         return {"drop_mask": drop_mask, "drop_value": drop_value}
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return ("dropout_prob", "per_channel", "drop_value", "mask_drop_value")
@@ -3313,12 +3255,8 @@ class Spatter(ImageOnlyTransform):
     ) -> np.ndarray:
         return fmain.spatter(img, non_mud, mud, drops, mode)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        height, width = params["shape"][:2]
 
         mean = random.uniform(self.mean[0], self.mean[1])
         std = random.uniform(self.std[0], self.std[1])

@@ -143,9 +143,12 @@ class XYMasking(DualTransform):
             elif mask_length < 0 or mask_length > dimension_size:
                 raise ValueError(f"{dimension_name} {mask_length} exceeds image {dimension_name} {dimension_size}")
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, list[tuple[int, int, int, int]]]:
-        img = params["image"]
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, list[tuple[int, int, int, int]]]:
+        height, width = params["shape"][:2]
 
         # Use the helper method to validate mask lengths against image dimensions
         self.validate_mask_length(self.mask_x_length, width, "mask_x_length")
@@ -189,10 +192,6 @@ class XYMasking(DualTransform):
 
             masks.append((x1, y1, x2, y2))
         return masks
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def apply_to_keypoints(
         self,

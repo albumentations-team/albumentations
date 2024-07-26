@@ -73,8 +73,8 @@ class MaskDropout(DualTransform):
     def targets_as_params(self) -> list[str]:
         return ["mask"]
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        mask = params["mask"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        mask = data["mask"]
 
         label_image, num_labels = label(mask, return_num=True)
 
@@ -93,7 +93,6 @@ class MaskDropout(DualTransform):
                     dropout_mask |= label_image == label_index
 
         params.update({"dropout_mask": dropout_mask})
-        del params["mask"]
         return params
 
     def apply(self, img: np.ndarray, dropout_mask: np.ndarray, **params: Any) -> np.ndarray:

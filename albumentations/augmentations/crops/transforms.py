@@ -77,10 +77,6 @@ class _BaseCrop(DualTransform):
         y_max = crop_coords[3]
         return fcrops.crop(img, x_min=x_min, y_min=y_min, x_max=x_max, y_max=y_max)
 
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
-
     def apply_to_bbox(
         self,
         bbox: BoxInternalType,
@@ -122,15 +118,19 @@ class RandomCrop(_BaseCrop):
         self.height = height
         self.width = width
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
-        img = params["image"]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        shape = params["shape"]
 
-        image_height, image_width = img.shape[:2]
+        image_height, image_width = shape[:2]
 
         if self.height > image_height or self.width > image_width:
             raise CropSizeError(
                 f"Crop size (height, width) exceeds image dimensions (height, width):"
-                f" {(self.height, self.width)} vs {img.shape[:2]}",
+                f" {(self.height, self.width)} vs {shape[:2]}",
             )
 
         h_start = random.random()
@@ -169,10 +169,12 @@ class CenterCrop(_BaseCrop):
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "height", "width"
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
-        img = params["image"]
-
-        image_height, image_width = img.shape[:2]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        image_height, image_width = params["shape"][:2]
         crop_coords = fcrops.get_center_crop_coords(image_height, image_width, self.height, self.width)
 
         return {"crop_coords": crop_coords}
@@ -230,7 +232,11 @@ class Crop(_BaseCrop):
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "x_min", "y_min", "x_max", "y_max"
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
         return {"crop_coords": (self.x_min, self.y_min, self.x_max, self.y_max)}
 
 
@@ -330,9 +336,6 @@ class CropNonEmptyMaskIfExists(_BaseCrop):
         params["crop_coords"] = crop_coords
         return params
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, int | float]:
-        return params
-
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "height", "width", "ignore_values", "ignore_channels"
 
@@ -374,10 +377,6 @@ class _BaseRandomSizedCrop(DualTransform):
     ) -> np.ndarray:
         crop = fcrops.crop(img, *crop_coords)
         return fgeometric.resize(crop, self.size[0], self.size[1], interpolation)
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
     def apply_to_bbox(
         self,
@@ -478,8 +477,12 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         self.min_max_height = min_max_height
         self.w2h_ratio = w2h_ratio
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
-        image_height, image_width = params["image"].shape[:2]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        image_height, image_width = params["shape"][:2]
 
         crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
         crop_width = int(crop_height * self.w2h_ratio)
@@ -569,9 +572,12 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         self.scale = scale
         self.ratio = ratio
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
-        img = params["image"]
-        image_height, image_width = img.shape[:2]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        image_height, image_width = params["shape"][:2]
         area = image_height * image_width
 
         for _ in range(10):
@@ -684,10 +690,14 @@ class RandomCropNearBBox(_BaseCrop):
         y_max = np.clip(y_max, y_min, height)
         return x_min, y_min, x_max, y_max
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[float, ...]]:
-        bbox = params[self.cropping_bbox_key]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[float, ...]]:
+        bbox = data[self.cropping_bbox_key]
 
-        height, width = params["image"].shape[:2]
+        height, width = params["shape"][:2]
 
         bbox = self._clip_bbox(bbox, height, width)
 
@@ -709,7 +719,7 @@ class RandomCropNearBBox(_BaseCrop):
 
     @property
     def targets_as_params(self) -> list[str]:
-        return ["image", self.cropping_bbox_key]
+        return [self.cropping_bbox_key]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return "max_part_shift", "cropping_bbox_key"
@@ -756,14 +766,18 @@ class BBoxSafeRandomCrop(_BaseCrop):
 
         return fcrops.get_crop_coords(image_height, image_width, crop_height, crop_width, h_start, w_start)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
-        image_height, image_width = params["image"].shape[:2]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        image_height, image_width = params["shape"][:2]
 
-        if len(params["bboxes"]) == 0:  # less likely, this class is for use with bboxes.
+        if len(data["bboxes"]) == 0:  # less likely, this class is for use with bboxes.
             crop_coords = self._get_coords_no_bbox(image_height, image_width)
             return {"crop_coords": crop_coords}
 
-        bbox_union = union_of_bboxes(bboxes=params["bboxes"], erosion_rate=self.erosion_rate)
+        bbox_union = union_of_bboxes(bboxes=data["bboxes"], erosion_rate=self.erosion_rate)
 
         if bbox_union is None:
             crop_coords = self._get_coords_no_bbox(image_height, image_width)
@@ -788,7 +802,7 @@ class BBoxSafeRandomCrop(_BaseCrop):
 
     @property
     def targets_as_params(self) -> list[str]:
-        return ["image", "bboxes"]
+        return ["bboxes"]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return ("erosion_rate",)
@@ -1335,8 +1349,12 @@ class RandomCropFromBorders(_BaseCrop):
         self.crop_top = crop_top
         self.crop_bottom = crop_bottom
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, tuple[int, int, int, int]]:
-        height, width = params["image"].shape[:2]
+    def get_params_dependent_on_data(
+        self,
+        params: dict[str, Any],
+        data: dict[str, Any],
+    ) -> dict[str, tuple[int, int, int, int]]:
+        height, width = params["shape"][:2]
 
         x_min = random.randint(0, int(self.crop_left * width))
         x_max = random.randint(max(x_min + 1, int((1 - self.crop_right) * width)), width)

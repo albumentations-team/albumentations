@@ -328,10 +328,8 @@ class GlassBlur(ImageOnlyTransform):
 
         return fblur.glass_blur(img, self.sigma, self.max_delta, self.iterations, dxy, self.mode)
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, np.ndarray]:
-        img = params["image"]
-
-        height, width = img.shape[:2]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, np.ndarray]:
+        height, width = params["shape"][:2]
 
         # generate array containing all necessary values for transformations
         width_pixels = height - self.max_delta * 2
@@ -343,10 +341,6 @@ class GlassBlur(ImageOnlyTransform):
 
     def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
         return ("sigma", "max_delta", "iterations", "mode")
-
-    @property
-    def targets_as_params(self) -> list[str]:
-        return ["image"]
 
 
 class AdvancedBlur(ImageOnlyTransform):
