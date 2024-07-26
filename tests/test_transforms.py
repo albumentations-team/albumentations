@@ -1,7 +1,7 @@
 import random
 from functools import partial
 from typing import Any, Dict, Optional, Tuple, Type
-from deepdiff import DeepDiff
+
 import cv2
 import numpy as np
 
@@ -10,7 +10,6 @@ import warnings
 from torchvision import transforms as torch_transforms
 
 from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
-from albumentations.core.pydantic import valid_interpolations, valid_border_modes
 
 from albucore.utils import clip
 import albumentations as A
@@ -21,7 +20,7 @@ from albumentations.core.transforms_interface import BasicTransform
 from albumentations.core.types import ImageCompressionType
 from albumentations.random_utils import get_random_seed
 from albumentations.augmentations.transforms import RandomSnow
-from tests.conftest import IMAGES, RECTANGULAR_FLOAT_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
+from tests.conftest import IMAGES, SQUARE_FLOAT_IMAGE, SQUARE_MULTI_UINT8_IMAGE, SQUARE_UINT8_IMAGE
 
 from .utils import get_dual_transforms, get_image_only_transforms, get_transforms, set_seed
 
@@ -205,7 +204,8 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.PixelDropout,
             A.MixUp,
             A.XYMasking,
-            A.OverlayElements
+            A.OverlayElements,
+            A.TextImage
         },
     ),
 )
@@ -258,7 +258,8 @@ def __test_multiprocessing_support_proc(args):
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
-            A.OverlayElements
+            A.OverlayElements,
+            A.TextImage
         },
     ),
 )
@@ -326,6 +327,9 @@ def test_force_apply():
                 "templates": SQUARE_UINT8_IMAGE,
             },
         },
+        except_augmentations={
+            A.TextImage
+        }
     ),
 )
 def test_additional_targets_for_image_only(augmentation_cls, params):
@@ -1445,7 +1449,8 @@ def test_coarse_dropout_invalid_input(params):
             A.NoOp,
             A.Lambda,
             A.ToRGB,
-            A.RandomRotate90,
+            A.RandomRotate90,            
+            A.TextImage
         },
     ),
 )
@@ -1525,6 +1530,7 @@ def test_change_image(augmentation_cls, params):
             A.PlanckianJitter,
             A.OverlayElements,
             A.FromFloat,
+            A.TextImage
         },
     ),
 )
@@ -1669,6 +1675,7 @@ def test_random_snow_invalid_input(params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1989,7 +1996,8 @@ def test_rot90(bboxes, angle, keypoints):
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
-            A.OverlayElements
+            A.OverlayElements,
+            A.TextImage
         },
     ),
 )

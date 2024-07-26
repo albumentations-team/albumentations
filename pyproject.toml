@@ -94,6 +94,7 @@ lint.ignore = [
   "S311",
   "TCH001",
   "TCH002",
+  "TCH003",
   "TRY003",
 ]
 
@@ -111,9 +112,7 @@ lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 lint.pydocstyle.convention = "google"
 
 [tool.mypy]
-plugins = [
-  "pydantic.mypy",
-]
+plugins = [ "pydantic.mypy" ]
 
 python_version = "3.8"
 ignore_missing_imports = true

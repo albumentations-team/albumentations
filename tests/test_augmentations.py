@@ -33,7 +33,8 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
             A.MixUp: {
                 "reference_data": [{"image": SQUARE_UINT8_IMAGE}],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.FromFloat, A.Normalize, A.ToFloat
@@ -43,8 +44,13 @@ from .utils import get_dual_transforms, get_image_only_transforms, get_transform
 def test_image_only_augmentations_mask_persists(augmentation_cls, params):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
-    aug = augmentation_cls(p=1, **params)
-    data = aug(image=image, mask=mask)
+    if augmentation_cls == A.TextImage:
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        data= aug(image=image, mask=mask, textimage_metadata=[])
+    else:
+        aug = A.Compose([augmentation_cls(p=1, **params)])
+        data = aug(image=image, mask=mask)
+
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
@@ -75,7 +81,8 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
             A.MixUp: {
                 "reference_data": [{"image": SQUARE_FLOAT_IMAGE}],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.CLAHE,
@@ -89,8 +96,12 @@ def test_image_only_augmentations_mask_persists(augmentation_cls, params):
 def test_image_only_augmentations(augmentation_cls, params):
     image = SQUARE_FLOAT_IMAGE
     mask = image[:, :, 0].copy().astype(np.uint8)
-    aug = augmentation_cls(p=1, **params)
-    data = aug(image=image, mask=mask)
+    if augmentation_cls == A.TextImage:
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        data= aug(image=image, mask=mask, textimage_metadata=[])
+    else:
+        aug = augmentation_cls(p=1, **params)
+        data = aug(image=image, mask=mask)
     assert data["image"].dtype == image.dtype
     assert data["mask"].dtype == mask.dtype
     assert np.array_equal(data["mask"], mask)
@@ -226,7 +237,8 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
@@ -239,10 +251,14 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
     image_copy = image.copy()
     mask_copy = mask.copy()
     aug = augmentation_cls(p=1, **params)
+
     if augmentation_cls == A.OverlayElements:
         aug(image=image, mask=mask, overlay_metadata=[])
+    elif augmentation_cls == A.TextImage:
+        aug(image=image, mask=mask, textimage_metadata=[])
     else:
         aug(image=image, mask=mask)
+
     assert np.array_equal(image, image_copy)
     assert np.array_equal(mask, mask_copy)
 
@@ -289,7 +305,8 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
                                     "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.CLAHE,
@@ -308,10 +325,15 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
     float_image_copy = image.copy()
 
     aug = augmentation_cls(p=1, **params)
+
+    data = {"image": image}
+
     if augmentation_cls == A.OverlayElements:
-        aug(image=image, overlay_metadata=[])
-    else:
-        aug(image=image)
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
+
+    aug(**data)
 
     assert np.array_equal(image, float_image_copy)
 
@@ -345,7 +367,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                                     "mask": np.random.randint(0, 1, (100, 100), dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.ChannelDropout,
@@ -391,17 +414,15 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
     # Test for grayscale image
     image = np.zeros(shape, dtype=np.float32) if augmentation_cls == A.FromFloat else np.zeros(shape, dtype=np.uint8)
     mask = np.zeros(shape)
+
+    data = {
+            "image": image,
+            "mask": mask,
+        }
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-            "mask": mask,
-        }
-    else:
-        data = {
-            "image": image,
-            "mask": mask,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
     result = aug(**data)
 
     assert np.array_equal(image.shape, result["image"].shape)
@@ -441,7 +462,8 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                                     "mask": np.random.randint(0, 1, (100, 100, 3), dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -473,6 +495,12 @@ def test_augmentations_wont_change_shape_rgb(augmentation_cls, params):
         data = {
             "image": image_3ch,
             "overlay_metadata": [],
+            "mask": mask_3ch,
+        }
+    elif augmentation_cls == A.TextImage:
+        data = {
+            "image": image_3ch,
+            "textimage_metadata": [],
             "mask": mask_3ch,
         }
     elif augmentation_cls == A.FromFloat:
@@ -561,7 +589,8 @@ def test_mask_fill_value(augmentation_cls, params):
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.CLAHE,
@@ -590,7 +619,7 @@ def test_mask_fill_value(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
-            A.PlanckianJitter
+            A.PlanckianJitter,
         },
     ),
 )
@@ -598,15 +627,15 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
     image = SQUARE_MULTI_UINT8_IMAGE
     aug = augmentation_cls(p=1, **params)
 
+    data = {
+        "image": image,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
+
     data = aug(**data)
     assert data["image"].dtype == np.uint8
     assert data["image"].shape[2] == image.shape[-1]
@@ -649,7 +678,8 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
                                     "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.CLAHE,
@@ -678,22 +708,22 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
-            A.PlanckianJitter
+            A.PlanckianJitter,
         },
     ),
 )
 def test_float_multichannel_image_augmentations(augmentation_cls, params):
     image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
+    data = {
+        "image": image,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
+
     data = aug(**data)
 
     assert data["image"].dtype == np.float32
@@ -727,7 +757,8 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.CLAHE,
@@ -758,7 +789,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
-            A.PlanckianJitter
+            A.PlanckianJitter,
         },
     ),
 )
@@ -767,15 +798,15 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
 
     aug = augmentation_cls(p=1, **params)
 
+    data = {
+        "image": image,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
+
     data = aug(**data)
 
     assert data["image"].dtype == np.uint8
@@ -811,7 +842,8 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
         except_augmentations={
             A.CLAHE,
@@ -842,7 +874,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.PixelDistributionAdaptation,
             A.Spatter,
             A.ChromaticAberration,
-            A.PlanckianJitter
+            A.PlanckianJitter,
         },
     ),
 )
@@ -850,15 +882,15 @@ def test_float_multichannel_image_augmentations_diff_channels(augmentation_cls, 
     image = SQUARE_MULTI_FLOAT_IMAGE
     aug = augmentation_cls(p=1, **params)
 
+    data = {
+        "image": image,
+    }
+
     if augmentation_cls == A.OverlayElements:
-        data = {
-            "image": image,
-            "overlay_metadata": [],
-        }
-    else:
-        data = {
-            "image": image,
-        }
+        data["overlay_metadata"] = []
+    elif augmentation_cls == A.TextImage:
+        data["textimage_metadata"] = []
+
     data = aug(**data)
 
     assert data["image"].dtype == np.float32
@@ -1109,7 +1141,8 @@ def test_pixel_domain_adaptation(kind: str) -> None:
                                     "mask": np.random.randint(0, 1, [100, 100, 3], dtype=np.uint8),
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
         },
     ),
 )
@@ -1129,6 +1162,9 @@ def test_non_contiguous_input(augmentation_cls, params, bboxes):
         # requires "bboxes" arg
         aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
         aug(image=image, mask=mask, bboxes=bboxes)
+    elif augmentation_cls == A.TextImage:
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug(image=image, mask=mask, bboxes=bboxes, textimage_metadata=[])
     elif augmentation_cls == A.OverlayElements:
         # requires "metadata" arg
         aug = A.Compose([augmentation_cls(p=1, **params)])

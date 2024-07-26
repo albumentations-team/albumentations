@@ -1047,7 +1047,8 @@ def test_transform_always_apply_warning() -> None:
             A.MaskDropout,
             A.CropNonEmptyMaskIfExists,
             A.BBoxSafeRandomCrop,
-            A.OverlayElements
+            A.OverlayElements,
+            A.TextImage
         },
     ),
 )
