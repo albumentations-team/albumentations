@@ -1318,7 +1318,8 @@ class RandomToneCurve(ImageOnlyTransform):
         return fmain.move_tone_curve(img, low_y, high_y)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        num_channels = params["shape"][-1]
+        image = data["image"] if "image" in data else data["images"][0]
+        num_channels = get_num_channels(image)
 
         if self.per_channel and num_channels != 1:
             return {
