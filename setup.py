@@ -69,7 +69,7 @@ setup(
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
     extras_require={
         "hub": ["huggingface_hub"],
-        "text": ["pillow", "nltk"]
+        "text": ["pillow"]
     },
     classifiers=[
     "Development Status :: 5 - Production/Stable",
