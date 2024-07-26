@@ -2393,9 +2393,8 @@ class MultiplicativeNoise(ImageOnlyTransform):
         if self.multiplier[0] == self.multiplier[1]:
             return {"multiplier": self.multiplier[0]}
 
-        img_shape = params["shape"]
-
-        shape = img_shape if self.elementwise else [img_shape[-1]]
+        img = data["image"] if "image" in data else data["images"][0]
+        shape = img.shape if self.elementwise else get_num_channels(img)
 
         multiplier = random_utils.uniform(self.multiplier[0], self.multiplier[1], shape).astype(np.float32)
 
