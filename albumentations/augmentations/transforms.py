@@ -1709,24 +1709,24 @@ class GaussNoise(ImageOnlyTransform):
         return fmain.add_noise(img, gauss)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, float]:
-        shape = params["shape"]
+        image = data["image"] if "image" in data else data["images"][0]
         var = random.uniform(self.var_limit[0], self.var_limit[1])
         sigma = math.sqrt(var)
 
         if self.per_channel:
-            target_shape = shape
+            target_shape = image.shape
             if self.noise_scale_factor == 1:
                 gauss = random_utils.normal(self.mean, sigma, target_shape)
             else:
                 gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
         else:
-            target_shape = shape[:2]
+            target_shape = image.shape[:2]
             if self.noise_scale_factor == 1:
                 gauss = random_utils.normal(self.mean, sigma, target_shape)
             else:
                 gauss = fmain.generate_approx_gaussian_noise(target_shape, self.mean, sigma, self.noise_scale_factor)
 
-            if shape[-1] > MONO_CHANNEL_DIMENSIONS:
+            if image.ndim > MONO_CHANNEL_DIMENSIONS:
                 gauss = np.expand_dims(gauss, -1)
 
         return {"gauss": gauss}
