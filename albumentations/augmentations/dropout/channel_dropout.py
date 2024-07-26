@@ -5,6 +5,7 @@ from typing import Any, Mapping
 
 from typing_extensions import Annotated
 
+from albucore import get_num_channels
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 
 from .functional import channel_dropout
@@ -57,7 +58,8 @@ class ChannelDropout(ImageOnlyTransform):
         return channel_dropout(img, channels_to_drop, self.fill_value)
 
     def get_params_dependent_on_data(self, params: Mapping[str, Any], data: Mapping[str, Any]) -> dict[str, Any]:
-        num_channels = params["shape"][-1]
+        image = data["image"] if "image" in data else data["images"][0]
+        num_channels = get_num_channels(image)
 
         if num_channels == 1:
             msg = "Images has one channel. ChannelDropout is not defined."
