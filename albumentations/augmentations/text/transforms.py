@@ -183,7 +183,7 @@ class TextImage(ImageOnlyTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         image = data["image"]
 
-        metadata = params[self.metadata_key]
+        metadata = data[self.metadata_key]
 
         if metadata == []:
             return {
