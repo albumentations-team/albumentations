@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Literal, cast
+from typing import Any, Literal
 import random
 import numpy as np
 from PIL import ImageFont
@@ -15,12 +15,8 @@ from albumentations.core.pydantic import check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import BoxType, ColorType
 
-try:
-    from rake_nltk import Rake
 
-    RAKE_AVAILABLE = True
-except ImportError:
-    RAKE_AVAILABLE = False
+__all__ = ["TextImage"]
 
 
 class TextImage(ImageOnlyTransform):
@@ -31,20 +27,18 @@ class TextImage(ImageOnlyTransform):
     inside specified bounding boxes.
 
     Args:
-        font_path (str): Path to the font file to use for rendering text.
+        font_path (str | Path): Path to the font file to use for rendering text.
         stopwords (list[str] | None): List of stopwords for text augmentation.
-        pos_tagger (Callable[[str], list[str]] | None): Part-of-speech tagger for text augmentation.
         augmentations (tuple[str | None, ...] | list[str | None]): List of text augmentations to apply.
             None: text is printed as is
             "insertion": insert random stop words into the text.
             "swap": swap random words in the text.
             "deletion": delete random words from the text.
-            "kreplacement": replace random words with synonyms.
-
         fraction_range (tuple[float, float]): Range for selecting a fraction of bounding boxes to modify.
         font_size_fraction_range (tuple[float, float]): Range for selecting the font size as a fraction of
             bounding box height.
-        font_color (list[ColorType | str] | ColorType | str): List of possible font colors or a single font color.
+        font_color (list[str] | str): List of possible font colors or a single font color.
+        clear_bg (bool): Whether to clear the background before rendering text.
         metadata_key (str): Key to access metadata in the parameters.
         p (float): Probability of applying the transform.
 
@@ -58,9 +52,8 @@ class TextImage(ImageOnlyTransform):
         >>> import albumentations as A
         >>> transform = A.Compose([
             A.TextImage(
-                font_path="/path/to/font.ttf",
+                font_path=Path("/path/to/font.ttf"),
                 stopwords=["the", "is", "in"],
-                pos_tagger=my_pos_tagger,
                 augmentations=("insertion", "deletion"),
                 fraction_range=(0.5, 1.0),
                 font_size_fraction_range=(0.5, 0.9),
@@ -77,7 +70,6 @@ class TextImage(ImageOnlyTransform):
     class InitSchema(BaseTransformInitSchema):
         font_path: str
         stopwords: list[str] | None
-        pos_tagger: Callable[[str], list[str]] | None
         augmentations: tuple[str | None, ...] | list[str | None]
         fraction_range: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)]
         font_size_fraction_range: Annotated[
@@ -92,10 +84,7 @@ class TextImage(ImageOnlyTransform):
         @model_validator(mode="after")
         def validate_input(self) -> Self:
             if not self.stopwords:
-                self.augmentations = [aug for aug in self.augmentations if aug not in {"kreplacement", "insertion"}]
-
-            if not self.pos_tagger:
-                self.augmentations = [aug for aug in self.augmentations if aug != "kreplacement"]
+                self.augmentations = [aug for aug in self.augmentations if aug != "insertion"]
 
             self.stopwords = self.stopwords or ["the", "is", "in", "at", "of"]
 
@@ -105,8 +94,7 @@ class TextImage(ImageOnlyTransform):
         self,
         font_path: str,
         stopwords: list[str] | None = None,
-        pos_tagger: Callable[[str], list[str]] | None = None,
-        augmentations: tuple[str | None, ...] = (),
+        augmentations: tuple[Literal["insertion", "swap", "deletion"] | None] = (None,),
         fraction_range: tuple[float, float] = (1.0, 1.0),
         font_size_fraction_range: tuple[float, float] = (0.8, 0.9),
         font_color: list[ColorType | str] | ColorType | str = "black",
@@ -120,38 +108,32 @@ class TextImage(ImageOnlyTransform):
         self.font_path = font_path
         self.fraction_range = fraction_range
         self.stopwords = stopwords
-        self.pos_tagger = pos_tagger
         self.augmentations = list(augmentations)
         self.font_size_fraction_range = font_size_fraction_range
         self.font_color = font_color
         self.clear_bg = clear_bg
 
-        if RAKE_AVAILABLE:
-            self.rake = Rake(self.stopwords)
-        else:
-            self.rake = None
-
     @property
     def targets_as_params(self) -> list[str]:
-        return [self.metadata_key, "image"]
+        return [self.metadata_key]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
             "font_path",
             "stopwords",
-            "pos_tagger",
             "augmentations",
             "fraction_range",
             "font_size_fraction_range",
             "font_color",
             "metadata_key",
+            "clear_bg",
         )
 
     def random_aug(
         self,
         text: str,
         fraction: float,
-        choice: Literal["insertion", "swap", "deletion", "kreplacement"],
+        choice: Literal["insertion", "swap", "deletion"],
     ) -> str:
         words = [word for word in text.strip().split() if word]
         num_words = len(words)
@@ -163,10 +145,8 @@ class TextImage(ImageOnlyTransform):
             result_sentence = ftext.swap_random_words(words, num_words_to_modify)
         elif choice == "deletion":
             result_sentence = ftext.delete_random_words(words, num_words_to_modify)
-        elif choice == "kreplacement":
-            return ftext.augment_text_with_synonyms(text, [3], self.pos_tagger, self.rake)
         else:
-            raise ValueError("Invalid choice. Choose from 'insertion', 'kreplacement', 'swap', or 'deletion'.")
+            raise ValueError("Invalid choice. Choose from 'insertion', 'swap', or 'deletion'.")
 
         result_sentence = re.sub(" +", " ", result_sentence).strip()
         return result_sentence if result_sentence != text else ""
@@ -188,11 +168,8 @@ class TextImage(ImageOnlyTransform):
             augmented_text = text
         else:
             augmentation = random.choice(self.augmentations)
-            augmented_text = self.random_aug(
-                text,
-                0.5,
-                choice=cast(Literal["insertion", "swap", "deletion", "kreplacement"], augmentation),
-            )
+
+            augmented_text = text if augmentation is None else self.random_aug(text, 0.5, choice=augmentation)
 
         font_color = random.choice(self.font_color) if isinstance(self.font_color, list) else self.font_color
 
@@ -203,8 +180,8 @@ class TextImage(ImageOnlyTransform):
             "font_color": font_color,
         }
 
-    def get_params_dependent_on_targets(self, params: dict[str, Any]) -> dict[str, Any]:
-        image = params["image"]
+    def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
+        image = data["image"]
 
         metadata = params[self.metadata_key]
 

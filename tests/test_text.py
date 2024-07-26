@@ -86,54 +86,6 @@ def test_insert_random_stopwords(sentence, num_insertions, stopwords, expected_l
 
 
 @pytest.mark.parametrize(
-    "prompt, pos_tags, rake_keywords, expected_output",
-    [
-        (
-            "The quick brown fox",
-            [("The", "DT"), ("quick", "JJ"), ("brown", "JJ"), ("fox", "NN")],
-            [("quick brown", 1.0), ("fox", 0.8)],
-            {"quick": "JJ", "brown": "JJ", "fox": "NN"}
-        ),
-        (
-            "Hello world",
-            [("Hello", "UH"), ("world", "NN")],
-            [("Hello world", 1.0)],
-            {"Hello": "UH", "world": "NN"}
-        ),
-        (
-            "Python is great for machine learning",
-            [("Python", "NNP"), ("is", "VBZ"), ("great", "JJ"), ("for", "IN"), ("machine", "NN"), ("learning", "NN")],
-            [("Python", 1.0), ("machine learning", 0.9)],
-            {"Python": "NNP", "machine": "NN", "learning": "NN"}
-        ),
-        (
-            "Data science is fun",
-            [("Data", "NN"), ("science", "NN"), ("is", "VBZ"), ("fun", "JJ")],
-            [("Data science", 1.0), ("fun", 0.8)],
-            {"Data": "NN", "science": "NN", "fun": "JJ"}
-        ),
-        (
-            "Natural language processing",
-            [("Natural", "JJ"), ("language", "NN"), ("processing", "NN")],
-            [("Natural language processing", 1.0)],
-            {"Natural": "JJ", "language": "NN", "processing": "NN"}
-        ),
-    ]
-)
-def test_extract_keywords_and_pos(mocker, prompt, pos_tags, rake_keywords, expected_output):
-    # Mock the StanfordPOSTagger
-    pos_tagger = mocker.Mock()
-    pos_tagger.tag.return_value = pos_tags
-
-    # Mock the Rake
-    rake = mocker.Mock()
-    rake.run.return_value = rake_keywords
-
-    result = ftext.extract_keywords_and_pos(prompt, pos_tagger, rake)
-    assert result == expected_output, f"For prompt '{prompt}', expected {expected_output} but got {result}"
-
-
-@pytest.mark.parametrize(
     "image_shape",
     [
         (100, 100),  # Grayscale image
@@ -196,33 +148,3 @@ def test_draw_text_on_pil_image(image_shape, metadata_list):
     else:
         result = ftext.draw_text_on_multi_channel_image(image, metadata_list)
         assert isinstance(result, np.ndarray)
-
-
-@pytest.fixture
-def test_image():
-    # Create a simple image for testing
-    image = np.ones((100, 100, 3), dtype=np.uint8) * 255  # White image
-    cv2.rectangle(image, (30, 30), (70, 70), (0, 0, 255), -1)  # Red square in the center
-    return image
-
-@pytest.mark.parametrize("metadata_list, expected_unchanged_regions", [
-    ([{"bbox_coords": (30, 30, 70, 70)}], [(slice(None, 30), slice(None)), (slice(70, None), slice(None)), (slice(None), slice(None, 30)), (slice(None), slice(70, None))]),
-    ([], [slice(None)]),
-    ([{"bbox_coords": (30, 30, 70, 70)}, {"bbox_coords": (10, 10, 20, 20)}], [(slice(None, 10), slice(None)), (slice(20, 30), slice(None)), (slice(70, None), slice(None)), (slice(None), slice(None, 10)), (slice(None), slice(20, 30)), (slice(None), slice(70, None))])
-])
-def test_seamless_clone(test_image, metadata_list, expected_unchanged_regions):
-    original_image = test_image.copy()
-
-    # Perform seamless cloning
-    result_image = ftext.seamless_clone_text_background(test_image, metadata_list)
-
-    # Check that the regions specified in metadata_list have been cloned seamlessly
-    for metadata in metadata_list:
-        x_min, y_min, x_max, y_max = metadata["bbox_coords"]
-        region_before = original_image[y_min:y_max, x_min:x_max]
-        region_after = result_image[y_min:y_max, x_min:x_max]
-        assert not np.array_equal(region_before, region_after), "Region should have been cloned but it is not."
-
-    # Check that the rest of the image remains unchanged
-    for unchanged_region in expected_unchanged_regions:
-        assert np.array_equal(original_image[unchanged_region], result_image[unchanged_region]), "Region should remain unchanged but it is not."
