@@ -48,6 +48,9 @@ class TextImage(ImageOnlyTransform):
     Image types:
         uint8, float32
 
+    Reference:
+        https://github.com/danaaubakirova/doc-augmentation
+
     Examples:
         >>> import albumentations as A
         >>> transform = A.Compose([
@@ -215,3 +218,16 @@ class TextImage(ImageOnlyTransform):
         **params: Any,
     ) -> np.ndarray:
         return ftext.render_text(img, overlay_data, clear_bg=self.clear_bg)
+
+    def apply_with_params(self, params: dict[str, Any], *args: Any, **kwargs: Any) -> dict[str, Any]:
+        res = super().apply_with_params(params, *args, **kwargs)
+        res["overlay_data"] = [
+            {
+                "bbox_coords": overlay["bbox_coords"],
+                "text": overlay["text"],
+                "font_color": overlay["font_color"],
+            }
+            for overlay in params["overlay_data"]
+        ]
+
+        return res
