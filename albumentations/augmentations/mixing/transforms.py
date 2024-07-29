@@ -227,6 +227,7 @@ class MixUp(ReferenceBasedTransform):
         res = super().apply_with_params(params, *args, **kwargs)
         if self.mix_coef_return_name:
             res[self.mix_coef_return_name] = params["mix_coef"]
+            res["mix_data"] = params["mix_data"]
         return res
 
 
@@ -256,6 +257,9 @@ class OverlayElements(ReferenceBasedTransform):
 
     Image types:
         uint8, float32
+
+    Reference:
+        https://github.com/danaaubakirova/doc-augmentation
 
     """
 
