@@ -154,7 +154,7 @@ class TextImage(ImageOnlyTransform):
         result_sentence = re.sub(" +", " ", result_sentence).strip()
         return result_sentence if result_sentence != text else ""
 
-    def preprocess_metadata(self, image: np.ndarray, bbox: BoxType, text: str) -> dict[str, Any]:
+    def preprocess_metadata(self, image: np.ndarray, bbox: BoxType, text: str, bbox_index: int) -> dict[str, Any]:
         image_height, image_width = image.shape[:2]
 
         check_bbox(bbox)
@@ -178,6 +178,8 @@ class TextImage(ImageOnlyTransform):
 
         return {
             "bbox_coords": (x_min, y_min, x_max, y_max),
+            "bbox_index": bbox_index,
+            "original_text": text,
             "text": augmented_text,
             "font": font,
             "font_color": font_color,
@@ -203,8 +205,8 @@ class TextImage(ImageOnlyTransform):
         bbox_indices_to_update = random.sample(range(len(metadata)), num_bboxes_to_modify)
 
         overlay_data = [
-            self.preprocess_metadata(image, metadata[index]["bbox"], metadata[index]["text"])
-            for index in bbox_indices_to_update
+            self.preprocess_metadata(image, metadata[bbox_index]["bbox"], metadata[bbox_index]["text"], bbox_index)
+            for bbox_index in bbox_indices_to_update
         ]
 
         return {
@@ -225,6 +227,8 @@ class TextImage(ImageOnlyTransform):
             {
                 "bbox_coords": overlay["bbox_coords"],
                 "text": overlay["text"],
+                "original_text": overlay["original_text"],
+                "bbox_index": overlay["bbox_index"],
                 "font_color": overlay["font_color"],
             }
             for overlay in params["overlay_data"]
