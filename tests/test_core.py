@@ -719,16 +719,6 @@ def test_single_transform_compose(
     assert isinstance(res_transform.transforms, list)
 
 
-# @pytest.mark.parametrize(
-#     "transforms",
-#     [OneOf([Sequential([HorizontalFlip(p=1)])], p=1), SomeOf([Sequential([HorizontalFlip(p=1)])], n=1, p=1)],
-# )
-# def test_choice_inner_compositions(transforms):
-#     """Check that the inner composition is selected without errors."""
-#     image = np.empty([10, 10, 3], dtype=np.uint8)
-#     transforms(image=image)
-
-
 @pytest.mark.parametrize(
     ["augmentation_cls", "params"],
     get_dual_transforms(
