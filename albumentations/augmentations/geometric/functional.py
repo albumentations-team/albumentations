@@ -6,7 +6,7 @@ from typing import Any, Callable, Sequence, cast
 import cv2
 import numpy as np
 import skimage.transform
-from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim, contiguous, get_num_channels
+from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim, get_num_channels
 
 from albumentations import random_utils
 from albumentations.augmentations.functional import center
@@ -841,11 +841,11 @@ def bbox_piecewise_affine(
 
 
 def vflip(img: np.ndarray) -> np.ndarray:
-    return np.ascontiguousarray(img[::-1, ...])
+    return img[::-1, ...]
 
 
 def hflip(img: np.ndarray) -> np.ndarray:
-    return np.ascontiguousarray(img[:, ::-1, ...])
+    return img[:, ::-1, ...]
 
 
 def hflip_cv2(img: np.ndarray) -> np.ndarray:
@@ -896,7 +896,7 @@ def d4(img: np.ndarray, group_member: D4Type) -> np.ndarray:
 
     # Execute the appropriate transformation
     if group_member in transformations:
-        return np.ascontiguousarray(transformations[group_member](img))
+        return transformations[group_member](img)
 
     raise ValueError(f"Invalid group member: {group_member}")
 
@@ -924,7 +924,6 @@ def transpose(img: np.ndarray) -> np.ndarray:
     return img.transpose(new_axes)
 
 
-@contiguous
 def rot90(img: np.ndarray, factor: int) -> np.ndarray:
     return np.rot90(img, factor)
 

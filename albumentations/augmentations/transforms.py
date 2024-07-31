@@ -1996,7 +1996,7 @@ class ToRGB(ImageOnlyTransform):
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if is_rgb_image(img):
             warnings.warn("The image is already an RGB.", stacklevel=2)
-            return img
+            return np.ascontiguousarray(img)
         if not is_grayscale_image(img):
             msg = "ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1."
             raise TypeError(msg)
@@ -2733,8 +2733,8 @@ class Superpixels(ImageOnlyTransform):
         self.max_size = max_size
         self.interpolation = interpolation
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str, str]:
-        return ("p_replace", "n_segments", "max_size", "interpolation")
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "p_replace", "n_segments", "max_size", "interpolation"
 
     def get_params(self) -> dict[str, Any]:
         n_segments = random.randint(self.n_segments[0], self.n_segments[1])
