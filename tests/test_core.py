@@ -40,9 +40,9 @@ from albumentations.core.transforms_interface import (
     NoOp
 )
 from albumentations.core.utils import to_tuple
-from tests.conftest import IMAGES, RECTANGULAR_FLOAT_IMAGE, RECTANGULAR_UINT8_IMAGE
+from tests.conftest import IMAGES, RECTANGULAR_FLOAT_IMAGE, RECTANGULAR_UINT8_IMAGE, SQUARE_FLOAT_IMAGE, SQUARE_UINT8_IMAGE
 
-from .utils import get_filtered_transforms, get_transforms
+from .utils import get_filtered_transforms, get_transforms, get_dual_transforms, get_image_only_transforms, set_seed
 
 
 def test_one_or_other():
@@ -720,36 +720,101 @@ def test_single_transform_compose(
 
 
 @pytest.mark.parametrize(
-    "transforms",
-    [OneOf([Sequential([HorizontalFlip(p=1)])], p=1), SomeOf([Sequential([HorizontalFlip(p=1)])], n=1, p=1)],
+    ["augmentation_cls", "params"],
+    get_dual_transforms(
+        custom_arguments={
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"size": (10, 10)},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "size" : (10, 10)},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": 3,
+                "mask_x_length": (10, 20),
+                "mask_y_length": 10,
+                "fill_value": 0,
+                "mask_fill_value": 1,
+            },
+            A.PadIfNeeded: {
+                "min_height": 512,
+                "min_width": 512,
+                "border_mode": 0,
+                "value": [124, 116, 104],
+                "position": "top_left"
+            },
+        },
+        except_augmentations={
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.Lambda,
+            A.TemplateTransform,
+            A.MixUp,
+            A.RandomSizedBBoxSafeCrop,
+            A.MaskDropout,
+            A.CropNonEmptyMaskIfExists,
+            A.BBoxSafeRandomCrop,
+            A.OverlayElements,
+            A.TextImage
+        },
+    ),
 )
-def test_choice_inner_compositions(transforms):
-    """Check that the inner composition is selected without errors."""
-    image = np.empty([10, 10, 3], dtype=np.uint8)
-    transforms(image=image)
-
-
-@pytest.mark.parametrize(
-    "transforms",
-    [
-        Compose([ChannelShuffle(p=1)], p=1),
-        # Compose([ChannelShuffle(p=0)], p=0),  # p=0, never calls, no process for data
-    ],
-)
-def test_contiguous_output(transforms):
-    image = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
-    mask = np.empty([3, 24, 24], dtype=np.uint8).transpose(1, 2, 0)
+def test_contiguous_output_dual(augmentation_cls, params):
+    set_seed(42)
+    image = np.ones([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
+    mask = np.ones([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
 
     # check preconditions
     assert not image.flags["C_CONTIGUOUS"]
     assert not mask.flags["C_CONTIGUOUS"]
 
+    transform = augmentation_cls(p=1, **params)
+
     # pipeline always outputs contiguous results
-    data = transforms(image=image, mask=mask)
+    data = transform(image=image, mask=mask)
 
     # confirm output contiguous
     assert data["image"].flags["C_CONTIGUOUS"]
     assert data["mask"].flags["C_CONTIGUOUS"]
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_image_only_transforms(
+        except_augmentations={
+            A.FDA,
+            A.HistogramMatching,
+            A.PixelDistributionAdaptation,
+            A.Lambda,
+            A.TemplateTransform,
+            A.MixUp,
+            A.RandomSizedBBoxSafeCrop,
+            A.CropNonEmptyMaskIfExists,
+            A.OverlayElements,
+            A.TextImage
+        },
+    ),
+)
+def test_contiguous_output_imageonly(augmentation_cls, params):
+    set_seed(42)
+    image = np.zeros([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
+
+    # check preconditions
+    assert not image.flags["C_CONTIGUOUS"]
+
+    transform = augmentation_cls(p=1, **params)
+
+    # pipeline always outputs contiguous results
+    data = transform(image=image)
+
+    im = data["image"]
+
+    # confirm output contiguous
+    assert im.flags["C_CONTIGUOUS"], f"{str((im.flags, im.strides, im.shape))}"
 
 
 @pytest.mark.parametrize(
@@ -1057,9 +1122,98 @@ def test_images_as_target(augmentation_cls, params):
     image2 = image.copy()
 
     aug = A.Compose(
-        [augmentation_cls(p=1., **params)]
+        [augmentation_cls(p=1, **params)]
     )
 
     transformed2 = aug(images=[image, image2])
 
     assert np.array_equal(transformed2["images"][0], transformed2["images"][1])
+
+
+@pytest.mark.parametrize(
+    ["augmentation_cls", "params"],
+    get_transforms(
+        custom_arguments={
+            # only image
+            A.HistogramMatching: {
+                "reference_images": [SQUARE_UINT8_IMAGE],
+                "read_fn": lambda x: x,
+            },
+            A.FDA: {
+                "reference_images": [SQUARE_FLOAT_IMAGE],
+                "read_fn": lambda x: x,
+            },
+            A.PixelDistributionAdaptation: {
+                "reference_images": [SQUARE_FLOAT_IMAGE],
+                "read_fn": lambda x: x,
+                "transform_type": "standard",
+            },
+            A.MedianBlur: {"blur_limit": (3, 5)},
+            A.TemplateTransform: {
+                "templates": SQUARE_UINT8_IMAGE,
+            },
+            A.RingingOvershoot: {"blur_limit": (3, 5)},
+            # dual
+            A.Crop: {"y_min": 0, "y_max": 10, "x_min": 0, "x_max": 10},
+            A.CenterCrop: {"height": 10, "width": 10},
+            A.CropNonEmptyMaskIfExists: {"height": 10, "width": 10},
+            A.RandomCrop: {"height": 10, "width": 10},
+            A.RandomResizedCrop: {"height": 10, "width": 10},
+            A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
+            A.CropAndPad: {"px": 10},
+            A.Resize: {"height": 10, "width": 10},
+            A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
+            A.BBoxSafeRandomCrop: {"erosion_rate": 0.5},
+            A.XYMasking: {
+                "num_masks_x": (1, 3),
+                "num_masks_y": (1, 3),
+                "mask_x_length": 10,
+                "mask_y_length": 10,
+                "mask_fill_value": 1,
+                "fill_value": 0,
+            },
+             A.MixUp: {
+                "reference_data": [{"image": SQUARE_UINT8_IMAGE,
+                                    "mask": np.random.randint(0, 1, [100, 100, 3], dtype=np.uint8),
+                                    }],
+                "read_fn": lambda x: x,
+            },
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+        },
+    ),
+)
+def test_non_contiguous_input_with_compose(augmentation_cls, params, bboxes):
+    image = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
+    mask = np.empty([3, 100, 100], dtype=np.uint8).transpose(1, 2, 0)
+
+    # check preconditions
+    assert not image.flags["C_CONTIGUOUS"]
+    assert not mask.flags["C_CONTIGUOUS"]
+
+    if augmentation_cls == A.RandomCropNearBBox:
+        # requires "cropping_bbox" arg
+        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug(image=image, mask=mask, cropping_bbox=bboxes[0])
+    elif augmentation_cls in [A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop]:
+        # requires "bboxes" arg
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug(image=image, mask=mask, bboxes=bboxes)
+    elif augmentation_cls == A.TextImage:
+        aug = A.Compose([augmentation_cls(p=1, **params)], bbox_params=A.BboxParams(format="pascal_voc"))
+        aug(image=image, mask=mask, bboxes=bboxes, textimage_metadata=[])
+    elif augmentation_cls == A.OverlayElements:
+        # requires "metadata" arg
+        aug = A.Compose([augmentation_cls(p=1, **params)])
+        aug(image=image, overlay_metadata=[], mask=mask)
+    else:
+        # standard args: image and mask
+        if augmentation_cls == A.FromFloat:
+            # requires float image
+            image = (image / 255).astype(np.float32)
+            assert not image.flags["C_CONTIGUOUS"]
+        elif augmentation_cls == A.MaskDropout:
+            # requires single channel mask
+            mask = mask[:, :, 0]
+
+        aug = augmentation_cls(p=1, **params)
+        aug(image=image, mask=mask)

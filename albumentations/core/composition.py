@@ -339,7 +339,6 @@ class Compose(BaseCompose, HubMixin):
 
     def postprocess(self, data: dict[str, Any]) -> dict[str, Any]:
         if self.main_compose:
-            data = Compose._make_targets_contiguous(data)  # ensure output targets are contiguous
             for p in self.processors.values():
                 p.postprocess(data)
         return data
@@ -401,17 +400,6 @@ class Compose(BaseCompose, HubMixin):
                 "about your data consistency)."
             )
             raise ValueError(msg)
-
-    @staticmethod
-    def _make_targets_contiguous(data: Any) -> dict[str, Any]:
-        result = {}
-        for key, value in data.items():
-            if isinstance(value, np.ndarray):
-                result[key] = np.ascontiguousarray(value)
-            else:
-                result[key] = value
-
-        return result
 
 
 class OneOf(BaseCompose):

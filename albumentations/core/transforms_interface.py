@@ -8,7 +8,6 @@ from warnings import warn
 import cv2
 from pydantic import BaseModel, ConfigDict, Field
 
-
 from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
@@ -132,7 +131,14 @@ class BasicTransform(Serializable, metaclass=CombinedMeta):
         for key, arg in kwargs.items():
             if key in self._key2func and arg is not None:
                 target_function = self._key2func[key]
-                res[key] = target_function(arg, **params)
+                if isinstance(arg, np.ndarray):
+                    result = target_function(np.require(arg, requirements=["C_CONTIGUOUS"]), **params)
+                    if isinstance(result, np.ndarray):
+                        res[key] = np.require(result, requirements=["C_CONTIGUOUS"])
+                    else:
+                        res[key] = result
+                else:
+                    res[key] = target_function(arg, **params)
             else:
                 res[key] = arg
         return res

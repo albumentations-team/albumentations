@@ -12,7 +12,6 @@ from albucore.utils import (
     MAX_VALUES_BY_DTYPE,
     clip,
     clipped,
-    contiguous,
     is_grayscale_image,
     is_rgb_image,
     maybe_process_in_chunks,
@@ -651,7 +650,6 @@ def add_sun_flare(
     return to_float(output, max_value=255) if needs_float else output
 
 
-@contiguous
 @preserve_channel_dim
 def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray]) -> np.ndarray:
     """Add shadows to the image by reducing the intensity of the RGB values in specified regions.
@@ -692,7 +690,6 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray]) -> np.ndarray:
     return img_shadowed
 
 
-@contiguous
 @preserve_channel_dim
 def add_gravel(img: np.ndarray, gravels: list[Any]) -> np.ndarray:
     """Add gravel to the image.

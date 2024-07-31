@@ -1473,7 +1473,7 @@ def test_coarse_dropout_invalid_input(params):
             A.NoOp,
             A.Lambda,
             A.ToRGB,
-            A.RandomRotate90,            
+            A.RandomRotate90,
             A.TextImage
         },
     ),
@@ -1554,7 +1554,8 @@ def test_change_image(augmentation_cls, params):
             A.PlanckianJitter,
             A.OverlayElements,
             A.FromFloat,
-            A.TextImage
+            A.TextImage,
+            A.FancyPCA
         },
     ),
 )

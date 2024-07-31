@@ -46,7 +46,7 @@ class RandomRotate90(DualTransform):
 
     _targets = (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS)
 
-    def apply(self, img: np.ndarray, factor: float, **params: Any) -> np.ndarray:
+    def apply(self, img: np.ndarray, factor: int, **params: Any) -> np.ndarray:
         return fgeometric.rot90(img, factor)
 
     def get_params(self) -> dict[str, int]:
