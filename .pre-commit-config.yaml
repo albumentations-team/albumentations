@@ -44,7 +44,7 @@ repos:
       types: [python]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Ruff version.
-    rev: v0.5.5
+    rev: v0.5.6
     hooks:
       # Run the linter.
       - id: ruff
@@ -70,11 +70,11 @@ repos:
     hooks:
       - id: markdownlint
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: "2.2.0"
+    rev: "2.2.1"
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.11.0
+    rev: v1.11.1
     hooks:
       - id: mypy
         files: ^albumentations/
