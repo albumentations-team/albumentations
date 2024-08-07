@@ -2070,10 +2070,6 @@ class GridElasticDeform(DualTransform):
         p: float = 1.0,
         always_apply: bool | None = None,
     ):
-        """
-        Params:
-            grid_width (int): 그리드의 수
-        """
         super().__init__(p=p, always_apply=always_apply)
         self.n_grid_width = n_grid_width
         self.n_grid_height = n_grid_height
