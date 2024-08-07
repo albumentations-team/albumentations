@@ -1,13 +1,9 @@
 import json
-import logging
 import urllib.request
 from urllib.request import OpenerDirector
+from warnings import warn
 
 from albumentations._version import __version__ as current_version
-
-# Set up basic logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 SUCCESS_HTML_CODE = 200
 
@@ -22,21 +18,16 @@ def get_opener() -> OpenerDirector:
 
 
 def fetch_version_info() -> str:
-    logger.debug("Starting to fetch version info...")
     opener = urllib.request.build_opener(urllib.request.HTTPHandler(), urllib.request.HTTPSHandler())
     url = "https://pypi.org/pypi/albumentations/json"
     try:
         with opener.open(url, timeout=2) as response:
-            logger.debug(f"HTTP status: {response.status}")
             if response.status == SUCCESS_HTML_CODE:
                 data = response.read()
-                logger.debug(f"Raw data: {data}")
                 encoding = response.info().get_content_charset("utf-8")
-                decoded_data = data.decode(encoding)
-                logger.debug(f"Decoded data: {decoded_data}")
-                return decoded_data
-    except Exception:
-        logger.exception("Error fetching version info")
+                return data.decode(encoding)
+    except Exception as e:  # noqa: BLE001
+        warn(f"Error fetching version info {e}", stacklevel=2)
     return ""
 
 
@@ -58,13 +49,17 @@ def check_for_updates() -> None:
         data = fetch_version_info()
         latest_version = parse_version(data)
         if latest_version and latest_version != current_version:
-            logger.info(
-                f"A new version of Albumentations is available: {latest_version} (you have {current_version})."  # noqa: S608
-                " Upgrade using: pip install -U albumentations."
-                " To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
+            warn(
+                f"A new version of Albumentations is available: {latest_version} (you have {current_version}). "  # noqa: S608
+                "Upgrade using: pip install -U albumentations. "
+                "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
+                UserWarning,
+                stacklevel=2,
             )
     except Exception as e:  # General exception catch to ensure silent failure  # noqa: BLE001
-        logger.info(
+        warn(
             f"Failed to check for updates due to an unexpected error: {e}. "  # noqa: S608
             "To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.",
+            UserWarning,
+            stacklevel=2,
         )

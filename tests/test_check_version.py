@@ -1,78 +1,66 @@
-import logging
+import json
+from unittest.mock import patch, MagicMock
 import pytest
-from unittest.mock import MagicMock
-import urllib.error
+from albumentations.check_version import (
+    get_opener, fetch_version_info, parse_version, check_for_updates
+)
 
-# Correct import statements based on your project structure
-from albumentations.check_version import fetch_version_info, parse_version, check_for_updates, SUCCESS_HTML_CODE
+def test_get_opener():
+    opener = get_opener()
+    assert opener is not None
+    assert opener == get_opener()  # Should return the same opener on subsequent calls
 
-@pytest.fixture
-def mock_response_success():
+@pytest.mark.parametrize("status_code,expected_result", [
+    (200, '{"info": {"version": "1.0.0"}}'),
+    (404, ""),
+])
+def test_fetch_version_info(status_code, expected_result):
     mock_response = MagicMock()
-    mock_response.__enter__.return_value.read.return_value = b'{"info": {"version": "1.0.1"}}'
-    mock_response.__enter__.return_value.info.return_value.get_content_charset.return_value = 'utf-8'
-    mock_response.__enter__.return_value.status = SUCCESS_HTML_CODE
-    return mock_response
+    mock_response.status = status_code
+    mock_response.read.return_value = expected_result.encode('utf-8')
+    mock_response.__enter__.return_value = mock_response
 
-@pytest.fixture
-def mock_response_failure():
-    mock_response = MagicMock()
-    mock_response.__enter__.return_value.read.return_value = b'{}'
-    mock_response.__enter__.return_value.info.return_value.get_content_charset.return_value = 'utf-8'
-    mock_response.__enter__.return_value.status = 500  # use a different status code for failure
-    return mock_response
+    # Mock the info() method and its get_content_charset() method
+    mock_info = MagicMock()
+    mock_info.get_content_charset.return_value = 'utf-8'
+    mock_response.info.return_value = mock_info
 
-def test_fetch_version_info_success(mocker, mock_response_success, caplog):
-    mocker.patch('urllib.request.OpenerDirector.open', return_value=mock_response_success)
-    with caplog.at_level(logging.DEBUG):
+    mock_opener = MagicMock()
+    mock_opener.open.return_value = mock_response
+
+    with patch('urllib.request.build_opener', return_value=mock_opener):
         result = fetch_version_info()
-        assert "1.0.1" in result, "Should return version data when HTTP status is 200"
+        assert result == expected_result
 
-def test_fetch_version_info_failure(mocker, mock_response_failure):
-    mocker.patch('urllib.request.OpenerDirector.open', return_value=mock_response_failure)
-    result = fetch_version_info()
-    assert result == "", "Should return empty string on HTTP failure"
+    # Verify that open was called with the correct URL and timeout
+    mock_opener.open.assert_called_once_with("https://pypi.org/pypi/albumentations/json", timeout=2)
 
-def test_fetch_version_info_timeout(mocker, caplog):
-    mocker.patch('urllib.request.OpenerDirector.open', side_effect=urllib.error.URLError("timeout"))
-    result = fetch_version_info()
-    assert result == "", "Should return empty string on timeout error"
+@pytest.mark.parametrize("input_data,expected_version", [
+    ('{"info": {"version": "1.0.0"}}', "1.0.0"),
+    ('{"info": {}}', ""),
+    ('{"other": "data"}', ""),
+    ('invalid json', ""),
+    ('', ""),
+])
+def test_parse_version(input_data, expected_version):
+    assert parse_version(input_data) == expected_version
 
-def test_check_for_updates_new_version_available(mocker):
-    mocker.patch('albumentations.check_version.fetch_version_info', return_value='{"info": {"version": "1.0.2"}}')
-    mocker.patch('albumentations.check_version.current_version', '1.0.1')
-    log_mock = mocker.patch('logging.Logger.info')
-    check_for_updates()
-    log_mock.assert_called_once_with(
-        'A new version of Albumentations is available: 1.0.2 (you have 1.0.1). Upgrade using: pip install -U albumentations. To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.'
-    )
+@pytest.mark.parametrize("fetch_data,current_version,expected_warning", [
+    ('{"info": {"version": "1.0.1"}}', "1.0.0", True),
+    ('{"info": {"version": "1.0.0"}}', "1.0.0", False),
+    ('{"info": {}}', "1.0.0", False),
+    ('invalid json', "1.0.0", False),
+])
+def test_check_for_updates(fetch_data, current_version, expected_warning):
+    with patch('albumentations.check_version.fetch_version_info', return_value=fetch_data), \
+         patch('albumentations.check_version.current_version', current_version), \
+         patch('albumentations.check_version.warn') as mock_warn:
+        check_for_updates()
+        assert mock_warn.called == expected_warning
 
-def test_check_for_updates_no_update_needed(mocker):
-    mocker.patch('albumentations.check_version.fetch_version_info', return_value='{"info": {"version": "1.0.1"}}')
-    mocker.patch('albumentations.check_version.current_version', '1.0.1')
-    log_mock = mocker.patch('logging.Logger.info')
-    check_for_updates()
-    log_mock.assert_not_called()
-
-def test_check_for_updates_exception_handling(mocker):
-    mocker.patch('albumentations.check_version.fetch_version_info', side_effect=Exception("Error"))
-    log_mock = mocker.patch('logging.Logger.info')
-    check_for_updates()
-    log_mock.assert_called_once_with("Failed to check for updates due to an unexpected error: Error. To disable automatic update checks, set the environment variable NO_ALBUMENTATIONS_UPDATE to 1.")
-
-def test_parse_version_correct_input():
-    json_input = '{"info": {"version": "1.0.2"}}'
-    expected_version = "1.0.2"
-    assert parse_version(json_input) == expected_version, "Should correctly parse the version from valid JSON data"
-
-def test_parse_version_empty_input():
-    json_input = ''
-    assert parse_version(json_input) == "", "Should return an empty string when provided with an empty input"
-
-def test_parse_version_malformed_json():
-    json_input = '{"info": {}}'  # Malformed JSON
-    assert parse_version(json_input) == "", "Should handle malformed JSON data gracefully by returning an empty string"
-
-def test_parse_version_no_version_field():
-    json_input = '{"info": {"release": "2021"}}'  # Missing 'version' field
-    assert parse_version(json_input) == "", "Should return an empty string when 'version' field is missing"
+def test_check_for_updates_exception():
+    with patch('albumentations.check_version.fetch_version_info', side_effect=Exception("Test error")), \
+         patch('albumentations.check_version.warn') as mock_warn:
+        check_for_updates()
+        mock_warn.assert_called_once()
+        assert "Failed to check for updates" in mock_warn.call_args[0][0]
