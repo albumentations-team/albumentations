@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import random
 from typing import Any, Callable, Literal, Sequence, Tuple, cast
+from typing_extensions import Annotated
 
 import cv2
 import numpy as np
 from albucore.utils import clip, is_grayscale_image, is_multispectral_image
-from pydantic import field_validator
+from pydantic import AfterValidator, field_validator
 
 from albumentations.augmentations.domain_adaptation_functional import (
     adapt_pixel_distribution,
@@ -18,7 +19,7 @@ from albumentations.core.transforms_interface import BaseTransformInitSchema, Im
 from albumentations.augmentations import functional as fmain
 
 
-from albumentations.core.pydantic import NonNegativeFloatRangeType, ZeroOneRangeType
+from albumentations.core.pydantic import NonNegativeFloatRangeType, check_01, nondecreasing
 from albumentations.core.types import ScaleFloatType
 
 
@@ -78,7 +79,10 @@ class HistogramMatching(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
-        blend_ratio: ZeroOneRangeType = (0.5, 1.0)
+        blend_ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)] = (
+            0.5,
+            1.0,
+        )
         read_fn: Callable[[Any], np.ndarray]
 
     def __init__(
@@ -265,7 +269,10 @@ class PixelDistributionAdaptation(ImageOnlyTransform):
 
     class InitSchema(BaseTransformInitSchema):
         reference_images: Sequence[Any]
-        blend_ratio: ZeroOneRangeType = (0.25, 1.0)
+        blend_ratio: Annotated[tuple[float, float], AfterValidator(nondecreasing), AfterValidator(check_01)] = (
+            0.25,
+            1.0,
+        )
         read_fn: Callable[[Any], np.ndarray]
         transform_type: Literal["pca", "standard", "minmax"]
 
