@@ -16,7 +16,6 @@ requirements:
     - python
     - numpy>=1.24.4
     - scipy
-    - scikit-learn
     - pydantic>=2.7
     - pytorch
     - typing_extensions
@@ -26,7 +25,6 @@ requirements:
     - python
     - numpy>=1.24.4
     - scipy
-    - scikit-learn
     - pydantic>=2.7
     - pytorch
     - typing_extensions

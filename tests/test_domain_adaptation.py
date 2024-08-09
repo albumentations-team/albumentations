@@ -1,8 +1,7 @@
 import pytest
 import numpy as np
 import cv2
-from albumentations.augmentations.domain_adaptation_functional import MinMaxScaler, StandardScaler, PCA
-
+from albumentations.augmentations.domain_adaptation_functional import MinMaxScaler, StandardScaler, PCA, apply_histogram
 
 
 @pytest.mark.parametrize("feature_range, data, expected", [
@@ -76,3 +75,114 @@ def test_pca_inverse_transform(n_components, data, expected_transformed, expecte
     inversed = pca.inverse_transform(transformed)
     assert np.array_equal(transformed, expected_transformed)
     assert np.array_equal(inversed, expected_inverse)
+
+
+# Helper function to create test images
+def create_reference_image(shape, dtype=np.uint8):
+    if dtype == np.uint8:
+        return np.random.randint(0, 256, shape, dtype=dtype)
+    else:
+        return np.random.rand(*shape).astype(dtype)
+
+@pytest.mark.parametrize("img_shape, ref_shape, dtype", [
+    ((100, 100, 3), (100, 100, 3), np.uint8),
+    ((100, 100), (100, 100), np.uint8),
+    ((50, 50, 3), (100, 100, 3), np.uint8),
+    ((100, 100, 3), (50, 50, 3), np.uint8),
+    ((100, 100, 3), (50, 50, 3), np.float32),
+])
+def test_apply_histogram_shapes_and_types(img_shape, ref_shape, dtype):
+    img = create_reference_image(img_shape, dtype)
+    reference_image = create_reference_image(ref_shape, dtype)
+    blend_ratio = 0.5
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    assert result.shape == img_shape
+    assert result.dtype == dtype
+
+@pytest.mark.parametrize("blend_ratio", [0.0, 0.25, 0.5, 0.75, 1.0])
+def test_apply_histogram_blend_ratio(blend_ratio):
+    img = create_reference_image((100, 100, 3))
+    reference_image = create_reference_image((100, 100, 3))
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    if blend_ratio == 0.0:
+        np.testing.assert_array_equal(result, img)
+    elif blend_ratio == 1.0:
+        assert not np.array_equal(result, img)
+    else:
+        assert not np.array_equal(result, img)
+        assert not np.array_equal(result, reference_image)
+
+def test_apply_histogram_grayscale():
+    img = create_reference_image((100, 100))
+    reference_image = create_reference_image((100, 100))
+    blend_ratio = 0.5
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    assert result.shape == (100, 100)
+    assert len(result.shape) == 2  # Ensure it remains grayscale
+
+def test_apply_histogram_multichannel():
+    img = create_reference_image((100, 100, 3))
+    reference_image = create_reference_image((100, 100, 3))
+    blend_ratio = 0.5
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    assert result.shape == (100, 100, 3)
+    assert len(result.shape) == 3  # Ensure it remains multichannel
+
+def test_apply_histogram_resize():
+    img = create_reference_image((100, 100, 3))
+    reference_image = create_reference_image((50, 50, 3))
+    blend_ratio = 0.5
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    assert result.shape == (100, 100, 3)
+
+@pytest.mark.parametrize("img_shape, ref_shape", [
+    ((100, 100, 3), (100, 100, 3)),
+    ((100, 100), (100, 100)),
+    ((50, 50, 3), (100, 100, 3)),
+])
+def test_apply_histogram_preserves_range(img_shape, ref_shape):
+    img = create_reference_image(img_shape)
+    reference_image = create_reference_image(ref_shape)
+    blend_ratio = 0.5
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    assert result.min() >= 0
+    assert result.max() <= 255
+
+def test_apply_histogram_float_input():
+    img = create_reference_image((100, 100, 3), dtype=np.float32)
+    reference_image = create_reference_image((100, 100, 3), dtype=np.float32)
+    blend_ratio = 0.5
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    assert result.dtype == np.float32
+    assert 0 <= result.min() <= result.max() <= 1
+
+def test_apply_histogram_different_distributions():
+    img = np.full((100, 100, 3), 50, dtype=np.uint8)
+    reference_image = np.full((100, 100, 3), 200, dtype=np.uint8)
+    blend_ratio = 1.0
+
+    result = apply_histogram(img, reference_image, blend_ratio)
+
+    assert result.mean() > img.mean()
+
+def test_apply_histogram_identity():
+    img = create_reference_image((100, 100, 3))
+    blend_ratio = 1.0
+
+    result = apply_histogram(img, img, blend_ratio)
+
+    np.testing.assert_array_almost_equal(result, img)

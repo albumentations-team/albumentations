@@ -6,12 +6,12 @@ from copy import deepcopy
 import cv2
 import numpy as np
 from albucore.functions import add_weighted
-from albucore.utils import clip, clipped, is_multispectral_image, preserve_channel_dim
+from albucore.utils import clip, clipped, preserve_channel_dim
 from skimage.exposure import match_histograms
 from typing_extensions import Protocol
 
 from albumentations.augmentations.functional import center
-from albumentations.core.types import MONO_CHANNEL_DIMENSIONS
+from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS
 import albumentations.augmentations.functional as fmain
 
 __all__ = [
@@ -297,6 +297,43 @@ def fourier_domain_adaptation(img: np.ndarray, target_img: np.ndarray, beta: flo
 @clipped
 @preserve_channel_dim
 def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: float) -> np.ndarray:
+    """Apply histogram matching to an input image using a reference image and blend the result.
+
+    This function performs histogram matching between the input image and a reference image,
+    then blends the result with the original input image based on the specified blend ratio.
+
+    Args:
+        img (np.ndarray): The input image to be transformed. Can be either grayscale or RGB.
+            Supported dtypes: uint8, float32 (values should be in [0, 1] range).
+        reference_image (np.ndarray): The reference image used for histogram matching.
+            Should have the same number of channels as the input image.
+            Supported dtypes: uint8, float32 (values should be in [0, 1] range).
+        blend_ratio (float): The ratio for blending the matched image with the original image.
+            Should be in the range [0, 1], where 0 means no change and 1 means full histogram matching.
+
+    Returns:
+        np.ndarray: The transformed image after histogram matching and blending.
+            The output will have the same shape and dtype as the input image.
+
+    Supported image types:
+        - Grayscale images: 2D arrays
+        - RGB images: 3D arrays with 3 channels
+        - Multispectral images: 3D arrays with more than 3 channels
+
+    Note:
+        - If the input and reference images have different sizes, the reference image
+          will be resized to match the input image's dimensions.
+        - The function uses `match_histograms` from scikit-image for the core histogram matching.
+        - The @clipped and @preserve_channel_dim decorators ensure the output is within
+          the valid range and maintains the original number of dimensions.
+
+    Example:
+        >>> import numpy as np
+        >>> from albumentations.augmentations.domain_adaptation_functional import apply_histogram
+        >>> input_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> reference_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        >>> result = apply_histogram(input_image, reference_image, blend_ratio=0.7)
+    """
     # Resize reference image only if necessary
     if img.shape[:2] != reference_image.shape[:2]:
         reference_image = cv2.resize(reference_image, dsize=(img.shape[1], img.shape[0]))
@@ -304,11 +341,12 @@ def apply_histogram(img: np.ndarray, reference_image: np.ndarray, blend_ratio: f
     img = np.squeeze(img)
     reference_image = np.squeeze(reference_image)
 
-    # Determine if the images are multi-channel based on a predefined condition or shape analysis
-    is_multichannel = is_multispectral_image(img)
-
     # Match histograms between the images
-    matched = match_histograms(img, reference_image, channel_axis=2 if is_multichannel else None)
+    matched = match_histograms(
+        img,
+        reference_image,
+        channel_axis=2 if img.ndim == NUM_MULTI_CHANNEL_DIMENSIONS and img.shape[2] > 1 else None,
+    )
 
     # Blend the original image and the matched image
     return add_weighted(matched, blend_ratio, img, 1 - blend_ratio)
