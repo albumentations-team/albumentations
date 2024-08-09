@@ -2489,10 +2489,11 @@ class ColorJitter(ImageOnlyTransform):
             if isinstance(value, numbers.Number):
                 if value < 0:
                     raise ValueError(f"If {info.field_name} is a single number, it must be non negative.")
-                value = [bias - value, bias + value]
+                left = bias - value
                 if clip:
-                    value[0] = max(value[0], 0)
-            elif isinstance(value, (tuple, list)) and len(value) == PAIR:
+                    left = max(left, 0)
+                value = (left, bias + value)
+            elif isinstance(value, tuple) and len(value) == PAIR:
                 check_range(value, *bounds, info.field_name)
 
             return cast(Tuple[float, float], value)
