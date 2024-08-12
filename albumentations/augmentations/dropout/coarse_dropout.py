@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 from typing import Any, Callable, Iterable, Sequence
 from warnings import warn
 
@@ -9,6 +8,7 @@ from typing_extensions import Annotated, Literal, Self
 
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, NumericType, ScalarType, Targets
+from albumentations.random_utils import randint, uniform
 
 from .functional import cutout, keypoint_in_hole
 
@@ -205,45 +205,46 @@ class CoarseDropout(DualTransform):
         width: int,
         height_range: tuple[ScalarType, ScalarType],
         width_range: tuple[ScalarType, ScalarType],
-    ) -> tuple[int, int]:
+        size: int,
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Calculate random hole dimensions based on the provided ranges."""
         if isinstance(height_range[0], int):
             min_height = height_range[0]
-            max_height = height_range[1]
+            max_height = min(height_range[1], height)
 
             min_width = width_range[0]
-            max_width = width_range[1]
-            max_height = min(max_height, height)
-            max_width = min(max_width, width)
-            hole_height = random.randint(int(min_height), int(max_height))
-            hole_width = random.randint(int(min_width), int(max_width))
+            max_width = min(width_range[1], width)
+
+            hole_heights = randint(np.int64(min_height), np.int64(max_height + 1), size=size)
+            hole_widths = randint(np.int64(min_width), np.int64(max_width + 1), size=size)
 
         else:  # Assume float
-            hole_height = int(height * random.uniform(height_range[0], height_range[1]))
-            hole_width = int(width * random.uniform(width_range[0], width_range[1]))
-        return hole_height, hole_width
+            hole_heights = (height * uniform(height_range[0], height_range[1], size=size)).astype(int)
+            hole_widths = (width * uniform(width_range[0], width_range[1], size=size)).astype(int)
+
+        return hole_heights, hole_widths
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
 
-        holes = []
-        num_holes = random.randint(self.num_holes_range[0], self.num_holes_range[1])
+        num_holes = randint(self.num_holes_range[0], self.num_holes_range[1] + 1)
 
-        for _ in range(num_holes):
-            hole_height, hole_width = self.calculate_hole_dimensions(
-                height,
-                width,
-                self.hole_height_range,
-                self.hole_width_range,
-            )
+        hole_heights, hole_widths = self.calculate_hole_dimensions(
+            height,
+            width,
+            self.hole_height_range,
+            self.hole_width_range,
+            size=num_holes,
+        )
 
-            y1 = random.randint(0, height - hole_height)
-            x1 = random.randint(0, width - hole_width)
-            y2 = y1 + hole_height
-            x2 = x1 + hole_width
-            holes.append((x1, y1, x2, y2))
+        y1 = randint(np.int8(0), height - hole_heights + 1, size=num_holes)
+        x1 = randint(np.int8(0), width - hole_widths + 1, size=num_holes)
+        y2 = y1 + hole_heights
+        x2 = x1 + hole_widths
 
-        return {"holes": holes}
+        holes = np.stack([x1, y1, x2, y2], axis=-1)
+
+        return {"holes": holes.tolist()}
 
     def apply_to_keypoints(
         self,
