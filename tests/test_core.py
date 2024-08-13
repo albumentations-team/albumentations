@@ -412,7 +412,7 @@ def test_targets_type_check(targets, additional_targets, err_message):
 def test_check_each_transform(targets, bbox_params, keypoint_params, expected):
     image = np.empty([100, 100], dtype=np.uint8)
     augs = Compose(
-        [Crop(0, 0, 50, 50), PadIfNeeded(100, 100)], bbox_params=bbox_params, keypoint_params=keypoint_params
+        [Crop(0, 0, 50, 50), PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], bbox_params=bbox_params, keypoint_params=keypoint_params
     )
     res = augs(image=image, **targets)
 
@@ -499,7 +499,7 @@ def test_check_each_transform_compose(targets, bbox_params, keypoint_params, exp
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Compose([Crop(0, 0, 50, 50), PadIfNeeded(100, 100)])],
+        [Compose([Crop(0, 0, 50, 50), PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)])],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
@@ -588,7 +588,7 @@ def test_check_each_transform_sequential(targets, bbox_params, keypoint_params, 
     image = np.empty([100, 100], dtype=np.uint8)
 
     augs = Compose(
-        [Sequential([Crop(0, 0, 50, 50), PadIfNeeded(100, 100)], p=1.0)],
+        [Sequential([Crop(0, 0, 50, 50), PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], p=1.0)],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
     )
@@ -679,7 +679,7 @@ def test_check_each_transform_someof(targets, bbox_params, keypoint_params, expe
     augs = Compose(
         [
             SomeOf([Crop(0, 0, 50, 50)], n=1, replace=False, p=1.0),
-            SomeOf([PadIfNeeded(100, 100)], n=1, replace=False, p=1.0),
+            SomeOf([PadIfNeeded(100, 100, border_mode=cv2.BORDER_CONSTANT, value=0)], n=1, replace=False, p=1.0),
         ],
         bbox_params=bbox_params,
         keypoint_params=keypoint_params,
@@ -742,7 +742,7 @@ def test_single_transform_compose(
             A.PadIfNeeded: {
                 "min_height": 512,
                 "min_width": 512,
-                "border_mode": 0,
+                "border_mode": cv2.BORDER_CONSTANT,
                 "value": [124, 116, 104],
                 "position": "top_left"
             },
