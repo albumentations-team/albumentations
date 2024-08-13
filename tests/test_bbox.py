@@ -1,8 +1,11 @@
-from typing import Callable, Dict, List, Optional, Tuple
+from __future__ import annotations
+
+from typing import Callable
+
 import numpy as np
 import pytest
 
-from albumentations import Crop, RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotate
+from albumentations import RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotate
 from albumentations.core.bbox_utils import (
     calculate_bbox_area,
     convert_bbox_from_albumentations,
@@ -15,6 +18,8 @@ from albumentations.core.bbox_utils import (
     normalize_bboxes,
     union_of_bboxes,
 )
+
+from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp, BasicTransform
 from albumentations.core.types import BoxType
@@ -243,7 +248,7 @@ def test_convert_bboxes_from_albumentations() -> None:
     ],
 )
 def test_compose_with_bbox_noop(
-    bboxes: BoxType, bbox_format: str, labels: Optional[List[int]]
+    bboxes: BoxType, bbox_format: str, labels: list[int] | None
 ) -> None:
     image = np.ones((100, 100, 3))
     if labels is not None:
@@ -291,7 +296,7 @@ def test_compose_with_bbox_noop_error_label_fields(
     ],
 )
 def test_compose_with_bbox_noop_label_outside(
-    bboxes: BoxType, bbox_format: str, labels: Dict[str, List[int]]
+    bboxes: BoxType, bbox_format: str, labels: dict[str, list[int]]
 ) -> None:
     image = np.ones((100, 100, 3))
     aug = Compose(
@@ -399,7 +404,7 @@ def test_bounding_box_partially_outside_no_clip() -> None:
     ],
 )
 def test_bounding_box_outside_clip(
-    image_size: Tuple[int, int], bbox: BoxType, expected_bbox: BoxType
+    image_size: tuple[int, int], bbox: BoxType, expected_bbox: BoxType
 ) -> None:
     transform = Compose(
         [A.NoOp()],
@@ -475,7 +480,7 @@ def test_bounding_box_vflip(bbox: BoxType, expected_bbox: BoxType) -> None:
     ],
 )
 def test_filter_bboxes(
-    bboxes: List[BoxType], min_area: float, min_visibility: float, target: List[BoxType]
+    bboxes: list[BoxType], min_area: float, min_visibility: float, target: list[BoxType]
 ) -> None:
     filtered_bboxes = filter_bboxes(
         bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100
@@ -528,12 +533,12 @@ def test_filter_bboxes(
     ],
 )
 def test_filter_bboxes_by_min_width_height(
-    bboxes: List[BoxType],
+    bboxes: list[BoxType],
     img_width: int,
     img_height: int,
     min_width: int,
     min_height: int,
-    target: List[BoxType],
+    target: list[BoxType],
 ) -> None:
     filtered_bboxes = filter_bboxes(
         bboxes,
@@ -565,8 +570,8 @@ def test_filter_bboxes_by_min_width_height(
 )
 def test_bbox_clipping(
     get_transform: Callable[[int], BasicTransform],
-    bboxes: List[BoxType],
-    expected: List[BoxType],
+    bboxes: list[BoxType],
+    expected: list[BoxType],
     min_visibility: float,
     sign: int,
 ) -> None:
@@ -633,3 +638,29 @@ def test_bbox_clipping_perspective() -> None:
 def test_union_of_bboxes(bboxes, erosion_rate, expected):
     result = union_of_bboxes(bboxes, erosion_rate)
     assert result == expected or np.testing.assert_almost_equal(result, expected, decimal=6) is None
+
+
+@pytest.mark.parametrize("pad_top, pad_bottom, pad_left, pad_right, rows, cols, expected", [
+    # Symmetric padding
+    (100, 100, 100, 100, 100, 100, (3, 3)),  # Exact multiple
+    (150, 150, 150, 150, 100, 100, (5, 5)),  # Rounded up
+    (50, 50, 50, 50, 100, 100, (3, 3)),      # Less than image size
+
+    # Asymmetric padding
+    (100, 0, 100, 0, 100, 100, (2, 2)),
+    (0, 100, 0, 100, 100, 100, (2, 2)),
+    (100, 50, 75, 25, 100, 100, (3, 3)),
+
+    # Edge cases
+    (0, 0, 0, 0, 100, 100, (1, 1)),          # No padding
+    (1, 1, 1, 1, 100, 100, (3, 3)),          # Minimal padding
+
+    # Different image dimensions
+    (100, 100, 50, 50, 50, 100, (5, 3)),
+
+    # Large padding
+    (500, 500, 500, 500, 100, 100, (11, 11)),
+])
+def test_calculate_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols, expected):
+    result = fgeometric.get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols)
+    assert result == expected, f"Expected {expected}, but got {result}"

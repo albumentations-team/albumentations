@@ -1418,3 +1418,127 @@ def elastic_transform(
         random_state,
         same_dxdy,
     )
+
+
+def pad_bboxes(
+    bboxes: np.ndarray,
+    pad_top: int,
+    pad_bottom: int,
+    pad_left: int,
+    pad_right: int,
+    border_mode: int,
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+    if border_mode not in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
+        return adjust_bboxes_for_constant_padding(bboxes, pad_left, pad_top)
+
+    grid_dims = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols)
+    new_rows, new_cols = rows + pad_top + pad_bottom, cols + pad_left + pad_right
+
+    return generate_reflected_bboxes(bboxes, grid_dims, pad_top, pad_left, new_rows, new_cols, rows, cols)
+
+
+def adjust_bboxes_for_constant_padding(bboxes: np.ndarray, pad_left: int, pad_top: int) -> np.ndarray:
+    return bboxes + np.array([pad_left, pad_top, pad_left, pad_top])
+
+
+def get_pad_grid_dimensions(
+    pad_top: int,
+    pad_bottom: int,
+    pad_left: int,
+    pad_right: int,
+    rows: int,
+    cols: int,
+) -> tuple[int, int]:
+    """Calculate the dimensions of the grid needed for reflection padding.
+
+    This function determines the number of times the original image needs to be
+    repeated vertically and horizontally to cover the padded area. It accounts for
+    both symmetric and asymmetric padding.
+
+    Args:
+        pad_top (int): Number of pixels to pad above the image.
+        pad_bottom (int): Number of pixels to pad below the image.
+        pad_left (int): Number of pixels to pad to the left of the image.
+        pad_right (int): Number of pixels to pad to the right of the image.
+        rows (int): Height of the original image in pixels.
+        cols (int): Width of the original image in pixels.
+
+    Returns:
+        tuple[int, int]: A tuple containing:
+            - grid_rows (int): Number of times the image needs to be repeated vertically.
+            - grid_cols (int): Number of times the image needs to be repeated horizontally.
+
+    Note:
+        The function always rounds up when calculating the number of repetitions.
+        This ensures that the padded area is fully covered, even when the padding
+        is not an exact multiple of the image dimensions.
+
+    Example:
+        >>> get_pad_grid_dimensions(100, 50, 75, 25, 100, 100)
+        (3, 3)
+        # Explanation:
+        # Vertically: 1 (original) + 1 (top) + 1 (bottom) = 3
+        # Horizontally: 1 (original) + 1 (left) + 1 (right) = 3
+    """
+    grid_rows = 1 + math.ceil(pad_top / rows) + math.ceil(pad_bottom / rows)
+    grid_cols = 1 + math.ceil(pad_left / cols) + math.ceil(pad_right / cols)
+    return grid_rows, grid_cols
+
+
+def generate_reflected_bboxes(
+    bboxes: np.ndarray,
+    grid_dims: tuple[int, int],
+    pad_top: int,
+    pad_left: int,
+    new_rows: int,
+    new_cols: int,
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+    grid_rows, grid_cols = grid_dims
+    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
+    new_bboxes = []
+
+    for i in range(grid_rows):
+        for j in range(grid_cols):
+            flipped_bbox = flip_bbox_if_needed(x_min, y_min, x_max, y_max, i, j, rows, cols)
+            shifted_bbox = shift_bbox(flipped_bbox, i, j, rows, cols, pad_top, pad_left)
+            valid_bbox = get_valid_bbox(shifted_bbox, new_rows, new_cols)
+            if valid_bbox.size > 0:
+                new_bboxes.append(valid_bbox)
+
+    return np.vstack(new_bboxes) if new_bboxes else np.empty((0, 4))
+
+
+def flip_bbox_if_needed(
+    x_min: np.ndarray,
+    y_min: np.ndarray,
+    x_max: np.ndarray,
+    y_max: np.ndarray,
+    i: int,
+    j: int,
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+    flip_vertical = i % 2 != 0
+    flip_horizontal = j % 2 != 0
+
+    new_x_min = x_min if not flip_horizontal else cols - x_max
+    new_x_max = x_max if not flip_horizontal else cols - x_min
+    new_y_min = y_min if not flip_vertical else rows - y_max
+    new_y_max = y_max if not flip_vertical else rows - y_min
+
+    return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max])
+
+
+def shift_bbox(bbox: np.ndarray, i: int, j: int, rows: int, cols: int, pad_top: int, pad_left: int) -> np.ndarray:
+    offset_y = i * rows - pad_top
+    offset_x = j * cols - pad_left
+    return bbox + np.array([offset_x, offset_y, offset_x, offset_y])
+
+
+def get_valid_bbox(bbox: np.ndarray, new_rows: int, new_cols: int) -> np.ndarray:
+    mask = (bbox[:, 0] < new_cols) & (bbox[:, 2] > 0) & (bbox[:, 1] < new_rows) & (bbox[:, 3] > 0)
+    return bbox[mask]
