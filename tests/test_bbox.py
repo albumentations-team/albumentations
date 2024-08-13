@@ -664,3 +664,40 @@ def test_union_of_bboxes(bboxes, erosion_rate, expected):
 def test_calculate_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols, expected):
     result = fgeometric.get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols)
     assert result == expected, f"Expected {expected}, but got {result}"
+
+
+
+@pytest.mark.parametrize("bbox, grid_row, grid_col, rows, cols, expected", [
+    # No flip (original position)
+    (np.array([[10, 20, 30, 40]]), 0, 0, 100, 100, np.array([[10, 20, 30, 40]])),
+
+    # Horizontal flip
+    (np.array([[10, 20, 30, 40]]), 0, 1, 100, 100, np.array([[70, 20, 90, 40]])),
+
+    # Vertical flip
+    (np.array([[10, 20, 30, 40]]), 1, 0, 100, 100, np.array([[10, 60, 30, 80]])),
+
+    # Both horizontal and vertical flip
+    (np.array([[10, 20, 30, 40]]), 1, 1, 100, 100, np.array([[70, 60, 90, 80]])),
+
+    # Multiple bounding boxes
+    (np.array([[10, 20, 30, 40], [50, 60, 70, 80]]), 1, 1, 100, 100,
+     np.array([[70, 60, 90, 80], [30, 20, 50, 40]])),
+
+    # Edge case: bbox at image boundary
+    (np.array([[0, 0, 100, 100]]), 1, 1, 100, 100, np.array([[0, 0, 100, 100]])),
+
+    # No flip for even grid positions
+    (np.array([[10, 20, 30, 40]]), 2, 2, 100, 100, np.array([[10, 20, 30, 40]])),
+])
+def test_flip_bbox_if_needed(bbox, grid_row, grid_col, rows, cols, expected):
+    result = fgeometric.flip_bbox_if_needed(bbox[:, 0], bbox[:, 1], bbox[:, 2], bbox[:, 3], grid_row, grid_col, rows, cols)
+    np.testing.assert_array_almost_equal(result, expected, decimal=6)
+
+    # Additional shape check
+    assert result.shape == expected.shape, f"Shape mismatch. Expected {expected.shape}, got {result.shape}"
+
+# Test for empty input
+def test_flip_bbox_if_needed_empty_input():
+    result = fgeometric.flip_bbox_if_needed(np.array([]), np.array([]), np.array([]), np.array([]), 0, 0, 100, 100)
+    assert result.shape == (0, 4), "Expected empty result for empty input"

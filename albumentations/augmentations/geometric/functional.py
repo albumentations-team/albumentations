@@ -1517,13 +1517,28 @@ def flip_bbox_if_needed(
     y_min: np.ndarray,
     x_max: np.ndarray,
     y_max: np.ndarray,
-    i: int,
-    j: int,
+    grid_row: int,
+    grid_col: int,
     rows: int,
     cols: int,
 ) -> np.ndarray:
-    flip_vertical = i % 2 != 0
-    flip_horizontal = j % 2 != 0
+    """Flip bounding box coordinates based on their position in the reflection grid.
+
+    Args:
+        x_min (np.ndarray): Minimum x-coordinates of bounding boxes.
+        y_min (np.ndarray): Minimum y-coordinates of bounding boxes.
+        x_max (np.ndarray): Maximum x-coordinates of bounding boxes.
+        y_max (np.ndarray): Maximum y-coordinates of bounding boxes.
+        grid_row (int): Current row in the reflection grid.
+        grid_col (int): Current column in the reflection grid.
+        rows (int): Height of the original image.
+        cols (int): Width of the original image.
+
+    Returns:
+        np.ndarray: Flipped bounding box coordinates if needed, shape (n, 4).
+    """
+    flip_vertical = grid_row % 2 != 0
+    flip_horizontal = grid_col % 2 != 0
 
     new_x_min = x_min if not flip_horizontal else cols - x_max
     new_x_max = x_max if not flip_horizontal else cols - x_min
