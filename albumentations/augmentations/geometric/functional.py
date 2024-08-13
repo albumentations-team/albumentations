@@ -575,11 +575,11 @@ def bbox_affine(
             ],
         )
     elif rotate_method == "ellipse":
-        w = (x_max - x_min) / 2
-        h = (y_max - y_min) / 2
+        bbox_width = (x_max - x_min) / 2
+        bbox_height = (y_max - y_min) / 2
         data = np.arange(0, 360, dtype=np.float32)
-        x = w * np.sin(np.radians(data)) + (w + x_min - 0.5)
-        y = h * np.cos(np.radians(data)) + (h + y_min - 0.5)
+        x = bbox_width * np.sin(np.radians(data)) + (bbox_width + x_min - 0.5)
+        y = bbox_height * np.cos(np.radians(data)) + (bbox_height + y_min - 0.5)
         points = np.hstack([x.reshape(-1, 1), y.reshape(-1, 1)])
     else:
         raise ValueError(f"Method {rotate_method} is not a valid rotation method.")

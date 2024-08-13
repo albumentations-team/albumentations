@@ -62,24 +62,42 @@ def test_denormalize_normalize_bbox(bbox: BoxType) -> None:
     assert normalized_bbox == bbox
 
 
-def test_normalize_bboxes() -> None:
-    bboxes = [(15, 25, 100, 200), (15, 25, 100, 200, 99)]
-    normalized_bboxes_1 = normalize_bboxes(bboxes, 200, 400)
-    normalized_bboxes_2 = [
-        normalize_bbox(bboxes[0], 200, 400),
-        normalize_bbox(bboxes[1], 200, 400),
-    ]
-    assert normalized_bboxes_1 == normalized_bboxes_2
+def test_normalize_bboxes():
+    # Test with list input
+    bboxes_list = [(15, 25, 100, 200), (15, 25, 100, 200, 99)]
+    normalized_list = normalize_bboxes(bboxes_list, 200, 400)
+    expected_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
+    assert normalized_list == expected_list
 
+    # Test with numpy array input
+    bboxes_array = np.array([[15, 25, 100, 200], [15, 25, 100, 200]])
+    normalized_array = normalize_bboxes(bboxes_array, 200, 400)
+    expected_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
+    np.testing.assert_array_almost_equal(normalized_array, expected_array)
 
-def test_denormalize_bboxes() -> None:
-    bboxes = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
-    denormalized_bboxes_1 = denormalize_bboxes(bboxes, 200, 400)
-    denormalized_bboxes_2 = [
-        denormalize_bbox(bboxes[0], 200, 400),
-        denormalize_bbox(bboxes[1], 200, 400),
-    ]
-    assert denormalized_bboxes_1 == denormalized_bboxes_2
+    # Test individual bbox normalization
+    for bbox, expected in zip(bboxes_list, expected_list):
+        normalized = normalize_bbox(bbox, 200, 400)
+        assert normalized == expected
+
+def test_denormalize_bboxes():
+    # Test with list input
+    bboxes_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
+    denormalized_list = denormalize_bboxes(bboxes_list, 200, 400)
+    expected_list = [(15.0, 25.0, 100.0, 200.0), (15.0, 25.0, 100.0, 200.0, 99)]
+    assert denormalized_list == expected_list
+
+    # Test with numpy array input
+    bboxes_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
+    denormalized_array = denormalize_bboxes(bboxes_array, 200, 400)
+    expected_array = np.array([[15.0, 25.0, 100.0, 200.0], [15.0, 25.0, 100.0, 200.0]])
+    np.testing.assert_array_almost_equal(denormalized_array, expected_array)
+
+    # Test individual bbox denormalization
+    for bbox, expected in zip(bboxes_list, expected_list):
+        denormalized = denormalize_bbox(bbox, 200, 400)
+        assert denormalized == expected
+
 
 
 @pytest.mark.parametrize(
