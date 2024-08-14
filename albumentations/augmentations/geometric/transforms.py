@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import skimage.transform
 from albucore.utils import get_num_channels
-from pydantic import Field, ValidationInfo, field_validator, model_validator
+from pydantic import AfterValidator, Field, ValidationInfo, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
 from albumentations import random_utils
@@ -45,6 +45,7 @@ from albumentations.core.pydantic import (
     NonNegativeFloatRangeType,
     ProbabilityType,
     SymmetricRangeType,
+    check_1plus,
 )
 
 __all__ = [
@@ -61,6 +62,7 @@ __all__ = [
     "GridDistortion",
     "PadIfNeeded",
     "D4",
+    "GridElasticDeform",
 ]
 
 
@@ -2056,145 +2058,84 @@ class D4(DualTransform):
 class GridElasticDeform(DualTransform):
     """Grid-based Elastic deformation Albumentation implementation
 
-    This class applies elastic transformations on a grid-based approach,
-    where the granularity of the distortions can be controlled using the
-    width and height of the overlaying distortion grid. Larger grid sizes
-    result in finer, less severe distortions.
+    This class applies elastic transformations using a grid-based approach.
+    The granularity and intensity of the distortions can be controlled using
+    the dimensions of the overlaying distortion grid and the magnitude parameter.
+    Larger grid sizes result in finer, less severe distortions.
 
-    Params:
-        n_grid_width (int): Number of grid cells along the width
-        n_grid_height (int): Number of grid cells along the height
-        magnitude (int): Magnitude of distortion
-        p (float): Probability of applying the transform
-        always_apply (bool | None): If true, the transform will always be applied.
+    Args:
+        num_grid_xy (tuple[int, int]): Number of grid cells along the width and height.
+            Specified as (grid_width, grid_height). Each value must be greater than 1.
+        magnitude (int): Maximum pixel-wise displacement for distortion. Must be greater than 0.
+        interpolation (int): Interpolation method to be used for the image transformation.
+            Default: cv2.INTER_LINEAR
+        mask_interpolation (int): Interpolation method to be used for mask transformation.
+            Default: cv2.INTER_NEAREST
+        p (float): Probability of applying the transform. Default: 1.0.
 
     Targets:
         image, mask
 
     Image types:
-        uint8
+        uint8, float32
+
+    Example:
+        >>> transform = GridElasticDeform(num_grid_xy=(4, 4), magnitude=10, p=1.0)
+        >>> result = transform(image=image, mask=mask)
+        >>> transformed_image, transformed_mask = result['image'], result['mask']
+
+    Note:
+        This transformation is particularly useful for data augmentation in medical imaging
+        and other domains where elastic deformations can simulate realistic variations.
     """
+
+    _targets = (Targets.IMAGE, Targets.MASK)
+
+    class InitSchema(BaseTransformInitSchema):
+        num_grid_xy: Annotated[tuple[int, int], AfterValidator(check_1plus)]
+        p: ProbabilityType = 1.0
+        magnitude: int = Field(gt=0)
+        interpolation: InterpolationType = cv2.INTER_LINEAR
+        mask_interpolation: InterpolationType = cv2.INTER_NEAREST
 
     def __init__(
         self,
-        n_grid_width: int,
-        n_grid_height: int,
+        num_grid_xy: tuple[int, int],
         magnitude: int,
+        interpolation: int = cv2.INTER_LINEAR,
+        mask_interpolation: int = cv2.INTER_NEAREST,
         p: float = 1.0,
         always_apply: bool | None = None,
     ):
         super().__init__(p=p, always_apply=always_apply)
-        self.n_grid_width = n_grid_width
-        self.n_grid_height = n_grid_height
-        self.magnitude = abs(magnitude)
+        self.num_grid_xy = num_grid_xy
+        self.magnitude = magnitude
+        self.interpolation = interpolation
+        self.mask_interpolation = mask_interpolation
 
-    def calculate_dimensions(
-        self,
-        width_of_square: int,
-        height_of_square: int,
-        width_of_last_square: int,
-        height_of_last_square: int,
-    ) -> np.ndarray:
-        dimensions = np.zeros((self.n_grid_width * self.n_grid_height, 4), dtype=np.int16)
-        for col_idx in range(self.n_grid_width):
-            for row_idx in range(self.n_grid_height):
-                x1 = col_idx * width_of_square
-                y1 = row_idx * height_of_square
-                x2 = x1 + (width_of_last_square if col_idx == self.n_grid_height - 1 else width_of_square)
-                y2 = y1 + (height_of_last_square if row_idx == self.n_grid_width - 1 else height_of_square)
-                dimensions[row_idx, col_idx] = [x1, y1, x2, y2]
-
-        return dimensions
-
-    def calculate_polygons(self, dimensions: np.ndarray) -> np.ndarray:
-        polygons = []
-        for x1, y1, x2, y2 in dimensions:
-            polygons.append([x1, y1, x1, y2, x2, y2, x2, y1])
-
-        last_column = [(self.n_grid_width - 1) + self.n_grid_width * i for i in range(self.n_grid_height)]
-        last_row = range(
-            (self.n_grid_width * self.n_grid_height) - self.n_grid_width,
-            self.n_grid_width * self.n_grid_height,
-        )
-
-        polygon_indices = [
-            [i, i + 1, i + self.n_grid_width, i + 1 + self.n_grid_width]
-            for i in range((self.n_grid_height * self.n_grid_width) - 1)
-            if i not in last_row and i not in last_column
-        ]
-
-        for a, b, c, d in polygon_indices:
-            dx = random.randint(-self.magnitude, self.magnitude)
-            dy = random.randint(-self.magnitude, self.magnitude)
-
-            polygons[a][4] += dx
-            polygons[a][5] += dy
-            polygons[b][2] += dx
-            polygons[b][3] += dy
-            polygons[c][6] += dx
-            polygons[c][7] += dy
-            polygons[d][0] += dx
-            polygons[d][1] += dy
-
-        return polygons
-
-    def generate_mesh(self, polygons: np.ndarray, dimensions: np.ndarray) -> np.ndarray:
-        return [[dimensions[i], polygons[i]] for i in range(len(dimensions))]
-
-    def distort_image(self, image: np.ndarray, generated_mesh: np.ndarray) -> np.ndarray:
-        # 변환된 이미지를 저장할 빈 이미지 생성
-        distorted_image = np.zeros_like(image)
-
-        for mesh in generated_mesh:
-            # mesh의 포인트들을 각각의 source와 destination으로 나눔
-            src_pts = np.array(mesh[:4]).reshape(2, 2)
-            dst_pts = np.array(mesh[4:]).reshape(2, 2)
-
-            # Affine 변환 행렬 계산
-            affine_mat = cv2.getAffineTransform(np.float32(src_pts), np.float32(dst_pts))
-
-            # Affine 변환 적용
-            warped = cv2.warpAffine(image, affine_mat, (image.shape[1], image.shape[0]))
-
-            # 변환된 부분을 원본 이미지에 합침
-            mask = np.zeros_like(image)
-            cv2.fillConvexPoly(mask, np.int32(dst_pts), (255,) * image.shape[2])
-            distorted_image = cv2.add(
-                cv2.bitwise_and(warped, mask),
-                cv2.bitwise_and(distorted_image, cv2.bitwise_not(mask)),
-            )
-
-        return distorted_image
+    @staticmethod
+    def generate_mesh(polygons: np.ndarray, dimensions: np.ndarray) -> np.ndarray:
+        return np.hstack((dimensions.reshape(-1, 4), polygons.reshape(-1, 8)))
 
     def get_params_dependent_on_data(
         self,
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, Any]:
-        img = data["image"]
-        h, w = img.shape[:2]
+        image_shape = np.array(params["shape"][:2])
 
-        width_of_square = int(w / self.n_grid_width)
-        height_of_square = int(h / self.n_grid_height)
-        width_of_last_square = w - (width_of_square * (self.n_grid_width - 1))
-        height_of_last_square = h - (height_of_square * (self.n_grid_height - 1))
+        dimensions = fgeometric.calculate_grid_dimensions(image_shape, self.num_grid_xy)
 
-        dimensions = self.calculate_dimensions(
-            width_of_square,
-            height_of_square,
-            width_of_last_square,
-            height_of_last_square,
-        )
-        polygons = self.calculate_polygons(dimensions)
+        polygons = fgeometric.generate_distorted_grid_polygons(dimensions, self.magnitude)
         generated_mesh = self.generate_mesh(polygons, dimensions)
 
         return {"generated_mesh": generated_mesh}
 
     def apply(self, img: np.ndarray, generated_mesh: np.ndarray, **params: Any) -> np.ndarray:
-        return self.distort_image(img, generated_mesh)
+        return fgeometric.distort_image(img, generated_mesh, self.interpolation)
 
     def apply_to_mask(self, mask: np.ndarray, generated_mesh: np.ndarray, **params: Any) -> np.ndarray:
-        return self.distort_image(mask, generated_mesh)
+        return fgeometric.distort_image(mask, generated_mesh, self.mask_interpolation)
 
-    def get_transform_init_args_names(self) -> tuple[str, str, str]:
-        return ("n_grid_width", "n_grid_height", "magnitude")
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "num_grid_xy", "magnitude", "interpolation", "mask_interpolation"

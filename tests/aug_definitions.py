@@ -370,15 +370,5 @@ AUGMENTATION_CLS_PARAMS = [
     [A.RandomCropNearBBox, {}],
     [A.TextImage, dict(font_path="./tests/filesLiberationSerif-Bold.ttf", font_size_range=(0.8, 0.9), color="red",
                        stopwords=["a", "the", "is", "of", "it", "and", "to", "in", "on", "with", "for", "at", "by"])],
+    [A.GridElasticDeform, {"num_grid_xy": (10, 10), "magnitude": 10}],
 ]
-
-AUGMENTATION_CLS_EXCEPT = {
-    A.FDA,
-    A.HistogramMatching,
-    A.PixelDistributionAdaptation,
-    A.Lambda,
-    A.RandomSizedBBoxSafeCrop,
-    A.BBoxSafeRandomCrop,
-    A.TemplateTransform,
-    A.MixUp
-}

@@ -158,6 +158,7 @@ def test_elastic_transform_interpolation(monkeypatch, interpolation):
                 "fill_value": 0,
             },
             A.D4: {},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={A.RandomCropNearBBox, A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop, A.PixelDropout,
                               A.MixUp},
@@ -195,6 +196,7 @@ def test_binary_mask_interpolation(augmentation_cls, params):
             A.RandomSizedCrop: {"min_max_height": (4, 8), "height": 10, "width": 10},
             A.Resize: {"height": 10, "width": 10},
             A.PixelDropout: {"dropout_prob": 0.5, "mask_drop_value": 10, "drop_value": 20},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -247,6 +249,7 @@ def __test_multiprocessing_support_proc(args):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1458,6 +1461,7 @@ def test_coarse_dropout_invalid_input(params):
                             "max_size": 10
                             },
             A.ZoomBlur: {"max_factor": (1.05, 3)},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -1517,7 +1521,8 @@ def test_change_image(augmentation_cls, params):
                 "n_segments": (10, 10),
                 "max_size": 10
             },
-            A.FancyPCA: {"alpha": 1}
+            A.FancyPCA: {"alpha": 1},
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.Crop,
@@ -1701,7 +1706,7 @@ def test_random_snow_invalid_input(params):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop,
@@ -1713,7 +1718,8 @@ def test_random_snow_invalid_input(params):
             A.PixelDistributionAdaptation,
             A.MaskDropout,
             A.MixUp,
-            A.OverlayElements
+            A.OverlayElements,
+            A.GridElasticDeform
         },
     ),
 )
@@ -2015,6 +2021,7 @@ def test_rot90(bboxes, angle, keypoints):
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,

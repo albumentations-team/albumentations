@@ -746,6 +746,7 @@ def test_single_transform_compose(
                 "value": [124, 116, 104],
                 "position": "top_left"
             },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.FDA,
@@ -1100,6 +1101,7 @@ def test_transform_always_apply_warning() -> None:
                 "value": [124, 116, 104],
                 "position": "top_left"
             },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.FDA,
@@ -1178,7 +1180,8 @@ def test_images_as_target(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
     ),
 )
