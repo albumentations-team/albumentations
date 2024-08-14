@@ -652,10 +652,10 @@ def add_sun_flare(
 
 @preserve_channel_dim
 def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray]) -> np.ndarray:
-    """Add shadows to the image by reducing the intensity of the RGB values in specified regions.
+    """Add shadows to the image by reducing the intensity of the pixel values in specified regions.
 
     Args:
-        img (np.ndarray): Input image.
+        img (np.ndarray): Input image. Multichannel images are supported.
         vertices_list (list[np.ndarray]): list of vertices for shadow polygons.
 
     Returns:
@@ -664,20 +664,22 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray]) -> np.ndarray:
     Reference:
         https://github.com/UjjwalSaxena/Automold--Road-Augmentation-Library
     """
-    non_rgb_warning(img)
     input_dtype = img.dtype
     needs_float = False
-
+    num_channels = get_num_channels(img)
     max_value = MAX_VALUES_BY_DTYPE[np.uint8]
 
     if input_dtype == np.float32:
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
 
-    mask = np.zeros_like(img, dtype=np.uint8)
-    cv2.fillPoly(mask, vertices_list, (max_value, max_value, max_value))
+    # Create mask with shape (height, width, 1)
+    mask = np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
+    cv2.fillPoly(mask, vertices_list, (max_value,))
+    # Duplicate the mask to have the same number of channels as the image
+    mask = np.repeat(mask, num_channels, axis=2)
 
-    # Apply shadow to the RGB channels directly
+    # Apply shadow to the channels directly
     # It could be tempting to convert to HLS and apply the shadow to the L channel, but it creates artifacts
     shadow_intensity = 0.5  # Adjust this value to control the shadow intensity
     img_shadowed = img.copy()
