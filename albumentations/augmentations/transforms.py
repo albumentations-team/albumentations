@@ -1131,7 +1131,9 @@ class RandomSunFlare(ImageOnlyTransform):
 
 
 class RandomShadow(ImageOnlyTransform):
-    """Simulates shadows for the image
+    """Simulates shadows for the image by reducing the brightness of the image in the shadow regions.
+
+    Works for both single and multi-channel images.
 
     Args:
         shadow_roi: region of the image where shadows

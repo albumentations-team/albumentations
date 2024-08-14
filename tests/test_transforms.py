@@ -1230,7 +1230,6 @@ def test_motion_blur_allow_shifted(seed):
         A.RandomRain(),
         A.RandomFog(),
         A.RandomSunFlare(),
-        A.RandomShadow(),
         A.Spatter(),
         A.ChromaticAberration(),
     ],
