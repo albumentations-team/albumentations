@@ -218,33 +218,45 @@ def denormalize_bbox(bbox: BoxType, rows: int, cols: int) -> BoxType:
     return cast(BoxType, (x_min, y_min, x_max, y_max, *tail))
 
 
-def normalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> list[BoxType]:
-    """Normalize a list of bounding boxes.
+def normalize_bboxes(bboxes: Sequence[BoxType] | np.ndarray, rows: int, cols: int) -> list[BoxType] | np.ndarray:
+    """Normalize a list or array of bounding boxes.
 
     Args:
-        bboxes: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        bboxes: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
         rows: Image height.
         cols: Image width.
 
     Returns:
-        Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
+    if isinstance(bboxes, np.ndarray):
+        normalized = bboxes.astype(float)
+        normalized[:, [0, 2]] /= cols
+        normalized[:, [1, 3]] /= rows
+        return normalized
+
     return [normalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 
-def denormalize_bboxes(bboxes: Sequence[BoxType], rows: int, cols: int) -> list[BoxType]:
-    """Denormalize a list of bounding boxes.
+def denormalize_bboxes(bboxes: Sequence[BoxType] | np.ndarray, rows: int, cols: int) -> list[BoxType] | np.ndarray:
+    """Denormalize a list or array of bounding boxes.
 
     Args:
-        bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        bboxes: Normalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
         rows: Image height.
         cols: Image width.
 
     Returns:
-        list: Denormalized bounding boxes `[(x_min, y_min, x_max, y_max)]`.
+        Denormalized bounding boxes `[(x_min, y_min, x_max, y_max, ...)]`.
 
     """
+    if isinstance(bboxes, np.ndarray):
+        denormalized = bboxes.astype(float)
+        denormalized[:, [0, 2]] *= cols
+        denormalized[:, [1, 3]] *= rows
+        return denormalized
+
     return [denormalize_bbox(bbox, rows, cols) for bbox in bboxes]
 
 

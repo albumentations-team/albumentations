@@ -1,8 +1,12 @@
-from typing import Callable, Dict, List, Optional, Tuple
+from __future__ import annotations
+
+from typing import Callable
+import cv2
+
 import numpy as np
 import pytest
 
-from albumentations import Crop, RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotate
+from albumentations import RandomCrop, RandomResizedCrop, RandomSizedCrop, Rotate
 from albumentations.core.bbox_utils import (
     calculate_bbox_area,
     convert_bbox_from_albumentations,
@@ -15,6 +19,8 @@ from albumentations.core.bbox_utils import (
     normalize_bboxes,
     union_of_bboxes,
 )
+
+from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.composition import BboxParams, Compose, ReplayCompose
 from albumentations.core.transforms_interface import NoOp, BasicTransform
 from albumentations.core.types import BoxType
@@ -62,24 +68,42 @@ def test_denormalize_normalize_bbox(bbox: BoxType) -> None:
     assert normalized_bbox == bbox
 
 
-def test_normalize_bboxes() -> None:
-    bboxes = [(15, 25, 100, 200), (15, 25, 100, 200, 99)]
-    normalized_bboxes_1 = normalize_bboxes(bboxes, 200, 400)
-    normalized_bboxes_2 = [
-        normalize_bbox(bboxes[0], 200, 400),
-        normalize_bbox(bboxes[1], 200, 400),
-    ]
-    assert normalized_bboxes_1 == normalized_bboxes_2
+def test_normalize_bboxes():
+    # Test with list input
+    bboxes_list = [(15, 25, 100, 200), (15, 25, 100, 200, 99)]
+    normalized_list = normalize_bboxes(bboxes_list, 200, 400)
+    expected_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
+    assert normalized_list == expected_list
 
+    # Test with numpy array input
+    bboxes_array = np.array([[15, 25, 100, 200], [15, 25, 100, 200]])
+    normalized_array = normalize_bboxes(bboxes_array, 200, 400)
+    expected_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
+    np.testing.assert_array_almost_equal(normalized_array, expected_array)
 
-def test_denormalize_bboxes() -> None:
-    bboxes = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
-    denormalized_bboxes_1 = denormalize_bboxes(bboxes, 200, 400)
-    denormalized_bboxes_2 = [
-        denormalize_bbox(bboxes[0], 200, 400),
-        denormalize_bbox(bboxes[1], 200, 400),
-    ]
-    assert denormalized_bboxes_1 == denormalized_bboxes_2
+    # Test individual bbox normalization
+    for bbox, expected in zip(bboxes_list, expected_list):
+        normalized = normalize_bbox(bbox, 200, 400)
+        assert normalized == expected
+
+def test_denormalize_bboxes():
+    # Test with list input
+    bboxes_list = [(0.0375, 0.125, 0.25, 1.0), (0.0375, 0.125, 0.25, 1.0, 99)]
+    denormalized_list = denormalize_bboxes(bboxes_list, 200, 400)
+    expected_list = [(15.0, 25.0, 100.0, 200.0), (15.0, 25.0, 100.0, 200.0, 99)]
+    assert denormalized_list == expected_list
+
+    # Test with numpy array input
+    bboxes_array = np.array([[0.0375, 0.125, 0.25, 1.0], [0.0375, 0.125, 0.25, 1.0]])
+    denormalized_array = denormalize_bboxes(bboxes_array, 200, 400)
+    expected_array = np.array([[15.0, 25.0, 100.0, 200.0], [15.0, 25.0, 100.0, 200.0]])
+    np.testing.assert_array_almost_equal(denormalized_array, expected_array)
+
+    # Test individual bbox denormalization
+    for bbox, expected in zip(bboxes_list, expected_list):
+        denormalized = denormalize_bbox(bbox, 200, 400)
+        assert denormalized == expected
+
 
 
 @pytest.mark.parametrize(
@@ -225,7 +249,7 @@ def test_convert_bboxes_from_albumentations() -> None:
     ],
 )
 def test_compose_with_bbox_noop(
-    bboxes: BoxType, bbox_format: str, labels: Optional[List[int]]
+    bboxes: BoxType, bbox_format: str, labels: list[int] | None
 ) -> None:
     image = np.ones((100, 100, 3))
     if labels is not None:
@@ -273,7 +297,7 @@ def test_compose_with_bbox_noop_error_label_fields(
     ],
 )
 def test_compose_with_bbox_noop_label_outside(
-    bboxes: BoxType, bbox_format: str, labels: Dict[str, List[int]]
+    bboxes: BoxType, bbox_format: str, labels: dict[str, list[int]]
 ) -> None:
     image = np.ones((100, 100, 3))
     aug = Compose(
@@ -381,7 +405,7 @@ def test_bounding_box_partially_outside_no_clip() -> None:
     ],
 )
 def test_bounding_box_outside_clip(
-    image_size: Tuple[int, int], bbox: BoxType, expected_bbox: BoxType
+    image_size: tuple[int, int], bbox: BoxType, expected_bbox: BoxType
 ) -> None:
     transform = Compose(
         [A.NoOp()],
@@ -457,7 +481,7 @@ def test_bounding_box_vflip(bbox: BoxType, expected_bbox: BoxType) -> None:
     ],
 )
 def test_filter_bboxes(
-    bboxes: List[BoxType], min_area: float, min_visibility: float, target: List[BoxType]
+    bboxes: list[BoxType], min_area: float, min_visibility: float, target: list[BoxType]
 ) -> None:
     filtered_bboxes = filter_bboxes(
         bboxes, min_area=min_area, min_visibility=min_visibility, rows=100, cols=100
@@ -510,12 +534,12 @@ def test_filter_bboxes(
     ],
 )
 def test_filter_bboxes_by_min_width_height(
-    bboxes: List[BoxType],
+    bboxes: list[BoxType],
     img_width: int,
     img_height: int,
     min_width: int,
     min_height: int,
-    target: List[BoxType],
+    target: list[BoxType],
 ) -> None:
     filtered_bboxes = filter_bboxes(
         bboxes,
@@ -547,8 +571,8 @@ def test_filter_bboxes_by_min_width_height(
 )
 def test_bbox_clipping(
     get_transform: Callable[[int], BasicTransform],
-    bboxes: List[BoxType],
-    expected: List[BoxType],
+    bboxes: list[BoxType],
+    expected: list[BoxType],
     min_visibility: float,
     sign: int,
 ) -> None:
@@ -615,3 +639,107 @@ def test_bbox_clipping_perspective() -> None:
 def test_union_of_bboxes(bboxes, erosion_rate, expected):
     result = union_of_bboxes(bboxes, erosion_rate)
     assert result == expected or np.testing.assert_almost_equal(result, expected, decimal=6) is None
+
+@pytest.mark.parametrize("pad_top, pad_bottom, pad_left, pad_right, rows, cols, expected", [
+    # Symmetric padding
+    (100, 100, 100, 100, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),  # Exact multiple
+    (150, 150, 150, 150, 100, 100, {'grid_shape': (5, 5), 'original_position': (2, 2)}),  # Rounded up
+    (50, 50, 50, 50, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),      # Less than image size
+
+    # Asymmetric padding
+    (100, 0, 100, 0, 100, 100, {'grid_shape': (2, 2), 'original_position': (1, 1)}),
+    (0, 100, 0, 100, 100, 100, {'grid_shape': (2, 2), 'original_position': (0, 0)}),
+    (100, 50, 75, 25, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+
+    # Edge cases
+    (0, 0, 0, 0, 100, 100, {'grid_shape': (1, 1), 'original_position': (0, 0)}),          # No padding
+    (1, 1, 1, 1, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),          # Minimal padding
+
+    # Different image dimensions
+    (100, 100, 50, 50, 50, 100, {'grid_shape': (5, 3), 'original_position': (2, 1)}),
+
+    # Large padding
+    (500, 500, 500, 500, 100, 100, {'grid_shape': (11, 11), 'original_position': (5, 5)}),
+
+    # Asymmetric image dimensions
+    (100, 100, 100, 100, 200, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+
+    # Very small image dimensions
+    (10, 10, 10, 10, 5, 5, {'grid_shape': (5, 5), 'original_position': (2, 2)}),
+
+    # Very large image dimensions
+    (1000, 1000, 1000, 1000, 10000, 10000, {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+
+    # Zero padding on some sides
+    (100, 0, 0, 100, 100, 100, {'grid_shape': (2, 2), 'original_position': (1, 0)}),
+
+    # Padding smaller than image on some sides, larger on others
+    (50, 150, 25, 175, 100, 100, {'grid_shape': (4, 4), 'original_position': (1, 1)}),
+])
+def test_get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols, expected):
+    result = fgeometric.get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols)
+    assert result == expected, f"Expected {expected}, but got {result}"
+
+def test_get_pad_grid_dimensions_float_values():
+    result = fgeometric.get_pad_grid_dimensions(10.5, 10.5, 10.5, 10.5, 100, 100)
+    assert result == {'grid_shape': (3, 3), 'original_position': (1, 1)}, "Function should handle float inputs by implicit conversion to int"
+
+
+@pytest.mark.parametrize("image_shape, bboxes, pad_params, expected_bboxes", [
+    (
+        (128, 96, 3),
+        np.array([[5, 60, 40, 110, 0]]),  # input bboxes (scaled down)
+        (128, 128, 96, 96),  # (pad_top, pad_bottom, pad_left, pad_right)
+        np.array(
+                [(56.0, 18.0, 91.0, 68.0, 0.0),
+                (101.0, 18.0, 136.0, 68.0, 0.0),
+                (248.0, 18.0, 283.0, 68.0, 0.0),
+                (56.0, 188.0, 91.0, 238.0, 0.0),
+                (101.0, 188.0, 136.0, 238.0, 0.0),
+                (248.0, 188.0, 283.0, 238.0, 0.0),
+                (56.0, 274.0, 91.0, 324.0, 0.0),
+                (101.0, 274.0, 136.0, 324.0, 0.0),
+                (248.0, 274.0, 283.0, 324.0, 0.0)]
+    )
+    ),
+    # Add more test cases here
+])
+def test_pad_bboxes_with_reflection(image_shape, bboxes, pad_params, expected_bboxes):
+    pad_top, pad_bottom, pad_left, pad_right = pad_params
+    rows, cols = image_shape[:2]
+
+    result = fgeometric.pad_bboxes(
+        bboxes,
+        pad_top, pad_bottom, pad_left, pad_right,
+        border_mode=cv2.BORDER_REFLECT_101,
+        rows=rows,
+        cols=cols
+    )
+
+    print("Shape = ", result.shape, expected_bboxes.shape)
+
+    np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
+
+
+# Test case for non-reflect border mode
+@pytest.mark.parametrize("image_shape, bboxes, pad_params, expected_bboxes", [
+    (
+        (100, 100, 3),  # image shape
+        np.array([[20, 20, 80, 80, 0]]),  # input bboxes
+        (10, 10, 10, 10),  # (pad_top, pad_bottom, pad_left, pad_right)
+        np.array([[30, 30, 90, 90, 0]])
+    ),
+])
+def test_pad_bboxes_constant_border(image_shape, bboxes, pad_params, expected_bboxes):
+    pad_top, pad_bottom, pad_left, pad_right = pad_params
+    rows, cols = image_shape[:2]
+
+    result = fgeometric.pad_bboxes(
+        bboxes,
+        pad_top, pad_bottom, pad_left, pad_right,
+        border_mode=cv2.BORDER_CONSTANT,
+        rows=rows,
+        cols=cols
+    )
+
+    np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)

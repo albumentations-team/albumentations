@@ -575,11 +575,11 @@ def bbox_affine(
             ],
         )
     elif rotate_method == "ellipse":
-        w = (x_max - x_min) / 2
-        h = (y_max - y_min) / 2
+        bbox_width = (x_max - x_min) / 2
+        bbox_height = (y_max - y_min) / 2
         data = np.arange(0, 360, dtype=np.float32)
-        x = w * np.sin(np.radians(data)) + (w + x_min - 0.5)
-        y = h * np.cos(np.radians(data)) + (h + y_min - 0.5)
+        x = bbox_width * np.sin(np.radians(data)) + (bbox_width + x_min - 0.5)
+        y = bbox_height * np.cos(np.radians(data)) + (bbox_height + y_min - 0.5)
         points = np.hstack([x.reshape(-1, 1), y.reshape(-1, 1)])
     else:
         raise ValueError(f"Method {rotate_method} is not a valid rotation method.")
@@ -1418,3 +1418,207 @@ def elastic_transform(
         random_state,
         same_dxdy,
     )
+
+
+def pad_bboxes(
+    bboxes: np.ndarray,
+    pad_top: int,
+    pad_bottom: int,
+    pad_left: int,
+    pad_right: int,
+    border_mode: int,
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+    if border_mode not in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
+        shift_vector = np.array([pad_left, pad_top, pad_left, pad_top])
+        return shift_bboxes(bboxes, shift_vector)
+
+    grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols)
+
+    bboxes = generate_reflected_bboxes(bboxes, grid_dimensions, rows, cols)
+
+    # Calculate the number of grid cells added on each side
+    original_row, original_col = grid_dimensions["original_position"]
+
+    # Subtract the offset based on the number of added grid cells
+    bboxes[:, 0] -= original_col * cols - pad_left  # x_min
+    bboxes[:, 2] -= original_col * cols - pad_left  # x_max
+    bboxes[:, 1] -= original_row * rows - pad_top  # y_min
+    bboxes[:, 3] -= original_row * rows - pad_top  # y_max
+
+    new_height = pad_top + pad_bottom + rows
+    new_width = pad_left + pad_right + cols
+
+    return validate_bboxes(bboxes, (new_height, new_width))
+
+
+def validate_bboxes(bboxes: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+    """Validate bounding boxes and remove invalid ones.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes with shape (n, 4) where each row is [x_min, y_min, x_max, y_max].
+        image_shape (tuple[int, int]): Shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of valid bounding boxes, potentially with fewer boxes than the input.
+
+    Example:
+        >>> bboxes = np.array([[10, 20, 30, 40], [-10, -10, 5, 5], [100, 100, 120, 120]])
+        >>> valid_bboxes = validate_bboxes(bboxes, (100, 100))
+        >>> print(valid_bboxes)
+        [[10 20 30 40]]
+    """
+    rows, cols = image_shape
+
+    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
+
+    valid_indices = (x_max > 0) & (y_max > 0) & (x_min < cols) & (y_min < rows)
+
+    return bboxes[valid_indices]
+
+
+def shift_bboxes(bboxes: np.ndarray, shift_vector: np.ndarray) -> np.ndarray:
+    """Shift bounding boxes by a given vector.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes with shape (n, m) where n is the number of bboxes
+                             and m >= 4. The first 4 columns are [x_min, y_min, x_max, y_max].
+        shift_vector (np.ndarray): Vector to shift the bounding boxes by, with shape (4,) for
+                                   [shift_x, shift_y, shift_x, shift_y].
+
+    Returns:
+        np.ndarray: Shifted bounding boxes with the same shape as input.
+    """
+    # Create a copy of the input array to avoid modifying it in-place
+    shifted_bboxes = bboxes.copy()
+
+    # Add the shift vector to the first 4 columns
+    shifted_bboxes[:, :4] += shift_vector
+
+    return shifted_bboxes
+
+
+def get_pad_grid_dimensions(
+    pad_top: int,
+    pad_bottom: int,
+    pad_left: int,
+    pad_right: int,
+    rows: int,
+    cols: int,
+) -> dict[str, tuple[int, int]]:
+    """Calculate the dimensions of the grid needed for reflection padding and the position of the original image.
+
+    Args:
+        pad_top (int): Number of pixels to pad above the image.
+        pad_bottom (int): Number of pixels to pad below the image.
+        pad_left (int): Number of pixels to pad to the left of the image.
+        pad_right (int): Number of pixels to pad to the right of the image.
+        rows (int): Height of the original image in pixels.
+        cols (int): Width of the original image in pixels.
+
+    Returns:
+        dict[str, tuple[int, int]]: A dictionary containing:
+            - 'grid_shape': A tuple (grid_rows, grid_cols) where:
+                - grid_rows (int): Number of times the image needs to be repeated vertically.
+                - grid_cols (int): Number of times the image needs to be repeated horizontally.
+            - 'original_position': A tuple (original_row, original_col) where:
+                - original_row (int): Row index of the original image in the grid.
+                - original_col (int): Column index of the original image in the grid.
+    """
+    grid_rows = 1 + math.ceil(pad_top / rows) + math.ceil(pad_bottom / rows)
+    grid_cols = 1 + math.ceil(pad_left / cols) + math.ceil(pad_right / cols)
+    original_row = math.ceil(pad_top / rows)
+    original_col = math.ceil(pad_left / cols)
+
+    return {"grid_shape": (grid_rows, grid_cols), "original_position": (original_row, original_col)}
+
+
+def generate_reflected_bboxes(
+    bboxes: np.ndarray,
+    grid_dims: dict[str, tuple[int, int]],
+    rows: int,
+    cols: int,
+) -> np.ndarray:
+    """Generate reflected bounding boxes for the entire reflection grid.
+
+    Args:
+        bboxes (np.ndarray): Original bounding boxes.
+        grid_dims (dict[str, tuple[int, int]]): Grid dimensions and original position.
+        rows (int): Height of the original image.
+        cols (int): Width of the original image.
+
+    Returns:
+        np.ndarray: Array of reflected and shifted bounding boxes for the entire grid.
+    """
+    grid_rows, grid_cols = grid_dims["grid_shape"]
+    original_row, original_col = grid_dims["original_position"]
+
+    # Prepare flipped versions of bboxes
+    bboxes_hflipped = flip_bboxes(bboxes, flip_horizontal=True, rows=rows, cols=cols)
+    bboxes_vflipped = flip_bboxes(bboxes, flip_vertical=True, rows=rows, cols=cols)
+    bboxes_hvflipped = flip_bboxes(bboxes, flip_horizontal=True, flip_vertical=True, rows=rows, cols=cols)
+
+    # Shift all versions to the original position
+    shift_vector = np.array([original_col * cols, original_row * rows, original_col * cols, original_row * rows])
+    bboxes_shifted = shift_bboxes(bboxes, shift_vector)
+    bboxes_hflipped_shifted = shift_bboxes(bboxes_hflipped, shift_vector)
+    bboxes_vflipped_shifted = shift_bboxes(bboxes_vflipped, shift_vector)
+    bboxes_hvflipped_shifted = shift_bboxes(bboxes_hvflipped, shift_vector)
+
+    new_bboxes = []
+
+    for grid_row in range(grid_rows):
+        for grid_col in range(grid_cols):
+            # Determine which version of bboxes to use based on grid position
+            if (grid_row - original_row) % 2 == 0 and (grid_col - original_col) % 2 == 0:
+                current_bboxes = bboxes_shifted
+            elif (grid_row - original_row) % 2 == 0:
+                current_bboxes = bboxes_hflipped_shifted
+            elif (grid_col - original_col) % 2 == 0:
+                current_bboxes = bboxes_vflipped_shifted
+            else:
+                current_bboxes = bboxes_hvflipped_shifted
+
+            # Shift to the current grid cell
+            cell_shift = np.array(
+                [
+                    (grid_col - original_col) * cols,
+                    (grid_row - original_row) * rows,
+                    (grid_col - original_col) * cols,
+                    (grid_row - original_row) * rows,
+                ],
+            )
+            shifted_bboxes = shift_bboxes(current_bboxes, cell_shift)
+
+            new_bboxes.append(shifted_bboxes)
+
+    return np.vstack(new_bboxes)
+
+
+def flip_bboxes(
+    bboxes: np.ndarray,
+    flip_horizontal: bool = False,
+    flip_vertical: bool = False,
+    rows: int = 1,
+    cols: int = 1,
+) -> np.ndarray:
+    """Flip bounding boxes horizontally and/or vertically.
+
+    Args:
+        bboxes (np.ndarray): Array of bounding boxes with shape (n, m) where each row is
+            [x_min, y_min, x_max, y_max, ...].
+        flip_horizontal (bool): Whether to flip horizontally.
+        flip_vertical (bool): Whether to flip vertically.
+        rows (int): Height of the image.
+        cols (int): Width of the image.
+
+    Returns:
+        np.ndarray: Flipped bounding boxes.
+    """
+    flipped_bboxes = bboxes.copy()
+    if flip_horizontal:
+        flipped_bboxes[:, [0, 2]] = cols - flipped_bboxes[:, [2, 0]]
+    if flip_vertical:
+        flipped_bboxes[:, [1, 3]] = rows - flipped_bboxes[:, [3, 1]]
+    return flipped_bboxes

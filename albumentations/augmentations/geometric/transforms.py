@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 import random
 from enum import Enum
-from typing import Any, Callable, Literal, Tuple, cast
+from typing import Any, Callable, Literal, Sequence, Tuple, cast
 from warnings import warn
 
 import cv2
@@ -16,13 +16,14 @@ from typing_extensions import Annotated, Self
 from albumentations import random_utils
 from albumentations.augmentations.functional import bbox_from_mask, center, center_bbox
 from albumentations.augmentations.utils import check_range
-from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.bbox_utils import denormalize_bboxes, normalize_bboxes
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BIG_INTEGER,
     NUM_MULTI_CHANNEL_DIMENSIONS,
     TWO,
     BoxInternalType,
+    BoxType,
     ColorType,
     D4Type,
     KeypointInternalType,
@@ -1454,9 +1455,9 @@ class PadIfNeeded(DualTransform):
             value=self.mask_value,
         )
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: Sequence[BoxType],
         pad_top: int,
         pad_bottom: int,
         pad_left: int,
@@ -1464,10 +1465,22 @@ class PadIfNeeded(DualTransform):
         rows: int,
         cols: int,
         **params: Any,
-    ) -> BoxInternalType:
-        x_min, y_min, x_max, y_max = denormalize_bbox(bbox, rows, cols)[:4]
-        bbox = x_min + pad_left, y_min + pad_top, x_max + pad_left, y_max + pad_top
-        return cast(BoxInternalType, normalize_bbox(bbox, rows + pad_top + pad_bottom, cols + pad_left + pad_right))
+    ) -> list[BoxType]:
+        bboxes_np = np.array(bboxes)
+        bboxes_np = denormalize_bboxes(bboxes_np, rows, cols)
+
+        result = fgeometric.pad_bboxes(
+            bboxes_np,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            self.border_mode,
+            rows,
+            cols,
+        )
+
+        return list(normalize_bboxes(result, rows + pad_top + pad_bottom, cols + pad_left + pad_right))
 
     def apply_to_keypoint(
         self,
