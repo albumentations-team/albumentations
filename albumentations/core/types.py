@@ -13,7 +13,6 @@ BoxInternalType = Tuple[float, float, float, float]
 BoxType = Union[BoxInternalType, Tuple[float, float, float, float, Any], Tuple[float, float, float, float]]
 KeypointInternalType = Tuple[float, float, float, float]
 KeypointType = Union[KeypointInternalType, Tuple[float, float, float, float, Any]]
-
 BoxOrKeypointType = Union[BoxType, KeypointType]
 
 ScaleFloatType = Union[float, Tuple[float, float]]
