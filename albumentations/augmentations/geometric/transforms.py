@@ -2115,7 +2115,7 @@ class GridElasticDeform(DualTransform):
 
     @staticmethod
     def generate_mesh(polygons: np.ndarray, dimensions: np.ndarray) -> np.ndarray:
-        return np.hstack((dimensions.reshape(-1, 4), polygons.reshape(-1, 8)))
+        return np.hstack((dimensions.reshape(-1, 4), polygons))
 
     def get_params_dependent_on_data(
         self,
@@ -2127,6 +2127,7 @@ class GridElasticDeform(DualTransform):
         dimensions = fgeometric.calculate_grid_dimensions(image_shape, self.num_grid_xy)
 
         polygons = fgeometric.generate_distorted_grid_polygons(dimensions, self.magnitude)
+
         generated_mesh = self.generate_mesh(polygons, dimensions)
 
         return {"generated_mesh": generated_mesh}

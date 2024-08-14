@@ -45,3 +45,82 @@ def test_calculate_grid_dimensions_vectorized_properties(image_shape, num_grid_x
     # Check that there are no gaps between cells
     assert np.all(dimensions[1:, :, 1] == dimensions[:-1, :, 3])  # y_min of next row == y_max of current row
     assert np.all(dimensions[:, 1:, 0] == dimensions[:, :-1, 2])  # x_min of next column == x_max of current column
+
+
+
+@pytest.mark.parametrize("image_shape, num_grid_xy, magnitude, expected_shape", [
+    ((100, 100), (2, 2), 10, (4, 8)),
+    ((200, 300), (3, 4), 20, (12, 8)),
+    ((150, 150), (5, 5), 5, (25, 8)),
+])
+def test_generate_distorted_grid_polygons_shape(image_shape, num_grid_xy, magnitude, expected_shape):
+    dimensions = calculate_grid_dimensions(image_shape, num_grid_xy)
+    polygons = fgeometric.generate_distorted_grid_polygons(dimensions, magnitude)
+    assert polygons.shape == expected_shape
+
+@pytest.mark.parametrize("image_shape, num_grid_xy, magnitude", [
+    ((100, 100), (2, 2), 10),
+    ((200, 300), (3, 4), 20),
+    ((150, 150), (5, 5), 5),
+])
+def test_generate_distorted_grid_polygons_boundary_unchanged(image_shape, num_grid_xy, magnitude):
+    dimensions = calculate_grid_dimensions(image_shape, num_grid_xy)
+    original_dimensions = dimensions.reshape(-1, 4)
+    polygons = fgeometric.generate_distorted_grid_polygons(dimensions, magnitude)
+
+    grid_height, grid_width = dimensions.shape[:2]
+
+    # Check top row
+    assert np.allclose(polygons[:grid_width, :4], original_dimensions[:grid_width, [0, 1, 2, 1]])
+
+    # Check bottom row
+    assert np.allclose(polygons[-grid_width:, 4:], original_dimensions[-grid_width:, [2, 3, 0, 3]])
+
+    # Check left column
+    left_column = polygons[::grid_width]
+    assert np.allclose(left_column[:, [0, 1, 6, 7]], original_dimensions[::grid_width, [0, 1, 0, 3]])
+
+    # Check right column
+    right_column = polygons[grid_width-1::grid_width]
+    assert np.allclose(right_column[:, [2, 3, 4, 5]], original_dimensions[grid_width-1::grid_width, [2, 1, 2, 3]])
+
+@pytest.mark.parametrize("image_shape, num_grid_xy, magnitude", [
+    ((100, 100), (3, 3), 10),
+    ((200, 300), (4, 5), 20),
+    ((150, 150), (6, 6), 5),
+])
+def test_generate_distorted_grid_polygons_internal_points_moved(image_shape, num_grid_xy, magnitude):
+    dimensions = calculate_grid_dimensions(image_shape, num_grid_xy)
+    original_dimensions = dimensions.reshape(-1, 4)
+    polygons = fgeometric.generate_distorted_grid_polygons(dimensions, magnitude)
+
+    grid_height, grid_width = dimensions.shape[:2]
+
+    # Check that internal points have moved
+    for i in range(1, grid_height - 1):
+        for j in range(1, grid_width - 1):
+            cell_idx = i * grid_width + j
+            assert not np.allclose(polygons[cell_idx], [
+                original_dimensions[cell_idx, 0], original_dimensions[cell_idx, 1],
+                original_dimensions[cell_idx, 2], original_dimensions[cell_idx, 1],
+                original_dimensions[cell_idx, 2], original_dimensions[cell_idx, 3],
+                original_dimensions[cell_idx, 0], original_dimensions[cell_idx, 3]
+            ])
+
+@pytest.mark.parametrize("image_shape, num_grid_xy, magnitude", [
+    ((100, 100), (3, 3), 10),
+    ((200, 300), (4, 5), 20),
+    ((150, 150), (6, 6), 5),
+])
+def test_generate_distorted_grid_polygons_consistent_shared_points(image_shape, num_grid_xy, magnitude):
+    dimensions = calculate_grid_dimensions(image_shape, num_grid_xy)
+    polygons = fgeometric.generate_distorted_grid_polygons(dimensions, magnitude)
+
+    grid_height, grid_width = dimensions.shape[:2]
+
+    # Check that shared points between adjacent cells are consistent
+    for i in range(1, grid_height):
+        for j in range(1, grid_width):
+            top_right = polygons[(i - 1) * grid_width + (j - 1), 4:6]
+            bottom_left = polygons[i * grid_width + j, 0:2]
+            assert np.allclose(top_right, bottom_left)

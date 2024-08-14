@@ -1626,96 +1626,68 @@ def flip_bboxes(
 
 @preserve_channel_dim
 def distort_image(image: np.ndarray, generated_mesh: np.ndarray, interpolation: int) -> np.ndarray:
-    """Apply elastic distortion to an image using a generated mesh.
+    """Apply perspective distortion to an image based on a generated mesh.
 
-    This function takes an input image and applies an elastic distortion based on a pre-generated mesh.
-    It processes each cell of the mesh, applies a perspective transform, and combines the results
-    to create the final distorted image.
+    This function applies a perspective transformation to each cell of the image defined by the
+    generated mesh. The distortion is applied using OpenCV's perspective transformation and
+    blending techniques.
 
     Args:
-        image (np.ndarray): The input image to be distorted. Should be a 3D array with shape (height, width, channels).
-        generated_mesh (np.ndarray): A 2D array where each row represents a mesh cell with 8 values:
-                                     [src_x1, src_y1, src_x2, src_y2, dst_x1, dst_y1, dst_x2, dst_y2].
-                                     src_* are the source coordinates, and dst_* are the destination coordinates
-                                     after distortion.
-        interpolation (int): The interpolation method to use for the perspective transform.
+        image (np.ndarray): The input image to be distorted. Can be a 2D grayscale image or a
+                            3D color image.
+        generated_mesh (np.ndarray): A 2D array where each row represents a quadrilateral cell
+                                    as [x1, y1, x2, y2, dst_x1, dst_y1, dst_x2, dst_y2, dst_x3, dst_y3, dst_x4, dst_y4].
+                                    The first four values define the source rectangle, and the last eight values
+                                    define the destination quadrilateral.
+        interpolation (int): Interpolation method to be used in the perspective transformation.
                              Should be one of the OpenCV interpolation flags (e.g., cv2.INTER_LINEAR).
 
     Returns:
-        np.ndarray: The distorted image, with the same shape and dtype as the input image.
+        np.ndarray: The distorted image with the same shape and dtype as the input image.
 
-    Notes:
-        - This function handles cases where the distortion pushes parts of the image outside
-          the original boundaries by clamping coordinates and adjusting the copied regions.
-        - The function preserves the original image's channel dimension.
-        - Edge cases (e.g., highly distorted cells) are handled gracefully to prevent errors.
+    Note:
+        - The function preserves the channel dimension of the input image.
+        - Each cell of the generated mesh is transformed independently and then blended into the output image.
+        - The distortion is applied using perspective transformation, which allows for more complex
+          distortions compared to affine transformations.
 
     Example:
-        >>> image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
-        >>> mesh = generate_distortion_mesh(image.shape[:2], num_steps=10, distortion_scale=5)
+        >>> image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        >>> mesh = np.array([[0, 0, 50, 50, 5, 5, 45, 5, 45, 45, 5, 45]])
         >>> distorted = distort_image(image, mesh, cv2.INTER_LINEAR)
+        >>> distorted.shape
+        (100, 100, 3)
     """
-    distorted_image = np.zeros_like(image).squeeze()
-    height, width = distorted_image.shape[:2]
+    distorted_image = np.zeros_like(image)
 
     for mesh in generated_mesh:
-        src_pts = mesh[:4].reshape(2, 2)
-        dst_pts = mesh[4:].reshape(4, 2)
+        # Extract source rectangle and destination quadrilateral
+        x1, y1, x2, y2 = mesh[:4]  # Source rectangle
+        dst_quad = mesh[4:].reshape(4, 2)  # Destination quadrilateral
 
-        # Ensure we have 4 points for src_pts
-        src_pts = np.array(
+        # Convert source rectangle to quadrilateral
+        src_quad = np.array(
             [
-                [src_pts[0, 0], src_pts[0, 1]],
-                [src_pts[1, 0], src_pts[0, 1]],
-                [src_pts[1, 0], src_pts[1, 1]],
-                [src_pts[0, 0], src_pts[1, 1]],
+                [x1, y1],  # Top-left
+                [x2, y1],  # Top-right
+                [x2, y2],  # Bottom-right
+                [x1, y2],  # Bottom-left
             ],
             dtype=np.float32,
         )
 
-        # Ensure dst_pts is float32
-        dst_pts = dst_pts.astype(np.float32)
+        # Calculate Perspective transformation matrix
+        perspective_mat = cv2.getPerspectiveTransform(src_quad, dst_quad)
 
-        # Calculate bounding rectangles
-        src_rect = cv2.boundingRect(src_pts)
-        dst_rect = cv2.boundingRect(dst_pts)
+        # Apply Perspective transformation
+        warped = cv2.warpPerspective(image, perspective_mat, (image.shape[1], image.shape[0]), flags=interpolation)
 
-        # Get the coordinates of the source rectangle
-        col_min, row_min, src_width, src_height = src_rect
-        col_max, row_max = col_min + src_width, row_min + src_height
+        # Create mask for the transformed region
+        mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        cv2.fillConvexPoly(mask, np.int32(dst_quad), 255)
 
-        # Calculate the transformation matrix
-        matrix = cv2.getPerspectiveTransform(src_pts, dst_pts)
-
-        # Apply the transformation
-        warped = cv2.warpPerspective(
-            image[row_min:row_max, col_min:col_max],
-            matrix,
-            (dst_rect[2], dst_rect[3]),
-            flags=interpolation,
-        )
-
-        # Calculate the actual dimensions of the warped image
-        actual_height, actual_width = warped.shape[:2]
-
-        # Adjust coordinates to be within image boundaries
-        x_start = max(0, dst_rect[0])
-        x_end = min(width, dst_rect[0] + actual_width)
-        y_start = max(0, dst_rect[1])
-        y_end = min(height, dst_rect[1] + actual_height)
-
-        # Adjust warped image slicing to match the valid area
-        warped_x_start = x_start - dst_rect[0]
-        warped_x_end = warped_x_start + (x_end - x_start)
-        warped_y_start = y_start - dst_rect[1]
-        warped_y_end = warped_y_start + (y_end - y_start)
-
-        # Check if the destination area is valid
-        if y_end > y_start and x_end > x_start:
-            distorted_image[y_start:y_end, x_start:x_end] = warped[
-                warped_y_start:warped_y_end,
-                warped_x_start:warped_x_end,
-            ]
+        # Copy only the warped quadrilateral area to the output image
+        distorted_image = cv2.copyTo(warped, mask, distorted_image)
 
     return distorted_image
 
@@ -1770,49 +1742,71 @@ def calculate_grid_dimensions(
 
 
 def generate_distorted_grid_polygons(dimensions: np.ndarray, magnitude: int) -> np.ndarray:
-    """Generate distorted polygon representations for grid cells based on their dimensions.
+    """Generate distorted grid polygons based on input dimensions and magnitude.
 
-    This function takes an array of grid cell dimensions and converts each cell
-    into a polygon representation, then applies random distortions to inner grid points.
+    This function creates a grid of polygons and applies random distortions to the internal vertices,
+    while keeping the boundary vertices fixed. The distortion is applied consistently across shared
+    vertices to avoid gaps or overlaps in the resulting grid.
 
     Args:
-        dimensions (np.ndarray): A 3D array of shape (grid_height, grid_width, 4)
-                                 where each element is [x_min, y_min, x_max, y_max]
-                                 representing the dimensions of a grid cell.
-        magnitude (int): Maximum pixel-wise displacement for distortion.
+        dimensions (np.ndarray): A 3D array of shape (grid_height, grid_width, 4) where each element
+                                 is [x_min, y_min, x_max, y_max] representing the dimensions of a grid cell.
+        magnitude (int): Maximum pixel-wise displacement for distortion. The actual displacement
+                         will be randomly chosen in the range [-magnitude, magnitude].
 
     Returns:
-        np.ndarray: A 2D array of shape (grid_height * grid_width, 8) where each
-                    row represents a distorted polygon as [x1, y1, x2, y2, x3, y3, x4, y4].
+        np.ndarray: A 2D array of shape (total_cells, 8) where each row represents a distorted polygon
+                    as [x1, y1, x2, y1, x2, y2, x1, y2]. The total_cells is equal to grid_height * grid_width.
 
     Note:
-        This function applies distortions only to inner grid points, leaving the
-        outer boundaries of the grid undistorted.
+        - Only internal grid points are distorted; boundary points remain fixed.
+        - The function ensures consistent distortion across shared vertices of adjacent cells.
+        - The distortion is applied to the following points of each internal cell:
+            * Bottom-right of the cell above and to the left
+            * Bottom-left of the cell above
+            * Top-right of the cell to the left
+            * Top-left of the current cell
+
+    Example:
+        >>> dimensions = np.array([[[0, 0, 50, 50], [50, 0, 100, 50]],
+        ...                        [[0, 50, 50, 100], [50, 50, 100, 100]]])
+        >>> distorted = generate_distorted_grid_polygons(dimensions, magnitude=10)
+        >>> distorted.shape
+        (4, 8)
     """
     grid_height, grid_width = dimensions.shape[:2]
+    total_cells = grid_height * grid_width
 
     # Initialize polygons
-    polygons = np.zeros((grid_height * grid_width, 8), dtype=np.float32)
-    polygons[:, 0:2] = dimensions.reshape(-1, 4)[:, 0:2]  # x1, y1
-    polygons[:, 2:4] = dimensions.reshape(-1, 4)[:, [0, 3]]  # x1, y2
-    polygons[:, 4:6] = dimensions.reshape(-1, 4)[:, 2:4]  # x2, y2
-    polygons[:, 6:8] = dimensions.reshape(-1, 4)[:, [2, 1]]  # x2, y1
+    polygons = np.zeros((total_cells, 8), dtype=np.float32)
+    polygons[:, 0:2] = dimensions.reshape(-1, 4)[:, [0, 1]]  # x1, y1
+    polygons[:, 2:4] = dimensions.reshape(-1, 4)[:, [2, 1]]  # x2, y1
+    polygons[:, 4:6] = dimensions.reshape(-1, 4)[:, [2, 3]]  # x2, y2
+    polygons[:, 6:8] = dimensions.reshape(-1, 4)[:, [0, 3]]  # x1, y2
 
-    # Generate random displacements for inner grid points
-    inner_points = (grid_height - 1) * (grid_width - 1)
-    displacements = random_utils.randint(-magnitude, magnitude + 1, size=(inner_points, 2)).astype(np.float32)
+    # Generate displacements for internal grid points only
+    internal_points_height, internal_points_width = grid_height - 2, grid_width - 2
+    displacements = random_utils.randint(
+        -magnitude,
+        magnitude + 1,
+        size=(internal_points_height, internal_points_width, 2),
+    ).astype(np.float32)
 
-    # Create index arrays for the four adjacent cells of each inner point
-    idx = np.arange(inner_points).reshape(grid_height - 1, grid_width - 1)
-    a = idx + idx // (grid_width - 1)
-    b = a + 1
-    c = a + grid_width
-    d = c + 1
+    # Apply displacements to internal polygon vertices
+    for i in range(1, grid_height - 1):
+        for j in range(1, grid_width - 1):
+            dx, dy = displacements[i - 1, j - 1]
 
-    # Apply displacements to adjacent cells
-    polygons[a.ravel(), 4:6] += displacements
-    polygons[b.ravel(), 2:4] += displacements
-    polygons[c.ravel(), 6:8] += displacements
-    polygons[d.ravel(), 0:2] += displacements
+            # Bottom-right of cell (i-1, j-1)
+            polygons[(i - 1) * grid_width + (j - 1), 4:6] += [dx, dy]
+
+            # Bottom-left of cell (i-1, j)
+            polygons[(i - 1) * grid_width + j, 6:8] += [dx, dy]
+
+            # Top-right of cell (i, j-1)
+            polygons[i * grid_width + (j - 1), 2:4] += [dx, dy]
+
+            # Top-left of cell (i, j)
+            polygons[i * grid_width + j, 0:2] += [dx, dy]
 
     return polygons
