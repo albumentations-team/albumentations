@@ -848,6 +848,7 @@ class Affine(DualTransform):
 
         if self.fit_output:
             matrix, output_shape = self._compute_affine_warp_output_shape(matrix, params["shape"])
+            bbox_matrix, _ = self._compute_affine_warp_output_shape(bbox_matrix, params["shape"])
         else:
             output_shape = params["shape"]
 

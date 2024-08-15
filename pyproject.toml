@@ -59,6 +59,7 @@ format.skip-magic-trailing-comma = false
 lint.select = [ "ALL" ]
 lint.ignore = [
   "ANN101",
+  "ANN102",
   "ANN204",
   "ANN401",
   "ARG001",
