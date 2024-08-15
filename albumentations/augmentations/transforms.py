@@ -1170,6 +1170,11 @@ class RandomShadow(ImageOnlyTransform):
         )
         shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", ge=1)
 
+        shadow_intensity_range: float | tuple[float, float] = Field(
+            default=0.5,
+            description="Value or sample range for the shadow intensity",
+        )
+
         @model_validator(mode="after")
         def validate_shadows(self) -> Self:
             if self.num_shadows_lower is not None:
@@ -1203,6 +1208,21 @@ class RandomShadow(ImageOnlyTransform):
             if not 0 <= shadow_lower_x <= shadow_upper_x <= 1 or not 0 <= shadow_lower_y <= shadow_upper_y <= 1:
                 raise ValueError(f"Invalid shadow_roi. Got: {self.shadow_roi}")
 
+            if isinstance(self.shadow_intensity_range, float):
+                if not (0 <= self.shadow_intensity_range <= 1):
+                    raise ValueError(
+                        f"shadow_intensity_range value should be within [0, 1] range. "
+                        f"Got: {self.shadow_intensity_range}",
+                    )
+            elif isinstance(self.shadow_intensity_range, tuple):
+                if not (0 <= self.shadow_intensity_range[0] <= self.shadow_intensity_range[1] <= 1):
+                    raise ValueError(
+                        f"shadow_intensity_range values should be within [0, 1] range and increasing. "
+                        f"Got: {self.shadow_intensity_range}",
+                    )
+            else:
+                raise TypeError("shadow_intensity_range should be an float or a tuple of floats.")
+
             return self
 
     def __init__(
@@ -1212,6 +1232,7 @@ class RandomShadow(ImageOnlyTransform):
         num_shadows_lower: int | None = None,
         num_shadows_upper: int | None = None,
         shadow_dimension: int = 5,
+        shadow_intensity_range: float | tuple[float, float] = 0.5,
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1220,9 +1241,16 @@ class RandomShadow(ImageOnlyTransform):
         self.shadow_roi = shadow_roi
         self.shadow_dimension = shadow_dimension
         self.num_shadows_limit = num_shadows_limit
+        self.shadow_intensity_range = shadow_intensity_range
 
-    def apply(self, img: np.ndarray, vertices_list: list[np.ndarray], **params: Any) -> np.ndarray:
-        return fmain.add_shadow(img, vertices_list)
+    def apply(
+        self,
+        img: np.ndarray,
+        vertices_list: list[np.ndarray],
+        intensity_list: list[float],
+        **params: Any,
+    ) -> np.ndarray:
+        return fmain.add_shadow(img, vertices_list, intensity_list)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[np.ndarray]]:
         height, width = params["shape"][:2]
@@ -1247,7 +1275,13 @@ class RandomShadow(ImageOnlyTransform):
             for _ in range(num_shadows)
         ]
 
-        return {"vertices_list": vertices_list}
+        # Sample shadow intensity for each shadow
+        if isinstance(self.shadow_intensity_range, float):
+            intensity_list = [self.shadow_intensity_range] * num_shadows
+        else:
+            intensity_list = [random.uniform(*self.shadow_intensity_range) for _ in range(num_shadows)]
+
+        return {"vertices_list": vertices_list, "intensity_list": intensity_list}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
