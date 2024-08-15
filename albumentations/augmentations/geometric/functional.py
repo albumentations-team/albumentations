@@ -1824,11 +1824,11 @@ def pad_keypoints(
         shift_vector = np.array([pad_left, pad_top])  # Only shift x and y
         return shift_keypoints(keypoints, shift_vector)
 
-    rows, cols = image_shape[:2]
-
     grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
 
-    keypoints = generate_reflected_keypoints(keypoints, grid_dimensions, rows, cols)
+    keypoints = generate_reflected_keypoints(keypoints, grid_dimensions, image_shape)
+
+    rows, cols = image_shape[:2]
 
     # Calculate the number of grid cells added on each side
     original_row, original_col = grid_dimensions["original_position"]
@@ -1876,16 +1876,17 @@ def shift_keypoints(keypoints: np.ndarray, shift_vector: np.ndarray) -> np.ndarr
 def generate_reflected_keypoints(
     keypoints: np.ndarray,
     grid_dims: dict[str, tuple[int, int]],
-    rows: int,
-    cols: int,
+    image_shape: tuple[int, int],
 ) -> np.ndarray:
     grid_rows, grid_cols = grid_dims["grid_shape"]
     original_row, original_col = grid_dims["original_position"]
 
     # Prepare flipped versions of keypoints
-    keypoints_hflipped = flip_keypoints(keypoints, flip_horizontal=True, rows=rows, cols=cols)
-    keypoints_vflipped = flip_keypoints(keypoints, flip_vertical=True, rows=rows, cols=cols)
-    keypoints_hvflipped = flip_keypoints(keypoints, flip_horizontal=True, flip_vertical=True, rows=rows, cols=cols)
+    keypoints_hflipped = flip_keypoints(keypoints, flip_horizontal=True, image_shape=image_shape)
+    keypoints_vflipped = flip_keypoints(keypoints, flip_vertical=True, image_shape=image_shape)
+    keypoints_hvflipped = flip_keypoints(keypoints, flip_horizontal=True, flip_vertical=True, image_shape=image_shape)
+
+    rows, cols = image_shape[:2]
 
     # Shift all versions to the original position
     shift_vector = np.array([original_col * cols, original_row * rows, 0, 0])  # Only shift x and y
@@ -1921,9 +1922,9 @@ def flip_keypoints(
     keypoints: np.ndarray,
     flip_horizontal: bool = False,
     flip_vertical: bool = False,
-    rows: int = 1,
-    cols: int = 1,
+    image_shape: tuple[int, int] = (0, 0),
 ) -> np.ndarray:
+    rows, cols = image_shape[:2]
     flipped_keypoints = keypoints.copy()
     if flip_horizontal:
         flipped_keypoints[:, 0] = cols - flipped_keypoints[:, 0]
