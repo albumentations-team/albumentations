@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 import albumentations as A
-import albumentations.augmentations.geometric.functional as FGeometric
+import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.keypoints_utils import (
     angle_to_2pi_range,
     convert_keypoint_from_albumentations,
@@ -254,7 +254,7 @@ def test_keypoint_transform_format_xyas(aug: BasicTransform, keypoints: Keypoint
     ],
 )
 def test_keypoint_rotate90(keypoint: KeypointType, expected: KeypointType, factor: int) -> None:
-    actual = FGeometric.keypoint_rot90(keypoint, factor, rows=100, cols=200)
+    actual = fgeometric.keypoint_rot90(keypoint, factor, rows=100, cols=200)
     assert actual == expected
 
 
@@ -270,7 +270,7 @@ def test_keypoint_rotate90(keypoint: KeypointType, expected: KeypointType, facto
     ],
 )
 def test_keypoint_rotate(keypoint: KeypointType, expected: KeypointType, angle: float) -> None:
-    actual = FGeometric.keypoint_rotate(keypoint, angle, rows=100, cols=100)
+    actual = fgeometric.keypoint_rotate(keypoint, angle, rows=100, cols=100)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
@@ -283,7 +283,7 @@ def test_keypoint_rotate(keypoint: KeypointType, expected: KeypointType, angle: 
     ],
 )
 def test_keypoint_scale(keypoint: KeypointType, expected: KeypointType, scale: float) -> None:
-    actual = FGeometric.keypoint_scale(keypoint, scale, scale)
+    actual = fgeometric.keypoint_scale(keypoint, scale, scale)
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 
@@ -390,3 +390,31 @@ def test_coarse_dropout_remove_keypoints(
     result_keypoints = t.apply_to_keypoints(keypoints, holes)
 
     assert set(result_keypoints) == set(expected_keypoints)
+
+
+
+@pytest.mark.parametrize("keypoints, image_shape, expected", [
+    (
+        np.array([[0, 0], [50, 50], [100, 100], [-10, 50], [50, -10], [110, 50], [50, 110]]),
+        (100, 100),
+        np.array([[0, 0], [50, 50]])
+    ),
+    (
+        np.array([[0, 0, 0], [50, 50, 90], [100, 100, 180], [-10, 50, 45], [50, -10, 135], [110, 50, 270], [50, 110, 315]]),
+        (100, 100),
+        np.array([[0, 0, 0], [50, 50, 90]])
+    ),
+    (
+        np.array([[10, 10], [20, 20]]),
+        (30, 30),
+        np.array([[10, 10], [20, 20]])
+    ),
+])
+def test_validate_keypoints(keypoints, image_shape, expected):
+    result = fgeometric.validate_keypoints(keypoints, image_shape)
+    np.testing.assert_array_almost_equal(result, expected)
+
+def test_validate_keypoints_all_invalid():
+    keypoints = np.array([[-1, -1], [101, 101]])
+    result = fgeometric.validate_keypoints(keypoints, (100, 100))
+    assert result.shape == (0, 2)

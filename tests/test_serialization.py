@@ -10,7 +10,7 @@ import pytest
 from deepdiff import DeepDiff
 
 import albumentations as A
-import albumentations.augmentations.geometric.functional as FGeometric
+import albumentations.augmentations.geometric.functional as fgeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
@@ -542,16 +542,16 @@ def test_additional_targets_for_image_only_serialization(augmentation_cls, param
 @pytest.mark.parametrize("image", IMAGES)
 def test_lambda_serialization(image, albumentations_bboxes, keypoints, seed, p):
     def vflip_image(image, **kwargs):
-        return FGeometric.vflip(image)
+        return fgeometric.vflip(image)
 
     def vflip_mask(mask, **kwargs):
-        return FGeometric.vflip(mask)
+        return fgeometric.vflip(mask)
 
     def vflip_bbox(bbox, **kwargs):
-        return FGeometric.bbox_vflip(bbox, kwargs["shape"][0], kwargs["shape"][1])
+        return fgeometric.bbox_vflip(bbox, kwargs["shape"][0], kwargs["shape"][1])
 
     def vflip_keypoint(keypoint, **kwargs):
-        return FGeometric.keypoint_vflip(keypoint, kwargs["shape"][0], kwargs["shape"][1])
+        return fgeometric.keypoint_vflip(keypoint, kwargs["shape"][0], kwargs["shape"][1])
 
     mask = image.copy()
 

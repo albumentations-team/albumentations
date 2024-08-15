@@ -3,7 +3,7 @@ import numpy as np
 import pytest
 import skimage.transform
 import cv2
-import albumentations.augmentations.geometric.functional as FGeometric
+import albumentations.augmentations.geometric.functional as fgeometric
 import albumentations as A
 
 from itertools import product
@@ -38,7 +38,7 @@ def test_warp_affine(params, image_shape):
 
     aff_transform = skimage.transform.AffineTransform(rotation=np.deg2rad(angle), translation=translation, scale=(scale, scale), shear=np.deg2rad(shear))
     projective_transform = skimage.transform.ProjectiveTransform(matrix=aff_transform.params)
-    warped_img = FGeometric.warp_affine(image, projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, output_shape)
+    warped_img = fgeometric.warp_affine(image, projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, output_shape)
 
     assert warped_img.shape[:2] == output_shape, "Output shape does not match the expected shape."
 
@@ -62,7 +62,7 @@ def test_channel_integrity(image_shape):
     projective_transform = skimage.transform.ProjectiveTransform(matrix=aff_transform.params)
 
     # Apply the transformation
-    warped_img = FGeometric.warp_affine(image, projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image.shape[:2])
+    warped_img = fgeometric.warp_affine(image, projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image.shape[:2])
 
     # Verify that the channels remain unchanged
     assert np.array_equal(warped_img, image), "Channel integrity failed: Channels were altered by transformation."
@@ -85,7 +85,7 @@ def test_edge_padding(image_shape, translation, padding_value):
     projective_transform = skimage.transform.ProjectiveTransform(matrix=aff_transform.params)
 
     # Apply the transformation with specified padding
-    warped_img = FGeometric.warp_affine(image, projective_transform, cv2.INTER_LINEAR, padding_value, cv2.BORDER_CONSTANT, image.shape[:2])
+    warped_img = fgeometric.warp_affine(image, projective_transform, cv2.INTER_LINEAR, padding_value, cv2.BORDER_CONSTANT, image.shape[:2])
 
     # Check if the edge padding is correctly applied
     if translation[0] > 0:  # Right translation
@@ -144,10 +144,10 @@ def test_inverse_angle_scale(image_shape, angle, shape, scale):
     inverse_projective_transform = skimage.transform.ProjectiveTransform(matrix=inverse_transform.params)
 
     # Apply the forward transformation
-    warped_img = FGeometric.warp_affine(image, forward_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
+    warped_img = fgeometric.warp_affine(image, forward_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Apply the inverse transformation
-    restored_img = FGeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
+    restored_img = fgeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Adjust the assertion threshold based on expected discrepancies from complex transformations
     assert np.mean(np.abs(image - restored_img)) < 7, "Inverse transformation failed: The restored image is not close enough to the original."
@@ -162,7 +162,7 @@ def test_scale_with_warp_affine(img, expected):
     expected_shape = (int(img.shape[0] * scale), int(img.shape[1] * scale))
 
     # Apply scaling using warp_affine from the example provided
-    scaled_img = FGeometric.warp_affine(
+    scaled_img = fgeometric.warp_affine(
         img=img,
         matrix=transform,  # Use the top 2 rows of the 3x3 matrix
         interpolation=cv2.INTER_LINEAR,
@@ -196,7 +196,7 @@ def test_rotate_with_warp_affine(img, expected):
     transform, _ = create_centered_comprehensive_transform(img.shape[:2], angle, 0, (0, 0), 1)
 
     # Apply scaling using warp_affine from the example provided
-    scaled_img = FGeometric.warp_affine(
+    scaled_img = fgeometric.warp_affine(
         img=img,
         matrix=transform,  # Use the top 2 rows of the 3x3 matrix
         interpolation=cv2.INTER_LINEAR,
@@ -218,7 +218,7 @@ def test_translate_with_warp_affine(img, expected, translate):
     transform, _ = create_centered_comprehensive_transform(img.shape[:2], 0, 0, translate, 1)
 
     # Apply scaling using warp_affine from the example provided
-    scaled_img = FGeometric.warp_affine(
+    scaled_img = fgeometric.warp_affine(
         img=img,
         matrix=transform,  # Use the top 2 rows of the 3x3 matrix
         interpolation=cv2.INTER_LINEAR,
@@ -252,10 +252,10 @@ def test_inverse_shear(image_shape, shear, shape):
     inverse_projective_transform = skimage.transform.ProjectiveTransform(matrix=inverse_transform.params)
 
     # Apply the forward transformation
-    warped_img = FGeometric.warp_affine(image, forward_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
+    warped_img = fgeometric.warp_affine(image, forward_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Apply the inverse transformation
-    restored_img = FGeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
+    restored_img = fgeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Adjust the assertion threshold based on expected discrepancies from complex transformations
     assert np.array_equal(image - restored_img), "Inverse transformation failed: The restored image is not close enough to the original."
@@ -284,10 +284,10 @@ def test_inverse_shear(image_shape, translate, shape):
     inverse_projective_transform = skimage.transform.ProjectiveTransform(matrix=inverse_transform.params)
 
     # Apply the forward transformation
-    warped_img = FGeometric.warp_affine(image, forward_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
+    warped_img = fgeometric.warp_affine(image, forward_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Apply the inverse transformation
-    restored_img = FGeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
+    restored_img = fgeometric.warp_affine(warped_img, inverse_projective_transform, cv2.INTER_LINEAR, 0, cv2.BORDER_CONSTANT, image_shape[:2])
 
     # Adjust the assertion threshold based on expected discrepancies from complex transformations
     assert np.array_equal(image, restored_img), "Inverse transformation failed: The restored image is not close enough to the original."
@@ -304,5 +304,5 @@ def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
 
     transform = skimage.transform.ProjectiveTransform(matrix=centered_transform.params)
 
-    actual = FGeometric.keypoint_affine(keypoint, transform, {"x": keypoint[2], "y": keypoint[3]})
+    actual = fgeometric.keypoint_affine(keypoint, transform, {"x": keypoint[2], "y": keypoint[3]})
     np.testing.assert_allclose(actual[:2], expected[:2], rtol=1e-4)

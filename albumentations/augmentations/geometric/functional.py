@@ -1844,6 +1844,20 @@ def pad_keypoints(
 
 
 def validate_keypoints(keypoints: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+    """Validate keypoints and remove those that fall outside the image boundaries.
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints with shape (N, M) where N is the number of keypoints
+                                and M >= 2. The first two columns represent x and y coordinates.
+        image_shape (tuple[int, int]): Shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of valid keypoints that fall within the image boundaries.
+
+    Note:
+        This function only checks the x and y coordinates (first two columns) of the keypoints.
+        Any additional columns (e.g., angle, scale) are preserved for valid keypoints.
+    """
     rows, cols = image_shape[:2]
 
     x, y = keypoints[:, 0], keypoints[:, 1]

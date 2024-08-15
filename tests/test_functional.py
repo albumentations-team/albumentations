@@ -6,7 +6,7 @@ from numpy.testing import assert_array_almost_equal_nulp, assert_almost_equal
 import skimage
 
 import albumentations.augmentations.functional as F
-import albumentations.augmentations.geometric.functional as FGeometric
+import albumentations.augmentations.geometric.functional as fgeometric
 from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels
 
 from albumentations.core.types import d4_group_elements
@@ -19,7 +19,7 @@ def test_vflip(target):
     img = np.array([[1, 1, 1], [0, 1, 1], [0, 0, 1]], dtype=np.uint8)
     expected = np.array([[0, 0, 1], [0, 1, 1], [1, 1, 1]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = FGeometric.vflip(img)
+    flipped_img = fgeometric.vflip(img)
     assert np.array_equal(flipped_img, expected)
 
 
@@ -28,7 +28,7 @@ def test_vflip_float(target):
     img = np.array([[0.4, 0.4, 0.4], [0.0, 0.4, 0.4], [0.0, 0.0, 0.4]], dtype=np.float32)
     expected = np.array([[0.0, 0.0, 0.4], [0.0, 0.4, 0.4], [0.4, 0.4, 0.4]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = FGeometric.vflip(img)
+    flipped_img = fgeometric.vflip(img)
     assert_array_almost_equal_nulp(flipped_img, expected)
 
 
@@ -37,7 +37,7 @@ def test_hflip(target):
     img = np.array([[1, 1, 1], [0, 1, 1], [0, 0, 1]], dtype=np.uint8)
     expected = np.array([[1, 1, 1], [1, 1, 0], [1, 0, 0]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = FGeometric.hflip(img)
+    flipped_img = fgeometric.hflip(img)
     assert np.array_equal(flipped_img, expected)
 
 
@@ -46,43 +46,43 @@ def test_hflip_float(target):
     img = np.array([[0.4, 0.4, 0.4], [0.0, 0.4, 0.4], [0.0, 0.0, 0.4]], dtype=np.float32)
     expected = np.array([[0.4, 0.4, 0.4], [0.4, 0.4, 0.0], [0.4, 0.0, 0.0]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    flipped_img = FGeometric.hflip(img)
+    flipped_img = fgeometric.hflip(img)
     assert_array_almost_equal_nulp(flipped_img, expected)
 
 
 @pytest.mark.parametrize("target", ["image", "mask"])
 @pytest.mark.parametrize(
     ["code", "func"],
-    [[0, FGeometric.vflip], [1, FGeometric.hflip], [-1, lambda img: FGeometric.vflip(FGeometric.hflip(img))]],
+    [[0, fgeometric.vflip], [1, fgeometric.hflip], [-1, lambda img: fgeometric.vflip(fgeometric.hflip(img))]],
 )
 def test_random_flip(code, func, target):
     img = np.array([[1, 1, 1], [0, 1, 1], [0, 0, 1]], dtype=np.uint8)
     img = convert_2d_to_target_format([img], target=target)
-    assert np.array_equal(FGeometric.random_flip(img, code), func(img))
+    assert np.array_equal(fgeometric.random_flip(img, code), func(img))
 
 
 @pytest.mark.parametrize("target", ["image", "image_4_channels"])
 @pytest.mark.parametrize(
     ["code", "func"],
-    [[0, FGeometric.vflip], [1, FGeometric.hflip], [-1, lambda img: FGeometric.vflip(FGeometric.hflip(img))]],
+    [[0, fgeometric.vflip], [1, fgeometric.hflip], [-1, lambda img: fgeometric.vflip(fgeometric.hflip(img))]],
 )
 def test_random_flip_float(code, func, target):
     img = np.array([[0.4, 0.4, 0.4], [0.0, 0.4, 0.4], [0.0, 0.0, 0.4]], dtype=np.float32)
     img = convert_2d_to_target_format([img], target=target)
-    assert_array_almost_equal_nulp(FGeometric.random_flip(img, code), func(img))
+    assert_array_almost_equal_nulp(fgeometric.random_flip(img, code), func(img))
 
 
 @pytest.mark.parametrize(["input_shape", "expected_shape"], [[(128, 64), (64, 128)], [(128, 64, 3), (64, 128, 3)]])
 def test_transpose(input_shape, expected_shape):
     img = np.random.randint(low=0, high=256, size=input_shape, dtype=np.uint8)
-    transposed = FGeometric.transpose(img)
+    transposed = fgeometric.transpose(img)
     assert transposed.shape == expected_shape
 
 
 @pytest.mark.parametrize(["input_shape", "expected_shape"], [[(128, 64), (64, 128)], [(128, 64, 3), (64, 128, 3)]])
 def test_transpose_float(input_shape, expected_shape):
     img = np.random.uniform(low=0.0, high=1.0, size=input_shape).astype("float32")
-    transposed = FGeometric.transpose(img)
+    transposed = fgeometric.transpose(img)
     assert transposed.shape == expected_shape
 
 
@@ -91,7 +91,7 @@ def test_rot90(target):
     img = np.array([[0, 0, 1], [0, 0, 1], [0, 0, 1]], dtype=np.uint8)
     expected = np.array([[1, 1, 1], [0, 0, 0], [0, 0, 0]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    rotated = FGeometric.rot90(img, factor=1)
+    rotated = fgeometric.rot90(img, factor=1)
     assert np.array_equal(rotated, expected)
 
 
@@ -100,7 +100,7 @@ def test_rot90_float(target):
     img = np.array([[0.0, 0.0, 0.4], [0.0, 0.0, 0.4], [0.0, 0.0, 0.4]], dtype=np.float32)
     expected = np.array([[0.4, 0.4, 0.4], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    rotated = FGeometric.rot90(img, factor=1)
+    rotated = fgeometric.rot90(img, factor=1)
     assert_array_almost_equal_nulp(rotated, expected)
 
 
@@ -119,7 +119,7 @@ def test_compare_rotate_and_affine(image):
     rotation_matrix = generate_rotation_matrix(image, 60)
 
     # Apply rotation using FGeometric.rotate
-    rotated_img_1 = FGeometric.rotate(
+    rotated_img_1 = fgeometric.rotate(
         image, angle=60, border_mode=cv2.BORDER_CONSTANT, value=0, interpolation=cv2.INTER_LINEAR
     )
 
@@ -128,7 +128,7 @@ def test_compare_rotate_and_affine(image):
     projective_transform = skimage.transform.ProjectiveTransform(matrix=full_matrix)
 
     # Apply rotation using warp_affine
-    rotated_img_2 = FGeometric.warp_affine(
+    rotated_img_2 = fgeometric.warp_affine(
         img=image,
         matrix=projective_transform,
         interpolation=cv2.INTER_LINEAR,
@@ -146,7 +146,7 @@ def test_pad(target):
     img = np.array([[1, 2], [3, 4]], dtype=np.uint8)
     expected = np.array([[4, 3, 4, 3], [2, 1, 2, 1], [4, 3, 4, 3], [2, 1, 2, 1]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    padded = FGeometric.pad(img, min_height=4, min_width=4, border_mode=cv2.BORDER_REFLECT_101, value=None)
+    padded = fgeometric.pad(img, min_height=4, min_width=4, border_mode=cv2.BORDER_REFLECT_101, value=None)
     assert np.array_equal(padded, expected)
 
 
@@ -157,7 +157,7 @@ def test_pad_float(target):
         [[0.4, 0.3, 0.4, 0.3], [0.2, 0.1, 0.2, 0.1], [0.4, 0.3, 0.4, 0.3], [0.2, 0.1, 0.2, 0.1]], dtype=np.float32
     )
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    padded_img = FGeometric.pad(img, min_height=4, min_width=4, value=None, border_mode=cv2.BORDER_REFLECT_101)
+    padded_img = fgeometric.pad(img, min_height=4, min_width=4, value=None, border_mode=cv2.BORDER_REFLECT_101)
     assert_array_almost_equal_nulp(padded_img, expected)
 
 
@@ -328,7 +328,7 @@ def test_scale(target):
     )
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = FGeometric.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
+    scaled = fgeometric.scale(img, scale=2, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
@@ -345,7 +345,7 @@ def test_longest_max_size(target):
     expected = np.array([[2, 3], [6, 7], [10, 11]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = FGeometric.longest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
+    scaled = fgeometric.longest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
@@ -357,7 +357,7 @@ def test_smallest_max_size(target):
     expected = np.array([[2, 4, 5, 7], [10, 11, 13, 14], [17, 19, 20, 22]], dtype=np.uint8)
 
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    scaled = FGeometric.smallest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
+    scaled = fgeometric.smallest_max_size(img, max_size=3, interpolation=cv2.INTER_LINEAR)
     assert np.array_equal(scaled, expected)
 
 
@@ -380,7 +380,7 @@ def test_resize_linear_interpolation(target):
     img = np.array([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], dtype=np.uint8)
     expected = np.array([[2, 2], [4, 4]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = FGeometric.resize(img, 2, 2, interpolation=cv2.INTER_LINEAR)
+    resized_img = fgeometric.resize(img, 2, 2, interpolation=cv2.INTER_LINEAR)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -392,7 +392,7 @@ def test_resize_nearest_interpolation(target):
     img = np.array([[1, 1, 1, 1], [2, 2, 2, 2], [3, 3, 3, 3], [4, 4, 4, 4]], dtype=np.uint8)
     expected = np.array([[1, 1], [3, 3]], dtype=np.uint8)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = FGeometric.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
+    resized_img = fgeometric.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -403,7 +403,7 @@ def test_resize_nearest_interpolation(target):
 def test_resize_different_height_and_width(target):
     img = np.ones((100, 100), dtype=np.uint8)
     img = convert_2d_to_target_format([img], target=target)
-    resized_img = FGeometric.resize(img, height=20, width=30, interpolation=cv2.INTER_LINEAR)
+    resized_img = fgeometric.resize(img, height=20, width=30, interpolation=cv2.INTER_LINEAR)
     height, width = resized_img.shape[:2]
     assert height == 20
     assert width == 30
@@ -419,7 +419,7 @@ def test_resize_default_interpolation_float(target):
     )
     expected = np.array([[0.15, 0.15], [0.35, 0.35]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = FGeometric.resize(img, 2, 2, interpolation=cv2.INTER_LINEAR)
+    resized_img = fgeometric.resize(img, 2, 2, interpolation=cv2.INTER_LINEAR)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -433,7 +433,7 @@ def test_resize_nearest_interpolation_float(target):
     )
     expected = np.array([[0.1, 0.1], [0.3, 0.3]], dtype=np.float32)
     img, expected = convert_2d_to_target_format([img, expected], target=target)
-    resized_img = FGeometric.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
+    resized_img = fgeometric.resize(img, 2, 2, interpolation=cv2.INTER_NEAREST)
     height, width = resized_img.shape[:2]
     assert height == 2
     assert width == 2
@@ -441,25 +441,25 @@ def test_resize_nearest_interpolation_float(target):
 
 
 def test_bbox_vflip():
-    assert FGeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.1, 0.5, 0.6, 0.8)
+    assert fgeometric.bbox_vflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.1, 0.5, 0.6, 0.8)
 
 
 def test_bbox_hflip():
-    assert FGeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.4, 0.2, 0.9, 0.5)
+    assert fgeometric.bbox_hflip((0.1, 0.2, 0.6, 0.5), 100, 200) == (0.4, 0.2, 0.9, 0.5)
 
 
 @pytest.mark.parametrize(
     ["code", "func"],
     [
-        [0, FGeometric.bbox_vflip],
-        [1, FGeometric.bbox_hflip],
-        [-1, lambda bbox, rows, cols: FGeometric.bbox_vflip(FGeometric.bbox_hflip(bbox, rows, cols), rows, cols)],
+        [0, fgeometric.bbox_vflip],
+        [1, fgeometric.bbox_hflip],
+        [-1, lambda bbox, rows, cols: fgeometric.bbox_vflip(fgeometric.bbox_hflip(bbox, rows, cols), rows, cols)],
     ],
 )
 def test_bbox_flip(code, func):
     rows, cols = 100, 200
     bbox = [0.1, 0.2, 0.6, 0.5]
-    assert FGeometric.bbox_flip(bbox, code, rows, cols) == func(bbox, rows, cols)
+    assert fgeometric.bbox_flip(bbox, code, rows, cols) == func(bbox, rows, cols)
 
 
 @pytest.mark.parametrize("factor, expected_positions", [
@@ -475,10 +475,10 @@ def test_keypoint_image_rot90_match(factor, expected_positions):
     img[keypoint[1], keypoint[0]] = 1
 
     # Rotate the image
-    rotated_img = FGeometric.rot90(img, factor)
+    rotated_img = fgeometric.rot90(img, factor)
 
     # Rotate the keypoint
-    rotated_keypoint = FGeometric.keypoint_rot90(keypoint, factor, img.shape[0], img.shape[1])
+    rotated_keypoint = fgeometric.keypoint_rot90(keypoint, factor, img.shape[0], img.shape[1])
 
     # Assert that the rotated keypoint lands where expected
     assert rotated_img[rotated_keypoint[1], rotated_keypoint[0]] == 1, \
@@ -487,16 +487,16 @@ def test_keypoint_image_rot90_match(factor, expected_positions):
 
 
 def test_bbox_rot90():
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0, 100, 200) == (0.1, 0.2, 0.3, 0.4)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1, 100, 200) == (0.2, 0.7, 0.4, 0.9)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2, 100, 200) == (0.7, 0.6, 0.9, 0.8)
-    assert FGeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3, 100, 200) == (0.6, 0.1, 0.8, 0.3)
+    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 0, 100, 200) == (0.1, 0.2, 0.3, 0.4)
+    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 1, 100, 200) == (0.2, 0.7, 0.4, 0.9)
+    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 2, 100, 200) == (0.7, 0.6, 0.9, 0.8)
+    assert fgeometric.bbox_rot90((0.1, 0.2, 0.3, 0.4), 3, 100, 200) == (0.6, 0.1, 0.8, 0.3)
 
 
 def test_bbox_transpose():
-    assert np.allclose(FGeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4), 100, 200), (0.1, 0.7, 0.4, 0.8))
-    rot90 = FGeometric.bbox_rot90((0.7, 0.1, 0.8, 0.4), 2, 100, 200)
-    reflected_anti_diagonal = FGeometric.bbox_transpose(rot90, 100, 200)
+    assert np.allclose(fgeometric.bbox_transpose((0.7, 0.1, 0.8, 0.4), 100, 200), (0.1, 0.7, 0.4, 0.8))
+    rot90 = fgeometric.bbox_rot90((0.7, 0.1, 0.8, 0.4), 2, 100, 200)
+    reflected_anti_diagonal = fgeometric.bbox_transpose(rot90, 100, 200)
     assert np.allclose(reflected_anti_diagonal, (0.6, 0.2, 0.9, 0.3))
 
 
@@ -504,7 +504,7 @@ def test_fun_max_size():
     target_width = 256
 
     img = np.empty((330, 49), dtype=np.uint8)
-    out = FGeometric.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
+    out = fgeometric.smallest_max_size(img, target_width, interpolation=cv2.INTER_LINEAR)
 
     assert out.shape == (1724, target_width)
 
@@ -741,7 +741,7 @@ def test_maybe_process_in_chunks():
 
     for i in range(1, image.shape[-1] + 1):
         before = image[:, :, :i]
-        after = FGeometric.rotate(before, angle=1, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101)
+        after = fgeometric.rotate(before, angle=1, interpolation=cv2.INTER_LINEAR, border_mode=cv2.BORDER_REFLECT_101)
         assert before.shape == after.shape
 
 
@@ -888,7 +888,7 @@ def test_shuffle_tiles_within_shape_groups(shape_groups, random_state, expected_
 ])
 def test_d4_transformations(group_member, expected):
     img = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]], dtype=np.uint8)
-    transformed_img = FGeometric.d4(img, group_member)
+    transformed_img = fgeometric.d4(img, group_member)
     assert np.array_equal(transformed_img, expected), f"Failed for transformation {group_member}"
 
 
@@ -903,7 +903,7 @@ def get_md5_hash(image):
 def test_d4_unique(image):
     hashes = set()
     for element in d4_group_elements:
-        hashes.add(get_md5_hash(FGeometric.d4(image, element)))
+        hashes.add(get_md5_hash(fgeometric.d4(image, element)))
 
     assert len(hashes) == len(set(hashes)), "d4 should generate unique images for all group elements"
 
@@ -911,7 +911,7 @@ def test_d4_unique(image):
 @pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
 @pytest.mark.parametrize("group_member", d4_group_elements)
 def test_d4_output_shape_with_group(image, group_member):
-    result = FGeometric.d4(image, group_member)
+    result = fgeometric.d4(image, group_member)
     if group_member in ['r90', 'r270', 't', 'hvt']:
         assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
     else:
@@ -920,14 +920,14 @@ def test_d4_output_shape_with_group(image, group_member):
 
 @pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
 def test_transpose_output_shape(image):
-    result = FGeometric.transpose(image)
+    result = fgeometric.transpose(image)
     assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
 
 
 @pytest.mark.parametrize("image", RECTANGULAR_IMAGES)
 @pytest.mark.parametrize("factor", [0, 1, 2, 3])
 def test_d4_output_shape_with_factor(image, factor):
-    result = FGeometric.rot90(image, factor)
+    result = fgeometric.rot90(image, factor)
     if factor in {1, 3}:
         assert result.shape[:2] == image.shape[:2][::-1], "Output shape should be the transpose of input shape"
     else:
@@ -945,7 +945,7 @@ def test_d4_output_shape_with_factor(image, factor):
     ((0.05, 0.1, 0.55, 0.6), 'hvt', 200, 200, (1 - 0.6, 1 - 0.55, 1 - 0.1, 1 - 0.05)),  # Transpose around second diagonal
 ])
 def test_bbox_d4(bbox, group_member, rows, cols, expected):
-    result = FGeometric.bbox_d4(bbox, group_member, rows, cols)
+    result = fgeometric.bbox_d4(bbox, group_member, rows, cols)
     assert result == pytest.approx(expected, rel=1e-5), f"Failed for transformation {group_member} with bbox {bbox}"
 
 
@@ -957,15 +957,15 @@ def test_bbox_d4(bbox, group_member, rows, cols, expected):
 def test_keypoint_vh_flip_equivalence(keypoint, rows, cols):
 
     # Perform vertical and then horizontal flip
-    hflipped_keypoint = FGeometric.keypoint_hflip(keypoint, rows, cols)
-    vhflipped_keypoint = FGeometric.keypoint_vflip(hflipped_keypoint, rows, cols)
+    hflipped_keypoint = fgeometric.keypoint_hflip(keypoint, rows, cols)
+    vhflipped_keypoint = fgeometric.keypoint_vflip(hflipped_keypoint, rows, cols)
 
-    vflipped_keypoint = FGeometric.keypoint_vflip(keypoint, rows, cols)
-    hvflipped_keypoint = FGeometric.keypoint_hflip(vflipped_keypoint, rows, cols)
+    vflipped_keypoint = fgeometric.keypoint_vflip(keypoint, rows, cols)
+    hvflipped_keypoint = fgeometric.keypoint_hflip(vflipped_keypoint, rows, cols)
 
     assert vhflipped_keypoint == pytest.approx(hvflipped_keypoint), \
         "Sequential vflip + hflip not equivalent to hflip + vflip"
-    assert vhflipped_keypoint == pytest.approx(FGeometric.keypoint_rot90(keypoint, 2, rows, cols)), \
+    assert vhflipped_keypoint == pytest.approx(fgeometric.keypoint_rot90(keypoint, 2, rows, cols)), \
         "rot180 not equivalent to vflip + hflip"
 
 
@@ -993,8 +993,8 @@ def test_transpose_2(shape):
     expected_main = create_test_matrix(expected_main_diagonal, shape)
     expected_second = create_test_matrix(expected_second_diagonal, shape)
 
-    assert np.array_equal(FGeometric.transpose(img), expected_main)
-    transposed_axis1 = FGeometric.transpose(FGeometric.rot90(img, 2))
+    assert np.array_equal(fgeometric.transpose(img), expected_main)
+    transposed_axis1 = fgeometric.transpose(fgeometric.rot90(img, 2))
     assert np.array_equal(transposed_axis1, expected_second)
 
 
