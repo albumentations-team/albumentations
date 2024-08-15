@@ -1427,19 +1427,20 @@ def pad_bboxes(
     pad_left: int,
     pad_right: int,
     border_mode: int,
-    rows: int,
-    cols: int,
+    image_shape: tuple[int, int],
 ) -> np.ndarray:
     if border_mode not in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
         shift_vector = np.array([pad_left, pad_top, pad_left, pad_top])
         return shift_bboxes(bboxes, shift_vector)
 
-    grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols)
+    grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
 
-    bboxes = generate_reflected_bboxes(bboxes, grid_dimensions, rows, cols)
+    bboxes = generate_reflected_bboxes(bboxes, grid_dimensions, image_shape)
 
     # Calculate the number of grid cells added on each side
     original_row, original_col = grid_dimensions["original_position"]
+
+    rows, cols = image_shape[:2]
 
     # Subtract the offset based on the number of added grid cells
     bboxes[:, 0] -= original_col * cols - pad_left  # x_min
@@ -1504,8 +1505,7 @@ def get_pad_grid_dimensions(
     pad_bottom: int,
     pad_left: int,
     pad_right: int,
-    rows: int,
-    cols: int,
+    image_shape: tuple[int, int],
 ) -> dict[str, tuple[int, int]]:
     """Calculate the dimensions of the grid needed for reflection padding and the position of the original image.
 
@@ -1514,8 +1514,7 @@ def get_pad_grid_dimensions(
         pad_bottom (int): Number of pixels to pad below the image.
         pad_left (int): Number of pixels to pad to the left of the image.
         pad_right (int): Number of pixels to pad to the right of the image.
-        rows (int): Height of the original image in pixels.
-        cols (int): Width of the original image in pixels.
+        image_shape (tuple[int, int]): Shape of the original image as (height, width).
 
     Returns:
         dict[str, tuple[int, int]]: A dictionary containing:
@@ -1526,6 +1525,8 @@ def get_pad_grid_dimensions(
                 - original_row (int): Row index of the original image in the grid.
                 - original_col (int): Column index of the original image in the grid.
     """
+    rows, cols = image_shape[:2]
+
     grid_rows = 1 + math.ceil(pad_top / rows) + math.ceil(pad_bottom / rows)
     grid_cols = 1 + math.ceil(pad_left / cols) + math.ceil(pad_right / cols)
     original_row = math.ceil(pad_top / rows)
@@ -1537,27 +1538,26 @@ def get_pad_grid_dimensions(
 def generate_reflected_bboxes(
     bboxes: np.ndarray,
     grid_dims: dict[str, tuple[int, int]],
-    rows: int,
-    cols: int,
+    image_shape: tuple[int, int],
 ) -> np.ndarray:
     """Generate reflected bounding boxes for the entire reflection grid.
 
     Args:
         bboxes (np.ndarray): Original bounding boxes.
         grid_dims (dict[str, tuple[int, int]]): Grid dimensions and original position.
-        rows (int): Height of the original image.
-        cols (int): Width of the original image.
+        image_shape (tuple[int, int]): Shape of the original image as (height, width).
 
     Returns:
         np.ndarray: Array of reflected and shifted bounding boxes for the entire grid.
     """
+    rows, cols = image_shape[:2]
     grid_rows, grid_cols = grid_dims["grid_shape"]
     original_row, original_col = grid_dims["original_position"]
 
     # Prepare flipped versions of bboxes
-    bboxes_hflipped = flip_bboxes(bboxes, flip_horizontal=True, rows=rows, cols=cols)
-    bboxes_vflipped = flip_bboxes(bboxes, flip_vertical=True, rows=rows, cols=cols)
-    bboxes_hvflipped = flip_bboxes(bboxes, flip_horizontal=True, flip_vertical=True, rows=rows, cols=cols)
+    bboxes_hflipped = flip_bboxes(bboxes, flip_horizontal=True, image_shape=image_shape)
+    bboxes_vflipped = flip_bboxes(bboxes, flip_vertical=True, image_shape=image_shape)
+    bboxes_hvflipped = flip_bboxes(bboxes, flip_horizontal=True, flip_vertical=True, image_shape=image_shape)
 
     # Shift all versions to the original position
     shift_vector = np.array([original_col * cols, original_row * rows, original_col * cols, original_row * rows])
@@ -1600,8 +1600,7 @@ def flip_bboxes(
     bboxes: np.ndarray,
     flip_horizontal: bool = False,
     flip_vertical: bool = False,
-    rows: int = 1,
-    cols: int = 1,
+    image_shape: tuple[int, int] = (0, 0),
 ) -> np.ndarray:
     """Flip bounding boxes horizontally and/or vertically.
 
@@ -1610,12 +1609,12 @@ def flip_bboxes(
             [x_min, y_min, x_max, y_max, ...].
         flip_horizontal (bool): Whether to flip horizontally.
         flip_vertical (bool): Whether to flip vertically.
-        rows (int): Height of the image.
-        cols (int): Width of the image.
+        image_shape (tuple[int, int]): Shape of the image as (height, width).
 
     Returns:
         np.ndarray: Flipped bounding boxes.
     """
+    rows, cols = image_shape[:2]
     flipped_bboxes = bboxes.copy()
     if flip_horizontal:
         flipped_bboxes[:, [0, 2]] = cols - flipped_bboxes[:, [2, 0]]
@@ -1810,3 +1809,127 @@ def generate_distorted_grid_polygons(dimensions: np.ndarray, magnitude: int) -> 
             polygons[i * grid_width + j, 0:2] += [dx, dy]
 
     return polygons
+
+
+def pad_keypoints(
+    keypoints: np.ndarray,
+    pad_top: int,
+    pad_bottom: int,
+    pad_left: int,
+    pad_right: int,
+    border_mode: int,
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    if border_mode not in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
+        shift_vector = np.array([pad_left, pad_top])  # Only shift x and y
+        return shift_keypoints(keypoints, shift_vector)
+
+    grid_dimensions = get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
+
+    keypoints = generate_reflected_keypoints(keypoints, grid_dimensions, image_shape)
+
+    rows, cols = image_shape[:2]
+
+    # Calculate the number of grid cells added on each side
+    original_row, original_col = grid_dimensions["original_position"]
+
+    # Subtract the offset based on the number of added grid cells
+    keypoints[:, 0] -= original_col * cols - pad_left  # x
+    keypoints[:, 1] -= original_row * rows - pad_top  # y
+
+    new_height = pad_top + pad_bottom + rows
+    new_width = pad_left + pad_right + cols
+
+    return validate_keypoints(keypoints, (new_height, new_width))
+
+
+def validate_keypoints(keypoints: np.ndarray, image_shape: tuple[int, int]) -> np.ndarray:
+    """Validate keypoints and remove those that fall outside the image boundaries.
+
+    Args:
+        keypoints (np.ndarray): Array of keypoints with shape (N, M) where N is the number of keypoints
+                                and M >= 2. The first two columns represent x and y coordinates.
+        image_shape (tuple[int, int]): Shape of the image as (height, width).
+
+    Returns:
+        np.ndarray: Array of valid keypoints that fall within the image boundaries.
+
+    Note:
+        This function only checks the x and y coordinates (first two columns) of the keypoints.
+        Any additional columns (e.g., angle, scale) are preserved for valid keypoints.
+    """
+    rows, cols = image_shape[:2]
+
+    x, y = keypoints[:, 0], keypoints[:, 1]
+
+    valid_indices = (x >= 0) & (x < cols) & (y >= 0) & (y < rows)
+
+    return keypoints[valid_indices]
+
+
+def shift_keypoints(keypoints: np.ndarray, shift_vector: np.ndarray) -> np.ndarray:
+    shifted_keypoints = keypoints.copy()
+    shifted_keypoints[:, :2] += shift_vector[:2]  # Only shift x and y
+    return shifted_keypoints
+
+
+def generate_reflected_keypoints(
+    keypoints: np.ndarray,
+    grid_dims: dict[str, tuple[int, int]],
+    image_shape: tuple[int, int],
+) -> np.ndarray:
+    grid_rows, grid_cols = grid_dims["grid_shape"]
+    original_row, original_col = grid_dims["original_position"]
+
+    # Prepare flipped versions of keypoints
+    keypoints_hflipped = flip_keypoints(keypoints, flip_horizontal=True, image_shape=image_shape)
+    keypoints_vflipped = flip_keypoints(keypoints, flip_vertical=True, image_shape=image_shape)
+    keypoints_hvflipped = flip_keypoints(keypoints, flip_horizontal=True, flip_vertical=True, image_shape=image_shape)
+
+    rows, cols = image_shape[:2]
+
+    # Shift all versions to the original position
+    shift_vector = np.array([original_col * cols, original_row * rows, 0, 0])  # Only shift x and y
+    keypoints_shifted = shift_keypoints(keypoints, shift_vector)
+    keypoints_hflipped_shifted = shift_keypoints(keypoints_hflipped, shift_vector)
+    keypoints_vflipped_shifted = shift_keypoints(keypoints_vflipped, shift_vector)
+    keypoints_hvflipped_shifted = shift_keypoints(keypoints_hvflipped, shift_vector)
+
+    new_keypoints = []
+
+    for grid_row in range(grid_rows):
+        for grid_col in range(grid_cols):
+            # Determine which version of keypoints to use based on grid position
+            if (grid_row - original_row) % 2 == 0 and (grid_col - original_col) % 2 == 0:
+                current_keypoints = keypoints_shifted
+            elif (grid_row - original_row) % 2 == 0:
+                current_keypoints = keypoints_hflipped_shifted
+            elif (grid_col - original_col) % 2 == 0:
+                current_keypoints = keypoints_vflipped_shifted
+            else:
+                current_keypoints = keypoints_hvflipped_shifted
+
+            # Shift to the current grid cell
+            cell_shift = np.array([(grid_col - original_col) * cols, (grid_row - original_row) * rows, 0, 0])
+            shifted_keypoints = shift_keypoints(current_keypoints, cell_shift)
+
+            new_keypoints.append(shifted_keypoints)
+
+    return np.vstack(new_keypoints)
+
+
+def flip_keypoints(
+    keypoints: np.ndarray,
+    flip_horizontal: bool = False,
+    flip_vertical: bool = False,
+    image_shape: tuple[int, int] = (0, 0),
+) -> np.ndarray:
+    rows, cols = image_shape[:2]
+    flipped_keypoints = keypoints.copy()
+    if flip_horizontal:
+        flipped_keypoints[:, 0] = cols - flipped_keypoints[:, 0]
+        flipped_keypoints[:, 2] = -flipped_keypoints[:, 2]  # Flip angle
+    if flip_vertical:
+        flipped_keypoints[:, 1] = rows - flipped_keypoints[:, 1]
+        flipped_keypoints[:, 2] = -flipped_keypoints[:, 2]  # Flip angle
+    return flipped_keypoints

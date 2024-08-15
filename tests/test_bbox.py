@@ -640,48 +640,48 @@ def test_union_of_bboxes(bboxes, erosion_rate, expected):
     result = union_of_bboxes(bboxes, erosion_rate)
     assert result == expected or np.testing.assert_almost_equal(result, expected, decimal=6) is None
 
-@pytest.mark.parametrize("pad_top, pad_bottom, pad_left, pad_right, rows, cols, expected", [
+@pytest.mark.parametrize("pad_top, pad_bottom, pad_left, pad_right, image_shape, expected", [
     # Symmetric padding
-    (100, 100, 100, 100, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),  # Exact multiple
-    (150, 150, 150, 150, 100, 100, {'grid_shape': (5, 5), 'original_position': (2, 2)}),  # Rounded up
-    (50, 50, 50, 50, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),      # Less than image size
+    (100, 100, 100, 100, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),  # Exact multiple
+    (150, 150, 150, 150, (100, 100), {'grid_shape': (5, 5), 'original_position': (2, 2)}),  # Rounded up
+    (50, 50, 50, 50, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),      # Less than image size
 
     # Asymmetric padding
-    (100, 0, 100, 0, 100, 100, {'grid_shape': (2, 2), 'original_position': (1, 1)}),
-    (0, 100, 0, 100, 100, 100, {'grid_shape': (2, 2), 'original_position': (0, 0)}),
-    (100, 50, 75, 25, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+    (100, 0, 100, 0, (100, 100), {'grid_shape': (2, 2), 'original_position': (1, 1)}),
+    (0, 100, 0, 100, (100, 100), {'grid_shape': (2, 2), 'original_position': (0, 0)}),
+    (100, 50, 75, 25, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
 
     # Edge cases
-    (0, 0, 0, 0, 100, 100, {'grid_shape': (1, 1), 'original_position': (0, 0)}),          # No padding
-    (1, 1, 1, 1, 100, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),          # Minimal padding
+    (0, 0, 0, 0, (100, 100), {'grid_shape': (1, 1), 'original_position': (0, 0)}),          # No padding
+    (1, 1, 1, 1, (100, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),          # Minimal padding
 
     # Different image dimensions
-    (100, 100, 50, 50, 50, 100, {'grid_shape': (5, 3), 'original_position': (2, 1)}),
+    (100, 100, 50, 50, (50, 100), {'grid_shape': (5, 3), 'original_position': (2, 1)}),
 
     # Large padding
-    (500, 500, 500, 500, 100, 100, {'grid_shape': (11, 11), 'original_position': (5, 5)}),
+    (500, 500, 500, 500, (100, 100), {'grid_shape': (11, 11), 'original_position': (5, 5)}),
 
     # Asymmetric image dimensions
-    (100, 100, 100, 100, 200, 100, {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+    (100, 100, 100, 100, (200, 100), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
 
     # Very small image dimensions
-    (10, 10, 10, 10, 5, 5, {'grid_shape': (5, 5), 'original_position': (2, 2)}),
+    (10, 10, 10, 10, (5, 5), {'grid_shape': (5, 5), 'original_position': (2, 2)}),
 
     # Very large image dimensions
-    (1000, 1000, 1000, 1000, 10000, 10000, {'grid_shape': (3, 3), 'original_position': (1, 1)}),
+    (1000, 1000, 1000, 1000, (10000, 10000), {'grid_shape': (3, 3), 'original_position': (1, 1)}),
 
     # Zero padding on some sides
-    (100, 0, 0, 100, 100, 100, {'grid_shape': (2, 2), 'original_position': (1, 0)}),
+    (100, 0, 0, 100, (100, 100), {'grid_shape': (2, 2), 'original_position': (1, 0)}),
 
     # Padding smaller than image on some sides, larger on others
-    (50, 150, 25, 175, 100, 100, {'grid_shape': (4, 4), 'original_position': (1, 1)}),
+    (50, 150, 25, 175, (100, 100), {'grid_shape': (4, 4), 'original_position': (1, 1)}),
 ])
-def test_get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols, expected):
-    result = fgeometric.get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, rows, cols)
+def test_get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape, expected):
+    result = fgeometric.get_pad_grid_dimensions(pad_top, pad_bottom, pad_left, pad_right, image_shape)
     assert result == expected, f"Expected {expected}, but got {result}"
 
 def test_get_pad_grid_dimensions_float_values():
-    result = fgeometric.get_pad_grid_dimensions(10.5, 10.5, 10.5, 10.5, 100, 100)
+    result = fgeometric.get_pad_grid_dimensions(10.5, 10.5, 10.5, 10.5, (100, 100))
     assert result == {'grid_shape': (3, 3), 'original_position': (1, 1)}, "Function should handle float inputs by implicit conversion to int"
 
 
@@ -706,14 +706,13 @@ def test_get_pad_grid_dimensions_float_values():
 ])
 def test_pad_bboxes_with_reflection(image_shape, bboxes, pad_params, expected_bboxes):
     pad_top, pad_bottom, pad_left, pad_right = pad_params
-    rows, cols = image_shape[:2]
+    image_shape[:2]
 
     result = fgeometric.pad_bboxes(
         bboxes,
         pad_top, pad_bottom, pad_left, pad_right,
         border_mode=cv2.BORDER_REFLECT_101,
-        rows=rows,
-        cols=cols
+        image_shape=image_shape[:2]
     )
 
     np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
@@ -730,14 +729,12 @@ def test_pad_bboxes_with_reflection(image_shape, bboxes, pad_params, expected_bb
 ])
 def test_pad_bboxes_constant_border(image_shape, bboxes, pad_params, expected_bboxes):
     pad_top, pad_bottom, pad_left, pad_right = pad_params
-    rows, cols = image_shape[:2]
 
     result = fgeometric.pad_bboxes(
         bboxes,
         pad_top, pad_bottom, pad_left, pad_right,
         border_mode=cv2.BORDER_CONSTANT,
-        rows=rows,
-        cols=cols
+        image_shape=image_shape[:2]
     )
 
     np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)

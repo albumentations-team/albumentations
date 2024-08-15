@@ -35,6 +35,7 @@ from albumentations.core.types import (
     ColorType,
     D4Type,
     KeypointInternalType,
+    KeypointType,
     ScalarType,
     ScaleFloatType,
     ScaleIntType,
@@ -1262,8 +1263,7 @@ class PadIfNeeded(DualTransform):
             Can be one of 'center', 'top_left', 'top_right', 'bottom_left', 'bottom_right', or 'random'.
             Default is 'center'.
         border_mode (int): Specifies the border mode to use if padding is required.
-            The default is `cv2.BORDER_REFLECT_101`. If `value` is provided and `border_mode` is set to a mode
-            that does not use a constant value, it should be manually set to `cv2.BORDER_CONSTANT`.
+            The default is `cv2.BORDER_REFLECT_101`.
         value (Union[int, float, list[int], list[float]], optional): Value to fill the border pixels if
             the border mode is `cv2.BORDER_CONSTANT`. Default is None.
         mask_value (Union[int, float, list[int], list[float]], optional): Similar to `value` but used for padding masks.
@@ -1334,9 +1334,6 @@ class PadIfNeeded(DualTransform):
             if (self.min_width is None) == (self.pad_width_divisor is None):
                 msg = "Only one of 'min_width' and 'pad_width_divisor' parameters must be set"
                 raise ValueError(msg)
-
-            if self.value is not None and self.border_mode in {cv2.BORDER_REFLECT_101, cv2.BORDER_REFLECT101}:
-                self.border_mode = cv2.BORDER_CONSTANT
 
             if self.border_mode == cv2.BORDER_CONSTANT and self.value is None:
                 msg = "If 'border_mode' is set to 'BORDER_CONSTANT', 'value' must be provided."
@@ -1462,10 +1459,12 @@ class PadIfNeeded(DualTransform):
         pad_bottom: int,
         pad_left: int,
         pad_right: int,
-        rows: int,
-        cols: int,
         **params: Any,
     ) -> list[BoxType]:
+        image_shape = params["shape"][:2]
+
+        rows, cols = image_shape
+
         bboxes_np = np.array(bboxes)
         bboxes_np = denormalize_bboxes(bboxes_np, rows, cols)
 
@@ -1476,23 +1475,35 @@ class PadIfNeeded(DualTransform):
             pad_left,
             pad_right,
             self.border_mode,
-            rows,
-            cols,
+            image_shape=image_shape,
         )
 
         return list(normalize_bboxes(result, rows + pad_top + pad_bottom, cols + pad_left + pad_right))
 
-    def apply_to_keypoint(
+    def apply_to_keypoints(
         self,
-        keypoint: KeypointInternalType,
+        keypoints: Sequence[KeypointType],
         pad_top: int,
         pad_bottom: int,
         pad_left: int,
         pad_right: int,
         **params: Any,
-    ) -> KeypointInternalType:
-        x, y, angle, scale = keypoint[:4]
-        return x + pad_left, y + pad_top, angle, scale
+    ) -> Sequence[KeypointType]:
+        # Convert keypoints to numpy array, including all attributes
+        keypoints_array = np.array([list(kp) for kp in keypoints])
+
+        padded_keypoints = fgeometric.pad_keypoints(
+            keypoints_array,
+            pad_top,
+            pad_bottom,
+            pad_left,
+            pad_right,
+            self.border_mode,
+            image_shape=params["shape"][:2],
+        )
+
+        # Convert back to list of tuples
+        return [tuple(kp) for kp in padded_keypoints]
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
