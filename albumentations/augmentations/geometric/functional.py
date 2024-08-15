@@ -1622,3 +1622,191 @@ def flip_bboxes(
     if flip_vertical:
         flipped_bboxes[:, [1, 3]] = rows - flipped_bboxes[:, [3, 1]]
     return flipped_bboxes
+
+
+@preserve_channel_dim
+def distort_image(image: np.ndarray, generated_mesh: np.ndarray, interpolation: int) -> np.ndarray:
+    """Apply perspective distortion to an image based on a generated mesh.
+
+    This function applies a perspective transformation to each cell of the image defined by the
+    generated mesh. The distortion is applied using OpenCV's perspective transformation and
+    blending techniques.
+
+    Args:
+        image (np.ndarray): The input image to be distorted. Can be a 2D grayscale image or a
+                            3D color image.
+        generated_mesh (np.ndarray): A 2D array where each row represents a quadrilateral cell
+                                    as [x1, y1, x2, y2, dst_x1, dst_y1, dst_x2, dst_y2, dst_x3, dst_y3, dst_x4, dst_y4].
+                                    The first four values define the source rectangle, and the last eight values
+                                    define the destination quadrilateral.
+        interpolation (int): Interpolation method to be used in the perspective transformation.
+                             Should be one of the OpenCV interpolation flags (e.g., cv2.INTER_LINEAR).
+
+    Returns:
+        np.ndarray: The distorted image with the same shape and dtype as the input image.
+
+    Note:
+        - The function preserves the channel dimension of the input image.
+        - Each cell of the generated mesh is transformed independently and then blended into the output image.
+        - The distortion is applied using perspective transformation, which allows for more complex
+          distortions compared to affine transformations.
+
+    Example:
+        >>> image = np.random.randint(0, 255, (100, 100, 3), dtype=np.uint8)
+        >>> mesh = np.array([[0, 0, 50, 50, 5, 5, 45, 5, 45, 45, 5, 45]])
+        >>> distorted = distort_image(image, mesh, cv2.INTER_LINEAR)
+        >>> distorted.shape
+        (100, 100, 3)
+    """
+    distorted_image = np.zeros_like(image)
+
+    for mesh in generated_mesh:
+        # Extract source rectangle and destination quadrilateral
+        x1, y1, x2, y2 = mesh[:4]  # Source rectangle
+        dst_quad = mesh[4:].reshape(4, 2)  # Destination quadrilateral
+
+        # Convert source rectangle to quadrilateral
+        src_quad = np.array(
+            [
+                [x1, y1],  # Top-left
+                [x2, y1],  # Top-right
+                [x2, y2],  # Bottom-right
+                [x1, y2],  # Bottom-left
+            ],
+            dtype=np.float32,
+        )
+
+        # Calculate Perspective transformation matrix
+        perspective_mat = cv2.getPerspectiveTransform(src_quad, dst_quad)
+
+        # Apply Perspective transformation
+        warped = cv2.warpPerspective(image, perspective_mat, (image.shape[1], image.shape[0]), flags=interpolation)
+
+        # Create mask for the transformed region
+        mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        cv2.fillConvexPoly(mask, np.int32(dst_quad), 255)
+
+        # Copy only the warped quadrilateral area to the output image
+        distorted_image = cv2.copyTo(warped, mask, distorted_image)
+
+    return distorted_image
+
+
+def calculate_grid_dimensions(
+    image_shape: tuple[int, int],
+    num_grid_xy: tuple[int, int],
+) -> np.ndarray:
+    """Calculate the dimensions of a grid overlay on an image using vectorized operations.
+
+    This function divides an image into a grid and calculates the dimensions
+    (x_min, y_min, x_max, y_max) for each cell in the grid without using loops.
+
+    Args:
+        image_shape (tuple[int, int]): The shape of the image (height, width).
+        num_grid_xy (tuple[int, int]): The number of grid cells in (x, y) directions.
+
+    Returns:
+        np.ndarray: A 3D array of shape (grid_height, grid_width, 4) where each element
+                    is [x_min, y_min, x_max, y_max] for a grid cell.
+
+    Example:
+        >>> image_shape = (100, 150)
+        >>> num_grid_xy = (3, 2)
+        >>> dimensions = calculate_grid_dimensions(image_shape, num_grid_xy)
+        >>> print(dimensions.shape)
+        (2, 3, 4)
+        >>> print(dimensions[0, 0])  # First cell
+        [  0   0  50  50]
+    """
+    num_grid_yx = np.array(num_grid_xy[::-1])  # Reverse to match image_shape order
+    image_shape = np.array(image_shape)
+
+    square_shape = image_shape // num_grid_yx
+    last_square_shape = image_shape - (square_shape * (num_grid_yx - 1))
+
+    grid_width, grid_height = num_grid_xy
+
+    # Create meshgrid for row and column indices
+    col_indices, row_indices = np.meshgrid(np.arange(grid_width), np.arange(grid_height))
+
+    # Calculate x_min and y_min
+    x_min = col_indices * square_shape[1]
+    y_min = row_indices * square_shape[0]
+
+    # Calculate x_max and y_max
+    x_max = np.where(col_indices == grid_width - 1, x_min + last_square_shape[1], x_min + square_shape[1])
+    y_max = np.where(row_indices == grid_height - 1, y_min + last_square_shape[0], y_min + square_shape[0])
+
+    # Stack the dimensions
+    return np.stack([x_min, y_min, x_max, y_max], axis=-1).astype(np.int16)
+
+
+def generate_distorted_grid_polygons(dimensions: np.ndarray, magnitude: int) -> np.ndarray:
+    """Generate distorted grid polygons based on input dimensions and magnitude.
+
+    This function creates a grid of polygons and applies random distortions to the internal vertices,
+    while keeping the boundary vertices fixed. The distortion is applied consistently across shared
+    vertices to avoid gaps or overlaps in the resulting grid.
+
+    Args:
+        dimensions (np.ndarray): A 3D array of shape (grid_height, grid_width, 4) where each element
+                                 is [x_min, y_min, x_max, y_max] representing the dimensions of a grid cell.
+        magnitude (int): Maximum pixel-wise displacement for distortion. The actual displacement
+                         will be randomly chosen in the range [-magnitude, magnitude].
+
+    Returns:
+        np.ndarray: A 2D array of shape (total_cells, 8) where each row represents a distorted polygon
+                    as [x1, y1, x2, y1, x2, y2, x1, y2]. The total_cells is equal to grid_height * grid_width.
+
+    Note:
+        - Only internal grid points are distorted; boundary points remain fixed.
+        - The function ensures consistent distortion across shared vertices of adjacent cells.
+        - The distortion is applied to the following points of each internal cell:
+            * Bottom-right of the cell above and to the left
+            * Bottom-left of the cell above
+            * Top-right of the cell to the left
+            * Top-left of the current cell
+
+    Example:
+        >>> dimensions = np.array([[[0, 0, 50, 50], [50, 0, 100, 50]],
+        ...                        [[0, 50, 50, 100], [50, 50, 100, 100]]])
+        >>> distorted = generate_distorted_grid_polygons(dimensions, magnitude=10)
+        >>> distorted.shape
+        (4, 8)
+    """
+    grid_height, grid_width = dimensions.shape[:2]
+    total_cells = grid_height * grid_width
+
+    # Initialize polygons
+    polygons = np.zeros((total_cells, 8), dtype=np.float32)
+    polygons[:, 0:2] = dimensions.reshape(-1, 4)[:, [0, 1]]  # x1, y1
+    polygons[:, 2:4] = dimensions.reshape(-1, 4)[:, [2, 1]]  # x2, y1
+    polygons[:, 4:6] = dimensions.reshape(-1, 4)[:, [2, 3]]  # x2, y2
+    polygons[:, 6:8] = dimensions.reshape(-1, 4)[:, [0, 3]]  # x1, y2
+
+    # Generate displacements for internal grid points only
+    internal_points_height, internal_points_width = grid_height - 2, grid_width - 2
+    displacements = random_utils.randint(
+        -magnitude,
+        magnitude + 1,
+        size=(internal_points_height, internal_points_width, 2),
+    ).astype(np.float32)
+
+    # Apply displacements to internal polygon vertices
+    for i in range(1, grid_height - 1):
+        for j in range(1, grid_width - 1):
+            dx, dy = displacements[i - 1, j - 1]
+
+            # Bottom-right of cell (i-1, j-1)
+            polygons[(i - 1) * grid_width + (j - 1), 4:6] += [dx, dy]
+
+            # Bottom-left of cell (i-1, j)
+            polygons[(i - 1) * grid_width + j, 6:8] += [dx, dy]
+
+            # Top-right of cell (i, j-1)
+            polygons[i * grid_width + (j - 1), 2:4] += [dx, dy]
+
+            # Top-left of cell (i, j)
+            polygons[i * grid_width + j, 0:2] += [dx, dy]
+
+    return polygons

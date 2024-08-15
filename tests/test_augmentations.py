@@ -133,6 +133,7 @@ def test_image_only_augmentations(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
@@ -176,7 +177,8 @@ def test_dual_augmentations(augmentation_cls, params):
                                     "mask": np.random.uniform(low=0, high=1, size=(100, 100)).astype(np.float32)
                                     }],
                 "read_fn": lambda x: x,
-            }
+            },
+             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
@@ -238,7 +240,8 @@ def test_dual_augmentations_with_float_values(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomSizedBBoxSafeCrop, A.BBoxSafeRandomCrop
@@ -306,7 +309,8 @@ def test_augmentations_wont_change_input(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.CLAHE,
@@ -368,7 +372,8 @@ def test_augmentations_wont_change_float_input(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.ChannelDropout,
@@ -463,7 +468,8 @@ def test_augmentations_wont_change_shape_grayscale(augmentation_cls, params, sha
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.RandomCropNearBBox,
@@ -590,7 +596,8 @@ def test_mask_fill_value(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.CLAHE,
@@ -679,7 +686,8 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.CLAHE,
@@ -758,7 +766,8 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.CLAHE,
@@ -843,7 +852,8 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
                                     }],
                 "read_fn": lambda x: x,
             },
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.CLAHE,

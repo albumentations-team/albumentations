@@ -14,7 +14,7 @@ import albumentations.augmentations.geometric.functional as FGeometric
 from albumentations.core.serialization import SERIALIZABLE_REGISTRY, shorten_class_name
 from albumentations.core.transforms_interface import ImageOnlyTransform
 
-from tests.aug_definitions import AUGMENTATION_CLS_EXCEPT, AUGMENTATION_CLS_PARAMS
+from tests.aug_definitions import AUGMENTATION_CLS_PARAMS
 from tests.conftest import FLOAT32_IMAGES, IMAGES, SQUARE_UINT8_IMAGE, UINT8_IMAGES, SQUARE_FLOAT_IMAGE
 
 
@@ -27,6 +27,19 @@ from .utils import (
 )
 
 images = []
+
+
+AUGMENTATION_CLS_EXCEPT = {
+    A.FDA,
+    A.HistogramMatching,
+    A.PixelDistributionAdaptation,
+    A.Lambda,
+    A.RandomSizedBBoxSafeCrop,
+    A.BBoxSafeRandomCrop,
+    A.TemplateTransform,
+    A.MixUp
+}
+
 
 ## Can use several seeds, but just too slow.
 TEST_SEEDS = (42, )
@@ -208,7 +221,8 @@ def test_augmentations_serialization_to_file_with_custom_parameters(
             A.CropNonEmptyMaskIfExists,
             A.GridDropout,
             A.OverlayElements,
-            A.TextImage
+            A.TextImage,
+            A.GridElasticDeform
         },
     ),
 )
@@ -273,7 +287,8 @@ def test_augmentations_for_bboxes_serialization(
             A.TemplateTransform,
             A.MixUp,
             A.OverlayElements,
-            A.TextImage
+            A.TextImage,
+            A.GridElasticDeform
         },
     ),
 )
@@ -717,7 +732,8 @@ def test_template_transform_serialization(template: np.ndarray, seed: int, p: fl
                 "position": "top_left"
             },
             A.RandomSizedBBoxSafeCrop: {"height": 10, "width": 10},
-            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf")
+            A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
+            A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
         except_augmentations={
             A.FDA,

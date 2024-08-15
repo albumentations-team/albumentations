@@ -95,6 +95,7 @@ DUAL_TARGETS = {
     A.Lambda: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS, Targets.GLOBAL_LABEL),
     A.D4: (Targets.IMAGE, Targets.MASK, Targets.BBOXES, Targets.KEYPOINTS),
     A.OverlayElements: (Targets.IMAGE, Targets.MASK),
+    A.GridElasticDeform: (Targets.IMAGE, Targets.MASK),
 }
 
 str2target = {
@@ -157,6 +158,7 @@ def test_image_only(augmentation_cls, params):
                                     }],
                 "read_fn": lambda x: x,
             },
+             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
         },
     ),
 )

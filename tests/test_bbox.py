@@ -716,8 +716,6 @@ def test_pad_bboxes_with_reflection(image_shape, bboxes, pad_params, expected_bb
         cols=cols
     )
 
-    print("Shape = ", result.shape, expected_bboxes.shape)
-
     np.testing.assert_array_almost_equal(result, expected_bboxes, decimal=1)
 
 
