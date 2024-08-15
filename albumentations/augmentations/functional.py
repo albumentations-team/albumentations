@@ -651,12 +651,13 @@ def add_sun_flare(
 
 
 @preserve_channel_dim
-def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray]) -> np.ndarray:
+def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensity_list: list[float]) -> np.ndarray:
     """Add shadows to the image by reducing the intensity of the pixel values in specified regions.
 
     Args:
         img (np.ndarray): Input image. Multichannel images are supported.
         vertices_list (list[np.ndarray]): list of vertices for shadow polygons.
+        intensity_list (list[float]): list of shadow intensities. Range is [0, 1].
 
     Returns:
         np.ndarray: Image with shadows added.
@@ -673,18 +674,24 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray]) -> np.ndarray:
         img = from_float(img, dtype=np.dtype("uint8"))
         needs_float = True
 
-    # Create mask with shape (height, width, 1)
-    mask = np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
-    cv2.fillPoly(mask, vertices_list, (max_value,))
-    # Duplicate the mask to have the same number of channels as the image
-    mask = np.repeat(mask, num_channels, axis=2)
-
-    # Apply shadow to the channels directly
-    # It could be tempting to convert to HLS and apply the shadow to the L channel, but it creates artifacts
-    shadow_intensity = 0.5  # Adjust this value to control the shadow intensity
     img_shadowed = img.copy()
-    shadowed_indices = mask[:, :, 0] == max_value
-    img_shadowed[shadowed_indices] = clip(img_shadowed[shadowed_indices] * shadow_intensity, np.uint8)
+
+    # Iterate over the vertices and intensity list
+    for vertices, shadow_intensity in zip(vertices_list, intensity_list):
+        # Create mask for the current shadow polygon
+        mask = np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
+        cv2.fillPoly(mask, [vertices], (max_value,))
+
+        # Duplicate the mask to have the same number of channels as the image
+        mask = np.repeat(mask, num_channels, axis=2)
+
+        # Apply shadow to the channels directly
+        # It could be tempting to convert to HLS and apply the shadow to the L channel, but it creates artifacts
+        shadowed_indices = mask[:, :, 0] == max_value
+        img_shadowed[shadowed_indices] = clip(
+            img_shadowed[shadowed_indices] * shadow_intensity,
+            np.uint8,
+        )
 
     if needs_float:
         return to_float(img_shadowed, max_value=max_value)
