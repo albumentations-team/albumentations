@@ -795,59 +795,20 @@ class Affine(DualTransform):
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
         height, width = params["shape"][:2]
 
-        translate: dict[str, int | float]
-        if self.translate_px is not None:
-            translate = {key: random.randint(*value) for key, value in self.translate_px.items()}
-        elif self.translate_percent is not None:
-            translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
-            translate["x"] = translate["x"] * width
-            translate["y"] = translate["y"] * height
-        else:
-            translate = {"x": 0, "y": 0}
-
-        shear = {key: -random.uniform(*value) for key, value in self.shear.items()}
-
+        translate = self._get_translate_params(width, height)
+        shear = self._get_shear_params()
         scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale)
         rotate = -random.uniform(*self.rotate)
 
-        shift_x, shift_y = center(width, height)
-        shift_x_bbox, shift_y_bbox = center_bbox(width, height)
+        image_shift = center(width, height)
+        bbox_shift = center_bbox(width, height)
 
-        # Image transformation matrix
-        matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
-        matrix_shear_y_rot = skimage.transform.AffineTransform(rotation=-np.pi / 2)
-        matrix_shear_y = skimage.transform.AffineTransform(shear=np.deg2rad(shear["y"]))
-        matrix_shear_y_rot_inv = skimage.transform.AffineTransform(rotation=np.pi / 2)
-        matrix_transforms = skimage.transform.AffineTransform(
-            scale=(scale["x"], scale["y"]),
-            translation=(translate["x"], translate["y"]),
-            rotation=np.deg2rad(rotate),
-            shear=np.deg2rad(shear["x"]),
-        )
-        matrix_to_center = skimage.transform.SimilarityTransform(translation=[shift_x, shift_y])
-        matrix = (
-            matrix_to_topleft
-            + matrix_shear_y_rot
-            + matrix_shear_y
-            + matrix_shear_y_rot_inv
-            + matrix_transforms
-            + matrix_to_center
-        )
-
-        # Bounding box transformation matrix
-        matrix_to_topleft_bbox = skimage.transform.SimilarityTransform(translation=[-shift_x_bbox, -shift_y_bbox])
-        matrix_to_center_bbox = skimage.transform.SimilarityTransform(translation=[shift_x_bbox, shift_y_bbox])
-        bbox_matrix = (
-            matrix_to_topleft_bbox
-            + matrix_shear_y_rot
-            + matrix_shear_y
-            + matrix_shear_y_rot_inv
-            + matrix_transforms
-            + matrix_to_center_bbox
-        )
+        matrix = self._create_transformation_matrix(translate, shear, scale, rotate, image_shift)
+        bbox_matrix = self._create_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
 
         if self.fit_output:
             matrix, output_shape = self._compute_affine_warp_output_shape(matrix, params["shape"])
+            bbox_matrix, _ = self._compute_affine_warp_output_shape(bbox_matrix, params["shape"])
         else:
             output_shape = params["shape"]
 
@@ -858,6 +819,46 @@ class Affine(DualTransform):
             "bbox_matrix": bbox_matrix,
             "output_shape": output_shape,
         }
+
+    def _get_translate_params(self, width: int, height: int) -> dict[str, float]:
+        if self.translate_px is not None:
+            return {key: random.randint(*value) for key, value in self.translate_px.items()}
+        if self.translate_percent is not None:
+            translate = {key: random.uniform(*value) for key, value in self.translate_percent.items()}
+            return {"x": translate["x"] * width, "y": translate["y"] * height}
+        return {"x": 0, "y": 0}
+
+    def _get_shear_params(self) -> dict[str, float]:
+        return {key: -random.uniform(*value) for key, value in self.shear.items()}
+
+    @staticmethod
+    def _create_transformation_matrix(
+        translate: dict[str, float],
+        shear: dict[str, float],
+        scale: dict[str, float],
+        rotate: float,
+        shift: tuple[float, float],
+    ) -> skimage.transform.ProjectiveTransform:
+        matrix_to_topleft = skimage.transform.SimilarityTransform(translation=[-shift[0], -shift[1]])
+        matrix_shear_y_rot = skimage.transform.AffineTransform(rotation=-np.pi / 2)
+        matrix_shear_y = skimage.transform.AffineTransform(shear=np.deg2rad(shear["y"]))
+        matrix_shear_y_rot_inv = skimage.transform.AffineTransform(rotation=np.pi / 2)
+        matrix_transforms = skimage.transform.AffineTransform(
+            scale=(scale["x"], scale["y"]),
+            translation=(translate["x"], translate["y"]),
+            rotation=np.deg2rad(rotate),
+            shear=np.deg2rad(shear["x"]),
+        )
+        matrix_to_center = skimage.transform.SimilarityTransform(translation=shift)
+
+        return (
+            matrix_to_topleft
+            + matrix_shear_y_rot
+            + matrix_shear_y
+            + matrix_shear_y_rot_inv
+            + matrix_transforms
+            + matrix_to_center
+        )
 
     @staticmethod
     def _compute_affine_warp_output_shape(
