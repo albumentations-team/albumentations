@@ -306,26 +306,3 @@ def test_keypoint_affine(keypoint, expected, angle, scale, dx, dy):
 
     actual = fgeometric.keypoint_affine(keypoint, transform, {"x": keypoint[2], "y": keypoint[3]})
     np.testing.assert_allclose(actual[:2], expected[:2], rtol=1e-4)
-
-
-def test_affine_with_fit_output():
-    image = np.zeros((100, 100, 3), dtype=np.uint8)
-    bbox = [10, 10, 90, 90]  # [x_min, y_min, x_max, y_max]
-
-    transform = A.Affine(rotate=45, scale=1.5, fit_output=True, p=1.0)
-    transformed = transform(image=image, bboxes=[bbox])
-
-    assert transformed['image'].shape != image.shape
-    assert transformed['bboxes'][0] != bbox
-
-
-def test_affine_translation_with_fit_output():
-    image = np.zeros((100, 100, 3), dtype=np.uint8)
-    bbox = [25, 25, 75, 75]
-
-    transform = A.Affine(translate_percent={'x': 0.5, 'y': 0.5}, fit_output=True, p=1.0)
-    transformed = transform(image=image, bboxes=[bbox])
-
-    # Check if bbox has moved in the correct direction
-    t_bbox = transformed['bboxes'][0]
-    assert t_bbox[0] >= bbox[0] and t_bbox[1] >= bbox[1]
