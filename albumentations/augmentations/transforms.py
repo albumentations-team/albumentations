@@ -1131,15 +1131,17 @@ class RandomSunFlare(ImageOnlyTransform):
 
 
 class RandomShadow(ImageOnlyTransform):
-    """Simulates shadows for the image by reducing the brightness of the image in the shadow regions.
-
-    Works for both single and multi-channel images.
+    """Simulates shadows for the image by reducing the brightness of the image in shadow regions.
 
     Args:
-        shadow_roi: region of the image where shadows
-            will appear. All values should be in range [0, 1].
-        num_shadows_limit: Lower and upper limits for the possible number of shadows.
-        shadow_dimension: number of edges in the shadow polygons
+        shadow_roi (tuple): region of the image where shadows
+            will appear (x_min, y_min, x_max, y_max). All values should be in range [0, 1].
+        num_shadows_limit (tuple): Lower and upper limits for the possible number of shadows.
+            Default: (1, 2).
+        shadow_dimension (int): number of edges in the shadow polygons. Default: 5.
+        shadow_intensity_range (tuple): Range for the shadow intensity.
+            Should be two float values between 0 and 1. Default: (0.5, 0.5).
+        p (float): probability of applying the transform. Default: 0.5.
 
     Targets:
         image
@@ -1170,9 +1172,13 @@ class RandomShadow(ImageOnlyTransform):
         )
         shadow_dimension: int = Field(default=5, description="Number of edges in the shadow polygons", ge=1)
 
-        shadow_intensity_range: float | tuple[float, float] = Field(
-            default=0.5,
-            description="Value or sample range for the shadow intensity",
+        shadow_intensity_range: Annotated[
+            tuple[float, float],
+            AfterValidator(check_01),
+            AfterValidator(nondecreasing),
+        ] = Field(
+            default=(0.5, 0.5),
+            description="Range for the shadow intensity",
         )
 
         @model_validator(mode="after")
@@ -1232,7 +1238,7 @@ class RandomShadow(ImageOnlyTransform):
         num_shadows_lower: int | None = None,
         num_shadows_upper: int | None = None,
         shadow_dimension: int = 5,
-        shadow_intensity_range: float | tuple[float, float] = 0.5,
+        shadow_intensity_range: tuple[float, float] = (0.5, 0.5),
         always_apply: bool | None = None,
         p: float = 0.5,
     ):
@@ -1247,10 +1253,10 @@ class RandomShadow(ImageOnlyTransform):
         self,
         img: np.ndarray,
         vertices_list: list[np.ndarray],
-        intensity_list: list[float],
+        intensities: np.ndarray,
         **params: Any,
     ) -> np.ndarray:
-        return fmain.add_shadow(img, vertices_list, intensity_list)
+        return fmain.add_shadow(img, vertices_list, intensities)
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, list[np.ndarray]]:
         height, width = params["shape"][:2]
@@ -1276,12 +1282,13 @@ class RandomShadow(ImageOnlyTransform):
         ]
 
         # Sample shadow intensity for each shadow
-        if isinstance(self.shadow_intensity_range, float):
-            intensity_list = [self.shadow_intensity_range] * num_shadows
-        else:
-            intensity_list = [random.uniform(*self.shadow_intensity_range) for _ in range(num_shadows)]
+        intensities = random_utils.uniform(
+            self.shadow_intensity_range[0],
+            self.shadow_intensity_range[1],
+            size=num_shadows,
+        )
 
-        return {"vertices_list": vertices_list, "intensity_list": intensity_list}
+        return {"vertices_list": vertices_list, "intensities": intensities}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
         return (
