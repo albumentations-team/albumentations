@@ -10,9 +10,9 @@ from albucore.utils import clip, clipped, preserve_channel_dim
 from skimage.exposure import match_histograms
 from typing_extensions import Protocol
 
+import albumentations.augmentations.functional as fmain
 from albumentations.augmentations.functional import center
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS
-import albumentations.augmentations.functional as fmain
 
 __all__ = [
     "fourier_domain_adaptation",

@@ -6,12 +6,13 @@ from typing import Any, Callable, Sequence, cast
 from warnings import warn
 
 import cv2
+import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
+from albumentations.core.pydantic import ProbabilityType
 from albumentations.core.validation import ValidatedTransformMeta
 
 from .serialization import Serializable, SerializableMeta, get_shortest_class_fullname
-from albumentations.core.pydantic import ProbabilityType
 from .types import (
     BoxInternalType,
     BoxType,
@@ -21,8 +22,6 @@ from .types import (
     Targets,
 )
 from .utils import format_args
-
-import numpy as np
 
 __all__ = ["BasicTransform", "DualTransform", "ImageOnlyTransform", "NoOp", "ReferenceBasedTransform"]
 

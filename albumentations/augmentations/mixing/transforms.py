@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 from albucore.functions import add_weighted
 from albucore.utils import is_grayscale_image
+from pydantic import Field
 from typing_extensions import Annotated
 
 from albumentations.augmentations.mixing import functional as fmixing
@@ -16,8 +17,6 @@ from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ReferenceBasedTransform
 from albumentations.core.types import LENGTH_RAW_BBOX, BoxType, KeypointType, ReferenceImage, SizeType, Targets
 from albumentations.random_utils import beta
-
-from pydantic import Field
 
 __all__ = ["MixUp", "OverlayElements"]
 

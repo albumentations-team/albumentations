@@ -9,11 +9,9 @@ from pydantic import Field
 from skimage.measure import label
 from typing_extensions import Literal
 
+from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ScalarType, ScaleIntType, Targets
-
-
-from albumentations.core.pydantic import OnePlusIntRangeType
 
 __all__ = ["MaskDropout"]
 

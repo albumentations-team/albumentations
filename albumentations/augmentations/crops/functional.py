@@ -3,14 +3,12 @@ from __future__ import annotations
 from typing import Sequence, cast
 
 import cv2
+import numpy as np
 from albucore.utils import maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
 from albumentations.core.types import BoxInternalType, ColorType, KeypointInternalType
-
-
-import numpy as np
 
 __all__ = [
     "get_crop_coords",

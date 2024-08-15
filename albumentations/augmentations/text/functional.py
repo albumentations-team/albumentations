@@ -1,15 +1,14 @@
 from __future__ import annotations
+
 import random
 from typing import TYPE_CHECKING, Any, Sequence
-from albucore.utils import preserve_channel_dim, MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS, NUM_RGB_CHANNELS
+
 import cv2
-
-
 import numpy as np
-
-from albumentations.core.types import PAIR
+from albucore.utils import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS, NUM_RGB_CHANNELS, preserve_channel_dim
 
 import albumentations.augmentations.functional as fmain
+from albumentations.core.types import PAIR
 
 # Importing wordnet and other dependencies only for type checking
 if TYPE_CHECKING:
@@ -89,7 +88,7 @@ def draw_text_on_pil_image(pil_image: Image, metadata_list: list[dict[str, Any]]
 def draw_text_on_multi_channel_image(image: np.ndarray, metadata_list: list[dict[str, Any]]) -> np.ndarray:
     """Draw text on a multi-channel image with more than three channels."""
     try:
-        from PIL import ImageDraw, Image
+        from PIL import Image, ImageDraw
     except ImportError:
         raise ImportError("Pillow is not installed") from ImportError
 

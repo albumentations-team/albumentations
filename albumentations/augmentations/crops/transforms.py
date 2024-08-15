@@ -10,7 +10,6 @@ import numpy as np
 from pydantic import AfterValidator, Field, field_validator, model_validator
 from typing_extensions import Annotated, Self
 
-
 from albumentations.augmentations.geometric import functional as fgeometric
 from albumentations.core.bbox_utils import union_of_bboxes
 from albumentations.core.pydantic import (

@@ -4,18 +4,15 @@ import random
 from typing import Any, Iterable, Sequence
 from warnings import warn
 
+import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Self
 
+from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import MIN_UNIT_SIZE, PAIR, ColorType, Targets
 
 from . import functional as fdropout
-
-
-import numpy as np
-
-from albumentations.core.pydantic import check_0plus, check_1plus, nondecreasing
 
 __all__ = ["GridDropout"]
 

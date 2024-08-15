@@ -4,8 +4,10 @@ import random
 from typing import Any, List, Sequence, Tuple, Union, cast
 
 import cv2
+import numpy as np
 from pydantic import Field, ValidationInfo, field_validator
 
+from albumentations.core.pydantic import InterpolationType, ProbabilityType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import (
     BoxInternalType,
@@ -16,11 +18,6 @@ from albumentations.core.types import (
 from albumentations.core.utils import to_tuple
 
 from . import functional as fgeometric
-
-
-import numpy as np
-
-from albumentations.core.pydantic import InterpolationType, ProbabilityType
 
 __all__ = ["RandomScale", "LongestMaxSize", "SmallestMaxSize", "Resize"]
 
