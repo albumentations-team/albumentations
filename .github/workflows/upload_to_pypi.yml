@@ -22,5 +22,6 @@ jobs:
         TWINE_USERNAME: __token__
         TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
       run: |
+        rm -rf tests tools benchmark
         python -m build
         twine upload dist/*
