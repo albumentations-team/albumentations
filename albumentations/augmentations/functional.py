@@ -651,13 +651,13 @@ def add_sun_flare(
 
 
 @preserve_channel_dim
-def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensity_list: list[float]) -> np.ndarray:
+def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensities: np.ndarray) -> np.ndarray:
     """Add shadows to the image by reducing the intensity of the pixel values in specified regions.
 
     Args:
         img (np.ndarray): Input image. Multichannel images are supported.
-        vertices_list (list[np.ndarray]): list of vertices for shadow polygons.
-        intensity_list (list[float]): list of shadow intensities. Range is [0, 1].
+        vertices_list (list[np.ndarray]): List of vertices for shadow polygons.
+        intensities (np.ndarray): Array of shadow intensities. Range is [0, 1].
 
     Returns:
         np.ndarray: Image with shadows added.
@@ -677,7 +677,7 @@ def add_shadow(img: np.ndarray, vertices_list: list[np.ndarray], intensity_list:
     img_shadowed = img.copy()
 
     # Iterate over the vertices and intensity list
-    for vertices, shadow_intensity in zip(vertices_list, intensity_list):
+    for vertices, shadow_intensity in zip(vertices_list, intensities):
         # Create mask for the current shadow polygon
         mask = np.zeros((img.shape[0], img.shape[1], 1), dtype=np.uint8)
         cv2.fillPoly(mask, [vertices], (max_value,))
