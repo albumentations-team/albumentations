@@ -6,7 +6,7 @@ from typing import Any, Callable, Sequence, cast
 import cv2
 import numpy as np
 import skimage.transform
-from albucore.utils import clipped, maybe_process_in_chunks, preserve_channel_dim, get_num_channels
+from albucore.utils import clipped, get_num_channels, maybe_process_in_chunks, preserve_channel_dim
 
 from albumentations import random_utils
 from albumentations.augmentations.functional import center

@@ -12,11 +12,11 @@ from albucore.utils import (
     MAX_VALUES_BY_DTYPE,
     clip,
     clipped,
+    get_num_channels,
     is_grayscale_image,
     is_rgb_image,
     maybe_process_in_chunks,
     preserve_channel_dim,
-    get_num_channels,
 )
 from typing_extensions import Literal
 

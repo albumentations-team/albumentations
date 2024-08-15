@@ -1,20 +1,19 @@
 from __future__ import annotations
 
-from typing import Any, Literal
 import random
+import re
+from typing import Any, Literal
+
 import numpy as np
 from PIL import ImageFont
 from pydantic import AfterValidator, model_validator
-
-import albumentations.augmentations.text.functional as ftext
-import re
 from typing_extensions import Annotated, Self
 
+import albumentations.augmentations.text.functional as ftext
 from albumentations.core.bbox_utils import check_bbox, denormalize_bbox
 from albumentations.core.pydantic import check_01, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import BoxType, ColorType
-
 
 __all__ = ["TextImage"]
 

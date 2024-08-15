@@ -3,19 +3,16 @@ from __future__ import annotations
 from typing import Any, Callable, Iterable, Sequence
 from warnings import warn
 
+import numpy as np
 from pydantic import AfterValidator, Field, model_validator
 from typing_extensions import Annotated, Literal, Self
 
+from albumentations.core.pydantic import check_1plus, nondecreasing
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, NumericType, ScalarType, Targets
 from albumentations.random_utils import randint, uniform
 
 from .functional import cutout, keypoint_in_hole
-
-
-import numpy as np
-
-from albumentations.core.pydantic import check_1plus, nondecreasing
 
 __all__ = ["CoarseDropout"]
 

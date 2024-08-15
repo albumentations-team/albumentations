@@ -3,18 +3,15 @@ from __future__ import annotations
 import random
 from typing import Any, Callable, Sequence, Tuple, cast
 
+import numpy as np
 from pydantic import Field, model_validator
 from typing_extensions import Self
 
+from albumentations.core.pydantic import NonNegativeIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, DualTransform
 from albumentations.core.types import ColorType, KeypointType, ScaleIntType, Targets
 
 from .functional import cutout, keypoint_in_hole
-
-
-import numpy as np
-
-from albumentations.core.pydantic import NonNegativeIntRangeType
 
 __all__ = ["XYMasking"]
 

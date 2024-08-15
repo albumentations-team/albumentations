@@ -3,19 +3,16 @@ from __future__ import annotations
 import random
 from typing import Any, Mapping
 
+import numpy as np
+from albucore import get_num_channels
+from pydantic import Field
 from typing_extensions import Annotated
 
-from albucore import get_num_channels
+from albumentations.core.pydantic import OnePlusIntRangeType
 from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
+from albumentations.core.types import ColorType
 
 from .functional import channel_dropout
-
-
-import numpy as np
-from pydantic import Field
-
-from albumentations.core.pydantic import OnePlusIntRangeType
-from albumentations.core.types import ColorType
 
 __all__ = ["ChannelDropout"]
 

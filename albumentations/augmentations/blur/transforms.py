@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import random
 import warnings
-from typing import Any, Literal, cast, Tuple
+from typing import Any, Literal, Tuple, cast
 
 import cv2
 import numpy as np

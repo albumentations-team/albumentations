@@ -2,26 +2,23 @@ from __future__ import annotations
 
 import random
 from typing import Any, Callable, Literal, Sequence, Tuple, cast
-from typing_extensions import Annotated
 
 import cv2
 import numpy as np
 from albucore.utils import clip, is_grayscale_image, is_multispectral_image
 from pydantic import AfterValidator, field_validator
+from typing_extensions import Annotated
 
+from albumentations.augmentations import functional as fmain
 from albumentations.augmentations.domain_adaptation_functional import (
     adapt_pixel_distribution,
     apply_histogram,
     fourier_domain_adaptation,
 )
 from albumentations.augmentations.utils import read_rgb_image
-from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
-from albumentations.augmentations import functional as fmain
-
-
 from albumentations.core.pydantic import NonNegativeFloatRangeType, check_01, nondecreasing
+from albumentations.core.transforms_interface import BaseTransformInitSchema, ImageOnlyTransform
 from albumentations.core.types import ScaleFloatType
-
 
 __all__ = [
     "HistogramMatching",

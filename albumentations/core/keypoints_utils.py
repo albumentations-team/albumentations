@@ -3,9 +3,8 @@ from __future__ import annotations
 import math
 from typing import Any, Sequence
 
-from .utils import DataProcessor, Params
-
 from .types import KeypointType
+from .utils import DataProcessor, Params
 
 __all__ = [
     "angle_to_2pi_range",

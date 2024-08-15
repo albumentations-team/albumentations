@@ -5,10 +5,7 @@
 
 [build-system]
 build-backend = "setuptools.build_meta"
-requires = [
-  "setuptools",
-  "wheel",
-]
+requires = [ "setuptools", "wheel" ]
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
@@ -59,12 +56,8 @@ format.quote-style = "double"
 format.line-ending = "auto"
 format.skip-magic-trailing-comma = false
 # Like Black, automatically detect the appropriate line ending.
-lint.select = [
-  "ALL",
-]
+lint.select = [ "ALL" ]
 lint.ignore = [
-  "ANN101",
-  "ANN102",
   "ANN204",
   "ANN401",
   "ARG001",
@@ -88,24 +81,19 @@ lint.ignore = [
   "FBT002",
   "FBT003",
   "G004",
-  "I001",
   "PLR0913",
   "PTH123",
   "S311",
   "TCH001",
   "TCH002",
-  "TCH003",
   "TRY003",
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 
 lint.explicit-preview-rules = true
-lint.fixable = [
-  "ALL",
-]
-lint.unfixable = [
-]
+lint.fixable = [ "ALL" ]
+lint.unfixable = [  ]
 # Allow unused variables when underscore-prefixed.
 lint.dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 # Like Black, use double quotes for strings.
