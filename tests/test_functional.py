@@ -1070,3 +1070,31 @@ def test_iso_noise(image, color_shift, intensity):
     result_float = F.from_float(result_float, dtype=np.uint8)  # Convert the float result back to uint8
 
     assert np.array_equal(result_uint8, result_float)
+
+
+@pytest.mark.parametrize(
+    "input_image, num_output_channels, expected_shape",
+    [
+        (np.zeros((10, 10), dtype=np.uint8), 3, (10, 10, 3)),
+        (np.zeros((10, 10, 1), dtype=np.uint8), 3, (10, 10, 3)),
+        (np.zeros((10, 10), dtype=np.float32), 4, (10, 10, 4)),
+        (np.zeros((10, 10, 1), dtype=np.float32), 2, (10, 10, 2)),
+    ]
+)
+def test_grayscale_to_multichannel(input_image, num_output_channels, expected_shape):
+    result = F.grayscale_to_multichannel(input_image, num_output_channels)
+    assert result.shape == expected_shape
+    assert np.all(result[..., 0] == result[..., 1])  # All channels should be identical
+
+
+def test_grayscale_to_multichannel_preserves_values():
+    input_image = np.random.randint(0, 256, (10, 10), dtype=np.uint8)
+    result = F.grayscale_to_multichannel(input_image, num_output_channels=3)
+    assert np.all(result[..., 0] == input_image)
+    assert np.all(result[..., 1] == input_image)
+    assert np.all(result[..., 2] == input_image)
+
+def test_grayscale_to_multichannel_default_channels():
+    input_image = np.zeros((10, 10), dtype=np.uint8)
+    result = F.grayscale_to_multichannel(input_image, num_output_channels=3)
+    assert result.shape == (10, 10, 3)

@@ -7,7 +7,7 @@ from warnings import warn
 import cv2
 import numpy as np
 import skimage
-from albucore.functions import add, add_array, add_weighted, multiply, multiply_add
+from albucore.functions import add, add_array, add_weighted, multiply, multiply_add, normalize_per_image
 from albucore.utils import (
     MAX_VALUES_BY_DTYPE,
     clip,
@@ -22,6 +22,7 @@ from typing_extensions import Literal
 
 from albumentations import random_utils
 from albumentations.augmentations.utils import (
+    PCA,
     non_rgb_warning,
 )
 from albumentations.core.types import (
@@ -71,7 +72,6 @@ __all__ = [
     "swap_tiles_on_image",
     "to_float",
     "to_gray",
-    "gray_to_rgb",
     "unsharp_mask",
     "split_uniform_grid",
     "chromatic_aberration",
@@ -818,13 +818,237 @@ def iso_noise(
     return cv2.cvtColor(hls, cv2.COLOR_HLS2RGB) * factor
 
 
-def to_gray(img: np.ndarray) -> np.ndarray:
-    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    return cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
+def to_gray_weighted_average(img: np.ndarray) -> np.ndarray:
+    """Convert an RGB image to grayscale using the weighted average method.
+
+    This function uses OpenCV's cvtColor function with COLOR_RGB2GRAY conversion,
+    which applies the following formula:
+    Y = 0.299*R + 0.587*G + 0.114*B
+
+    Args:
+        img (np.ndarray): Input RGB image as a numpy array.
+
+    Returns:
+        np.ndarray: Grayscale image as a 2D numpy array.
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        3
+    """
+    return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
 
-def gray_to_rgb(img: np.ndarray) -> np.ndarray:
-    return cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
+    """Convert an RGB image to grayscale using the L channel from the LAB color space.
+
+    This function converts the RGB image to the LAB color space and extracts the L channel.
+    The LAB color space is designed to approximate human vision, where L represents lightness.
+
+    Key aspects of this method:
+    1. The L channel represents the lightness of each pixel, ranging from 0 (black) to 100 (white).
+    2. It's more perceptually uniform than RGB, meaning equal changes in L values correspond to
+       roughly equal changes in perceived lightness.
+    3. The L channel is independent of the color information (A and B channels), making it
+       suitable for grayscale conversion.
+
+    This method can be particularly useful when you want a grayscale image that closely
+    matches human perception of lightness, potentially preserving more perceived contrast
+    than simple RGB-based methods.
+
+    Args:
+        img (np.ndarray): Input RGB image as a numpy array.
+
+    Returns:
+        np.ndarray: Grayscale image as a 2D numpy array, representing the L (lightness) channel.
+                    Values are scaled to match the input image's data type range.
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        3
+    """
+    return cv2.cvtColor(img, cv2.COLOR_RGB2LAB)[..., 0]
+
+
+def to_gray_desaturation(img: np.ndarray) -> np.ndarray:
+    """Convert an image to grayscale using the desaturation method.
+
+    Args:
+        img (np.ndarray): Input image as a numpy array.
+
+    Returns:
+        np.ndarray: Grayscale image as a 2D numpy array.
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        any
+    """
+    return (np.max(img, axis=-1) + np.min(img, axis=-1)) // 2
+
+
+def to_gray_average(img: np.ndarray) -> np.ndarray:
+    """Convert an image to grayscale using the average method.
+
+    This function computes the arithmetic mean across all channels for each pixel,
+    resulting in a grayscale representation of the image.
+
+    Key aspects of this method:
+    1. It treats all channels equally, regardless of their perceptual importance.
+    2. Works with any number of channels, making it versatile for various image types.
+    3. Simple and fast to compute, but may not accurately represent perceived brightness.
+    4. For RGB images, the formula is: Gray = (R + G + B) / 3
+
+    Note: This method may produce different results compared to weighted methods
+    (like RGB weighted average) which account for human perception of color brightness.
+    It may also produce unexpected results for images with alpha channels or
+    non-color data in additional channels.
+
+    Args:
+        img (np.ndarray): Input image as a numpy array. Can be any number of channels.
+
+    Returns:
+        np.ndarray: Grayscale image as a 2D numpy array. The output data type
+                    matches the input data type.
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        any
+    """
+    return np.mean(img, axis=-1).astype(img.dtype)
+
+
+def to_gray_max(img: np.ndarray) -> np.ndarray:
+    """Convert an image to grayscale using the maximum channel value method.
+
+    This function takes the maximum value across all channels for each pixel,
+    resulting in a grayscale image that preserves the brightest parts of the original image.
+
+    Key aspects of this method:
+    1. Works with any number of channels, making it versatile for various image types.
+    2. For 3-channel (e.g., RGB) images, this method is equivalent to extracting the V (Value)
+       channel from the HSV color space.
+    3. Preserves the brightest parts of the image but may lose some color contrast information.
+    4. Simple and fast to compute.
+
+    Note:
+    - This method tends to produce brighter grayscale images compared to other conversion methods,
+      as it always selects the highest intensity value from the channels.
+    - For RGB images, it may not accurately represent perceived brightness as it doesn't
+      account for human color perception.
+
+    Args:
+        img (np.ndarray): Input image as a numpy array. Can be any number of channels.
+
+    Returns:
+        np.ndarray: Grayscale image as a 2D numpy array. The output data type
+                    matches the input data type.
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        any
+    """
+    return np.max(img, axis=-1)
+
+
+def to_gray_pca(img: np.ndarray) -> np.ndarray:
+    """Convert an image to grayscale using Principal Component Analysis (PCA).
+
+    This function applies PCA to reduce a multi-channel image to a single channel,
+    effectively creating a grayscale representation that captures the maximum variance
+    in the color data.
+
+    Args:
+        img (np.ndarray): Input image as a numpy array with shape (height, width, channels).
+
+    Returns:
+        np.ndarray: Grayscale image as a 2D numpy array with shape (height, width).
+                    If input is uint8, output is uint8 in range [0, 255].
+                    If input is float32, output is float32 in range [0, 1].
+
+    Note:
+        This method can potentially preserve more information from the original image
+        compared to standard weighted average methods, as it accounts for the
+        correlations between color channels.
+
+    Image types:
+        uint8, float32
+
+    Number of channels:
+        any
+    """
+    # Reshape the image to a 2D array of pixels
+    pixels = img.reshape(-1, img.shape[2])
+
+    # Perform PCA
+    pca = PCA(n_components=1)
+    pca_result = pca.fit_transform(pixels)
+
+    # Reshape back to image dimensions and scale to 0-255
+    grayscale = pca_result.reshape(img.shape[:2])
+    grayscale = normalize_per_image(grayscale, "min_max")
+
+    if img.dtype == np.uint8:
+        return grayscale * 255
+
+    return grayscale
+
+
+def to_gray(
+    img: np.ndarray,
+    num_output_channels: int,
+    method: Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"],
+) -> np.ndarray:
+    if method == "weighted_average":
+        result = to_gray_weighted_average(img)
+    elif method == "from_lab":
+        result = to_gray_from_lab(img)
+    elif method == "desaturation":
+        result = to_gray_desaturation(img)
+    elif method == "average":
+        result = to_gray_average(img)
+    elif method == "max":
+        result = to_gray_max(img)
+    elif method == "pca":
+        result = to_gray_pca(img)
+    else:
+        raise ValueError(f"Unsupported method: {method}")
+
+    return grayscale_to_multichannel(result, num_output_channels)
+
+
+def grayscale_to_multichannel(grayscale_image: np.ndarray, num_output_channels: int = 3) -> np.ndarray:
+    """Convert a grayscale image to a multi-channel image.
+
+    This function takes a 2D grayscale image or a 3D image with a single channel
+    and converts it to a multi-channel image by repeating the grayscale data
+    across the specified number of channels.
+
+    Args:
+        grayscale_image (np.ndarray): Input grayscale image. Can be 2D (height, width)
+                                      or 3D (height, width, 1).
+        num_output_channels (int, optional): Number of channels in the output image. Defaults to 3.
+
+    Returns:
+        np.ndarray: Multi-channel image with shape (height, width, num_channels).
+
+    Raises:
+        ValueError: If the input is not a 2D grayscale image or 3D with shape (height, width, 1).
+
+    Note:
+        If the input is already a multi-channel image with the desired number of channels,
+        it will be returned unchanged.
+    """
+    grayscale_image = grayscale_image.copy().squeeze()
+    return np.stack([grayscale_image] * num_output_channels, axis=-1)
 
 
 @preserve_channel_dim

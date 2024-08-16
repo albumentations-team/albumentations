@@ -2004,18 +2004,36 @@ class ToGray(ImageOnlyTransform):
         TypeError: If the input image is not a 3-channel RGB image.
     """
 
+    class InitSchema(BaseTransformInitSchema):
+        num_output_channels: int = Field(default=3, description="The number of output channels.", ge=1)
+        method: Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"]
+
+    def __init__(
+        self,
+        num_output_channels: int = 3,
+        method: Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"] = "weighted_average",
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.num_output_channels = num_output_channels
+        self.method = method
+
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if is_grayscale_image(img):
             warnings.warn("The image is already gray.", stacklevel=2)
             return img
-        if not is_rgb_image(img):
+
+        num_channels = get_num_channels(img)
+
+        if num_channels != NUM_RGB_CHANNELS and self.method not in {"desaturation", "average", "max", "pca"}:
             msg = "ToGray transformation expects 3-channel images."
             raise TypeError(msg)
 
-        return fmain.to_gray(img)
+        return fmain.to_gray(img, self.num_output_channels, self.method)
 
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "num_output_channels", "method"
 
 
 class ToRGB(ImageOnlyTransform):
@@ -2043,7 +2061,7 @@ class ToRGB(ImageOnlyTransform):
             msg = "ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1."
             raise TypeError(msg)
 
-        return fmain.gray_to_rgb(img)
+        return fmain.grayscale_to_multichannel(img, num_output_channels=3)
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
