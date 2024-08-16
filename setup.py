@@ -64,7 +64,7 @@ setup(
     author="Vladimir I. Iglovikov, Mikhail Druzhinin, Alex Parinov, Alexander Buslaev, Eugene Khvedchenya",
     license="MIT",
     url="https://albumentations.ai",
-    packages=find_packages(exclude=["tests", "tools", "benchmark", ".github"]),
+    packages=find_packages(exclude=["tests", "tools", "benchmark"]),
     python_requires=">=3.8",
     install_requires=get_install_requirements(INSTALL_REQUIRES, CHOOSE_INSTALL_REQUIRES),
     extras_require={

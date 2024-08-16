@@ -161,8 +161,6 @@ conda_build/
 
 .vscode/
 
-.gitingore
-
 *.ipynb
 
 .ruff_cache/
