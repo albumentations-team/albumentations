@@ -1741,7 +1741,8 @@ def calculate_grid_dimensions(
 
 
 def generate_distorted_grid_polygons(
-    dimensions: np.ndarray, magnitude: int
+    dimensions: np.ndarray,
+    magnitude: int,
 ) -> np.ndarray:
     """Generate distorted grid polygons based on input dimensions and magnitude.
 
@@ -1768,19 +1769,15 @@ def generate_distorted_grid_polygons(
             * Top-right of the cell to the left
             * Top-left of the current cell
         - Each square represents a cell, and the X marks indicate the coordinates where displacement occurs.
-            +----+----+----+----+
-            |    |    |    |    |
-            |    |    |    |    |
-            +----X----X----X----+
-            |    |    |    |    |
-            |    |    |    |    |
-            +----X----X----X----+
-            |    |    |    |    |
-            |    |    |    |    |
-            +----X----X----X----+
-            |    |    |    |    |
-            |    |    |    |    |
-            +----+----+----+----+
+            +--+--+--+--+
+            |  |  |  |  |
+            +--X--X--X--+
+            |  |  |  |  |
+            +--X--X--X--+
+            |  |  |  |  |
+            +--X--X--X--+
+            |  |  |  |  |
+            +--+--+--+--+
         - For each X, the coordinates of the left, right, top, and bottom edges
           in the four adjacent cells are displaced.
 
