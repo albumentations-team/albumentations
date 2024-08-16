@@ -874,9 +874,8 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
     dtype = img.dtype
     img_uint8 = from_float(img, dtype=np.uint8) if dtype == np.float32 else img
     result = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2LAB)[..., 0]
-    if dtype == np.float32:
-        return to_float(result)
-    return result
+
+    return to_float(result) if dtype == np.float32 else result
 
 
 @clipped
@@ -1006,10 +1005,7 @@ def to_gray_pca(img: np.ndarray) -> np.ndarray:
     grayscale = pca_result.reshape(img.shape[:2])
     grayscale = normalize_per_image(grayscale, "min_max")
 
-    if dtype == np.uint8:
-        return from_float(grayscale, dtype=np.uint8)
-
-    return grayscale
+    return from_float(grayscale, dtype=np.uint8) if dtype == np.uint8 else grayscale
 
 
 def to_gray(
