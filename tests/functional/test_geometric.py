@@ -5,6 +5,7 @@ from albumentations.augmentations.geometric import functional as fgeometric
 import numpy as np
 import pytest
 from albumentations.augmentations.geometric.functional import calculate_grid_dimensions
+from tests.utils import set_seed
 
 @pytest.mark.parametrize("image_shape, num_grid_xy, expected_shape, expected_first, expected_last", [
     ((100, 150), (3, 2), (2, 3, 4), [0, 0, 50, 50], [100, 50, 150, 100]),
@@ -90,6 +91,7 @@ def test_generate_distorted_grid_polygons_boundary_unchanged(image_shape, num_gr
     ((150, 150), (6, 6), 5),
 ])
 def test_generate_distorted_grid_polygons_internal_points_moved(image_shape, num_grid_xy, magnitude):
+    set_seed(0)
     dimensions = calculate_grid_dimensions(image_shape, num_grid_xy)
     original_dimensions = dimensions.reshape(-1, 4)
     polygons = fgeometric.generate_distorted_grid_polygons(dimensions, magnitude)
@@ -97,8 +99,8 @@ def test_generate_distorted_grid_polygons_internal_points_moved(image_shape, num
     grid_height, grid_width = dimensions.shape[:2]
 
     # Check that internal points have moved
-    for i in range(1, grid_height - 1):
-        for j in range(1, grid_width - 1):
+    for i in range(1, grid_height):
+        for j in range(1, grid_width):
             cell_idx = i * grid_width + j
             assert not np.allclose(polygons[cell_idx], [
                 original_dimensions[cell_idx, 0], original_dimensions[cell_idx, 1],
