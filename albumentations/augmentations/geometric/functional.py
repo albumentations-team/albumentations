@@ -1740,7 +1740,9 @@ def calculate_grid_dimensions(
     return np.stack([x_min, y_min, x_max, y_max], axis=-1).astype(np.int16)
 
 
-def generate_distorted_grid_polygons(dimensions: np.ndarray, magnitude: int) -> np.ndarray:
+def generate_distorted_grid_polygons(
+    dimensions: np.ndarray, magnitude: int
+) -> np.ndarray:
     """Generate distorted grid polygons based on input dimensions and magnitude.
 
     This function creates a grid of polygons and applies random distortions to the internal vertices,
@@ -1765,6 +1767,22 @@ def generate_distorted_grid_polygons(dimensions: np.ndarray, magnitude: int) -> 
             * Bottom-left of the cell above
             * Top-right of the cell to the left
             * Top-left of the current cell
+        - Each square represents a cell, and the X marks indicate the coordinates where displacement occurs.
+            +----+----+----+----+
+            |    |    |    |    |
+            |    |    |    |    |
+            +----X----X----X----+
+            |    |    |    |    |
+            |    |    |    |    |
+            +----X----X----X----+
+            |    |    |    |    |
+            |    |    |    |    |
+            +----X----X----X----+
+            |    |    |    |    |
+            |    |    |    |    |
+            +----+----+----+----+
+        - For each X, the coordinates of the left, right, top, and bottom edges
+          in the four adjacent cells are displaced.
 
     Example:
         >>> dimensions = np.array([[[0, 0, 50, 50], [50, 0, 100, 50]],
@@ -1784,7 +1802,7 @@ def generate_distorted_grid_polygons(dimensions: np.ndarray, magnitude: int) -> 
     polygons[:, 6:8] = dimensions.reshape(-1, 4)[:, [0, 3]]  # x1, y2
 
     # Generate displacements for internal grid points only
-    internal_points_height, internal_points_width = grid_height - 2, grid_width - 2
+    internal_points_height, internal_points_width = grid_height - 1, grid_width - 1
     displacements = random_utils.randint(
         -magnitude,
         magnitude + 1,
@@ -1792,8 +1810,8 @@ def generate_distorted_grid_polygons(dimensions: np.ndarray, magnitude: int) -> 
     ).astype(np.float32)
 
     # Apply displacements to internal polygon vertices
-    for i in range(1, grid_height - 1):
-        for j in range(1, grid_width - 1):
+    for i in range(1, grid_height):
+        for j in range(1, grid_width):
             dx, dy = displacements[i - 1, j - 1]
 
             # Bottom-right of cell (i-1, j-1)
