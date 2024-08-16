@@ -11,7 +11,7 @@ from skimage.exposure import match_histograms
 from typing_extensions import Protocol
 
 import albumentations.augmentations.functional as fmain
-from albumentations.augmentations.functional import center
+from albumentations.augmentations.utils import PCA
 from albumentations.core.types import MONO_CHANNEL_DIMENSIONS, NUM_MULTI_CHANNEL_DIMENSIONS
 
 __all__ = [
@@ -104,61 +104,6 @@ class StandardScaler(BaseScaler):
         return (x * self.scale) + self.mean
 
 
-class PCA:
-    def __init__(self, n_components: int | None = None) -> None:
-        if n_components is not None and n_components <= 0:
-            raise ValueError("Number of components must be greater than zero.")
-        self.n_components = n_components
-        self.mean: np.ndarray | None = None
-        self.components_: np.ndarray | None = None
-        self.explained_variance_: np.ndarray | None = None
-
-    def fit(self, x: np.ndarray) -> None:
-        x = x.astype(np.float64)
-        n_samples, n_features = x.shape
-
-        # Determine the number of components if not set
-        if self.n_components is None:
-            self.n_components = min(n_samples, n_features)
-
-        self.mean, eigenvectors, eigenvalues = cv2.PCACompute2(x, mean=None, maxComponents=self.n_components)
-        self.components_ = eigenvectors
-        self.explained_variance_ = eigenvalues.flatten()
-
-    def transform(self, x: np.ndarray) -> np.ndarray:
-        if self.components_ is None:
-            raise ValueError(
-                "This PCA instance is not fitted yet. "
-                "Call 'fit' with appropriate arguments before using this estimator.",
-            )
-        x = x.astype(np.float64)
-        return cv2.PCAProject(x, self.mean, self.components_)
-
-    def fit_transform(self, x: np.ndarray) -> np.ndarray:
-        self.fit(x)
-        return self.transform(x)
-
-    def inverse_transform(self, x: np.ndarray) -> np.ndarray:
-        if self.components_ is None:
-            raise ValueError(
-                "This PCA instance is not fitted yet. "
-                "Call 'fit' with appropriate arguments before using this estimator.",
-            )
-        return cv2.PCABackProject(x, self.mean, self.components_)
-
-    def explained_variance_ratio(self) -> np.ndarray:
-        if self.explained_variance_ is None:
-            raise ValueError(
-                "This PCA instance is not fitted yet. "
-                "Call 'fit' with appropriate arguments before using this method.",
-            )
-        total_variance = np.sum(self.explained_variance_)
-        return self.explained_variance_ / total_variance
-
-    def cumulative_explained_variance_ratio(self) -> np.ndarray:
-        return np.cumsum(self.explained_variance_ratio())
-
-
 class TransformerInterface(Protocol):
     @abc.abstractmethod
     def inverse_transform(self, x: np.ndarray) -> np.ndarray: ...
@@ -241,7 +186,7 @@ def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np
     height, width = amp_src.shape[:2]
     border = int(np.floor(min(height, width) * beta))
 
-    center_x, center_y = center(width, height)
+    center_x, center_y = fmain.center(width, height)
 
     h1, h2 = max(0, int(center_y - border)), min(int(center_y + border), height)
     w1, w2 = max(0, int(center_x - border)), min(int(center_x + border), width)

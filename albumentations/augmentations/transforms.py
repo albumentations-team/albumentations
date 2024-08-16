@@ -1984,38 +1984,81 @@ class RandomGamma(ImageOnlyTransform):
 
 
 class ToGray(ImageOnlyTransform):
-    """Convert the input RGB image to grayscale. If the input image is already grayscale, a warning is issued but
-    the original image is returned unchanged. This transformation checks if the image is RGB; if not, it raises
-    a TypeError.
+    """Convert an image to grayscale and optionally replicate the grayscale channel.
+
+    This transform first converts a color image to a single-channel grayscale image using various methods,
+    then replicates the grayscale channel if num_output_channels is greater than 1.
 
     Args:
-        p (float): Probability of applying the transform. Default is 0.5.
+        num_output_channels (int): The number of channels in the output image. If greater than 1,
+            the grayscale channel will be replicated. Default: 3.
+        method (Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"]):
+            The method used for grayscale conversion:
+            - "weighted_average": Uses a weighted sum of RGB channels (0.299R + 0.587G + 0.114B).
+              Works only with 3-channel images. Provides realistic results based on human perception.
+            - "from_lab": Extracts the L channel from the LAB color space.
+              Works only with 3-channel images. Gives perceptually uniform results.
+            - "desaturation": Averages the maximum and minimum values across channels.
+              Works with any number of channels. Fast but may not preserve perceived brightness well.
+            - "average": Simple average of all channels.
+              Works with any number of channels. Fast but may not give realistic results.
+            - "max": Takes the maximum value across all channels.
+              Works with any number of channels. Tends to produce brighter results.
+            - "pca": Applies Principal Component Analysis to reduce channels.
+              Works with any number of channels. Can preserve more information but is computationally intensive.
+        p (float): Probability of applying the transform. Default: 0.5.
 
-    Targets:
-        image
+    Raises:
+        TypeError: If the input image doesn't have 3 channels for methods that require it.
+
+    Note:
+        - The transform first converts the input image to single-channel grayscale, then replicates
+          this channel if num_output_channels > 1.
+        - "weighted_average" and "from_lab" are typically used in image processing and computer vision
+          applications where accurate representation of human perception is important.
+        - "desaturation" and "average" are often used in simple image manipulation tools or when
+          computational speed is a priority.
+        - "max" method can be useful in scenarios where preserving bright features is important,
+          such as in some medical imaging applications.
+        - "pca" might be used in advanced image analysis tasks or when dealing with hyperspectral images.
 
     Image types:
         uint8, float32
 
-    Note:
-        This transform assumes the input image is in RGB format.
-
-    Raises:
-        TypeError: If the input image is not a 3-channel RGB image.
+    Returns:
+        np.ndarray: Grayscale image with the specified number of channels.
     """
+
+    class InitSchema(BaseTransformInitSchema):
+        num_output_channels: int = Field(default=3, description="The number of output channels.", ge=1)
+        method: Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"]
+
+    def __init__(
+        self,
+        num_output_channels: int = 3,
+        method: Literal["weighted_average", "from_lab", "desaturation", "average", "max", "pca"] = "weighted_average",
+        always_apply: bool | None = None,
+        p: float = 0.5,
+    ):
+        super().__init__(p=p, always_apply=always_apply)
+        self.num_output_channels = num_output_channels
+        self.method = method
 
     def apply(self, img: np.ndarray, **params: Any) -> np.ndarray:
         if is_grayscale_image(img):
             warnings.warn("The image is already gray.", stacklevel=2)
             return img
-        if not is_rgb_image(img):
+
+        num_channels = get_num_channels(img)
+
+        if num_channels != NUM_RGB_CHANNELS and self.method not in {"desaturation", "average", "max", "pca"}:
             msg = "ToGray transformation expects 3-channel images."
             raise TypeError(msg)
 
-        return fmain.to_gray(img)
+        return fmain.to_gray(img, self.num_output_channels, self.method)
 
-    def get_transform_init_args_names(self) -> tuple[()]:
-        return ()
+    def get_transform_init_args_names(self) -> tuple[str, ...]:
+        return "num_output_channels", "method"
 
 
 class ToRGB(ImageOnlyTransform):
@@ -2043,7 +2086,7 @@ class ToRGB(ImageOnlyTransform):
             msg = "ToRGB transformation expects 2-dim images or 3-dim with the last dimension equal to 1."
             raise TypeError(msg)
 
-        return fmain.gray_to_rgb(img)
+        return fmain.grayscale_to_multichannel(img, num_output_channels=3)
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()

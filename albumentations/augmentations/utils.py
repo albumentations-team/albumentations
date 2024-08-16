@@ -4,6 +4,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Callable
 
 import cv2
+import numpy as np
 from albucore.utils import (
     is_grayscale_image,
     is_multispectral_image,
@@ -15,8 +16,6 @@ from albumentations.core.keypoints_utils import angle_to_2pi_range
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import numpy as np
 
     from albumentations.core.types import KeypointInternalType
 
@@ -82,3 +81,58 @@ def check_range(value: tuple[float, float], lower_bound: float, upper_bound: flo
         raise ValueError(f"All values in {name} must be within [{lower_bound}, {upper_bound}] for tuple inputs.")
     if not value[0] <= value[1]:
         raise ValueError(f"{name!s} tuple values must be ordered as (min, max). Got: {value}")
+
+
+class PCA:
+    def __init__(self, n_components: int | None = None) -> None:
+        if n_components is not None and n_components <= 0:
+            raise ValueError("Number of components must be greater than zero.")
+        self.n_components = n_components
+        self.mean: np.ndarray | None = None
+        self.components_: np.ndarray | None = None
+        self.explained_variance_: np.ndarray | None = None
+
+    def fit(self, x: np.ndarray) -> None:
+        x = x.astype(np.float64)
+        n_samples, n_features = x.shape
+
+        # Determine the number of components if not set
+        if self.n_components is None:
+            self.n_components = min(n_samples, n_features)
+
+        self.mean, eigenvectors, eigenvalues = cv2.PCACompute2(x, mean=None, maxComponents=self.n_components)
+        self.components_ = eigenvectors
+        self.explained_variance_ = eigenvalues.flatten()
+
+    def transform(self, x: np.ndarray) -> np.ndarray:
+        if self.components_ is None:
+            raise ValueError(
+                "This PCA instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using this estimator.",
+            )
+        x = x.astype(np.float64)
+        return cv2.PCAProject(x, self.mean, self.components_)
+
+    def fit_transform(self, x: np.ndarray) -> np.ndarray:
+        self.fit(x)
+        return self.transform(x)
+
+    def inverse_transform(self, x: np.ndarray) -> np.ndarray:
+        if self.components_ is None:
+            raise ValueError(
+                "This PCA instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using this estimator.",
+            )
+        return cv2.PCABackProject(x, self.mean, self.components_)
+
+    def explained_variance_ratio(self) -> np.ndarray:
+        if self.explained_variance_ is None:
+            raise ValueError(
+                "This PCA instance is not fitted yet. "
+                "Call 'fit' with appropriate arguments before using this method.",
+            )
+        total_variance = np.sum(self.explained_variance_)
+        return self.explained_variance_ / total_variance
+
+    def cumulative_explained_variance_ratio(self) -> np.ndarray:
+        return np.cumsum(self.explained_variance_ratio())
