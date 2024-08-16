@@ -97,8 +97,8 @@ def test_generate_distorted_grid_polygons_internal_points_moved(image_shape, num
     grid_height, grid_width = dimensions.shape[:2]
 
     # Check that internal points have moved
-    for i in range(1, grid_height - 1):
-        for j in range(1, grid_width - 1):
+    for i in range(1, grid_height):
+        for j in range(1, grid_width):
             cell_idx = i * grid_width + j
             assert not np.allclose(polygons[cell_idx], [
                 original_dimensions[cell_idx, 0], original_dimensions[cell_idx, 1],
