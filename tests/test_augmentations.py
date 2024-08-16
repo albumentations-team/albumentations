@@ -598,6 +598,7 @@ def test_mask_fill_value(augmentation_cls, params):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.ToGray: {"method": "desaturation", "num_output_channels": 5},
         },
         except_augmentations={
             A.CLAHE,
@@ -619,7 +620,6 @@ def test_mask_fill_value(augmentation_cls, params):
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToFloat,
-            A.ToGray,
             A.ToRGB,
             A.ToSepia,
             A.FancyPCA,
@@ -688,6 +688,7 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.ToGray: {"method": "max", "num_output_channels": 5},
         },
         except_augmentations={
             A.CLAHE,
@@ -707,7 +708,6 @@ def test_multichannel_image_augmentations(augmentation_cls, params):
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
             A.RandomSunFlare,
-            A.ToGray,
             A.ToRGB,
             A.ToSepia,
             A.Equalize,
@@ -768,6 +768,7 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.ToGray: {"method": "pca", "num_output_channels": 5},
         },
         except_augmentations={
             A.CLAHE,
@@ -789,7 +790,6 @@ def test_float_multichannel_image_augmentations(augmentation_cls, params):
             A.RandomSnow,
             A.RandomSunFlare,
             A.ToFloat,
-            A.ToGray,
             A.ToRGB,
             A.ToSepia,
             A.FancyPCA,
@@ -846,7 +846,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
                 "mask_fill_value": 1,
                 "fill_value": 0,
             },
-             A.MixUp: {
+            A.MixUp: {
                 "reference_data": [{"image": SQUARE_MULTI_FLOAT_IMAGE,
                                     "mask": np.random.randint(0, 1, [100, 100, 1], dtype=np.uint8),
                                     }],
@@ -854,6 +854,7 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             },
             A.TextImage: dict(font_path="./tests/files/LiberationSerif-Bold.ttf"),
             A.GridElasticDeform: {"num_grid_xy": (10, 10), "magnitude": 10},
+            A.ToGray: {"method": "pca", "num_output_channels": 5},
         },
         except_augmentations={
             A.CLAHE,
@@ -873,7 +874,6 @@ def test_multichannel_image_augmentations_diff_channels(augmentation_cls, params
             A.BBoxSafeRandomCrop,
             A.RandomSnow,
             A.RandomSunFlare,
-            A.ToGray,
             A.ToRGB,
             A.ToSepia,
             A.Equalize,

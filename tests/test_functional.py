@@ -7,7 +7,7 @@ import skimage
 
 import albumentations.augmentations.functional as F
 import albumentations.augmentations.geometric.functional as fgeometric
-from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels
+from albucore.utils import is_multispectral_image, MAX_VALUES_BY_DTYPE, get_num_channels, clip
 
 from albumentations.core.types import d4_group_elements
 from tests.conftest import IMAGES, RECTANGULAR_IMAGES, RECTANGULAR_UINT8_IMAGE, UINT8_IMAGES
@@ -1098,3 +1098,84 @@ def test_grayscale_to_multichannel_default_channels():
     input_image = np.zeros((10, 10), dtype=np.uint8)
     result = F.grayscale_to_multichannel(input_image, num_output_channels=3)
     assert result.shape == (10, 10, 3)
+
+
+def create_test_image(height, width, channels, dtype):
+    if dtype == np.uint8:
+        return np.random.randint(0, 256, (height, width, channels), dtype=dtype)
+    else:
+        return np.random.rand(height, width, channels).astype(dtype)
+
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+def test_to_gray_weighted_average(dtype):
+    img = create_test_image(10, 10, 3, dtype)
+    result = F.to_gray_weighted_average(img)
+    expected = np.dot(img[..., :3], [0.299, 0.587, 0.114])
+    if dtype == np.uint8:
+        expected = expected.astype(np.uint8)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+def test_to_gray_from_lab(dtype):
+    img = create_test_image(10, 10, 3, dtype)
+    result = F.to_gray_from_lab(img)
+    expected = clip(cv2.cvtColor(img, cv2.COLOR_RGB2LAB)[..., 0], dtype=dtype)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+@pytest.mark.parametrize("channels", [3, 4, 5])
+def test_to_gray_desaturation(dtype, channels):
+    img = create_test_image(10, 10, channels, dtype)
+    result = F.to_gray_desaturation(img)
+    expected = (np.max(img.astype(np.float32), axis=-1) + np.min(img.astype(np.float32), axis=-1)) / 2
+    if dtype == np.uint8:
+        expected = expected.astype(np.uint8)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+@pytest.mark.parametrize("channels", [3, 4, 5])
+def test_to_gray_average(dtype, channels):
+    img = create_test_image(10, 10, channels, dtype)
+    result = F.to_gray_average(img)
+    expected = np.mean(img, axis=-1)
+    if dtype == np.uint8:
+        expected = expected.astype(np.uint8)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+@pytest.mark.parametrize("channels", [3, 4, 5])
+def test_to_gray_max(dtype, channels):
+    img = create_test_image(10, 10, channels, dtype)
+    result = F.to_gray_max(img)
+    expected = np.max(img, axis=-1)
+    np.testing.assert_allclose(result, expected, rtol=1e-5, atol=1)
+
+@pytest.mark.parametrize("dtype", [np.uint8, np.float32])
+@pytest.mark.parametrize("channels", [3, 4, 5])
+def test_to_gray_pca(dtype, channels):
+    img = create_test_image(10, 10, channels, dtype)
+    result = F.to_gray_pca(img)
+    assert result.shape == (10, 10)
+    assert result.dtype == dtype
+    if dtype == np.uint8:
+        assert result.min() >= 0 and result.max() <= 255
+    else:
+        assert result.min() >= 0 and result.max() <= 1
+
+@pytest.mark.parametrize("func", [
+    F.to_gray_weighted_average,
+    F.to_gray_from_lab,
+    F.to_gray_desaturation,
+    F.to_gray_average,
+    F.to_gray_max,
+    F.to_gray_pca,
+])
+def test_float32_uint8_consistency(func):
+    img_uint8 = create_test_image(10, 10, 3, np.uint8)
+    img_float32 = img_uint8.astype(np.float32) / 255.0
+
+    result_uint8 = func(img_uint8)
+    result_float32 = func(img_float32)
+
+    np.testing.assert_allclose(result_uint8 / 255.0, result_float32, rtol=1e-5, atol=1e-2)

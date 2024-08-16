@@ -840,6 +840,7 @@ def to_gray_weighted_average(img: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
 
+@clipped
 def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
     """Convert an RGB image to grayscale using the L channel from the LAB color space.
 
@@ -870,9 +871,15 @@ def to_gray_from_lab(img: np.ndarray) -> np.ndarray:
     Number of channels:
         3
     """
-    return cv2.cvtColor(img, cv2.COLOR_RGB2LAB)[..., 0]
+    dtype = img.dtype
+    img_uint8 = from_float(img, dtype=np.uint8) if dtype == np.float32 else img
+    result = cv2.cvtColor(img_uint8, cv2.COLOR_RGB2LAB)[..., 0]
+    if dtype == np.float32:
+        return to_float(result)
+    return result
 
 
+@clipped
 def to_gray_desaturation(img: np.ndarray) -> np.ndarray:
     """Convert an image to grayscale using the desaturation method.
 
@@ -888,7 +895,8 @@ def to_gray_desaturation(img: np.ndarray) -> np.ndarray:
     Number of channels:
         any
     """
-    return (np.max(img, axis=-1) + np.min(img, axis=-1)) // 2
+    float_image = img.astype(np.float32)
+    return (np.max(float_image, axis=-1) + np.min(float_image, axis=-1)) / 2
 
 
 def to_gray_average(img: np.ndarray) -> np.ndarray:
@@ -959,6 +967,7 @@ def to_gray_max(img: np.ndarray) -> np.ndarray:
     return np.max(img, axis=-1)
 
 
+@clipped
 def to_gray_pca(img: np.ndarray) -> np.ndarray:
     """Convert an image to grayscale using Principal Component Analysis (PCA).
 
@@ -985,6 +994,7 @@ def to_gray_pca(img: np.ndarray) -> np.ndarray:
     Number of channels:
         any
     """
+    dtype = img.dtype
     # Reshape the image to a 2D array of pixels
     pixels = img.reshape(-1, img.shape[2])
 
@@ -996,8 +1006,8 @@ def to_gray_pca(img: np.ndarray) -> np.ndarray:
     grayscale = pca_result.reshape(img.shape[:2])
     grayscale = normalize_per_image(grayscale, "min_max")
 
-    if img.dtype == np.uint8:
-        return grayscale * 255
+    if dtype == np.uint8:
+        return from_float(grayscale, dtype=np.uint8)
 
     return grayscale
 
