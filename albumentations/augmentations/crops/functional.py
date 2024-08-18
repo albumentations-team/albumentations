@@ -22,10 +22,8 @@ __all__ = [
 
 
 def get_crop_coords(
-    height: int,
-    width: int,
-    crop_height: int,
-    crop_width: int,
+    image_shape: tuple[int, int],
+    crop_shape: tuple[int, int],
     h_start: float,
     w_start: float,
 ) -> tuple[int, int, int, int]:
@@ -33,6 +31,11 @@ def get_crop_coords(
     # This is conceptually equivalent to mapping onto `range(0, (height - crop_height + 1))`
     # See: https://github.com/albumentations-team/albumentations/pull/1080
     # We want range for coordinated to be [0, image_size], right side is included
+
+    height, width = image_shape[:2]
+
+    crop_height, crop_width = crop_shape[:2]
+
     y_min = int((height - crop_height + 1) * h_start)
     y_max = y_min + crop_height
     x_min = int((width - crop_width + 1) * w_start)
@@ -43,10 +46,9 @@ def get_crop_coords(
 def crop_bbox_by_coords(
     bbox: BoxInternalType,
     crop_coords: tuple[int, int, int, int],
-    rows: int,
-    cols: int,
+    image_shape: tuple[int, int],
 ) -> BoxInternalType:
-    denormalized_bbox = denormalize_bbox(bbox, rows, cols)
+    denormalized_bbox = denormalize_bbox(bbox, image_shape)
 
     x_min, y_min, x_max, y_max = denormalized_bbox[:4]
     x1, y1 = crop_coords[:2]
@@ -54,7 +56,9 @@ def crop_bbox_by_coords(
     crop_height = crop_coords[3] - crop_coords[1]
     crop_width = crop_coords[2] - crop_coords[0]
 
-    return cast(BoxInternalType, normalize_bbox(cropped_bbox, crop_height, crop_width))
+    crop_shape = (crop_height, crop_width)
+
+    return cast(BoxInternalType, normalize_bbox(cropped_bbox, crop_shape))
 
 
 def crop_keypoint_by_coords(
@@ -77,7 +81,10 @@ def crop_keypoint_by_coords(
     return x - x1, y - y1, angle, scale
 
 
-def get_center_crop_coords(height: int, width: int, crop_height: int, crop_width: int) -> tuple[int, int, int, int]:
+def get_center_crop_coords(image_shape: tuple[int, int], crop_shape: tuple[int, int]) -> tuple[int, int, int, int]:
+    height, width = image_shape[:2]
+    crop_height, crop_width = crop_shape[:2]
+
     y_min = (height - crop_height) // 2
     y_max = y_min + crop_height
     x_min = (width - crop_width) // 2
@@ -109,8 +116,7 @@ def crop_and_pad(
     crop_params: Sequence[int] | None,
     pad_params: Sequence[int] | None,
     pad_value: ColorType | None,
-    rows: int,
-    cols: int,
+    image_shape: tuple[int, int],
     interpolation: int,
     pad_mode: int,
     keep_size: bool,
@@ -129,6 +135,7 @@ def crop_and_pad(
         )
 
     if keep_size:
+        rows, cols = image_shape[:2]
         resize_fn = maybe_process_in_chunks(cv2.resize, dsize=(cols, rows), interpolation=interpolation)
         return resize_fn(img)
 
@@ -139,41 +146,37 @@ def crop_and_pad_bbox(
     bbox: BoxInternalType,
     crop_params: Sequence[int] | None,
     pad_params: Sequence[int] | None,
-    rows: int,
-    cols: int,
-    result_rows: int,
-    result_cols: int,
+    image_shape: tuple[int, int],
+    result_shape: tuple[int, int],
 ) -> BoxInternalType:
-    x1, y1, x2, y2 = denormalize_bbox(bbox, rows, cols)[:4]
+    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, image_shape)[:4]
 
     if crop_params is not None:
         crop_x, crop_y = crop_params[:2]
 
-        x1 -= crop_x
-        y1 -= crop_y
-        x2 -= crop_x
-        y2 -= crop_y
+        x_min -= crop_x
+        y_min -= crop_y
+        x_max -= crop_x
+        y_max -= crop_y
 
     if pad_params is not None:
         top = pad_params[0]
         left = pad_params[2]
 
-        x1 += left
-        y1 += top
-        x2 += left
-        y2 += top
+        x_min += left
+        y_min += top
+        x_max += left
+        y_max += top
 
-    return cast(BoxInternalType, normalize_bbox((x1, y1, x2, y2), result_rows, result_cols))
+    return cast(BoxInternalType, normalize_bbox((x_min, y_min, x_max, y_max), result_shape))
 
 
 def crop_and_pad_keypoint(
     keypoint: KeypointInternalType,
     crop_params: Sequence[int] | None,
     pad_params: Sequence[int] | None,
-    rows: int,
-    cols: int,
-    result_rows: int,
-    result_cols: int,
+    image_shape: tuple[int, int],
+    result_shape: tuple[int, int],
     keep_size: bool,
 ) -> KeypointInternalType:
     x, y, angle, scale = keypoint[:4]
@@ -187,6 +190,9 @@ def crop_and_pad_keypoint(
 
         x += left
         y += top
+
+    rows, cols = image_shape[:2]
+    result_rows, result_cols = result_shape[:2]
 
     if keep_size and (result_cols != cols or result_rows != rows):
         scale_x = cols / result_cols

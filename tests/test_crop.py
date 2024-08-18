@@ -69,7 +69,7 @@ def test_crop_near_bbox(image, bboxes, keypoints):
 
 
 def test_crop_bbox_by_coords():
-    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), 100, 100)
+    cropped_bbox = A.crop_bbox_by_coords((0.5, 0.2, 0.9, 0.7), (18, 18, 82, 82), (100, 100))
     assert cropped_bbox == (0.5, 0.03125, 1.125, 0.8125)
 
 

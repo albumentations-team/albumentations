@@ -372,14 +372,14 @@ def test_lambda_transform():
         return -image
 
     def one_hot_mask(mask, num_channels, **kwargs):
-        new_mask = np.eye(num_channels, dtype=np.uint8)[mask]
-        return new_mask
+        return np.eye(num_channels, dtype=np.uint8)[mask]
+
 
     def vflip_bbox(bbox, **kwargs):
-        return fgeometric.bbox_vflip(bbox, kwargs["shape"][0], kwargs["shape"][1])
+        return fgeometric.bbox_vflip(bbox)
 
     def vflip_keypoint(keypoint, **kwargs):
-        return fgeometric.keypoint_vflip(keypoint, kwargs["shape"][0], kwargs["shape"][1])
+        return fgeometric.keypoint_vflip(keypoint, kwargs["rows"])
 
     aug = A.Lambda(
         image=negate_image, mask=partial(one_hot_mask, num_channels=16), bbox=vflip_bbox, keypoint=vflip_keypoint, p=1
@@ -393,8 +393,8 @@ def test_lambda_transform():
     )
     assert (output["image"] < 0).all()
     assert output["mask"].shape[2] == 16  # num_channels
-    assert output["bboxes"] == [fgeometric.bbox_vflip((10, 15, 25, 35), 10, 10)]
-    assert output["keypoints"] == [fgeometric.keypoint_vflip((20, 30, 40, 50), 10, 10)]
+    assert output["bboxes"] == [fgeometric.bbox_vflip((10, 15, 25, 35))]
+    assert output["keypoints"] == [fgeometric.keypoint_vflip((20, 30, 40, 50), 10)]
 
 
 def test_channel_droput():
@@ -1969,8 +1969,8 @@ def test_rot90(bboxes, angle, keypoints):
     image = SQUARE_UINT8_IMAGE
     mask = image.copy()
 
-    image_height, image_width = image.shape[:2]
-    normalized_bboxes = normalize_bboxes(bboxes, image_height, image_width)
+    image_shape = image.shape[:2]
+    normalized_bboxes = normalize_bboxes(bboxes, image_shape)
 
     angle2factor = { 90:1, 180: 2, -90:3}
 
@@ -1983,8 +1983,8 @@ def test_rot90(bboxes, angle, keypoints):
     image_rotated = fgeometric.rot90(image, factor)
     mask_rotated = fgeometric.rot90(image, factor)
     bboxes_rotated = [fgeometric.bbox_rot90(bbox, factor) for bbox in normalized_bboxes]
-    bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_height, image_width)
-    keypoints_rotated = [fgeometric.keypoint_rot90(keypoint[:4], factor, image_height, image_width) for keypoint in keypoints]
+    bboxes_rotated = denormalize_bboxes(bboxes_rotated, image_shape)
+    keypoints_rotated = [fgeometric.keypoint_rot90(keypoint[:4], factor, image_shape) for keypoint in keypoints]
 
     assert np.array_equal(transformed["image"], image_rotated)
     assert np.array_equal(transformed["mask"], mask_rotated)

@@ -82,7 +82,7 @@ class _BaseCrop(DualTransform):
         crop_coords: tuple[int, int, int, int],
         **params: Any,
     ) -> BoxInternalType:
-        return fcrops.crop_bbox_by_coords(bbox, crop_coords, rows=params["rows"], cols=params["cols"])
+        return fcrops.crop_bbox_by_coords(bbox, crop_coords, image_shape=params["shape"])
 
     def apply_to_keypoint(
         self,
@@ -122,19 +122,19 @@ class RandomCrop(_BaseCrop):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, tuple[int, int, int, int]]:
-        shape = params["shape"]
+        image_shape = params["shape"][:2]
 
-        image_height, image_width = shape[:2]
+        image_height, image_width = image_shape
 
         if self.height > image_height or self.width > image_width:
             raise CropSizeError(
                 f"Crop size (height, width) exceeds image dimensions (height, width):"
-                f" {(self.height, self.width)} vs {shape[:2]}",
+                f" {(self.height, self.width)} vs {image_shape[:2]}",
             )
 
         h_start = random.random()
         w_start = random.random()
-        crop_coords = fcrops.get_crop_coords(image_height, image_width, self.height, self.width, h_start, w_start)
+        crop_coords = fcrops.get_crop_coords(image_shape, (self.height, self.width), h_start, w_start)
         return {"crop_coords": crop_coords}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
@@ -173,8 +173,8 @@ class CenterCrop(_BaseCrop):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, tuple[int, int, int, int]]:
-        image_height, image_width = params["shape"][:2]
-        crop_coords = fcrops.get_center_crop_coords(image_height, image_width, self.height, self.width)
+        image_shape = params["shape"][:2]
+        crop_coords = fcrops.get_center_crop_coords(image_shape, (self.height, self.width))
 
         return {"crop_coords": crop_coords}
 
@@ -375,7 +375,7 @@ class _BaseRandomSizedCrop(DualTransform):
         **params: Any,
     ) -> np.ndarray:
         crop = fcrops.crop(img, *crop_coords)
-        return fgeometric.resize(crop, self.size[0], self.size[1], interpolation)
+        return fgeometric.resize(crop, self.size, interpolation)
 
     def apply_to_bbox(
         self,
@@ -383,7 +383,7 @@ class _BaseRandomSizedCrop(DualTransform):
         crop_coords: tuple[int, int, int, int],
         **params: Any,
     ) -> BoxInternalType:
-        return fcrops.crop_bbox_by_coords(bbox, crop_coords, rows=params["rows"], cols=params["cols"])
+        return fcrops.crop_bbox_by_coords(bbox, crop_coords, params["shape"])
 
     def apply_to_keypoint(
         self,
@@ -481,15 +481,17 @@ class RandomSizedCrop(_BaseRandomSizedCrop):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, tuple[int, int, int, int]]:
-        image_height, image_width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
         crop_height = random.randint(self.min_max_height[0], self.min_max_height[1])
         crop_width = int(crop_height * self.w2h_ratio)
 
+        crop_shape = (crop_height, crop_width)
+
         h_start = random.random()
         w_start = random.random()
 
-        crop_coords = fcrops.get_crop_coords(image_height, image_width, crop_height, crop_width, h_start, w_start)
+        crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
 
         return {"crop_coords": crop_coords}
 
@@ -576,7 +578,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, tuple[int, int, int, int]]:
-        image_height, image_width = params["shape"][:2]
+        image_shape = params["shape"][:2]
+        image_height, image_width = image_shape
+
         area = image_height * image_width
 
         for _ in range(10):
@@ -594,7 +598,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
                 h_start = i * 1.0 / (image_height - height + 1e-10)
                 w_start = j * 1.0 / (image_width - width + 1e-10)
 
-                crop_coords = fcrops.get_crop_coords(image_height, image_width, height, width, h_start, w_start)
+                crop_shape = (height, width)
+
+                crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
 
                 return {"crop_coords": crop_coords}
 
@@ -616,7 +622,9 @@ class RandomResizedCrop(_BaseRandomSizedCrop):
         h_start = i * 1.0 / (image_height - height + 1e-10)
         w_start = j * 1.0 / (image_width - width + 1e-10)
 
-        crop_coords = fcrops.get_crop_coords(image_height, image_width, height, width, h_start, w_start)
+        crop_shape = (height, width)
+
+        crop_coords = fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
 
         return {"crop_coords": crop_coords}
 
@@ -680,7 +688,8 @@ class RandomCropNearBBox(_BaseCrop):
         self.cropping_bbox_key = cropping_bbox_key
 
     @staticmethod
-    def _clip_bbox(bbox: BoxInternalType, height: int, width: int) -> BoxInternalType:
+    def _clip_bbox(bbox: BoxInternalType, image_shape: tuple[int, int]) -> BoxInternalType:
+        height, width = image_shape[:2]
         x_min, y_min, x_max, y_max = bbox
         x_min = np.clip(x_min, 0, width)
         y_min = np.clip(y_min, 0, height)
@@ -696,9 +705,9 @@ class RandomCropNearBBox(_BaseCrop):
     ) -> dict[str, tuple[float, ...]]:
         bbox = data[self.cropping_bbox_key]
 
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
-        bbox = self._clip_bbox(bbox, height, width)
+        bbox = self._clip_bbox(bbox, image_shape)
 
         h_max_shift = round((bbox[3] - bbox[1]) * self.max_part_shift[0])
         w_max_shift = round((bbox[2] - bbox[0]) * self.max_part_shift[1])
@@ -709,10 +718,11 @@ class RandomCropNearBBox(_BaseCrop):
         y_min = bbox[1] - random.randint(-h_max_shift, h_max_shift)
         y_max = bbox[3] + random.randint(-h_max_shift, h_max_shift)
 
-        crop_coords = self._clip_bbox((x_min, y_min, x_max, y_max), height, width)
+        crop_coords = self._clip_bbox((x_min, y_min, x_max, y_max), image_shape)
 
         if crop_coords[0] == crop_coords[2] or crop_coords[1] == crop_coords[3]:
-            crop_coords = fcrops.get_center_crop_coords(height, width, bbox[3] - bbox[1], bbox[2] - bbox[0])
+            crop_shape = (bbox[3] - bbox[1], bbox[2] - bbox[0])
+            crop_coords = fcrops.get_center_crop_coords(image_shape, crop_shape)
 
         return {"crop_coords": crop_coords}
 
@@ -754,7 +764,9 @@ class BBoxSafeRandomCrop(_BaseCrop):
         super().__init__(p=p, always_apply=always_apply)
         self.erosion_rate = erosion_rate
 
-    def _get_coords_no_bbox(self, image_height: int, image_width: int) -> tuple[int, int, int, int]:
+    def _get_coords_no_bbox(self, image_shape: tuple[int, int]) -> tuple[int, int, int, int]:
+        image_height, image_width = image_shape
+
         erosive_h = int(image_height * (1.0 - self.erosion_rate))
         crop_height = image_height if erosive_h >= image_height else random.randint(erosive_h, image_height)
 
@@ -763,23 +775,25 @@ class BBoxSafeRandomCrop(_BaseCrop):
         h_start = random.random()
         w_start = random.random()
 
-        return fcrops.get_crop_coords(image_height, image_width, crop_height, crop_width, h_start, w_start)
+        crop_shape = (crop_height, crop_width)
+
+        return fcrops.get_crop_coords(image_shape, crop_shape, h_start, w_start)
 
     def get_params_dependent_on_data(
         self,
         params: dict[str, Any],
         data: dict[str, Any],
     ) -> dict[str, tuple[int, int, int, int]]:
-        image_height, image_width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
         if len(data["bboxes"]) == 0:  # less likely, this class is for use with bboxes.
-            crop_coords = self._get_coords_no_bbox(image_height, image_width)
+            crop_coords = self._get_coords_no_bbox(image_shape)
             return {"crop_coords": crop_coords}
 
         bbox_union = union_of_bboxes(bboxes=data["bboxes"], erosion_rate=self.erosion_rate)
 
         if bbox_union is None:
-            crop_coords = self._get_coords_no_bbox(image_height, image_width)
+            crop_coords = self._get_coords_no_bbox(image_shape)
             return {"crop_coords": crop_coords}
 
         x_min, y_min, x_max, y_max = bbox_union
@@ -788,6 +802,8 @@ class BBoxSafeRandomCrop(_BaseCrop):
         y_min = np.clip(y_min, 0, 1)
         x_max = np.clip(x_max, x_min, 1)
         y_max = np.clip(y_max, y_min, 1)
+
+        image_height, image_width = image_shape
 
         crop_x_min = int(x_min * random.random() * image_width)
         crop_y_min = int(y_min * random.random() * image_height)
@@ -859,7 +875,7 @@ class RandomSizedBBoxSafeCrop(BBoxSafeRandomCrop):
         **params: Any,
     ) -> np.ndarray:
         crop = fcrops.crop(img, *crop_coords)
-        return fgeometric.resize(crop, self.height, self.width, self.interpolation)
+        return fgeometric.resize(crop, (self.height, self.width), self.interpolation)
 
     def apply_to_keypoint(
         self,
@@ -1049,8 +1065,6 @@ class CropAndPad(DualTransform):
         crop_params: Sequence[int],
         pad_params: Sequence[int],
         pad_value: ColorType,
-        rows: int,
-        cols: int,
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
@@ -1059,8 +1073,7 @@ class CropAndPad(DualTransform):
             crop_params,
             pad_params,
             pad_value,
-            rows,
-            cols,
+            params["shape"][:2],
             interpolation,
             self.pad_mode,
             self.keep_size,
@@ -1072,8 +1085,6 @@ class CropAndPad(DualTransform):
         crop_params: Sequence[int],
         pad_params: Sequence[int],
         pad_value_mask: float,
-        rows: int,
-        cols: int,
         interpolation: int,
         **params: Any,
     ) -> np.ndarray:
@@ -1082,8 +1093,7 @@ class CropAndPad(DualTransform):
             crop_params,
             pad_params,
             pad_value_mask,
-            rows,
-            cols,
+            params["shape"][:2],
             interpolation,
             self.pad_mode,
             self.keep_size,
@@ -1094,33 +1104,25 @@ class CropAndPad(DualTransform):
         bbox: BoxInternalType,
         crop_params: Sequence[int],
         pad_params: Sequence[int],
-        rows: int,
-        cols: int,
-        result_rows: int,
-        result_cols: int,
+        result_shape: tuple[int, int],
         **params: Any,
     ) -> BoxInternalType:
-        return fcrops.crop_and_pad_bbox(bbox, crop_params, pad_params, rows, cols, result_rows, result_cols)
+        return fcrops.crop_and_pad_bbox(bbox, crop_params, pad_params, params["shape"][:2], result_shape)
 
     def apply_to_keypoint(
         self,
         keypoint: KeypointInternalType,
         crop_params: Sequence[int],
         pad_params: Sequence[int],
-        rows: int,
-        cols: int,
-        result_rows: int,
-        result_cols: int,
+        result_shape: tuple[int, int],
         **params: Any,
     ) -> KeypointInternalType:
         return fcrops.crop_and_pad_keypoint(
             keypoint,
             crop_params,
             pad_params,
-            rows,
-            cols,
-            result_rows,
-            result_cols,
+            params["shape"][:2],
+            result_shape,
             self.keep_size,
         )
 
@@ -1195,8 +1197,7 @@ class CropAndPad(DualTransform):
             "pad_params": pad_params or None,
             "pad_value": None if pad_params is None else self._get_pad_value(self.pad_cval),
             "pad_value_mask": None if pad_params is None else self._get_pad_value(self.pad_cval_mask),
-            "result_rows": result_rows,
-            "result_cols": result_cols,
+            "result_shape": (result_rows, result_cols),
         }
 
     def _get_px_params(self) -> list[int]:

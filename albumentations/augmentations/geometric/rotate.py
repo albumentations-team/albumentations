@@ -52,10 +52,10 @@ class RandomRotate90(DualTransform):
         return {"factor": random.randint(0, 3)}
 
     def apply_to_bbox(self, bbox: BoxInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_rot90(bbox, factor, params["shape"][0], params["shape"][1])
+        return fgeometric.bbox_rot90(bbox, factor)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, factor: int, **params: Any) -> BoxInternalType:
-        return fgeometric.keypoint_rot90(keypoint, factor, params["shape"][0], params["shape"][1])
+        return fgeometric.keypoint_rot90(keypoint, factor, params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -172,13 +172,12 @@ class Rotate(DualTransform):
         x_max: int,
         y_min: int,
         y_max: int,
-        cols: int,
-        rows: int,
         **params: Any,
     ) -> np.ndarray:
-        bbox_out = fgeometric.bbox_rotate(bbox, angle, self.rotate_method, rows, cols)
+        image_shape = params["shape"][:2]
+        bbox_out = fgeometric.bbox_rotate(bbox, angle, self.rotate_method, image_shape)
         if self.crop_border:
-            return fcrops.crop_bbox_by_coords(bbox_out, (x_min, y_min, x_max, y_max), rows, cols)
+            return fcrops.crop_bbox_by_coords(bbox_out, (x_min, y_min, x_max, y_max), image_shape)
         return bbox_out
 
     def apply_to_keypoint(
@@ -189,11 +188,9 @@ class Rotate(DualTransform):
         x_max: int,
         y_min: int,
         y_max: int,
-        cols: int,
-        rows: int,
         **params: Any,
     ) -> KeypointInternalType:
-        keypoint_out = fgeometric.keypoint_rotate(keypoint, angle, rows, cols, **params)
+        keypoint_out = fgeometric.keypoint_rotate(keypoint, angle, params["shape"][:2], **params)
         if self.crop_border:
             return fcrops.crop_keypoint_by_coords(keypoint_out, (x_min, y_min, x_max, y_max))
         return keypoint_out
@@ -303,8 +300,8 @@ class SafeRotate(DualTransform):
     def apply_to_mask(self, mask: np.ndarray, matrix: np.ndarray, **params: Any) -> np.ndarray:
         return fgeometric.safe_rotate(mask, matrix, cv2.INTER_NEAREST, self.mask_value, self.border_mode)
 
-    def apply_to_bbox(self, bbox: BoxInternalType, cols: int, rows: int, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_safe_rotate(bbox, params["matrix"], cols, rows)
+    def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
+        return fgeometric.bbox_safe_rotate(bbox, params["matrix"], params["shape"])
 
     def apply_to_keypoint(
         self,
@@ -312,19 +309,17 @@ class SafeRotate(DualTransform):
         angle: float,
         scale_x: float,
         scale_y: float,
-        cols: int,
-        rows: int,
         **params: Any,
     ) -> KeypointInternalType:
-        return fgeometric.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, cols, rows)
+        return fgeometric.keypoint_safe_rotate(keypoint, params["matrix"], angle, scale_x, scale_y, params["shape"])
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"]
 
         angle = random.uniform(*self.limit)
 
         # https://stackoverflow.com/questions/43892506/opencv-python-rotate-image-without-cropping-sides
-        image_center = center(width, height)
+        image_center = center(image_shape)
 
         # Rotation Matrix
         rotation_mat = cv2.getRotationMatrix2D(image_center, angle, 1.0)
@@ -332,6 +327,8 @@ class SafeRotate(DualTransform):
         # rotation calculates the cos and sin, taking absolutes of those.
         abs_cos = abs(rotation_mat[0, 0])
         abs_sin = abs(rotation_mat[0, 1])
+
+        height, width = image_shape[:2]
 
         # find the new width and height bounds
         new_w = math.ceil(height * abs_sin + width * abs_cos)

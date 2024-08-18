@@ -185,9 +185,10 @@ class ElasticTransform(DualTransform):
         random_seed: int,
         **params: Any,
     ) -> BoxInternalType:
-        rows, cols = params["rows"], params["cols"]
-        mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox_denorm = fgeometric.denormalize_bbox(bbox, rows, cols)
+        image_shape = params["shape"][:2]
+
+        mask = np.zeros(image_shape, dtype=np.uint8)
+        bbox_denorm = fgeometric.denormalize_bbox(bbox, image_shape)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
@@ -202,7 +203,7 @@ class ElasticTransform(DualTransform):
             self.approximate,
         )
         bbox_returned = bbox_from_mask(mask)
-        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, rows, cols))
+        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, image_shape))
 
     def get_params(self) -> dict[str, int]:
         return {"random_seed": random_utils.get_random_seed()}
@@ -326,8 +327,7 @@ class Perspective(DualTransform):
     ) -> BoxInternalType:
         return fgeometric.perspective_bbox(
             bbox,
-            params["rows"],
-            params["cols"],
+            params["shape"],
             matrix,
             max_width,
             max_height,
@@ -344,8 +344,7 @@ class Perspective(DualTransform):
     ) -> np.ndarray:
         return fgeometric.perspective_keypoint(
             keypoint,
-            params["rows"],
-            params["cols"],
+            params["shape"],
             matrix,
             max_width,
             max_height,
@@ -743,12 +742,10 @@ class Affine(DualTransform):
         self,
         bbox: BoxInternalType,
         bbox_matrix: skimage.transform.ProjectiveTransform,
-        rows: int,
-        cols: int,
         output_shape: SizeType,
         **params: Any,
     ) -> BoxInternalType:
-        return fgeometric.bbox_affine(bbox, bbox_matrix, self.rotate_method, rows, cols, output_shape)
+        return fgeometric.bbox_affine(bbox, bbox_matrix, self.rotate_method, params["shape"][:2], output_shape)
 
     def apply_to_keypoint(
         self,
@@ -793,24 +790,24 @@ class Affine(DualTransform):
         return result_scale
 
     def get_params_dependent_on_data(self, params: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
-        height, width = params["shape"][:2]
+        image_shape = params["shape"][:2]
 
-        translate = self._get_translate_params(width, height)
+        translate = self._get_translate_params(image_shape)
         shear = self._get_shear_params()
         scale = self.get_scale(self.scale, self.keep_ratio, self.balanced_scale)
         rotate = -random.uniform(*self.rotate)
 
-        image_shift = center(width, height)
-        bbox_shift = center_bbox(width, height)
+        image_shift = center(image_shape)
+        bbox_shift = center_bbox(image_shape)
 
         matrix = self._create_transformation_matrix(translate, shear, scale, rotate, image_shift)
         bbox_matrix = self._create_transformation_matrix(translate, shear, scale, rotate, bbox_shift)
 
         if self.fit_output:
-            matrix, output_shape = self._compute_affine_warp_output_shape(matrix, params["shape"])
-            bbox_matrix, _ = self._compute_affine_warp_output_shape(bbox_matrix, params["shape"])
+            matrix, output_shape = self._compute_affine_warp_output_shape(matrix, image_shape)
+            bbox_matrix, _ = self._compute_affine_warp_output_shape(bbox_matrix, image_shape)
         else:
-            output_shape = params["shape"]
+            output_shape = image_shape
 
         return {
             "rotate": rotate,
@@ -820,7 +817,8 @@ class Affine(DualTransform):
             "output_shape": output_shape,
         }
 
-    def _get_translate_params(self, width: int, height: int) -> dict[str, float]:
+    def _get_translate_params(self, image_shape: tuple[int, int]) -> dict[str, float]:
+        height, width = image_shape[:2]
         if self.translate_px is not None:
             return {key: random.randint(*value) for key, value in self.translate_px.items()}
         if self.translate_percent is not None:
@@ -1237,7 +1235,7 @@ class PiecewiseAffine(DualTransform):
         matrix: skimage.transform.PiecewiseAffineTransform,
         **params: Any,
     ) -> BoxInternalType:
-        return fgeometric.bbox_piecewise_affine(bbox, matrix, rows, cols, self.keypoints_threshold)
+        return fgeometric.bbox_piecewise_affine(bbox, matrix, params["shape"], self.keypoints_threshold)
 
     def apply_to_keypoint(
         self,
@@ -1247,7 +1245,7 @@ class PiecewiseAffine(DualTransform):
         matrix: skimage.transform.PiecewiseAffineTransform,
         **params: Any,
     ) -> KeypointInternalType:
-        return fgeometric.keypoint_piecewise_affine(keypoint, matrix, rows, cols, self.keypoints_threshold)
+        return fgeometric.keypoint_piecewise_affine(keypoint, matrix, params["shape"], self.keypoints_threshold)
 
 
 class PadIfNeeded(DualTransform):
@@ -1367,8 +1365,7 @@ class PadIfNeeded(DualTransform):
 
     def update_params(self, params: dict[str, Any], **kwargs: Any) -> dict[str, Any]:
         params = super().update_params(params, **kwargs)
-        rows = params["rows"]
-        cols = params["cols"]
+        rows, cols = params["shape"][:2]
 
         if self.min_height is not None:
             if rows < self.min_height:
@@ -1464,10 +1461,8 @@ class PadIfNeeded(DualTransform):
     ) -> list[BoxType]:
         image_shape = params["shape"][:2]
 
-        rows, cols = image_shape
-
         bboxes_np = np.array(bboxes)
-        bboxes_np = denormalize_bboxes(bboxes_np, rows, cols)
+        bboxes_np = denormalize_bboxes(bboxes_np, params["shape"])
 
         result = fgeometric.pad_bboxes(
             bboxes_np,
@@ -1479,7 +1474,9 @@ class PadIfNeeded(DualTransform):
             image_shape=image_shape,
         )
 
-        return list(normalize_bboxes(result, rows + pad_top + pad_bottom, cols + pad_left + pad_right))
+        rows, cols = params["shape"][:2]
+
+        return list(normalize_bboxes(result, (rows + pad_top + pad_bottom, cols + pad_left + pad_right)))
 
     def apply_to_keypoints(
         self,
@@ -1580,10 +1577,10 @@ class VerticalFlip(DualTransform):
         return fgeometric.vflip(img)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_vflip(bbox, params["shape"][0], params["shape"][1])
+        return fgeometric.bbox_vflip(bbox)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_vflip(keypoint, params["shape"][0], params["shape"][1])
+        return fgeometric.keypoint_vflip(keypoint, params["rows"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1614,10 +1611,10 @@ class HorizontalFlip(DualTransform):
         return fgeometric.hflip(img)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_hflip(bbox, params["shape"][0], params["shape"][1])
+        return fgeometric.bbox_hflip(bbox)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_hflip(keypoint, params["shape"][0], params["shape"][1])
+        return fgeometric.keypoint_hflip(keypoint, params["cols"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1652,10 +1649,10 @@ class Flip(DualTransform):
         return {"d": random.randint(-1, 1)}
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_flip(bbox, params["d"], params["shape"][0], params["shape"][1])
+        return fgeometric.bbox_flip(bbox, params["d"])
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_flip(keypoint, params["d"], params["shape"][0], params["shape"][1])
+        return fgeometric.keypoint_flip(keypoint, params["d"], params["shape"])
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1681,10 +1678,10 @@ class Transpose(DualTransform):
         return fgeometric.transpose(img)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_transpose(bbox, params["shape"][0], params["shape"][1])
+        return fgeometric.bbox_transpose(bbox)
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        return fgeometric.keypoint_transpose(keypoint, params["shape"][0], params["shape"][1])
+        return fgeometric.keypoint_transpose(keypoint)
 
     def get_transform_init_args_names(self) -> tuple[()]:
         return ()
@@ -1772,21 +1769,21 @@ class OpticalDistortion(DualTransform):
         dy: int,
         **params: Any,
     ) -> BoxInternalType:
-        rows, cols = params["rows"], params["cols"]
-        mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox_denorm = fgeometric.denormalize_bbox(bbox, rows, cols)
+        image_shape = params["shape"]
+        mask = np.zeros(image_shape[:2], dtype=np.uint8)
+        bbox_denorm = fgeometric.denormalize_bbox(bbox, image_shape)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
         mask = fgeometric.optical_distortion(mask, k, dx, dy, cv2.INTER_NEAREST, self.border_mode, self.mask_value)
         bbox_returned = bbox_from_mask(mask)
-        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, rows, cols))
+        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, image_shape))
 
     def get_params(self) -> dict[str, Any]:
         return {
-            "k": random.uniform(self.distort_limit[0], self.distort_limit[1]),
-            "dx": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
-            "dy": round(random.uniform(self.shift_limit[0], self.shift_limit[1])),
+            "k": random.uniform(*self.distort_limit),
+            "dx": round(random.uniform(*self.shift_limit)),
+            "dy": round(random.uniform(*self.shift_limit)),
         }
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
@@ -1935,9 +1932,9 @@ class GridDistortion(DualTransform):
         stepsy: tuple[()],
         **params: Any,
     ) -> BoxInternalType:
-        rows, cols = params["rows"], params["cols"]
-        mask = np.zeros((rows, cols), dtype=np.uint8)
-        bbox_denorm = fgeometric.denormalize_bbox(bbox, rows, cols)
+        image_shape = params["shape"][:2]
+        mask = np.zeros(image_shape, dtype=np.uint8)
+        bbox_denorm = fgeometric.denormalize_bbox(bbox, image_shape)
         x_min, y_min, x_max, y_max = bbox_denorm[:4]
         x_min, y_min, x_max, y_max = int(x_min), int(y_min), int(x_max), int(y_max)
         mask[y_min:y_max, x_min:x_max] = 1
@@ -1951,7 +1948,7 @@ class GridDistortion(DualTransform):
             self.mask_value,
         )
         bbox_returned = bbox_from_mask(mask)
-        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, rows, cols))
+        return cast(BoxInternalType, fgeometric.normalize_bbox(bbox_returned, image_shape))
 
     def _normalize(self, h: int, w: int, xsteps: list[float], ysteps: list[float]) -> dict[str, Any]:
         # compensate for smaller last steps in source image.
@@ -2040,13 +2037,13 @@ class D4(DualTransform):
         always_apply: bool | None = None,
         p: float = 1,
     ):
-        super().__init__(p, always_apply)
+        super().__init__(p=p, always_apply=always_apply)
 
     def apply(self, img: np.ndarray, group_element: D4Type, **params: Any) -> np.ndarray:
         return fgeometric.d4(img, group_element)
 
     def apply_to_bbox(self, bbox: BoxInternalType, group_element: D4Type, **params: Any) -> BoxInternalType:
-        return fgeometric.bbox_d4(bbox, group_element, params["shape"][0], params["shape"][1])
+        return fgeometric.bbox_d4(bbox, group_element)
 
     def apply_to_keypoint(
         self,
@@ -2054,7 +2051,7 @@ class D4(DualTransform):
         group_element: D4Type,
         **params: Any,
     ) -> KeypointInternalType:
-        return fgeometric.keypoint_d4(keypoint, group_element, params["shape"][0], params["shape"][1])
+        return fgeometric.keypoint_d4(keypoint, group_element, params["shape"])
 
     def get_params(self) -> dict[str, D4Type]:
         return {

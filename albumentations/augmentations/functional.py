@@ -31,7 +31,6 @@ from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
     ColorType,
     ImageMode,
-    NumericType,
     PlanckianJitterMode,
     SizeType,
     SpatterMode,
@@ -1651,29 +1650,29 @@ def morphology(img: np.ndarray, kernel: np.ndarray, operation: str) -> np.ndarra
     raise ValueError(f"Unsupported operation: {operation}")
 
 
-def center(width: NumericType, height: NumericType) -> tuple[float, float]:
+def center(image_shape: tuple[int, int]) -> tuple[float, float]:
     """Calculate the center coordinates if image. Used by images, masks and keypoints.
 
     Args:
-        width (NumericType): The width of the rectangle.
-        height (NumericType): The height of the rectangle.
+        image_shape (tuple[int, int]): The shape of the image.
 
     Returns:
         tuple[float, float]: The center coordinates.
     """
+    height, width = image_shape[:2]
     return width / 2 - 0.5, height / 2 - 0.5
 
 
-def center_bbox(width: NumericType, height: NumericType) -> tuple[float, float]:
+def center_bbox(image_shape: tuple[int, int]) -> tuple[float, float]:
     """Calculate the center coordinates for of image for bounding boxes.
 
     Args:
-        width (NumericType): The width of the rectangle.
-        height (NumericType): The height of the rectangle.
+        image_shape (tuple[int, int]): The shape of the image.
 
     Returns:
         tuple[float, float]: The center coordinates.
     """
+    height, width = image_shape[:2]
     return width / 2, height / 2
 
 

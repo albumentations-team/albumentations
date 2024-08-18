@@ -183,10 +183,13 @@ def adapt_pixel_distribution(
 
 
 def low_freq_mutate(amp_src: np.ndarray, amp_trg: np.ndarray, beta: float) -> np.ndarray:
-    height, width = amp_src.shape[:2]
-    border = int(np.floor(min(height, width) * beta))
+    image_shape = amp_src.shape[:2]
 
-    center_x, center_y = fmain.center(width, height)
+    border = int(np.floor(min(image_shape) * beta))
+
+    center_x, center_y = fmain.center(image_shape)
+
+    height, width = image_shape
 
     h1, h2 = max(0, int(center_y - border)), min(int(center_y + border), height)
     w1, w2 = max(0, int(center_x - border)), min(int(center_x + border), width)

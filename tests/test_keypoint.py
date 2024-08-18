@@ -32,7 +32,7 @@ def test_convert_keypoint_to_albumentations(kp: KeypointType, source_format: str
     image = np.ones((100, 100, 3))
 
     converted_keypoint = convert_keypoint_to_albumentations(
-        kp, rows=image.shape[0], cols=image.shape[1], source_format=source_format
+        kp, source_format=source_format, image_shape=image.shape
     )
     assert converted_keypoint == expected
 
@@ -50,7 +50,7 @@ def test_convert_keypoint_to_albumentations(kp: KeypointType, source_format: str
 def test_convert_keypoint_from_albumentations(kp: KeypointType, target_format: str, expected: KeypointType) -> None:
     image = np.ones((100, 100, 3))
     converted_keypoint = convert_keypoint_from_albumentations(
-        kp, rows=image.shape[0], cols=image.shape[1], target_format=target_format
+        kp, target_format=target_format, image_shape=image.shape
     )
     assert converted_keypoint == expected
 
@@ -67,13 +67,12 @@ def test_convert_keypoint_from_albumentations(kp: KeypointType, target_format: s
 def test_convert_keypoint_to_albumentations_and_back(kp: KeypointType, keypoint_format: str) -> None:
     image = np.ones((100, 100, 3))
     converted_kp = convert_keypoint_to_albumentations(
-        kp, rows=image.shape[0], cols=image.shape[1], source_format=keypoint_format
+        kp, source_format=keypoint_format, image_shape=image.shape
     )
     converted_back_kp = convert_keypoint_from_albumentations(
         converted_kp,
-        rows=image.shape[0],
-        cols=image.shape[1],
         target_format=keypoint_format,
+        image_shape=image.shape,
     )
     assert converted_back_kp == kp
 
@@ -82,13 +81,13 @@ def test_convert_keypoints_to_albumentations() -> None:
     keypoints = [(20, 30, 40, 50), (30, 40, 50, 60, 99)]
     image = np.ones((100, 100, 3))
     converted_keypoints = convert_keypoints_to_albumentations(
-        keypoints, rows=image.shape[0], cols=image.shape[1], source_format="xyas"
+        keypoints, source_format="xyas", image_shape=image.shape
     )
     converted_keypoint_1 = convert_keypoint_to_albumentations(
-        keypoints[0], rows=image.shape[0], cols=image.shape[1], source_format="xyas"
+        keypoints[0], source_format="xyas", image_shape=image.shape
     )
     converted_keypoint_2 = convert_keypoint_to_albumentations(
-        keypoints[1], rows=image.shape[0], cols=image.shape[1], source_format="xyas"
+        keypoints[1], source_format="xyas", image_shape=image.shape
     )
     assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
 
@@ -97,13 +96,13 @@ def test_convert_keypoints_from_albumentations() -> None:
     keypoints = [(0.2, 0.3, 0.6, 0.8), (0.3, 0.4, 0.7, 0.9, 99)]
     image = np.ones((100, 100, 3))
     converted_keypoints = convert_keypoints_from_albumentations(
-        keypoints, rows=image.shape[0], cols=image.shape[1], target_format="xyas"
+        keypoints, target_format="xyas", image_shape=image.shape
     )
     converted_keypoint_1 = convert_keypoint_from_albumentations(
-        keypoints[0], rows=image.shape[0], cols=image.shape[1], target_format="xyas"
+        keypoints[0], target_format="xyas", image_shape=image.shape
     )
     converted_keypoint_2 = convert_keypoint_from_albumentations(
-        keypoints[1], rows=image.shape[0], cols=image.shape[1], target_format="xyas"
+        keypoints[1], target_format="xyas", image_shape=image.shape
     )
     assert converted_keypoints == [converted_keypoint_1, converted_keypoint_2]
 
@@ -254,7 +253,7 @@ def test_keypoint_transform_format_xyas(aug: BasicTransform, keypoints: Keypoint
     ],
 )
 def test_keypoint_rotate90(keypoint: KeypointType, expected: KeypointType, factor: int) -> None:
-    actual = fgeometric.keypoint_rot90(keypoint, factor, rows=100, cols=200)
+    actual = fgeometric.keypoint_rot90(keypoint, factor, (100, 200))
     assert actual == expected
 
 
@@ -270,7 +269,7 @@ def test_keypoint_rotate90(keypoint: KeypointType, expected: KeypointType, facto
     ],
 )
 def test_keypoint_rotate(keypoint: KeypointType, expected: KeypointType, angle: float) -> None:
-    actual = fgeometric.keypoint_rotate(keypoint, angle, rows=100, cols=100)
+    actual = fgeometric.keypoint_rotate(keypoint, angle, (100, 100))
     np.testing.assert_allclose(actual, expected, atol=1e-7)
 
 

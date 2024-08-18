@@ -185,7 +185,7 @@ class BaseCompose(Serializable):
 
     def check_data_post_transform(self, data: Any) -> dict[str, Any]:
         if self.check_each_transform:
-            rows, cols = get_shape(data["image"])
+            image_shape = get_shape(data["image"])
 
             for proc in self.check_each_transform:
                 for data_name in data:
@@ -193,7 +193,7 @@ class BaseCompose(Serializable):
                         data_name in self._additional_targets
                         and self._additional_targets[data_name] in proc.data_fields
                     ):
-                        data[data_name] = proc.filter(data[data_name], rows, cols)
+                        data[data_name] = proc.filter(data[data_name], image_shape)
         return data
 
 

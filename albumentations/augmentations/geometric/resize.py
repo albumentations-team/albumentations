@@ -167,17 +167,16 @@ class LongestMaxSize(DualTransform):
         max_size: int,
         **params: Any,
     ) -> KeypointInternalType:
-        height = params["rows"]
-        width = params["cols"]
+        image_shape = params["shape"][:2]
 
-        scale = max_size / max([height, width])
+        scale = max_size / max(image_shape)
         return fgeometric.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> dict[str, int]:
         return {"max_size": self.max_size if isinstance(self.max_size, int) else random.choice(self.max_size)}
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("max_size", "interpolation")
+        return "max_size", "interpolation"
 
 
 class SmallestMaxSize(DualTransform):
@@ -231,10 +230,10 @@ class SmallestMaxSize(DualTransform):
         max_size: int,
         **params: Any,
     ) -> KeypointInternalType:
-        height = params["rows"]
-        width = params["cols"]
+        image_shape = params["shape"][:2]
+        height, width = image_shape
 
-        scale = max_size / min([height, width])
+        scale = max_size / min(image_shape)
         return fgeometric.keypoint_scale(keypoint, scale, scale)
 
     def get_params(self) -> dict[str, int]:
@@ -285,18 +284,17 @@ class Resize(DualTransform):
         self.interpolation = interpolation
 
     def apply(self, img: np.ndarray, interpolation: int, **params: Any) -> np.ndarray:
-        return fgeometric.resize(img, height=self.height, width=self.width, interpolation=interpolation)
+        return fgeometric.resize(img, (self.height, self.width), interpolation=interpolation)
 
     def apply_to_bbox(self, bbox: BoxInternalType, **params: Any) -> BoxInternalType:
         # Bounding box coordinates are scale invariant
         return bbox
 
     def apply_to_keypoint(self, keypoint: KeypointInternalType, **params: Any) -> KeypointInternalType:
-        height = params["rows"]
-        width = params["cols"]
+        height, width = params["shape"][:2]
         scale_x = self.width / width
         scale_y = self.height / height
         return fgeometric.keypoint_scale(keypoint, scale_x, scale_y)
 
     def get_transform_init_args_names(self) -> tuple[str, ...]:
-        return ("height", "width", "interpolation")
+        return "height", "width", "interpolation"
