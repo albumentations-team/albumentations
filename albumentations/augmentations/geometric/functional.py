@@ -335,11 +335,11 @@ def keypoint_rotate(
 
 
 @preserve_channel_dim
-def resize(img: np.ndarray, target_size: tuple[int, int], interpolation: int) -> np.ndarray:
-    if target_size == img.shape[:2]:
+def resize(img: np.ndarray, target_shape: tuple[int, int], interpolation: int) -> np.ndarray:
+    if target_shape == img.shape[:2]:
         return img
 
-    height, width = target_size
+    height, width = target_shape
     resize_fn = maybe_process_in_chunks(cv2.resize, dsize=(width, height), interpolation=interpolation)
     return resize_fn(img)
 
