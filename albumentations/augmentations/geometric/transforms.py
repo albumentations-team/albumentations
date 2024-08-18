@@ -738,14 +738,16 @@ class Affine(DualTransform):
             output_shape=output_shape,
         )
 
-    def apply_to_bbox(
+    def apply_to_bboxes(
         self,
-        bbox: BoxInternalType,
+        bboxes: Sequence[BoxType],
         bbox_matrix: skimage.transform.ProjectiveTransform,
         output_shape: SizeType,
         **params: Any,
-    ) -> BoxInternalType:
-        return fgeometric.bbox_affine(bbox, bbox_matrix, self.rotate_method, params["shape"][:2], output_shape)
+    ) -> list[BoxType]:
+        bboxes_np = np.array(bboxes)
+        result = fgeometric.bboxes_affine(bboxes_np, bbox_matrix, self.rotate_method, params["shape"][:2], output_shape)
+        return result.tolist()
 
     def apply_to_keypoint(
         self,
@@ -754,13 +756,6 @@ class Affine(DualTransform):
         scale: dict[str, Any],
         **params: Any,
     ) -> KeypointInternalType:
-        if scale is None:
-            msg = "Expected scale to be provided, but got None."
-            raise ValueError(msg)
-        if matrix is None:
-            msg = "Expected matrix to be provided, but got None."
-            raise ValueError(msg)
-
         return fgeometric.keypoint_affine(keypoint, matrix=matrix, scale=scale)
 
     @staticmethod

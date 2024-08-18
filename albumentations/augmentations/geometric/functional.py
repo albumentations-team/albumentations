@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Callable, Sequence, cast
+from typing import Any, Callable, Literal, Sequence, cast
 
 import cv2
 import numpy as np
@@ -11,7 +11,7 @@ from albucore.utils import clipped, get_num_channels, maybe_process_in_chunks, p
 from albumentations import random_utils
 from albumentations.augmentations.functional import center
 from albumentations.augmentations.utils import angle_2pi_range
-from albumentations.core.bbox_utils import denormalize_bbox, normalize_bbox
+from albumentations.core.bbox_utils import denormalize_bbox, denormalize_bboxes, normalize_bbox, normalize_bboxes
 from albumentations.core.types import (
     NUM_MULTI_CHANNEL_DIMENSIONS,
     BoxInternalType,
@@ -47,7 +47,6 @@ __all__ = [
     "_is_identity_matrix",
     "warp_affine",
     "keypoint_affine",
-    "bbox_affine",
     "safe_rotate",
     "bbox_safe_rotate",
     "keypoint_safe_rotate",
@@ -75,7 +74,7 @@ __all__ = [
     "keypoint_d4",
 ]
 
-TWO = 2
+PAIR = 2
 
 ROT90_180_FACTOR = 2
 ROT90_270_FACTOR = 3
@@ -550,41 +549,77 @@ def keypoint_affine(
     return x, y, a, s
 
 
-def bbox_affine(
-    bbox: BoxInternalType,
+def _bboxes_affine_largest_box(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+    # Extract corners of all bboxes
+    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
+    corners = np.array([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]]).transpose(
+        2,
+        0,
+        1,
+    )  # Shape: (num_bboxes, 4, 2)
+
+    # Transform all corners at once
+    transformed_corners = skimage.transform.matrix_transform(corners.reshape(-1, 2), matrix.params)
+    transformed_corners = transformed_corners.reshape(-1, 4, 2)
+
+    # Compute new bounding boxes
+    new_x_min = np.min(transformed_corners[:, :, 0], axis=1)
+    new_x_max = np.max(transformed_corners[:, :, 0], axis=1)
+    new_y_min = np.min(transformed_corners[:, :, 1], axis=1)
+    new_y_max = np.max(transformed_corners[:, :, 1], axis=1)
+
+    return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
+
+
+def _bboxes_affine_ellipse(bboxes: np.ndarray, matrix: skimage.transform.ProjectiveTransform) -> np.ndarray:
+    x_min, y_min, x_max, y_max = bboxes[:, 0], bboxes[:, 1], bboxes[:, 2], bboxes[:, 3]
+    bbox_width = (x_max - x_min) / 2
+    bbox_height = (y_max - y_min) / 2
+    center_x = x_min + bbox_width
+    center_y = y_min + bbox_height
+
+    angles = np.arange(0, 360, dtype=np.float32)
+    cos_angles = np.cos(np.radians(angles))
+    sin_angles = np.sin(np.radians(angles))
+
+    # Generate points for all ellipses at once
+    x = bbox_width[:, np.newaxis] * sin_angles + center_x[:, np.newaxis]
+    y = bbox_height[:, np.newaxis] * cos_angles + center_y[:, np.newaxis]
+    points = np.stack([x, y], axis=-1).reshape(-1, 2)
+
+    # Transform all points at once
+    transformed_points = skimage.transform.matrix_transform(points, matrix.params)
+    transformed_points = transformed_points.reshape(len(bboxes), -1, 2)
+
+    # Compute new bounding boxes
+    new_x_min = np.min(transformed_points[:, :, 0], axis=1)
+    new_x_max = np.max(transformed_points[:, :, 0], axis=1)
+    new_y_min = np.min(transformed_points[:, :, 1], axis=1)
+    new_y_max = np.max(transformed_points[:, :, 1], axis=1)
+
+    return np.column_stack([new_x_min, new_y_min, new_x_max, new_y_max, bboxes[:, 4:]])
+
+
+def bboxes_affine(
+    bboxes: np.ndarray,
     matrix: skimage.transform.ProjectiveTransform,
-    rotate_method: str,
+    rotate_method: Literal["largest_box", "ellipse"],
     image_shape: Sequence[int],
     output_shape: Sequence[int],
-) -> BoxInternalType:
+) -> np.ndarray:
     if _is_identity_matrix(matrix):
-        return bbox
-    x_min, y_min, x_max, y_max = denormalize_bbox(bbox, image_shape)[:4]
+        return bboxes
+
+    bboxes = denormalize_bboxes(bboxes, image_shape)
+
     if rotate_method == "largest_box":
-        points = np.array(
-            [
-                [x_min, y_min],
-                [x_max, y_min],
-                [x_max, y_max],
-                [x_min, y_max],
-            ],
-        )
+        transformed_bboxes = _bboxes_affine_largest_box(bboxes, matrix)
     elif rotate_method == "ellipse":
-        bbox_width = (x_max - x_min) / 2
-        bbox_height = (y_max - y_min) / 2
-        data = np.arange(0, 360, dtype=np.float32)
-        x = bbox_width * np.sin(np.radians(data)) + (bbox_width + x_min - 0.5)
-        y = bbox_height * np.cos(np.radians(data)) + (bbox_height + y_min - 0.5)
-        points = np.hstack([x.reshape(-1, 1), y.reshape(-1, 1)])
+        transformed_bboxes = _bboxes_affine_ellipse(bboxes, matrix)
     else:
         raise ValueError(f"Method {rotate_method} is not a valid rotation method.")
-    points = skimage.transform.matrix_transform(points, matrix.params)
-    x_min = np.min(points[:, 0])
-    x_max = np.max(points[:, 0])
-    y_min = np.min(points[:, 1])
-    y_max = np.max(points[:, 1])
 
-    return cast(BoxInternalType, normalize_bbox((x_min, y_min, x_max, y_max), output_shape[:2]))
+    return normalize_bboxes(transformed_bboxes, output_shape)
 
 
 @preserve_channel_dim
@@ -737,7 +772,7 @@ def validate_if_not_found_coords(
     if if_not_found_coords is None:
         return True, -1, -1
     if isinstance(if_not_found_coords, (tuple, list)):
-        if len(if_not_found_coords) != TWO:
+        if len(if_not_found_coords) != PAIR:
             msg = "Expected tuple/list 'if_not_found_coords' to contain exactly two entries."
             raise ValueError(msg)
         return False, if_not_found_coords[0], if_not_found_coords[1]
